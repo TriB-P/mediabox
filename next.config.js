@@ -6,7 +6,8 @@ const nextConfig = {
   },
   swcMinify: false,
   images: {
-    domains: ['lh3.googleusercontent.com'], // Pour les avatars Google
+    domains: ['lh3.googleusercontent.com','storage.googleapis.com'], // Pour les avatars Google
+
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {

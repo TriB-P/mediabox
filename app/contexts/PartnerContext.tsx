@@ -59,7 +59,7 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
         const uniqueTypes: {[key: string]: boolean} = {};
         partnersData.forEach(partner => {
           if (partner.SH_Type) {
-            uniqueTypes[partner.SH_Type] = true;
+            uniqueTypes[partner.SH_Type] = false; // Tous désactivés par défaut
           }
         });
         setActiveTypes(uniqueTypes);
@@ -88,11 +88,23 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     setFilteredPartners(filtered);
   }, [partners, searchTerm, activeTypes]);
 
+  // Nouvelle implémentation: sélectionner un seul type à la fois
   const toggleType = (type: string) => {
-    setActiveTypes(prev => ({
-      ...prev,
-      [type]: !prev[type]
-    }));
+    // Si le type est déjà actif, on désactive tous les types
+    if (activeTypes[type]) {
+      const resetTypes = {...activeTypes};
+      Object.keys(resetTypes).forEach(key => {
+        resetTypes[key] = false;
+      });
+      setActiveTypes(resetTypes);
+    } else {
+      // Sinon, on désactive tous les types et on active uniquement celui-ci
+      const newActiveTypes = {...activeTypes};
+      Object.keys(newActiveTypes).forEach(key => {
+        newActiveTypes[key] = key === type;
+      });
+      setActiveTypes(newActiveTypes);
+    }
   };
 
   const value = {

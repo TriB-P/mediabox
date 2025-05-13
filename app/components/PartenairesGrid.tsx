@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { usePartners } from '../contexts/PartnerContext';
-import Image from 'next/image';
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 export default function PartenairesGrid() {
   const { 
@@ -10,11 +11,60 @@ export default function PartenairesGrid() {
     setIsDrawerOpen, 
     isLoading 
   } = usePartners();
+  
+  // État pour suivre les images chargées
+  const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
+  const [loadingImages, setLoadingImages] = useState(false);
 
   const handlePartnerClick = (partner: any) => {
     setSelectedPartner(partner);
     setIsDrawerOpen(true);
   };
+
+  // Rendu du placeholder pour les partenaires sans image valide
+  const renderPlaceholder = (partner: any) => (
+    <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
+      {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
+    </div>
+  );
+
+  // Cette fonction essaie de récupérer directement l'URL de téléchargement depuis Firebase Storage
+  useEffect(() => {
+    if (!isLoading && filteredPartners.length > 0) {
+      const storage = getStorage();
+      setLoadingImages(true);
+
+      const loadImages = async () => {
+        const urls: {[key: string]: string} = {};
+
+        // Pour chaque partenaire qui a un chemin SH_Logo commençant par "gs://"
+        for (const partner of filteredPartners) {
+          if (partner.SH_Logo) {
+            try {
+              if (partner.SH_Logo.startsWith('gs://')) {
+                // Si c'est une référence de stockage Firebase (gs://)
+                const storageRef = ref(storage, partner.SH_Logo);
+                const url = await getDownloadURL(storageRef);
+                urls[partner.id] = url;
+                console.log(`URL pour ${partner.id}:`, url);
+              } else {
+                // Si c'est déjà une URL HTTP(S), l'utiliser directement
+                urls[partner.id] = partner.SH_Logo;
+                console.log(`URL directe pour ${partner.id}:`, partner.SH_Logo);
+              }
+            } catch (error) {
+              console.error(`Erreur de chargement d'image pour ${partner.id}:`, error);
+            }
+          }
+        }
+
+        setImageUrls(urls);
+        setLoadingImages(false);
+      };
+
+      loadImages();
+    }
+  }, [isLoading, filteredPartners]);
 
   if (isLoading) {
     return (
@@ -46,18 +96,26 @@ export default function PartenairesGrid() {
           className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => handlePartnerClick(partner)}
         >
-          <div className="h-24 w-full flex items-center justify-center mb-3 relative">
-            {partner.SH_Logo ? (
-              <Image
-                src={partner.SH_Logo}
-                alt={partner.SH_Display_Name_FR}
-                className="object-contain"
-                fill
-              />
-            ) : (
-              <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
-                {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
+          <div className="h-24 w-full flex items-center justify-center mb-3">
+            {imageUrls[partner.id] ? (
+              <div className="h-20 w-20 flex items-center justify-center">
+                <img
+                  src={imageUrls[partner.id]}
+                  alt={partner.SH_Display_Name_FR}
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => {
+                    // En cas d'erreur, supprimer l'URL pour afficher le placeholder à la place
+                    setImageUrls(prev => {
+                      const newUrls = {...prev};
+                      delete newUrls[partner.id];
+                      return newUrls;
+                    });
+                  }}
+                  loading="lazy"
+                />
               </div>
+            ) : (
+              renderPlaceholder(partner)
             )}
           </div>
           <p className="text-sm font-medium text-center text-gray-900 mt-2">
