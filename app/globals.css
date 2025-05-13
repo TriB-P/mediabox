@@ -16,15 +16,15 @@
 /* Composants personnalisés */
 @layer components {
   .btn-primary {
-    @apply bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors duration-200;
+    @apply bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors duration-200;
   }
 
   .btn-secondary {
-    @apply bg-secondary-200 text-secondary-800 px-4 py-2 rounded-md hover:bg-secondary-300 transition-colors duration-200;
+    @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors duration-200;
   }
 
   .form-input {
-    @apply w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500;
+    @apply w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500;
   }
 
   .form-label {

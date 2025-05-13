@@ -345,7 +345,7 @@ export default function CampaignDrawer({
 
         <div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
-            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+            <div className="fixed inset-y-0 right-0 flex max-w-full">
               <Transition.Child
                 as={Fragment}
                 enter="transform transition ease-in-out duration-500 sm:duration-700"
@@ -355,10 +355,10 @@ export default function CampaignDrawer({
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
+                <Dialog.Panel className="pointer-events-auto w-[50vw]">
                   <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
                     {/* Header */}
-                    <div className="sticky top-0 z-10 bg-primary-500 px-4 py-6 sm:px-6">
+                    <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-lg font-medium text-white">
                           {campaign

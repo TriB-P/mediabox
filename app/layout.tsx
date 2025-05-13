@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ClientProvider } from './contexts/ClientContext';
 
 export const metadata: Metadata = {
-  title: 'Media Campaign Manager',
+  title: 'MediaBox',
   description: 'Gestion des campagnes média',
 };
 

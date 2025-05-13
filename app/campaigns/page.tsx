@@ -1,6 +1,5 @@
 'use client';
 
-
 import React, { useState, useEffect } from 'react';
 import { Campaign, CampaignFormData } from '../types/campaign';
 import CampaignDrawer from '../components/CampaignDrawer';
@@ -15,6 +14,8 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  FunnelIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -153,56 +154,49 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       {/* En-tête de la page */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Campagnes {selectedClient ? `- ${selectedClient.CL_Name}` : ''}
-          </h2>
-          <p className="text-gray-600">Gérez vos campagnes média</p>
-        </div>
-        <button
-          onClick={() => {
-            setSelectedCampaign(null);
-            setIsDrawerOpen(true);
-          }}
-          disabled={!selectedClient}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-            selectedClient
-              ? 'bg-primary-500 text-white hover:bg-primary-600'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          Add
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Campagnes</h1>
       </div>
 
-      {/* Barre de recherche */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      {/* Barre de recherche et filtres */}
+      <div className="flex justify-between gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Rechercher une campagne..."
+          />
         </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          placeholder="Rechercher une campagne..."
-        />
+        
+        <div className="flex gap-2">
+          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <FunnelIcon className="h-5 w-5 mr-2 text-gray-400" /> 
+            Filter
+          </button>
+          
+          <button
+            onClick={() => {
+              setSelectedCampaign(null);
+              setIsDrawerOpen(true);
+            }}
+            disabled={!selectedClient}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+              selectedClient
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <PlusIcon className="h-5 w-5" />
+            Nouvelle
+          </button>
+        </div>
       </div>
 
       {/* Gestion des états de chargement et d'erreur */}
@@ -228,178 +222,110 @@ export default function CampaignsPage() {
 
       {/* Tableau des campagnes */}
       {!loading && sortedCampaigns.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="w-8"></th>
-                {[
-                  { key: 'name', label: 'Campaign name' },
-                  { key: 'status', label: 'Status' },
-                  { key: 'budget', label: 'Budget' },
-                  { key: 'startDate', label: 'Start date' },
-                  { key: 'endDate', label: 'End date' },
-                  { key: 'quarter', label: 'Quarter' },
-                  { key: 'year', label: 'Year' },
-                ].map(({ key, label }) => (
-                  <th
-                    key={key}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort(key as SortField)}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{label}</span>
-                      <div className="flex flex-col">
-                        <ChevronUpIcon
-                          className={`h-3 w-3 ${
-                            sortField === key && sortDirection === 'asc'
-                              ? 'text-primary-500'
-                              : 'text-gray-400'
-                          }`}
-                        />
-                        <ChevronDownIcon
-                          className={`h-3 w-3 -mt-1 ${
-                            sortField === key && sortDirection === 'desc'
-                              ? 'text-primary-500'
-                              : 'text-gray-400'
-                          }`}
-                        />
+        <div className="bg-white rounded-lg shadow overflow-hidden flex-grow flex flex-col min-h-0">
+          <div className="overflow-auto flex-grow h-full">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="w-8"></th>
+                  {[
+                    { key: 'name', label: 'NOM DE CAMPAGNE' },
+                    { key: 'budget', label: 'BUDGET' },
+                    { key: 'startDate', label: 'DÉBUT' },
+                  ].map(({ key, label }) => (
+                    <th
+                      key={key}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort(key as SortField)}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>{label}</span>
+                        <div className="flex flex-col">
+                          <ChevronUpIcon
+                            className={`h-3 w-3 ${
+                              sortField === key && sortDirection === 'asc'
+                                ? 'text-indigo-500'
+                                : 'text-gray-400'
+                            }`}
+                          />
+                          <ChevronDownIcon
+                            className={`h-3 w-3 -mt-1 ${
+                              sortField === key && sortDirection === 'desc'
+                                ? 'text-indigo-500'
+                                : 'text-gray-400'
+                            }`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedCampaigns.map((campaign) => (
-                <React.Fragment key={campaign.id}>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-2 py-4">
-                      <button
-                        onClick={() => toggleRowExpansion(campaign.id)}
-                        className="p-1 rounded hover:bg-gray-200"
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedCampaigns.map((campaign) => (
+                  <React.Fragment key={campaign.id}>
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-2 py-4">
+                        <button
+                          onClick={() => toggleRowExpansion(campaign.id)}
+                          className="p-1 rounded hover:bg-gray-200"
+                        >
+                          <ChevronRightIcon
+                            className={`h-5 w-5 text-gray-500 transform transition-transform ${
+                              expandedRows.has(campaign.id) ? 'rotate-90' : ''
+                            }`}
+                          />
+                        </button>
+                      </td>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                        onClick={() => {
+                          setSelectedCampaign(campaign);
+                          setIsDrawerOpen(true);
+                        }}
                       >
-                        <ChevronRightIcon
-                          className={`h-5 w-5 text-gray-500 transform transition-transform ${
-                            expandedRows.has(campaign.id) ? 'rotate-90' : ''
-                          }`}
-                        />
-                      </button>
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      <div className="flex items-center">
-                        <span className="text-sm font-medium text-gray-900">
-                          {campaign.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                        ${
-                          campaign.status === 'Done'
-                            ? 'bg-green-100 text-green-800'
-                            : ''
-                        }
-                        ${
-                          campaign.status === 'Cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : ''
-                        }
-                        ${
-                          campaign.status === 'Active'
-                            ? 'bg-blue-100 text-blue-800'
-                            : ''
-                        }
-                        ${
-                          campaign.status === 'Planned'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : ''
-                        }
-                        ${
-                          campaign.status === 'Draft'
-                            ? 'bg-gray-100 text-gray-800'
-                            : ''
-                        }
-                      `}
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            {campaign.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => {
+                          setSelectedCampaign(campaign);
+                          setIsDrawerOpen(true);
+                        }}
                       >
-                        {campaign.status}
-                      </span>
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      {formatCurrency(campaign.budget)}
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      {campaign.startDate}
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      {campaign.endDate}
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      {campaign.quarter}
-                    </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      {campaign.year}
-                    </td>
-                  </tr>
-                  {expandedRows.has(campaign.id) && (
-                    <tr>
-                      <td colSpan={8} className="px-0 py-0">
-                        <CampaignVersions
-                          clientId={selectedClient!.clientId}
-                          campaignId={campaign.id}
-                          officialVersionId={campaign.officialVersionId}
-                          onVersionChange={loadCampaigns}
-                        />
+                        {formatCurrency(campaign.budget)}
+                      </td>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                        onClick={() => {
+                          setSelectedCampaign(campaign);
+                          setIsDrawerOpen(true);
+                        }}
+                      >
+                        {campaign.startDate}
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {expandedRows.has(campaign.id) && (
+                      <tr>
+                        <td colSpan={4} className="px-0 py-0">
+                          <CampaignVersions
+                            clientId={selectedClient!.clientId}
+                            campaignId={campaign.id}
+                            officialVersionId={campaign.officialVersionId}
+                            onVersionChange={loadCampaigns}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -20,27 +20,27 @@ export default function ClientDropdown() {
 
   // Si aucun client n'est sélectionné, afficher "Sélectionner un client"
   const displayText = selectedClient ? (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 truncate">
       {selectedClient.CL_Logo && (
         <img
           src={selectedClient.CL_Logo}
           alt={selectedClient.CL_Name}
-          className="h-5 w-5 rounded-full object-cover"
+          className="h-5 w-5 rounded-full object-cover flex-shrink-0"
         />
       )}
-      <span>{selectedClient.CL_Name}</span>
+      <span className="truncate">{selectedClient.CL_Name}</span>
     </div>
   ) : (
     <span>Sélectionner un client</span>
   );
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
+    <Menu as="div" className="relative inline-block text-left w-full">
       <div>
-        <Menu.Button className="inline-flex w-full justify-center items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-          {displayText}
+        <Menu.Button className="inline-flex w-full justify-between items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+          <div className="truncate max-w-[110px]">{displayText}</div>
           <ChevronDownIcon
-            className="-mr-1 h-5 w-5 text-gray-400"
+            className="h-5 w-5 text-gray-400"
             aria-hidden="true"
           />
         </Menu.Button>
@@ -55,7 +55,7 @@ export default function ClientDropdown() {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+        <Menu.Items className="absolute left-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <div className="py-1">
             {availableClients.map((client) => (
               <Menu.Item key={client.clientId}>
@@ -81,7 +81,7 @@ export default function ClientDropdown() {
                     )}
                     <span>{client.CL_Name}</span>
                     {client.clientId === selectedClient?.clientId && (
-                      <span className="ml-auto text-primary-600">✓</span>
+                      <span className="ml-auto text-indigo-600">✓</span>
                     )}
                   </button>
                 )}
