@@ -29,6 +29,29 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
     );
   }
   
+  // Rendu des badges de langue
+  const renderLanguageBadges = (languages: { FR: boolean; EN: boolean }) => {
+    const badges = [];
+    
+    if (languages.FR) {
+      badges.push(
+        <span key="FR" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-1">
+          FR
+        </span>
+      );
+    }
+    
+    if (languages.EN) {
+      badges.push(
+        <span key="EN" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+          EN
+        </span>
+      );
+    }
+    
+    return badges;
+  };
+  
   return (
     <ul className="divide-y divide-gray-200">
       {contacts.map((contact) => (
@@ -43,7 +66,10 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {contact.firstName} {contact.lastName}
+                  {contact.firstName} {contact.lastName} {' '}
+                  <span className="ml-1">
+                    {renderLanguageBadges(contact.languages)}
+                  </span>
                 </p>
                 <p className="text-sm text-gray-500 flex items-center">
                   <EnvelopeIcon className="h-3 w-3 mr-1" />
@@ -82,8 +108,12 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
             <div className="mt-3 ml-10 p-3 bg-gray-50 rounded-md text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="font-medium text-gray-500">Langue:</span>{' '}
-                  <span className="text-gray-900">{contact.language === 'FR' ? 'Français' : 'Anglais'}</span>
+                  <span className="font-medium text-gray-500">Langues:</span>{' '}
+                  <span className="text-gray-900">
+                    {contact.languages.FR && contact.languages.EN ? 'Français et Anglais' :
+                     contact.languages.FR ? 'Français' : 
+                     contact.languages.EN ? 'Anglais' : 'Non spécifié'}
+                  </span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-500">Créé le:</span>{' '}

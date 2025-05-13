@@ -2,11 +2,18 @@
 
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, UserIcon, BuildingOfficeIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, BuildingOfficeIcon, DocumentTextIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+
+// Imports pour les contacts
 import { Contact, ContactFormData, getPartnerContacts, addContact, updateContact, deleteContact } from '../lib/contactService';
 import ContactForm from './ContactForm';
 import ContactList from './ContactList';
+
+// Imports pour les specs
+import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../lib/specService';
+import SpecForm from './SpecForm';
+import SpecList from './SpecList';
 
 // Type pour les partenaires
 interface Partner {
@@ -26,18 +33,31 @@ interface PartnerDrawerProps {
 }
 
 export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawerProps) {
+  // États pour l'image du partenaire
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // États pour les onglets
+  const [selectedTab, setSelectedTab] = useState(0);
+  
+  // États pour les contacts
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(0);
   
+  // États pour les specs
+  const [specs, setSpecs] = useState<Spec[]>([]);
+  const [loadingSpecs, setLoadingSpecs] = useState(false);
+  const [selectedSpec, setSelectedSpec] = useState<Spec | null>(null);
+  const [showSpecForm, setShowSpecForm] = useState(false);
+  
+  // Définition des onglets
   const categories = [
     { name: 'Informations', icon: BuildingOfficeIcon },
     { name: 'Contacts', icon: UserIcon },
+    { name: 'Specs', icon: DocumentTextIcon }
   ];
 
   // Effet pour charger l'image lorsqu'un nouveau partenaire est sélectionné
@@ -91,10 +111,31 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
       }
     }
     
-    if (isOpen && partner) {
+    if (isOpen && partner && selectedTab === 1) {
       loadContacts();
     }
-  }, [partner, isOpen]);
+  }, [partner, isOpen, selectedTab]);
+  
+  // Charger les specs lorsque le partenaire change
+  useEffect(() => {
+    async function loadSpecs() {
+      if (!partner) return;
+      
+      setLoadingSpecs(true);
+      try {
+        const partnerSpecs = await getPartnerSpecs(partner.id);
+        setSpecs(partnerSpecs);
+      } catch (error) {
+        console.error('Erreur lors du chargement des specs:', error);
+      } finally {
+        setLoadingSpecs(false);
+      }
+    }
+    
+    if (isOpen && partner && selectedTab === 2) {
+      loadSpecs();
+    }
+  }, [partner, isOpen, selectedTab]);
 
   // Fonction pour convertir SH_Tags en tableau s'il s'agit d'une chaîne
   const getTagsArray = (tags: string | string[] | undefined): string[] => {
@@ -114,6 +155,8 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     </div>
   );
 
+  // FONCTIONS POUR LES CONTACTS
+  
   // Gérer l'ajout d'un contact
   const handleAddContact = async (contactData: ContactFormData) => {
     if (!partner) return;
@@ -155,6 +198,52 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
       setContacts(prev => prev.filter(contact => contact.id !== contactId));
     } catch (error) {
       console.error('Erreur lors de la suppression du contact:', error);
+    }
+  };
+  
+  // FONCTIONS POUR LES SPECS
+  
+  // Gérer l'ajout d'une spec
+  const handleAddSpec = async (specData: SpecFormData) => {
+    if (!partner) return;
+    
+    try {
+      await addSpec(partner.id, specData);
+      // Recharger les specs
+      const updatedSpecs = await getPartnerSpecs(partner.id);
+      setSpecs(updatedSpecs);
+      setShowSpecForm(false);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la spec:', error);
+    }
+  };
+
+  // Gérer la mise à jour d'une spec
+  const handleUpdateSpec = async (specData: SpecFormData) => {
+    if (!partner || !selectedSpec) return;
+    
+    try {
+      await updateSpec(partner.id, selectedSpec.id, specData);
+      // Recharger les specs
+      const updatedSpecs = await getPartnerSpecs(partner.id);
+      setSpecs(updatedSpecs);
+      setSelectedSpec(null);
+      setShowSpecForm(false);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la spec:', error);
+    }
+  };
+
+  // Gérer la suppression d'une spec
+  const handleDeleteSpec = async (specId: string) => {
+    if (!partner) return;
+    
+    try {
+      await deleteSpec(partner.id, specId);
+      // Mettre à jour la liste locale
+      setSpecs(prev => prev.filter(spec => spec.id !== specId));
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la spec:', error);
     }
   };
 
@@ -209,7 +298,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                     {/* Content */}
                     {partner && (
                       <div>
-                        {/* Onglets manuels au lieu de Tab.Group */}
+                        {/* Onglets */}
                         <div className="flex border-b border-gray-200">
                           {categories.map((category, index) => {
                             const Icon = category.icon;
@@ -325,6 +414,55 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     setShowContactForm(true);
                                   }}
                                   onDelete={handleDeleteContact}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Panneau Specs */}
+                        {selectedTab === 2 && (
+                          <div className="p-6">
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                <h2 className="text-lg font-medium text-gray-900">Spécifications techniques</h2>
+                                {!showSpecForm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSpec(null);
+                                      setShowSpecForm(true);
+                                    }}
+                                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                                  >
+                                    <PlusIcon className="h-4 w-4 mr-1" />
+                                    Ajouter une spec
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {showSpecForm ? (
+                                <SpecForm
+                                  spec={selectedSpec || undefined}
+                                  onSubmit={selectedSpec ? handleUpdateSpec : handleAddSpec}
+                                  onCancel={() => {
+                                    setShowSpecForm(false);
+                                    setSelectedSpec(null);
+                                  }}
+                                />
+                              ) : loadingSpecs ? (
+                                <div className="text-center py-4">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+                                  <p className="mt-2 text-sm text-gray-500">Chargement des spécifications...</p>
+                                </div>
+                              ) : (
+                                <SpecList
+                                  specs={specs}
+                                  onEdit={(spec) => {
+                                    setSelectedSpec(spec);
+                                    setShowSpecForm(true);
+                                  }}
+                                  onDelete={handleDeleteSpec}
                                 />
                               )}
                             </div>

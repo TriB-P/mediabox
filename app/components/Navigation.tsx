@@ -29,7 +29,6 @@ export default function Navigation() {
     { name: 'Stratégie', href: '/strategy', icon: LineChart },
     { name: 'Tactiques', href: '/tactiques', icon: Layers },
     { name: 'Documents', href: '/documents', icon: FileText },
-    { name: 'Specs', href: '/specs', icon: FileCode },
     { name: 'Guide de coût', href: '/guide-de-cout', icon: DollarSign },
     { name: 'Partenaires', href: '/partenaires', icon: Users },
     { name: 'Aide', href: '/aide', icon: HelpCircle }

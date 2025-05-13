@@ -52,12 +52,18 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
       try {
         setIsLoading(true);
         const partnersData = await getPartnersList();
-        setPartners(partnersData);
-        setFilteredPartners(partnersData);
+        
+        // Trier les partenaires par ordre alphabétique du nom d'affichage
+        const sortedPartners = [...partnersData].sort((a, b) => 
+          a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+        );
+        
+        setPartners(sortedPartners);
+        setFilteredPartners(sortedPartners);
 
         // Extraire les types uniques
         const uniqueTypes: {[key: string]: boolean} = {};
-        partnersData.forEach(partner => {
+        sortedPartners.forEach(partner => {
           if (partner.SH_Type) {
             uniqueTypes[partner.SH_Type] = false; // Tous désactivés par défaut
           }
