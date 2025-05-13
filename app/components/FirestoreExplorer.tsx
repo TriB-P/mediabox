@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { db } from '../lib/firebase';
-import { collection, getDocs, doc, getDoc, query, listCollections } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query } from 'firebase/firestore';
 
 export default function FirestoreExplorer() {
   const { selectedClient } = useClient();
