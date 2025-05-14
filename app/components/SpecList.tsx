@@ -107,19 +107,18 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
               </div>
               
               {(spec.title || spec.text) && (
-                <div className="mb-4">
-                  {spec.title && (
-                    <div className="mb-2">
-                      <h4 className="font-medium text-gray-700 mb-1">Titre</h4>
-                      <p>{spec.title}</p>
-                    </div>
-                  )}
-                  {spec.text && (
-                    <div>
-                      <h4 className="font-medium text-gray-700 mb-1">Texte</h4>
-                      <p className="whitespace-pre-line">{spec.text}</p>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  {/* Titre */}
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-1">Titre</h4>
+                    <p>{spec.title || '-'}</p>
+                  </div>
+                  
+                  {/* Texte */}
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-1">Texte</h4>
+                    <p>{spec.text || '-'}</p>
+                  </div>
                 </div>
               )}
               

@@ -262,7 +262,8 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             />
           </div>
         </div>
-        
+        <div className="grid grid-cols-2 gap-4">
+          
         {/* Titre */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -274,7 +275,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             name="title"
             value={formData.title}
             onChange={handleChange}
-            placeholder="ex: Maximum 50 caractères"
+            placeholder="ex: Max 50 caractères"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
@@ -284,16 +285,17 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
           <label htmlFor="text" className="block text-sm font-medium text-gray-700">
             Texte
           </label>
-          <textarea
+          <input
+            type="text"
             id="text"
             name="text"
-            rows={3}
             value={formData.text}
             onChange={handleChange}
-            placeholder="Texte descriptif"
+            placeholder="ex: Texte court descriptif"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
+</div>
         
         {/* Lien vers feuille de specs */}
         <div>
