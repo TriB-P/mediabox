@@ -44,15 +44,17 @@ export default function CostGuidePage() {
   
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<CostGuideEntry | null>(null);
+  const [formPreset, setFormPreset] = useState<{
+    partnerId?: string;
+    level1?: string;
+    level2?: string;
+  }>({});
   
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
 
   // Charger la liste des guides au chargement initial
   useEffect(() => {
     loadGuides();
-    console.log('CostGuideEntryForm:', CostGuideEntryForm);
-console.log('CostGuideEntryList:', CostGuideEntryList); 
-console.log('CostGuideEntryTable:', CostGuideEntryTable);
   }, []);
 
   // Charger les guides
@@ -78,7 +80,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
       // Trouver le guide dans la liste
       const guide = guides.find(g => g.id === guideId);
       if (!guide) {
-        setError('Guide de coût non trouvé');
+        setError('Guide de coûts non trouvé');
         return;
       }
       
@@ -128,7 +130,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
 
   // Supprimer un guide
   const handleDeleteGuide = async (guideId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce guide de coût ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce guide de coûts ?')) return;
 
     try {
       setLoading(true);
@@ -200,6 +202,18 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
     setIsEditing(false);
     setShowEntryForm(false);
     setSelectedEntry(null);
+    setFormPreset({});
+  };
+  
+  // Ouvrir le formulaire avec valeurs préremplies
+  const handleAddWithPreset = (preset: {
+    partnerId?: string;
+    level1?: string;
+    level2?: string;
+  }) => {
+    setFormPreset(preset);
+    setSelectedEntry(null);
+    setShowEntryForm(true);
   };
 
   // Rendu conditionnel selon l'état de l'application
@@ -208,14 +222,16 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
       {/* En-tête de la page */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {selectedGuide ? 'Guide de coût' : 'Guides de coût'}
-          </h1>
-          <p className="text-gray-600">
-            {selectedGuide 
-              ? 'Gérez les entrées et paramètres du guide'
-              : 'Gérez vos guides de coût pour faciliter la planification budgétaire'}
-          </p>
+          {!selectedGuide ? (
+            <>
+              <h1 className="text-2xl font-bold text-gray-900">Guide de coûts</h1>
+              <p className="text-gray-600">
+                Gérez vos guides de coût pour faciliter la planification budgétaire
+              </p>
+            </>
+          ) : (
+            <h1 className="text-xl font-bold text-gray-900">Guide de coûts</h1>
+          )}
         </div>
         
         {!selectedGuide ? (
@@ -258,7 +274,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
           {!loading && !guides.length && (
             <div className="text-center py-8 bg-white rounded-lg shadow">
               <p className="text-gray-500">
-                Aucun guide de coût trouvé. Créez votre premier guide !
+                Aucun guide de coûts trouvé. Créez votre premier guide !
               </p>
             </div>
           )}
@@ -279,9 +295,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
                             {guide.description}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400">
-                          Créé le {new Date(guide.createdAt).toLocaleDateString()}
-                        </p>
+                        
                       </div>
                       <div className="flex items-center space-x-4">
                         <button
@@ -314,7 +328,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
           {/* État de chargement */}
           {loadingDetail && (
             <div className="text-center py-8">
-              <p className="text-gray-500">Chargement du guide de coût...</p>
+              <p className="text-gray-500">Chargement du guide de coûts...</p>
             </div>
           )}
 
@@ -419,6 +433,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
                 <button
                   onClick={() => {
                     setSelectedEntry(null);
+                    setFormPreset({});
                     setShowEntryForm(true);
                   }}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -435,13 +450,16 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
                     guideId={selectedGuide.id}
                     entry={selectedEntry}
                     partners={partners}
+                    preset={formPreset}
                     onCancel={() => {
                       setShowEntryForm(false);
                       setSelectedEntry(null);
+                      setFormPreset({});
                     }}
                     onSuccess={() => {
                       setShowEntryForm(false);
                       setSelectedEntry(null);
+                      setFormPreset({});
                       refreshEntries();
                     }}
                   />
@@ -454,10 +472,12 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
                   entries={entries}
                   onEdit={(entry) => {
                     setSelectedEntry(entry);
+                    setFormPreset({});
                     setShowEntryForm(true);
                   }}
                   onDelete={refreshEntries}
                   onDuplicate={refreshEntries}
+                  onAddWithPreset={handleAddWithPreset}
                 />
               ) : (
                 <CostGuideEntryTable
@@ -471,7 +491,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
               {entries.length === 0 && !showEntryForm && (
                 <div className="text-center py-8 bg-white rounded-lg shadow">
                   <p className="text-gray-500">
-                    Aucune entrée dans ce guide de coût. Ajoutez votre première entrée !
+                    Aucune entrée dans ce guide de coûts. Ajoutez votre première entrée !
                   </p>
                 </div>
               )}
@@ -484,7 +504,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Nouveau guide de coût</h2>
+            <h2 className="text-xl font-bold mb-4">Nouveau guide de coûts</h2>
             <div className="space-y-4">
               <div>
                 <label
@@ -499,7 +519,7 @@ console.log('CostGuideEntryTable:', CostGuideEntryTable);
                   value={newGuideName}
                   onChange={(e) => setNewGuideName(e.target.value)}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Ex: Guide de coût Q1 2023"
+                  placeholder="Ex: Guide de coûts Q1 2023"
                 />
               </div>
               <div>

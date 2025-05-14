@@ -12,6 +12,11 @@ interface CostGuideEntryFormProps {
   guideId: string;
   entry: CostGuideEntry | null;
   partners: any[];
+  preset?: {
+    partnerId?: string;
+    level1?: string;
+    level2?: string;
+  };
   onCancel: () => void;
   onSuccess: () => void;
 }
@@ -20,6 +25,7 @@ export default function CostGuideEntryForm({
   guideId,
   entry,
   partners,
+  preset = {},
   onCancel,
   onSuccess,
 }: CostGuideEntryFormProps) {
@@ -37,7 +43,7 @@ export default function CostGuideEntryForm({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Initialiser le formulaire si on édite une entrée existante
+  // Initialiser le formulaire si on édite une entrée existante ou si on a un preset
   useEffect(() => {
     if (entry) {
       setFormData({
@@ -49,8 +55,16 @@ export default function CostGuideEntryForm({
         unitPrice: entry.unitPrice.toString(),
         comment: entry.comment || '',
       });
+    } else if (preset && Object.keys(preset).length > 0) {
+      // Si nous avons un preset, utiliser ces valeurs pour initialiser le formulaire
+      setFormData(prev => ({
+        ...prev,
+        partnerId: preset.partnerId || prev.partnerId,
+        level1: preset.level1 || prev.level1,
+        level2: preset.level2 || prev.level2,
+      }));
     }
-  }, [entry]);
+  }, [entry, preset]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>

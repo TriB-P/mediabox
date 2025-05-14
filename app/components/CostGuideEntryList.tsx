@@ -11,6 +11,7 @@ import {
   ChevronRightIcon,
   PencilIcon,
   TrashIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 
@@ -19,6 +20,7 @@ interface CostGuideEntryListProps {
   onEdit: (entry: CostGuideEntry) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onAddWithPreset: (preset: { partnerId?: string; level1?: string; level2?: string }) => void;
 }
 
 export default function CostGuideEntryList({
@@ -26,6 +28,7 @@ export default function CostGuideEntryList({
   onEdit,
   onDelete,
   onDuplicate,
+  onAddWithPreset,
 }: CostGuideEntryListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
@@ -149,6 +152,18 @@ export default function CostGuideEntryList({
                 <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
               )}
               <h3 className="text-lg font-medium text-gray-900">{partnerItem.partner}</h3>
+              
+              {/* Bouton pour ajouter une entrée pour ce partenaire */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddWithPreset({ partnerId: partnerId });
+                }}
+                className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                title="Ajouter une entrée pour ce partenaire"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Contenu Partenaire */}
@@ -174,6 +189,21 @@ export default function CostGuideEntryList({
                           <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
                         )}
                         <h4 className="text-md font-medium text-gray-800">{level1}</h4>
+                        
+                        {/* Bouton pour ajouter une entrée avec level1 prérempli */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddWithPreset({ 
+                              partnerId: partnerId, 
+                              level1: level1 
+                            });
+                          }}
+                          className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                          title="Ajouter une entrée avec ce niveau 1"
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                        </button>
                       </div>
 
                       {/* Contenu Niveau 1 */}
@@ -199,6 +229,22 @@ export default function CostGuideEntryList({
                                     <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
                                   )}
                                   <h5 className="text-sm font-medium text-gray-700">{level2}</h5>
+                                  
+                                  {/* Bouton pour ajouter une entrée avec level1 et level2 préremplis */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAddWithPreset({ 
+                                        partnerId: partnerId, 
+                                        level1: level1,
+                                        level2: level2 
+                                      });
+                                    }}
+                                    className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                                    title="Ajouter une entrée avec ces niveaux 1 et 2"
+                                  >
+                                    <PlusIcon className="h-4 w-4" />
+                                  </button>
                                 </div>
 
                                 {/* Contenu Niveau 2 (Niveau 3 - Entrées) */}

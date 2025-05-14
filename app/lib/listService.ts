@@ -100,7 +100,8 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
 
     console.log(`${snapshot.size} partenaires trouvés`);
 
-    return snapshot.docs.map((doc) => ({
+    // Récupérer les données
+    const partners = snapshot.docs.map((doc) => ({
       id: doc.id,
       SH_Code: doc.data().SH_Code || doc.id,
       SH_Display_Name_FR:
@@ -110,6 +111,11 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
       SH_Type: doc.data().SH_Type,
       SH_Tags: doc.data().SH_Tags || [],
     }));
+    
+    // Trier par ordre alphabétique du nom d'affichage
+    return partners.sort((a, b) => 
+      a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+    );
   } catch (error) {
     console.error('Erreur lors de la récupération des partenaires:', error);
     return [];
