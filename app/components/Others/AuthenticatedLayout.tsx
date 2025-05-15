@@ -1,7 +1,7 @@
 'use client';
 
 import Navigation from './Navigation';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useState, useRef, useEffect } from 'react';
 
 export default function AuthenticatedLayout({

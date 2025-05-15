@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Spec } from '../lib/specService';
+import { Spec } from '../../lib/specService';
 import { PencilIcon, TrashIcon, DocumentTextIcon, ChevronDownIcon, ChevronUpIcon, LinkIcon } from '@heroicons/react/24/outline';
 
 interface SpecListProps {

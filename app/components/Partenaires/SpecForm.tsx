@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Spec, SpecFormData } from '../lib/specService';
+import { Spec, SpecFormData } from '../../lib/specService';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 interface SpecFormProps {

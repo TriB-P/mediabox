@@ -19,11 +19,11 @@ import {
 } from '../lib/tactiqueService';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
-import TactiquesHierarchyView from '../components/TactiquesHierarchyView';
-import TactiquesTableView from '../components/TactiquesTableView';
-import TactiquesTimelineView from '../components/TactiquesTimelineView';
-import TactiquesTotals from '../components/TactiquesTotals';
-import TactiquesIndicateurs from '../components/TactiquesIndicateurs';
+import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
+import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
+import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
+import TactiquesTotals from '../components/Tactiques/TactiquesTotals';
+import TactiquesIndicateurs from '../components/Tactiques/TactiquesIndicateurs';
 import { 
   ChevronDownIcon, 
   PlusIcon, 

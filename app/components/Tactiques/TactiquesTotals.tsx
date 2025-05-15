@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Section } from '../types/tactiques';
+import { Section } from '../../types/tactiques';
 
 interface TactiquesTotalsProps {
   sections: Section[];

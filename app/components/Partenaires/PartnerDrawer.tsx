@@ -6,12 +6,12 @@ import { XMarkIcon, UserIcon, BuildingOfficeIcon, DocumentTextIcon, PlusIcon } f
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 // Imports pour les contacts
-import { Contact, ContactFormData, getPartnerContacts, addContact, updateContact, deleteContact } from '../lib/contactService';
+import { Contact, ContactFormData, getPartnerContacts, addContact, updateContact, deleteContact } from '../../lib/contactService';
 import ContactForm from './ContactForm';
 import ContactList from './ContactList';
 
 // Imports pour les specs
-import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../lib/specService';
+import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
 

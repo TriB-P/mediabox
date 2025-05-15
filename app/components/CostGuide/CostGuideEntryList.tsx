@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { CostGuideEntry } from '../types/costGuide';
+import { CostGuideEntry } from '../../types/costGuide';
 import {
   deleteCostGuideEntry,
   duplicateCostGuideEntry,
-} from '../lib/costGuideService';
+} from '../../lib/costGuideService';
 import {
   ChevronDownIcon,
   ChevronRightIcon,

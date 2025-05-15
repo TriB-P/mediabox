@@ -7,13 +7,13 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { Campaign, CampaignFormData } from '../types/campaign';
+import { Campaign, CampaignFormData } from '../../types/campaign';
 import {
   getClientList,
   ShortcodeItem,
   getClientInfo,
-} from '../lib/listService';
-import { useClient } from '../contexts/ClientContext';
+} from '../../lib/listService';
+import { useClient } from '../../contexts/ClientContext';
 
 interface CampaignDrawerProps {
   isOpen: boolean;

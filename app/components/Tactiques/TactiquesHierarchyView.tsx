@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { ChevronDownIcon, ChevronRightIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { SectionWithTactiques } from '../types/tactiques';
+import { SectionWithTactiques } from '../../types/tactiques';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];

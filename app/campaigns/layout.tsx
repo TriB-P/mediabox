@@ -1,5 +1,5 @@
-import ProtectedRoute from '../components/ProtectedRoute';
-import AuthenticatedLayout from '../components/AuthenticatedLayout';
+import ProtectedRoute from '../components/Others/ProtectedRoute';
+import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 
 export default function CampaignsLayout({
   children,

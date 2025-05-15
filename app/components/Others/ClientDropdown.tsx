@@ -3,7 +3,7 @@
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { useClient } from '../contexts/ClientContext';
+import { useClient } from '../../contexts/ClientContext';
 
 export default function ClientDropdown() {
   const { availableClients, selectedClient, setSelectedClient, loading } =

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePartners } from '../contexts/PartnerContext';
+import { usePartners } from '../../contexts/PartnerContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 export default function PartenairesGrid() {

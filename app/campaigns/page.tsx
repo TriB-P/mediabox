@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Campaign, CampaignFormData } from '../types/campaign';
-import CampaignDrawer from '../components/CampaignDrawer';
-import CampaignVersions from '../components/CampaignVersions';
+import CampaignDrawer from '../components/Campaigns/CampaignDrawer';
+import CampaignVersions from '../components/Campaigns/CampaignVersions';
 import {
   getCampaigns,
   createCampaign,

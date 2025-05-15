@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import ProtectedRoute from '../components/ProtectedRoute';
-import AuthenticatedLayout from '../components/AuthenticatedLayout';
+import ProtectedRoute from '../components/Others/ProtectedRoute';
+import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
-import BudgetBucket from '../components/BudgetBucket';
+import BudgetBucket from '../components/Others/BudgetBucket';
 import { useClient } from '../contexts/ClientContext';
 import { 
   collection, 

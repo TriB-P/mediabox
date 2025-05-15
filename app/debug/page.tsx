@@ -1,8 +1,8 @@
 'use client';
 
-import FirestoreExplorer from '../components/FirestoreExplorer';
-import AuthenticatedLayout from '../components/AuthenticatedLayout';
-import ProtectedRoute from '../components/ProtectedRoute';
+import FirestoreExplorer from '../components/Others/FirestoreExplorer';
+import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
+import ProtectedRoute from '../components/Others/ProtectedRoute';
 
 export default function DebugPage() {
   return (

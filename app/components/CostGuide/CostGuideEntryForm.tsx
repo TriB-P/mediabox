@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../types/costGuide';
+import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../../types/costGuide';
 import {
   addCostGuideEntry,
   updateCostGuideEntry,
-} from '../lib/costGuideService';
+} from '../../lib/costGuideService';
 import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface CostGuideEntryFormProps {

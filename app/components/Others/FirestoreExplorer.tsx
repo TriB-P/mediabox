@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useClient } from '../contexts/ClientContext';
-import { db } from '../lib/firebase';
+import { useClient } from '../../contexts/ClientContext';
+import { db } from '../../lib/firebase';
 import { collection, getDocs, doc, getDoc, query } from 'firebase/firestore';
 
 export default function FirestoreExplorer() {

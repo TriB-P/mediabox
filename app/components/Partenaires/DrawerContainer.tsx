@@ -1,6 +1,6 @@
 'use client';
 
-import { usePartners } from '../contexts/PartnerContext';
+import { usePartners } from '../../contexts/PartnerContext';
 import PartnerDrawer from './PartnerDrawer';
 
 export default function DrawerContainer() {

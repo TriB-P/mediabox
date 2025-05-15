@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Contact } from '../lib/contactService';
+import { Contact } from '../../lib/contactService';
 import { PencilIcon, TrashIcon, EnvelopeIcon, UserIcon } from '@heroicons/react/24/outline';
 
 interface ContactListProps {

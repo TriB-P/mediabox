@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Search, X } from 'lucide-react';
-import { usePartners } from '../contexts/PartnerContext';
+import { usePartners } from '../../contexts/PartnerContext';
 
 export default function PartenairesFilter() {
   const { 

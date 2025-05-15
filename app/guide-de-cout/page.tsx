@@ -19,9 +19,9 @@ import {
   TableCellsIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
-import CostGuideEntryForm from '../components/CostGuideEntryForm';
-import CostGuideEntryList from '../components/CostGuideEntryList';
-import CostGuideEntryTable from '../components/CostGuideEntryTable';
+import CostGuideEntryForm from '../components/CostGuide/CostGuideEntryForm';
+import CostGuideEntryList from '../components/CostGuide/CostGuideEntryList';
+import CostGuideEntryTable from '../components/CostGuide/CostGuideEntryTable';
 
 export default function CostGuidePage() {
   // États pour la liste des guides

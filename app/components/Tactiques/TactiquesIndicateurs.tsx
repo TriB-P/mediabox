@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tactique } from '../types/tactiques';
+import { Tactique } from '../../types/tactiques';
 
 interface TactiquesIndicateursProps {
   tactiques: Tactique[];

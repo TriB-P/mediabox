@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Contact, ContactFormData } from '../lib/contactService';
+import { Contact, ContactFormData } from '../../lib/contactService';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 interface ContactFormProps {

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../types/costGuide';
+import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../../types/costGuide';
 import { 
   batchUpdateCostGuideEntries, 
   addCostGuideEntry,
   deleteCostGuideEntry,
   duplicateCostGuideEntry
-} from '../lib/costGuideService';
+} from '../../lib/costGuideService';
 import { 
   CheckIcon, 
   XMarkIcon,
