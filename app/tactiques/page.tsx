@@ -22,8 +22,6 @@ import { getVersions } from '../lib/versionService';
 import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
 import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
-import TactiquesTotals from '../components/Tactiques/TactiquesTotals';
-import TactiquesIndicateurs from '../components/Tactiques/TactiquesIndicateurs';
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { 
   ChevronDownIcon, 
@@ -31,6 +29,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import TactiqueDrawer from '../components/Tactiques/TactiqueDrawer';
+
+// Déclaration pour TypeScript
+declare global {
+  interface Window {
+    editTactiqueHandled?: boolean;
+  }
+}
 
 // Modes de visualisation
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
@@ -60,9 +66,10 @@ export default function TactiquesPage() {
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   
-  // État pour les panneaux latéraux
-  const [showTotalsPanel, setShowTotalsPanel] = useState(true);
-  const [showIndicateursPanel, setShowIndicateursPanel] = useState(true);
+  // État pour le drawer
+  const [tactiqueDrawerOpen, setTactiqueDrawerOpen] = useState(false);
+  const [selectedTactiqueForEdit, setSelectedTactiqueForEdit] = useState<Tactique | null>(null);
+  const [selectedSectionIdForEdit, setSelectedSectionIdForEdit] = useState<string>('');
   
   // Refs pour gérer les clics en dehors des dropdowns
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
@@ -631,7 +638,15 @@ export default function TactiquesPage() {
         ]
       }));
       
-      // Pas besoin de mettre à jour le budget de la section car celui de la tactique est 0
+      // Ouvrir le drawer d'édition pour la nouvelle tactique
+      const newTactique = {
+        id: tactiqueId,
+        ...newTactiqueData
+      };
+      
+      setSelectedTactiqueForEdit(newTactique);
+      setSelectedSectionIdForEdit(sectionId);
+      setTactiqueDrawerOpen(true);
     } catch (err) {
       console.error('Erreur lors de l\'ajout d\'une tactique:', err);
       setError('Erreur lors de l\'ajout d\'une tactique');
@@ -639,22 +654,18 @@ export default function TactiquesPage() {
   };
   
   const handleEditTactique = (sectionId: string, tactiqueId: string) => {
-    // Pour l'instant, afficher simplement un dialogue de modification rapide
+    // Si le drawer est déjà ouvert par notre composant, ne pas afficher les prompts
+    if (window.editTactiqueHandled) return;
+    
+    // Trouver la tactique concernée
     const tactique = tactiques[sectionId]?.find(t => t.id === tactiqueId);
     if (!tactique) return;
     
-    const newLabel = prompt('Nom de la tactique:', tactique.TC_Label);
-    if (newLabel === null) return; // L'utilisateur a annulé
-    
-    const newBudgetStr = prompt('Budget de la tactique:', tactique.TC_Budget.toString());
-    if (newBudgetStr === null) return; // L'utilisateur a annulé
-    
-    const newBudget = parseFloat(newBudgetStr) || 0;
-    
-    handleUpdateTactique(sectionId, tactiqueId, { 
-      TC_Label: newLabel,
-      TC_Budget: newBudget
-    });
+    // Ouvrir le drawer au lieu d'afficher des prompts
+    setSelectedTactiqueForEdit(tactique);
+    setSelectedSectionIdForEdit(sectionId);
+    setTactiqueDrawerOpen(true);
+    window.editTactiqueHandled = true;
   };
   
   const handleUpdateTactique = async (sectionId: string, tactiqueId: string, updates: Partial<Tactique>) => {
@@ -709,6 +720,20 @@ export default function TactiquesPage() {
       console.error('Erreur lors de la mise à jour de la tactique:', err);
       setError('Erreur lors de la mise à jour de la tactique');
     }
+  };
+  
+  const handleSaveTactiqueFromDrawer = async (tactiqueData: any) => {
+    if (!selectedTactiqueForEdit || !selectedSectionIdForEdit) return;
+    
+    await handleUpdateTactique(
+      selectedSectionIdForEdit,
+      selectedTactiqueForEdit.id,
+      tactiqueData
+    );
+    
+    setTactiqueDrawerOpen(false);
+    setSelectedTactiqueForEdit(null);
+    window.editTactiqueHandled = false;
   };
   
   const handleDeleteTactique = async (sectionId: string, tactiqueId: string) => {
@@ -1007,129 +1032,104 @@ export default function TactiquesPage() {
       </div>
       
       {selectedVersion && (
-        <div className="flex flex-col md:flex-row gap-6 md:gap-4">
-          {/* Zone principale - 2/3 de la largeur sur les écrans moyens et grands */}
-          <div className="w-full md:w-2/3 space-y-4">
-            {/* Barre d'outils */}
-            <div className="flex justify-between items-center">
-              {/* Boutons d'action */}
-              <div className="flex space-x-2">
+        <div className="w-full">
+          {/* Barre d'outils */}
+          <div className="flex justify-between items-center mb-4">
+            {/* Boutons d'action */}
+            <div className="flex space-x-2">
+              <button
+                onClick={handleAddSection}
+                className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+              >
+                <PlusIcon className="h-5 w-5 mr-1.5" />
+                Nouvelle section
+              </button>
+              {sections.length > 0 && (
                 <button
-                  onClick={handleAddSection}
-                  className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                  onClick={() => handleAddTactique(sections[0].id)}
+                  className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                   <PlusIcon className="h-5 w-5 mr-1.5" />
-                  Nouvelle section
+                  Nouvelle tactique
                 </button>
-                {sections.length > 0 && (
-                  <button
-                    onClick={() => handleAddTactique(sections[0].id)}
-                    className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-1.5" />
-                    Nouvelle tactique
-                  </button>
-                )}
-              </div>
+              )}
             </div>
+          </div>
 
-            {/* État de chargement */}
-            {loading && (
-              <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
-                <div className="text-sm text-gray-500">Chargement en cours...</div>
-              </div>
-            )}
-            
-            {/* Message d'erreur */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-            
-            {/* Contenu principal selon le mode de vue */}
-            {!loading && !error && (
-              <>
-                {/* Vue hiérarchique */}
-                {viewMode === 'hierarchy' && (
-                  <>
-                    {sectionsWithTactiques.length > 0 ? (
-                      <TactiquesHierarchyView
-                        sections={sectionsWithTactiques}
-                        onSectionExpand={handleSectionExpand}
-                        onDragEnd={handleDragEnd}
-                        onEditSection={handleEditSection}
-                        onDeleteSection={handleDeleteSection}
-                        onEditTactique={handleEditTactique}
-                        onDeleteTactique={handleDeleteTactique}
-                        formatCurrency={formatCurrency}
-                        totalBudget={totalBudget}
-                      />
-                    ) : (
-                      <div className="bg-white p-8 rounded-lg shadow text-center">
-                        <p className="text-gray-500">
-                          Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
-                        </p>
-                        <button
-                          onClick={handleAddSection}
-                          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
-                        >
-                          <PlusIcon className="h-5 w-5 mr-1.5" />
-                          Nouvelle section
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                {/* Vue tableau */}
-                {viewMode === 'table' && (
-                  <TactiquesTableView
-                    tactiques={flatTactiques}
-                    onUpdateTactique={handleUpdateTactique}
-                    onDeleteTactique={handleDeleteTactique}
-                    formatCurrency={formatCurrency}
-                    sectionNames={sectionNames}
-                  />
-                )}
-                
-                {/* Vue timeline */}
-                {viewMode === 'timeline' && selectedCampaign && (
-                  <TactiquesTimelineView
-                    tactiques={flatTactiques}
-                    sectionNames={sectionNames}
-                    campaignStartDate={selectedCampaign.startDate}
-                    campaignEndDate={selectedCampaign.endDate}
-                    formatCurrency={formatCurrency}
-                    onEditTactique={handleEditTactique}
-                  />
-                )}
-              </>
-            )}
-          </div>
+          {/* État de chargement */}
+          {loading && (
+            <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
+              <div className="text-sm text-gray-500">Chargement en cours...</div>
+            </div>
+          )}
           
-          {/* Panneaux latéraux - 1/3 de la largeur sur les écrans moyens et grands */}
-          <div className="w-full md:w-1/3 space-y-4">
-            {/* Panneau des totaux */}
-            {showTotalsPanel && (
-              <TactiquesTotals
-                sections={sections}
-                totalBudget={totalBudget}
-                formatCurrency={formatCurrency}
-              />
-            )}
-            
-            {/* Panneau des indicateurs */}
-            {showIndicateursPanel && selectedCampaign && (
-              <TactiquesIndicateurs
-                tactiques={flatTactiques}
-                totalBudget={totalBudget}
-                campaignStartDate={selectedCampaign.startDate}
-                campaignEndDate={selectedCampaign.endDate}
-                formatCurrency={formatCurrency}
-              />
-            )}
-          </div>
+          {/* Message d'erreur */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
+          {/* Contenu principal selon le mode de vue */}
+          {!loading && !error && (
+            <>
+              {/* Vue hiérarchique */}
+              {viewMode === 'hierarchy' && (
+                <>
+                  {sectionsWithTactiques.length > 0 ? (
+                    <TactiquesHierarchyView
+                      sections={sectionsWithTactiques}
+                      onSectionExpand={handleSectionExpand}
+                      onDragEnd={handleDragEnd}
+                      onEditSection={handleEditSection}
+                      onDeleteSection={handleDeleteSection}
+                      onEditTactique={handleEditTactique}
+                      onDeleteTactique={handleDeleteTactique}
+                      onAddTactique={handleAddTactique}
+                      formatCurrency={formatCurrency}
+                      totalBudget={totalBudget}
+                    />
+                  ) : (
+                    <div className="bg-white p-8 rounded-lg shadow text-center">
+                      <p className="text-gray-500">
+                        Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
+                      </p>
+                      <button
+                        onClick={handleAddSection}
+                        className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
+                      >
+                        <PlusIcon className="h-5 w-5 mr-1.5" />
+                        Nouvelle section
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {/* Vue tableau */}
+              {viewMode === 'table' && (
+                <TactiquesTableView
+                  tactiques={flatTactiques}
+                  onUpdateTactique={handleUpdateTactique}
+                  onDeleteTactique={handleDeleteTactique}
+                  formatCurrency={formatCurrency}
+                  sectionNames={sectionNames}
+                />
+              )}
+              
+              {/* Vue timeline */}
+              {viewMode === 'timeline' && selectedCampaign && (
+                <TactiquesTimelineView
+                  tactiques={flatTactiques}
+                  sectionNames={sectionNames}
+                  campaignStartDate={selectedCampaign.startDate}
+                  campaignEndDate={selectedCampaign.endDate}
+                  formatCurrency={formatCurrency}
+                  onEditTactique={handleEditTactique}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
       
@@ -1153,6 +1153,21 @@ export default function TactiquesPage() {
           onAddOnglet={handleAddOnglet}
           onRenameOnglet={handleRenameOnglet}
           onDeleteOnglet={handleDeleteOnglet}
+        />
+      )}
+
+      {/* Drawer de tactique */}
+      {selectedVersion && (
+        <TactiqueDrawer
+          isOpen={tactiqueDrawerOpen}
+          onClose={() => {
+            setTactiqueDrawerOpen(false);
+            setSelectedTactiqueForEdit(null);
+            window.editTactiqueHandled = false;
+          }}
+          tactique={selectedTactiqueForEdit}
+          sectionId={selectedSectionIdForEdit}
+          onSave={handleSaveTactiqueFromDrawer}
         />
       )}
     </div>
