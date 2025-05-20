@@ -4,6 +4,11 @@ import { useState } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import ClientFees from '../components/Client/ClientFees';
+import ClientCurrencies from '../components/Client/ClientCurrencies';
+import ClientTaxonomies from '../components/Taxonomy/ClientTaxonomies';
+import ClientGeneral from '../components/Client/ClientGeneral';
+import ClientDimensions from '../components/Client/ClientDimensions';
+import ClientAccess from '../components/Client/ClientAccess';
 
 // Importez correctement tous les composants Tab
 import * as TabPrimitive from '@headlessui/react';
@@ -16,11 +21,17 @@ function classNames(...classes: string[]) {
 export default function ClientConfigPage() {
   const [selectedTab, setSelectedTab] = useState(0);
   
-  // Liste des onglets sans les composants pré-rendus
+  // Liste complète des onglets
   const tabs = [
-    { name: 'Frais' },
-    { name: 'Dimensions' },
-    { name: 'Accès' }
+    { name: 'Général', component: () => <ClientGeneral /> },
+    { name: 'Frais', component: () => <ClientFees /> },
+    { name: 'Dimensions', component: () => <ClientDimensions /> },
+    { name: 'Devises', component: () => <ClientCurrencies /> },
+    { name: 'Taxonomies', component: () => <ClientTaxonomies /> },
+    { name: 'Accès', component: () => <ClientAccess /> },
+    { name: 'Templates', component: () => <div>Contenu de la section "Templates" - À venir</div> },
+    { name: 'Code UTM', component: () => <div>Contenu de la section "Code UTM personnalisé" - À venir</div> },
+    { name: 'Listes', component: () => <div>Contenu de la section "Listes" - À venir</div> },
   ];
 
   return (
@@ -29,13 +40,13 @@ export default function ClientConfigPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Configuration du client</h1>
           
-          <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+          <div className="flex flex-wrap rounded-xl bg-gray-100 p-1 mb-6">
             {tabs.map((tab, index) => (
               <button
                 key={tab.name}
                 onClick={() => setSelectedTab(index)}
                 className={classNames(
-                  'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
+                  'flex-grow rounded-lg py-2.5 text-sm font-medium leading-5 min-w-[120px]',
                   'ring-white ring-opacity-60 ring-offset-2 focus:outline-none focus:ring-2',
                   selectedTab === index
                     ? 'bg-white shadow text-indigo-700'
@@ -48,9 +59,7 @@ export default function ClientConfigPage() {
           </div>
           
           <div className="rounded-xl focus:outline-none">
-            {selectedTab === 0 && <ClientFees />}
-            {selectedTab === 1 && <div>Contenu de la section "Dimensions" - À venir</div>}
-            {selectedTab === 2 && <div>Contenu de la section "Accès" - À venir</div>}
+            {tabs[selectedTab].component()}
           </div>
         </div>
       </AuthenticatedLayout>
