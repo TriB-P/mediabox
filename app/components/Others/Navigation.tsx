@@ -33,7 +33,7 @@ export default function Navigation() {
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Guide de coût', href: '/guide-de-cout', icon: DollarSign },
     { name: 'Partenaires', href: '/partenaires', icon: Users },
-    { name: 'Client', href: '/client-config', icon: Settings },
+    { name: 'Client', href: '/config/client', icon: Settings }, // Mis à jour vers la nouvelle route
     { name: 'Aide', href: '/aide', icon: HelpCircle }
   ];
 
