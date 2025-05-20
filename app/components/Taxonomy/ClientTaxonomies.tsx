@@ -234,7 +234,7 @@ const ClientTaxonomies: React.FC = () => {
       {/* Modal pour le formulaire de taxonomie */}
       {showTaxonomyForm && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               {currentTaxonomy ? 'Modifier la taxonomie' : 'Ajouter une taxonomie'}
             </h3>
