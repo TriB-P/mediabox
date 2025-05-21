@@ -1,3 +1,5 @@
+// app/contexts/PermissionsContext.tsx
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -69,7 +71,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
           setUserRole(role);
           
           // Récupérer les permissions basées sur le rôle
-          const roleDocRef = doc(db, 'Roles', role);
+          const roleDocRef = doc(db, 'roles', role);
           const roleSnapshot = await getDoc(roleDocRef);
           
           if (roleSnapshot.exists()) {

@@ -1,3 +1,5 @@
+// app/components/Client/ClientTemplates.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,6 +7,7 @@ import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Template } from '../../types/template';
 import TemplateForm from './TemplateForm';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { 
   getTemplatesByClient,
   createTemplate,
@@ -14,13 +17,17 @@ import {
  
 export default function ClientTemplates() {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
   
-  // Charger les données depuis Firestore au lieu des données fictives
+  // Vérifier si l'utilisateur a la permission de gérer les templates
+  const hasTemplatePermission = canPerformAction('Templates');
+  
+  // Charger les données depuis Firestore
   useEffect(() => {
     fetchTemplates();
   }, [selectedClient]);
@@ -56,7 +63,7 @@ export default function ClientTemplates() {
   };
 
   const handleSaveTemplate = async (templateData: Template) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasTemplatePermission) return;
     
     try {
       setIsLoading(true);
@@ -92,7 +99,7 @@ export default function ClientTemplates() {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasTemplatePermission) return;
     
     try {
       if (confirm('Êtes-vous sûr de vouloir supprimer ce gabarit ?')) {
@@ -123,8 +130,13 @@ export default function ClientTemplates() {
         <h2 className="text-xl font-semibold text-gray-800">Gestion des gabarits</h2>
         <button
           onClick={() => handleOpenForm()}
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          disabled={!selectedClient}
+          className={`inline-flex items-center px-4 py-2 ${
+            hasTemplatePermission
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          } rounded-md`}
+          disabled={!hasTemplatePermission || !selectedClient}
+          title={!hasTemplatePermission ? "Vous n'avez pas la permission d'ajouter des gabarits" : ""}
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Ajouter un gabarit
@@ -137,7 +149,7 @@ export default function ClientTemplates() {
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          Aucun gabarit configuré. Cliquez sur "Ajouter un gabarit" pour commencer.
+          Aucun gabarit configuré. {hasTemplatePermission ? 'Cliquez sur "Ajouter un gabarit" pour commencer.' : ''}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -167,13 +179,25 @@ export default function ClientTemplates() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
                       onClick={() => handleOpenForm(template)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                      className={`${
+                        hasTemplatePermission
+                          ? 'text-indigo-600 hover:text-indigo-900'
+                          : 'text-gray-400 cursor-not-allowed'
+                      } mr-3`}
+                      disabled={!hasTemplatePermission}
+                      title={!hasTemplatePermission ? "Vous n'avez pas la permission de modifier les gabarits" : ""}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
                     <button 
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="text-red-600 hover:text-red-900"
+                      className={`${
+                        hasTemplatePermission
+                          ? 'text-red-600 hover:text-red-900'
+                          : 'text-gray-400 cursor-not-allowed'
+                      }`}
+                      disabled={!hasTemplatePermission}
+                      title={!hasTemplatePermission ? "Vous n'avez pas la permission de supprimer les gabarits" : ""}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
@@ -185,7 +209,7 @@ export default function ClientTemplates() {
         </div>
       )}
       
-      {isFormOpen && selectedClient && (
+      {isFormOpen && selectedClient && hasTemplatePermission && (
         <TemplateForm
           isOpen={isFormOpen}
           onClose={handleCloseForm}

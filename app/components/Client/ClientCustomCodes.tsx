@@ -1,7 +1,10 @@
+// app/components/Client/ClientCustomCodes.tsx
+
 'use client';
 
 import React, { useState, useEffect, Fragment } from 'react';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Dialog, Transition } from '@headlessui/react';
 import { 
   getAllShortcodes,
@@ -22,11 +25,15 @@ import {
 
 const ClientCustomCodes: React.FC = () => {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [customCodes, setCustomCodes] = useState<CustomCode[]>([]);
   const [allShortcodes, setAllShortcodes] = useState<Shortcode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Vérifier si l'utilisateur a la permission de gérer les codes personnalisés
+  const hasCustomCodePermission = canPerformAction('CustomCodes');
   
   // États pour le modal d'ajout/édition de code personnalisé
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,6 +76,8 @@ const ClientCustomCodes: React.FC = () => {
   };
 
   const openAddModal = () => {
+    if (!hasCustomCodePermission) return;
+    
     setEditingCode(null);
     setSelectedShortcode(null);
     setCustomCodeValue('');
@@ -77,6 +86,8 @@ const ClientCustomCodes: React.FC = () => {
   };
 
   const openEditModal = (code: CustomCode) => {
+    if (!hasCustomCodePermission) return;
+    
     setEditingCode(code);
     
     // Trouver le shortcode correspondant
@@ -95,7 +106,7 @@ const ClientCustomCodes: React.FC = () => {
   };
 
   const handleAddCode = async () => {
-    if (!selectedClient || !selectedShortcode) return;
+    if (!selectedClient || !selectedShortcode || !hasCustomCodePermission) return;
     
     try {
       setError(null);
@@ -120,7 +131,7 @@ const ClientCustomCodes: React.FC = () => {
   };
 
   const handleUpdateCode = async () => {
-    if (!selectedClient || !editingCode) return;
+    if (!selectedClient || !editingCode || !hasCustomCodePermission) return;
     
     try {
       setError(null);
@@ -148,7 +159,7 @@ const ClientCustomCodes: React.FC = () => {
   };
 
   const handleDeleteCode = async (codeId: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasCustomCodePermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce code personnalisé ?')) {
       try {
@@ -215,7 +226,13 @@ const ClientCustomCodes: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800">Codes personnalisés</h2>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
+              hasCustomCodePermission 
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!hasCustomCodePermission}
+            title={!hasCustomCodePermission ? "Vous n'avez pas la permission d'ajouter des codes personnalisés" : ""}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
             Ajouter un code personnalisé
@@ -302,15 +319,25 @@ const ClientCustomCodes: React.FC = () => {
                         <div className="flex justify-end space-x-2">
                           <button
                             onClick={() => openEditModal(code)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            title="Modifier"
+                            className={`${
+                              hasCustomCodePermission 
+                                ? 'text-indigo-600 hover:text-indigo-900' 
+                                : 'text-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={!hasCustomCodePermission}
+                            title={!hasCustomCodePermission ? "Vous n'avez pas la permission de modifier les codes personnalisés" : "Modifier"}
                           >
                             <PencilIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteCode(code.id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Supprimer"
+                            className={`${
+                              hasCustomCodePermission 
+                                ? 'text-red-600 hover:text-red-900' 
+                                : 'text-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={!hasCustomCodePermission}
+                            title={!hasCustomCodePermission ? "Vous n'avez pas la permission de supprimer les codes personnalisés" : "Supprimer"}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>

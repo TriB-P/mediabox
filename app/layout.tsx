@@ -1,9 +1,10 @@
+// app/layout.tsx
+
 import './globals.css';
 import type { Metadata } from 'next';
 import { AuthProvider } from './contexts/AuthContext';
 import { ClientProvider } from './contexts/ClientContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
-
 
 export const metadata: Metadata = {
   title: 'MediaBox',
@@ -19,7 +20,11 @@ export default function RootLayout({
     <html lang="fr">
       <body className="min-h-screen bg-gray-50">
         <AuthProvider>
-          <ClientProvider>{children}</ClientProvider>
+          <ClientProvider>
+            <PermissionsProvider>
+              {children}
+            </PermissionsProvider>
+          </ClientProvider>
         </AuthProvider>
       </body>
     </html>

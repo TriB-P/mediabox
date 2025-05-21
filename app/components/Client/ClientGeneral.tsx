@@ -1,7 +1,10 @@
+// app/components/Client/ClientGeneral.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { getClientInfo, updateClientInfo, uploadClientLogo } from '../../lib/clientService';
 
@@ -23,6 +26,7 @@ const AGENCIES = ['Jungle Média', 'Mekanism', 'Cossette Media', 'K72', 'Showroo
 
 const ClientGeneral: React.FC = () => {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [clientDetails, setClientDetails] = useState<ClientDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,6 +35,9 @@ const ClientGeneral: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // Vérifier si l'utilisateur a la permission de gérer les informations générales du client
+  const hasClientInfoPermission = canPerformAction('ClientInfo');
 
   // Charger les données du client quand le client sélectionné change
   useEffect(() => {
@@ -70,7 +77,7 @@ const ClientGeneral: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClient || !clientDetails) return;
+    if (!selectedClient || !clientDetails || !hasClientInfoPermission) return;
     
     try {
       setSaving(true);
@@ -100,7 +107,7 @@ const ClientGeneral: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    if (!clientDetails) return;
+    if (!clientDetails || !hasClientInfoPermission) return;
     
     const { name, value } = e.target;
     setClientDetails({
@@ -110,7 +117,7 @@ const ClientGeneral: React.FC = () => {
   };
 
   const handleCheckboxChange = (office: string) => {
-    if (!clientDetails) return;
+    if (!clientDetails || !hasClientInfoPermission) return;
     
     const updatedOffices = clientDetails.CL_Office.includes(office)
       ? clientDetails.CL_Office.filter(o => o !== office)
@@ -123,6 +130,8 @@ const ClientGeneral: React.FC = () => {
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!hasClientInfoPermission) return;
+    
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setLogoFile(file);
@@ -181,6 +190,12 @@ const ClientGeneral: React.FC = () => {
           </div>
         )}
         
+        {!hasClientInfoPermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les informations du client.
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
           {/* Section du haut : Logo, Nom et ID */}
           <div className="grid grid-cols-12 gap-6 pb-6">
@@ -206,10 +221,15 @@ const ClientGeneral: React.FC = () => {
                     accept="image/*"
                     onChange={handleLogoChange}
                     className="hidden"
+                    disabled={!hasClientInfoPermission}
                   />
                   <label
                     htmlFor="logo-upload"
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer"
+                    className={`inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md ${
+                      hasClientInfoPermission 
+                        ? 'text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer' 
+                        : 'text-gray-500 bg-gray-200 cursor-not-allowed'
+                    }`}
                   >
                     Changer le logo
                   </label>
@@ -231,7 +251,10 @@ const ClientGeneral: React.FC = () => {
                   value={clientDetails?.CL_Name || ''}
                   onChange={handleChange}
                   required
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg font-medium"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg font-medium ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 />
               </div>
               
@@ -286,7 +309,10 @@ const ClientGeneral: React.FC = () => {
                         id={`office-${office}`}
                         checked={clientDetails?.CL_Office.includes(office) || false}
                         onChange={() => handleCheckboxChange(office)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        className={`h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded ${
+                          !hasClientInfoPermission ? 'cursor-not-allowed opacity-60' : ''
+                        }`}
+                        disabled={!hasClientInfoPermission}
                       />
                       <label htmlFor={`office-${office}`} className="ml-2 block text-sm text-gray-700">
                         {office}
@@ -310,7 +336,10 @@ const ClientGeneral: React.FC = () => {
                       value="FR"
                       checked={clientDetails?.CL_Export_Language === 'FR'}
                       onChange={handleChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      className={`h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 ${
+                        !hasClientInfoPermission ? 'cursor-not-allowed opacity-60' : ''
+                      }`}
+                      disabled={!hasClientInfoPermission}
                     />
                     <label htmlFor="export-fr" className="ml-2 block text-sm text-gray-700">
                       Français
@@ -324,7 +353,10 @@ const ClientGeneral: React.FC = () => {
                       value="EN"
                       checked={clientDetails?.CL_Export_Language === 'EN'}
                       onChange={handleChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      className={`h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 ${
+                        !hasClientInfoPermission ? 'cursor-not-allowed opacity-60' : ''
+                      }`}
+                      disabled={!hasClientInfoPermission}
                     />
                     <label htmlFor="export-en" className="ml-2 block text-sm text-gray-700">
                       Anglais
@@ -346,7 +378,10 @@ const ClientGeneral: React.FC = () => {
                   name="CL_Agency"
                   value={clientDetails?.CL_Agency || ''}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 >
                   <option value="">Sélectionner une agence</option>
                   {AGENCIES.map((agency) => (
@@ -369,7 +404,10 @@ const ClientGeneral: React.FC = () => {
                   value={clientDetails?.CL_Default_Drive_Folder || ''}
                   onChange={handleChange}
                   placeholder="https://drive.google.com/drive/folders/..."
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 />
               </div>
             </div>
@@ -393,7 +431,10 @@ const ClientGeneral: React.FC = () => {
                   name="CL_Custom_Fee_1"
                   value={clientDetails?.CL_Custom_Fee_1 || ''}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 />
               </div>
               
@@ -408,7 +449,10 @@ const ClientGeneral: React.FC = () => {
                   name="CL_Custom_Fee_2"
                   value={clientDetails?.CL_Custom_Fee_2 || ''}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 />
               </div>
               
@@ -423,7 +467,10 @@ const ClientGeneral: React.FC = () => {
                   name="CL_Custom_Fee_3"
                   value={clientDetails?.CL_Custom_Fee_3 || ''}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                    !hasClientInfoPermission ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!hasClientInfoPermission}
                 />
               </div>
             </div>
@@ -435,14 +482,20 @@ const ClientGeneral: React.FC = () => {
               <button
                 type="button"
                 onClick={loadClientDetails}
-                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className={`bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  !hasClientInfoPermission ? 'hidden' : ''
+                }`}
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                disabled={saving}
-                className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={saving || !hasClientInfoPermission}
+                className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
+                  hasClientInfoPermission
+                    ? 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
               >
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
               </button>

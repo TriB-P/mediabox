@@ -1,7 +1,10 @@
+// app/components/Client/ClientCurrencies.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Currency, CurrencyFormData } from '../../types/currency';
 import { 
   getClientCurrencies, 
@@ -13,9 +16,13 @@ import CurrencyForm from './CurrencyForm';
 
 const ClientCurrencies: React.FC = () => {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Vérifier si l'utilisateur a la permission de gérer les devises
+  const hasCurrencyPermission = canPerformAction('Currency');
   
   // États pour le formulaire
   const [showForm, setShowForm] = useState(false);
@@ -66,7 +73,7 @@ const ClientCurrencies: React.FC = () => {
 
   // Gestion des devises
   const handleAddCurrency = async (formData: CurrencyFormData) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasCurrencyPermission) return;
     
     try {
       await addCurrency(selectedClient.clientId, formData);
@@ -79,7 +86,7 @@ const ClientCurrencies: React.FC = () => {
   };
 
   const handleUpdateCurrency = async (formData: CurrencyFormData) => {
-    if (!selectedClient || !currentCurrency) return;
+    if (!selectedClient || !currentCurrency || !hasCurrencyPermission) return;
     
     try {
       await updateCurrency(selectedClient.clientId, currentCurrency.id, formData);
@@ -93,7 +100,7 @@ const ClientCurrencies: React.FC = () => {
   };
 
   const handleDeleteCurrency = async (currencyId: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasCurrencyPermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce taux de conversion ?')) {
       try {
@@ -155,7 +162,13 @@ const ClientCurrencies: React.FC = () => {
                 setCurrentCurrency(null);
                 setShowForm(true);
               }}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm ${
+                hasCurrencyPermission 
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                  : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+              }`}
+              disabled={!hasCurrencyPermission}
+              title={!hasCurrencyPermission ? "Vous n'avez pas la permission d'ajouter des taux de conversion" : ""}
             >
               + Ajouter
             </button>
@@ -219,16 +232,34 @@ const ClientCurrencies: React.FC = () => {
                       <div className="flex justify-end space-x-2">
                         <button
                           onClick={() => {
-                            setCurrentCurrency(currency);
-                            setShowForm(true);
+                            if (hasCurrencyPermission) {
+                              setCurrentCurrency(currency);
+                              setShowForm(true);
+                            }
                           }}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className={`${
+                            hasCurrencyPermission 
+                              ? 'text-indigo-600 hover:text-indigo-900' 
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                          disabled={!hasCurrencyPermission}
+                          title={!hasCurrencyPermission ? "Vous n'avez pas la permission de modifier les taux" : ""}
                         >
                           ✏️
                         </button>
                         <button
-                          onClick={() => handleDeleteCurrency(currency.id)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => {
+                            if (hasCurrencyPermission) {
+                              handleDeleteCurrency(currency.id);
+                            }
+                          }}
+                          className={`${
+                            hasCurrencyPermission 
+                              ? 'text-red-600 hover:text-red-900' 
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                          disabled={!hasCurrencyPermission}
+                          title={!hasCurrencyPermission ? "Vous n'avez pas la permission de supprimer les taux" : ""}
                         >
                           🗑️
                         </button>
@@ -243,7 +274,7 @@ const ClientCurrencies: React.FC = () => {
       </div>
 
       {/* Modal pour le formulaire */}
-      {showForm && (
+      {showForm && hasCurrencyPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">

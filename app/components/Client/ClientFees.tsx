@@ -1,3 +1,5 @@
+// app/components/Client/ClientFees.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -13,6 +15,7 @@ import {
   deleteFeeOption
 } from '../../lib/feeService';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Fee, FeeOption, FeeFormData, FeeOptionFormData } from '../../types/fee';
 import FeeForm from './FeeForm';
 import FeeOptionForm from './FeeOptionForm';
@@ -21,10 +24,15 @@ import { PlusIcon, ChevronDownIcon, ChevronRightIcon, TrashIcon, PencilIcon } fr
 
 export default function ClientFees() {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [fees, setFees] = useState<Fee[]>([]);
   const [feeOptions, setFeeOptions] = useState<{[feeId: string]: FeeOption[]}>({}); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Vérifier si l'utilisateur a la permission de gérer les frais
+  const hasFeesPermission = canPerformAction('Fees');
   
   // États pour les formulaires
   const [showFeeForm, setShowFeeForm] = useState(false);
@@ -83,7 +91,7 @@ export default function ClientFees() {
 
   // Gestion des frais
   const handleAddFee = async (formData: FeeFormData) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasFeesPermission) return;
     
     try {
       await addFee(selectedClient.clientId, formData);
@@ -96,7 +104,7 @@ export default function ClientFees() {
   };
 
   const handleUpdateFee = async (formData: FeeFormData) => {
-    if (!selectedClient || !currentFee) return;
+    if (!selectedClient || !currentFee || !hasFeesPermission) return;
     
     try {
       await updateFee(selectedClient.clientId, currentFee.id, formData);
@@ -110,7 +118,7 @@ export default function ClientFees() {
   };
 
   const handleDeleteFee = async (feeId: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasFeesPermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce frais et toutes ses options ?')) {
       try {
@@ -125,7 +133,7 @@ export default function ClientFees() {
 
   // Gestion des options
   const handleAddOption = async (formData: FeeOptionFormData) => {
-    if (!selectedClient || !currentOption.feeId) return;
+    if (!selectedClient || !currentOption.feeId || !hasFeesPermission) return;
     
     try {
       await addFeeOption(selectedClient.clientId, currentOption.feeId, formData);
@@ -145,7 +153,7 @@ export default function ClientFees() {
   };
 
   const handleUpdateOption = async (formData: FeeOptionFormData) => {
-    if (!selectedClient || !currentOption.feeId || !currentOption.option) return;
+    if (!selectedClient || !currentOption.feeId || !currentOption.option || !hasFeesPermission) return;
     
     try {
       await updateFeeOption(
@@ -170,7 +178,7 @@ export default function ClientFees() {
   };
 
   const handleDeleteOption = async (feeId: string, optionId: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasFeesPermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette option ?')) {
       try {
@@ -204,10 +212,18 @@ export default function ClientFees() {
           <h2 className="text-xl font-bold text-gray-800">Frais du client</h2>
           <button
             onClick={() => {
-              setCurrentFee(null);
-              setShowFeeForm(true);
+              if (hasFeesPermission) {
+                setCurrentFee(null);
+                setShowFeeForm(true);
+              }
             }}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm ${
+              hasFeesPermission 
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!hasFeesPermission}
+            title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des frais" : ""}
           >
             <PlusIcon className="h-4 w-4 mr-1" />
             Ajouter un frais
@@ -217,6 +233,18 @@ export default function ClientFees() {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
             {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 text-green-700">
+            {success}
+          </div>
+        )}
+        
+        {!hasFeesPermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les frais.
           </div>
         )}
 
@@ -250,19 +278,35 @@ export default function ClientFees() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setCurrentFee(fee);
-                        setShowFeeForm(true);
+                        if (hasFeesPermission) {
+                          setCurrentFee(fee);
+                          setShowFeeForm(true);
+                        }
                       }}
-                      className="text-gray-500 hover:text-indigo-600"
+                      className={`${
+                        hasFeesPermission 
+                          ? 'text-gray-500 hover:text-indigo-600' 
+                          : 'text-gray-300 cursor-not-allowed'
+                      }`}
+                      disabled={!hasFeesPermission}
+                      title={!hasFeesPermission ? "Vous n'avez pas la permission de modifier les frais" : ""}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteFee(fee.id);
+                        if (hasFeesPermission) {
+                          handleDeleteFee(fee.id);
+                        }
                       }}
-                      className="text-gray-500 hover:text-red-600"
+                      className={`${
+                        hasFeesPermission 
+                          ? 'text-gray-500 hover:text-red-600' 
+                          : 'text-gray-300 cursor-not-allowed'
+                      }`}
+                      disabled={!hasFeesPermission}
+                      title={!hasFeesPermission ? "Vous n'avez pas la permission de supprimer les frais" : ""}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
@@ -276,10 +320,18 @@ export default function ClientFees() {
                       <h4 className="font-medium text-gray-700">Options du frais</h4>
                       <button
                         onClick={() => {
-                          setCurrentOption({feeId: fee.id, option: null});
-                          setShowOptionForm(true);
+                          if (hasFeesPermission) {
+                            setCurrentOption({feeId: fee.id, option: null});
+                            setShowOptionForm(true);
+                          }
                         }}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md ${
+                          hasFeesPermission 
+                            ? 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                            : 'text-gray-500 bg-gray-200 cursor-not-allowed'
+                        }`}
+                        disabled={!hasFeesPermission}
+                        title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des options" : ""}
                       >
                         <PlusIcon className="h-3 w-3 mr-1" />
                         Ajouter une option
@@ -327,16 +379,34 @@ export default function ClientFees() {
                                   <div className="flex justify-end space-x-2">
                                     <button
                                       onClick={() => {
-                                        setCurrentOption({feeId: fee.id, option});
-                                        setShowOptionForm(true);
+                                        if (hasFeesPermission) {
+                                          setCurrentOption({feeId: fee.id, option});
+                                          setShowOptionForm(true);
+                                        }
                                       }}
-                                      className="text-indigo-600 hover:text-indigo-900"
+                                      className={`${
+                                        hasFeesPermission 
+                                          ? 'text-indigo-600 hover:text-indigo-900' 
+                                          : 'text-gray-300 cursor-not-allowed'
+                                      }`}
+                                      disabled={!hasFeesPermission}
+                                      title={!hasFeesPermission ? "Vous n'avez pas la permission de modifier les options" : ""}
                                     >
                                       <PencilIcon className="h-4 w-4" />
                                     </button>
                                     <button
-                                      onClick={() => handleDeleteOption(fee.id, option.id)}
-                                      className="text-red-600 hover:text-red-900"
+                                      onClick={() => {
+                                        if (hasFeesPermission) {
+                                          handleDeleteOption(fee.id, option.id);
+                                        }
+                                      }}
+                                      className={`${
+                                        hasFeesPermission 
+                                          ? 'text-red-600 hover:text-red-900' 
+                                          : 'text-gray-300 cursor-not-allowed'
+                                      }`}
+                                      disabled={!hasFeesPermission}
+                                      title={!hasFeesPermission ? "Vous n'avez pas la permission de supprimer les options" : ""}
                                     >
                                       <TrashIcon className="h-4 w-4" />
                                     </button>
@@ -359,7 +429,7 @@ export default function ClientFees() {
       </div>
 
       {/* Modal pour le formulaire de frais */}
-      {showFeeForm && (
+      {showFeeForm && hasFeesPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -378,7 +448,7 @@ export default function ClientFees() {
       )}
 
       {/* Modal pour le formulaire d'option */}
-      {showOptionForm && (
+      {showOptionForm && hasFeesPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
