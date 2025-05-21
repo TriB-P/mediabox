@@ -14,12 +14,15 @@ import ContactList from './ContactList';
 import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
+import { updatePartner } from '../../lib/shortcodeService';
+
 
 // Type pour les partenaires
 interface Partner {
   id: string;
   SH_Code: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -52,6 +55,11 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
   const [loadingSpecs, setLoadingSpecs] = useState(false);
   const [selectedSpec, setSelectedSpec] = useState<Spec | null>(null);
   const [showSpecForm, setShowSpecForm] = useState(false);
+
+  // États pour l'édition du partenaire
+const [isEditingPartner, setIsEditingPartner] = useState(false);
+const [partnerFormData, setPartnerFormData] = useState<Partial<Partner>>({});
+const [isSavingPartner, setIsSavingPartner] = useState(false);
   
   // Définition des onglets
   const categories = [
@@ -247,6 +255,55 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   };
 
+  // FONCTIONS POUR L'ÉDITION DU PARTENAIRE
+
+// Initialiser le formulaire d'édition avec les données du partenaire
+const initPartnerForm = () => {
+  if (partner) {
+    setPartnerFormData({
+      SH_Code: partner.SH_Code || '',
+      SH_Display_Name_FR: partner.SH_Display_Name_FR || '',
+      SH_Display_Name_EN: partner.SH_Display_Name_EN || '',
+      SH_Default_UTM: partner.SH_Default_UTM || '',
+      SH_Logo: partner.SH_Logo || '',
+      SH_Type: partner.SH_Type || ''
+    });
+    setIsEditingPartner(true);
+  }
+};
+
+// Gérer les changements dans le formulaire
+const handlePartnerFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const { name, value } = e.target;
+  setPartnerFormData(prev => ({ ...prev, [name]: value }));
+};
+
+// Sauvegarder les modifications
+const handleSavePartner = async () => {
+  if (!partner) return;
+  
+  try {
+    setIsSavingPartner(true);
+    
+    // Créer une copie pour la conversion des types
+    const formattedData: any = { ...partnerFormData };
+    
+    // Convertir SH_Tags en tableau si c'est une chaîne
+    if (typeof formattedData.SH_Tags === 'string') {
+      formattedData.SH_Tags = formattedData.SH_Tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+    }
+    
+    await updatePartner(partner.id, formattedData);
+    setIsEditingPartner(false);
+    // Rafraîchir les données
+    onClose(); // Fermer le drawer pour forcer un rechargement
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du partenaire:', error);
+  } finally {
+    setIsSavingPartner(false);
+  }
+};
+
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -322,54 +379,165 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                         </div>
 
                         {/* Panneau Informations */}
-                        {selectedTab === 0 && (
-                          <div className="p-6">
-                            {/* Logo */}
-                            <div className="mb-8 flex justify-center">
-                              <div className="relative h-40 w-40 flex items-center justify-center">
-                                {imageLoading ? (
-                                  <div className="animate-pulse h-40 w-40 bg-gray-200 rounded-lg"></div>
-                                ) : imageUrl && !imageError ? (
-                                  <img
-                                    src={imageUrl}
-                                    alt={partner.SH_Display_Name_FR}
-                                    className="max-h-full max-w-full object-contain"
-                                    onError={() => setImageError(true)}
-                                  />
-                                ) : (
-                                  renderPlaceholder()
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Informations */}
-                            <div className="space-y-6">
-                              <InfoItem label="Code" value={partner.SH_Code} />
-                              <InfoItem label="Nom" value={partner.SH_Display_Name_FR} />
-                              <InfoItem label="UTM par défaut" value={partner.SH_Default_UTM || '-'} />
-                              <InfoItem label="Type" value={partner.SH_Type || '-'} />
-                              
-                              {/* Tags */}
-                              <div>
-                                <h3 className="text-sm font-medium text-gray-500 mb-2">Tags</h3>
-                                <div className="flex flex-wrap gap-2">
-                                  {getTagsArray(partner.SH_Tags).length > 0 ? (
-                                    getTagsArray(partner.SH_Tags).map((tag, index) => (
-                                      <span
-                                        key={index}
-                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                                      >
-                                        {tag}
-                                      </span>
-                                    ))
+                          {selectedTab === 0 && (
+                            <div className="p-6">
+                              {/* Logo */}
+                              <div className="mb-8 flex justify-center">
+                                <div className="relative h-40 w-40 flex items-center justify-center">
+                                  {imageLoading ? (
+                                    <div className="animate-pulse h-40 w-40 bg-gray-200 rounded-lg"></div>
+                                  ) : imageUrl && !imageError ? (
+                                    <img
+                                      src={imageUrl}
+                                      alt={partner.SH_Display_Name_FR}
+                                      className="max-h-full max-w-full object-contain"
+                                      onError={() => setImageError(true)}
+                                    />
                                   ) : (
-                                    <span className="text-gray-500">Aucun tag</span>
+                                    renderPlaceholder()
                                   )}
                                 </div>
                               </div>
+                              
+                              {/* Bouton d'édition */}
+                              {!isEditingPartner && (
+                                <div className="flex justify-end mb-4">
+                                  <button
+                                    type="button"
+                                    onClick={initPartnerForm}
+                                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                                  >
+                                    Modifier
+                                  </button>
+                                </div>
+                              )}
+                              
+                              {/* Mode Édition */}
+                              {isEditingPartner ? (
+                                <form className="space-y-4">
+                                  <div>
+                                    <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700">Code</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Code"
+                                      id="SH_Code"
+                                      value={partnerFormData.SH_Code || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                      required
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">Nom d'affichage (FR)</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Display_Name_FR"
+                                      id="SH_Display_Name_FR"
+                                      value={partnerFormData.SH_Display_Name_FR || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                      required
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">Nom d'affichage (EN)</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Display_Name_EN"
+                                      id="SH_Display_Name_EN"
+                                      value={partnerFormData.SH_Display_Name_EN || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700">UTM par défaut</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Default_UTM"
+                                      id="SH_Default_UTM"
+                                      value={partnerFormData.SH_Default_UTM || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700">Type</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Type"
+                                      id="SH_Type"
+                                      value={partnerFormData.SH_Type || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="SH_Logo" className="block text-sm font-medium text-gray-700">URL du logo</label>
+                                    <input
+                                      type="text"
+                                      name="SH_Logo"
+                                      id="SH_Logo"
+                                      value={partnerFormData.SH_Logo || ''}
+                                      onChange={handlePartnerFormChange}
+                                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  
+                                  <div className="flex justify-end space-x-3 pt-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsEditingPartner(false)}
+                                      className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                      Annuler
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleSavePartner}
+                                      disabled={isSavingPartner}
+                                      className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                      {isSavingPartner ? 'Enregistrement...' : 'Enregistrer'}
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                /* Mode Affichage */
+                                <div className="space-y-6">
+                                  <InfoItem label="Code" value={partner.SH_Code} />
+                                  <InfoItem label="Nom" value={partner.SH_Display_Name_FR} />
+                                  <InfoItem label="Nom (EN)" value={partner.SH_Display_Name_EN || '-'} />
+                                  <InfoItem label="UTM par défaut" value={partner.SH_Default_UTM || '-'} />
+                                  <InfoItem label="Type" value={partner.SH_Type || '-'} />
+                                  
+                                  {/* Tags */}
+                                  <div>
+                                    <h3 className="text-sm font-medium text-gray-500 mb-2">Tags</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                      {getTagsArray(partner.SH_Tags).length > 0 ? (
+                                        getTagsArray(partner.SH_Tags).map((tag, index) => (
+                                          <span
+                                            key={index}
+                                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-gray-500">Aucun tag</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          )}
                         
                         {/* Panneau Contacts */}
                         {selectedTab === 1 && (

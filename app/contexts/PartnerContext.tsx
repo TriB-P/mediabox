@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { getPartnersList } from '../lib/listService';
+import { updatePartner } from '../lib/shortcodeService';
 
 interface Partner {
   id: string;
   SH_Code: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -25,6 +27,8 @@ interface PartnerContextType {
   isDrawerOpen: boolean;
   setIsDrawerOpen: (isOpen: boolean) => void;
   isLoading: boolean;
+  updateSelectedPartner: (updatedData: Partial<Partner>) => Promise<void>;
+  refreshPartners: () => Promise<void>;
 }
 
 const PartnerContext = createContext<PartnerContextType | undefined>(undefined);
@@ -47,44 +51,68 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
   const [isLoading, setIsLoading] = useState(true);
 
   // Récupération des partenaires
-  useEffect(() => {
-    const fetchPartners = async () => {
-      try {
-        setIsLoading(true);
-        const partnersData = await getPartnersList();
-        
-        // Trier les partenaires par ordre alphabétique du nom d'affichage
-        const sortedPartners = [...partnersData].sort((a, b) => 
-          a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
-        );
-        
-        setPartners(sortedPartners);
-        setFilteredPartners(sortedPartners);
+  const fetchPartners = async () => {
+    try {
+      setIsLoading(true);
+      const partnersData = await getPartnersList();
+      
+      // Trier les partenaires par ordre alphabétique du nom d'affichage
+      const sortedPartners = [...partnersData].sort((a, b) => 
+        a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+      );
+      
+      setPartners(sortedPartners);
+      setFilteredPartners(sortedPartners);
 
-        // Extraire les types uniques
-        const uniqueTypes: {[key: string]: boolean} = {};
-        sortedPartners.forEach(partner => {
-          if (partner.SH_Type) {
-            uniqueTypes[partner.SH_Type] = false; // Tous désactivés par défaut
-          }
-        });
-        setActiveTypes(uniqueTypes);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des partenaires:', error);
-      } finally {
-        setIsLoading(false);
+      // Extraire les types uniques
+      const uniqueTypes: {[key: string]: boolean} = {};
+      sortedPartners.forEach(partner => {
+        if (partner.SH_Type) {
+          uniqueTypes[partner.SH_Type] = false; // Tous désactivés par défaut
+        }
+      });
+      setActiveTypes(uniqueTypes);
+
+      // Si un partenaire était sélectionné, mettre à jour ses données
+      if (selectedPartner) {
+        const updatedSelectedPartner = sortedPartners.find(p => p.id === selectedPartner.id);
+        if (updatedSelectedPartner) {
+          setSelectedPartner(updatedSelectedPartner);
+        }
       }
-    };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des partenaires:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Initialisation des partenaires
+  useEffect(() => {
     fetchPartners();
   }, []);
 
-  // Filtrage des partenaires
+  // Fonction pour rafraîchir la liste des partenaires
+  const refreshPartners = async () => {
+    await fetchPartners();
+  };
+
+  // Filtrage des partenaires amélioré pour chercher dans tous les champs pertinents
   useEffect(() => {
     const activeTypesList = Object.keys(activeTypes).filter(type => activeTypes[type]);
     const filtered = partners.filter(partner => {
-      const matchesSearch = partner.SH_Display_Name_FR.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          partner.SH_Code.toLowerCase().includes(searchTerm.toLowerCase());
+      // Recherche améliorée dans plusieurs champs
+      const searchFields = [
+        partner.id,
+        partner.SH_Code,
+        partner.SH_Display_Name_FR,
+        partner.SH_Display_Name_EN,
+        partner.SH_Default_UTM
+      ].filter(Boolean).map(field => field?.toLowerCase());
+      
+      const matchesSearch = searchTerm === '' || 
+                          searchFields.some(field => field?.includes(searchTerm.toLowerCase()));
+      
       const matchesType = activeTypesList.length === 0 || 
                          (partner.SH_Type && activeTypesList.includes(partner.SH_Type));
       
@@ -113,6 +141,25 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     }
   };
 
+  // Fonction pour mettre à jour le partenaire sélectionné
+  const updateSelectedPartner = async (updatedData: Partial<Partner>) => {
+    if (!selectedPartner) return;
+    
+    try {
+      await updatePartner(selectedPartner.id, updatedData);
+      
+      // Mettre à jour l'état local avec les nouvelles données
+      const updatedPartner = { ...selectedPartner, ...updatedData };
+      setSelectedPartner(updatedPartner);
+      
+      // Mettre à jour la liste des partenaires
+      await refreshPartners();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du partenaire:', error);
+      throw error;
+    }
+  };
+
   const value = {
     partners,
     filteredPartners,
@@ -124,7 +171,9 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     setSelectedPartner,
     isDrawerOpen,
     setIsDrawerOpen,
-    isLoading
+    isLoading,
+    updateSelectedPartner,
+    refreshPartners
   };
 
   return (

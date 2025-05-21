@@ -97,25 +97,45 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
   try {
     console.log('Récupération de la liste des partenaires');
 
-    const shortcodesRef = collection(db, 'lists', 'CA_Publisher', 'shortcodes');
-    const q = query(shortcodesRef);
-    const snapshot = await getDocs(q);
-
-    console.log(`${snapshot.size} partenaires trouvés`);
-
-    // Récupérer les données
-    const partners = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      SH_Code: doc.data().SH_Code || doc.id,
-      SH_Display_Name_FR:
-        doc.data().SH_Display_Name_FR || doc.data().SH_Code || doc.id,
-      SH_Display_Name_EN:
-        doc.data().SH_Display_Name_EN || doc.data().SH_Code || doc.id,
-      SH_Default_UTM: doc.data().SH_Default_UTM,
-      SH_Logo: doc.data().SH_Logo,
-      SH_Type: doc.data().SH_Type,
-      SH_Tags: doc.data().SH_Tags || [],
-    }));
+    // 1. Récupérer les IDs des partenaires depuis la nouvelle structure
+    const partnerIdsRef = collection(db, 'lists', 'TC_Publisher', 'clients', 'PlusCo', 'shortcodes');
+    const partnerIdsSnapshot = await getDocs(partnerIdsRef);
+    
+    console.log(`${partnerIdsSnapshot.size} IDs de partenaires trouvés`);
+    
+    if (partnerIdsSnapshot.empty) {
+      return [];
+    }
+    
+    // 2. Pour chaque ID, récupérer les informations complètes
+    const partnersPromises = partnerIdsSnapshot.docs.map(async (docSnap) => {
+      const partnerId = docSnap.id;
+      
+      // Récupérer les informations complètes du partenaire
+      const partnerRef = doc(db, 'shortcodes', partnerId);
+      const partnerSnap = await getDoc(partnerRef);
+      
+      if (partnerSnap.exists()) {
+        const data = partnerSnap.data();
+        return {
+          id: partnerId,
+          SH_Code: data.SH_Code || partnerId,
+          SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerId,
+          SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || partnerId,
+          SH_Default_UTM: data.SH_Default_UTM,
+          SH_Logo: data.SH_Logo,
+          SH_Type: data.SH_Type,
+          SH_Tags: data.SH_Tags || [],
+        } as ShortcodeItem;
+      }
+      
+      return null;
+    });
+    
+    const partnersResults = await Promise.all(partnersPromises);
+    const partners = partnersResults.filter(p => p !== null) as ShortcodeItem[];
+    
+    console.log(`${partners.length} partenaires avec informations complètes récupérés`);
     
     // Trier par ordre alphabétique du nom d'affichage
     return partners.sort((a, b) => 
@@ -136,7 +156,8 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
   try {
     console.log(`Récupération du partenaire ${partnerId}`);
 
-    const partnerRef = doc(db, 'lists', 'CA_Publisher', 'shortcodes', partnerId);
+    // Récupérer directement les informations du partenaire depuis la collection shortcodes
+    const partnerRef = doc(db, 'shortcodes', partnerId);
     const partnerDoc = await getDoc(partnerRef);
 
     if (!partnerDoc.exists()) {
@@ -144,15 +165,16 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
       return null;
     }
 
+    const data = partnerDoc.data();
     return {
       id: partnerDoc.id,
-      SH_Code: partnerDoc.data().SH_Code || partnerDoc.id,
-      SH_Display_Name_FR:partnerDoc.data().SH_Display_Name_FR || partnerDoc.data().SH_Code || partnerDoc.id,
-      SH_Display_Name_EN:partnerDoc.data().SH_Display_Name_EN || partnerDoc.data().SH_Code || partnerDoc.id,
-      SH_Default_UTM: partnerDoc.data().SH_Default_UTM,
-      SH_Logo: partnerDoc.data().SH_Logo,
-      SH_Type: partnerDoc.data().SH_Type,
-      SH_Tags: partnerDoc.data().SH_Tags || [],
+      SH_Code: data.SH_Code || partnerDoc.id,
+      SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerDoc.id,
+      SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || partnerDoc.id,
+      SH_Default_UTM: data.SH_Default_UTM,
+      SH_Logo: data.SH_Logo,
+      SH_Type: data.SH_Type,
+      SH_Tags: data.SH_Tags || [],
     };
   } catch (error) {
     console.error(`Erreur lors de la récupération du partenaire ${partnerId}:`, error);

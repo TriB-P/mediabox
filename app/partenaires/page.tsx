@@ -6,6 +6,7 @@ import { PartnerProvider } from '../contexts/PartnerContext';
 import PartenairesFilter from '../components/Partenaires/PartenairesFilter';
 import PartenairesGrid from '../components/Partenaires/PartenairesGrid';
 import DrawerContainer from '../components/Partenaires/DrawerContainer';
+import PartnersTitle from '../components/Partenaires/PartnersTitle';
 
 export default function PartenairesPage() {
   return (
@@ -13,9 +14,7 @@ export default function PartenairesPage() {
       <AuthenticatedLayout>
         <PartnerProvider>
           <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Partenaires</h1>
-            </div>
+            <PartnersTitle />
             
             <PartenairesFilter />
             <PartenairesGrid />

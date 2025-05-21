@@ -247,3 +247,24 @@ export async function deleteCustomList(dimension: string, clientId: string): Pro
       throw error;
     }
   }
+
+  export async function updatePartner(
+    partnerId: string,
+    partnerData: Partial<Shortcode>
+  ): Promise<void> {
+    try {
+      console.log(`Mise à jour du partenaire ${partnerId}:`, partnerData);
+      
+      // Mettre à jour le document dans la collection shortcodes
+      const shortcodeRef = doc(db, 'shortcodes', partnerId);
+      await updateDoc(shortcodeRef, {
+        ...partnerData,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`Partenaire ${partnerId} mis à jour avec succès`);
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour du partenaire ${partnerId}:`, error);
+      throw error;
+    }
+  }
