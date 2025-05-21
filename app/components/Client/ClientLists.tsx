@@ -18,12 +18,14 @@ import {
   Shortcode
 } from '../../lib/shortcodeService';
 import { 
-  PlusIcon, 
-  XMarkIcon, 
-  MagnifyingGlassIcon, 
-  PencilIcon,
-  TrashIcon
-} from '@heroicons/react/24/outline';
+    PlusIcon, 
+    XMarkIcon, 
+    MagnifyingGlassIcon, 
+    PencilIcon,
+    TrashIcon,
+    ClipboardIcon,
+    ClipboardDocumentCheckIcon
+  } from '@heroicons/react/24/outline';
 import ShortcodeDetail from './ShortcodeDetail';
 
 const ClientLists: React.FC = () => {
@@ -36,6 +38,11 @@ const ClientLists: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isCustomList, setIsCustomList] = useState(false);
+
+
+  
+  // État pour indiquer quel ID a été récemment copié
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   // États pour le modal d'ajout de shortcode à la liste
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -327,6 +334,19 @@ const ClientLists: React.FC = () => {
       (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower))
     );
   });
+
+  // Fonction à ajouter pour copier l'ID dans le presse-papiers
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id)
+      .then(() => {
+        setCopiedId(id);
+        // Réinitialiser l'état après un court délai
+        setTimeout(() => setCopiedId(null), 2000);
+      })
+      .catch(err => {
+        console.error('Erreur lors de la copie dans le presse-papier:', err);
+      });
+  };
   
   // Filtrer les shortcodes dans la liste actuelle par recherche
   const filteredListShortcodes = shortcodes.filter(shortcode => {
@@ -522,7 +542,21 @@ const ClientLists: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-3">
-                                <button
+                            <button
+                            onClick={() => handleCopyId(shortcode.id)}
+                            className="text-gray-600 hover:text-gray-900 group relative"
+                            title="Copier l'ID du code"
+                            >
+                            {copiedId === shortcode.id ? (
+                                <ClipboardDocumentCheckIcon className="h-5 w-5 text-green-600" />
+                            ) : (
+                                <ClipboardIcon className="h-5 w-5" />
+                            )}
+                            <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                Copier l'ID du code
+                            </span>
+                            </button>
+                                                            <button
                                 onClick={() => {
                                     setSelectedShortcode(shortcode);
                                     setIsDetailModalOpen(true);

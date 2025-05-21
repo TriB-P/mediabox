@@ -10,6 +10,7 @@ import ClientGeneral from '../components/Client/ClientGeneral';
 import ClientDimensions from '../components/Client/ClientDimensions';
 import ClientAccess from '../components/Client/ClientAccess';
 import ClientLists from '../components/Client/ClientLists';
+import ClientCustomCodes from '../components/Client/ClientCustomCodes';
 
 
 // Importez correctement tous les composants Tab
@@ -32,7 +33,7 @@ export default function ClientConfigPage() {
     { name: 'Gabarits', component: () => <div>Contenu de la section "Templates" - À venir</div> },
     { name: 'Listes', component: () => <ClientLists /> },
     { name: 'Dimensions', component: () => <ClientDimensions /> },
-    { name: 'Codes personalisés', component: () => <div>Contenu de la section "Code UTM personnalisé" - À venir</div> },
+    { name: 'Codes personnalisés', component: () => <ClientCustomCodes /> },
     { name: 'Devises', component: () => <ClientCurrencies /> },
 
   ];
