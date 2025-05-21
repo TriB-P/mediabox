@@ -5,6 +5,7 @@ export interface ShortcodeItem {
   id: string;
   SH_Code: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -72,6 +73,8 @@ export async function getClientList(
       SH_Code: doc.data().SH_Code || doc.id,
       SH_Display_Name_FR:
         doc.data().SH_Display_Name_FR || doc.data().SH_Code || doc.id,
+      SH_Display_Name_EN:
+        doc.data().SH_Display_Name_EN || doc.data().SH_Code || doc.id,
       SH_Default_UTM: doc.data().SH_Default_UTM,
       SH_Logo: doc.data().SH_Logo,
       SH_Type: doc.data().SH_Type,
@@ -106,6 +109,8 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
       SH_Code: doc.data().SH_Code || doc.id,
       SH_Display_Name_FR:
         doc.data().SH_Display_Name_FR || doc.data().SH_Code || doc.id,
+      SH_Display_Name_EN:
+        doc.data().SH_Display_Name_EN || doc.data().SH_Code || doc.id,
       SH_Default_UTM: doc.data().SH_Default_UTM,
       SH_Logo: doc.data().SH_Logo,
       SH_Type: doc.data().SH_Type,
@@ -142,8 +147,8 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
     return {
       id: partnerDoc.id,
       SH_Code: partnerDoc.data().SH_Code || partnerDoc.id,
-      SH_Display_Name_FR:
-        partnerDoc.data().SH_Display_Name_FR || partnerDoc.data().SH_Code || partnerDoc.id,
+      SH_Display_Name_FR:partnerDoc.data().SH_Display_Name_FR || partnerDoc.data().SH_Code || partnerDoc.id,
+      SH_Display_Name_EN:partnerDoc.data().SH_Display_Name_EN || partnerDoc.data().SH_Code || partnerDoc.id,
       SH_Default_UTM: partnerDoc.data().SH_Default_UTM,
       SH_Logo: partnerDoc.data().SH_Logo,
       SH_Type: partnerDoc.data().SH_Type,
@@ -154,3 +159,4 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
     return null;
   }
 }
+

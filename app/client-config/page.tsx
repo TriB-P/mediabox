@@ -9,6 +9,8 @@ import ClientTaxonomies from '../components/Taxonomy/ClientTaxonomies';
 import ClientGeneral from '../components/Client/ClientGeneral';
 import ClientDimensions from '../components/Client/ClientDimensions';
 import ClientAccess from '../components/Client/ClientAccess';
+import ClientLists from '../components/Client/ClientLists';
+
 
 // Importez correctement tous les composants Tab
 import * as TabPrimitive from '@headlessui/react';
@@ -24,14 +26,15 @@ export default function ClientConfigPage() {
   // Liste complète des onglets
   const tabs = [
     { name: 'Général', component: () => <ClientGeneral /> },
-    { name: 'Frais', component: () => <ClientFees /> },
-    { name: 'Dimensions', component: () => <ClientDimensions /> },
-    { name: 'Devises', component: () => <ClientCurrencies /> },
-    { name: 'Taxonomies', component: () => <ClientTaxonomies /> },
     { name: 'Accès', component: () => <ClientAccess /> },
-    { name: 'Templates', component: () => <div>Contenu de la section "Templates" - À venir</div> },
-    { name: 'Code UTM', component: () => <div>Contenu de la section "Code UTM personnalisé" - À venir</div> },
-    { name: 'Listes', component: () => <div>Contenu de la section "Listes" - À venir</div> },
+    { name: 'Frais', component: () => <ClientFees /> },
+    { name: 'Taxonomies', component: () => <ClientTaxonomies /> },
+    { name: 'Gabarits', component: () => <div>Contenu de la section "Templates" - À venir</div> },
+    { name: 'Listes', component: () => <ClientLists /> },
+    { name: 'Dimensions', component: () => <ClientDimensions /> },
+    { name: 'Codes personalisés', component: () => <div>Contenu de la section "Code UTM personnalisé" - À venir</div> },
+    { name: 'Devises', component: () => <ClientCurrencies /> },
+
   ];
 
   return (
