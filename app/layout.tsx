@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { AuthProvider } from './contexts/AuthContext';
 import { ClientProvider } from './contexts/ClientContext';
+import { PermissionsProvider } from './contexts/PermissionsContext';
+
 
 export const metadata: Metadata = {
   title: 'MediaBox',
