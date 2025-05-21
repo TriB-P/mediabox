@@ -11,6 +11,8 @@ import ClientDimensions from '../components/Client/ClientDimensions';
 import ClientAccess from '../components/Client/ClientAccess';
 import ClientLists from '../components/Client/ClientLists';
 import ClientCustomCodes from '../components/Client/ClientCustomCodes';
+import ClientTemplates from '../components/Client/ClientTemplates';
+
 
 
 // Importez correctement tous les composants Tab
@@ -30,7 +32,7 @@ export default function ClientConfigPage() {
     { name: 'Accès', component: () => <ClientAccess /> },
     { name: 'Frais', component: () => <ClientFees /> },
     { name: 'Taxonomies', component: () => <ClientTaxonomies /> },
-    { name: 'Gabarits', component: () => <div>Contenu de la section "Templates" - À venir</div> },
+    { name: 'Gabarits', component: () => <ClientTemplates /> },
     { name: 'Listes', component: () => <ClientLists /> },
     { name: 'Dimensions', component: () => <ClientDimensions /> },
     { name: 'Codes personnalisés', component: () => <ClientCustomCodes /> },
