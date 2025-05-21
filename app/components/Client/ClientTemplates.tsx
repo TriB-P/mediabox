@@ -4,42 +4,46 @@ import { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Template } from '../../types/template';
 import TemplateForm from './TemplateForm';
+import { useClient } from '../../contexts/ClientContext';
+import { 
+  getTemplatesByClient,
+  createTemplate,
+  updateTemplate, 
+  deleteTemplate 
+} from '../../lib/templateService';
  
 export default function ClientTemplates() {
+  const { selectedClient } = useClient();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
   
-  // Simuler le chargement des données (à remplacer par une vraie requête API)
+  // Charger les données depuis Firestore au lieu des données fictives
   useEffect(() => {
-    // Simulation d'un appel API
-    setTimeout(() => {
-      // Données de test
-      setTemplates([
-        {
-          id: '1',
-          TE_Name: 'Gabarit Standard',
-          TE_URL: 'https://docs.google.com/spreadsheets/d/example1',
-          TE_Duplicate: true,
-          TE_Language: 'Français',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: '2',
-          TE_Name: 'Gabarit Media Social',
-          TE_URL: 'https://docs.google.com/spreadsheets/d/example2',
-          TE_Duplicate: false,
-          TE_Language: 'Anglais',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]);
+    fetchTemplates();
+  }, [selectedClient]);
+
+  const fetchTemplates = async () => {
+    if (!selectedClient) {
+      setTemplates([]);
       setIsLoading(false);
-    }, 1000);
-  }, []);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const fetchedTemplates = await getTemplatesByClient(selectedClient.clientId);
+      setTemplates(fetchedTemplates);
+    } catch (err) {
+      console.error('Erreur lors du chargement des gabarits:', err);
+      setError('Une erreur est survenue lors du chargement des gabarits.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleOpenForm = (template: Template | null = null) => {
     setCurrentTemplate(template);
@@ -52,46 +56,54 @@ export default function ClientTemplates() {
   };
 
   const handleSaveTemplate = async (templateData: Template) => {
-    // Simulation de sauvegarde (à remplacer par un vrai appel API)
+    if (!selectedClient) return;
+    
     try {
       setIsLoading(true);
+      setError(null);
       
       if (currentTemplate) {
         // Mise à jour d'un gabarit existant
-        const updatedTemplates = templates.map(t => 
-          t.id === currentTemplate.id ? { ...templateData, updatedAt: new Date().toISOString() } : t
-        );
-        setTemplates(updatedTemplates);
+        await updateTemplate(selectedClient.clientId, currentTemplate.id, {
+          TE_Name: templateData.TE_Name,
+          TE_URL: templateData.TE_URL,
+          TE_Duplicate: templateData.TE_Duplicate,
+          TE_Language: templateData.TE_Language
+        });
       } else {
         // Création d'un nouveau gabarit
-        const newTemplate = {
-          ...templateData,
-          id: Math.random().toString(36).substr(2, 9), // ID temporaire pour simulation
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setTemplates([...templates, newTemplate]);
+        await createTemplate(selectedClient.clientId, {
+          TE_Name: templateData.TE_Name,
+          TE_URL: templateData.TE_URL,
+          TE_Duplicate: templateData.TE_Duplicate,
+          TE_Language: templateData.TE_Language
+        });
       }
       
+      // Rafraîchir la liste des gabarits
+      await fetchTemplates();
       handleCloseForm();
     } catch (err) {
+      console.error('Erreur lors de la sauvegarde du gabarit:', err);
       setError('Une erreur est survenue lors de la sauvegarde du gabarit.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    // Simulation de suppression (à remplacer par un vrai appel API)
+    if (!selectedClient) return;
+    
     try {
       if (confirm('Êtes-vous sûr de vouloir supprimer ce gabarit ?')) {
         setIsLoading(true);
-        setTemplates(templates.filter(t => t.id !== id));
+        setError(null);
+        await deleteTemplate(selectedClient.clientId, id);
+        await fetchTemplates();
       }
     } catch (err) {
+      console.error('Erreur lors de la suppression du gabarit:', err);
       setError('Une erreur est survenue lors de la suppression du gabarit.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -112,13 +124,18 @@ export default function ClientTemplates() {
         <button
           onClick={() => handleOpenForm()}
           className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          disabled={!selectedClient}
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Ajouter un gabarit
         </button>
       </div>
 
-      {templates.length === 0 ? (
+      {!selectedClient ? (
+        <div className="text-center py-8 text-gray-500">
+          Veuillez sélectionner un client pour gérer ses gabarits.
+        </div>
+      ) : templates.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           Aucun gabarit configuré. Cliquez sur "Ajouter un gabarit" pour commencer.
         </div>
@@ -168,7 +185,7 @@ export default function ClientTemplates() {
         </div>
       )}
       
-      {isFormOpen && (
+      {isFormOpen && selectedClient && (
         <TemplateForm
           isOpen={isFormOpen}
           onClose={handleCloseForm}

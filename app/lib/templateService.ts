@@ -1,16 +1,16 @@
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, orderBy } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { Template, TemplateFormData } from '../types/template';
 
-// Collection de référence dans Firestore
-const templatesCollection = 'templates';
-
 // Récupérer tous les gabarits pour un client spécifique
 export async function getTemplatesByClient(clientId: string): Promise<Template[]> {
   try {
-    const templatesRef = collection(db, templatesCollection);
-    const q = query(templatesRef, where('clientId', '==', clientId));
+    console.log(`Récupération des gabarits pour le client ${clientId}`);
+    // Utiliser la sous-collection 'templates' sous le document du client
+    const templatesRef = collection(db, 'clients', clientId, 'templates');
+    // Trier les gabarits par nom pour faciliter la navigation
+    const q = query(templatesRef, orderBy('TE_Name'));
     const querySnapshot = await getDocs(q);
     
     const templates: Template[] = [];
@@ -21,6 +21,7 @@ export async function getTemplatesByClient(clientId: string): Promise<Template[]
       } as Template);
     });
     
+    console.log(`${templates.length} gabarits trouvés pour le client ${clientId}`);
     return templates;
   } catch (error) {
     console.error('Error getting templates:', error);
@@ -34,15 +35,18 @@ export async function createTemplate(
   templateData: TemplateFormData
 ): Promise<string> {
   try {
+    console.log(`Création d'un nouveau gabarit pour le client ${clientId}`);
     const now = new Date().toISOString();
     const newTemplate = {
       ...templateData,
-      clientId,
       createdAt: now,
       updatedAt: now
     };
     
-    const docRef = await addDoc(collection(db, templatesCollection), newTemplate);
+    // Ajouter à la sous-collection du client
+    const templatesRef = collection(db, 'clients', clientId, 'templates');
+    const docRef = await addDoc(templatesRef, newTemplate);
+    console.log(`Gabarit créé avec ID: ${docRef.id}`);
     return docRef.id;
   } catch (error) {
     console.error('Error creating template:', error);
@@ -52,15 +56,18 @@ export async function createTemplate(
 
 // Mettre à jour un gabarit existant
 export async function updateTemplate(
+  clientId: string,
   templateId: string,
   templateData: TemplateFormData
 ): Promise<void> {
   try {
-    const templateRef = doc(db, templatesCollection, templateId);
+    console.log(`Mise à jour du gabarit ${templateId} pour le client ${clientId}`);
+    const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
     await updateDoc(templateRef, {
       ...templateData,
       updatedAt: new Date().toISOString()
     });
+    console.log(`Gabarit ${templateId} mis à jour avec succès`);
   } catch (error) {
     console.error('Error updating template:', error);
     throw error;
@@ -68,10 +75,15 @@ export async function updateTemplate(
 }
 
 // Supprimer un gabarit
-export async function deleteTemplate(templateId: string): Promise<void> {
+export async function deleteTemplate(
+  clientId: string,
+  templateId: string
+): Promise<void> {
   try {
-    const templateRef = doc(db, templatesCollection, templateId);
+    console.log(`Suppression du gabarit ${templateId} pour le client ${clientId}`);
+    const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
     await deleteDoc(templateRef);
+    console.log(`Gabarit ${templateId} supprimé avec succès`);
   } catch (error) {
     console.error('Error deleting template:', error);
     throw error;
@@ -79,17 +91,22 @@ export async function deleteTemplate(templateId: string): Promise<void> {
 }
 
 // Récupérer un gabarit par son ID
-export async function getTemplateById(templateId: string): Promise<Template | null> {
+export async function getTemplateById(
+  clientId: string,
+  templateId: string
+): Promise<Template | null> {
   try {
-    const templateRef = doc(db, templatesCollection, templateId);
+    console.log(`Récupération du gabarit ${templateId} pour le client ${clientId}`);
+    const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
 
     const templateDoc = await getDoc(templateRef);
-
     
     if (!templateDoc.exists()) {
+      console.log(`Gabarit ${templateId} non trouvé`);
       return null;
     }
     
+    console.log(`Gabarit ${templateId} récupéré avec succès`);
     return {
       id: templateDoc.id,
       ...templateDoc.data()
@@ -99,4 +116,3 @@ export async function getTemplateById(templateId: string): Promise<Template | nu
     throw error;
   }
 }
-

@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment, useCallback } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { Dialog, Transition } from '@headlessui/react';
 import {
@@ -24,7 +24,8 @@ import {
     PencilIcon,
     TrashIcon,
     ClipboardIcon,
-    ClipboardDocumentCheckIcon
+    ClipboardDocumentCheckIcon,
+    ArrowPathIcon
   } from '@heroicons/react/24/outline';
 import ShortcodeDetail from './ShortcodeDetail';
 
@@ -32,15 +33,21 @@ const ClientLists: React.FC = () => {
   const { selectedClient } = useClient();
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [selectedDimension, setSelectedDimension] = useState<string>('');
+  
+  // Données complètes et données affichées
   const [shortcodes, setShortcodes] = useState<Shortcode[]>([]);
-  const [allShortcodes, setAllShortcodes] = useState<Shortcode[]>([]);
+  const [displayedShortcodes, setDisplayedShortcodes] = useState<Shortcode[]>([]);
+  
+  // États pour le chargement progressif
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [chunkSize, setChunkSize] = useState(50);
+  
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isCustomList, setIsCustomList] = useState(false);
 
-
-  
   // État pour indiquer quel ID a été récemment copié
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
@@ -84,6 +91,31 @@ const ClientLists: React.FC = () => {
     }
   }, [selectedClient, selectedDimension]);
 
+  // Effet pour filtrer les shortcodes quand la recherche change
+  useEffect(() => {
+    if (!shortcodes.length) return;
+    
+    if (!listSearchQuery) {
+      // Pas de recherche, réinitialiser à l'état initial
+      setDisplayedShortcodes(shortcodes.slice(0, chunkSize));
+      setHasMore(shortcodes.length > chunkSize);
+      return;
+    }
+    
+    // Filtrer par recherche
+    const searchLower = listSearchQuery.toLowerCase();
+    const filtered = shortcodes.filter(shortcode => 
+      shortcode.SH_Code.toLowerCase().includes(searchLower) ||
+      shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+      (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower)) ||
+      (shortcode.SH_Default_UTM && shortcode.SH_Default_UTM.toLowerCase().includes(searchLower))
+    );
+    
+    // Afficher les premiers résultats
+    setDisplayedShortcodes(filtered.slice(0, chunkSize));
+    setHasMore(filtered.length > chunkSize);
+  }, [listSearchQuery, shortcodes, chunkSize]);
+
   const loadDimensions = async () => {
     try {
       setLoading(true);
@@ -116,6 +148,10 @@ const ClientLists: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      // Réinitialiser les états
+      setDisplayedShortcodes([]);
+      setHasMore(true);
+      
       // Vérifier si le client a une liste personnalisée
       const hasCustom = await hasCustomList(selectedDimension, selectedClient.clientId);
       setIsCustomList(hasCustom);
@@ -127,6 +163,10 @@ const ClientLists: React.FC = () => {
       );
       setShortcodes(fetchedShortcodes);
       
+      // Charger seulement le premier chunk
+      setDisplayedShortcodes(fetchedShortcodes.slice(0, chunkSize));
+      setHasMore(fetchedShortcodes.length > chunkSize);
+      
       // Réinitialiser la recherche sur la liste
       setListSearchQuery('');
       
@@ -136,6 +176,36 @@ const ClientLists: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadMoreShortcodes = () => {
+    if (loading || loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    
+    // Appliquer la recherche si nécessaire
+    const filteredList = listSearchQuery 
+      ? shortcodes.filter(shortcode => {
+          const searchLower = listSearchQuery.toLowerCase();
+          return (
+            shortcode.SH_Code.toLowerCase().includes(searchLower) ||
+            shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+            (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower)) ||
+            (shortcode.SH_Default_UTM && shortcode.SH_Default_UTM.toLowerCase().includes(searchLower))
+          );
+        })
+      : shortcodes;
+      
+    // Calculer le prochain chunk
+    const nextChunk = filteredList.slice(displayedShortcodes.length, displayedShortcodes.length + chunkSize);
+    
+    // Mettre à jour les shortcodes affichés
+    setDisplayedShortcodes(prev => [...prev, ...nextChunk]);
+    
+    // Vérifier s'il reste des éléments à charger
+    setHasMore(displayedShortcodes.length + nextChunk.length < filteredList.length);
+    
+    setLoadingMore(false);
   };
 
   const handleCreateCustomList = async () => {
@@ -318,6 +388,8 @@ const ClientLists: React.FC = () => {
     }
   };
 
+  const [allShortcodes, setAllShortcodes] = useState<Shortcode[]>([]);
+
   // Filtrer les shortcodes disponibles pour l'ajout
   const filteredShortcodes = allShortcodes.filter(shortcode => {
     // Exclure les shortcodes déjà dans la liste
@@ -347,19 +419,6 @@ const ClientLists: React.FC = () => {
         console.error('Erreur lors de la copie dans le presse-papier:', err);
       });
   };
-  
-  // Filtrer les shortcodes dans la liste actuelle par recherche
-  const filteredListShortcodes = shortcodes.filter(shortcode => {
-    if (!listSearchQuery) return true;
-    
-    const searchLower = listSearchQuery.toLowerCase();
-    return (
-      shortcode.SH_Code.toLowerCase().includes(searchLower) ||
-      shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
-      (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower)) ||
-      (shortcode.SH_Default_UTM && shortcode.SH_Default_UTM.toLowerCase().includes(searchLower))
-    );
-  });
 
   if (!selectedClient) {
     return (
@@ -413,7 +472,6 @@ const ClientLists: React.FC = () => {
           {/* Colonne principale (droite) */}
           <div className="flex-1 mt-6 md:mt-0">
             {/* Informations sur la liste utilisée */}
-          {/* Informations sur la liste utilisée */}
             {selectedDimension && (
             <div className="mb-6 bg-gray-50 p-4 rounded-lg">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
@@ -457,7 +515,7 @@ const ClientLists: React.FC = () => {
             
             {/* Boutons d'action et barre de recherche */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div className="flex space-x-2 mb-4 sm:mb-0">
+              <div className="flex space-x-2 mb-4 sm:mb-0">
                 <button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -473,7 +531,7 @@ const ClientLists: React.FC = () => {
                     <PlusIcon className="h-5 w-5 mr-2" />
                     Assigner un shortcode
                 </button>
-                </div>
+              </div>
               
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -495,7 +553,7 @@ const ClientLists: React.FC = () => {
                 <div className="text-center py-4">
                   <p className="text-gray-500">Chargement des shortcodes...</p>
                 </div>
-              ) : filteredListShortcodes.length === 0 ? (
+              ) : displayedShortcodes.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg">
                   <p className="text-gray-500">
                     {shortcodes.length === 0 
@@ -505,87 +563,175 @@ const ClientLists: React.FC = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  {/* Information sur le nombre d'éléments */}
+                  <div className="px-6 py-3 bg-gray-50 flex justify-between items-center">
+                    <div className="text-sm text-gray-500">
+                      Affichage de {displayedShortcodes.length} sur {
+                        listSearchQuery 
+                          ? shortcodes.filter(shortcode => {
+                              const searchLower = listSearchQuery.toLowerCase();
+                              return (
+                                shortcode.SH_Code.toLowerCase().includes(searchLower) ||
+                                shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+                                (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower)) ||
+                                (shortcode.SH_Default_UTM && shortcode.SH_Default_UTM.toLowerCase().includes(searchLower))
+                              );
+                            }).length
+                          : shortcodes.length
+                      } shortcodes
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-500">Taille du chargement:</span>
+                      <select
+                        className="border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        value={chunkSize}
+                        onChange={(e) => {
+                          const newSize = Number(e.target.value);
+                          setChunkSize(newSize);
+                          // Recalculer les shortcodes affichés
+                          if (!listSearchQuery) {
+                            setDisplayedShortcodes(shortcodes.slice(0, newSize));
+                            setHasMore(shortcodes.length > newSize);
+                          } else {
+                            const filtered = shortcodes.filter(shortcode => {
+                              const searchLower = listSearchQuery.toLowerCase();
+                              return (
+                                shortcode.SH_Code.toLowerCase().includes(searchLower) ||
+                                shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+                                (shortcode.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower)) ||
+                                (shortcode.SH_Default_UTM && shortcode.SH_Default_UTM.toLowerCase().includes(searchLower))
+                              );
+                            });
+                            setDisplayedShortcodes(filtered.slice(0, newSize));
+                            setHasMore(filtered.length > newSize);
+                          }
+                        }}
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Code
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Nom FR
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Nom EN
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           UTM par défaut
                         </th>
-                        <th scope="col" className="relative px-6 py-3">
+                        <th scope="col" className="w-1/6 relative px-6 py-3">
                           <span className="sr-only">Actions</span>
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredListShortcodes.map((shortcode) => (
+                      {displayedShortcodes.map((shortcode) => (
                         <tr key={shortcode.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {shortcode.SH_Code}
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            <div className="truncate" title={shortcode.SH_Code}>
+                              {shortcode.SH_Code}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {shortcode.SH_Display_Name_FR}
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div className="truncate" title={shortcode.SH_Display_Name_FR}>
+                              {shortcode.SH_Display_Name_FR}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {shortcode.SH_Display_Name_EN || '—'}
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div className="truncate" title={shortcode.SH_Display_Name_EN || ''}>
+                              {shortcode.SH_Display_Name_EN || '—'}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {shortcode.SH_Default_UTM || '—'}
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div className="truncate" title={shortcode.SH_Default_UTM || ''}>
+                              {shortcode.SH_Default_UTM || '—'}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-3">
-                            <button
-                            onClick={() => handleCopyId(shortcode.id)}
-                            className="text-gray-600 hover:text-gray-900 group relative"
-                            title="Copier l'ID du code"
-                            >
-                            {copiedId === shortcode.id ? (
-                                <ClipboardDocumentCheckIcon className="h-5 w-5 text-green-600" />
-                            ) : (
-                                <ClipboardIcon className="h-5 w-5" />
-                            )}
-                            <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                                Copier l'ID du code
-                            </span>
-                            </button>
-                                                            <button
+                              <button
+                                onClick={() => handleCopyId(shortcode.id)}
+                                className="text-gray-600 hover:text-gray-900 group relative"
+                                title="Copier l'ID du code"
+                              >
+                                {copiedId === shortcode.id ? (
+                                  <ClipboardDocumentCheckIcon className="h-5 w-5 text-green-600" />
+                                ) : (
+                                    <ClipboardIcon className="h-5 w-5" />
+                                )}
+                                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
+                                  Copier l'ID du code
+                                </span>
+                              </button>
+                              <button
                                 onClick={() => {
-                                    setSelectedShortcode(shortcode);
-                                    setIsDetailModalOpen(true);
+                                  setSelectedShortcode(shortcode);
+                                  setIsDetailModalOpen(true);
                                 }}
                                 className="text-indigo-600 hover:text-indigo-900 group relative"
                                 title="Modifier ce shortcode"
-                                >
+                              >
                                 <PencilIcon className="h-5 w-5" />
-                                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                                    Modifier ce shortcode
+                                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
+                                  Modifier ce shortcode
                                 </span>
-                                </button>
-                                
-                                <button
+                              </button>
+                              
+                              <button
                                 onClick={() => handleRemoveShortcode(shortcode.id)}
                                 className="text-red-600 hover:text-red-900 group relative"
                                 title={isCustomList ? "Retirer de cette liste" : "Retirer de la liste PlusCo"}
-                                >
+                              >
                                 <TrashIcon className="h-5 w-5" />
-                                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                                    {isCustomList ? "Retirer de cette liste" : "Retirer de la liste PlusCo"}
+                                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
+                                  {isCustomList ? "Retirer de cette liste" : "Retirer de la liste PlusCo"}
                                 </span>
-                                </button>
+                              </button>
                             </div>
-                            </td>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  
+                  {/* Bouton "Charger plus" */}
+                  {hasMore && (
+                    <div className="flex justify-center py-4 border-t border-gray-200">
+                      <button
+                        onClick={loadMoreShortcodes}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? (
+                          <>
+                            <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
+                            Chargement...
+                          </>
+                        ) : (
+                          <>
+                            Charger plus de shortcodes
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {!hasMore && displayedShortcodes.length > 0 && (
+                    <div className="text-center py-4 text-sm text-gray-500 border-t border-gray-200">
+                      Tous les shortcodes sont affichés
+                    </div>
+                  )}
                 </div>
               )}
             </div>
