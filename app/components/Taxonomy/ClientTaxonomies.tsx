@@ -9,14 +9,20 @@ import {
   deleteTaxonomy
 } from '../../lib/taxonomyService';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Taxonomy, TaxonomyFormData } from '../../types/taxonomy';
 import TaxonomyForm from './TaxonomyForm';
 
 const ClientTaxonomies: React.FC = () => {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Vérifier si l'utilisateur a la permission de gérer les taxonomies
+  const hasTaxonomyPermission = canPerformAction('Taxonomy');
   
   // États pour les formulaires
   const [showTaxonomyForm, setShowTaxonomyForm] = useState(false);
@@ -66,42 +72,66 @@ const ClientTaxonomies: React.FC = () => {
 
   // Gestion des taxonomies
   const handleAddTaxonomy = async (formData: TaxonomyFormData) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasTaxonomyPermission) return;
     
     try {
+      setLoading(true);
+      setError(null);
+      
       await addTaxonomy(selectedClient.clientId, formData);
+      
+      setSuccess('Taxonomie ajoutée avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
+      
       setShowTaxonomyForm(false);
-      loadTaxonomies();
+      await loadTaxonomies();
     } catch (err) {
       console.error('Erreur lors de l\'ajout de la taxonomie:', err);
       setError('Impossible d\'ajouter la taxonomie.');
+      setLoading(false);
     }
   };
 
   const handleUpdateTaxonomy = async (formData: TaxonomyFormData) => {
-    if (!selectedClient || !currentTaxonomy) return;
+    if (!selectedClient || !currentTaxonomy || !hasTaxonomyPermission) return;
     
     try {
+      setLoading(true);
+      setError(null);
+      
       await updateTaxonomy(selectedClient.clientId, currentTaxonomy.id, formData);
+      
+      setSuccess('Taxonomie mise à jour avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
+      
       setShowTaxonomyForm(false);
       setCurrentTaxonomy(null);
-      loadTaxonomies();
+      await loadTaxonomies();
     } catch (err) {
       console.error('Erreur lors de la mise à jour de la taxonomie:', err);
       setError('Impossible de mettre à jour la taxonomie.');
+      setLoading(false);
     }
   };
 
   const handleDeleteTaxonomy = async (taxonomyId: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasTaxonomyPermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette taxonomie ?')) {
       try {
+        setLoading(true);
+        setError(null);
+        
         await deleteTaxonomy(selectedClient.clientId, taxonomyId);
-        loadTaxonomies();
+        
+        setSuccess('Taxonomie supprimée avec succès.');
+        setTimeout(() => setSuccess(null), 3000);
+        
+        await loadTaxonomies();
       } catch (err) {
         console.error('Erreur lors de la suppression de la taxonomie:', err);
         setError('Impossible de supprimer la taxonomie.');
+        setLoading(false);
       }
     }
   };
@@ -121,10 +151,18 @@ const ClientTaxonomies: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800">Taxonomies du client</h2>
           <button
             onClick={() => {
-              setCurrentTaxonomy(null);
-              setShowTaxonomyForm(true);
+              if (hasTaxonomyPermission) {
+                setCurrentTaxonomy(null);
+                setShowTaxonomyForm(true);
+              }
             }}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm ${
+              hasTaxonomyPermission 
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!hasTaxonomyPermission}
+            title={!hasTaxonomyPermission ? "Vous n'avez pas la permission d'ajouter des taxonomies" : ""}
           >
             <PlusIcon className="h-4 w-4 mr-1" />
             Ajouter une taxonomie
@@ -134,6 +172,18 @@ const ClientTaxonomies: React.FC = () => {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
             {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 text-green-700">
+            {success}
+          </div>
+        )}
+        
+        {!hasTaxonomyPermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les taxonomies.
           </div>
         )}
 
@@ -169,19 +219,35 @@ const ClientTaxonomies: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setCurrentTaxonomy(taxonomy);
-                        setShowTaxonomyForm(true);
+                        if (hasTaxonomyPermission) {
+                          setCurrentTaxonomy(taxonomy);
+                          setShowTaxonomyForm(true);
+                        }
                       }}
-                      className="text-gray-500 hover:text-indigo-600"
+                      className={`${
+                        hasTaxonomyPermission 
+                          ? 'text-gray-500 hover:text-indigo-600' 
+                          : 'text-gray-300 cursor-not-allowed'
+                      }`}
+                      disabled={!hasTaxonomyPermission}
+                      title={!hasTaxonomyPermission ? "Vous n'avez pas la permission de modifier les taxonomies" : ""}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteTaxonomy(taxonomy.id);
+                        if (hasTaxonomyPermission) {
+                          handleDeleteTaxonomy(taxonomy.id);
+                        }
                       }}
-                      className="text-gray-500 hover:text-red-600"
+                      className={`${
+                        hasTaxonomyPermission 
+                          ? 'text-gray-500 hover:text-red-600' 
+                          : 'text-gray-300 cursor-not-allowed'
+                      }`}
+                      disabled={!hasTaxonomyPermission}
+                      title={!hasTaxonomyPermission ? "Vous n'avez pas la permission de supprimer les taxonomies" : ""}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
@@ -232,7 +298,7 @@ const ClientTaxonomies: React.FC = () => {
       </div>
 
       {/* Modal pour le formulaire de taxonomie */}
-      {showTaxonomyForm && (
+      {showTaxonomyForm && hasTaxonomyPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">

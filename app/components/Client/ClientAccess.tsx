@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useClient } from '../../contexts/ClientContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { 
   getAllUsers, 
   getClientUsers, 
@@ -28,11 +29,15 @@ const ACCESS_LEVELS = [
 
 const ClientAccess: React.FC = () => {
   const { selectedClient } = useClient();
+  const { canPerformAction } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [clientUsers, setClientUsers] = useState<UserAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Vérifier si l'utilisateur a la permission de gérer les accès
+  const hasAccessPermission = canPerformAction('Access');
   
   // États pour le formulaire d'ajout/modification d'utilisateur
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,6 +83,8 @@ const ClientAccess: React.FC = () => {
   };
   
   const openAddUserModal = () => {
+    if (!hasAccessPermission) return;
+    
     setIsEditing(false);
     setSelectedUser(null);
     setSelectedAccessLevel(ACCESS_LEVELS[1]); // 'user' par défaut
@@ -87,6 +94,8 @@ const ClientAccess: React.FC = () => {
   };
   
   const openEditUserModal = (user: UserAccess) => {
+    if (!hasAccessPermission) return;
+    
     setIsEditing(true);
     setCurrentUser(user);
     
@@ -103,7 +112,7 @@ const ClientAccess: React.FC = () => {
   };
 
   const handleAddUser = async () => {
-    if (!selectedClient || !selectedUser) return;
+    if (!selectedClient || !selectedUser || !hasAccessPermission) return;
     
     try {
       setError(null);
@@ -134,7 +143,7 @@ const ClientAccess: React.FC = () => {
   };
 
   const handleUpdateUser = async () => {
-    if (!selectedClient || !currentUser) return;
+    if (!selectedClient || !currentUser || !hasAccessPermission) return;
     
     try {
       setError(null);
@@ -163,7 +172,7 @@ const ClientAccess: React.FC = () => {
   };
 
   const handleRemoveUser = async (userEmail: string) => {
-    if (!selectedClient) return;
+    if (!selectedClient || !hasAccessPermission) return;
     
     if (window.confirm('Êtes-vous sûr de vouloir supprimer l\'accès de cet utilisateur ?')) {
       try {
@@ -222,12 +231,24 @@ const ClientAccess: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800">Gestion des accès</h2>
           <button
             onClick={openAddUserModal}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
+              hasAccessPermission 
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!hasAccessPermission}
+            title={!hasAccessPermission ? "Vous n'avez pas la permission de gérer les accès" : ""}
           >
             <UserPlusIcon className="h-5 w-5 mr-2" />
             Ajouter un utilisateur
           </button>
         </div>
+
+        {!hasAccessPermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier accès.
+          </div>
+        )}
         
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
@@ -307,13 +328,25 @@ const ClientAccess: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => openEditUserModal(user)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        className={`${
+                          hasAccessPermission 
+                            ? 'text-indigo-600 hover:text-indigo-900' 
+                            : 'text-gray-400 cursor-not-allowed'
+                        } mr-4`}
+                        disabled={!hasAccessPermission}
+                        title={!hasAccessPermission ? "Vous n'avez pas la permission de modifier les accès" : ""}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleRemoveUser(user.userEmail)}
-                        className="text-red-600 hover:text-red-900"
+                        className={`${
+                          hasAccessPermission 
+                            ? 'text-red-600 hover:text-red-900' 
+                            : 'text-gray-400 cursor-not-allowed'
+                        }`}
+                        disabled={!hasAccessPermission}
+                        title={!hasAccessPermission ? "Vous n'avez pas la permission de supprimer les accès" : ""}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -326,197 +359,177 @@ const ClientAccess: React.FC = () => {
         )}
         
         {/* Modal d'ajout/modification d'utilisateur */}
-        <Transition show={isModalOpen} as={Fragment}>
-          <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={closeModal}>
+        {isModalOpen && hasAccessPermission && (
+          <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" open={isModalOpen} onClose={closeModal}>
             <div className="min-h-screen px-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0"
-                enterTo="opacity-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-              >
-                <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-              </Transition.Child>
+              <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
 
               {/* Astuce pour centrer le modal */}
               <span className="inline-block h-screen align-middle" aria-hidden="true">
                 &#8203;
               </span>
               
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
-                  <div className="flex justify-between items-center">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {isEditing ? 'Modifier l\'accès utilisateur' : 'Ajouter un utilisateur'}
-                    </Dialog.Title>
-                    <button
-                      type="button"
-                      className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={closeModal}
-                    >
-                      <span className="sr-only">Fermer</span>
-                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                    </button>
-                  </div>
-                  
-                  <div className="mt-4 space-y-4">
-                    {/* Sélection d'utilisateur (uniquement en mode ajout) */}
-                    {!isEditing && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Sélectionner un utilisateur
-                        </label>
-                        
-                        {/* Champ de recherche/filtre */}
-                        <div className="mb-2">
-                          <input
-                            type="text"
-                            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                            placeholder="Filtrer les utilisateurs..."
-                            value={userSearchQuery}
-                            onChange={(e) => setUserSearchQuery(e.target.value)}
-                          />
-                        </div>
-                        
-                        {/* Liste déroulante d'utilisateurs */}
-                        <div className="relative">
-                          <select
-                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                            value={selectedUser?.id || ""}
-                            onChange={(e) => {
-                              const selectedUserId = e.target.value;
-                              const user = users.find(u => u.id === selectedUserId);
-                              setSelectedUser(user || null);
-                            }}
-                          >
-                            <option value="">Sélectionner un utilisateur</option>
-                            {availableUsers.map((user) => (
-                              <option key={user.id} value={user.id}>
-                                {user.displayName} ({user.email})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        {selectedUser && (
-                          <div className="mt-2 flex items-center bg-gray-50 p-2 rounded-md">
-                            {selectedUser.photoURL ? (
-                              <img
-                                src={selectedUser.photoURL}
-                                alt=""
-                                className="h-8 w-8 rounded-full mr-2"
-                              />
-                            ) : (
-                              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                                <span className="text-md text-indigo-800">
-                                  {selectedUser.displayName.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-sm font-medium">{selectedUser.displayName}</p>
-                              <p className="text-xs text-gray-500">{selectedUser.email}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Affichage de l'utilisateur en mode édition */}
-                    {isEditing && currentUser && (
-                      <div className="mb-4 flex items-center bg-gray-50 p-2 rounded-md">
-                        {currentUser.photoURL ? (
-                          <img
-                            src={currentUser.photoURL}
-                            alt=""
-                            className="h-8 w-8 rounded-full mr-2"
-                          />
-                        ) : (
-                          <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                            <span className="text-md text-indigo-800">
-                              {currentUser.displayName.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium">{currentUser.displayName}</p>
-                          <p className="text-xs text-gray-500">{currentUser.userEmail}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Niveau d'accès */}
+              <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
+                <div className="flex justify-between items-center">
+                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                    {isEditing ? 'Modifier l\'accès utilisateur' : 'Ajouter un utilisateur'}
+                  </Dialog.Title>
+                  <button
+                    type="button"
+                    className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+                    onClick={closeModal}
+                  >
+                    <span className="sr-only">Fermer</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
+                
+                <div className="mt-4 space-y-4">
+                  {/* Sélection d'utilisateur (uniquement en mode ajout) */}
+                  {!isEditing && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Niveau d'accès
+                        Sélectionner un utilisateur
                       </label>
-                      <select
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                        value={selectedAccessLevel.value}
-                        onChange={(e) => {
-                          const value = e.target.value as 'editor' | 'user';
-                          const level = ACCESS_LEVELS.find(l => l.value === value) || ACCESS_LEVELS[1];
-                          setSelectedAccessLevel(level);
-                        }}
-                      >
-                        {ACCESS_LEVELS.map((level) => (
-                          <option key={level.value} value={level.value}>
-                            {level.label}
-                          </option>
-                        ))}
-                      </select>
+                      
+                      {/* Champ de recherche/filtre */}
+                      <div className="mb-2">
+                        <input
+                          type="text"
+                          className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                          placeholder="Filtrer les utilisateurs..."
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      
+                      {/* Liste déroulante d'utilisateurs */}
+                      <div className="relative">
+                        <select
+                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                          value={selectedUser?.id || ""}
+                          onChange={(e) => {
+                            const selectedUserId = e.target.value;
+                            const user = users.find(u => u.id === selectedUserId);
+                            setSelectedUser(user || null);
+                          }}
+                        >
+                          <option value="">Sélectionner un utilisateur</option>
+                          {availableUsers.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.displayName} ({user.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {selectedUser && (
+                        <div className="mt-2 flex items-center bg-gray-50 p-2 rounded-md">
+                          {selectedUser.photoURL ? (
+                            <img
+                              src={selectedUser.photoURL}
+                              alt=""
+                              className="h-8 w-8 rounded-full mr-2"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                              <span className="text-md text-indigo-800">
+                                {selectedUser.displayName.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium">{selectedUser.displayName}</p>
+                            <p className="text-xs text-gray-500">{selectedUser.email}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    
-                    {/* Note */}
-                    <div>
-                      <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
-                        Note
-                      </label>
-                      <textarea
-                        id="note"
-                        name="note"
-                        rows={3}
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        placeholder="Ajoutez une note concernant cet accès..."
-                      />
+                  )}
+                  
+                  {/* Affichage de l'utilisateur en mode édition */}
+                  {isEditing && currentUser && (
+                    <div className="mb-4 flex items-center bg-gray-50 p-2 rounded-md">
+                      {currentUser.photoURL ? (
+                        <img
+                          src={currentUser.photoURL}
+                          alt=""
+                          className="h-8 w-8 rounded-full mr-2"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                          <span className="text-md text-indigo-800">
+                            {currentUser.displayName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">{currentUser.displayName}</p>
+                        <p className="text-xs text-gray-500">{currentUser.userEmail}</p>
+                      </div>
                     </div>
+                  )}
+                  
+                  {/* Niveau d'accès */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Niveau d'accès
+                    </label>
+                    <select
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      value={selectedAccessLevel.value}
+                      onChange={(e) => {
+                        const value = e.target.value as 'editor' | 'user';
+                        const level = ACCESS_LEVELS.find(l => l.value === value) || ACCESS_LEVELS[1];
+                        setSelectedAccessLevel(level);
+                      }}
+                    >
+                      {ACCESS_LEVELS.map((level) => (
+                        <option key={level.value} value={level.value}>
+                          {level.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      type="button"
-                      className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
-                      onClick={closeModal}
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      onClick={isEditing ? handleUpdateUser : handleAddUser}
-                      disabled={isEditing ? false : !selectedUser}
-                    >
-                      {isEditing ? 'Mettre à jour' : 'Ajouter'}
-                    </button>
+                  
+                  {/* Note */}
+                  <div>
+                    <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
+                      Note
+                    </label>
+                    <textarea
+                      id="note"
+                      name="note"
+                      rows={3}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      placeholder="Ajoutez une note concernant cet accès..."
+                    />
                   </div>
                 </div>
-              </Transition.Child>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
+                    onClick={closeModal}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={isEditing ? handleUpdateUser : handleAddUser}
+                    disabled={isEditing ? false : !selectedUser}
+                  >
+                    {isEditing ? 'Mettre à jour' : 'Ajouter'}
+                  </button>
+                </div>
+              </div>
             </div>
           </Dialog>
-        </Transition>
+        )}
       </div>
     </div>
   );

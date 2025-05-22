@@ -128,6 +128,8 @@ const ClientCurrencies: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800">Taux de conversion</h2>
           
           <div className="flex items-center gap-2">
+          
+      
             <div className="relative">
               <input
                 type="text"
@@ -174,6 +176,12 @@ const ClientCurrencies: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {!hasCurrencyPermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les taux de conversion des devises.
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">

@@ -239,6 +239,12 @@ const ClientCustomCodes: React.FC = () => {
           </button>
         </div>
 
+        {!hasCustomCodePermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les codes personnalisés.
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
             {error}

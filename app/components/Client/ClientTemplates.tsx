@@ -143,6 +143,12 @@ export default function ClientTemplates() {
         </button>
       </div>
 
+      {!hasTemplatePermission && (
+          <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
+            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les gabarits.
+          </div>
+        )}
+
       {!selectedClient ? (
         <div className="text-center py-8 text-gray-500">
           Veuillez sélectionner un client pour gérer ses gabarits.
