@@ -29,6 +29,8 @@ export interface ClientInfo {
   CL_Agency?: string;
   CL_Export_Language: 'FR' | 'EN';
   CL_Default_Drive_Folder?: string;
+  CL_Cost_Guide_ID?: string; 
+
   
   // Frais personnalisés
   CL_Custom_Fee_1?: string;
@@ -126,6 +128,7 @@ export async function getClientInfo(clientId: string): Promise<ClientInfo> {
         CL_Agency: '',
         CL_Export_Language: 'FR',
         CL_Default_Drive_Folder: '',
+        CL_Cost_Guide_ID: '',
       };
     }
     
@@ -140,6 +143,8 @@ export async function getClientInfo(clientId: string): Promise<ClientInfo> {
       CL_Agency: data.CL_Agency || '',
       CL_Export_Language: data.CL_Export_Language || 'FR',
       CL_Default_Drive_Folder: data.CL_Default_Drive_Folder || '',
+      CL_Cost_Guide_ID: data.CL_Cost_Guide_ID || '',
+
       
       // Frais personnalisés
       CL_Custom_Fee_1: data.CL_Custom_Fee_1 || '',
