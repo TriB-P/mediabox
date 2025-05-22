@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import ClientDropdown from './ClientDropdown';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -16,15 +17,19 @@ import {
   DollarSign,
   Users,
   HelpCircle,
-  Settings
+  Settings,
+  ShieldPlus
 
 } from 'lucide-react';
 
 export default function Navigation() {
   const { user } = useAuth();
+  const { userRole } = usePermissions();
   const pathname = usePathname();
 
   if (!user) return null;
+
+  const isAdmin = userRole === 'admin';
 
   const navigationItems = [
     { name: 'Campagnes', href: '/campaigns', icon: LayoutDashboard },
@@ -33,7 +38,8 @@ export default function Navigation() {
     { name: 'Documents', href: '/documents', icon: FileText },
     { name: 'Guide de coût', href: '/guide-de-cout', icon: DollarSign },
     { name: 'Partenaires', href: '/partenaires', icon: Users },
-    { name: 'Client', href: '/client-config', icon: Settings }, // Mis à jour vers la nouvelle route
+    { name: 'Client', href: '/client-config', icon: Settings },
+    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon:   ShieldPlus }] : []),
     { name: 'Aide', href: '/aide', icon: HelpCircle }
   ];
 

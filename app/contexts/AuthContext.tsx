@@ -1,3 +1,5 @@
+// app/contexts/AuthContext.tsx (version mise à jour)
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -7,9 +9,10 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../lib/firebase';
 import { User, AuthContextType } from '../types/auth';
+import { acceptInvitation } from '../lib/invitationService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -30,17 +33,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastLogin: new Date(),
         };
 
+        // Vérifier si c'est un nouvel utilisateur
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userRef);
+        const isNewUser = !userDoc.exists();
+
         // Mettre à jour les infos utilisateur dans Firestore
         await setDoc(
-          doc(db, 'users', firebaseUser.uid),
+          userRef,
           {
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
             lastLogin: new Date(),
+            ...(isNewUser && { createdAt: new Date() }),
           },
           { merge: true }
         );
+
+        // Si c'est un nouvel utilisateur, vérifier s'il y a une invitation pendante
+        if (isNewUser) {
+          try {
+            await acceptInvitation(user.email, firebaseUser.uid);
+            console.log('Invitation traitée pour:', user.email);
+          } catch (error) {
+            console.error('Erreur lors du traitement de l\'invitation:', error);
+            // Ne pas bloquer la connexion si l'invitation échoue
+          }
+        }
 
         setUser(user);
       } else {
@@ -60,18 +80,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Connexion réussie:', result.user.email);
       const firebaseUser = result.user;
 
+      // Vérifier si c'est un nouvel utilisateur
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userDoc = await getDoc(userRef);
+      const isNewUser = !userDoc.exists();
+
       // Créer ou mettre à jour l'utilisateur dans Firestore
       await setDoc(
-        doc(db, 'users', firebaseUser.uid),
+        userRef,
         {
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-          createdAt: new Date(),
           lastLogin: new Date(),
+          ...(isNewUser && { createdAt: new Date() }),
         },
         { merge: true }
       );
+
+      // Si c'est un nouvel utilisateur, traiter l'invitation
+      if (isNewUser && firebaseUser.email) {
+        try {
+          await acceptInvitation(firebaseUser.email, firebaseUser.uid);
+          console.log('Invitation acceptée pour:', firebaseUser.email);
+        } catch (error) {
+          console.error('Erreur lors de l\'acceptation de l\'invitation:', error);
+          // Ne pas bloquer la connexion
+        }
+      }
     } catch (error: any) {
       console.error('Erreur détaillée de connexion:', error);
       console.error('Code erreur:', error.code);
