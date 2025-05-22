@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
+import { useSelection } from '../contexts/SelectionContext';
+import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { Section, Tactique, Onglet, Version, SectionWithTactiques } from '../types/tactiques';
 import {
   getOnglets,
@@ -17,8 +19,6 @@ import {
   updateTactique,
   deleteTactique
 } from '../lib/tactiqueService';
-import { getCampaigns } from '../lib/campaignService';
-import { getVersions } from '../lib/versionService';
 import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
 import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
@@ -30,6 +30,8 @@ import {
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import TactiqueDrawer from '../components/Tactiques/TactiqueDrawer';
+import ProtectedRoute from '../components/Others/ProtectedRoute';
+import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 
 // Déclaration pour TypeScript
 declare global {
@@ -43,21 +45,31 @@ type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
 export default function TactiquesPage() {
   const { selectedClient } = useClient();
+  const { 
+    selectedOngletId, 
+    setSelectedOngletId,
+  } = useSelection();
+  
+  const {
+    campaigns,
+    versions,
+    selectedCampaign,
+    selectedVersion,
+    loading: campaignLoading,
+    error: campaignError,
+    handleCampaignChange,
+    handleVersionChange,
+  } = useCampaignSelection();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // État pour le mode de visualisation
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   
-  // États pour les sélections
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
+  // États pour les données
   const [onglets, setOnglets] = useState<Onglet[]>([]);
   const [selectedOnglet, setSelectedOnglet] = useState<Onglet | null>(null);
-  
-  // États pour les données
   const [sections, setSections] = useState<Array<Section & { isExpanded: boolean }>>([]);
   const [tactiques, setTactiques] = useState<{ [sectionId: string]: Tactique[] }>({});
   const [totalBudget, setTotalBudget] = useState<number>(0);
@@ -91,73 +103,31 @@ export default function TactiquesPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-  
-  // Charger les campagnes au chargement initial
+
+  // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
-    async function loadCampaigns() {
-      if (!selectedClient) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const campaignsData = await getCampaigns(selectedClient.clientId);
-        setCampaigns(campaignsData);
-        
-        // Réinitialiser les sélections
-        setSelectedCampaign(null);
-        setSelectedVersion(null);
-        setSelectedOnglet(null);
-        setSections([]);
-        setTactiques({});
-      } catch (err) {
-        console.error('Erreur lors du chargement des campagnes:', err);
-        setError('Erreur lors du chargement des campagnes');
-      } finally {
-        setLoading(false);
-      }
+    if (selectedCampaign) {
+      setTotalBudget(selectedCampaign.budget || 0);
+    } else {
+      setTotalBudget(0);
     }
-    
-    loadCampaigns();
-  }, [selectedClient]);
-  
-  // Charger les versions lorsqu'une campagne est sélectionnée
-  useEffect(() => {
-    async function loadVersions() {
-      if (!selectedClient || !selectedCampaign) return;
-      
-      try {
-        setLoading(true);
-        
-        const versionsData = await getVersions(selectedClient.clientId, selectedCampaign.id);
-        setVersions(versionsData);
-        
-        // Définir le budget total à partir de la campagne
-        setTotalBudget(selectedCampaign.budget || 0);
-        
-        // Réinitialiser les sélections suivantes
-        setSelectedVersion(null);
-        setSelectedOnglet(null);
-        setSections([]);
-        setTactiques({});
-      } catch (err) {
-        console.error('Erreur lors du chargement des versions:', err);
-        setError('Erreur lors du chargement des versions');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    loadVersions();
-  }, [selectedClient, selectedCampaign]);
+  }, [selectedCampaign]);
   
   // Charger les onglets lorsqu'une version est sélectionnée
   useEffect(() => {
     async function loadOnglets() {
-      if (!selectedClient || !selectedCampaign || !selectedVersion) return;
+      if (!selectedClient || !selectedCampaign || !selectedVersion) {
+        setOnglets([]);
+        setSelectedOnglet(null);
+        setSections([]);
+        setTactiques({});
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        setError(null);
         
         const ongletsData = await getOnglets(
           selectedClient.clientId,
@@ -203,11 +173,30 @@ export default function TactiquesPage() {
         
         setOnglets(ongletsData);
         
-        // Sélectionner automatiquement le premier onglet s'il y en a
-        if (ongletsData.length > 0) {
-          setSelectedOnglet(ongletsData[0]);
+        // Essayer de restaurer l'onglet sélectionné depuis le contexte
+        let ongletToSelect: Onglet | null = null;
+        
+        if (selectedOngletId) {
+          const savedOnglet = ongletsData.find(o => o.id === selectedOngletId);
+          if (savedOnglet) {
+            ongletToSelect = savedOnglet;
+            console.log('Onglet restauré depuis les sélections:', savedOnglet);
+          } else {
+            // L'onglet sauvegardé n'existe plus, nettoyer la sélection
+            setSelectedOngletId(null);
+          }
+        }
+        
+        // Si pas d'onglet restauré, sélectionner le premier
+        if (!ongletToSelect && ongletsData.length > 0) {
+          ongletToSelect = ongletsData[0];
+          console.log('Premier onglet sélectionné automatiquement:', ongletToSelect);
+        }
+        
+        if (ongletToSelect) {
+          setSelectedOnglet(ongletToSelect);
+          setSelectedOngletId(ongletToSelect.id);
         } else {
-          // Réinitialiser les sélections suivantes
           setSelectedOnglet(null);
           setSections([]);
           setTactiques({});
@@ -221,7 +210,7 @@ export default function TactiquesPage() {
     }
     
     loadOnglets();
-  }, [selectedClient, selectedCampaign, selectedVersion]);
+  }, [selectedClient, selectedCampaign, selectedVersion, selectedOngletId]);
   
   // Charger les sections et tactiques lorsqu'un onglet est sélectionné
   useEffect(() => {
@@ -289,6 +278,18 @@ export default function TactiquesPage() {
     
     loadSectionsAndTactiques();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOnglet]);
+  
+  // Gestionnaires pour les changements de sélection avec dropdown
+  const handleCampaignChangeLocal = (campaign: any) => {
+    handleCampaignChange(campaign);
+    setShowCampaignDropdown(false);
+    setShowVersionDropdown(false);
+  };
+
+  const handleVersionChangeLocal = (version: any) => {
+    handleVersionChange(version);
+    setShowVersionDropdown(false);
+  };
   
   // Gestionnaire pour développer/réduire une section
   const handleSectionExpand = (sectionId: string) => {
@@ -821,355 +822,362 @@ export default function TactiquesPage() {
         {
           ...newOngletData,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         }
-      );
-      
-      const newOnglet = {
-        id: ongletRef.id,
-        ...newOngletData
-      };
-      
-      // Ajouter l'onglet à l'état local
-      setOnglets(prev => [...prev, newOnglet]);
-      
-      // Sélectionner le nouvel onglet
-      setSelectedOnglet(newOnglet);
-    } catch (err) {
-      console.error('Erreur lors de l\'ajout d\'un onglet:', err);
-      setError('Erreur lors de l\'ajout d\'un onglet');
-    }
-  };
-  
-  const handleRenameOnglet = async (ongletId: string, newName: string) => {
-    if (!selectedClient || !selectedCampaign || !selectedVersion) return;
-    
-    try {
-      const ongletRef = doc(
-        db,
-        'clients',
-        selectedClient.clientId,
-        'campaigns',
-        selectedCampaign.id,
-        'versions',
-        selectedVersion.id,
-        'onglets',
-        ongletId
-      );
-      
-      await updateDoc(ongletRef, {
-        ONGLET_Name: newName,
-        updatedAt: new Date().toISOString()
-      });
-      
-      // Mettre à jour l'état local
-      setOnglets(prev => prev.map(onglet => 
-        onglet.id === ongletId ? { ...onglet, ONGLET_Name: newName } : onglet
-      ));
-      
-      // Mettre à jour l'onglet sélectionné si nécessaire
-      if (selectedOnglet?.id === ongletId) {
-        setSelectedOnglet(prev => prev ? { ...prev, ONGLET_Name: newName } : null);
-      }
-    } catch (err) {
-      console.error('Erreur lors du renommage de l\'onglet:', err);
-      setError('Erreur lors du renommage de l\'onglet');
-    }
-  };
-  
-  const handleDeleteOnglet = async (ongletId: string) => {
-    if (!selectedClient || !selectedCampaign || !selectedVersion) return;
-    
-    // Vérifier qu'il reste plus d'un onglet
-    if (onglets.length <= 1) {
-      setError('Impossible de supprimer le dernier onglet');
-      return;
-    }
-    
-    try {
-      const ongletRef = doc(
-        db,
-        'clients',
-        selectedClient.clientId,
-        'campaigns',
-        selectedCampaign.id,
-        'versions',
-        selectedVersion.id,
-        'onglets',
-        ongletId
-      );
-      
-      await deleteDoc(ongletRef);
-      
-      // Mettre à jour l'état local
-      const updatedOnglets = onglets.filter(onglet => onglet.id !== ongletId);
-      setOnglets(updatedOnglets);
-      
-      // Si l'onglet supprimé était sélectionné, sélectionner le premier onglet disponible
-      if (selectedOnglet?.id === ongletId && updatedOnglets.length > 0) {
-        setSelectedOnglet(updatedOnglets[0]);
-      }
-    } catch (err) {
-      console.error('Erreur lors de la suppression de l\'onglet:', err);
-      setError('Erreur lors de la suppression de l\'onglet');
-    }
-  };
-  
-  const handleSelectOnglet = (onglet: Onglet) => {
-    setSelectedOnglet(onglet);
-  };
-  
-  // Préparer les données pour la vue hiérarchique
-  const sectionsWithTactiques: SectionWithTactiques[] = sections.map(section => ({
-    ...section,
-    tactiques: tactiques[section.id] || [],
-  }));
-  
-  // Calculer le budget total utilisé et le budget restant
-  const budgetUtilisé = sections.reduce((total, section) => total + (section.SECTION_Budget || 0), 0);
-  const budgetRestant = totalBudget - budgetUtilisé;
-  
-  // Générer un dictionnaire des noms de sections pour la vue tableau
-  const sectionNames = sections.reduce((names, section) => {
-    names[section.id] = section.SECTION_Name;
-    return names;
-  }, {} as Record<string, string>);
-  
-  // Aplatir la liste des tactiques pour la vue tableau et timeline
-  const flatTactiques = Object.values(tactiques).flat();
-  
-  return (
-    <div className="space-y-6 pb-16">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
+        );
         
-        {/* Afficher le budget total et restant */}
-        {selectedCampaign && (
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Budget total: <span className="font-medium">{formatCurrency(totalBudget)}</span></div>
-            <div className={`text-sm ${budgetRestant >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              Budget restant: <span className="font-medium">{formatCurrency(budgetRestant)}</span>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Sélecteurs de campagne, version et onglet */}
-      <div className="flex gap-4 mb-6">
-        {/* Sélecteur de campagne */}
-        <div className="w-1/2 relative" ref={campaignDropdownRef}>
-          <button 
-            type="button" 
-            className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
-          >
-            <span>{selectedCampaign?.name || 'Sélectionner une campagne'}</span>
-            <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
-          </button>
-          
-          {/* Dropdown pour les campagnes */}
-          {showCampaignDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-              <ul className="py-1">
-                {campaigns.map(campaign => (
-                  <li 
-                    key={campaign.id}
-                    className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-                      selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
-                    }`}
-                    onClick={() => {
-                      setSelectedCampaign(campaign);
-                      setShowCampaignDropdown(false);
-                    }}
-                  >
-                    {campaign.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        const newOnglet = {
+          id: ongletRef.id,
+          ...newOngletData
+        };
         
-        {/* Sélecteur de version */}
-        <div className="w-1/2 relative" ref={versionDropdownRef}>
-          <button 
-            type="button" 
-            className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onClick={() => setShowVersionDropdown(!showVersionDropdown)}
-            disabled={!selectedCampaign || versions.length === 0}
-          >
-            <span>{selectedVersion?.name || 'Sélectionner une version'}</span>
-            <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
-          </button>
-          
-          {/* Dropdown pour les versions */}
-          {showVersionDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-              <ul className="py-1">
-                {versions.map(version => (
-                  <li 
-                    key={version.id}
-                    className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-                      selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
-                    }`}
-                    onClick={() => {
-                      setSelectedVersion(version);
-                      setShowVersionDropdown(false);
-                    }}
-                  >
-                    {version.name}
-                    {version.isOfficial && (
-                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Officielle
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
+        // Ajouter l'onglet à l'état local
+        setOnglets(prev => [...prev, newOnglet]);
+        
+        // Sélectionner le nouvel onglet
+        setSelectedOnglet(newOnglet);
+        setSelectedOngletId(newOnglet.id);
+      } catch (err) {
+        console.error('Erreur lors de l\'ajout d\'un onglet:', err);
+        setError('Erreur lors de l\'ajout d\'un onglet');
+      }
+    };
+    
+    const handleRenameOnglet = async (ongletId: string, newName: string) => {
+      if (!selectedClient || !selectedCampaign || !selectedVersion) return;
       
-      {selectedVersion && (
-        <div className="w-full">
-          {/* Barre d'outils */}
-          <div className="flex justify-between items-center mb-4">
-            {/* Boutons d'action */}
-            <div className="flex space-x-2">
-              <button
-                onClick={handleAddSection}
-                className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-              >
-                <PlusIcon className="h-5 w-5 mr-1.5" />
-                Nouvelle section
-              </button>
-              {sections.length > 0 && (
-                <button
-                  onClick={() => handleAddTactique(sections[0].id)}
-                  className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-                >
-                  <PlusIcon className="h-5 w-5 mr-1.5" />
-                  Nouvelle tactique
-                </button>
-              )}
-            </div>
-          </div>
+      try {
+        const ongletRef = doc(
+          db,
+          'clients',
+          selectedClient.clientId,
+          'campaigns',
+          selectedCampaign.id,
+          'versions',
+          selectedVersion.id,
+          'onglets',
+          ongletId
+        );
+        
+        await updateDoc(ongletRef, {
+          ONGLET_Name: newName,
+          updatedAt: new Date().toISOString()
+        });
+        
+        // Mettre à jour l'état local
+        setOnglets(prev => prev.map(onglet => 
+          onglet.id === ongletId ? { ...onglet, ONGLET_Name: newName } : onglet
+        ));
+        
+        // Mettre à jour l'onglet sélectionné si nécessaire
+        if (selectedOnglet?.id === ongletId) {
+          setSelectedOnglet(prev => prev ? { ...prev, ONGLET_Name: newName } : null);
+        }
+      } catch (err) {
+        console.error('Erreur lors du renommage de l\'onglet:', err);
+        setError('Erreur lors du renommage de l\'onglet');
+      }
+    };
+    
+    const handleDeleteOnglet = async (ongletId: string) => {
+      if (!selectedClient || !selectedCampaign || !selectedVersion) return;
+      
+      // Vérifier qu'il reste plus d'un onglet
+      if (onglets.length <= 1) {
+        setError('Impossible de supprimer le dernier onglet');
+        return;
+      }
+      
+      try {
+        const ongletRef = doc(
+          db,
+          'clients',
+          selectedClient.clientId,
+          'campaigns',
+          selectedCampaign.id,
+          'versions',
+          selectedVersion.id,
+          'onglets',
+          ongletId
+        );
+        
+        await deleteDoc(ongletRef);
+        
+        // Mettre à jour l'état local
+        const updatedOnglets = onglets.filter(onglet => onglet.id !== ongletId);
+        setOnglets(updatedOnglets);
+        
+        // Si l'onglet supprimé était sélectionné, sélectionner le premier onglet disponible
+        if (selectedOnglet?.id === ongletId && updatedOnglets.length > 0) {
+          setSelectedOnglet(updatedOnglets[0]);
+          setSelectedOngletId(updatedOnglets[0].id);
+        }
+      } catch (err) {
+        console.error('Erreur lors de la suppression de l\'onglet:', err);
+        setError('Erreur lors de la suppression de l\'onglet');
+      }
+    };
+    
+    const handleSelectOnglet = (onglet: Onglet) => {
+      setSelectedOnglet(onglet);
+      setSelectedOngletId(onglet.id);
+    };
+    
+    // Préparer les données pour la vue hiérarchique
+    const sectionsWithTactiques: SectionWithTactiques[] = sections.map(section => ({
+      ...section,
+      tactiques: tactiques[section.id] || [],
+    }));
+    
+    // Calculer le budget total utilisé et le budget restant
+    const budgetUtilisé = sections.reduce((total, section) => total + (section.SECTION_Budget || 0), 0);
+    const budgetRestant = totalBudget - budgetUtilisé;
+    
+    // Générer un dictionnaire des noms de sections pour la vue tableau
+    const sectionNames = sections.reduce((names, section) => {
+      names[section.id] = section.SECTION_Name;
+      return names;
+    }, {} as Record<string, string>);
+    
+    // Aplatir la liste des tactiques pour la vue tableau et timeline
+    const flatTactiques = Object.values(tactiques).flat();
+  
+    const isLoading = campaignLoading || loading;
+    const hasError = campaignError || error;
+  
+    return (
 
-          {/* État de chargement */}
-          {loading && (
-            <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
-              <div className="text-sm text-gray-500">Chargement en cours...</div>
-            </div>
-          )}
-          
-          {/* Message d'erreur */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-          
-          {/* Contenu principal selon le mode de vue */}
-          {!loading && !error && (
-            <>
-              {/* Vue hiérarchique */}
-              {viewMode === 'hierarchy' && (
-                <>
-                  {sectionsWithTactiques.length > 0 ? (
-                    <TactiquesHierarchyView
-                      sections={sectionsWithTactiques}
-                      onSectionExpand={handleSectionExpand}
-                      onDragEnd={handleDragEnd}
-                      onEditSection={handleEditSection}
-                      onDeleteSection={handleDeleteSection}
-                      onEditTactique={handleEditTactique}
-                      onDeleteTactique={handleDeleteTactique}
-                      onAddTactique={handleAddTactique}
-                      formatCurrency={formatCurrency}
-                      totalBudget={totalBudget}
-                    />
-                  ) : (
-                    <div className="bg-white p-8 rounded-lg shadow text-center">
-                      <p className="text-gray-500">
-                        Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
-                      </p>
-                      <button
-                        onClick={handleAddSection}
-                        className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
-                      >
-                        <PlusIcon className="h-5 w-5 mr-1.5" />
-                        Nouvelle section
-                      </button>
+          <div className="space-y-6 pb-16">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
+              
+              {/* Afficher le budget total et restant */}
+              {selectedCampaign && (
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">Budget total: <span className="font-medium">{formatCurrency(totalBudget)}</span></div>
+                  <div className={`text-sm ${budgetRestant >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    Budget restant: <span className="font-medium">{formatCurrency(budgetRestant)}</span>
+                  </div>
+                  {selectedCampaign && selectedVersion && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {selectedCampaign.name} • {selectedVersion.name}
                     </div>
                   )}
-                </>
+                </div>
               )}
+            </div>
+            
+            {/* Sélecteurs de campagne et version */}
+            <div className="flex gap-4 mb-6">
+              {/* Sélecteur de campagne */}
+              <div className="w-1/2 relative" ref={campaignDropdownRef}>
+                <button 
+                  type="button" 
+                  className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
+                >
+                  <span>{selectedCampaign?.name || 'Sélectionner une campagne'}</span>
+                  <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
+                </button>
+                
+                {/* Dropdown pour les campagnes */}
+                {showCampaignDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
+                    <ul className="py-1">
+                      {campaigns.map(campaign => (
+                        <li 
+                          key={campaign.id}
+                          className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                            selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
+                          }`}
+                          onClick={() => handleCampaignChangeLocal(campaign)}
+                        >
+                          {campaign.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
               
-              {/* Vue tableau */}
-              {viewMode === 'table' && (
-                <TactiquesTableView
-                  tactiques={flatTactiques}
-                  onUpdateTactique={handleUpdateTactique}
-                  onDeleteTactique={handleDeleteTactique}
-                  formatCurrency={formatCurrency}
-                  sectionNames={sectionNames}
-                />
-              )}
-              
-              {/* Vue timeline */}
-              {viewMode === 'timeline' && selectedCampaign && (
-                <TactiquesTimelineView
-                  tactiques={flatTactiques}
-                  sectionNames={sectionNames}
-                  campaignStartDate={selectedCampaign.startDate}
-                  campaignEndDate={selectedCampaign.endDate}
-                  formatCurrency={formatCurrency}
-                  onEditTactique={handleEditTactique}
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* Message si aucune version sélectionnée */}
-      {!loading && !error && !selectedVersion && (
-        <div className="bg-white p-8 rounded-lg shadow text-center">
-          <p className="text-gray-500">
-            Veuillez sélectionner une campagne et une version pour voir les tactiques.
-          </p>
-        </div>
-      )}
-      
-      {/* Bas de page sticky avec les onglets et les boutons de vue */}
-      {selectedOnglet && (
-        <TactiquesFooter 
-          viewMode={viewMode} 
-          setViewMode={setViewMode}
-          onglets={onglets}
-          selectedOnglet={selectedOnglet}
-          onSelectOnglet={handleSelectOnglet}
-          onAddOnglet={handleAddOnglet}
-          onRenameOnglet={handleRenameOnglet}
-          onDeleteOnglet={handleDeleteOnglet}
-        />
-      )}
+              {/* Sélecteur de version */}
+              <div className="w-1/2 relative" ref={versionDropdownRef}>
+                <button 
+                  type="button" 
+                  className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  onClick={() => setShowVersionDropdown(!showVersionDropdown)}
+                  disabled={!selectedCampaign || versions.length === 0}
+                >
+                  <span>{selectedVersion?.name || 'Sélectionner une version'}</span>
+                  <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
+                </button>
+                
+                {/* Dropdown pour les versions */}
+                {showVersionDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
+                    <ul className="py-1">
+                      {versions.map(version => (
+                        <li 
+                          key={version.id}
+                          className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                            selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
+                          }`}
+                          onClick={() => handleVersionChangeLocal(version)}
+                        >
+                          {version.name}
+                          {version.isOfficial && (
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Officielle
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {selectedVersion && (
+              <div className="w-full">
+                {/* Barre d'outils */}
+                <div className="flex justify-between items-center mb-4">
+                  {/* Boutons d'action */}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleAddSection}
+                      className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-1.5" />
+                      Nouvelle section
+                    </button>
+                    {sections.length > 0 && (
+                      <button
+                        onClick={() => handleAddTactique(sections[0].id)}
+                        className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        <PlusIcon className="h-5 w-5 mr-1.5" />
+                        Nouvelle tactique
+                      </button>
+                    )}
+                  </div>
+                </div>
+  
+                {/* État de chargement */}
+                {isLoading && (
+                  <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
+                    <div className="text-sm text-gray-500">Chargement en cours...</div>
+                  </div>
+                )}
+                
+                {/* Message d'erreur */}
+                {hasError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    {hasError}
+                  </div>
+                )}
+                
+                {/* Contenu principal selon le mode de vue */}
+                {!isLoading && !hasError && (
+                  <>
+                    {/* Vue hiérarchique */}
+                    {viewMode === 'hierarchy' && (
+                      <>
+                        {sectionsWithTactiques.length > 0 ? (
+                          <TactiquesHierarchyView
+                            sections={sectionsWithTactiques}
+                            onSectionExpand={handleSectionExpand}
+                            onDragEnd={handleDragEnd}
+                            onEditSection={handleEditSection}
+                            onDeleteSection={handleDeleteSection}
+                            onEditTactique={handleEditTactique}
+                            onDeleteTactique={handleDeleteTactique}
+                            onAddTactique={handleAddTactique}
+                            formatCurrency={formatCurrency}
+                            totalBudget={totalBudget}
+                          />
+                        ) : (
+                          <div className="bg-white p-8 rounded-lg shadow text-center">
+                            <p className="text-gray-500">
+                              Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
+                            </p>
+                            <button
+                              onClick={handleAddSection}
+                              className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
+                            >
+                              <PlusIcon className="h-5 w-5 mr-1.5" />
+                              Nouvelle section
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Vue tableau */}
+                    {viewMode === 'table' && (
+                      <TactiquesTableView
+                        tactiques={flatTactiques}
+                        onUpdateTactique={handleUpdateTactique}
+                        onDeleteTactique={handleDeleteTactique}
+                        formatCurrency={formatCurrency}
+                        sectionNames={sectionNames}
+                      />
+                    )}
+                    
+                    {/* Vue timeline */}
+                    {viewMode === 'timeline' && selectedCampaign && (
+                      <TactiquesTimelineView
+                        tactiques={flatTactiques}
+                        sectionNames={sectionNames}
+                        campaignStartDate={selectedCampaign.startDate}
+                        campaignEndDate={selectedCampaign.endDate}
+                        formatCurrency={formatCurrency}
+                        onEditTactique={handleEditTactique}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            
+            {/* Message si aucune version sélectionnée */}
+            {!isLoading && !hasError && !selectedVersion && (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <p className="text-gray-500">
+                  Veuillez sélectionner une campagne et une version pour voir les tactiques.
+                </p>
+              </div>
+            )}
+            
+            {/* Bas de page sticky avec les onglets et les boutons de vue */}
+            {selectedOnglet && (
+              <TactiquesFooter 
+                viewMode={viewMode} 
+                setViewMode={setViewMode}
+                onglets={onglets}
+                selectedOnglet={selectedOnglet}
+                onSelectOnglet={handleSelectOnglet}
+                onAddOnglet={handleAddOnglet}
+                onRenameOnglet={handleRenameOnglet}
+                onDeleteOnglet={handleDeleteOnglet}
+              />
+            )}
+  
+            {/* Drawer de tactique */}
+            {selectedVersion && (
+              <TactiqueDrawer
+                isOpen={tactiqueDrawerOpen}
+                onClose={() => {
+                  setTactiqueDrawerOpen(false);
+                  setSelectedTactiqueForEdit(null);
+                  window.editTactiqueHandled = false;
+                }}
+                tactique={selectedTactiqueForEdit}
+                sectionId={selectedSectionIdForEdit}
+                onSave={handleSaveTactiqueFromDrawer}
+              />
+            )}
+          </div>
 
-      {/* Drawer de tactique */}
-      {selectedVersion && (
-        <TactiqueDrawer
-          isOpen={tactiqueDrawerOpen}
-          onClose={() => {
-            setTactiqueDrawerOpen(false);
-            setSelectedTactiqueForEdit(null);
-            window.editTactiqueHandled = false;
-          }}
-          tactique={selectedTactiqueForEdit}
-          sectionId={selectedSectionIdForEdit}
-          onSave={handleSaveTactiqueFromDrawer}
-        />
-      )}
-    </div>
-  );
-}
+    );
+  }

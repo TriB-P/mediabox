@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { AuthProvider } from './contexts/AuthContext';
 import { ClientProvider } from './contexts/ClientContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
+import { SelectionProvider } from './contexts/SelectionContext';
 
 export const metadata: Metadata = {
   title: 'MediaBox',
@@ -22,7 +23,9 @@ export default function RootLayout({
         <AuthProvider>
           <ClientProvider>
             <PermissionsProvider>
-              {children}
+              <SelectionProvider>
+                {children}
+              </SelectionProvider>
             </PermissionsProvider>
           </ClientProvider>
         </AuthProvider>

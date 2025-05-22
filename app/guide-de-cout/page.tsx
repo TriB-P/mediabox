@@ -8,7 +8,9 @@ import {
   deleteCostGuide,
   updateCostGuide,
   getCostGuideEntries,
+  getCostGuideById,
 } from '../lib/costGuideService';
+import { getClientInfo } from '../lib/clientService';
 import { getPartnersList } from '../lib/listService';
 import {
   PlusIcon,
@@ -18,12 +20,21 @@ import {
   PencilIcon,
   TableCellsIcon,
   DocumentTextIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import CostGuideEntryForm from '../components/CostGuide/CostGuideEntryForm';
 import CostGuideEntryList from '../components/CostGuide/CostGuideEntryList';
 import CostGuideEntryTable from '../components/CostGuide/CostGuideEntryTable';
+import { usePermissions } from '../contexts/PermissionsContext';
+import { useClient } from '../contexts/ClientContext';
 
 export default function CostGuidePage() {
+  // Contextes pour les permissions et le client
+  const { userRole, canPerformAction } = usePermissions();
+  const { selectedClient } = useClient();
+  const isAdmin = userRole === 'admin';
+  const hasCostGuidePermission = canPerformAction('CostGuide');
+
   // États pour la liste des guides
   const [guides, setGuides] = useState<CostGuide[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +62,57 @@ export default function CostGuidePage() {
   }>({});
   
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
+  const [clientGuideId, setClientGuideId] = useState<string | null>(null);
 
-  // Charger la liste des guides au chargement initial
+  // Charger le guide associé au client ou tous les guides pour admin
   useEffect(() => {
-    loadGuides();
-  }, []);
+    if (isAdmin) {
+      // Si admin, charger tous les guides
+      loadGuides();
+    } else if (selectedClient) {
+      // Sinon, charger uniquement le guide associé au client
+      loadClientGuide();
+    } else {
+      setLoading(false);
+    }
+  }, [selectedClient, isAdmin]);
 
-  // Charger les guides
+  // Charger le guide associé au client actuel
+  const loadClientGuide = async () => {
+    if (!selectedClient) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Récupérer les infos du client pour obtenir l'ID du guide associé
+      const clientInfo = await getClientInfo(selectedClient.clientId);
+      const guideId = clientInfo.CL_Cost_Guide_ID;
+      setClientGuideId(guideId || null);
+      
+      if (guideId) {
+        // Si un guide est associé, le récupérer
+        const loadedGuide = await getCostGuideById(guideId);
+        if (loadedGuide) {
+          setGuides([loadedGuide]);
+          // Charger automatiquement le détail du guide
+          await loadGuideDetails(guideId);
+        } else {
+          setGuides([]);
+          setError("Le guide de coûts associé à ce client n'a pas été trouvé.");
+        }
+      } else {
+        setGuides([]);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement du guide client:', err);
+      setError("Erreur lors du chargement du guide de coûts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger la liste des guides (pour admin uniquement)
   const loadGuides = async () => {
     try {
       setLoading(true);
@@ -77,11 +132,16 @@ export default function CostGuidePage() {
     try {
       setLoadingDetail(true);
       
-      // Trouver le guide dans la liste
-      const guide = guides.find(g => g.id === guideId);
+              // Trouver le guide dans la liste ou le charger directement
+      let guide = guides.find(g => g.id === guideId);
+      
       if (!guide) {
-        setError('Guide de coûts non trouvé');
-        return;
+        const loadedGuide = await getCostGuideById(guideId);
+        if (!loadedGuide) {
+          setError('Guide de coûts non trouvé');
+          return;
+        }
+        guide = loadedGuide;
       }
       
       setSelectedGuide(guide);
@@ -105,7 +165,7 @@ export default function CostGuidePage() {
 
   // Créer un nouveau guide
   const handleCreateGuide = async () => {
-    if (!newGuideName.trim()) return;
+    if (!newGuideName.trim() || !isAdmin) return;
 
     try {
       setLoading(true);
@@ -130,7 +190,7 @@ export default function CostGuidePage() {
 
   // Supprimer un guide
   const handleDeleteGuide = async (guideId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce guide de coûts ?')) return;
+    if (!isAdmin || !confirm('Êtes-vous sûr de vouloir supprimer ce guide de coûts ?')) return;
 
     try {
       setLoading(true);
@@ -141,7 +201,12 @@ export default function CostGuidePage() {
         setSelectedGuide(null);
       }
       
-      await loadGuides();
+      if (isAdmin) {
+        await loadGuides();
+      } else {
+        setGuides([]);
+        setClientGuideId(null);
+      }
     } catch (err) {
       setError('Erreur lors de la suppression du guide');
       console.error(err);
@@ -152,7 +217,7 @@ export default function CostGuidePage() {
 
   // Mettre à jour un guide
   const handleUpdateGuide = async () => {
-    if (!selectedGuide) return;
+    if (!selectedGuide || (!isAdmin && clientGuideId !== selectedGuide.id)) return;
     
     try {
       await updateCostGuide(selectedGuide.id, {
@@ -194,15 +259,20 @@ export default function CostGuidePage() {
     }
   };
 
-  // Retourner à la liste des guides
+  // Retourner à la liste des guides (pour admin uniquement)
   const handleBackToList = () => {
-    setSelectedGuide(null);
-    setEntries([]);
-    setPartners([]);
-    setIsEditing(false);
-    setShowEntryForm(false);
-    setSelectedEntry(null);
-    setFormPreset({});
+    if (!isAdmin && clientGuideId) {
+      // Pour les non-admin avec un guide client, recharger ce guide
+      loadClientGuide();
+    } else {
+      setSelectedGuide(null);
+      setEntries([]);
+      setPartners([]);
+      setIsEditing(false);
+      setShowEntryForm(false);
+      setSelectedEntry(null);
+      setFormPreset({});
+    }
   };
   
   // Ouvrir le formulaire avec valeurs préremplies
@@ -211,10 +281,28 @@ export default function CostGuidePage() {
     level1?: string;
     level2?: string;
   }) => {
+    if (!hasCostGuidePermission) return;
+    
     setFormPreset(preset);
     setSelectedEntry(null);
     setShowEntryForm(true);
   };
+
+  // Affichage d'un message pour les utilisateurs non-admin sans guide associé
+  const renderNoClientGuide = () => (
+    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <ExclamationCircleIcon className="h-5 w-5 text-amber-400" aria-hidden="true" />
+        </div>
+        <div className="ml-3">
+          <p className="text-sm text-amber-700">
+            Aucun guide de coûts n'est associé à ce client. Veuillez contacter un administrateur pour associer un guide de coûts.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   // Rendu conditionnel selon l'état de l'application
   return (
@@ -226,7 +314,10 @@ export default function CostGuidePage() {
             <>
               <h1 className="text-2xl font-bold text-gray-900">Guide de coûts</h1>
               <p className="text-gray-600">
-                Gérez vos guides de coût pour faciliter la planification budgétaire
+                {isAdmin 
+                  ? "Gérez vos guides de coût pour faciliter la planification budgétaire"
+                  : "Consultez le guide de coût associé à votre client"
+                }
               </p>
             </>
           ) : (
@@ -235,20 +326,22 @@ export default function CostGuidePage() {
         </div>
         
         {!selectedGuide ? (
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Nouveau guide
-          </button>
+          isAdmin && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Nouveau guide
+            </button>
+          )
         ) : (
           <button
             onClick={handleBackToList}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Retour à la liste
+            {isAdmin ? "Retour à la liste" : "Retour"}
           </button>
         )}
       </div>
@@ -260,8 +353,11 @@ export default function CostGuidePage() {
         </div>
       )}
 
-      {/* Liste des guides */}
-      {!selectedGuide && (
+      {/* Message spécifique pour les utilisateurs non-admin sans guide client */}
+      {!isAdmin && !loading && guides.length === 0 && !selectedGuide && renderNoClientGuide()}
+
+      {/* Liste des guides pour admin */}
+      {!selectedGuide && isAdmin && (
         <>
           {/* État de chargement */}
           {loading && !guides.length && (
@@ -302,6 +398,7 @@ export default function CostGuidePage() {
                           onClick={() => handleDeleteGuide(guide.id)}
                           className="text-gray-400 hover:text-red-600 p-1"
                           title="Supprimer"
+                          disabled={!isAdmin}
                         >
                           <TrashIcon className="h-5 w-5" />
                         </button>
@@ -384,20 +481,24 @@ export default function CostGuidePage() {
                     </>
                   ) : (
                     <>
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="text-gray-400 hover:text-indigo-600 p-2"
-                        title="Modifier"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteGuide(selectedGuide.id)}
-                        className="text-gray-400 hover:text-red-600 p-2"
-                        title="Supprimer"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-gray-400 hover:text-indigo-600 p-2"
+                            title="Modifier"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGuide(selectedGuide.id)}
+                            className="text-gray-400 hover:text-red-600 p-2"
+                            title="Supprimer"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -417,6 +518,8 @@ export default function CostGuidePage() {
                     <DocumentTextIcon className="h-5 w-5 mr-1" />
                     Vue hiérarchique
                   </button>
+
+                  {hasCostGuidePermission && (
                   <button
                     onClick={() => setViewMode('table')}
                     className={`flex items-center px-3 py-1.5 rounded ${
@@ -427,24 +530,26 @@ export default function CostGuidePage() {
                   >
                     <TableCellsIcon className="h-5 w-5 mr-1" />
                     Édition rapide
-                  </button>
+                  </button>)}
                 </div>
                 
-                <button
-                  onClick={() => {
-                    setSelectedEntry(null);
-                    setFormPreset({});
-                    setShowEntryForm(true);
-                  }}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <PlusIcon className="h-5 w-5 mr-1" />
-                  Nouvelle entrée
-                </button>
+                {hasCostGuidePermission && (
+                  <button
+                    onClick={() => {
+                      setSelectedEntry(null);
+                      setFormPreset({});
+                      setShowEntryForm(true);
+                    }}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-1" />
+                    Nouvelle entrée
+                  </button>
+                )}
               </div>
 
               {/* Formulaire d'ajout/édition d'entrée */}
-              {showEntryForm && (
+              {showEntryForm && hasCostGuidePermission && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <CostGuideEntryForm
                     guideId={selectedGuide.id}
@@ -471,13 +576,16 @@ export default function CostGuidePage() {
                 <CostGuideEntryList
                   entries={entries}
                   onEdit={(entry) => {
-                    setSelectedEntry(entry);
-                    setFormPreset({});
-                    setShowEntryForm(true);
+                    if (hasCostGuidePermission) {
+                      setSelectedEntry(entry);
+                      setFormPreset({});
+                      setShowEntryForm(true);
+                    }
                   }}
-                  onDelete={refreshEntries}
-                  onDuplicate={refreshEntries}
-                  onAddWithPreset={handleAddWithPreset}
+                  onDelete={hasCostGuidePermission ? refreshEntries : () => {}}
+                  onDuplicate={hasCostGuidePermission ? refreshEntries : () => {}}
+                  onAddWithPreset={hasCostGuidePermission ? handleAddWithPreset : () => {}}
+                  readOnly={!hasCostGuidePermission}
                 />
               ) : (
                 <CostGuideEntryTable
@@ -485,14 +593,29 @@ export default function CostGuidePage() {
                   entries={entries}
                   partners={partners}
                   onEntriesUpdated={refreshEntries}
+                  readOnly={!hasCostGuidePermission}
                 />
               )}
 
               {entries.length === 0 && !showEntryForm && (
                 <div className="text-center py-8 bg-white rounded-lg shadow">
                   <p className="text-gray-500">
-                    Aucune entrée dans ce guide de coûts. Ajoutez votre première entrée !
+                    Aucune entrée dans ce guide de coûts. 
+                    {hasCostGuidePermission ? "Ajoutez votre première entrée !" : ""}
                   </p>
+                </div>
+              )}
+              
+              {/* Message pour les utilisateurs sans permission d'édition */}
+              {!hasCostGuidePermission && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md mt-4">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        Vous êtes en mode consultation. Contactez un administrateur si vous souhaitez modifier ce guide.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -501,7 +624,7 @@ export default function CostGuidePage() {
       )}
 
       {/* Modal de création de guide */}
-      {isCreateModalOpen && (
+      {isCreateModalOpen && isAdmin && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Nouveau guide de coûts</h2>

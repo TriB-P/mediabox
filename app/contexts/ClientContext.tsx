@@ -13,15 +13,57 @@ interface ClientContextType {
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
+const CLIENT_STORAGE_KEY = 'mediabox-selected-client';
+
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [availableClients, setAvailableClients] = useState<ClientPermission[]>(
-    []
-  );
-  const [selectedClient, setSelectedClient] = useState<ClientPermission | null>(
-    null
-  );
+  const [availableClients, setAvailableClients] = useState<ClientPermission[]>([]);
+  const [selectedClient, setSelectedClient] = useState<ClientPermission | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Générer une clé unique basée sur l'utilisateur
+  const getStorageKey = () => {
+    if (!user?.email) return null;
+    return `${CLIENT_STORAGE_KEY}-${user.email}`;
+  };
+
+  // Sauvegarder le client sélectionné dans le localStorage
+  const saveSelectedClient = (client: ClientPermission | null) => {
+    const storageKey = getStorageKey();
+    if (!storageKey) return;
+
+    try {
+      if (client) {
+        localStorage.setItem(storageKey, JSON.stringify({
+          clientId: client.clientId,
+          CL_Name: client.CL_Name,
+          CL_Logo: client.CL_Logo,
+        }));
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du client sélectionné:', error);
+    }
+  };
+
+  // Charger le client sélectionné depuis le localStorage
+  const loadSelectedClient = () => {
+    const storageKey = getStorageKey();
+    if (!storageKey) return null;
+
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        return JSON.parse(saved) as ClientPermission;
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement du client sélectionné:', error);
+      // En cas d'erreur, nettoyer le localStorage
+      localStorage.removeItem(storageKey);
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (user?.email) {
@@ -42,18 +84,31 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       console.log('Clients chargés dans le contexte:', clients);
       setAvailableClients(clients);
 
-      // Sélectionner automatiquement le premier client
-      if (clients.length > 0) {
-        const currentSelectedId = selectedClient?.clientId;
-        const currentClientStillExists = clients.some(
-          (c) => c.clientId === currentSelectedId
-        );
+      // Essayer de restaurer le client sélectionné depuis le localStorage
+      const savedClient = loadSelectedClient();
+      let clientToSelect: ClientPermission | null = null;
 
-        // Si pas de client sélectionné ou si le client sélectionné n'existe plus
-        if (!currentClientStillExists) {
-          setSelectedClient(clients[0]);
-          console.log('Client sélectionné automatiquement:', clients[0]);
+      if (savedClient) {
+        // Vérifier que le client sauvegardé existe toujours dans la liste
+        const existingClient = clients.find(c => c.clientId === savedClient.clientId);
+        if (existingClient) {
+          clientToSelect = existingClient;
+          console.log('Client restauré depuis localStorage:', existingClient);
+        } else {
+          console.log('Client sauvegardé non trouvé, suppression du localStorage');
+          saveSelectedClient(null);
         }
+      }
+
+      // Si pas de client restauré ou client non trouvé, sélectionner le premier client
+      if (!clientToSelect && clients.length > 0) {
+        clientToSelect = clients[0];
+        console.log('Premier client sélectionné automatiquement:', clientToSelect);
+      }
+
+      if (clientToSelect) {
+        setSelectedClient(clientToSelect);
+        saveSelectedClient(clientToSelect);
       } else {
         setSelectedClient(null);
       }
@@ -64,10 +119,17 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Fonction pour changer le client sélectionné
+  const handleSetSelectedClient = (client: ClientPermission) => {
+    setSelectedClient(client);
+    saveSelectedClient(client);
+    console.log('Client sélectionné et sauvegardé:', client);
+  };
+
   const value: ClientContextType = {
     availableClients,
     selectedClient,
-    setSelectedClient,
+    setSelectedClient: handleSetSelectedClient,
     loading,
   };
 

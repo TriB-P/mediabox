@@ -14,7 +14,8 @@ import {
   ArrowDownTrayIcon,
   ChevronUpDownIcon,
   DocumentDuplicateIcon,
-  TrashIcon
+  TrashIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 
 interface CostGuideEntryTableProps {
@@ -22,6 +23,7 @@ interface CostGuideEntryTableProps {
   entries: CostGuideEntry[];
   partners: any[];
   onEntriesUpdated: () => void;
+  readOnly?: boolean; // Nouvelle propriété pour le mode lecture seule
 }
 
 type EditableCell = {
@@ -40,6 +42,7 @@ export default function CostGuideEntryTable({
   entries,
   partners,
   onEntriesUpdated,
+  readOnly = false, // Par défaut, le mode lecture seule est désactivé
 }: CostGuideEntryTableProps) {
   const [editMode, setEditMode] = useState(false);
   const [sortField, setSortField] = useState<keyof CostGuideEntry>('partnerName');
@@ -65,6 +68,15 @@ export default function CostGuideEntryTable({
   });
   
   const tableRef = useRef<HTMLTableElement>(null);
+
+  // Désactiver le mode édition si en lecture seule
+  useEffect(() => {
+    if (readOnly) {
+      setEditMode(false);
+      setEditableCells([]);
+      setSelectedCells([]);
+    }
+  }, [readOnly]);
 
   // Formatter le montant en devise
   const formatCurrency = (amount: number) => {
@@ -92,6 +104,8 @@ export default function CostGuideEntryTable({
 
   // Gérer les touches pour la sélection et la copie
   useEffect(() => {
+    if (readOnly) return; // Ne pas ajouter d'événements en mode lecture seule
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       // Shift pour la sélection multiple
       if (e.key === 'Shift') {
@@ -137,7 +151,7 @@ export default function CostGuideEntryTable({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedCells, sortedEntries, editMode, copiedValue]);
+  }, [selectedCells, sortedEntries, editMode, copiedValue, readOnly]);
 
   // Gérer le clic sur un en-tête pour trier
   const handleSort = (field: keyof CostGuideEntry) => {
@@ -151,7 +165,7 @@ export default function CostGuideEntryTable({
 
   // Gérer le double-clic sur une cellule pour l'éditer
   const handleCellDoubleClick = (entry: CostGuideEntry, field: keyof CostGuideEntry, rowIndex: number) => {
-    if (!editMode) return;
+    if (!editMode || readOnly) return;
     
     // Vérifier si le champ est éditable
     const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
@@ -177,7 +191,7 @@ export default function CostGuideEntryTable({
 
   // Gérer le clic sur une cellule pour la sélection
   const handleCellClick = (rowIndex: number, field: keyof CostGuideEntry) => {
-    if (!editMode) return;
+    if (!editMode || readOnly) return;
     
     // Déterminer si la cellule est éditable
     const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
@@ -213,7 +227,7 @@ export default function CostGuideEntryTable({
 
   // Gérer le collage de valeurs
   const handlePaste = () => {
-    if (copiedValue === null || selectedCells.length === 0) return;
+    if (copiedValue === null || selectedCells.length === 0 || readOnly) return;
     
     // Créer de nouvelles cellules éditables avec la valeur copiée
     const newEditableCells = [...editableCells];
@@ -244,6 +258,8 @@ export default function CostGuideEntryTable({
 
   // Mettre à jour la valeur d'une cellule éditable
   const handleCellChange = (index: number, value: any) => {
+    if (readOnly) return;
+    
     const newEditableCells = [...editableCells];
     newEditableCells[index].value = value;
     setEditableCells(newEditableCells);
@@ -251,7 +267,7 @@ export default function CostGuideEntryTable({
 
   // Sauvegarder les modifications
   const handleSaveChanges = async () => {
-    if (editableCells.length === 0) return;
+    if (editableCells.length === 0 || readOnly) return;
     
     try {
       setIsSaving(true);
@@ -291,6 +307,8 @@ export default function CostGuideEntryTable({
 
   // Ajouter une nouvelle ligne
   const handleAddRow = async () => {
+    if (readOnly) return;
+    
     if (!newRowData.partnerId || !newRowData.level1 || !newRowData.level2 || !newRowData.level3 || !newRowData.unitPrice) {
       alert('Veuillez remplir tous les champs obligatoires.');
       return;
@@ -344,6 +362,8 @@ export default function CostGuideEntryTable({
 
   // Supprimer une ligne
   const handleDeleteRow = async (entryId: string) => {
+    if (readOnly) return;
+    
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
     
     try {
@@ -360,6 +380,8 @@ export default function CostGuideEntryTable({
 
   // Dupliquer une ligne
   const handleDuplicateRow = async (entryId: string) => {
+    if (readOnly) return;
+    
     try {
       setIsSaving(true);
       await duplicateCostGuideEntry(guideId, entryId);
@@ -442,6 +464,8 @@ export default function CostGuideEntryTable({
 
   // Mettre à jour un champ de la nouvelle ligne
   const handleNewRowChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    if (readOnly) return;
+    
     const { name, value } = e.target;
     setNewRowData(prev => ({
       ...prev,
@@ -454,10 +478,10 @@ export default function CostGuideEntryTable({
     // Classes CSS pour la cellule
     const cellClasses = `px-4 py-2 whitespace-nowrap text-sm ${
       isCellSelected(rowIndex, field) ? 'bg-indigo-100' : ''
-    } ${editMode ? 'cursor-cell' : ''}`;
+    } ${editMode && !readOnly ? 'cursor-cell' : ''}`;
     
     // Si la cellule est en cours d'édition
-    if (isCellEditing(entry.id, field)) {
+    if (isCellEditing(entry.id, field) && !readOnly) {
       const cellIndex = editableCells.findIndex(
         cell => cell.entryId === entry.id && cell.field === field
       );
@@ -577,7 +601,7 @@ export default function CostGuideEntryTable({
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-gray-500 mb-4">
-          Aucune entrée disponible. Ajoutez des entrées pour utiliser l'édition rapide.
+          Aucune entrée disponible. {!readOnly && "Ajoutez des entrées pour utiliser l'édition rapide."}
         </p>
       </div>
     );
@@ -588,16 +612,18 @@ export default function CostGuideEntryTable({
       {/* Barre d'outils */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              editMode
-                ? 'bg-indigo-100 text-indigo-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {editMode ? 'Mode édition activé' : 'Activer l\'édition'}
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setEditMode(!editMode)}
+              className={`px-4 py-2 rounded-md text-sm font-medium ${
+                editMode
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {editMode ? 'Mode édition activé' : 'Activer l\'édition'}
+            </button>
+          )}
           
           <button
             onClick={handleExportCSV}
@@ -608,7 +634,7 @@ export default function CostGuideEntryTable({
           </button>
         </div>
         
-        {editMode && editableCells.length > 0 && (
+        {editMode && !readOnly && editableCells.length > 0 && (
           <div className="flex items-center space-x-2">
             <button
               onClick={handleCancelChanges}
@@ -628,10 +654,20 @@ export default function CostGuideEntryTable({
             </button>
           </div>
         )}
+        
+        {!readOnly && !isAddingRow && (
+          <button
+            onClick={() => setIsAddingRow(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <PlusIcon className="h-5 w-5 mr-1" />
+            Ajouter une entrée
+          </button>
+        )}
       </div>
 
       {/* Instructions */}
-      {editMode && (
+      {editMode && !readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
           <p>
             <strong>Mode édition rapide :</strong> Cliquez pour sélectionner une cellule. Maintenez Shift pour sélectionner plusieurs cellules. 
@@ -641,7 +677,7 @@ export default function CostGuideEntryTable({
       )}
 
       {/* Formulaire d'ajout de ligne */}
-      {isAddingRow && (
+      {isAddingRow && !readOnly && (
         <div className="bg-white rounded-lg shadow p-4 border border-indigo-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Ajouter une nouvelle entrée</h3>
@@ -823,14 +859,16 @@ export default function CostGuideEntryTable({
                       </div>
                     </th>
                   ))}
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  {!readOnly && (
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedEntries.map((entry, rowIndex) => (
-                  <tr key={entry.id} className={`hover:bg-gray-50 ${editMode ? 'cursor-pointer' : ''}`}>
+                  <tr key={entry.id} className={`hover:bg-gray-50 ${editMode && !readOnly ? 'cursor-pointer' : ''}`}>
                     {renderCell(entry, 'partnerId', rowIndex)}
                     {renderCell(entry, 'level1', rowIndex)}
                     {renderCell(entry, 'level2', rowIndex)}
@@ -838,37 +876,65 @@ export default function CostGuideEntryTable({
                     {renderCell(entry, 'purchaseUnit', rowIndex)}
                     {renderCell(entry, 'unitPrice', rowIndex)}
                     {renderCell(entry, 'comment', rowIndex)}
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        {editMode && (
+                    {!readOnly && (
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          {editMode && (
+                            <button
+                              onClick={() => handleDuplicateRow(entry.id)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Dupliquer cette ligne"
+                            >
+                              <DocumentDuplicateIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleDuplicateRow(entry.id)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Dupliquer cette ligne"
+                            onClick={() => handleDeleteRow(entry.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Supprimer cette ligne"
                           >
-                            <DocumentDuplicateIcon className="h-4 w-4" />
+                            <TrashIcon className="h-4 w-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteRow(entry.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Supprimer cette ligne"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sortedEntries.length === 0 && !isAddingRow && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-4 text-center text-gray-500">
+                    <td colSpan={readOnly ? 7 : 8} className="px-4 py-4 text-center text-gray-500">
                       Aucune entrée disponible.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Bouton d'ajout en bas pour les longues listes */}
+      {!isAddingRow && !readOnly && entries.length > 5 && (
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={() => setIsAddingRow(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <PlusIcon className="h-5 w-5 mr-1" />
+            Ajouter une entrée
+          </button>
+        </div>
+      )}
+
+      {/* Message pour les utilisateurs en mode lecture seule */}
+      {readOnly && (
+        <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">
+                Vous êtes en mode consultation. Vous n'avez pas les permissions nécessaires pour modifier ce guide de coûts.
+              </p>
+            </div>
           </div>
         </div>
       )}

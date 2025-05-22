@@ -6,6 +6,9 @@ import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import { ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
 import BudgetBucket from '../components/Others/BudgetBucket';
 import { useClient } from '../contexts/ClientContext';
+import { useSelection } from '../contexts/SelectionContext';
+import { useCampaignSelection } from '../hooks/useCampaignSelection';
+import { Campaign } from '../types/campaign';
 import { 
   collection, 
   getDocs, 
@@ -32,12 +35,6 @@ interface Bucket {
   publishers: string[];
 }
 
-interface Campaign {
-  id: string;
-  name: string;
-  budget: number;
-}
-
 interface Version {
   id: string;
   name: string;
@@ -45,10 +42,18 @@ interface Version {
 
 export default function StrategiePage() {
   const { selectedClient } = useClient();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
+  const { selectedVersionId, setSelectedVersionId } = useSelection();
+  const {
+    campaigns,
+    versions,
+    selectedCampaign,
+    selectedVersion,
+    loading: campaignLoading,
+    error: campaignError,
+    handleCampaignChange,
+    handleVersionChange,
+  } = useCampaignSelection();
+
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [totalBudget, setTotalBudget] = useState<number>(0);
   const [remainingBudget, setRemainingBudget] = useState<number>(0);
@@ -97,138 +102,23 @@ export default function StrategiePage() {
     { id: 'snapchat', name: 'Snapchat', logo: '👻' },
   ];
 
-  // Charger les campagnes depuis Firestore
+  // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
-    async function loadCampaigns() {
-      if (!selectedClient) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Réinitialiser les sélections quand le client change
-        setSelectedCampaign(null);
-        setSelectedVersion(null);
-        setBuckets([]);
-        setTotalBudget(0);
-        setRemainingBudget(0);
-        
-        const campaignsRef = collection(db, 'clients', selectedClient.clientId, 'campaigns');
-        const q = query(campaignsRef, orderBy('name'));
-        const querySnapshot = await getDocs(q);
-        
-        const campaignsData: Campaign[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          campaignsData.push({
-            id: doc.id,
-            name: data.name,
-            budget: data.budget || 0,
-          });
-        });
-        
-        setCampaigns(campaignsData);
-        
-        // Ne pas sélectionner automatiquement la première campagne
-        // Laisser l'utilisateur faire un choix explicite
-      } catch (err) {
-        console.error('Erreur lors du chargement des campagnes:', err);
-        setError('Erreur lors du chargement des campagnes');
-      } finally {
-        setLoading(false);
-      }
+    if (selectedCampaign) {
+      setTotalBudget(selectedCampaign.budget);
+    } else {
+      setTotalBudget(0);
     }
-    
-    loadCampaigns();
-  }, [selectedClient]);
+  }, [selectedCampaign]);
 
-  // Charger les versions pour la campagne sélectionnée
+  // Charger les buckets quand une version est sélectionnée
   useEffect(() => {
-    async function loadVersions() {
-      if (!selectedClient || !selectedCampaign) return;
-      
-      try {
-        setLoading(true);
-        
-        // Récupérer les versions de stratégie pour cette campagne
-        const versionsRef = collection(
-          db, 
-          'clients', 
-          selectedClient.clientId, 
-          'campaigns', 
-          selectedCampaign.id, 
-          'versions'
-        );
-        
-        const q = query(versionsRef, orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        
-        const versionsData: Version[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          versionsData.push({
-            id: doc.id,
-            name: data.name,
-          });
-        });
-        
-        setVersions(versionsData);
-        
-        // Si aucune version n'existe, créer une version "Originale"
-        if (versionsData.length === 0) {
-          await createInitialVersion();
-        }
-        
-        // Ne pas sélectionner automatiquement une version
-        // Laisser l'utilisateur faire un choix explicite
-        
-      } catch (err) {
-        console.error('Erreur lors du chargement des versions:', err);
-        setError('Erreur lors du chargement des versions');
-      } finally {
-        setLoading(false);
-      }
+    if (selectedVersion) {
+      loadBuckets(selectedVersion.id);
+    } else {
+      setBuckets([]);
     }
-    
-    // Créer une version initiale si nécessaire
-    async function createInitialVersion() {
-      if (!selectedClient || !selectedCampaign) return;
-      
-      try {
-        const versionsRef = collection(
-          db, 
-          'clients', 
-          selectedClient.clientId, 
-          'campaigns', 
-          selectedCampaign.id, 
-          'versions'
-        );
-        
-        const initialVersion = {
-          name: 'Version originale',
-          createdAt: new Date().toISOString(),
-          createdBy: 'système',
-          isOfficial: true,
-        };
-        
-        const versionDocRef = await addDoc(versionsRef, initialVersion);
-        
-        // Mettre à jour la campagne avec l'ID de la version officielle
-        await updateDoc(
-          doc(db, 'clients', selectedClient.clientId, 'campaigns', selectedCampaign.id),
-          { officialversionId: versionDocRef.id }
-        );
-        
-        // Recharger les versions
-        loadVersions();
-      } catch (err) {
-        console.error('Erreur lors de la création de la version initiale:', err);
-        setError('Erreur lors de la création de la version initiale');
-      }
-    }
-    
-    loadVersions();
-  }, [selectedClient, selectedCampaign]);
+  }, [selectedVersion, selectedClient, selectedCampaign]);
   
   // Charger les buckets pour une version spécifique
   const loadBuckets = async (versionId: string) => {
@@ -236,6 +126,7 @@ export default function StrategiePage() {
     
     try {
       setLoading(true);
+      setError(null);
       
       const bucketsRef = collection(
         db, 
@@ -275,18 +166,53 @@ export default function StrategiePage() {
     }
   };
 
+  // Créer une version initiale si nécessaire
+  const createInitialVersion = async () => {
+    if (!selectedClient || !selectedCampaign) return;
+    
+    try {
+      const versionsRef = collection(
+        db, 
+        'clients', 
+        selectedClient.clientId, 
+        'campaigns', 
+        selectedCampaign.id, 
+        'versions'
+      );
+      
+      const initialVersion = {
+        name: 'Version originale',
+        createdAt: new Date().toISOString(),
+        createdBy: 'système',
+        isOfficial: true,
+      };
+      
+      const versionDocRef = await addDoc(versionsRef, initialVersion);
+      
+      // Mettre à jour la campagne avec l'ID de la version officielle
+      await updateDoc(
+        doc(db, 'clients', selectedClient.clientId, 'campaigns', selectedCampaign.id),
+        { officialversionId: versionDocRef.id }
+      );
+      
+      return versionDocRef.id;
+    } catch (err) {
+      console.error('Erreur lors de la création de la version initiale:', err);
+      setError('Erreur lors de la création de la version initiale');
+      return null;
+    }
+  };
+  
   // Changer de version
-  const handleVersionChange = async (version: Version) => {
-    setSelectedVersion(version);
+  const handleVersionChangeLocal = async (version: Version) => {
+    handleVersionChange(version);
     await loadBuckets(version.id);
     setShowVersionDropdown(false);
   };
   
   // Changer de campagne
-  const handleCampaignChange = (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    setTotalBudget(campaign.budget);
-    setSelectedVersion(null); // Reset la version sélectionnée
+  const handleCampaignChangeLocal = (campaign: Campaign) => {
+    handleCampaignChange(campaign);
     setBuckets([]); // Vider les buckets
     setShowCampaignDropdown(false);
     setShowVersionDropdown(false); // Fermer aussi le dropdown de version
@@ -445,12 +371,21 @@ export default function StrategiePage() {
     }).format(amount);
   };
 
+  const isLoading = campaignLoading || loading;
+  const hasError = campaignError || error;
+
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div className="space-y-6">
-          <div>
+          <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Stratégie</h1>
+            {selectedCampaign && selectedVersion && (
+              <div className="text-right text-sm text-gray-500">
+                <div>Campagne: <span className="font-medium">{selectedCampaign.name}</span></div>
+                <div>Version: <span className="font-medium">{selectedVersion.name}</span></div>
+              </div>
+            )}
           </div>
           
           {/* Sélecteurs de campagne et version */}
@@ -481,7 +416,7 @@ export default function StrategiePage() {
                         className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center ${
                           selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
                         }`}
-                        onClick={() => handleCampaignChange(campaign)}
+                        onClick={() => handleCampaignChangeLocal(campaign)}
                       >
                         <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 rounded text-indigo-600 mr-2">
                           <span className="text-xs">📊</span>
@@ -526,12 +461,17 @@ export default function StrategiePage() {
                         className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center ${
                           selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
                         }`}
-                        onClick={() => handleVersionChange(version)}
+                        onClick={() => handleVersionChangeLocal(version)}
                       >
                         <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 rounded text-indigo-600 mr-2">
                           <span className="text-xs">📝</span>
                         </div>
                         {version.name}
+                        {version.isOfficial && (
+                          <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Officielle
+                          </span>
+                        )}
                       </li>
                     ))}
                     {versions.length === 0 && (
@@ -570,19 +510,19 @@ export default function StrategiePage() {
           </div>
           
           {/* Messages d'erreur et de chargement */}
-          {loading && (
+          {isLoading && (
             <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
               <div className="text-sm text-gray-500">Chargement en cours...</div>
             </div>
           )}
           
-          {error && (
+          {hasError && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
+              {hasError}
             </div>
           )}
           
-          {!loading && !error && (
+          {!isLoading && !hasError && (
             <>
               {/* Budget Info */}
               {selectedCampaign && (
@@ -624,7 +564,7 @@ export default function StrategiePage() {
               {selectedCampaign && !selectedVersion && (
                 <div className="bg-yellow-50 p-6 rounded-lg shadow text-center">
                   <p className="text-yellow-700">
-                    Aucune version de stratégie n'est disponible pour cette campagne.
+                    Veuillez sélectionner une version pour voir les enveloppes budgétaires.
                   </p>
                 </div>
               )}

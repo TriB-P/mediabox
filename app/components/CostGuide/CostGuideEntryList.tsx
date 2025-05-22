@@ -21,6 +21,7 @@ interface CostGuideEntryListProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onAddWithPreset: (preset: { partnerId?: string; level1?: string; level2?: string }) => void;
+  readOnly?: boolean; // Nouvelle propriété pour le mode lecture seule
 }
 
 export default function CostGuideEntryList({
@@ -29,6 +30,7 @@ export default function CostGuideEntryList({
   onDelete,
   onDuplicate,
   onAddWithPreset,
+  readOnly = false, // Par défaut, le mode lecture seule est désactivé
 }: CostGuideEntryListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
@@ -50,6 +52,8 @@ export default function CostGuideEntryList({
 
   // Fonction pour supprimer une entrée
   const handleDeleteEntry = async (guideId: string, entryId: string) => {
+    if (readOnly) return; // Ne rien faire si en mode lecture seule
+    
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
 
     try {
@@ -62,6 +66,8 @@ export default function CostGuideEntryList({
 
   // Fonction pour dupliquer une entrée
   const handleDuplicateEntry = async (guideId: string, entryId: string) => {
+    if (readOnly) return; // Ne rien faire si en mode lecture seule
+    
     try {
       await duplicateCostGuideEntry(guideId, entryId);
       onDuplicate();
@@ -154,16 +160,18 @@ export default function CostGuideEntryList({
               <h3 className="text-lg font-medium text-gray-900">{partnerItem.partner}</h3>
               
               {/* Bouton pour ajouter une entrée pour ce partenaire */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddWithPreset({ partnerId: partnerId });
-                }}
-                className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                title="Ajouter une entrée pour ce partenaire"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddWithPreset({ partnerId: partnerId });
+                  }}
+                  className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                  title="Ajouter une entrée pour ce partenaire"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             {/* Contenu Partenaire */}
@@ -191,19 +199,21 @@ export default function CostGuideEntryList({
                         <h4 className="text-md font-medium text-gray-800">{level1}</h4>
                         
                         {/* Bouton pour ajouter une entrée avec level1 prérempli */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAddWithPreset({ 
-                              partnerId: partnerId, 
-                              level1: level1 
-                            });
-                          }}
-                          className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                          title="Ajouter une entrée avec ce niveau 1"
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddWithPreset({ 
+                                partnerId: partnerId, 
+                                level1: level1 
+                              });
+                            }}
+                            className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                            title="Ajouter une entrée avec ce niveau 1"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Contenu Niveau 1 */}
@@ -231,20 +241,22 @@ export default function CostGuideEntryList({
                                   <h5 className="text-sm font-medium text-gray-700">{level2}</h5>
                                   
                                   {/* Bouton pour ajouter une entrée avec level1 et level2 préremplis */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onAddWithPreset({ 
-                                        partnerId: partnerId, 
-                                        level1: level1,
-                                        level2: level2 
-                                      });
-                                    }}
-                                    className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                                    title="Ajouter une entrée avec ces niveaux 1 et 2"
-                                  >
-                                    <PlusIcon className="h-4 w-4" />
-                                  </button>
+                                  {!readOnly && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAddWithPreset({ 
+                                          partnerId: partnerId, 
+                                          level1: level1,
+                                          level2: level2 
+                                        });
+                                      }}
+                                      className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
+                                      title="Ajouter une entrée avec ces niveaux 1 et 2"
+                                    >
+                                      <PlusIcon className="h-4 w-4" />
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* Contenu Niveau 2 (Niveau 3 - Entrées) */}
@@ -262,9 +274,11 @@ export default function CostGuideEntryList({
                                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Prix unitaire
                                           </th>
-                                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
-                                          </th>
+                                          {!readOnly && (
+                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                              Actions
+                                            </th>
+                                          )}
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-gray-200">
@@ -279,31 +293,33 @@ export default function CostGuideEntryList({
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                               {formatCurrency(entry.unitPrice)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                              <div className="flex items-center justify-end space-x-2">
-                                                <button
-                                                  onClick={() => onEdit(entry)}
-                                                  className="text-indigo-600 hover:text-indigo-900"
-                                                  title="Modifier"
-                                                >
-                                                  <PencilIcon className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                  onClick={() => handleDuplicateEntry(entry.guideId, entry.id)}
-                                                  className="text-blue-600 hover:text-blue-900"
-                                                  title="Dupliquer"
-                                                >
-                                                  <DocumentDuplicateIcon className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                  onClick={() => handleDeleteEntry(entry.guideId, entry.id)}
-                                                  className="text-red-600 hover:text-red-900"
-                                                  title="Supprimer"
-                                                >
-                                                  <TrashIcon className="h-4 w-4" />
-                                                </button>
-                                              </div>
-                                            </td>
+                                            {!readOnly && (
+                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                                <div className="flex items-center justify-end space-x-2">
+                                                  <button
+                                                    onClick={() => onEdit(entry)}
+                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    title="Modifier"
+                                                  >
+                                                    <PencilIcon className="h-4 w-4" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleDuplicateEntry(entry.guideId, entry.id)}
+                                                    className="text-blue-600 hover:text-blue-900"
+                                                    title="Dupliquer"
+                                                  >
+                                                    <DocumentDuplicateIcon className="h-4 w-4" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleDeleteEntry(entry.guideId, entry.id)}
+                                                    className="text-red-600 hover:text-red-900"
+                                                    title="Supprimer"
+                                                  >
+                                                    <TrashIcon className="h-4 w-4" />
+                                                  </button>
+                                                </div>
+                                              </td>
+                                            )}
                                           </tr>
                                         ))}
                                       </tbody>
