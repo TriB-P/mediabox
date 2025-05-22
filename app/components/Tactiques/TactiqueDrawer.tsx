@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tactique, TactiqueFormData } from '../../types/tactiques';
 import FormDrawer from './FormDrawer';
 import FormTabs, { FormTab } from './FormTabs';
@@ -35,7 +35,7 @@ export default function TactiqueDrawer({
   const { selectedClient } = useClient();
   
   // État pour les onglets
-  const [activeTab, setActiveTab] = useState('strategie');
+  const [activeTab, setActiveTab] = useState('infos');
   
   // État pour le formulaire
   const [formData, setFormData] = useState<TactiqueFormData>({
@@ -92,6 +92,24 @@ export default function TactiqueDrawer({
       });
     }
   }, [tactique, sectionId]);
+  
+  // Bloquer les prompts globaux
+  useEffect(() => {
+    // Stocker l'ancien prompt pour pouvoir le restaurer
+    const originalPrompt = window.prompt;
+    
+    // Override global prompt function
+    window.prompt = function() {
+      console.log("Prompt intercepté !");
+      return null;
+    };
+    
+    // Nettoyer lors du démontage du composant
+    return () => {
+      // Restore the original prompt
+      window.prompt = originalPrompt;
+    };
+  }, []);
   
   // Charger les listes dynamiques
   useEffect(() => {
@@ -455,7 +473,7 @@ export default function TactiqueDrawer({
       onClose={onClose}
       title={tactique ? `Modifier la tactique: ${tactique.TC_Label}` : 'Nouvelle tactique'}
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
         {/* Navigation par onglets */}
         <FormTabs
           tabs={tabs}

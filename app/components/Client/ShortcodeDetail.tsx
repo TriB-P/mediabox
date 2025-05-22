@@ -5,7 +5,7 @@
 import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Shortcode, updateShortcode, deleteShortcode } from '../../lib/shortcodeService';
+import { Shortcode, updateShortcode as updateShortcodeService, deleteShortcode as deleteShortcodeService } from '../../lib/shortcodeService';
 
 interface ShortcodeDetailProps {
   shortcode: Shortcode;
@@ -45,7 +45,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
       setLoading(true);
       setError(null);
       
-      await updateShortcode(shortcode.id, {
+      await updateShortcodeService(shortcode.id, {
         SH_Code: editedShortcode.SH_Code,
         SH_Display_Name_FR: editedShortcode.SH_Display_Name_FR,
         SH_Display_Name_EN: editedShortcode.SH_Display_Name_EN,
@@ -68,7 +68,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
     try {
       setLoading(true);
       
-      await deleteShortcode(shortcode.id);
+      await deleteShortcodeService(shortcode.id);
       
       setIsDeleteModalOpen(false);
       onDelete();

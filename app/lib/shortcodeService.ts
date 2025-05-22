@@ -14,6 +14,8 @@ import {
     serverTimestamp,
   } from 'firebase/firestore';
   import { db } from './firebase';
+  import { limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
+
   
   export interface Shortcode {
     id: string;
@@ -23,6 +25,12 @@ import {
     SH_Display_Name_FR: string;
     SH_Type?: string;
     SH_Tags?: string[];
+  }
+
+  export interface PaginatedShortcodeResponse {
+    shortcodes: Shortcode[];
+    lastDoc: DocumentSnapshot | null;
+    hasMore: boolean;
   }
   
   // Récupérer tous les shortcodes
@@ -266,5 +274,105 @@ export async function deleteCustomList(dimension: string, clientId: string): Pro
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du partenaire ${partnerId}:`, error);
       throw error;
+    }
+  }
+
+  export async function getClientDimensionShortcodesPaginated(
+    dimension: string, 
+    clientId: string,
+    pageSize: number = 50,
+    lastDocument?: DocumentSnapshot | null
+  ): Promise<PaginatedShortcodeResponse> {
+    try {
+      console.log(`Récupération paginée des shortcodes pour la dimension ${dimension} et le client ${clientId}, taille: ${pageSize}`);
+      
+      // Vérifier si le client a une liste personnalisée, sinon utiliser PlusCo
+      const hasCustom = await hasCustomList(dimension, clientId);
+      const effectiveClientId = hasCustom ? clientId : 'PlusCo';
+      
+      console.log(`Utilisation de l'ID client: ${effectiveClientId} (personnalisé: ${hasCustom})`);
+      
+      const shortcodesCollection = collection(db, 'lists', dimension, 'clients', effectiveClientId, 'shortcodes');
+      
+      // Construire la requête avec pagination
+      let q = query(shortcodesCollection, limit(pageSize));
+      
+      // Si on a un document de départ, commencer après celui-ci
+      if (lastDocument) {
+        q = query(shortcodesCollection, startAfter(lastDocument), limit(pageSize));
+      }
+      
+      const snapshot = await getDocs(q);
+      
+      // Récupérer tous les IDs de shortcodes de cette page
+      const shortcodeIds = snapshot.docs.map(doc => doc.id);
+      const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+      
+      if (shortcodeIds.length === 0) {
+        return {
+          shortcodes: [],
+          lastDoc: null,
+          hasMore: false
+        };
+      }
+      
+      // Récupérer les données réelles des shortcodes
+      const shortcodes: Shortcode[] = [];
+      for (const id of shortcodeIds) {
+        const shortcodeRef = doc(db, 'shortcodes', id);
+        const shortcodeSnap = await getDoc(shortcodeRef);
+        
+        if (shortcodeSnap.exists()) {
+          shortcodes.push({
+            id: shortcodeSnap.id,
+            ...shortcodeSnap.data()
+          } as Shortcode);
+        }
+      }
+      
+      // Déterminer s'il y a plus de données
+      // On fait une requête avec limit(1) après le dernier document pour vérifier
+      const hasMoreQuery = query(
+        shortcodesCollection, 
+        startAfter(lastDoc), 
+        limit(1)
+      );
+      const hasMoreSnapshot = await getDocs(hasMoreQuery);
+      const hasMore = !hasMoreSnapshot.empty;
+      
+      return {
+        shortcodes,
+        lastDoc,
+        hasMore
+      };
+      
+    } catch (error) {
+      console.error(`Erreur lors de la récupération paginée des shortcodes pour la dimension ${dimension} et le client ${clientId}:`, error);
+      return {
+        shortcodes: [],
+        lastDoc: null,
+        hasMore: false
+      };
+    }
+  }
+  
+  // Compter le nombre total de shortcodes (optionnel, pour affichage)
+  export async function getClientDimensionShortcodesCount(
+    dimension: string, 
+    clientId: string
+  ): Promise<number> {
+    try {
+      console.log(`Comptage des shortcodes pour la dimension ${dimension} et le client ${clientId}`);
+      
+      const hasCustom = await hasCustomList(dimension, clientId);
+      const effectiveClientId = hasCustom ? clientId : 'PlusCo';
+      
+      const shortcodesCollection = collection(db, 'lists', dimension, 'clients', effectiveClientId, 'shortcodes');
+      const snapshot = await getDocs(shortcodesCollection);
+      
+      return snapshot.size;
+    } catch (error) {
+      console.error(`Erreur lors du comptage des shortcodes:`, error);
+      return 0;
     }
   }
