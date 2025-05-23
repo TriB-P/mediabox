@@ -34,17 +34,17 @@ export default function FormDrawer({
 
         <div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
-            <div className="fixed inset-y-0 left-0 flex max-w-full pr-10 pointer-events-none">
+            <div className="fixed inset-y-0 right-0 flex max-w-full">
               <Transition.Child
                 as={Fragment}
                 enter="transform transition ease-in-out duration-500 sm:duration-700"
-                enterFrom="-translate-x-full"
+                enterFrom="translate-x-full"
                 enterTo="translate-x-0"
                 leave="transform transition ease-in-out duration-500 sm:duration-700"
                 leaveFrom="translate-x-0"
-                leaveTo="-translate-x-full"
+                leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-[50%]">
+               <Dialog.Panel className="pointer-events-auto w-[50vw]">
                   <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
                     {/* Header */}
                     <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
