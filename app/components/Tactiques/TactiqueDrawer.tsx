@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import FormDrawer from './FormDrawer';
 import FormTabs, { FormTab } from './FormTabs';
 import { 
@@ -26,7 +26,6 @@ import {
 } from '../../lib/tactiqueListService';
 import { usePartners } from '../../contexts/PartnerContext';
 
-
 interface TactiqueDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,6 +38,22 @@ interface KPIData {
   TC_Kpi: string;
   TC_Kpi_CostPer: number;
   TC_Kpi_Volume: number;
+}
+
+interface VisibleFields {
+  TC_LoB?: boolean;
+  TC_Media_Type?: boolean;
+  TC_Publisher?: boolean;
+  TC_Buying_Method?: boolean;
+  TC_Custom_Dim_1?: boolean;
+  TC_Custom_Dim_2?: boolean;
+  TC_Custom_Dim_3?: boolean;
+  TC_Inventory?: boolean;
+  TC_Market?: boolean;
+  TC_Language?: boolean;
+  TC_Media_Objective?: boolean;
+  TC_Kpi?: boolean;
+  [key: string]: boolean | undefined;
 }
 
 export default function TactiqueDrawer({
@@ -74,23 +89,6 @@ export default function TactiqueDrawer({
   const [useInheritedPO, setUseInheritedPO] = useState(true);
   const [campaignAdminValues, setCampaignAdminValues] = useState<{ CA_Billing_ID?: string; CA_PO?: string }>({});
 
-  // Type pour les champs visibles
-  interface VisibleFields {
-    TC_LoB?: boolean;
-    TC_Media_Type?: boolean;
-    TC_Publisher?: boolean;
-    TC_Buying_Method?: boolean;
-    TC_Custom_Dim_1?: boolean;
-    TC_Custom_Dim_2?: boolean;
-    TC_Custom_Dim_3?: boolean;
-    TC_Inventory?: boolean;
-    TC_Market?: boolean;
-    TC_Language?: boolean;
-    TC_Media_Objective?: boolean;
-    TC_Kpi?: boolean;
-    [key: string]: boolean | undefined;
-  }
-
   // États pour les listes dynamiques
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
@@ -102,16 +100,19 @@ export default function TactiqueDrawer({
   const [error, setError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   
-  // Définition des onglets
-  const tabs: FormTab[] = [
+  // État pour le tooltip affiché
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  
+  // Définition des onglets (memoized)
+  const tabs: FormTab[] = useMemo(() => [
     { id: 'info', name: 'Info', icon: DocumentTextIcon },
     { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
     { id: 'kpi', name: 'KPI', icon: ChartBarIcon },
     { id: 'admin', name: 'Admin', icon: CogIcon },
-  ];
+  ], []);
 
-  // Liste des champs avec listes dynamiques
-  const dynamicListFields = [
+  // Liste des champs avec listes dynamiques (memoized)
+  const dynamicListFields = useMemo(() => [
     'TC_LoB',
     'TC_Media_Type', 
     'TC_Buying_Method',
@@ -122,7 +123,7 @@ export default function TactiqueDrawer({
     'TC_Language',
     'TC_Media_Objective',
     'TC_Kpi'
-  ];
+  ], []);
   
   // Initialiser le formulaire quand la tactique change
   useEffect(() => {
@@ -251,8 +252,6 @@ export default function TactiqueDrawer({
       }
       
       setDynamicLists(newDynamicLists);
-      console.log("listes chargées")
-
 
       // Charger les buckets de campagne
       const campaignBuckets = await getCampaignBuckets(
@@ -261,7 +260,6 @@ export default function TactiqueDrawer({
         selectedVersion.id
       );
       setBuckets(campaignBuckets);
-      console.log("buckets chargés")
 
       // Charger les valeurs admin de la campagne
       const adminValues = await getCampaignAdminValues(
@@ -269,8 +267,6 @@ export default function TactiqueDrawer({
         selectedCampaign.id
       );
       setCampaignAdminValues(adminValues);
-      console.log("valeurs admin chargée")
-
       
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
@@ -280,8 +276,8 @@ export default function TactiqueDrawer({
     }
   };
   
-  // Gérer les changements dans le formulaire
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  // Gérer les changements dans le formulaire (optimisé avec useCallback)
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
     setFormData(prev => ({
@@ -290,35 +286,42 @@ export default function TactiqueDrawer({
     }));
     
     setIsDirty(true);
-  };
+  }, []);
 
-  // Gérer les changements de KPI
-  const handleKpiChange = (index: number, field: keyof KPIData, value: string | number) => {
-    const newKpis = [...kpis];
-    newKpis[index] = {
-      ...newKpis[index],
-      [field]: value
-    };
-    setKpis(newKpis);
+  // Gérer les changements de KPI (optimisé avec useCallback)
+  const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number) => {
+    setKpis(prev => {
+      const newKpis = [...prev];
+      newKpis[index] = {
+        ...newKpis[index],
+        [field]: value
+      };
+      return newKpis;
+    });
     setIsDirty(true);
-  };
+  }, []);
 
-  // Ajouter un KPI
-  const addKpi = () => {
-    if (kpis.length < 5) {
-      setKpis([...kpis, { TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
-      setIsDirty(true);
-    }
-  };
+  // Ajouter un KPI (optimisé avec useCallback)
+  const addKpi = useCallback(() => {
+    setKpis(prev => {
+      if (prev.length < 5) {
+        return [...prev, { TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }];
+      }
+      return prev;
+    });
+    setIsDirty(true);
+  }, []);
 
-  // Supprimer un KPI
-  const removeKpi = (index: number) => {
-    if (kpis.length > 1) {
-      const newKpis = kpis.filter((_, i) => i !== index);
-      setKpis(newKpis);
-      setIsDirty(true);
-    }
-  };
+  // Supprimer un KPI (optimisé avec useCallback)
+  const removeKpi = useCallback((index: number) => {
+    setKpis(prev => {
+      if (prev.length > 1) {
+        return prev.filter((_, i) => i !== index);
+      }
+      return prev;
+    });
+    setIsDirty(true);
+  }, []);
   
   // Gérer la soumission du formulaire
   const handleSubmit = async (e: React.FormEvent) => {
@@ -369,33 +372,134 @@ export default function TactiqueDrawer({
     onClose();
   };
 
-  // Composant pour afficher l'icône d'aide
-  const HelpIcon = ({ tooltip }: { tooltip: string }) => (
-    <div className="group relative inline-block ml-1">
-      <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help" />
-      <div className="invisible group-hover:visible absolute z-10 w-64 p-2 mt-1 text-sm text-white bg-gray-800 rounded-md shadow-lg -translate-x-1/2 left-1/2">
-        {tooltip}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full">
-          <div className="border-4 border-transparent border-b-gray-800"></div>
-        </div>
-      </div>
-    </div>
-  );
+  // Composant pour afficher l'icône d'aide optimisée
+  const HelpIcon = React.memo(({ tooltip }: { tooltip: string }) => (
+    <QuestionMarkCircleIcon 
+      className="h-5 w-5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" 
+      onMouseEnter={() => setActiveTooltip(tooltip)}
+      onMouseLeave={() => setActiveTooltip(null)}
+    />
+  ));
 
+  // Composant pour les boutons de sélection (optimisé)
+  const SelectionButtons = React.memo(({ 
+    options, 
+    value, 
+    onChange, 
+    name, 
+    placeholder 
+  }: {
+    options: { id: string; label: string }[];
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    name: string;
+    placeholder: string;
+  }) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => {
+              const event = {
+                target: { name, value: value === option.id ? '' : option.id }
+              } as React.ChangeEvent<HTMLInputElement>;
+              onChange(event);
+            }}
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              value === option.id
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {value && (
+        <button
+          type="button"
+          onClick={() => {
+            const event = {
+              target: { name, value: '' }
+            } as React.ChangeEvent<HTMLInputElement>;
+            onChange(event);
+          }}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          Effacer la sélection
+        </button>
+      )}
+    </div>
+  ));
+
+  // Composant intelligent qui choisit entre boutons ou dropdown (optimisé)
+  const SmartSelect = React.memo(({ 
+    id, 
+    name, 
+    value, 
+    onChange, 
+    options, 
+    placeholder, 
+    label 
+  }: {
+    id: string;
+    name: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+    options: { id: string; label: string }[];
+    placeholder: string;
+    label: React.ReactNode;
+  }) => {
+    return (
+      <div>
+        <div className="flex items-center mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+        </div>
+        {options.length <= 5 ? (
+          <SelectionButtons
+            options={options}
+            value={value}
+            onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
+            name={name}
+            placeholder={placeholder}
+          />
+        ) : (
+          <SearchableSelect
+            id={id}
+            name={name}
+            value={value}
+            onChange={onChange}
+            options={options}
+            placeholder={placeholder}
+            label=""
+          />
+        )}
+      </div>
+    );
+  });
   // Rendu du contenu selon l'onglet actif
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
         return (
-          <div className="p-6 space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Informations générales</h3>
+          <div className="p-8 space-y-6">
+            <div className="border-b border-gray-200 pb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Informations générales</h3>
+              <p className="text-sm text-gray-600 mt-1">Configuration de base de la tactique</p>
+            </div>
             
             {/* TC_Label */}
             <div>
-              <label htmlFor="TC_Label" className="block text-sm font-medium text-gray-700 mb-1">
-                Étiquette *
+              <div className="flex items-center mb-2">
                 <HelpIcon tooltip="Open string. Pas de contraintes" />
-              </label>
+                <label htmlFor="TC_Label" className="block text-sm font-medium text-gray-700 ml-3">
+                  Étiquette *
+                </label>
+              </div>
               <input
                 type="text"
                 id="TC_Label"
@@ -403,14 +507,14 @@ export default function TactiqueDrawer({
                 value={formData.TC_Label || ''}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Ex: Bannières Display Google"
               />
             </div>
 
             {/* TC_Bucket */}
             {buckets.length > 0 && (
-              <SearchableSelect
+              <SmartSelect
                 id="TC_Bucket"
                 name="TC_Bucket"
                 value={formData.TC_Bucket || ''}
@@ -418,27 +522,29 @@ export default function TactiqueDrawer({
                 options={buckets.map(bucket => ({ id: bucket.id, label: bucket.name }))}
                 placeholder="Sélectionner une enveloppe..."
                 label={
-                  <span>
-                    Enveloppe
+                  <>
                     <HelpIcon tooltip="Liste des buckets dans la campagne. Une selection possible" />
-                  </span>
+                    <span className="ml-3">Enveloppe</span>
+                  </>
                 }
               />
             )}
-            
           </div>
         );
       
       case 'strategie':
         return (
-          <div className="p-6 space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Stratégie média</h3>
+          <div className="p-8 space-y-8">
+            <div className="border-b border-gray-200 pb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Stratégie média</h3>
+              <p className="text-sm text-gray-600 mt-1">Configuration stratégique et ciblage</p>
+            </div>
             
             {/* Section principale */}
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* TC_LoB */}
               {(dynamicLists.TC_LoB && dynamicLists.TC_LoB.length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_LoB"
                   name="TC_LoB"
                   value={formData.TC_LoB || ''}
@@ -446,17 +552,17 @@ export default function TactiqueDrawer({
                   options={dynamicLists.TC_LoB?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                   placeholder="Sélectionner une ligne d'affaire..."
                   label={
-                    <span>
-                      Ligne d'affaire
+                    <>
                       <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                    </span>
+                      <span className="ml-3">Ligne d'affaire</span>
+                    </>
                   }
                 />
               )}
 
               {/* TC_Media_Type */}
               {(dynamicLists.TC_Media_Type && dynamicLists.TC_Media_Type.length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_Media_Type"
                   name="TC_Media_Type"
                   value={formData.TC_Media_Type || ''}
@@ -464,17 +570,17 @@ export default function TactiqueDrawer({
                   options={dynamicLists.TC_Media_Type?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                   placeholder="Sélectionner un type de média..."
                   label={
-                    <span>
-                      Type média
+                    <>
                       <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                    </span>
+                      <span className="ml-3">Type média</span>
+                    </>
                   }
                 />
               )}
 
            {/* TC_Publisher */}
            {(!isPublishersLoading && getPublishersForSelect().length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_Publisher"
                   name="TC_Publisher"
                   value={formData.TC_Publisher || ''}
@@ -482,17 +588,17 @@ export default function TactiqueDrawer({
                   options={getPublishersForSelect()}
                   placeholder="Sélectionner un partenaire..."
                   label={
-                    <span>
-                      Partenaire
+                    <>
                       <HelpIcon tooltip="Liste des partenaires pré-chargée" />
-                    </span>
+                      <span className="ml-3">Partenaire</span>
+                    </>
                   }
                 />
               )}
 
               {/* TC_Inventory */}
               {(!isPublishersLoading && getPublishersForSelect().length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_Inventory"
                   name="TC_Inventory"
                   value={formData.TC_Inventory || ''}
@@ -500,102 +606,112 @@ export default function TactiqueDrawer({
                   options={getPublishersForSelect()}
                   placeholder="Sélectionner un inventaire..."
                   label={
-                    <span>
-                      Inventaire
+                    <>
                       <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                    </span>
+                      <span className="ml-3">Inventaire</span>
+                    </>
                   }
                 />
               )}
 
               {/* TC_Product_Open */}
               <div>
-                <label htmlFor="TC_Product_Open" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description du produit
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Product_Open" className="block text-sm font-medium text-gray-700 ml-3">
+                    Description du produit
+                  </label>
+                </div>
                 <input
                   type="text"
                   id="TC_Product_Open"
                   name="TC_Product_Open"
                   value={formData.TC_Product_Open || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Ex: iPhone 15 Pro"
                 />
               </div>
 
               {/* TC_Targeting_Open */}
               <div>
-                <label htmlFor="TC_Targeting_Open" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description de l'audience
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Targeting_Open" className="block text-sm font-medium text-gray-700 ml-3">
+                    Description de l'audience
+                  </label>
+                </div>
                 <textarea
                   id="TC_Targeting_Open"
                   name="TC_Targeting_Open"
                   rows={3}
                   value={formData.TC_Targeting_Open || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Décrivez le ciblage de cette tactique..."
                 />
               </div>
 
               {/* TC_Market_Open */}
               <div>
-                <label htmlFor="TC_Market_Open" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description du marché
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Market_Open" className="block text-sm font-medium text-gray-700 ml-3">
+                    Description du marché
+                  </label>
+                </div>
                 <input
                   type="text"
                   id="TC_Market_Open"
                   name="TC_Market_Open"
                   value={formData.TC_Market_Open || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Ex: Canada, Québec, Montréal"
                 />
               </div>
 
               {/* TC_Frequence */}
               <div>
-                <label htmlFor="TC_Frequence" className="block text-sm font-medium text-gray-700 mb-1">
-                  Fréquence
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Frequence" className="block text-sm font-medium text-gray-700 ml-3">
+                    Fréquence
+                  </label>
+                </div>
                 <input
                   type="text"
                   id="TC_Frequence"
                   name="TC_Frequence"
                   value={formData.TC_Frequence || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Ex: 3 fois par semaine"
                 />
               </div>
 
               {/* TC_Location */}
               <div>
-                <label htmlFor="TC_Location" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description de l'emplacement
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Location" className="block text-sm font-medium text-gray-700 ml-3">
+                    Description de l'emplacement
+                  </label>
+                </div>
                 <input
                   type="text"
                   id="TC_Location"
                   name="TC_Location"
                   value={formData.TC_Location || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Décrivez l'emplacement..."
-                />
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Décrivez l'emplacement"
+                  />
               </div>
 
               {/* TC_Market */}
               {(dynamicLists.TC_Market && dynamicLists.TC_Market.length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_Market"
                   name="TC_Market"
                   value={formData.TC_Market || ''}
@@ -603,17 +719,17 @@ export default function TactiqueDrawer({
                   options={dynamicLists.TC_Market?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                   placeholder="Sélectionner un marché..."
                   label={
-                    <span>
-                      Marché
+                    <>
                       <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                    </span>
+                      <span className="ml-3">Marché</span>
+                    </>
                   }
                 />
               )}
 
               {/* TC_Language */}
               {(dynamicLists.TC_Language && dynamicLists.TC_Language.length > 0) && (
-                <SearchableSelect
+                <SmartSelect
                   id="TC_Language"
                   name="TC_Language"
                   value={formData.TC_Language || ''}
@@ -621,27 +737,29 @@ export default function TactiqueDrawer({
                   options={dynamicLists.TC_Language?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                   placeholder="Sélectionner une langue..."
                   label={
-                    <span>
-                      Langue
+                    <>
                       <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                    </span>
+                      <span className="ml-3">Langue</span>
+                    </>
                   }
                 />
               )}
 
               {/* TC_Format_Open */}
               <div>
-                <label htmlFor="TC_Format_Open" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description du format
+                <div className="flex items-center mb-2">
                   <HelpIcon tooltip="Open string. Pas de contraintes" />
-                </label>
+                  <label htmlFor="TC_Format_Open" className="block text-sm font-medium text-gray-700 ml-3">
+                    Description du format
+                  </label>
+                </div>
                 <textarea
                   id="TC_Format_Open"
                   name="TC_Format_Open"
                   rows={2}
                   value={formData.TC_Format_Open || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Décrivez le format utilisé..."
                 />
               </div>
@@ -649,13 +767,16 @@ export default function TactiqueDrawer({
 
             {/* Sous-section: Champs personnalisés */}
             {(visibleFields.TC_Custom_Dim_1 || visibleFields.TC_Custom_Dim_2 || visibleFields.TC_Custom_Dim_3 || visibleFields.TC_Buying_Method) && (
-              <div className="border-t pt-6">
-                <h4 className="text-md font-medium text-gray-800 mb-4">Champs personnalisés</h4>
-                <div className="space-y-4">
+              <div className="border-t border-gray-200 pt-8">
+                <div className="border-b border-gray-200 pb-4 mb-6">
+                  <h4 className="text-lg font-semibold text-gray-800">Champs personnalisés</h4>
+                  <p className="text-sm text-gray-600 mt-1">Configuration spécifique au client</p>
+                </div>
+                <div className="space-y-6">
                   
                   {/* TC_Buying_Method */}
                   {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
-                    <SearchableSelect
+                    <SmartSelect
                       id="TC_Buying_Method"
                       name="TC_Buying_Method"
                       value={formData.TC_Buying_Method || ''}
@@ -663,17 +784,17 @@ export default function TactiqueDrawer({
                       options={dynamicLists.TC_Buying_Method?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                       placeholder="Sélectionner une méthode d'achat..."
                       label={
-                        <span>
-                          Méthode d'achat
+                        <>
                           <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                        </span>
+                          <span className="ml-3">Méthode d'achat</span>
+                        </>
                       }
                     />
                   )}
 
                   {/* TC_Custom_Dim_1 */}
                   {(dynamicLists.TC_Custom_Dim_1 && dynamicLists.TC_Custom_Dim_1.length > 0) && (
-                    <SearchableSelect
+                    <SmartSelect
                       id="TC_Custom_Dim_1"
                       name="TC_Custom_Dim_1"
                       value={formData.TC_Custom_Dim_1 || ''}
@@ -681,17 +802,17 @@ export default function TactiqueDrawer({
                       options={dynamicLists.TC_Custom_Dim_1?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                       placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_1}...`}
                       label={
-                        <span>
-                          {customDimensions.Custom_Dim_CA_1}
+                        <>
                           <HelpIcon tooltip="Afficher seulement si Custom_Dim_CA_1 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée." />
-                        </span>
+                          <span className="ml-3">{customDimensions.Custom_Dim_CA_1}</span>
+                        </>
                       }
                     />
                   )}
 
                   {/* TC_Custom_Dim_2 */}
                   {(dynamicLists.TC_Custom_Dim_2 && dynamicLists.TC_Custom_Dim_2.length > 0) && (
-                    <SearchableSelect
+                    <SmartSelect
                       id="TC_Custom_Dim_2"
                       name="TC_Custom_Dim_2"
                       value={formData.TC_Custom_Dim_2 || ''}
@@ -699,17 +820,17 @@ export default function TactiqueDrawer({
                       options={dynamicLists.TC_Custom_Dim_2?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                       placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_2}...`}
                       label={
-                        <span>
-                          {customDimensions.Custom_Dim_CA_2}
+                        <>
                           <HelpIcon tooltip="Afficher seulement si Custom_Dim_CA_2 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée." />
-                        </span>
+                          <span className="ml-3">{customDimensions.Custom_Dim_CA_2}</span>
+                        </>
                       }
                     />
                   )}
 
                   {/* TC_Custom_Dim_3 */}
                   {(dynamicLists.TC_Custom_Dim_3 && dynamicLists.TC_Custom_Dim_3.length > 0) && (
-                    <SearchableSelect
+                    <SmartSelect
                       id="TC_Custom_Dim_3"
                       name="TC_Custom_Dim_3"
                       value={formData.TC_Custom_Dim_3 || ''}
@@ -717,10 +838,10 @@ export default function TactiqueDrawer({
                       options={dynamicLists.TC_Custom_Dim_3?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                       placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_3}...`}
                       label={
-                        <span>
-                          {customDimensions.Custom_Dim_CA_3}
+                        <>
                           <HelpIcon tooltip="Afficher seulement si Custom_Dim_CA_3 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée." />
-                        </span>
+                          <span className="ml-3">{customDimensions.Custom_Dim_CA_3}</span>
+                        </>
                       }
                     />
                   )}
@@ -729,40 +850,47 @@ export default function TactiqueDrawer({
             )}
 
             {/* Sous-section: Production */}
-            <div className="border-t pt-6">
-              <h4 className="text-md font-medium text-gray-800 mb-4">Production</h4>
-              <div className="space-y-4">
+            <div className="border-t border-gray-200 pt-8">
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h4 className="text-lg font-semibold text-gray-800">Production</h4>
+                <p className="text-sm text-gray-600 mt-1">Gestion des créatifs et des livrables</p>
+              </div>
+              <div className="space-y-6">
                 
                 {/* TC_NumberCreatives */}
                 <div>
-                  <label htmlFor="TC_NumberCreatives" className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre de créatifs suggérés
+                  <div className="flex items-center mb-2">
                     <HelpIcon tooltip="Open string. Pas de contraintes" />
-                  </label>
+                    <label htmlFor="TC_NumberCreatives" className="block text-sm font-medium text-gray-700 ml-3">
+                      Nombre de créatifs suggérés
+                    </label>
+                  </div>
                   <input
                     type="text"
                     id="TC_NumberCreatives"
                     name="TC_NumberCreatives"
                     value={formData.TC_NumberCreatives || ''}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Ex: 5 bannières + 2 vidéos"
                   />
                 </div>
 
                 {/* TC_AssetDate */}
                 <div>
-                  <label htmlFor="TC_AssetDate" className="block text-sm font-medium text-gray-700 mb-1">
-                    Date de livraison des créatifs
+                  <div className="flex items-center mb-2">
                     <HelpIcon tooltip="Open date. Pas de contraintes" />
-                  </label>
+                    <label htmlFor="TC_AssetDate" className="block text-sm font-medium text-gray-700 ml-3">
+                      Date de livraison des créatifs
+                    </label>
+                  </div>
                   <input
                     type="date"
                     id="TC_AssetDate"
                     name="TC_AssetDate"
                     value={formData.TC_AssetDate || ''}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -772,12 +900,15 @@ export default function TactiqueDrawer({
         
       case 'kpi':
         return (
-          <div className="p-6 space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">KPIs et objectifs</h3>
+          <div className="p-8 space-y-8">
+            <div className="border-b border-gray-200 pb-4">
+              <h3 className="text-xl font-semibold text-gray-900">KPIs et objectifs</h3>
+              <p className="text-sm text-gray-600 mt-1">Définition des indicateurs de performance</p>
+            </div>
             
             {/* TC_Media_Objective */}
             {(dynamicLists.TC_Media_Objective && dynamicLists.TC_Media_Objective.length > 0) && (
-              <SearchableSelect
+              <SmartSelect
                 id="TC_Media_Objective"
                 name="TC_Media_Objective"
                 value={formData.TC_Media_Objective || ''}
@@ -785,71 +916,89 @@ export default function TactiqueDrawer({
                 options={dynamicLists.TC_Media_Objective?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
                 placeholder="Sélectionner un objectif média..."
                 label={
-                  <span>
-                    Objectif média
+                  <>
                     <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                  </span>
+                    <span className="ml-3">Objectif média</span>
+                  </>
                 }
               />
             )}
 
             {/* Section KPIs multiples */}
-            <div className="border-t pt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-md font-medium text-gray-800">KPIs de performance</h4>
+            <div className="border-t border-gray-200 pt-8">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800">KPIs de performance</h4>
+                  <p className="text-sm text-gray-600 mt-1">Jusqu'à 5 KPIs peuvent être définis</p>
+                </div>
                 {kpis.length < 5 && (
                   <button
                     type="button"
                     onClick={addKpi}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
                   >
                     + Ajouter un KPI
                   </button>
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {kpis.map((kpi, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-gray-700">KPI #{index + 1}</span>
+                  <div key={index} className="border border-gray-200 rounded-xl p-6 bg-gray-50">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-lg font-medium text-gray-800">KPI #{index + 1}</span>
                       {kpis.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeKpi(index)}
-                          className="text-sm text-red-600 hover:text-red-700"
+                          className="px-3 py-1 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
                         >
                           Supprimer
                         </button>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* KPI Type */}
                       {(dynamicLists.TC_Kpi && dynamicLists.TC_Kpi.length > 0) && (
-                        <SearchableSelect
-                          id={`TC_Kpi_${index}`}
-                          name={`TC_Kpi_${index}`}
-                          value={kpi.TC_Kpi}
-                          onChange={(e) => handleKpiChange(index, 'TC_Kpi', e.target.value)}
-                          options={dynamicLists.TC_Kpi?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
-                          placeholder="Sélectionner un KPI..."
-                          label={
-                            <span>
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <HelpIcon tooltip="Masquer si aucune liste trouvée" />
+                            <label className="block text-sm font-medium text-gray-700 ml-3">
                               KPI
-                              <HelpIcon tooltip="Masquer si aucune liste trouvée" />
-                            </span>
-                          }
-                        />
+                            </label>
+                          </div>
+                          {dynamicLists.TC_Kpi.length <= 5 ? (
+                            <SelectionButtons
+                              options={dynamicLists.TC_Kpi?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
+                              value={kpi.TC_Kpi}
+                              onChange={(e) => handleKpiChange(index, 'TC_Kpi', e.target.value)}
+                              name={`TC_Kpi_${index}`}
+                              placeholder="Sélectionner un KPI..."
+                            />
+                          ) : (
+                            <SearchableSelect
+                              id={`TC_Kpi_${index}`}
+                              name={`TC_Kpi_${index}`}
+                              value={kpi.TC_Kpi}
+                              onChange={(e) => handleKpiChange(index, 'TC_Kpi', e.target.value)}
+                              options={dynamicLists.TC_Kpi?.map(item => ({ id: item.id, label: item.SH_Display_Name_FR })) || []}
+                              placeholder="Sélectionner un KPI..."
+                              label=""
+                            />
+                          )}
+                        </div>
                       )}
 
                       {/* Cost Per */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Coût par
+                        <div className="flex items-center mb-2">
                           <HelpIcon tooltip="Champs libre" />
-                        </label>
-                        <div className="relative rounded-md shadow-sm">
+                          <label className="block text-sm font-medium text-gray-700 ml-3">
+                            Coût par
+                          </label>
+                        </div>
+                        <div className="relative rounded-lg shadow-sm">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span className="text-gray-500 sm:text-sm">$</span>
                           </div>
@@ -859,7 +1008,7 @@ export default function TactiqueDrawer({
                             onChange={(e) => handleKpiChange(index, 'TC_Kpi_CostPer', parseFloat(e.target.value) || 0)}
                             min="0"
                             step="0.01"
-                            className="block w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             placeholder="0.00"
                           />
                         </div>
@@ -867,16 +1016,18 @@ export default function TactiqueDrawer({
 
                       {/* Volume */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Volume
+                        <div className="flex items-center mb-2">
                           <HelpIcon tooltip="Champs libre" />
-                        </label>
+                          <label className="block text-sm font-medium text-gray-700 ml-3">
+                            Volume
+                          </label>
+                        </div>
                         <input
                           type="number"
                           value={kpi.TC_Kpi_Volume}
                           onChange={(e) => handleKpiChange(index, 'TC_Kpi_Volume', parseFloat(e.target.value) || 0)}
                           min="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           placeholder="0"
                         />
                       </div>
@@ -890,12 +1041,15 @@ export default function TactiqueDrawer({
         
       case 'admin':
         return (
-          <div className="p-6 space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Administration</h3>
+          <div className="p-8 space-y-8">
+            <div className="border-b border-gray-200 pb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Administration</h3>
+              <p className="text-sm text-gray-600 mt-1">Configuration administrative et facturation</p>
+            </div>
             
             {/* TC_Billing_ID */}
             <div>
-              <div className="flex items-center mb-2">
+              <div className="flex items-center mb-4">
                 <input
                   type="checkbox"
                   id="inherit_billing"
@@ -906,22 +1060,24 @@ export default function TactiqueDrawer({
                   }}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <label htmlFor="inherit_billing" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="inherit_billing" className="ml-3 text-sm text-gray-700">
                   Utiliser le même que la campagne
                 </label>
               </div>
               
-              <label htmlFor="TC_Billing_ID" className="block text-sm font-medium text-gray-700 mb-1">
-                Numéro de facturation
-                <HelpIcon tooltip="blablabla" />
-              </label>
+              <div className="flex items-center mb-2">
+                <HelpIcon tooltip="Numéro utilisé pour la facturation de cette tactique" />
+                <label htmlFor="TC_Billing_ID" className="block text-sm font-medium text-gray-700 ml-3">
+                  Numéro de facturation
+                </label>
+              </div>
               
               {useInheritedBilling ? (
                 <input
                   type="text"
                   value={campaignAdminValues.CA_Billing_ID || ''}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-500"
                   placeholder="Valeur héritée de la campagne"
                 />
               ) : (
@@ -931,7 +1087,7 @@ export default function TactiqueDrawer({
                   name="TC_Billing_ID"
                   value={formData.TC_Billing_ID || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="Numéro de facturation spécifique"
                 />
               )}
@@ -939,7 +1095,7 @@ export default function TactiqueDrawer({
 
             {/* TC_PO */}
             <div>
-              <div className="flex items-center mb-2">
+              <div className="flex items-center mb-4">
                 <input
                   type="checkbox"
                   id="inherit_po"
@@ -950,22 +1106,24 @@ export default function TactiqueDrawer({
                   }}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <label htmlFor="inherit_po" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="inherit_po" className="ml-3 text-sm text-gray-700">
                   Utiliser le même que la campagne
                 </label>
               </div>
               
-              <label htmlFor="TC_PO" className="block text-sm font-medium text-gray-700 mb-1">
-                PO
-                <HelpIcon tooltip="balablabla" />
-              </label>
+              <div className="flex items-center mb-2">
+                <HelpIcon tooltip="Numéro de bon de commande pour cette tactique" />
+                <label htmlFor="TC_PO" className="block text-sm font-medium text-gray-700 ml-3">
+                  PO
+                </label>
+              </div>
               
               {useInheritedPO ? (
                 <input
                   type="text"
                   value={campaignAdminValues.CA_PO || ''}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-500"
                   placeholder="Valeur héritée de la campagne"
                 />
               ) : (
@@ -975,7 +1133,7 @@ export default function TactiqueDrawer({
                   name="TC_PO"
                   value={formData.TC_PO || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="PO spécifique"
                 />
               )}
@@ -997,14 +1155,14 @@ export default function TactiqueDrawer({
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
         {/* Messages d'erreur */}
         {error && (
-          <div className="mx-4 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {error}
           </div>
         )}
         
         {/* Indicateur de chargement */}
         {loading && (
-          <div className="mx-4 mt-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded">
+          <div className="mx-6 mt-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             Chargement des données...
           </div>
         )}
@@ -1021,21 +1179,28 @@ export default function TactiqueDrawer({
           {renderTabContent()}
         </div>
         
+        {/* Bandeau sticky pour tooltip */}
+        {activeTooltip && (
+          <div className="sticky bottom-16 mx-6 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg">
+            <p className="text-sm">{activeTooltip}</p>
+          </div>
+        )}
+        
         {/* Footer avec les boutons d'action */}
-        <div className="sticky bottom-0 bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
-          <div className="flex justify-end space-x-3">
+        <div className="sticky bottom-0 bg-gray-50 px-6 py-4 sm:px-8 border-t border-gray-200">
+          <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Enregistrement...' : (tactique ? 'Mettre à jour' : 'Créer')}
             </button>
