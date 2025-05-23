@@ -11,7 +11,7 @@ interface SearchableSelectProps {
   options: Array<{ id: string; label: string }>;
   placeholder?: string;
   className?: string;
-  label?: string;
+  label?: string | React.ReactNode;
   required?: boolean;
 }
 

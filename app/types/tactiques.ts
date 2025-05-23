@@ -14,21 +14,64 @@ export interface Tactique {
   TC_Budget: number;
   TC_Order: number;
   TC_SectionId: string; // Référence à la section parente
+  TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
+  
+  // Champs Info
+  TC_Bucket?: string; // Référence à l'enveloppe budgétaire
+  
+  // Champs Stratégie - Section principale
+  TC_LoB?: string; // Ligne d'affaire
+  TC_Media_Type?: string; // Type média
+  TC_Publisher?: string; // Partenaire
+  TC_Inventory?: string; // Inventaire
+  TC_Product_Open?: string; // Description du produit
+  TC_Targeting_Open?: string; // Description de l'audience
+  TC_Market_Open?: string; // Description du marché
+  TC_Frequence?: string; // Fréquence
+  TC_Location?: string; // Description de l'emplacement
+  TC_Market?: string; // Marché (liste dynamique)
+  TC_Language?: string; // Langue
+  TC_Format_Open?: string; // Description du format
+  
+  // Champs Stratégie - Champs personnalisés
+  TC_Buying_Method?: string; // Méthode d'achat
+  TC_Custom_Dim_1?: string; // Dimension personnalisée 1
+  TC_Custom_Dim_2?: string; // Dimension personnalisée 2
+  TC_Custom_Dim_3?: string; // Dimension personnalisée 3
+  
+  // Champs Stratégie - Production
+  TC_NumberCreatives?: string; // Nombre de créatifs suggérés
+  TC_AssetDate?: string; // Date de livraison des créatifs
+  
+  // Champs KPI
+  TC_Media_Objective?: string; // Objectif média
+  
+  // KPIs multiples (jusqu'à 5)
+  TC_Kpi?: string; // KPI principal
+  TC_Kpi_CostPer?: number; // Coût par principal
+  TC_Kpi_Volume?: number; // Volume principal
+  TC_Kpi_2?: string; // KPI 2
+  TC_Kpi_CostPer_2?: number; // Coût par 2
+  TC_Kpi_Volume_2?: number; // Volume 2
+  TC_Kpi_3?: string; // KPI 3
+  TC_Kpi_CostPer_3?: number; // Coût par 3
+  TC_Kpi_Volume_3?: number; // Volume 3
+  TC_Kpi_4?: string; // KPI 4
+  TC_Kpi_CostPer_4?: number; // Coût par 4
+  TC_Kpi_Volume_4?: number; // Volume 4
+  TC_Kpi_5?: string; // KPI 5
+  TC_Kpi_CostPer_5?: number; // Coût par 5
+  TC_Kpi_Volume_5?: number; // Volume 5
+  
+  // Champs Admin
+  TC_Billing_ID?: string; // Numéro de facturation
+  TC_PO?: string; // PO
+  
+  // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string; // Placement média
   TC_Format?: string; // Format utilisé
   TC_StartDate?: string; // Date de début
   TC_EndDate?: string; // Date de fin
-  TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
-  
-  // Nouveaux champs
-  TC_Media_Type?: string;
-  TC_Publisher?: string;
-  TC_Buying_Method?: string;
-  TC_Product_Open?: string;
-  TC_Targeting_Open?: string;
-  TC_Market_Open?: string;
-  TC_Format_Open?: string;
-  TC_Media_Objective?: string;
 }
 
 export interface Placement {
@@ -88,21 +131,64 @@ export interface TactiqueFormData {
   TC_Budget: number;
   TC_Order: number;
   TC_SectionId: string;
+  TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
+  
+  // Champs Info
+  TC_Bucket?: string;
+  
+  // Champs Stratégie - Section principale
+  TC_LoB?: string;
+  TC_Media_Type?: string;
+  TC_Publisher?: string;
+  TC_Inventory?: string;
+  TC_Product_Open?: string;
+  TC_Targeting_Open?: string;
+  TC_Market_Open?: string;
+  TC_Frequence?: string;
+  TC_Location?: string;
+  TC_Market?: string;
+  TC_Language?: string;
+  TC_Format_Open?: string;
+  
+  // Champs Stratégie - Champs personnalisés
+  TC_Buying_Method?: string;
+  TC_Custom_Dim_1?: string;
+  TC_Custom_Dim_2?: string;
+  TC_Custom_Dim_3?: string;
+  
+  // Champs Stratégie - Production
+  TC_NumberCreatives?: string;
+  TC_AssetDate?: string;
+  
+  // Champs KPI
+  TC_Media_Objective?: string;
+  
+  // KPIs multiples (jusqu'à 5)
+  TC_Kpi?: string;
+  TC_Kpi_CostPer?: number;
+  TC_Kpi_Volume?: number;
+  TC_Kpi_2?: string;
+  TC_Kpi_CostPer_2?: number;
+  TC_Kpi_Volume_2?: number;
+  TC_Kpi_3?: string;
+  TC_Kpi_CostPer_3?: number;
+  TC_Kpi_Volume_3?: number;
+  TC_Kpi_4?: string;
+  TC_Kpi_CostPer_4?: number;
+  TC_Kpi_Volume_4?: number;
+  TC_Kpi_5?: string;
+  TC_Kpi_CostPer_5?: number;
+  TC_Kpi_Volume_5?: number;
+  
+  // Champs Admin
+  TC_Billing_ID?: string;
+  TC_PO?: string;
+  
+  // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string;
   TC_Format?: string;
   TC_StartDate?: string;
   TC_EndDate?: string;
-  TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
-  
-  // Nouveaux champs
-  TC_Media_Type?: string;
-  TC_Publisher?: string;
-  TC_Buying_Method?: string;
-  TC_Product_Open?: string;
-  TC_Targeting_Open?: string;
-  TC_Market_Open?: string;
-  TC_Format_Open?: string;
-  TC_Media_Objective?: string;
 }
 
 export interface PlacementFormData {

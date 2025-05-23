@@ -15,6 +15,12 @@ interface Partner {
   SH_Tags?: string[];
 }
 
+// Type pour les options de SelectableSearch
+interface SelectOption {
+  id: string;
+  label: string;
+}
+
 interface PartnerContextType {
   partners: Partner[];
   filteredPartners: Partner[];
@@ -29,6 +35,10 @@ interface PartnerContextType {
   isLoading: boolean;
   updateSelectedPartner: (updatedData: Partial<Partner>) => Promise<void>;
   refreshPartners: () => Promise<void>;
+  
+  // Nouvelles fonctions pour TactiqueDrawer
+  getPublishersForSelect: () => SelectOption[];
+  isPublishersLoading: boolean;
 }
 
 const PartnerContext = createContext<PartnerContextType | undefined>(undefined);
@@ -49,11 +59,14 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPublishersLoading, setIsPublishersLoading] = useState(true);
 
   // Récupération des partenaires
   const fetchPartners = async () => {
     try {
       setIsLoading(true);
+      setIsPublishersLoading(true);
+      
       const partnersData = await getPartnersList();
       
       // Trier les partenaires par ordre alphabétique du nom d'affichage
@@ -80,10 +93,14 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
           setSelectedPartner(updatedSelectedPartner);
         }
       }
+      
+      console.log(`${sortedPartners.length} partenaires chargés pour TactiqueDrawer`);
+      
     } catch (error) {
       console.error('Erreur lors de la récupération des partenaires:', error);
     } finally {
       setIsLoading(false);
+      setIsPublishersLoading(false);
     }
   };
 
@@ -95,6 +112,14 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
   // Fonction pour rafraîchir la liste des partenaires
   const refreshPartners = async () => {
     await fetchPartners();
+  };
+
+  // Fonction pour obtenir les partenaires formatés pour SearchableSelect
+  const getPublishersForSelect = (): SelectOption[] => {
+    return partners.map(partner => ({
+      id: partner.id,
+      label: partner.SH_Display_Name_FR
+    }));
   };
 
   // Filtrage des partenaires amélioré pour chercher dans tous les champs pertinents
@@ -173,7 +198,11 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     setIsDrawerOpen,
     isLoading,
     updateSelectedPartner,
-    refreshPartners
+    refreshPartners,
+    
+    // Nouvelles fonctions pour TactiqueDrawer
+    getPublishersForSelect,
+    isPublishersLoading,
   };
 
   return (
