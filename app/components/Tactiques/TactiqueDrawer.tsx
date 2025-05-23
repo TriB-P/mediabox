@@ -116,7 +116,7 @@ export default function TactiqueDrawer({
     
     try {
       // Charger les types de média
-      const mediaTypesRef = collection(db, 'lists', 'TC_Media_Type', 'shortcodes');
+      const mediaTypesRef = collection(db, 'lists/TC_Media_Type/clients', 'PlusCo', 'shortcodes');
       const mediaTypesQuery = query(mediaTypesRef, orderBy('SH_Display_Name_FR'));
       const mediaTypesSnapshot = await getDocs(mediaTypesQuery);
       setMediaTypes(mediaTypesSnapshot.docs.map(doc => ({
@@ -126,7 +126,7 @@ export default function TactiqueDrawer({
       })));
       
       // Charger les publishers
-      const publishersRef = collection(db, 'lists', 'CA_Publisher', 'shortcodes');
+      const publishersRef = collection(db, 'lists', 'TC_Publisher', 'shortcodes');
       const publishersQuery = query(publishersRef, orderBy('SH_Display_Name_FR'));
       const publishersSnapshot = await getDocs(publishersQuery);
       setPublishers(publishersSnapshot.docs.map(doc => ({
