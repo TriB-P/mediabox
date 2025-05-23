@@ -91,77 +91,7 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           )}
         />
 
-        {/* TC_Budget */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            {createLabelWithHelp(
-              'Budget', 
-              'Montant alloué à cette tactique en CAD', 
-              onTooltipChange
-            )}
-          </div>
-          <div className="relative rounded-lg shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm">$</span>
-            </div>
-            <input
-              type="number"
-              id="TC_Budget"
-              name="TC_Budget"
-              value={formData.TC_Budget || ''}
-              onChange={onChange}
-              min="0"
-              step="0.01"
-              disabled={isDisabled}
-              className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
-              placeholder="0.00"
-            />
-          </div>
-        </div>
-
-        {/* TC_Status */}
-        <SmartSelect
-          id="TC_Status"
-          name="TC_Status"
-          value={formData.TC_Status || ''}
-          onChange={onChange}
-          options={statusOptions}
-          placeholder="Sélectionner un statut..."
-          label={createLabelWithHelp(
-            'Statut', 
-            'État actuel de la tactique dans son cycle de vie', 
-            onTooltipChange
-          )}
-        />
-
-        {/* TC_StartDate */}
-        <FormInput
-          id="TC_StartDate"
-          name="TC_StartDate"
-          value={formData.TC_StartDate || ''}
-          onChange={onChange}
-          type="date"
-          label={createLabelWithHelp(
-            'Date de début', 
-            'Date de début de diffusion de la tactique', 
-            onTooltipChange
-          )}
-        />
-
-        {/* TC_EndDate */}
-        <FormInput
-          id="TC_EndDate"
-          name="TC_EndDate"
-          value={formData.TC_EndDate || ''}
-          onChange={onChange}
-          type="date"
-          label={createLabelWithHelp(
-            'Date de fin', 
-            'Date de fin de diffusion de la tactique', 
-            onTooltipChange
-          )}
-        />
-
+       
         {/* TC_Bucket - Seulement si des buckets sont disponibles */}
         {buckets.length > 0 && (
           <SmartSelect

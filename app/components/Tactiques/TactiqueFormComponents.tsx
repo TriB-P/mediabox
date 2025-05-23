@@ -278,11 +278,11 @@ export const TooltipBanner = memo<{ tooltip: string | null }>(({ tooltip }) => {
   if (!tooltip) return null;
   
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-2xl">
-      <div className="bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg">
-        <p className="text-sm">{tooltip}</p>
-      </div>
-    </div>
+<div className="fixed bottom-20 right-0 z-50 w-[50vw]">
+<div className="bg-gray-800 bg-opacity-80 text-white px-4 py-3 shadow-lg">
+    <p className="text-sm text-center">{tooltip}</p>
+  </div>
+</div>
   );
 });
 

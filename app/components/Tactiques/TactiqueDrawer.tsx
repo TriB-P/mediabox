@@ -3,25 +3,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import FormDrawer from './FormDrawer';
 import FormTabs, { FormTab } from './FormTabs';
-import { TooltipBanner } from './TactiqueFormComponents';
-// Import des composants réels progressivement
 import TactiqueFormInfo from './TactiqueFormInfo';
 import TactiqueFormStrategie from './TactiqueFormStrategie';
-
-// Composants temporaires restants
-const TactiqueFormKPI = ({ formData, kpis, onChange, onTooltipChange }: any) => (
-  <div className="p-8">
-    <h3 className="text-xl font-semibold text-gray-900 mb-4">KPIs et objectifs</h3>
-    <p className="text-gray-600">Composant KPI temporaire - en cours de création...</p>
-  </div>
-);
-
-const TactiqueFormAdmin = ({ formData, onChange, onTooltipChange }: any) => (
-  <div className="p-8">
-    <h3 className="text-xl font-semibold text-gray-900 mb-4">Administration</h3>
-    <p className="text-gray-600">Composant Admin temporaire - en cours de création...</p>
-  </div>
-);
+import TactiqueFormKPI from './TactiqueFormKPI';
+import TactiqueFormAdmin from './TactiqueFormAdmin';
+import { TooltipBanner } from './TactiqueFormComponents';
 import { 
   DocumentTextIcon, 
   LightBulbIcon, 

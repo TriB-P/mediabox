@@ -177,44 +177,14 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
-
-        {/* TC_Product_Open */}
-        <FormInput
-          id="TC_Product_Open"
-          name="TC_Product_Open"
-          value={formData.TC_Product_Open || ''}
-          onChange={onChange}
-          type="text"
-          placeholder="Ex: iPhone 15 Pro"
-          label={createLabelWithHelp(
-            'Description du produit', 
-            'Open string. Pas de contraintes', 
-            onTooltipChange
-          )}
-        />
-
-        {/* TC_Targeting_Open */}
-        <FormTextarea
-          id="TC_Targeting_Open"
-          name="TC_Targeting_Open"
-          value={formData.TC_Targeting_Open || ''}
-          onChange={onChange}
-          rows={3}
-          placeholder="Décrivez le ciblage de cette tactique..."
-          label={createLabelWithHelp(
-            'Description de l\'audience', 
-            'Open string. Pas de contraintes', 
-            onTooltipChange
-          )}
-        />
-
+        
         {/* TC_Market_Open */}
-        <FormInput
+         <FormTextarea
           id="TC_Market_Open"
           name="TC_Market_Open"
           value={formData.TC_Market_Open || ''}
           onChange={onChange}
-          type="text"
+          rows={2}
           placeholder="Ex: Canada, Québec, Montréal"
           label={createLabelWithHelp(
             'Description du marché', 
@@ -223,16 +193,48 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           )}
         />
 
-        {/* TC_Frequence */}
-        <FormInput
-          id="TC_Frequence"
-          name="TC_Frequence"
-          value={formData.TC_Frequence || ''}
+
+        {/* TC_Targeting_Open */}
+        <FormTextarea
+          id="TC_Targeting_Open"
+          name="TC_Targeting_Open"
+          value={formData.TC_Targeting_Open || ''}
           onChange={onChange}
-          type="text"
-          placeholder="Ex: 3 fois par semaine"
+          rows={2}
+          placeholder="Décrivez le ciblage de cette tactique..."
           label={createLabelWithHelp(
-            'Fréquence', 
+            'Description de l\'audience', 
+            'Open string. Pas de contraintes', 
+            onTooltipChange
+          )}
+        />
+
+        
+        {/* TC_Product_Open */}
+        <FormTextarea
+          id="TC_Product_Open"
+          name="TC_Product_Open"
+          value={formData.TC_Product_Open || ''}
+          onChange={onChange}
+          rows={2}
+          placeholder="Ex: iPhone 15 Pro"
+          label={createLabelWithHelp(
+            'Description du produit', 
+            'Open string. Pas de contraintes', 
+            onTooltipChange
+          )}
+        />
+
+        {/* TC_Format_Open */}
+        <FormTextarea
+          id="TC_Format_Open"
+          name="TC_Format_Open"
+          value={formData.TC_Format_Open || ''}
+          onChange={onChange}
+          rows={2}
+          placeholder="Décrivez le format utilisé..."
+          label={createLabelWithHelp(
+            'Description du format', 
             'Open string. Pas de contraintes', 
             onTooltipChange
           )}
@@ -252,6 +254,24 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+
+
+        {/* TC_Frequence */}
+        <FormInput
+          id="TC_Frequence"
+          name="TC_Frequence"
+          value={formData.TC_Frequence || ''}
+          onChange={onChange}
+          type="text"
+          placeholder="Ex: 3 fois par semaine"
+          label={createLabelWithHelp(
+            'Fréquence', 
+            'Open string. Pas de contraintes', 
+            onTooltipChange
+          )}
+        />
+
+
 
         {/* TC_Market */}
         {(dynamicLists.TC_Market && dynamicLists.TC_Market.length > 0) && (
@@ -293,20 +313,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
 
-        {/* TC_Format_Open */}
-        <FormTextarea
-          id="TC_Format_Open"
-          name="TC_Format_Open"
-          value={formData.TC_Format_Open || ''}
-          onChange={onChange}
-          rows={2}
-          placeholder="Décrivez le format utilisé..."
-          label={createLabelWithHelp(
-            'Description du format', 
-            'Open string. Pas de contraintes', 
-            onTooltipChange
-          )}
-        />
+
       </div>
 
       {/* Sous-section: Champs personnalisés */}
