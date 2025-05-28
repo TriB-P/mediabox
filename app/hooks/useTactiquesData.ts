@@ -18,6 +18,12 @@ import {
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
+interface SectionModalState {
+  isOpen: boolean;
+  section: Section | null;
+  mode: 'create' | 'edit';
+}
+
 interface UseTactiquesDataReturn {
   // États
   loading: boolean;
@@ -30,8 +36,14 @@ interface UseTactiquesDataReturn {
   sections: Array<Section & { isExpanded: boolean }>;
   tactiques: { [sectionId: string]: Tactique[] };
   
+  // Modal de section
+  sectionModal: SectionModalState;
+  openSectionModal: () => void;
+  closeSectionModal: () => void;
+  handleSaveSection: (sectionData: { SECTION_Name: string; SECTION_Color: string }) => Promise<void>;
+  
   // Actions pour sections
-  handleAddSection: () => Promise<void>;
+  handleAddSection: () => void;
   handleEditSection: (sectionId: string) => void;
   handleDeleteSection: (sectionId: string) => Promise<void>;
   handleSectionExpand: (sectionId: string) => void;
@@ -72,6 +84,13 @@ export function useTactiquesData(
   const [selectedOnglet, setSelectedOnglet] = useState<Onglet | null>(null);
   const [sections, setSections] = useState<Array<Section & { isExpanded: boolean }>>([]);
   const [tactiques, setTactiques] = useState<{ [sectionId: string]: Tactique[] }>({});
+
+  // État pour le modal de section
+  const [sectionModal, setSectionModal] = useState<SectionModalState>({
+    isOpen: false,
+    section: null,
+    mode: 'create'
+  });
 
   // Charger les onglets lorsqu'une version est sélectionnée
   useEffect(() => {
@@ -231,79 +250,99 @@ export function useTactiquesData(
     loadSectionsAndTactiques();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOnglet]);
 
-  // Gestionnaires pour les sections
-  const handleAddSection = async () => {
+  // Fonctions pour le modal de section
+  const openSectionModal = () => {
+    setSectionModal({
+      isOpen: true,
+      section: null,
+      mode: 'create'
+    });
+  };
+
+  const closeSectionModal = () => {
+    setSectionModal({
+      isOpen: false,
+      section: null,
+      mode: 'create'
+    });
+  };
+
+  const handleSaveSection = async (sectionData: { SECTION_Name: string; SECTION_Color: string }) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedOnglet) return;
     
     try {
-      const nextOrder = sections.length;
-      const colors = ['#6366f1', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#22c55e'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      
-      const newSectionData = {
-        SECTION_Name: 'Nouvelle section',
-        SECTION_Order: nextOrder,
-        SECTION_Color: randomColor,
-        SECTION_Budget: 0
-      };
-      
-      const sectionId = await addSection(
-        selectedClient.clientId,
-        selectedCampaign.id,
-        selectedVersion.id,
-        selectedOnglet.id,
-        newSectionData
-      );
-      
-      setSections(prev => [
-        ...prev,
-        {
-          id: sectionId,
-          ...newSectionData,
-          isExpanded: true
-        }
-      ]);
-      
-      setTactiques(prev => ({
-        ...prev,
-        [sectionId]: []
-      }));
+      if (sectionModal.mode === 'create') {
+        // Créer une nouvelle section
+        const nextOrder = sections.length;
+        
+        const newSectionData = {
+          SECTION_Name: sectionData.SECTION_Name,
+          SECTION_Order: nextOrder,
+          SECTION_Color: sectionData.SECTION_Color,
+          SECTION_Budget: 0
+        };
+        
+        const sectionId = await addSection(
+          selectedClient.clientId,
+          selectedCampaign.id,
+          selectedVersion.id,
+          selectedOnglet.id,
+          newSectionData
+        );
+        
+        setSections(prev => [
+          ...prev,
+          {
+            id: sectionId,
+            ...newSectionData,
+            isExpanded: true
+          }
+        ]);
+        
+        setTactiques(prev => ({
+          ...prev,
+          [sectionId]: []
+        }));
+      } else if (sectionModal.mode === 'edit' && sectionModal.section) {
+        // Modifier une section existante
+        const updates = {
+          SECTION_Name: sectionData.SECTION_Name,
+          SECTION_Color: sectionData.SECTION_Color
+        };
+        
+        await updateSection(
+          selectedClient.clientId,
+          selectedCampaign.id,
+          selectedVersion.id,
+          selectedOnglet.id,
+          sectionModal.section.id,
+          updates
+        );
+        
+        setSections(prev => prev.map(section => 
+          section.id === sectionModal.section!.id ? { ...section, ...updates } : section
+        ));
+      }
     } catch (err) {
-      console.error('Erreur lors de l\'ajout d\'une section:', err);
-      setError('Erreur lors de l\'ajout d\'une section');
+      console.error('Erreur lors de la sauvegarde de la section:', err);
+      setError('Erreur lors de la sauvegarde de la section');
     }
+  };
+
+  // Gestionnaires pour les sections
+  const handleAddSection = () => {
+    openSectionModal();
   };
   
   const handleEditSection = (sectionId: string) => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
     
-    const newName = prompt('Nom de la section:', section.SECTION_Name);
-    if (newName === null) return;
-    
-    handleUpdateSection(sectionId, { SECTION_Name: newName });
-  };
-  
-  const handleUpdateSection = async (sectionId: string, updates: Partial<Section>) => {
-    if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedOnglet) return;
-    
-    try {
-      await updateSection(
-        selectedClient.clientId,
-        selectedCampaign.id,
-        selectedVersion.id,
-        selectedOnglet.id,
-        sectionId,
-        updates
-      );
-      
-      setSections(prev => prev.map(section => 
-        section.id === sectionId ? { ...section, ...updates } : section
-      ));
-    } catch (err) {
-      console.error('Erreur lors de la mise à jour de la section:', err);
-      setError('Erreur lors de la mise à jour de la section');
-    }
+    setSectionModal({
+      isOpen: true,
+      section,
+      mode: 'edit'
+    });
   };
   
   const handleDeleteSection = async (sectionId: string) => {
@@ -659,6 +698,12 @@ export function useTactiquesData(
     selectedOnglet,
     sections,
     tactiques,
+    
+    // Modal de section
+    sectionModal,
+    openSectionModal,
+    closeSectionModal,
+    handleSaveSection,
     
     // Actions pour sections
     handleAddSection,

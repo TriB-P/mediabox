@@ -8,6 +8,7 @@ import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyVi
 import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
+import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import { 
   ChevronDownIcon, 
   PlusIcon, 
@@ -36,6 +37,10 @@ export default function TactiquesPage() {
     selectedOnglet,
     sections,
     tactiques,
+    // NOUVEAU: Propriétés du modal
+    sectionModal,
+    handleSaveSection,
+    closeSectionModal,
     handleAddSection,
     handleEditSection,
     handleDeleteSection,
@@ -364,6 +369,15 @@ export default function TactiquesPage() {
           onDeleteOnglet={handleDeleteOnglet}
         />
       )}
+
+      {/* NOUVEAU: Modal de section */}
+      <SectionModal
+        isOpen={sectionModal.isOpen}
+        onClose={closeSectionModal}
+        onSave={handleSaveSection}
+        section={sectionModal.section}
+        mode={sectionModal.mode}
+      />
     </div>
   );
 }

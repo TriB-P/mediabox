@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Campaign, CampaignFormData } from '../types/campaign';
+import { createDefaultBreakdown } from './breakdownService';
 
 // Fonction intégrée pour créer la version originale
 async function createOriginalVersion(
@@ -174,6 +175,24 @@ export async function createCampaign(
       );
       // On ne propage pas l'erreur pour que la campagne soit quand même créée
     }
+
+    // Créer le breakdown par défaut
+    // console.log('createCampaign - Création du breakdown par défaut...');
+    // try {
+    //   await createDefaultBreakdown(
+    //     clientId,
+    //     docRef.id,
+    //     campaignData.startDate,
+    //     campaignData.endDate
+    //   );
+    //   console.log('createCampaign - Breakdown par défaut créé avec succès');
+    // } catch (breakdownError) {
+    //   console.error(
+    //     'createCampaign - Erreur lors de la création du breakdown par défaut:',
+    //     breakdownError
+    //   );
+    //   // On ne propage pas l'erreur pour que la campagne soit quand même créée
+    // }
 
     return docRef.id;
   } catch (error) {
