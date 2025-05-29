@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Campaign, CampaignFormData } from '../types/campaign';
-import { createDefaultBreakdown } from './breakdownService';
+import { createDefaultBreakdown, updateDefaultBreakdownDates } from './breakdownService';
 
 // Fonction intégrée pour créer la version originale
 async function createOriginalVersion(
@@ -91,7 +91,8 @@ export async function getCampaigns(clientId: string): Promise<Campaign[]> {
 export async function createCampaign(
   clientId: string,
   campaignData: CampaignFormData,
-  userEmail: string
+  userEmail: string,
+  additionalBreakdowns: any[] = [] // Breakdowns additionnels créés lors de la création
 ): Promise<string> {
   try {
     console.log(
@@ -176,23 +177,42 @@ export async function createCampaign(
       // On ne propage pas l'erreur pour que la campagne soit quand même créée
     }
 
-    // Créer le breakdown par défaut
-    // console.log('createCampaign - Création du breakdown par défaut...');
-    // try {
-    //   await createDefaultBreakdown(
-    //     clientId,
-    //     docRef.id,
-    //     campaignData.startDate,
-    //     campaignData.endDate
-    //   );
-    //   console.log('createCampaign - Breakdown par défaut créé avec succès');
-    // } catch (breakdownError) {
-    //   console.error(
-    //     'createCampaign - Erreur lors de la création du breakdown par défaut:',
-    //     breakdownError
-    //   );
-    //   // On ne propage pas l'erreur pour que la campagne soit quand même créée
-    // }
+    // Créer le breakdown par défaut "Calendrier" (RÉACTIVÉ)
+    console.log('createCampaign - Création du breakdown par défaut...');
+    try {
+      await createDefaultBreakdown(
+        clientId,
+        docRef.id,
+        campaignData.startDate,
+        campaignData.endDate
+      );
+      console.log('createCampaign - Breakdown par défaut créé avec succès');
+    } catch (breakdownError) {
+      console.error(
+        'createCampaign - Erreur lors de la création du breakdown par défaut:',
+        breakdownError
+      );
+      // On ne propage pas l'erreur pour que la campagne soit quand même créée
+    }
+
+    // Créer les breakdowns additionnels si fournis
+    if (additionalBreakdowns.length > 0) {
+      console.log('createCampaign - Création des breakdowns additionnels...');
+      try {
+        const { createBreakdown } = await import('./breakdownService');
+        
+        for (const breakdown of additionalBreakdowns) {
+          await createBreakdown(clientId, docRef.id, breakdown, false);
+        }
+        console.log('createCampaign - Breakdowns additionnels créés avec succès');
+      } catch (additionalBreakdownError) {
+        console.error(
+          'createCampaign - Erreur lors de la création des breakdowns additionnels:',
+          additionalBreakdownError
+        );
+        // On ne propage pas l'erreur pour que la campagne soit quand même créée
+      }
+    }
 
     return docRef.id;
   } catch (error) {
@@ -210,6 +230,10 @@ export async function updateCampaign(
   try {
     const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
     const now = new Date().toISOString();
+
+    // Récupérer les anciennes données pour comparer les dates
+    const oldCampaignData = await getCampaigns(clientId);
+    const oldCampaign = oldCampaignData.find(c => c.id === campaignId);
 
     const updatedCampaign = {
       // Infos
@@ -258,6 +282,28 @@ export async function updateCampaign(
     };
 
     await updateDoc(campaignRef, updatedCampaign);
+
+    // Vérifier si les dates ont changé et mettre à jour le breakdown par défaut
+    if (oldCampaign && 
+        (oldCampaign.startDate !== campaignData.startDate || 
+         oldCampaign.endDate !== campaignData.endDate)) {
+      console.log('updateCampaign - Mise à jour des dates du breakdown par défaut...');
+      try {
+        await updateDefaultBreakdownDates(
+          clientId,
+          campaignId,
+          campaignData.startDate,
+          campaignData.endDate
+        );
+        console.log('updateCampaign - Dates du breakdown par défaut mises à jour');
+      } catch (breakdownError) {
+        console.error(
+          'updateCampaign - Erreur lors de la mise à jour du breakdown par défaut:',
+          breakdownError
+        );
+        // On ne propage pas l'erreur pour que la campagne soit quand même mise à jour
+      }
+    }
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la campagne:', error);
     throw error;

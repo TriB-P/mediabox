@@ -13,6 +13,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { Campaign, CampaignFormData } from '../../types/campaign';
+import { BreakdownFormData } from '../../types/breakdown';
 import { useClient } from '../../contexts/ClientContext';
 import FormTabs, { FormTab } from '../Tactiques/FormTabs';
 import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
@@ -33,7 +34,7 @@ interface CampaignDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   campaign?: Campaign | null;
-  onSave: (campaign: CampaignFormData) => void;
+  onSave: (campaign: CampaignFormData, additionalBreakdowns?: BreakdownFormData[]) => void;
 }
 
 interface ClientConfig {
@@ -70,6 +71,9 @@ export default function CampaignDrawer({
     currency: 'CAD',
   });
 
+  // Breakdowns additionnels pour nouvelle campagne
+  const [additionalBreakdowns, setAdditionalBreakdowns] = useState<BreakdownFormData[]>([]);
+
   // Listes et configuration
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
   const [quarters, setQuarters] = useState<ShortcodeItem[]>([]);
@@ -92,7 +96,7 @@ export default function CampaignDrawer({
     { id: 'info', name: 'Informations', icon: DocumentTextIcon },
     { id: 'dates', name: 'Dates', icon: CalendarIcon },
     { id: 'budget', name: 'Budget', icon: BanknotesIcon },
-    { id: 'breakdown', name: 'Planification', icon: ClockIcon },
+    { id: 'breakdown', name: 'Répartition', icon: ClockIcon },
     { id: 'admin', name: 'Administration', icon: CogIcon },
   ], []);
 
@@ -126,6 +130,7 @@ export default function CampaignDrawer({
         creativeFolder: campaign.creativeFolder || '',
       });
       setActiveTab('info');
+      setAdditionalBreakdowns([]);
     } else {
       setFormData({
         name: '',
@@ -138,6 +143,7 @@ export default function CampaignDrawer({
         currency: 'CAD',
       });
       setActiveTab('info');
+      setAdditionalBreakdowns([]);
     }
   }, [campaign]);
 
@@ -237,8 +243,13 @@ export default function CampaignDrawer({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Passer les breakdowns additionnels lors de la sauvegarde
+    onSave(formData, campaign ? undefined : additionalBreakdowns);
     onClose();
+  };
+
+  const handleBreakdownsChange = (breakdowns: BreakdownFormData[]) => {
+    setAdditionalBreakdowns(breakdowns);
   };
 
   // ==================== RENDU DES ONGLETS ====================
@@ -294,6 +305,7 @@ export default function CampaignDrawer({
             campaignStartDate={formData.startDate}
             campaignEndDate={formData.endDate}
             onTooltipChange={setActiveTooltip}
+            onBreakdownsChange={handleBreakdownsChange}
             loading={loading}
           />
         );

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Campaign, CampaignFormData } from '../types/campaign';
+import { BreakdownFormData } from '../types/breakdown';
 import CampaignDrawer from '../components/Campaigns/CampaignDrawer';
 import CampaignVersions from '../components/Campaigns/CampaignVersions';
 import {
@@ -77,7 +78,10 @@ export default function CampaignsPage() {
   };
 
   // Fonction pour sauvegarder une campagne
-  const handleSaveCampaign = async (formData: CampaignFormData) => {
+  const handleSaveCampaign = async (
+    formData: CampaignFormData, 
+    additionalBreakdowns?: BreakdownFormData[]
+  ) => {
     if (!selectedClient || !user?.email) return;
 
     try {
@@ -89,8 +93,13 @@ export default function CampaignsPage() {
           formData
         );
       } else {
-        // Création d'une nouvelle campagne avec version originale
-        await createCampaign(selectedClient.clientId, formData, user.email);
+        // Création d'une nouvelle campagne avec version originale et breakdowns
+        await createCampaign(
+          selectedClient.clientId, 
+          formData, 
+          user.email,
+          additionalBreakdowns || []
+        );
       }
 
       // Recharger les campagnes

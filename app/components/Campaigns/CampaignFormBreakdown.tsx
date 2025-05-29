@@ -8,7 +8,8 @@ import {
   TrashIcon, 
   CalendarIcon,
   ClockIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { 
   HelpIcon, 
@@ -19,8 +20,11 @@ import {
   Breakdown, 
   BreakdownFormData, 
   BreakdownType, 
+  CustomPeriodFormData,
   BREAKDOWN_TYPES,
-  DEFAULT_BREAKDOWN_NAME 
+  DEFAULT_BREAKDOWN_NAME,
+  createEmptyCustomPeriod,
+  validateCustomPeriods
 } from '../../types/breakdown';
 import {
   getBreakdowns,
@@ -40,6 +44,7 @@ interface CampaignFormBreakdownProps {
   campaignStartDate: string;
   campaignEndDate: string;
   onTooltipChange: (tooltip: string | null) => void;
+  onBreakdownsChange?: (breakdowns: BreakdownFormData[]) => void; // Callback pour les nouvelles campagnes
   loading?: boolean;
 }
 
@@ -56,10 +61,12 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   campaignStartDate,
   campaignEndDate,
   onTooltipChange,
+  onBreakdownsChange,
   loading = false
 }) => {
   // États
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
+  const [additionalBreakdowns, setAdditionalBreakdowns] = useState<BreakdownFormData[]>([]); // Pour nouvelles campagnes
   const [editingBreakdown, setEditingBreakdown] = useState<BreakdownEditData | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
@@ -75,16 +82,24 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         id: 'default',
         name: DEFAULT_BREAKDOWN_NAME,
         type: 'Hebdomadaire',
-        startDate: getClosestMonday(campaignStartDate),
-        endDate: campaignEndDate,
+        startDate: campaignStartDate ? getClosestMonday(campaignStartDate) : '',
+        endDate: campaignEndDate || '',
         isDefault: true,
         order: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       setBreakdowns([virtualDefaultBreakdown]);
+      setAdditionalBreakdowns([]);
     }
   }, [campaignId, campaignStartDate, campaignEndDate]);
+
+  // Notifier le parent quand les breakdowns additionnels changent (pour nouvelles campagnes)
+  useEffect(() => {
+    if (!campaignId && onBreakdownsChange) {
+      onBreakdownsChange(additionalBreakdowns);
+    }
+  }, [additionalBreakdowns, campaignId, onBreakdownsChange]);
 
   const loadBreakdowns = async () => {
     if (!campaignId) return;
@@ -104,8 +119,14 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   // Gestionnaire pour créer un nouveau breakdown
   const handleCreateBreakdown = () => {
+    // Vérifier que les dates de campagne sont définies
+    if (!campaignStartDate || !campaignEndDate) {
+      setError('Les dates de campagne doivent être définies avant de créer une répartition');
+      return;
+    }
+
     if (breakdowns.length >= 3) {
-      setError('Maximum 3 planifications autorisées');
+      setError('Maximum 3 répartitions autorisées');
       return;
     }
 
@@ -122,32 +143,77 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   // Gestionnaire pour éditer un breakdown existant
   const handleEditBreakdown = (breakdown: Breakdown) => {
-    setEditingBreakdown({
+    const editData: BreakdownEditData = {
       id: breakdown.id,
       name: breakdown.name,
       type: breakdown.type,
       startDate: breakdown.startDate,
       endDate: breakdown.endDate,
       isDefault: breakdown.isDefault,
-    });
+    };
+
+    // Si c'est un breakdown Custom, copier les périodes
+    if (breakdown.type === 'Custom' && breakdown.customPeriods) {
+      editData.customPeriods = breakdown.customPeriods.map(period => ({
+        name: period.name,
+        order: period.order
+      }));
+    }
+
+    setEditingBreakdown(editData);
     setIsCreating(false);
   };
 
   // Gestionnaire pour sauvegarder un breakdown
   const handleSaveBreakdown = async () => {
-    if (!editingBreakdown || !campaignId) return;
+    if (!editingBreakdown) return;
 
     try {
       setLocalLoading(true);
       setError(null);
 
-      if (isCreating) {
-        await createBreakdown(clientId, campaignId, editingBreakdown);
-      } else if (editingBreakdown.id) {
-        await updateBreakdown(clientId, campaignId, editingBreakdown.id, editingBreakdown);
+      if (campaignId) {
+        // Campagne existante - sauvegarder directement dans Firestore
+        if (isCreating) {
+          await createBreakdown(clientId, campaignId, editingBreakdown);
+        } else if (editingBreakdown.id) {
+          await updateBreakdown(clientId, campaignId, editingBreakdown.id, editingBreakdown);
+        }
+        await loadBreakdowns();
+      } else {
+        // Nouvelle campagne - ajouter à la liste locale et aux breakdowns additionnels
+        const newBreakdownData: BreakdownFormData = {
+          name: editingBreakdown.name,
+          type: editingBreakdown.type,
+          startDate: editingBreakdown.startDate,
+          endDate: editingBreakdown.endDate,
+          customPeriods: editingBreakdown.customPeriods
+        };
+
+        // Ajouter aux breakdowns additionnels pour le parent
+        setAdditionalBreakdowns(prev => [...prev, newBreakdownData]);
+
+        // Créer un breakdown virtuel pour l'affichage
+        const virtualBreakdown: Breakdown = {
+          id: `temp_${Date.now()}`,
+          name: editingBreakdown.name,
+          type: editingBreakdown.type,
+          startDate: editingBreakdown.startDate,
+          endDate: editingBreakdown.endDate,
+          isDefault: false,
+          order: breakdowns.length,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          customPeriods: editingBreakdown.customPeriods ? editingBreakdown.customPeriods.map((period, index) => ({
+            id: `temp_period_${Date.now()}_${index}`,
+            name: period.name,
+            order: period.order
+          })) : undefined
+        };
+        
+        setBreakdowns(prev => [...prev, virtualBreakdown]);
       }
 
-      await loadBreakdowns();
       setEditingBreakdown(null);
       setIsCreating(false);
     } catch (err: any) {
@@ -190,18 +256,68 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     if (!editingBreakdown) return;
 
     let adjustedStartDate = editingBreakdown.startDate;
+    let updatedBreakdown = { ...editingBreakdown };
 
     // Ajuster la date de début selon le nouveau type
     if (newType === 'Hebdomadaire') {
       adjustedStartDate = getClosestMonday(editingBreakdown.startDate);
+      updatedBreakdown.customPeriods = undefined;
     } else if (newType === 'Mensuel') {
       adjustedStartDate = getFirstOfMonth(editingBreakdown.startDate);
+      updatedBreakdown.customPeriods = undefined;
+    } else if (newType === 'Custom') {
+      // Initialiser avec une période par défaut pour Custom
+      updatedBreakdown.customPeriods = [createEmptyCustomPeriod()];
     }
+
+    updatedBreakdown.type = newType;
+    updatedBreakdown.startDate = adjustedStartDate;
+
+    setEditingBreakdown(updatedBreakdown);
+  };
+
+  // ==================== GESTION DES PÉRIODES CUSTOM ====================
+
+  const handleAddCustomPeriod = () => {
+    if (!editingBreakdown || editingBreakdown.type !== 'Custom') return;
+
+    const currentPeriods = editingBreakdown.customPeriods || [];
+    const newPeriod = createEmptyCustomPeriod(currentPeriods.length);
 
     setEditingBreakdown({
       ...editingBreakdown,
-      type: newType,
-      startDate: adjustedStartDate,
+      customPeriods: [...currentPeriods, newPeriod]
+    });
+  };
+
+  const handleRemoveCustomPeriod = (index: number) => {
+    if (!editingBreakdown || editingBreakdown.type !== 'Custom') return;
+
+    const currentPeriods = editingBreakdown.customPeriods || [];
+    if (currentPeriods.length <= 1) {
+      setError('Au moins une période doit être définie');
+      return;
+    }
+
+    const updatedPeriods = currentPeriods.filter((_, i) => i !== index);
+    setEditingBreakdown({
+      ...editingBreakdown,
+      customPeriods: updatedPeriods
+    });
+  };
+
+  const handleUpdateCustomPeriod = (index: number, field: keyof CustomPeriodFormData, value: string | number) => {
+    if (!editingBreakdown || editingBreakdown.type !== 'Custom') return;
+
+    const currentPeriods = [...(editingBreakdown.customPeriods || [])];
+    currentPeriods[index] = {
+      ...currentPeriods[index],
+      [field]: value
+    };
+
+    setEditingBreakdown({
+      ...editingBreakdown,
+      customPeriods: currentPeriods
     });
   };
 
@@ -209,21 +325,44 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   const getDateValidationError = (date: string, isStartDate: boolean): string | null => {
     if (!editingBreakdown) return null;
     
+    if (editingBreakdown.type === 'Custom') {
+      // Pour Custom, on valide via validateCustomPeriods
+      return null;
+    }
+    
     const validation = validateBreakdownDate(date, editingBreakdown.type, isStartDate);
     return validation.isValid ? null : (validation.error || null);
+  };
+
+  const getCustomPeriodsValidation = () => {
+    if (!editingBreakdown || editingBreakdown.type !== 'Custom' || !editingBreakdown.customPeriods) {
+      return { isValid: true, errors: {} };
+    }
+
+    return validateCustomPeriods(editingBreakdown.customPeriods);
   };
 
   const isFormValid = (): boolean => {
     if (!editingBreakdown) return false;
     
-    return (
+    const basicValid = (
       editingBreakdown.name.trim() !== '' &&
       editingBreakdown.startDate !== '' &&
-      editingBreakdown.endDate !== '' &&
-      new Date(editingBreakdown.endDate) > new Date(editingBreakdown.startDate) &&
-      !getDateValidationError(editingBreakdown.startDate, true) &&
-      !getDateValidationError(editingBreakdown.endDate, false)
+      editingBreakdown.endDate !== ''
     );
+
+    if (!basicValid) return false;
+
+    if (editingBreakdown.type === 'Custom') {
+      const customValidation = getCustomPeriodsValidation();
+      return customValidation.isValid;
+    } else {
+      return (
+        new Date(editingBreakdown.endDate) > new Date(editingBreakdown.startDate) &&
+        !getDateValidationError(editingBreakdown.startDate, true) &&
+        !getDateValidationError(editingBreakdown.endDate, false)
+      );
+    }
   };
 
   // Icônes pour les types
@@ -246,9 +385,19 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     <div className="p-8 space-y-6">
       {/* En-tête de section */}
       <FormSection
-        title="Planification temporelle"
+        title="Répartition temporelle"
         description="Définissez comment sera divisée votre campagne dans le temps"
       >
+        {/* Vérification des dates de campagne */}
+        {(!campaignStartDate || !campaignEndDate) && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
+            <p className="text-sm">
+              <strong>Dates requises :</strong> Veuillez définir les dates de début et de fin de la campagne 
+              dans l'onglet "Dates" avant de configurer les répartitions.
+            </p>
+          </div>
+        )}
+
         {/* Messages d'erreur */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -257,7 +406,8 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         )}
 
         {/* Liste des breakdowns existants */}
-        <div className="space-y-4">
+        {(campaignStartDate && campaignEndDate) && (
+          <div className="space-y-4">
           {breakdowns.map((breakdown) => {
             const TypeIcon = getTypeIcon(breakdown.type);
             
@@ -283,8 +433,24 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         )}
                       </h4>
                       <p className="text-sm text-gray-500">
-                        {breakdown.type} • {breakdown.startDate} → {breakdown.endDate}
+                        {breakdown.type}
+                        {breakdown.type !== 'Custom' && (
+                          <> • {breakdown.startDate} → {breakdown.endDate}</>
+                        )}
+                        {breakdown.type === 'Custom' && breakdown.customPeriods && (
+                          <> • {breakdown.customPeriods.length} période(s)</>
+                        )}
                       </p>
+                      {/* Affichage des périodes Custom */}
+                      {breakdown.type === 'Custom' && breakdown.customPeriods && (
+                        <div className="mt-2 space-y-1">
+                          {breakdown.customPeriods.map((period, index) => (
+                            <div key={period.id} className="text-xs text-gray-600">
+                              • <strong>{period.name}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -312,10 +478,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               </div>
             );
           })}
-        </div>
+        </div>)}
 
         {/* Bouton d'ajout */}
-        {breakdowns.length < 3 && campaignId && (
+        {(campaignStartDate && campaignEndDate) && breakdowns.length < 3 && (
           <button
             type="button"
             onClick={handleCreateBreakdown}
@@ -324,7 +490,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
           >
             <PlusIcon className="h-6 w-6 mx-auto mb-2" />
             <span className="block text-sm font-medium">
-              Ajouter une planification
+              Ajouter une répartition
             </span>
             <span className="block text-xs">
               ({breakdowns.length}/3)
@@ -333,11 +499,11 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         )}
 
         {/* Message pour nouvelle campagne */}
-        {!campaignId && (
+        {!campaignId && (campaignStartDate && campaignEndDate) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              La planification par défaut sera créée automatiquement lors de la sauvegarde de la campagne. 
-              Vous pourrez ajouter d'autres planifications après la création.
+              La répartition "Calendrier" par défaut sera créée automatiquement lors de la sauvegarde de la campagne. 
+              Vous pouvez ajouter d'autres répartitions dès maintenant.
             </p>
           </div>
         )}
@@ -346,10 +512,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       {/* Modal d'édition */}
       {editingBreakdown && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
-                {isCreating ? 'Nouvelle planification' : 'Modifier la planification'}
+                {isCreating ? 'Nouvelle répartition' : 'Modifier la répartition'}
               </h3>
             </div>
             
@@ -358,7 +524,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <HelpIcon 
-                    tooltip="Nom descriptif de cette planification temporelle"
+                    tooltip="Nom descriptif de cette répartition temporelle"
                     onTooltipChange={onTooltipChange}
                   />
                   <label className="block text-sm font-medium text-gray-700">
@@ -382,7 +548,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <HelpIcon 
-                    tooltip="Type de planification : Hebdomadaire (début lundi), Mensuel (début 1er du mois) ou Personnalisé (dates libres)"
+                    tooltip="Type de répartition : Hebdomadaire (début lundi), Mensuel (début 1er du mois) ou Personnalisé (périodes multiples)"
                     onTooltipChange={onTooltipChange}
                   />
                   <label className="block text-sm font-medium text-gray-700">
@@ -412,64 +578,153 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                 </div>
               </div>
 
-              {/* Date de début */}
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <HelpIcon 
-                    tooltip={`Date de début de la planification${
-                      editingBreakdown.type === 'Hebdomadaire' ? ' (doit être un lundi)' :
-                      editingBreakdown.type === 'Mensuel' ? ' (doit être le 1er du mois)' :
-                      ''
-                    }`}
-                    onTooltipChange={onTooltipChange}
-                  />
-                  <label className="block text-sm font-medium text-gray-700">
-                    Date de début *
-                  </label>
-                </div>
-                <input
-                  type="date"
-                  value={editingBreakdown.startDate}
-                  onChange={(e) => setEditingBreakdown({
-                    ...editingBreakdown,
-                    startDate: e.target.value
-                  })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                />
-                {getDateValidationError(editingBreakdown.startDate, true) && (
-                  <p className="text-red-600 text-xs mt-1">
-                    {getDateValidationError(editingBreakdown.startDate, true)}
-                  </p>
-                )}
-              </div>
+              {/* Dates globales (pour Hebdomadaire et Mensuel) */}
+              {editingBreakdown.type !== 'Custom' && (
+                <>
+                  {/* Date de début */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <HelpIcon 
+                        tooltip={`Date de début de la répartition${
+                          editingBreakdown.type === 'Hebdomadaire' ? ' (doit être un lundi)' :
+                          editingBreakdown.type === 'Mensuel' ? ' (doit être le 1er du mois)' :
+                          ''
+                        }`}
+                        onTooltipChange={onTooltipChange}
+                      />
+                      <label className="block text-sm font-medium text-gray-700">
+                        Date de début *
+                      </label>
+                    </div>
+                    <input
+                      type="date"
+                      value={editingBreakdown.startDate}
+                      onChange={(e) => setEditingBreakdown({
+                        ...editingBreakdown,
+                        startDate: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    />
+                    {getDateValidationError(editingBreakdown.startDate, true) && (
+                      <p className="text-red-600 text-xs mt-1">
+                        {getDateValidationError(editingBreakdown.startDate, true)}
+                      </p>
+                    )}
+                  </div>
 
-              {/* Date de fin */}
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <HelpIcon 
-                    tooltip="Date de fin de la planification"
-                    onTooltipChange={onTooltipChange}
-                  />
-                  <label className="block text-sm font-medium text-gray-700">
-                    Date de fin *
-                  </label>
+                  {/* Date de fin */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <HelpIcon 
+                        tooltip="Date de fin de la répartition"
+                        onTooltipChange={onTooltipChange}
+                      />
+                      <label className="block text-sm font-medium text-gray-700">
+                        Date de fin *
+                      </label>
+                    </div>
+                    <input
+                      type="date"
+                      value={editingBreakdown.endDate}
+                      onChange={(e) => setEditingBreakdown({
+                        ...editingBreakdown,
+                        endDate: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    />
+                    {editingBreakdown.endDate && editingBreakdown.startDate && 
+                     new Date(editingBreakdown.endDate) <= new Date(editingBreakdown.startDate) && (
+                      <p className="text-red-600 text-xs mt-1">
+                        La date de fin doit être postérieure à la date de début
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Interface pour les périodes Custom */}
+              {editingBreakdown.type === 'Custom' && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <HelpIcon 
+                        tooltip="Définissez autant de périodes que nécessaire (ex: Q1, Q2, Phase 1, etc.). Seuls les noms sont requis."
+                        onTooltipChange={onTooltipChange}
+                      />
+                      <label className="block text-sm font-medium text-gray-700">
+                        Périodes personnalisées *
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomPeriod}
+                      className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700"
+                    >
+                      <PlusIcon className="h-4 w-4" />
+                      Ajouter une période
+                    </button>
+                  </div>
+
+                  {/* Liste des périodes */}
+                  <div className="space-y-4 border border-gray-200 rounded-lg p-4">
+                    {(editingBreakdown.customPeriods || []).map((period, index) => {
+                      const validation = getCustomPeriodsValidation();
+                      const hasError = !validation.isValid && validation.errors[index];
+                      
+                      return (
+                        <div key={index} className={`border rounded-lg p-4 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">
+                              Période {index + 1}
+                            </span>
+                            {(editingBreakdown.customPeriods || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCustomPeriod(index)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <XMarkIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-3">
+                            {/* Nom de la période */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Nom de la période *
+                              </label>
+                              <input
+                                type="text"
+                                value={period.name}
+                                onChange={(e) => handleUpdateCustomPeriod(index, 'name', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                placeholder="Ex: Q1, Phase 1, Sprint 1..."
+                              />
+                            </div>
+                          </div>
+                          
+                          {hasError && (
+                            <p className="text-red-600 text-xs mt-2">
+                              {validation.errors[index]}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Erreur globale pour les périodes Custom */}
+                  {(() => {
+                    const validation = getCustomPeriodsValidation();
+                    return !validation.isValid && validation.globalError && (
+                      <p className="text-red-600 text-sm mt-2">
+                        {validation.globalError}
+                      </p>
+                    );
+                  })()}
                 </div>
-                <input
-                  type="date"
-                  value={editingBreakdown.endDate}
-                  onChange={(e) => setEditingBreakdown({
-                    ...editingBreakdown,
-                    endDate: e.target.value
-                  })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                />
-                {editingBreakdown.endDate && editingBreakdown.startDate && 
-                 new Date(editingBreakdown.endDate) <= new Date(editingBreakdown.startDate) && (
-                  <p className="text-red-600 text-xs mt-1">
-                    La date de fin doit être postérieure à la date de début
-                  </p>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Boutons */}
