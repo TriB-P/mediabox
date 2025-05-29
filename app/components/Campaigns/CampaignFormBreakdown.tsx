@@ -9,7 +9,8 @@ import {
   CalendarIcon,
   ClockIcon,
   Cog6ToothIcon,
-  XMarkIcon
+  XMarkIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { 
   HelpIcon, 
@@ -77,29 +78,68 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     if (campaignId) {
       loadBreakdowns();
     } else {
-      // Pour une nouvelle campagne, afficher seulement le breakdown par défaut virtuel
-      const virtualDefaultBreakdown: Breakdown = {
-        id: 'default',
-        name: DEFAULT_BREAKDOWN_NAME,
-        type: 'Hebdomadaire',
-        startDate: campaignStartDate ? getClosestMonday(campaignStartDate) : '',
-        endDate: campaignEndDate || '',
-        isDefault: true,
-        order: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setBreakdowns([virtualDefaultBreakdown]);
+      // Pour une nouvelle campagne, créer le breakdown par défaut virtuel
+      if (campaignStartDate && campaignEndDate) {
+        const virtualDefaultBreakdown: Breakdown = {
+          id: 'default',
+          name: DEFAULT_BREAKDOWN_NAME,
+          type: 'Hebdomadaire',
+          startDate: getClosestMonday(campaignStartDate),
+          endDate: campaignEndDate,
+          isDefault: true,
+          order: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setBreakdowns([virtualDefaultBreakdown]);
+      }
       setAdditionalBreakdowns([]);
     }
   }, [campaignId, campaignStartDate, campaignEndDate]);
 
+  // Mettre à jour les dates du breakdown par défaut quand les dates de campagne changent
+  useEffect(() => {
+    if (campaignStartDate && campaignEndDate) {
+      setBreakdowns(prevBreakdowns => {
+        return prevBreakdowns.map(breakdown => {
+          if (breakdown.isDefault) {
+            return {
+              ...breakdown,
+              startDate: getClosestMonday(campaignStartDate),
+              endDate: campaignEndDate,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return breakdown;
+        });
+      });
+    }
+  }, [campaignStartDate, campaignEndDate]);
+
   // Notifier le parent quand les breakdowns additionnels changent (pour nouvelles campagnes)
   useEffect(() => {
     if (!campaignId && onBreakdownsChange) {
-      onBreakdownsChange(additionalBreakdowns);
+      // Inclure le breakdown par défaut dans les breakdowns à créer
+      const defaultBreakdown = breakdowns.find(b => b.isDefault);
+      const allBreakdowns = [];
+      
+      // Ajouter le breakdown par défaut en premier
+      if (defaultBreakdown && campaignStartDate && campaignEndDate) {
+        allBreakdowns.push({
+          name: defaultBreakdown.name,
+          type: defaultBreakdown.type,
+          startDate: defaultBreakdown.startDate,
+          endDate: defaultBreakdown.endDate,
+          isDefault: true // Marquer comme défaut pour la création
+        });
+      }
+      
+      // Ajouter les breakdowns additionnels
+      allBreakdowns.push(...additionalBreakdowns);
+      
+      onBreakdownsChange(allBreakdowns);
     }
-  }, [additionalBreakdowns, campaignId, onBreakdownsChange]);
+  }, [additionalBreakdowns, breakdowns, campaignId, campaignStartDate, campaignEndDate, onBreakdownsChange]);
 
   const loadBreakdowns = async () => {
     if (!campaignId) return;
@@ -143,6 +183,12 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   // Gestionnaire pour éditer un breakdown existant
   const handleEditBreakdown = (breakdown: Breakdown) => {
+    // Empêcher l'édition du breakdown par défaut
+    if (breakdown.isDefault) {
+      setError('Le breakdown par défaut "Calendrier" ne peut pas être modifié. Ses dates sont automatiquement synchronisées avec les dates de la campagne.');
+      return;
+    }
+
     const editData: BreakdownEditData = {
       id: breakdown.id,
       name: breakdown.name,
@@ -402,6 +448,12 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
             {error}
+            <button 
+              onClick={() => setError(null)}
+              className="ml-2 text-red-600 hover:text-red-800 underline text-sm"
+            >
+              Fermer
+            </button>
           </div>
         )}
 
@@ -423,12 +475,15 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <TypeIcon className="h-5 w-5 text-gray-500" />
+                    {breakdown.isDefault && (
+                      <LockClosedIcon className="h-4 w-4 text-indigo-600" />
+                    )}
                     <div>
-                      <h4 className="font-medium text-gray-900">
+                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
                         {breakdown.name}
                         {breakdown.isDefault && (
-                          <span className="ml-2 text-xs text-indigo-600 font-normal">
-                            (Par défaut)
+                          <span className="text-xs text-indigo-600 font-normal">
+                            (Par défaut - Synchronisé avec les dates de campagne)
                           </span>
                         )}
                       </h4>
@@ -439,6 +494,9 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         )}
                         {breakdown.type === 'Custom' && breakdown.customPeriods && (
                           <> • {breakdown.customPeriods.length} période(s)</>
+                        )}
+                        {breakdown.isDefault && (
+                          <> • Mis à jour automatiquement</>
                         )}
                       </p>
                       {/* Affichage des périodes Custom */}
@@ -455,23 +513,31 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => handleEditBreakdown(breakdown)}
-                      disabled={isDisabled}
-                      className="text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
-                    >
-                      Modifier
-                    </button>
                     {!breakdown.isDefault && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteBreakdown(breakdown.id)}
-                        disabled={isDisabled}
-                        className="text-red-600 hover:text-red-700 disabled:opacity-50"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleEditBreakdown(breakdown)}
+                          disabled={isDisabled}
+                          className="text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBreakdown(breakdown.id)}
+                          disabled={isDisabled}
+                          className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                    {breakdown.isDefault && (
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <LockClosedIcon className="h-3 w-3" />
+                        Non modifiable
+                      </div>
                     )}
                   </div>
                 </div>
@@ -498,12 +564,12 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
           </button>
         )}
 
-        {/* Message pour nouvelle campagne */}
-        {!campaignId && (campaignStartDate && campaignEndDate) && (
+        {/* Message d'information pour le breakdown par défaut */}
+        {(campaignStartDate && campaignEndDate) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              La répartition "Calendrier" par défaut sera créée automatiquement lors de la sauvegarde de la campagne. 
-              Vous pouvez ajouter d'autres répartitions dès maintenant.
+              <strong>📅 Breakdown par défaut :</strong> Le breakdown "Calendrier" est automatiquement créé et 
+              synchronisé avec les dates de votre campagne. Il commence toujours un lundi et ne peut pas être modifié manuellement.
             </p>
           </div>
         )}

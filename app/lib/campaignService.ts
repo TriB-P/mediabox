@@ -10,7 +10,16 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Campaign, CampaignFormData } from '../types/campaign';
-import { createDefaultBreakdown, updateDefaultBreakdownDates } from './breakdownService';
+import { 
+  createDefaultBreakdown, 
+  updateDefaultBreakdownDates, 
+  ensureDefaultBreakdownExists 
+} from './breakdownService';
+import {
+  duplicateBreakdowns,
+  duplicateOnglets,
+  duplicateSectionsAndTactiques
+} from './campaignDuplicationUtils';
 
 // Fonction intégrée pour créer la version originale
 async function createOriginalVersion(
@@ -74,13 +83,32 @@ export async function getCampaigns(clientId: string): Promise<Campaign[]> {
 
     console.log('Nombre de campagnes trouvées:', querySnapshot.size);
 
-    return querySnapshot.docs.map(
+    // S'assurer que chaque campagne a un breakdown par défaut
+    const campaigns = querySnapshot.docs.map(
       (doc) =>
         ({
           id: doc.id,
           ...doc.data(),
         } as Campaign)
     );
+
+    // Vérifier et créer les breakdowns par défaut manquants en arrière-plan
+    campaigns.forEach(async (campaign) => {
+      if (campaign.startDate && campaign.endDate) {
+        try {
+          await ensureDefaultBreakdownExists(
+            clientId,
+            campaign.id,
+            campaign.startDate,
+            campaign.endDate
+          );
+        } catch (error) {
+          console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
+        }
+      }
+    });
+
+    return campaigns;
   } catch (error) {
     console.error('Erreur lors de la récupération des campagnes:', error);
     throw error;
@@ -177,40 +205,40 @@ export async function createCampaign(
       // On ne propage pas l'erreur pour que la campagne soit quand même créée
     }
 
-    // Créer le breakdown par défaut "Calendrier" (RÉACTIVÉ)
-    console.log('createCampaign - Création du breakdown par défaut...');
-    try {
-      await createDefaultBreakdown(
-        clientId,
-        docRef.id,
-        campaignData.startDate,
-        campaignData.endDate
-      );
-      console.log('createCampaign - Breakdown par défaut créé avec succès');
-    } catch (breakdownError) {
-      console.error(
-        'createCampaign - Erreur lors de la création du breakdown par défaut:',
-        breakdownError
-      );
-      // On ne propage pas l'erreur pour que la campagne soit quand même créée
-    }
-
-    // Créer les breakdowns additionnels si fournis
+    // Créer tous les breakdowns (y compris le breakdown par défaut)
     if (additionalBreakdowns.length > 0) {
-      console.log('createCampaign - Création des breakdowns additionnels...');
+      console.log('createCampaign - Création des breakdowns...');
       try {
         const { createBreakdown } = await import('./breakdownService');
         
         for (const breakdown of additionalBreakdowns) {
-          await createBreakdown(clientId, docRef.id, breakdown, false);
+          const isDefaultBreakdown = breakdown.isDefault || false;
+          await createBreakdown(clientId, docRef.id, breakdown, isDefaultBreakdown);
         }
-        console.log('createCampaign - Breakdowns additionnels créés avec succès');
-      } catch (additionalBreakdownError) {
+        console.log('createCampaign - Breakdowns créés avec succès');
+      } catch (breakdownError) {
         console.error(
-          'createCampaign - Erreur lors de la création des breakdowns additionnels:',
-          additionalBreakdownError
+          'createCampaign - Erreur lors de la création des breakdowns:',
+          breakdownError
         );
         // On ne propage pas l'erreur pour que la campagne soit quand même créée
+      }
+    } else {
+      // Si pas de breakdowns fournis, créer quand même le breakdown par défaut
+      console.log('createCampaign - Aucun breakdown fourni, création du breakdown par défaut...');
+      try {
+        await createDefaultBreakdown(
+          clientId,
+          docRef.id,
+          campaignData.startDate,
+          campaignData.endDate
+        );
+        console.log('createCampaign - Breakdown par défaut créé avec succès');
+      } catch (breakdownError) {
+        console.error(
+          'createCampaign - Erreur lors de la création du breakdown par défaut:',
+          breakdownError
+        );
       }
     }
 
@@ -289,6 +317,15 @@ export async function updateCampaign(
          oldCampaign.endDate !== campaignData.endDate)) {
       console.log('updateCampaign - Mise à jour des dates du breakdown par défaut...');
       try {
+        // S'assurer qu'un breakdown par défaut existe avant de le mettre à jour
+        await ensureDefaultBreakdownExists(
+          clientId,
+          campaignId,
+          campaignData.startDate,
+          campaignData.endDate
+        );
+        
+        // Puis mettre à jour ses dates
         await updateDefaultBreakdownDates(
           clientId,
           campaignId,
@@ -310,16 +347,168 @@ export async function updateCampaign(
   }
 }
 
-// Supprimer une campagne
+// Supprimer une campagne et toutes ses sous-collections
 export async function deleteCampaign(
   clientId: string,
   campaignId: string
 ): Promise<void> {
   try {
+    console.log('Suppression de la campagne:', campaignId);
+    
+    // Supprimer toutes les sous-collections d'abord
+    await deleteAllSubcollections(clientId, campaignId);
+    
+    // Supprimer la campagne elle-même
     const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
     await deleteDoc(campaignRef);
+    
+    console.log('Campagne supprimée avec succès:', campaignId);
   } catch (error) {
     console.error('Erreur lors de la suppression de la campagne:', error);
+    throw error;
+  }
+}
+
+// Dupliquer une campagne avec toutes ses sous-collections
+export async function duplicateCampaign(
+  clientId: string,
+  sourceCampaignId: string,
+  userEmail: string,
+  newName?: string
+): Promise<string> {
+  try {
+    console.log('Duplication de la campagne:', sourceCampaignId);
+    
+    // Récupérer la campagne source
+    const campaigns = await getCampaigns(clientId);
+    const sourceCampaign = campaigns.find(c => c.id === sourceCampaignId);
+    
+    if (!sourceCampaign) {
+      throw new Error('Campagne source non trouvée');
+    }
+    
+    // Préparer les données de la nouvelle campagne
+    const now = new Date().toISOString();
+    const duplicatedName = newName || `${sourceCampaign.name} - Copie`;
+    
+    const newCampaignData = {
+      ...sourceCampaign,
+      name: duplicatedName,
+      status: 'Draft' as const, // Nouvelle campagne en brouillon
+      createdAt: now,
+      updatedAt: now,
+      lastEdit: now,
+    };
+    
+    // Supprimer les champs qui ne doivent pas être copiés ou qui sont undefined
+    delete (newCampaignData as any).id;
+    delete (newCampaignData as any).officialVersionId; // Sera défini après création de la version
+    
+    // Créer la nouvelle campagne
+    const campaignsCollection = collection(db, 'clients', clientId, 'campaigns');
+    const docRef = await addDoc(campaignsCollection, newCampaignData);
+    const newCampaignId = docRef.id;
+    
+    console.log('Nouvelle campagne créée avec ID:', newCampaignId);
+    
+    // Dupliquer toutes les sous-collections
+    await duplicateAllSubcollections(clientId, sourceCampaignId, newCampaignId, userEmail);
+    
+    console.log('Campagne dupliquée avec succès:', newCampaignId);
+    return newCampaignId;
+  } catch (error) {
+    console.error('Erreur lors de la duplication de la campagne:', error);
+    throw error;
+  }
+}
+
+// Fonction utilitaire pour supprimer toutes les sous-collections
+async function deleteAllSubcollections(
+  clientId: string,
+  campaignId: string
+): Promise<void> {
+  const subcollections = ['versions', 'breakdowns', 'sections', 'tactiques', 'onglets', 'placements', 'creatifs'];
+  
+  for (const subcollection of subcollections) {
+    try {
+      const subRef = collection(db, 'clients', clientId, 'campaigns', campaignId, subcollection);
+      const snapshot = await getDocs(subRef);
+      
+      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      console.log(`Sous-collection ${subcollection} supprimée`);
+    } catch (error) {
+      console.warn(`Erreur lors de la suppression de ${subcollection}:`, error);
+      // Continuer même si une sous-collection échoue
+    }
+  }
+}
+
+// Fonction utilitaire pour dupliquer toutes les sous-collections
+async function duplicateAllSubcollections(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string,
+  userEmail: string
+): Promise<void> {
+  try {
+    // 1. Dupliquer les versions
+    await duplicateVersions(clientId, sourceCampaignId, newCampaignId, userEmail);
+    
+    // 2. Dupliquer les breakdowns
+    await duplicateBreakdowns(clientId, sourceCampaignId, newCampaignId);
+    
+    // 3. Dupliquer les onglets (s'ils existent)
+    await duplicateOnglets(clientId, sourceCampaignId, newCampaignId);
+    
+    // 4. Dupliquer les sections et tactiques
+    await duplicateSectionsAndTactiques(clientId, sourceCampaignId, newCampaignId);
+    
+  } catch (error) {
+    console.error('Erreur lors de la duplication des sous-collections:', error);
+    throw error;
+  }
+}
+
+// Dupliquer les versions
+async function duplicateVersions(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string,
+  userEmail: string
+): Promise<void> {
+  try {
+    const versionsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions');
+    const snapshot = await getDocs(versionsRef);
+    
+    const newVersionsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'versions');
+    let newOfficialVersionId = '';
+    
+    for (const versionDoc of snapshot.docs) {
+      const versionData = versionDoc.data();
+      const newVersionData = {
+        ...versionData,
+        createdAt: new Date().toISOString(),
+        createdBy: userEmail,
+      };
+      
+      const newVersionRef = await addDoc(newVersionsRef, newVersionData);
+      
+      if (versionData.isOfficial) {
+        newOfficialVersionId = newVersionRef.id;
+      }
+    }
+    
+    // Mettre à jour la campagne avec l'ID de la version officielle
+    if (newOfficialVersionId) {
+      const campaignRef = doc(db, 'clients', clientId, 'campaigns', newCampaignId);
+      await updateDoc(campaignRef, { officialVersionId: newOfficialVersionId });
+    }
+    
+    console.log('Versions dupliquées avec succès');
+  } catch (error) {
+    console.error('Erreur lors de la duplication des versions:', error);
     throw error;
   }
 }

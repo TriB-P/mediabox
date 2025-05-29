@@ -32,6 +32,9 @@ export interface BreakdownFormData {
   
   // Nouveau : périodes personnalisées pour le type Custom
   customPeriods?: Omit<CustomPeriod, 'id'>[]; // Sans l'ID lors de la création
+  
+  // Nouveau : flag pour identifier le breakdown par défaut lors de la création
+  isDefault?: boolean;
 }
 
 // Structure pour éditer une période personnalisée
