@@ -72,6 +72,38 @@ const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
+// Formater une valeur pour l'affichage selon le type de frais
+const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculation_Type']) => {
+  if (calculationType === 'Pourcentage budget') {
+    // Pour les pourcentages : si la valeur est stockée en décimal (0.1 = 10%), convertir vers pourcentage
+    // Mais si elle est déjà en pourcentage (10), la garder telle quelle
+    // Logique : si valeur <= 1, c'est probablement un décimal à convertir
+    if (value <= 1) {
+      return (value * 100).toFixed(2);
+    } else {
+      // Si > 1, c'est probablement déjà un pourcentage
+      return value.toFixed(2);
+    }
+  }
+  return value.toFixed(2);
+};
+
+// Convertir une valeur d'affichage vers le stockage selon le type de frais  
+const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Calculation_Type']) => {
+  const numValue = parseFloat(displayValue) || 0;
+  if (calculationType === 'Pourcentage budget') {
+    // Pour les pourcentages : toujours stocker en décimal
+    // Si la valeur affichée est > 1, c'est un pourcentage à convertir
+    if (numValue > 1) {
+      return numValue / 100;
+    } else {
+      // Si <= 1, c'est déjà un décimal
+      return numValue;
+    }
+  }
+  return numValue;
+};
+
 // ==================== COMPOSANT FRAIS INDIVIDUEL ====================
 
 const FeeItem = memo<{
@@ -106,9 +138,10 @@ const FeeItem = memo<{
   }, [fee.id, onOptionChange]);
 
   const handleCustomValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value) || 0;
-    onCustomValueChange(fee.id, value);
-  }, [fee.id, onCustomValueChange]);
+    const displayValue = e.target.value;
+    const storageValue = parseValueFromDisplay(displayValue, fee.FE_Calculation_Type);
+    onCustomValueChange(fee.id, storageValue);
+  }, [fee.id, fee.FE_Calculation_Type, onCustomValueChange]);
 
   const handleCustomUnitsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const units = parseInt(e.target.value) || 0;
@@ -130,6 +163,18 @@ const FeeItem = memo<{
       maximumFractionDigits: 2
     }).format(value);
   }, []);
+
+  // Valeur affichée dans l'input (avec conversion pour les pourcentages)
+  const displayValue = useMemo(() => {
+    if (!selectedOption) return '';
+    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
+    return formatValueForDisplay(baseValue, fee.FE_Calculation_Type);
+  }, [selectedOption, appliedFee.customValue, fee.FE_Calculation_Type]);
+
+  // Valeur finale avec buffer (pour affichage informatif)
+  const finalDisplayValue = useMemo(() => {
+    return formatValueForDisplay(finalValue, fee.FE_Calculation_Type);
+  }, [finalValue, fee.FE_Calculation_Type]);
 
   return (
     <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
@@ -153,7 +198,7 @@ const FeeItem = memo<{
               {fee.FE_Name}
             </label>
             <div className="text-sm text-gray-500 mt-1">
-              {getFeeTypeDescription(fee.FE_Calculation_Type)} • {fee.FE_Calculation_Mode}
+              {getFeeTypeDescription(fee.FE_Calculation_Type)} • {fee.FE_Calculation_Mode} • Ordre #{fee.FE_Order}
             </div>
           </div>
         </div>
@@ -185,13 +230,16 @@ const FeeItem = memo<{
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
               >
                 <option value="">Sélectionner une option...</option>
-                {fee.options.map(option => (
-                  <option key={option.id} value={option.id}>
-                    {option.FO_Option} - {option.FO_Value}
-                    {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ''}
-                    {option.FO_Buffer > 0 && ` (Buffer: +${option.FO_Buffer}%)`}
-                  </option>
-                ))}
+                {fee.options.map(option => {
+                  const displayOptionValue = formatValueForDisplay(option.FO_Value, fee.FE_Calculation_Type);
+                  return (
+                    <option key={option.id} value={option.id}>
+                      {option.FO_Option} - {displayOptionValue}
+                      {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ''}
+                      {option.FO_Buffer > 0 && ` (Buffer: +${option.FO_Buffer}%)`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           )}
@@ -204,16 +252,18 @@ const FeeItem = memo<{
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Valeur personnalisée
+                    {fee.FE_Calculation_Type === 'Pourcentage budget' && ' (%)'}
                   </label>
                   <div className="relative">
                     <input
                       type="number"
-                      value={appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value}
+                      value={displayValue}
                       onChange={handleCustomValueChange}
                       min="0"
                       step={fee.FE_Calculation_Type === 'Pourcentage budget' ? '0.01' : '0.01'}
                       disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
+                      placeholder={fee.FE_Calculation_Type === 'Pourcentage budget' ? '15.00' : '0.00'}
                     />
                     {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -223,7 +273,7 @@ const FeeItem = memo<{
                   </div>
                   {selectedOption.FO_Buffer > 0 && (
                     <div className="mt-1 text-xs text-blue-600">
-                      Valeur finale avec buffer (+{selectedOption.FO_Buffer}%) : {finalValue.toFixed(2)}
+                      Valeur finale avec buffer (+{selectedOption.FO_Buffer}%) : {finalDisplayValue}
                       {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ''}
                     </div>
                   )}
@@ -235,11 +285,12 @@ const FeeItem = memo<{
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Valeur fixe
+                    {fee.FE_Calculation_Type === 'Pourcentage budget' && ' (%)'}
                   </label>
                   <div className="relative">
                     <input
                       type="number"
-                      value={finalValue.toFixed(2)}
+                      value={finalDisplayValue}
                       disabled
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600"
                     />
@@ -286,7 +337,7 @@ const FeeItem = memo<{
                 <strong>Calcul détaillé :</strong>
                 {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                   <div className="mt-1">
-                    {finalValue}% × Base de calcul 
+                    {finalDisplayValue}% × Base de calcul 
                     {fee.FE_Calculation_Mode === 'Directement sur le budget média' 
                       ? ' (budget média)' 
                       : ' (budget média + frais précédents)'}
@@ -294,17 +345,17 @@ const FeeItem = memo<{
                 )}
                 {fee.FE_Calculation_Type === 'Volume d\'unité' && (
                   <div className="mt-1">
-                    {finalValue} × Volume d'unité de la tactique
+                    {formatCurrency(finalValue)} × Volume d'unité de la tactique
                   </div>
                 )}
                 {fee.FE_Calculation_Type === 'Unités' && (
                   <div className="mt-1">
-                    {finalValue} × {appliedFee.customUnits || 1} unités
+                    {formatCurrency(finalValue)} × {appliedFee.customUnits || 1} unités
                   </div>
                 )}
                 {fee.FE_Calculation_Type === 'Frais fixe' && (
                   <div className="mt-1">
-                    Montant fixe de {finalValue}
+                    Montant fixe de {formatCurrency(finalValue)}
                   </div>
                 )}
                 {selectedOption.FO_Buffer > 0 && (
@@ -352,7 +403,8 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
           ? mediaBudget 
           : cumulatedBase;
-        return (finalValue / 100) * baseAmount;
+        // finalValue est déjà en décimal (ex: 0.15 pour 15%)
+        return finalValue * baseAmount;
         
       case 'Volume d\'unité':
         return finalValue * unitVolume;
@@ -375,24 +427,36 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     let cumulatedBase = mediaBudget;
     
     setAppliedFees(prevAppliedFees => {
-      return prevAppliedFees.map(appliedFee => {
-        const fee = sortedFees.find(f => f.id === appliedFee.feeId);
-        if (!fee) return appliedFee;
+      const updatedFees: AppliedFee[] = [];
+      
+      // Traiter les frais dans l'ordre pour calculer la base cumulative correctement
+      for (const fee of sortedFees) {
+        const appliedFee = prevAppliedFees.find(af => af.feeId === fee.id);
+        if (!appliedFee) continue;
         
         const calculatedAmount = calculateFeeAmount(fee, appliedFee, cumulatedBase);
         
-        // Ajouter ce frais à la base cumulative pour les frais suivants (seulement si c'est un frais en cascade)
-        if (appliedFee.isActive && fee.FE_Calculation_Mode === 'Applicable sur les frais précédents') {
-          cumulatedBase += calculatedAmount;
-        }
-        
-        return {
+        const updatedAppliedFee = {
           ...appliedFee,
           calculatedAmount
         };
+        
+        updatedFees.push(updatedAppliedFee);
+        
+        // Ajouter ce frais à la base cumulative pour les frais suivants
+        // TOUS les frais actifs s'ajoutent à la base, peu importe leur mode
+        if (appliedFee.isActive && calculatedAmount > 0) {
+          cumulatedBase += calculatedAmount;
+        }
+      }
+      
+      // Retourner les frais dans l'ordre original (pas forcément l'ordre de traitement)
+      return prevAppliedFees.map(prevFee => {
+        const updatedFee = updatedFees.find(uf => uf.feeId === prevFee.feeId);
+        return updatedFee || prevFee;
       });
     });
-  }, [clientFees, mediaBudget, unitVolume, setAppliedFees, appliedFees.map(af => `${af.feeId}-${af.isActive}-${af.selectedOptionId}-${af.customValue}-${af.customUnits}`).join('|')]);
+  }, [clientFees, mediaBudget, unitVolume, setAppliedFees, calculateFeeAmount, appliedFees.map(af => `${af.feeId}-${af.isActive}-${af.selectedOptionId}-${af.customValue}-${af.customUnits}`).join('|')]);
 
   // Gestionnaires d'événements
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {

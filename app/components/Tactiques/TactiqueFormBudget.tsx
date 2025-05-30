@@ -81,6 +81,7 @@ interface BudgetSummary {
     mediaBudget: number;
     totalFees: number;
     clientBudget: number;
+    bonusValue: number;
     currency: string;
     exchangeRate: number;
   };
@@ -128,6 +129,9 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         
         return [...existingFees, ...newFees];
       });
+    } else {
+      // Si pas de frais client, vider la liste
+      setAppliedFees([]);
     }
   }, [clientFees]);
 
@@ -144,63 +148,131 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // Budget média effectif (toujours celui utilisé pour les calculs de frais)
+  // Calcul du total des frais avec gestion des erreurs
+  const totalFees = useMemo(() => {
+    try {
+      if (!appliedFees || appliedFees.length === 0) {
+        return 0;
+      }
+      
+      const total = appliedFees
+        .filter(af => af.isActive && typeof af.calculatedAmount === 'number')
+        .reduce((sum, af) => {
+          const amount = af.calculatedAmount || 0;
+          return sum + amount;
+        }, 0);
+      
+      // Vérifier si le résultat est valide
+      return isNaN(total) ? 0 : total;
+    } catch (error) {
+      console.error('Erreur lors du calcul du total des frais:', error);
+      return 0;
+    }
+  }, [appliedFees]);
+
+  // Budget média effectif (utilisé pour les calculs de frais ET les calculs d'unités)
   const mediaBudget = useMemo(() => {
-    const budget = formData.TC_Budget || 0;
-    const budgetMode = formData.TC_Budget_Mode || 'media';
-    
-    // Si mode client, on devrait déduire les frais pour obtenir le budget média
-    // Pour l'instant, on considère que le budget saisi est le budget média
-    return budgetMode === 'media' ? budget : budget;
-  }, [formData.TC_Budget, formData.TC_Budget_Mode]);
+    try {
+      const budget = formData.TC_Budget || 0;
+      const budgetMode = formData.TC_Budget_Mode || 'media';
+      
+      if (budgetMode === 'client') {
+        // En mode client, on déduit les frais pour obtenir le budget média
+        const result = Math.max(0, budget - totalFees);
+        return isNaN(result) ? 0 : result;
+      } else {
+        // En mode média, le budget saisi EST le budget média
+        return isNaN(budget) ? 0 : budget;
+      }
+    } catch (error) {
+      console.error('Erreur lors du calcul du budget média:', error);
+      return 0;
+    }
+  }, [formData.TC_Budget, formData.TC_Budget_Mode, totalFees]);
 
   // Calcul du résumé budgétaire
   const budgetSummary = useMemo((): BudgetSummary => {
-    // Calculer le total des frais depuis appliedFees
-    const totalFees = appliedFees
-      .filter(af => af.isActive)
-      .reduce((sum, af) => sum + (af.calculatedAmount || 0), 0);
-    
-    const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
-    const clientBudget = mediaBudget + totalFees;
-    const currency = formData.TC_Currency || 'CAD';
-    
-    // Calcul de la conversion de devise si nécessaire
-    let convertedValues;
-    if (currency !== campaignCurrency && exchangeRates[currency]) {
-      const exchangeRate = exchangeRates[currency];
-      convertedValues = {
-        mediaBudget: mediaBudget * exchangeRate,
-        totalFees: totalFees * exchangeRate,
-        clientBudget: clientBudget * exchangeRate,
-        currency: campaignCurrency,
-        exchangeRate
+    try {
+      const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
+      const budget = formData.TC_Budget || 0;
+      const budgetMode = formData.TC_Budget_Mode || 'media';
+      const currency = formData.TC_Currency || 'CAD';
+      
+      let finalMediaBudget: number;
+      let finalClientBudget: number;
+      
+      if (budgetMode === 'client') {
+        // Mode client: budget saisi = budget client, on déduit les frais pour le média
+        finalClientBudget = budget;
+        finalMediaBudget = Math.max(0, budget - totalFees);
+      } else {
+        // Mode média: budget saisi = budget média, on ajoute les frais pour le client
+        finalMediaBudget = budget;
+        finalClientBudget = budget + totalFees;
+      }
+      
+      // Validation des valeurs
+      finalMediaBudget = isNaN(finalMediaBudget) ? 0 : finalMediaBudget;
+      finalClientBudget = isNaN(finalClientBudget) ? 0 : finalClientBudget;
+      const finalTotalFees = isNaN(totalFees) ? 0 : totalFees;
+      const finalBonusValue = isNaN(bonusValue) ? 0 : bonusValue;
+      
+      // Calcul de la conversion de devise si nécessaire
+      let convertedValues;
+      if (currency !== campaignCurrency && exchangeRates[currency]) {
+        const exchangeRate = exchangeRates[currency];
+        if (!isNaN(exchangeRate) && exchangeRate > 0) {
+          convertedValues = {
+            mediaBudget: finalMediaBudget * exchangeRate,
+            totalFees: finalTotalFees * exchangeRate,
+            clientBudget: finalClientBudget * exchangeRate,
+            bonusValue: finalBonusValue * exchangeRate,
+            currency: campaignCurrency,
+            exchangeRate
+          };
+        }
+      }
+      
+      return {
+        mediaBudget: finalMediaBudget,
+        totalFees: finalTotalFees,
+        clientBudget: finalClientBudget,
+        bonusValue: finalBonusValue,
+        currency,
+        convertedValues
+      };
+    } catch (error) {
+      console.error('Erreur lors du calcul du résumé budgétaire:', error);
+      return {
+        mediaBudget: 0,
+        totalFees: 0,
+        clientBudget: 0,
+        bonusValue: 0,
+        currency: formData.TC_Currency || 'CAD'
       };
     }
-    
-    return {
-      mediaBudget,
-      totalFees,
-      clientBudget,
-      bonusValue,
-      currency,
-      convertedValues
-    };
   }, [
     appliedFees, 
-    mediaBudget, 
+    formData.TC_Budget,
+    formData.TC_Budget_Mode,
     formData.TC_Has_Bonus, 
     formData.TC_Bonus_Value, 
     formData.TC_Currency, 
+    totalFees,
     campaignCurrency, 
     exchangeRates
   ]);
 
   // Debug: Log pour vérifier les calculs
   useEffect(() => {
-    console.log('Debug appliedFees:', appliedFees);
-    console.log('Debug budgetSummary:', budgetSummary);
-  }, [appliedFees, budgetSummary]);
+    console.log('Debug TactiqueFormBudget:');
+    console.log('- formData.TC_Budget:', formData.TC_Budget);
+    console.log('- formData.TC_Budget_Mode:', formData.TC_Budget_Mode);
+    console.log('- appliedFees:', appliedFees);
+    console.log('- totalFees calculé:', totalFees);
+    console.log('- mediaBudget calculé:', mediaBudget);
+    console.log('- budgetSummary:', budgetSummary);
+  }, [formData.TC_Budget, formData.TC_Budget_Mode, appliedFees, totalFees, mediaBudget, budgetSummary]);
 
   return (
     <div className="p-8 space-y-8">
@@ -235,6 +307,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       >
         <BudgetMainSection
           formData={formData}
+          totalFees={totalFees}
           onChange={onChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleCalculatedChange}
@@ -295,14 +368,17 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* Debug info (à retirer en production) */}
+      {/* Debug info en développement */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
           <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info</h5>
           <div className="text-xs text-gray-600 space-y-1">
+            <div>Budget saisi: {formData.TC_Budget || 0}</div>
+            <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
             <div>Frais actifs: {appliedFees.filter(af => af.isActive).length}</div>
-            <div>Total frais calculé: {budgetSummary.totalFees}</div>
-            <div>Montants individuels: {appliedFees.filter(af => af.isActive).map(af => af.calculatedAmount).join(', ')}</div>
+            <div>Total frais calculé: {totalFees}</div>
+            <div>Budget média effectif: {mediaBudget}</div>
+            <div>Budget client calculé: {budgetSummary.clientBudget}</div>
           </div>
         </div>
       )}

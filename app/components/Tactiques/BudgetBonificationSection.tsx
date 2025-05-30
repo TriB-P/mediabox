@@ -51,14 +51,16 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     return Math.max(0, realValue - mediaBudget);
   }, [hasBonus, realValue, mediaBudget]);
 
-  // Validation de la valeur réelle
+  // Validation de la valeur réelle - seulement si bonification activée
   const validationStatus = useMemo(() => {
+    // Si bonification désactivée, toujours valide
     if (!hasBonus) return { isValid: true, message: null };
     
-    if (realValue <= 0) {
+    // Si bonification activée mais pas de valeur saisie encore, pas d'erreur
+    if (realValue === 0) {
       return { 
-        isValid: false, 
-        message: 'La valeur réelle doit être supérieure à 0' 
+        isValid: true, 
+        message: null
       };
     }
     
@@ -85,7 +87,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     return (calculatedBonusValue / mediaBudget) * 100;
   }, [hasBonus, mediaBudget, calculatedBonusValue]);
 
-  // Gestionnaire pour le toggle bonification
+  // Gestionnaire pour le toggle bonification avec possibilité de décocher
   const handleHasBonusChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     onChange(e);
@@ -127,7 +129,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Toggle bonification */}
+      {/* Toggle bonification - Maintenant toujours modifiable */}
       <div className="flex items-start">
         <div className="flex items-center h-6">
           <input
@@ -144,12 +146,15 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
               'Cette tactique inclut de la bonification', 
-              'La bonification représente la valeur ajoutée gratuite obtenue auprès du partenaire média. Elle permet de maximiser la portée sans coût supplémentaire.', 
+              'La bonification représente la valeur ajoutée gratuite obtenue auprès du partenaire média. Elle permet de maximiser la portée sans coût supplémentaire. Cette case peut être cochée ou décochée à tout moment.', 
               onTooltipChange
             )}
           </div>
           <p className="text-sm text-gray-600">
-            Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire.
+            {hasBonus 
+              ? 'Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire. Vous pouvez la décocher pour annuler la bonification.'
+              : 'Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire.'
+            }
           </p>
         </div>
       </div>
@@ -166,6 +171,22 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       {/* Champs de bonification */}
       {hasBonus && mediaBudget > 0 && (
         <div className="space-y-6 pl-7">
+          {/* Information sur le budget média de référence */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h5 className="text-sm font-medium text-gray-800 mb-2">
+              📊 Budget média de référence
+            </h5>
+            <div className="text-sm text-gray-700">
+              <div className="flex justify-between items-center">
+                <span>Budget média actuel :</span>
+                <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                La valeur réelle doit être supérieure à ce montant pour générer une bonification.
+              </div>
+            </div>
+          </div>
+
           {/* Valeur réelle */}
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -241,12 +262,45 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
             {calculatedBonusValue > 0 && (
               <div className="mt-1 text-sm text-green-600">
-                Économie de {formatCurrency(calculatedBonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget)
+                Économie de {formatCurrency(calculatedBonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget média)
               </div>
             )}
           </div>
 
-          
+          {/* Récapitulatif de la bonification */}
+          {realValue > 0 && calculatedBonusValue > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-green-800 mb-3">
+                🎁 Récapitulatif de la bonification
+              </h5>
+              <div className="space-y-2 text-sm text-green-700">
+                <div className="flex justify-between">
+                  <span>Valeur négociée totale :</span>
+                  <span className="font-medium">{formatCurrency(realValue)} {currency}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Budget média payé :</span>
+                  <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
+                </div>
+                <div className="flex justify-between border-t border-green-300 pt-2 font-semibold">
+                  <span>Bonification obtenue :</span>
+                  <span className="text-green-800">+{formatCurrency(calculatedBonusValue)} {currency}</span>
+                </div>
+                <div className="text-xs text-green-600 mt-2">
+                  Cela représente {formatPercentage(bonusPercentage)}% de valeur ajoutée gratuite par rapport au budget média.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Message d'explication quand la bonification est désactivée */}
+      {!hasBonus && (
+        <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
+          <p className="text-sm">
+            <strong>Bonification désactivée.</strong> Les calculs se baseront uniquement sur le budget média sans valeur ajoutée.
+          </p>
         </div>
       )}
 
