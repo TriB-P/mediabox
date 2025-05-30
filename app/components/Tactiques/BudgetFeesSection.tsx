@@ -72,34 +72,23 @@ const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
-// Formater une valeur pour l'affichage selon le type de frais
+// CORRECTION: Formater une valeur pour l'affichage selon le type de frais
 const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculation_Type']) => {
   if (calculationType === 'Pourcentage budget') {
-    // Pour les pourcentages : si la valeur est stockée en décimal (0.1 = 10%), convertir vers pourcentage
-    // Mais si elle est déjà en pourcentage (10), la garder telle quelle
-    // Logique : si valeur <= 1, c'est probablement un décimal à convertir
-    if (value <= 1) {
-      return (value * 100).toFixed(2);
-    } else {
-      // Si > 1, c'est probablement déjà un pourcentage
-      return value.toFixed(2);
-    }
+    // PROBLÈME CORRIGÉ: La valeur en base est toujours en décimal (0.1 = 10%)
+    // On multiplie toujours par 100 pour l'affichage
+    return (value * 100).toFixed(2);
   }
   return value.toFixed(2);
 };
 
-// Convertir une valeur d'affichage vers le stockage selon le type de frais  
+// CORRECTION: Convertir une valeur d'affichage vers le stockage selon le type de frais  
 const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Calculation_Type']) => {
   const numValue = parseFloat(displayValue) || 0;
   if (calculationType === 'Pourcentage budget') {
-    // Pour les pourcentages : toujours stocker en décimal
-    // Si la valeur affichée est > 1, c'est un pourcentage à convertir
-    if (numValue > 1) {
-      return numValue / 100;
-    } else {
-      // Si <= 1, c'est déjà un décimal
-      return numValue;
-    }
+    // PROBLÈME CORRIGÉ: La valeur affichée est toujours en pourcentage
+    // On divise toujours par 100 pour stocker en décimal
+    return numValue / 100;
   }
   return numValue;
 };
@@ -386,7 +375,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   disabled = false
 }) => {
 
-  // Fonction pour calculer le montant d'un frais
+  // CORRECTION: Fonction pour calculer le montant d'un frais
   const calculateFeeAmount = useCallback((fee: Fee, appliedFee: AppliedFee, cumulatedBase: number): number => {
     if (!appliedFee.isActive || !appliedFee.selectedOptionId) return 0;
     
@@ -399,11 +388,13 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     
     switch (fee.FE_Calculation_Type) {
       case 'Pourcentage budget':
-        // Utiliser la base de calcul cumulative selon le mode
+        // CORRECTION: Utiliser la base de calcul cumulative selon le mode
         const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
           ? mediaBudget 
           : cumulatedBase;
-        // finalValue est déjà en décimal (ex: 0.15 pour 15%)
+        // PROBLÈME CORRIGÉ: finalValue est déjà en décimal (ex: 0.1 pour 10%)
+        // Pas besoin de diviser par 100, la valeur est correcte
+        console.log(`Calcul frais ${fee.FE_Name}: ${finalValue} × ${baseAmount} = ${finalValue * baseAmount}`);
         return finalValue * baseAmount;
         
       case 'Volume d\'unité':

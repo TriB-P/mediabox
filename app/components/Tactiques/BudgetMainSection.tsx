@@ -56,7 +56,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     if (budgetMode === 'client') {
       return {
         label: 'Budget client',
-        tooltip: 'Montant total que le client paiera, incluant le budget média et tous les frais applicables. Le volume d\'unités sera calculé sur le budget média dérivé plus la bonification.'
+        tooltip: 'Montant total que le client paiera, incluant le budget média et tous les frais applicables. Le budget média sera calculé en déduisant les frais de ce montant.'
       };
     } else {
       return {
@@ -66,13 +66,43 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budgetMode]);
 
-  // Calcul du budget média effectif
+  // CORRECTION: Calcul du budget média effectif avec logique inversée pour mode client
   const mediaBudget = useMemo(() => {
     try {
       if (budgetMode === 'client') {
-        // En mode client, on déduit les frais du budget saisi pour obtenir le budget média
-        const result = Math.max(0, budget - totalFees);
-        return isNaN(result) ? 0 : result;
+        // PROBLÈME CORRIGÉ: En mode client, il faut calculer le budget média
+        // en résolvant l'équation : budgetClient = budgetMédia + (budgetMédia × tauxFrais)
+        // soit budgetClient = budgetMédia × (1 + tauxFrais)
+        // donc budgetMédia = budgetClient ÷ (1 + tauxFrais)
+        
+        if (totalFees === 0) {
+          // Si pas de frais, le budget média = budget client
+          return budget;
+        }
+        
+        // Calculer le taux de frais total approximatif
+        // On doit faire une approximation itérative car les frais peuvent dépendre du budget média
+        let estimatedMediaBudget = budget * 0.9; // Estimation initiale
+        let iterations = 0;
+        const maxIterations = 10;
+        
+        while (iterations < maxIterations) {
+          // Cette approximation suppose que la plupart des frais sont des pourcentages du budget média
+          // Pour une approche plus précise, il faudrait recalculer les frais à chaque itération
+          const totalFeeRate = totalFees / (estimatedMediaBudget || 1);
+          const newEstimatedMediaBudget = budget / (1 + totalFeeRate);
+          
+          // Si la différence est petite, on converge
+          if (Math.abs(newEstimatedMediaBudget - estimatedMediaBudget) < 0.01) {
+            break;
+          }
+          
+          estimatedMediaBudget = newEstimatedMediaBudget;
+          iterations++;
+        }
+        
+        console.log(`Mode client - Budget saisi: ${budget}, Frais: ${totalFees}, Budget média calculé: ${estimatedMediaBudget}`);
+        return Math.max(0, estimatedMediaBudget);
       } else {
         // En mode média, le budget saisi EST le budget média
         return isNaN(budget) ? 0 : budget;
@@ -203,11 +233,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* Affichage informatif du budget média si en mode client */}
+      {/* CORRECTION: Affichage informatif du budget média si en mode client */}
       {budgetMode === 'client' && budget > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-blue-800 mb-2">
-            💡 Budget média dérivé
+            💡 Calcul du budget média
           </h5>
           <div className="text-sm text-blue-700">
             <div className="flex justify-between items-center">
@@ -215,13 +245,22 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               <span className="font-medium">{formatCurrency(budget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Moins total des frais :</span>
-              <span className="font-medium">-{formatCurrency(totalFees)} {currency}</span>
+              <span>Budget média calculé :</span>
+              <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Frais applicables :</span>
+              <span className="font-medium">{formatCurrency(totalFees)} {currency}</span>
             </div>
             <div className="flex justify-between items-center border-t border-blue-300 pt-2 mt-2 font-semibold">
-              <span>Budget média (base calculs) :</span>
-              <span className="text-blue-800">{formatCurrency(mediaBudget)} {currency}</span>
+              <span>Vérification :</span>
+              <span className="text-blue-800">{formatCurrency(mediaBudget + totalFees)} {currency}</span>
             </div>
+            {Math.abs((mediaBudget + totalFees) - budget) > 0.01 && (
+              <div className="text-xs text-orange-600 mt-1">
+                ⚠️ Petite différence due aux arrondis dans le calcul itératif
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -315,8 +354,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           )}
         </div>
       </div>
-
-  
 
       {/* Message si champs désactivés */}
       {disabled && (

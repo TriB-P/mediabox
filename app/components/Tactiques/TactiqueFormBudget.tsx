@@ -87,6 +87,179 @@ interface BudgetSummary {
   };
 }
 
+// ==================== FONCTIONS UTILITAIRES ====================
+
+/**
+ * CORRECTION COMPLÈTE : Calcule le budget média correct en mode client
+ * en résolvant la dépendance circulaire ET en gérant les frais précédents
+ */
+function calculateMediaBudgetInClientMode(
+  clientBudget: number,
+  appliedFees: AppliedFee[],
+  clientFees: Fee[],
+  unitVolume: number
+): { mediaBudget: number; calculatedFees: AppliedFee[] } {
+  
+  if (clientBudget <= 0) {
+    return { mediaBudget: 0, calculatedFees: appliedFees };
+  }
+
+  // Trier les frais par ordre pour traitement séquentiel
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  
+  // NOUVELLE APPROCHE : Résolution itérative pour gérer les frais précédents
+  let mediaBudget = clientBudget * 0.8; // Estimation initiale
+  let iterations = 0;
+  const maxIterations = 20;
+  let converged = false;
+  
+  while (!converged && iterations < maxIterations) {
+    const previousMediaBudget = mediaBudget;
+    
+    // Calculer tous les frais avec ce budget média
+    let cumulatedBase = mediaBudget;
+    let totalCalculatedFees = 0;
+    const calculatedFeesAmounts: { [feeId: string]: number } = {};
+    
+    for (const fee of sortedFees) {
+      const appliedFee = appliedFees.find(af => af.feeId === fee.id);
+      if (!appliedFee || !appliedFee.isActive || !appliedFee.selectedOptionId) {
+        calculatedFeesAmounts[fee.id] = 0;
+        continue;
+      }
+
+      const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
+      if (!selectedOption) {
+        calculatedFeesAmounts[fee.id] = 0;
+        continue;
+      }
+
+      // Calculer la valeur avec buffer
+      const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
+      const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
+
+      let calculatedAmount = 0;
+      
+      // Calculer selon le type de frais
+      switch (fee.FE_Calculation_Type) {
+        case 'Volume d\'unité':
+          calculatedAmount = finalValue * unitVolume;
+          break;
+          
+        case 'Unités':
+          const units = appliedFee.customUnits || 1;
+          calculatedAmount = finalValue * units;
+          break;
+          
+        case 'Frais fixe':
+          calculatedAmount = finalValue;
+          break;
+          
+        case 'Pourcentage budget':
+          // CORRECTION : Utiliser la bonne base selon le mode
+          const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
+            ? mediaBudget 
+            : cumulatedBase; // Base cumulative pour "frais précédents"
+          
+          calculatedAmount = finalValue * baseAmount;
+          break;
+      }
+
+      calculatedFeesAmounts[fee.id] = calculatedAmount;
+      totalCalculatedFees += calculatedAmount;
+      
+      // IMPORTANT : Ajouter ce frais à la base cumulative pour les suivants
+      cumulatedBase += calculatedAmount;
+    }
+    
+    // Nouveau budget média = Budget client - Total des frais
+    const newMediaBudget = clientBudget - totalCalculatedFees;
+    
+    // Vérifier la convergence
+    const difference = Math.abs(newMediaBudget - mediaBudget);
+    if (difference < 0.01) {
+      converged = true;
+    }
+    
+    mediaBudget = newMediaBudget;
+    iterations++;
+    
+    console.log(`Itération ${iterations}: Budget média = ${mediaBudget.toFixed(2)}, Total frais = ${totalCalculatedFees.toFixed(2)}, Différence = ${difference.toFixed(4)}`);
+  }
+  
+  if (!converged) {
+    console.warn(`Convergence non atteinte après ${maxIterations} itérations`);
+  }
+
+  // Calculer une dernière fois avec le budget média final
+  let cumulatedBase = mediaBudget;
+  const updatedFees: AppliedFee[] = [];
+  
+  for (const fee of sortedFees) {
+    const appliedFee = appliedFees.find(af => af.feeId === fee.id);
+    if (!appliedFee || !appliedFee.isActive || !appliedFee.selectedOptionId) {
+      updatedFees.push(appliedFee || { 
+        feeId: fee.id, 
+        isActive: false, 
+        calculatedAmount: 0 
+      });
+      continue;
+    }
+
+    const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
+    if (!selectedOption) {
+      updatedFees.push({ ...appliedFee, calculatedAmount: 0 });
+      continue;
+    }
+
+    // Calculer la valeur avec buffer
+    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
+    const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
+
+    let calculatedAmount = 0;
+    
+    // Calculer selon le type de frais
+    switch (fee.FE_Calculation_Type) {
+      case 'Volume d\'unité':
+        calculatedAmount = finalValue * unitVolume;
+        break;
+        
+      case 'Unités':
+        const units = appliedFee.customUnits || 1;
+        calculatedAmount = finalValue * units;
+        break;
+        
+      case 'Frais fixe':
+        calculatedAmount = finalValue;
+        break;
+        
+      case 'Pourcentage budget':
+        const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
+          ? mediaBudget 
+          : cumulatedBase;
+        
+        calculatedAmount = finalValue * baseAmount;
+        break;
+    }
+
+    updatedFees.push({ ...appliedFee, calculatedAmount });
+    
+    // Ajouter à la base cumulative pour les frais suivants
+    cumulatedBase += calculatedAmount;
+  }
+
+  const finalTotalFees = updatedFees.reduce((sum, fee) => sum + (fee.calculatedAmount || 0), 0);
+  
+  console.log(`RÉSULTAT FINAL MODE CLIENT:
+    - Budget client: ${clientBudget}
+    - Budget média final: ${mediaBudget.toFixed(2)}
+    - Total frais: ${finalTotalFees.toFixed(2)}
+    - Vérification: ${(mediaBudget + finalTotalFees).toFixed(2)}
+    - Itérations: ${iterations}`);
+
+  return { mediaBudget: Math.max(0, mediaBudget), calculatedFees: updatedFees };
+}
+
 // ==================== COMPOSANT PRINCIPAL ====================
 
 const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
@@ -148,47 +321,45 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // Calcul du total des frais avec gestion des erreurs
-  const totalFees = useMemo(() => {
-    try {
-      if (!appliedFees || appliedFees.length === 0) {
-        return 0;
-      }
+  // CORRECTION MAJEURE : Calcul correct du budget média et des frais
+  const { calculatedMediaBudget, calculatedTotalFees, correctedAppliedFees } = useMemo(() => {
+    const budget = formData.TC_Budget || 0;
+    const budgetMode = formData.TC_Budget_Mode || 'media';
+    const unitVolume = formData.TC_Unit_Volume || 0;
+    
+    if (budgetMode === 'client' && budget > 0) {
+      // NOUVEAU : Calcul correct pour le mode client
+      const result = calculateMediaBudgetInClientMode(budget, appliedFees, clientFees, unitVolume);
       
-      const total = appliedFees
+      const totalFees = result.calculatedFees
+        .filter(af => af.isActive)
+        .reduce((sum, af) => sum + af.calculatedAmount, 0);
+      
+      return {
+        calculatedMediaBudget: result.mediaBudget,
+        calculatedTotalFees: totalFees,
+        correctedAppliedFees: result.calculatedFees
+      };
+    } else {
+      // Mode média : logique normale
+      const totalFees = appliedFees
         .filter(af => af.isActive && typeof af.calculatedAmount === 'number')
-        .reduce((sum, af) => {
-          const amount = af.calculatedAmount || 0;
-          return sum + amount;
-        }, 0);
+        .reduce((sum, af) => sum + (af.calculatedAmount || 0), 0);
       
-      // Vérifier si le résultat est valide
-      return isNaN(total) ? 0 : total;
-    } catch (error) {
-      console.error('Erreur lors du calcul du total des frais:', error);
-      return 0;
+      return {
+        calculatedMediaBudget: budget,
+        calculatedTotalFees: isNaN(totalFees) ? 0 : totalFees,
+        correctedAppliedFees: appliedFees
+      };
     }
-  }, [appliedFees]);
+  }, [formData.TC_Budget, formData.TC_Budget_Mode, formData.TC_Unit_Volume, appliedFees, clientFees]);
 
-  // Budget média effectif (utilisé pour les calculs de frais ET les calculs d'unités)
-  const mediaBudget = useMemo(() => {
-    try {
-      const budget = formData.TC_Budget || 0;
-      const budgetMode = formData.TC_Budget_Mode || 'media';
-      
-      if (budgetMode === 'client') {
-        // En mode client, on déduit les frais pour obtenir le budget média
-        const result = Math.max(0, budget - totalFees);
-        return isNaN(result) ? 0 : result;
-      } else {
-        // En mode média, le budget saisi EST le budget média
-        return isNaN(budget) ? 0 : budget;
-      }
-    } catch (error) {
-      console.error('Erreur lors du calcul du budget média:', error);
-      return 0;
+  // Synchroniser les frais corrigés
+  useEffect(() => {
+    if (formData.TC_Budget_Mode === 'client') {
+      setAppliedFees(correctedAppliedFees);
     }
-  }, [formData.TC_Budget, formData.TC_Budget_Mode, totalFees]);
+  }, [correctedAppliedFees, formData.TC_Budget_Mode]);
 
   // Calcul du résumé budgétaire
   const budgetSummary = useMemo((): BudgetSummary => {
@@ -202,19 +373,19 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       let finalClientBudget: number;
       
       if (budgetMode === 'client') {
-        // Mode client: budget saisi = budget client, on déduit les frais pour le média
+        // Mode client: utiliser les valeurs calculées
         finalClientBudget = budget;
-        finalMediaBudget = Math.max(0, budget - totalFees);
+        finalMediaBudget = calculatedMediaBudget;
       } else {
         // Mode média: budget saisi = budget média, on ajoute les frais pour le client
         finalMediaBudget = budget;
-        finalClientBudget = budget + totalFees;
+        finalClientBudget = budget + calculatedTotalFees;
       }
       
       // Validation des valeurs
       finalMediaBudget = isNaN(finalMediaBudget) ? 0 : finalMediaBudget;
       finalClientBudget = isNaN(finalClientBudget) ? 0 : finalClientBudget;
-      const finalTotalFees = isNaN(totalFees) ? 0 : totalFees;
+      const finalTotalFees = isNaN(calculatedTotalFees) ? 0 : calculatedTotalFees;
       const finalBonusValue = isNaN(bonusValue) ? 0 : bonusValue;
       
       // Calcul de la conversion de devise si nécessaire
@@ -252,27 +423,16 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       };
     }
   }, [
-    appliedFees, 
+    calculatedMediaBudget,
+    calculatedTotalFees,
     formData.TC_Budget,
     formData.TC_Budget_Mode,
     formData.TC_Has_Bonus, 
     formData.TC_Bonus_Value, 
     formData.TC_Currency, 
-    totalFees,
     campaignCurrency, 
     exchangeRates
   ]);
-
-  // Debug: Log pour vérifier les calculs
-  useEffect(() => {
-    console.log('Debug TactiqueFormBudget:');
-    console.log('- formData.TC_Budget:', formData.TC_Budget);
-    console.log('- formData.TC_Budget_Mode:', formData.TC_Budget_Mode);
-    console.log('- appliedFees:', appliedFees);
-    console.log('- totalFees calculé:', totalFees);
-    console.log('- mediaBudget calculé:', mediaBudget);
-    console.log('- budgetSummary:', budgetSummary);
-  }, [formData.TC_Budget, formData.TC_Budget_Mode, appliedFees, totalFees, mediaBudget, budgetSummary]);
 
   return (
     <div className="p-8 space-y-8">
@@ -307,7 +467,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       >
         <BudgetMainSection
           formData={formData}
-          totalFees={totalFees}
+          totalFees={calculatedTotalFees}
           onChange={onChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleCalculatedChange}
@@ -325,7 +485,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onChange={onChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleCalculatedChange}
-          mediaBudget={mediaBudget}
+          mediaBudget={calculatedMediaBudget}
           disabled={isDisabled}
         />
       </FormSection>
@@ -339,7 +499,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           clientFees={clientFees}
           appliedFees={appliedFees}
           setAppliedFees={setAppliedFees}
-          mediaBudget={mediaBudget}
+          mediaBudget={calculatedMediaBudget}
           unitVolume={formData.TC_Unit_Volume || 0}
           onTooltipChange={onTooltipChange}
           disabled={isDisabled}
@@ -371,14 +531,14 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       {/* Debug info en développement */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info</h5>
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Mode Client Fix)</h5>
           <div className="text-xs text-gray-600 space-y-1">
             <div>Budget saisi: {formData.TC_Budget || 0}</div>
             <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
+            <div>Budget média calculé: {calculatedMediaBudget}</div>
+            <div>Total frais calculé: {calculatedTotalFees}</div>
+            <div>Budget client final: {budgetSummary.clientBudget}</div>
             <div>Frais actifs: {appliedFees.filter(af => af.isActive).length}</div>
-            <div>Total frais calculé: {totalFees}</div>
-            <div>Budget média effectif: {mediaBudget}</div>
-            <div>Budget client calculé: {budgetSummary.clientBudget}</div>
           </div>
         </div>
       )}
