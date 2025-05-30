@@ -1,3 +1,5 @@
+// app/components/Tactiques/TactiqueDrawer.tsx
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -6,12 +8,14 @@ import FormTabs, { FormTab } from './FormTabs';
 import TactiqueFormInfo from './TactiqueFormInfo';
 import TactiqueFormStrategie from './TactiqueFormStrategie';
 import TactiqueFormKPI from './TactiqueFormKPI';
+import TactiqueFormBudget from './TactiqueFormBudget';
 import TactiqueFormAdmin from './TactiqueFormAdmin';
 import { TooltipBanner } from './TactiqueFormComponents';
 import { 
   DocumentTextIcon, 
   LightBulbIcon, 
   ChartBarIcon, 
+  CurrencyDollarIcon,
   CogIcon
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../types/tactiques';
@@ -23,6 +27,9 @@ import {
   getCampaignBuckets,
   hasDynamicList,
   getCampaignAdminValues,
+  getClientFees,
+  getCampaignCurrency,
+  getExchangeRates,
   ListItem,
   ClientCustomDimensions,
   CampaignBucket,
@@ -58,6 +65,7 @@ interface VisibleFields {
   TC_Language?: boolean;
   TC_Media_Objective?: boolean;
   TC_Kpi?: boolean;
+  TC_Unit_Type?: boolean;
   [key: string]: boolean | undefined;
 }
 
@@ -110,6 +118,11 @@ export default function TactiqueDrawer({
   const [isDirty, setIsDirty] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   
+  // États locaux pour le budget
+  const [clientFees, setClientFees] = useState<any[]>([]);
+  const [campaignCurrency, setCampaignCurrency] = useState('CAD');
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
+  
   // ==================== DONNÉES MEMOIZED ====================
   
   // Onglets de navigation
@@ -117,6 +130,7 @@ export default function TactiqueDrawer({
     { id: 'info', name: 'Info', icon: DocumentTextIcon },
     { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
     { id: 'kpi', name: 'KPI', icon: ChartBarIcon },
+    { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
     { id: 'admin', name: 'Admin', icon: CogIcon },
   ], []);
 
@@ -124,7 +138,7 @@ export default function TactiqueDrawer({
   const dynamicListFields = useMemo(() => [
     'TC_LoB', 'TC_Media_Type', 'TC_Buying_Method', 'TC_Custom_Dim_1',
     'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Market', 'TC_Language',
-    'TC_Media_Objective', 'TC_Kpi'
+    'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);
 
   // Options pour les partenaires
@@ -146,7 +160,7 @@ export default function TactiqueDrawer({
         TC_StartDate: tactique.TC_StartDate || '',
         TC_EndDate: tactique.TC_EndDate || '',
         TC_Bucket: tactique.TC_Bucket || '',
-        // ... tous les autres champs
+        // ... tous les autres champs existants
         TC_LoB: tactique.TC_LoB || '',
         TC_Media_Type: tactique.TC_Media_Type || '',
         TC_Publisher: tactique.TC_Publisher || '',
@@ -168,6 +182,16 @@ export default function TactiqueDrawer({
         TC_Media_Objective: tactique.TC_Media_Objective || '',
         TC_Billing_ID: tactique.TC_Billing_ID || '',
         TC_PO: tactique.TC_PO || '',
+        
+        // Nouveaux champs Budget avec valeurs par défaut
+        TC_Currency: tactique.TC_Currency || 'CAD',
+        TC_Unit_Type: tactique.TC_Unit_Type || '',
+        TC_Budget_Mode: tactique.TC_Budget_Mode || 'media',
+        TC_Cost_Per_Unit: tactique.TC_Cost_Per_Unit || 0,
+        TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
+        TC_Has_Bonus: tactique.TC_Has_Bonus || false,
+        TC_Real_Value: tactique.TC_Real_Value || 0,
+        TC_Bonus_Value: tactique.TC_Bonus_Value || 0,
       });
 
       // Charger les KPIs existants
@@ -200,6 +224,14 @@ export default function TactiqueDrawer({
         TC_Order: 0,
         TC_SectionId: sectionId,
         TC_Status: 'Planned',
+        // Valeurs par défaut pour les nouveaux champs Budget
+        TC_Currency: 'CAD',
+        TC_Budget_Mode: 'media',
+        TC_Cost_Per_Unit: 0,
+        TC_Unit_Volume: 0,
+        TC_Has_Bonus: false,
+        TC_Real_Value: 0,
+        TC_Bonus_Value: 0,
       });
       setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
       setUseInheritedBilling(true);
@@ -270,6 +302,25 @@ export default function TactiqueDrawer({
       
       setBuckets(campaignBuckets);
       setCampaignAdminValues(adminValues);
+      
+      // Charger les données pour l'onglet Budget
+      try {
+        const [fees, currency, rates] = await Promise.all([
+          getClientFees(selectedClient.clientId),
+          getCampaignCurrency(selectedClient.clientId, selectedCampaign.id),
+          getExchangeRates(selectedClient.clientId)
+        ]);
+        
+        setClientFees(fees);
+        setCampaignCurrency(currency);
+        setExchangeRates(rates);
+      } catch (budgetError) {
+        console.warn('Erreur lors du chargement des données budget:', budgetError);
+        // Continuer avec des valeurs par défaut
+        setClientFees([]);
+        setCampaignCurrency('CAD');
+        setExchangeRates({});
+      }
       
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
@@ -413,6 +464,20 @@ export default function TactiqueDrawer({
             onAddKpi={addKpi}
             onRemoveKpi={removeKpi}
             dynamicLists={dynamicLists}
+            loading={loading}
+          />
+        );
+        
+      case 'budget':
+        return (
+          <TactiqueFormBudget
+            formData={formData}
+            dynamicLists={dynamicLists}
+            clientFees={clientFees}
+            campaignCurrency={campaignCurrency}
+            exchangeRates={exchangeRates}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
             loading={loading}
           />
         );

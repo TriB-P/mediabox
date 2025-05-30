@@ -72,6 +72,16 @@ export interface Tactique {
   TC_Format?: string; // Format utilisé
   TC_StartDate?: string; // Date de début
   TC_EndDate?: string; // Date de fin
+
+  // Nouveaux champs Budget
+TC_Currency?: string;           // Devise d'achat (CAD, USD, EUR...)
+TC_Unit_Type?: string;          // Type d'unité (CPM, CPC, etc.)
+TC_Budget_Mode?: 'client' | 'media';  // Mode de saisie
+TC_Cost_Per_Unit?: number;      // Coût par unité
+TC_Unit_Volume?: number;        // Volume d'unité
+TC_Has_Bonus?: boolean;         // Inclut bonification
+TC_Real_Value?: number;         // Valeur réelle payée
+TC_Bonus_Value?: number;        // Bonification calculée
 }
 
 export interface Placement {
