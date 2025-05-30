@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Fee, FeeFormData, CalculationType } from '../../types/fee';
+import { Fee, FeeFormData, CalculationType, CalculationMode } from '../../types/fee';
 
 interface FeeFormProps {
   fee?: Fee;
@@ -13,6 +13,7 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<FeeFormData>({
     FE_Name: '',
     FE_Calculation_Type: "Frais fixe",
+    FE_Calculation_Mode: "Directement sur le budget média",
   });
 
   // Mettre à jour le formulaire avec les données du frais si elles existent
@@ -21,6 +22,7 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
       setFormData({
         FE_Name: fee.FE_Name,
         FE_Calculation_Type: fee.FE_Calculation_Type,
+        FE_Calculation_Mode: fee.FE_Calculation_Mode || "Directement sur le budget média",
       });
     }
   }, [fee]);
@@ -43,6 +45,11 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
     "Frais fixe",
     "Pourcentage budget",
     "Unités"
+  ];
+
+  const calculationModes: CalculationMode[] = [
+    "Directement sur le budget média",
+    "Applicable sur les frais précédents"
   ];
 
   return (
@@ -77,6 +84,25 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
           {calculationTypes.map((type) => (
             <option key={type} value={type}>
               {type}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="FE_Calculation_Mode" className="block text-sm font-medium text-gray-700">
+          Mode de calcul
+        </label>
+        <select
+          id="FE_Calculation_Mode"
+          name="FE_Calculation_Mode"
+          value={formData.FE_Calculation_Mode}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        >
+          {calculationModes.map((mode) => (
+            <option key={mode} value={mode}>
+              {mode}
             </option>
           ))}
         </select>

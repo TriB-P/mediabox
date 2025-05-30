@@ -3,7 +3,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-// Importons correctement les icônes
 import { 
   getClientFees, 
   getFeeOptions, 
@@ -12,15 +11,25 @@ import {
   deleteFee,
   addFeeOption,
   updateFeeOption,
-  deleteFeeOption
+  deleteFeeOption,
+  moveFeeUp,
+  moveFeeDown
 } from '../../lib/feeService';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { Fee, FeeOption, FeeFormData, FeeOptionFormData } from '../../types/fee';
 import FeeForm from './FeeForm';
 import FeeOptionForm from './FeeOptionForm';
-import { PlusIcon, ChevronDownIcon, ChevronRightIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
-
+import { 
+  PlusIcon, 
+  ChevronDownIcon, 
+  ChevronRightIcon, 
+  TrashIcon, 
+  PencilIcon,
+  ChevronUpIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
+} from '@heroicons/react/24/outline';
 
 export default function ClientFees() {
   const { selectedClient } = useClient();
@@ -89,6 +98,35 @@ export default function ClientFees() {
     }));
   };
 
+  // Gestion du déplacement des frais
+  const handleMoveFeeUp = async (feeId: string) => {
+    if (!selectedClient || !hasFeesPermission) return;
+    
+    try {
+      await moveFeeUp(selectedClient.clientId, feeId);
+      setSuccess('Frais déplacé vers le haut.');
+      setTimeout(() => setSuccess(null), 2000);
+      loadFees();
+    } catch (err) {
+      console.error('Erreur lors du déplacement du frais:', err);
+      setError('Impossible de déplacer le frais.');
+    }
+  };
+
+  const handleMoveFeeDown = async (feeId: string) => {
+    if (!selectedClient || !hasFeesPermission) return;
+    
+    try {
+      await moveFeeDown(selectedClient.clientId, feeId);
+      setSuccess('Frais déplacé vers le bas.');
+      setTimeout(() => setSuccess(null), 2000);
+      loadFees();
+    } catch (err) {
+      console.error('Erreur lors du déplacement du frais:', err);
+      setError('Impossible de déplacer le frais.');
+    }
+  };
+
   // Gestion des frais
   const handleAddFee = async (formData: FeeFormData) => {
     if (!selectedClient || !hasFeesPermission) return;
@@ -97,6 +135,8 @@ export default function ClientFees() {
       await addFee(selectedClient.clientId, formData);
       setShowFeeForm(false);
       loadFees();
+      setSuccess('Frais ajouté avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de l\'ajout du frais:', err);
       setError('Impossible d\'ajouter le frais.');
@@ -111,6 +151,8 @@ export default function ClientFees() {
       setShowFeeForm(false);
       setCurrentFee(null);
       loadFees();
+      setSuccess('Frais mis à jour avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour du frais:', err);
       setError('Impossible de mettre à jour le frais.');
@@ -124,6 +166,8 @@ export default function ClientFees() {
       try {
         await deleteFee(selectedClient.clientId, feeId);
         loadFees();
+        setSuccess('Frais supprimé avec succès.');
+        setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('Erreur lors de la suppression du frais:', err);
         setError('Impossible de supprimer le frais.');
@@ -131,7 +175,7 @@ export default function ClientFees() {
     }
   };
 
-  // Gestion des options
+  // Gestion des options (code existant abrégé pour rester dans les 400 lignes)
   const handleAddOption = async (formData: FeeOptionFormData) => {
     if (!selectedClient || !currentOption.feeId || !hasFeesPermission) return;
     
@@ -140,12 +184,13 @@ export default function ClientFees() {
       setShowOptionForm(false);
       setCurrentOption({feeId: '', option: null});
       
-      // Recharger uniquement les options du frais concerné
       const updatedOptions = await getFeeOptions(selectedClient.clientId, currentOption.feeId);
       setFeeOptions(prev => ({
         ...prev,
         [currentOption.feeId]: updatedOptions
       }));
+      setSuccess('Option ajoutée avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de l\'ajout de l\'option:', err);
       setError('Impossible d\'ajouter l\'option.');
@@ -165,12 +210,13 @@ export default function ClientFees() {
       setShowOptionForm(false);
       setCurrentOption({feeId: '', option: null});
       
-      // Recharger uniquement les options du frais concerné
       const updatedOptions = await getFeeOptions(selectedClient.clientId, currentOption.feeId);
       setFeeOptions(prev => ({
         ...prev,
         [currentOption.feeId]: updatedOptions
       }));
+      setSuccess('Option mise à jour avec succès.');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour de l\'option:', err);
       setError('Impossible de mettre à jour l\'option.');
@@ -184,12 +230,13 @@ export default function ClientFees() {
       try {
         await deleteFeeOption(selectedClient.clientId, feeId, optionId);
         
-        // Recharger uniquement les options du frais concerné
         const updatedOptions = await getFeeOptions(selectedClient.clientId, feeId);
         setFeeOptions(prev => ({
           ...prev,
           [feeId]: updatedOptions
         }));
+        setSuccess('Option supprimée avec succès.');
+        setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('Erreur lors de la suppression de l\'option:', err);
         setError('Impossible de supprimer l\'option.');
@@ -256,25 +303,67 @@ export default function ClientFees() {
           </div>
         ) : (
           <div className="space-y-4">
-            {fees.map((fee) => (
+            {fees.map((fee, index) => (
               <div key={fee.id} className="border border-gray-200 rounded-lg overflow-hidden">
                 {/* En-tête du frais */}
                 <div 
                   className="bg-gray-50 p-4 flex justify-between items-center cursor-pointer"
                   onClick={() => toggleFeeExpand(fee.id)}
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-center flex-1">
                     {expandedFees[fee.id] ? (
                       <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
                     ) : (
                       <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
                     )}
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{fee.FE_Name}</h3>
-                      <p className="text-sm text-gray-500">{fee.FE_Calculation_Type}</p>
+                      <div className="flex space-x-4 text-sm text-gray-500">
+                        <span>{fee.FE_Calculation_Type}</span>
+                        <span>•</span>
+                        <span>{fee.FE_Calculation_Mode}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex items-center space-x-2">
+                    {/* Flèches de déplacement */}
+                    <div className="flex flex-col space-y-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (hasFeesPermission && index > 0) {
+                            handleMoveFeeUp(fee.id);
+                          }
+                        }}
+                        className={`p-1 ${
+                          hasFeesPermission && index > 0
+                            ? 'text-gray-500 hover:text-indigo-600' 
+                            : 'text-gray-300 cursor-not-allowed'
+                        }`}
+                        disabled={!hasFeesPermission || index === 0}
+                        title="Déplacer vers le haut"
+                      >
+                        <ArrowUpIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (hasFeesPermission && index < fees.length - 1) {
+                            handleMoveFeeDown(fee.id);
+                          }
+                        }}
+                        className={`p-1 ${
+                          hasFeesPermission && index < fees.length - 1
+                            ? 'text-gray-500 hover:text-indigo-600' 
+                            : 'text-gray-300 cursor-not-allowed'
+                        }`}
+                        disabled={!hasFeesPermission || index === fees.length - 1}
+                        title="Déplacer vers le bas"
+                      >
+                        <ArrowDownIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {/* Actions modifier/supprimer */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -390,7 +479,6 @@ export default function ClientFees() {
                                           : 'text-gray-300 cursor-not-allowed'
                                       }`}
                                       disabled={!hasFeesPermission}
-                                      title={!hasFeesPermission ? "Vous n'avez pas la permission de modifier les options" : ""}
                                     >
                                       <PencilIcon className="h-4 w-4" />
                                     </button>
@@ -406,7 +494,6 @@ export default function ClientFees() {
                                           : 'text-gray-300 cursor-not-allowed'
                                       }`}
                                       disabled={!hasFeesPermission}
-                                      title={!hasFeesPermission ? "Vous n'avez pas la permission de supprimer les options" : ""}
                                     >
                                       <TrashIcon className="h-4 w-4" />
                                     </button>
