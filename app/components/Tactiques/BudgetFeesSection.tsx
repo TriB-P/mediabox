@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
 // ==================== TYPES ====================
@@ -118,7 +118,7 @@ const FeeItem = memo<{
   // Calcul du montant avec buffer si applicable
   const finalValue = useMemo(() => {
     if (!selectedOption) return 0;
-    const baseValue = appliedFee.customValue ?? selectedOption.FO_Value;
+    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
     const bufferMultiplier = (100 + selectedOption.FO_Buffer) / 100;
     return baseValue * bufferMultiplier;
   }, [selectedOption, appliedFee.customValue]);
@@ -208,7 +208,7 @@ const FeeItem = memo<{
                   <div className="relative">
                     <input
                       type="number"
-                      value={appliedFee.customValue ?? selectedOption.FO_Value}
+                      value={appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value}
                       onChange={handleCustomValueChange}
                       min="0"
                       step={fee.FE_Calculation_Type === 'Pourcentage budget' ? '0.01' : '0.01'}
@@ -342,8 +342,8 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
     if (!selectedOption) return 0;
     
-    // Valeur avec buffer
-    const baseValue = appliedFee.customValue ?? selectedOption.FO_Value;
+    // Valeur avec buffer - utiliser customValue si définie, sinon FO_Value
+    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
     const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
     
     switch (fee.FE_Calculation_Type) {
@@ -358,7 +358,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         return finalValue * unitVolume;
         
       case 'Unités':
-        const units = appliedFee.customUnits ?? 1;
+        const units = appliedFee.customUnits || 1;
         return finalValue * units;
         
       case 'Frais fixe':
@@ -392,7 +392,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         };
       });
     });
-  }, [clientFees, mediaBudget, unitVolume, calculateFeeAmount, setAppliedFees]);
+  }, [clientFees, mediaBudget, unitVolume, setAppliedFees, appliedFees.map(af => `${af.feeId}-${af.isActive}-${af.selectedOptionId}-${af.customValue}-${af.customUnits}`).join('|')]);
 
   // Gestionnaires d'événements
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
@@ -403,7 +403,8 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
             isActive,
             selectedOptionId: isActive ? appliedFee.selectedOptionId : undefined,
             customValue: isActive ? appliedFee.customValue : undefined,
-            customUnits: isActive ? appliedFee.customUnits : undefined
+            customUnits: isActive ? appliedFee.customUnits : undefined,
+            calculatedAmount: isActive ? appliedFee.calculatedAmount : 0
           }
         : appliedFee
     ));

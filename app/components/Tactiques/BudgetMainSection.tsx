@@ -26,14 +26,6 @@ interface BudgetMainSectionProps {
   disabled?: boolean;
 }
 
-// ==================== CONSTANTES ====================
-
-const CALCULATION_MODES = {
-  BUDGET_DRIVEN: 'budget', // Budget → Coût (si volume défini)
-  COST_DRIVEN: 'cost',     // Coût → Budget (si volume défini)
-  VOLUME_DRIVEN: 'volume'  // Volume → Budget (si coût défini)
-} as const;
-
 // ==================== COMPOSANT PRINCIPAL ====================
 
 const BudgetMainSection = memo<BudgetMainSectionProps>(({
@@ -75,36 +67,41 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     setLastEditedField('budget');
     onChange(e); // Mettre à jour le budget principal
     
-    // Recalculer le coût par unité si le volume est défini et > 0
-    if (unitVolume > 0) {
+    // Si le coût par unité est défini, recalculer le volume
+    if (costPerUnit > 0) {
+      const newVolume = Math.round(newBudget / costPerUnit);
+      onCalculatedChange('TC_Unit_Volume', newVolume);
+    }
+    // Si le volume est défini, recalculer le coût par unité
+    else if (unitVolume > 0) {
       const newCostPerUnit = newBudget / unitVolume;
       onCalculatedChange('TC_Cost_Per_Unit', newCostPerUnit);
     }
-  }, [unitVolume, onChange, onCalculatedChange]);
+  }, [costPerUnit, unitVolume, onChange, onCalculatedChange]);
 
   const handleCostChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newCost = parseFloat(e.target.value) || 0;
     setLastEditedField('cost');
     onCalculatedChange('TC_Cost_Per_Unit', newCost);
     
-    // Recalculer le budget si le volume est défini et > 0
-    if (unitVolume > 0) {
-      const newBudget = newCost * unitVolume;
-      onCalculatedChange('TC_Budget', newBudget);
+    // Recalculer le volume si le budget est défini et > 0
+    if (budget > 0) {
+      const newVolume = Math.round(budget / newCost);
+      onCalculatedChange('TC_Unit_Volume', newVolume);
     }
-  }, [unitVolume, onCalculatedChange]);
+  }, [budget, onCalculatedChange]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value) || 0;
     setLastEditedField('volume');
     onCalculatedChange('TC_Unit_Volume', newVolume);
     
-    // Recalculer le budget si le coût est défini et > 0
-    if (costPerUnit > 0) {
-      const newBudget = costPerUnit * newVolume;
-      onCalculatedChange('TC_Budget', newBudget);
+    // Recalculer le coût si le budget est défini et > 0
+    if (budget > 0) {
+      const newCostPerUnit = budget / newVolume;
+      onCalculatedChange('TC_Cost_Per_Unit', newCostPerUnit);
     }
-  }, [costPerUnit, onCalculatedChange]);
+  }, [budget, onCalculatedChange]);
 
   // Déterminer quels calculs sont possibles
   const calculationStatus = useMemo(() => {
@@ -114,7 +111,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     
     return {
       canCalculateCost: hasValidBudget && hasValidVolume,
-      canCalculateBudget: hasValidCost && hasValidVolume,
       canCalculateVolume: hasValidBudget && hasValidCost,
       hasPartialData: hasValidBudget || hasValidCost || hasValidVolume,
       hasCompleteData: hasValidBudget && hasValidCost && hasValidVolume
@@ -245,35 +241,30 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </div>
           
           {/* État des calculs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className={`p-2 rounded ${calculationStatus.canCalculateCost ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <div className="font-medium">Calcul du coût</div>
-              <div>{calculationStatus.canCalculateCost ? '✅ Possible' : '⏳ Manque budget ou volume'}</div>
-            </div>
-            
-            <div className={`p-2 rounded ${calculationStatus.canCalculateBudget ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-              <div className="font-medium">Calcul du budget</div>
-              <div>{calculationStatus.canCalculateBudget ? '✅ Possible' : '⏳ Manque coût ou volume'}</div>
+              <div className="font-medium">Calcul du coût par unité</div>
+              <div>{calculationStatus.canCalculateCost ? '✅ Budget ÷ Volume' : '⏳ Manque budget ou volume'}</div>
             </div>
             
             <div className={`p-2 rounded ${calculationStatus.canCalculateVolume ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
               <div className="font-medium">Calcul du volume</div>
-              <div>{calculationStatus.canCalculateVolume ? '✅ Possible' : '⏳ Manque budget ou coût'}</div>
+              <div>{calculationStatus.canCalculateVolume ? '✅ Budget ÷ Coût' : '⏳ Manque budget ou coût'}</div>
             </div>
           </div>
 
           {/* Instructions selon l'état */}
           <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded">
             {!calculationStatus.hasPartialData && (
-              <span>💡 Commencez par saisir n'importe quelle valeur. Les autres se calculeront automatiquement.</span>
+              <span>💡 Commencez par saisir le budget média, puis soit le coût par unité soit le volume d'unité.</span>
             )}
             
             {calculationStatus.hasPartialData && !calculationStatus.hasCompleteData && (
-              <span>🔄 Saisissez une deuxième valeur pour déclencher les calculs automatiques.</span>
+              <span>🔄 Saisissez {budget > 0 ? 'soit le coût par unité soit le volume' : 'le budget média'} pour déclencher les calculs automatiques.</span>
             )}
             
             {calculationStatus.hasCompleteData && (
-              <span>✨ Toutes les valeurs sont cohérentes. Modifiez n'importe laquelle pour recalculer les autres.</span>
+              <span>✨ Budget, coût et volume sont cohérents. Modifiez n'importe laquelle de ces valeurs pour recalculer automatiquement les autres.</span>
             )}
           </div>
 
@@ -290,23 +281,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* Résumé si toutes les valeurs sont définies */}
-      {calculationStatus.hasCompleteData && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-green-800 mb-2">
-            📊 Résumé des calculs
-          </h5>
-          <div className="text-sm text-green-700 space-y-1">
-            <div><strong>{budgetConfig.label} :</strong> {formatCurrency(budget)} {currency}</div>
-            <div><strong>Coût par unité :</strong> {formatCostPerUnit(costPerUnit)} {currency}</div>
-            <div><strong>Volume d'unité :</strong> {formatVolume(unitVolume)} unités</div>
-            <div className="pt-2 border-t border-green-200">
-              <strong>Vérification :</strong> {formatCostPerUnit(costPerUnit)} × {formatVolume(unitVolume)} = {formatCurrency(costPerUnit * unitVolume)} {currency}
-              {Math.abs((costPerUnit * unitVolume) - budget) < 0.01 ? ' ✅' : ' ⚠️ Écart détecté'}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Message si champs désactivés */}
       {disabled && (

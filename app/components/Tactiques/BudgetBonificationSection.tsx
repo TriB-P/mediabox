@@ -48,7 +48,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
   // Calcul automatique de la bonification
   const calculatedBonusValue = useMemo(() => {
     if (!hasBonus || realValue <= 0 || mediaBudget <= 0) return 0;
-    return Math.max(0, mediaBudget - realValue);
+    return Math.max(0, realValue - mediaBudget);
   }, [hasBonus, realValue, mediaBudget]);
 
   // Validation de la valeur réelle
@@ -62,10 +62,10 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       };
     }
     
-    if (realValue > mediaBudget) {
+    if (realValue < mediaBudget) {
       return { 
         isValid: false, 
-        message: 'La valeur réelle ne peut pas dépasser le budget média' 
+        message: 'La valeur réelle doit être supérieure ou égale au budget média pour avoir une bonification' 
       };
     }
     
@@ -94,12 +94,8 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       // Reset des valeurs si bonification désactivée
       onCalculatedChange('TC_Real_Value', 0);
       onCalculatedChange('TC_Bonus_Value', 0);
-    } else {
-      // Initialiser avec une valeur réelle par défaut (80% du budget média)
-      const defaultRealValue = mediaBudget * 0.8;
-      onCalculatedChange('TC_Real_Value', defaultRealValue);
     }
-  }, [onChange, onCalculatedChange, mediaBudget]);
+  }, [onChange, onCalculatedChange]);
 
   // Gestionnaire pour la valeur réelle
   const handleRealValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,19 +124,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       maximumFractionDigits: 1
     }).format(value);
   }, []);
-
-  // Suggestions de valeurs réelles
-  const suggestionValues = useMemo(() => {
-    if (mediaBudget <= 0) return [];
-    
-    return [
-      { label: '70%', value: mediaBudget * 0.7, bonus: mediaBudget * 0.3 },
-      { label: '75%', value: mediaBudget * 0.75, bonus: mediaBudget * 0.25 },
-      { label: '80%', value: mediaBudget * 0.8, bonus: mediaBudget * 0.2 },
-      { label: '85%', value: mediaBudget * 0.85, bonus: mediaBudget * 0.15 },
-      { label: '90%', value: mediaBudget * 0.9, bonus: mediaBudget * 0.1 },
-    ];
-  }, [mediaBudget]);
 
   return (
     <div className="space-y-6">
@@ -188,7 +171,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
                 'Valeur réelle de la tactique', 
-                'Montant effectivement payé au partenaire média (sans la bonification). Doit être inférieur ou égal au budget média.', 
+                'Valeur totale négociée avec le partenaire média (incluant la bonification). Doit être supérieure au budget média pour générer une économie.', 
                 onTooltipChange
               )}
             </div>
@@ -201,7 +184,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
                 value={realValue || ''}
                 onChange={handleRealValueChange}
                 min="0"
-                max={mediaBudget}
                 step="0.01"
                 disabled={disabled}
                 className={`block w-full pl-12 pr-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100 ${
@@ -221,39 +203,12 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             {/* Informations contextuelles */}
             {realValue > 0 && validationStatus.isValid && (
               <div className="mt-2 text-sm text-gray-600">
-                Représente {formatPercentage((realValue / mediaBudget) * 100)}% du budget média
+                {realValue >= mediaBudget 
+                  ? `Économie de ${formatPercentage(((realValue - mediaBudget) / realValue) * 100)}% sur la valeur négociée`
+                  : `Valeur insuffisante pour bonification`
+                }
               </div>
             )}
-          </div>
-
-          {/* Suggestions de valeurs rapides */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Suggestions de valeurs courantes
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {suggestionValues.map(suggestion => (
-                <button
-                  key={suggestion.label}
-                  type="button"
-                  onClick={() => !disabled && onCalculatedChange('TC_Real_Value', suggestion.value)}
-                  disabled={disabled}
-                  className={`p-3 text-sm border rounded-lg text-center transition-colors disabled:opacity-50 ${
-                    Math.abs(realValue - suggestion.value) < 0.01
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                      : 'border-gray-300 hover:border-indigo-300 hover:bg-indigo-50'
-                  }`}
-                >
-                  <div className="font-medium">{suggestion.label}</div>
-                  <div className="text-xs text-gray-500">
-                    {formatCurrency(suggestion.value)} {currency}
-                  </div>
-                  <div className="text-xs text-green-600">
-                    +{formatCurrency(suggestion.bonus)}
-                  </div>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Bonification calculée */}
@@ -261,7 +216,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
                 'Bonification', 
-                'Valeur de la bonification calculée automatiquement (Budget média - Valeur réelle). Cette valeur représente l\'avantage négocié.', 
+                'Économie réalisée calculée automatiquement (Valeur réelle - Budget média). Cette valeur représente l\'avantage négocié en dollars économisés.', 
                 onTooltipChange
               )}
             </div>
@@ -286,43 +241,12 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
             {calculatedBonusValue > 0 && (
               <div className="mt-1 text-sm text-green-600">
-                Économie de {formatPercentage(bonusPercentage)}% sur le budget total
+                Économie de {formatCurrency(calculatedBonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget)
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      
-
-      {/* Résumé si bonification active */}
-      {hasBonus && calculatedBonusValue > 0 && validationStatus.isValid && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-indigo-800 mb-3">
-            📊 Résumé de la bonification
-          </h5>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="text-center p-3 bg-white rounded border">
-              <div className="text-lg font-semibold text-gray-900">
-                {formatCurrency(mediaBudget)} {currency}
-              </div>
-              <div className="text-xs text-gray-600">Budget média</div>
-            </div>
-            <div className="text-center p-3 bg-white rounded border">
-              <div className="text-lg font-semibold text-orange-600">
-                {formatCurrency(realValue)} {currency}
-              </div>
-              <div className="text-xs text-gray-600">Valeur réelle payée</div>
-            </div>
-            <div className="text-center p-3 bg-white rounded border">
-              <div className="text-lg font-semibold text-green-600">
-                +{formatCurrency(calculatedBonusValue)} {currency}
-              </div>
-              <div className="text-xs text-gray-600">
-                Bonification ({formatPercentage(bonusPercentage)}%)
-              </div>
-            </div>
-          </div>
+          
         </div>
       )}
 

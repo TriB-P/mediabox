@@ -108,14 +108,27 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
-  // Initialiser les frais appliqués
+  // Initialiser les frais appliqués quand les frais client changent
   useEffect(() => {
-    const initialFees: AppliedFee[] = clientFees.map(fee => ({
-      feeId: fee.id,
-      isActive: false,
-      calculatedAmount: 0
-    }));
-    setAppliedFees(initialFees);
+    if (clientFees.length > 0) {
+      setAppliedFees(prevAppliedFees => {
+        // Garder les frais existants qui correspondent toujours aux frais client
+        const existingFees = prevAppliedFees.filter(af => 
+          clientFees.some(cf => cf.id === af.feeId)
+        );
+        
+        // Ajouter les nouveaux frais qui n'existent pas encore
+        const newFees: AppliedFee[] = clientFees
+          .filter(cf => !existingFees.some(ef => ef.feeId === cf.id))
+          .map(fee => ({
+            feeId: fee.id,
+            isActive: false,
+            calculatedAmount: 0
+          }));
+        
+        return [...existingFees, ...newFees];
+      });
+    }
   }, [clientFees]);
 
   // Fonction pour gérer les changements calculés
@@ -143,9 +156,10 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 
   // Calcul du résumé budgétaire
   const budgetSummary = useMemo((): BudgetSummary => {
+    // Calculer le total des frais depuis appliedFees
     const totalFees = appliedFees
       .filter(af => af.isActive)
-      .reduce((sum, af) => sum + af.calculatedAmount, 0);
+      .reduce((sum, af) => sum + (af.calculatedAmount || 0), 0);
     
     const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
     const clientBudget = mediaBudget + totalFees;
@@ -182,6 +196,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     exchangeRates
   ]);
 
+  // Debug: Log pour vérifier les calculs
+  useEffect(() => {
+    console.log('Debug appliedFees:', appliedFees);
+    console.log('Debug budgetSummary:', budgetSummary);
+  }, [appliedFees, budgetSummary]);
+
   return (
     <div className="p-8 space-y-8">
       {/* En-tête de section */}
@@ -195,7 +215,10 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       </div>
       
       {/* Paramètres généraux */}
-
+      <FormSection 
+        title="Paramètres généraux"
+        description="Configuration de base du budget"
+      >
         <BudgetGeneralParams
           formData={formData}
           onChange={onChange}
@@ -203,10 +226,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           unitTypeOptions={unitTypeOptions}
           disabled={isDisabled}
         />
-
+      </FormSection>
 
       {/* Section Budget */}
-
+      <FormSection 
+        title="Budget principal"
+        description="Calculs automatiques du budget, coût et volume"
+      >
         <BudgetMainSection
           formData={formData}
           onChange={onChange}
@@ -214,12 +240,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onCalculatedChange={handleCalculatedChange}
           disabled={isDisabled}
         />
-
+      </FormSection>
 
       {/* Section Bonification */}
       <FormSection 
         title="Bonification"
-        description="Gestion de la valeur ajoutée négociée"
+        description="Gestion de l'économie négociée"
       >
         <BudgetBonificationSection
           formData={formData}
@@ -257,6 +283,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           appliedFees={appliedFees}
           clientFees={clientFees}
           campaignCurrency={campaignCurrency}
+          exchangeRates={exchangeRates}
           onTooltipChange={onTooltipChange}
         />
       </FormSection>
@@ -265,6 +292,18 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données budgétaires...</p>
+        </div>
+      )}
+
+      {/* Debug info (à retirer en production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info</h5>
+          <div className="text-xs text-gray-600 space-y-1">
+            <div>Frais actifs: {appliedFees.filter(af => af.isActive).length}</div>
+            <div>Total frais calculé: {budgetSummary.totalFees}</div>
+            <div>Montants individuels: {appliedFees.filter(af => af.isActive).map(af => af.calculatedAmount).join(', ')}</div>
+          </div>
         </div>
       )}
     </div>

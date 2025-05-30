@@ -31,6 +31,7 @@ interface BudgetSummary {
     mediaBudget: number;
     totalFees: number;
     clientBudget: number;
+    bonusValue: number;
     currency: string;
     exchangeRate: number;
   };
@@ -42,6 +43,7 @@ interface BudgetSummarySectionProps {
   appliedFees: AppliedFee[];
   clientFees: Fee[];
   campaignCurrency: string;
+  exchangeRates: { [key: string]: number };
   
   // Gestionnaires d'événements
   onTooltipChange: (tooltip: string | null) => void;
@@ -153,7 +155,7 @@ const CurrencyConversion = memo<{
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
       <div className="flex items-center gap-3 mb-3">
         {createLabelWithHelp(
-          '🔄 Conversion de devise',
+          '🔄 Conversion automatique vers la devise de campagne',
           `Conversion automatique de ${originalCurrency} vers ${convertedValues.currency} en utilisant le taux de change configuré pour le client.`,
           onTooltipChange
         )}
@@ -174,6 +176,12 @@ const CurrencyConversion = memo<{
             <span>Total frais :</span>
             <span className="font-mono">{formatCurrency(convertedValues.totalFees, convertedValues.currency)}</span>
           </div>
+          {convertedValues.bonusValue > 0 && (
+            <div className="flex justify-between">
+              <span>Bonification :</span>
+              <span className="font-mono text-green-600">+{formatCurrency(convertedValues.bonusValue, convertedValues.currency)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold border-t border-blue-200 pt-1">
             <span>Budget client total :</span>
             <span className="font-mono">{formatCurrency(convertedValues.clientBudget, convertedValues.currency)}</span>
@@ -234,53 +242,6 @@ const BudgetMetrics = memo<{
 
   if (!metrics) return null;
 
-  return (
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
-      <div className="flex items-center gap-3 mb-3">
-        {createLabelWithHelp(
-          '📈 Indicateurs budgétaires',
-          'Métriques clés pour analyser l\'efficacité budgétaire et les économies réalisées.',
-          onTooltipChange
-        )}
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="text-center p-3 bg-white rounded border">
-          <div className="text-lg font-semibold text-orange-600">
-            {formatPercentage(metrics.feePercentage)}%
-          </div>
-          <div className="text-xs text-gray-600 mt-1">Frais / Budget média</div>
-        </div>
-        
-        {metrics.bonusPercentage > 0 && (
-          <div className="text-center p-3 bg-white rounded border">
-            <div className="text-lg font-semibold text-green-600">
-              +{formatPercentage(metrics.bonusPercentage)}%
-            </div>
-            <div className="text-xs text-gray-600 mt-1">Bonification obtenue</div>
-          </div>
-        )}
-        
-        {metrics.effectiveDiscount > 0 && (
-          <div className="text-center p-3 bg-white rounded border">
-            <div className="text-lg font-semibold text-blue-600">
-              -{formatPercentage(metrics.effectiveDiscount)}%
-            </div>
-            <div className="text-xs text-gray-600 mt-1">Réduction effective</div>
-          </div>
-        )}
-        
-        {metrics.netSpend !== budgetSummary.mediaBudget && (
-          <div className="text-center p-3 bg-white rounded border">
-            <div className="text-lg font-semibold text-purple-600">
-              {formatCurrency(metrics.netSpend, budgetSummary.currency)}
-            </div>
-            <div className="text-xs text-gray-600 mt-1">Dépense réelle</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 });
 
 BudgetMetrics.displayName = 'BudgetMetrics';
@@ -292,6 +253,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   appliedFees,
   clientFees,
   campaignCurrency,
+  exchangeRates,
   onTooltipChange
 }) => {
   
@@ -310,8 +272,50 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       .sort((a, b) => a.order - b.order);
   }, [appliedFees, clientFees]);
 
+  // Calcul de la conversion de devise
+  const convertedSummary = useMemo(() => {
+    const tacticCurrency = budgetSummary.currency;
+    const needsConversion = tacticCurrency !== campaignCurrency;
+    
+    if (!needsConversion) {
+      return budgetSummary;
+    }
+
+    // Chercher le taux de change
+    const exchangeRateKey = `${tacticCurrency}_${campaignCurrency}`;
+    const directRate = exchangeRates[exchangeRateKey];
+    const simpleRate = exchangeRates[tacticCurrency]; // Fallback pour la structure simple
+    
+    const exchangeRate = directRate || simpleRate;
+    
+    if (!exchangeRate || exchangeRate <= 0) {
+      console.warn(`Taux de change non trouvé pour ${tacticCurrency} vers ${campaignCurrency}`);
+      return budgetSummary;
+    }
+
+    // Appliquer la conversion
+    const convertedValues = {
+      mediaBudget: budgetSummary.mediaBudget * exchangeRate,
+      totalFees: budgetSummary.totalFees * exchangeRate,
+      clientBudget: budgetSummary.clientBudget * exchangeRate,
+      bonusValue: budgetSummary.bonusValue * exchangeRate,
+      currency: campaignCurrency,
+      exchangeRate
+    };
+
+    return {
+      ...budgetSummary,
+      convertedValues
+    };
+  }, [budgetSummary, campaignCurrency, exchangeRates]);
+
   // Déterminer si une conversion est nécessaire
   const needsConversion = budgetSummary.currency !== campaignCurrency;
+  const showConvertedValues = needsConversion && convertedSummary.convertedValues;
+
+  // Utiliser les valeurs converties pour l'affichage principal si disponibles
+  const displayValues = showConvertedValues ? convertedSummary.convertedValues! : budgetSummary;
+  const displayCurrency = showConvertedValues ? campaignCurrency : budgetSummary.currency;
 
   // Vérifier si le budget est défini
   const hasValidBudget = budgetSummary.mediaBudget > 0;
@@ -332,36 +336,46 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   return (
     <div className="space-y-6">
       {/* En-tête du récapitulatif */}
-       
-        {needsConversion && (
+      {needsConversion && (
+        <div className="flex items-center justify-between">
           <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
-            Conversion {budgetSummary.currency} → {campaignCurrency}
+            💱 Conversion automatique : {budgetSummary.currency} → {campaignCurrency}
           </div>
-        )}
+          {!convertedSummary.convertedValues && (
+            <div className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-full">
+              ⚠️ Taux de change manquant
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Récapitulatif principal - Format facture */}
       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
           <h3 className="font-semibold text-gray-900">Détail des coûts</h3>
-          <p className="text-sm text-gray-600">Devise de la tactique : {budgetSummary.currency}</p>
+          <p className="text-sm text-gray-600">
+            {showConvertedValues 
+              ? `Montants en ${displayCurrency} (devise de campagne)` 
+              : `Devise de la tactique : ${displayCurrency}`}
+          </p>
         </div>
         
         <div className="divide-y divide-gray-200">
           {/* Budget média */}
           <SummaryLine
             label="Budget média"
-            amount={budgetSummary.mediaBudget}
-            currency={budgetSummary.currency}
+            amount={displayValues.mediaBudget}
+            currency={displayCurrency}
             description="Montant net pour les plateformes publicitaires"
             icon="💻"
           />
           
           {/* Bonification si applicable */}
-          {budgetSummary.bonusValue > 0 && (
+          {displayValues.bonusValue > 0 && (
             <SummaryLine
               label="Bonification négociée"
-              amount={budgetSummary.bonusValue}
-              currency={budgetSummary.currency}
+              amount={displayValues.bonusValue}
+              currency={displayCurrency}
               description="Valeur ajoutée gratuite obtenue du partenaire"
               icon="🎁"
               isBonus
@@ -374,22 +388,29 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
-              {activeFees.map(appliedFee => (
-                <SummaryLine
-                  key={appliedFee.feeId}
-                  label={appliedFee.fee.FE_Name}
-                  amount={appliedFee.calculatedAmount}
-                  currency={budgetSummary.currency}
-                  description={`${appliedFee.fee.FE_Calculation_Type} • Ordre #${appliedFee.fee.FE_Order}`}
-                  icon={getFeeTypeIcon(appliedFee.fee.FE_Calculation_Type)}
-                />
-              ))}
+              {activeFees.map(appliedFee => {
+                // Convertir le montant du frais si nécessaire
+                const feeAmount = showConvertedValues 
+                  ? appliedFee.calculatedAmount * convertedSummary.convertedValues!.exchangeRate
+                  : appliedFee.calculatedAmount;
+                
+                return (
+                  <SummaryLine
+                    key={appliedFee.feeId}
+                    label={appliedFee.fee.FE_Name}
+                    amount={feeAmount}
+                    currency={displayCurrency}
+                    description={`${appliedFee.fee.FE_Calculation_Type} • Ordre #${appliedFee.fee.FE_Order}`}
+                    icon={getFeeTypeIcon(appliedFee.fee.FE_Calculation_Type)}
+                  />
+                );
+              })}
               
               {/* Sous-total frais */}
               <SummaryLine
                 label="Sous-total frais"
-                amount={budgetSummary.totalFees}
-                currency={budgetSummary.currency}
+                amount={displayValues.totalFees}
+                currency={displayCurrency}
                 isSubtotal
               />
             </>
@@ -398,8 +419,8 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           {/* Total client */}
           <SummaryLine
             label="TOTAL BUDGET CLIENT"
-            amount={budgetSummary.clientBudget}
-            currency={budgetSummary.currency}
+            amount={displayValues.clientBudget}
+            currency={displayCurrency}
             description="Montant total facturable au client"
             isTotal
           />
@@ -407,21 +428,33 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       </div>
 
       {/* Conversion de devise si nécessaire */}
-      {needsConversion && budgetSummary.convertedValues && (
+      {needsConversion && !showConvertedValues && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h5 className="text-sm font-medium text-red-800 mb-2">
+            ⚠️ Conversion de devise impossible
+          </h5>
+          <div className="text-sm text-red-700 space-y-1">
+            <p>Aucun taux de change configuré pour : <strong>{budgetSummary.currency} → {campaignCurrency}</strong></p>
+            <p>Veuillez configurer le taux de change dans la section devises du client.</p>
+            <p className="text-xs mt-2">Les montants sont affichés dans la devise de la tactique ({budgetSummary.currency}).</p>
+          </div>
+        </div>
+      )}
+
+      {/* Détails de conversion si disponible */}
+      {showConvertedValues && (
         <CurrencyConversion
           originalCurrency={budgetSummary.currency}
-          convertedValues={budgetSummary.convertedValues}
+          convertedValues={convertedSummary.convertedValues!}
           onTooltipChange={onTooltipChange}
         />
       )}
 
       {/* Indicateurs de performance */}
       <BudgetMetrics
-        budgetSummary={budgetSummary}
+        budgetSummary={showConvertedValues ? convertedSummary : budgetSummary}
         onTooltipChange={onTooltipChange}
       />
-
-    
 
       {/* Message si aucun frais */}
       {activeFees.length === 0 && (
