@@ -36,21 +36,17 @@ interface BudgetGeneralParamsProps {
 const CURRENCIES = [
   { id: 'CAD', label: 'CAD - Dollar Canadien' },
   { id: 'USD', label: 'USD - Dollar Américain' },
-  { id: 'EUR', label: 'EUR - Euro' },
-  { id: 'GBP', label: 'GBP - Livre Sterling' },
-  { id: 'JPY', label: 'JPY - Yen Japonais' }
+  { id: 'EUR', label: 'EUR - Euro' }
 ];
 
 const BUDGET_MODES = [
   { 
     id: 'media', 
-    label: 'Budget média',
-    description: 'Budget net qui sera dépensé sur les plateformes'
+    label: 'Budget média'
   },
   { 
     id: 'client', 
-    label: 'Budget client',
-    description: 'Budget total incluant tous les frais et commissions'
+    label: 'Budget client'
   }
 ];
 
@@ -140,10 +136,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
             ))}
           </select>
           
-          {/* Description du mode sélectionné */}
-          <div className="mt-2 text-sm text-gray-600">
-            {BUDGET_MODES.find(mode => mode.id === selectedBudgetMode)?.description}
-          </div>
         </div>
       </div>
 
@@ -158,7 +150,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
             <ul className="ml-4 mt-1 space-y-1">
               <li>• Montant net qui sera effectivement dépensé sur les plateformes média</li>
               <li>• Les frais s'ajoutent par-dessus pour calculer le budget client total</li>
-              <li>• Recommandé pour la planification opérationnelle</li>
             </ul>
           </div>
           <div>
@@ -166,7 +157,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
             <ul className="ml-4 mt-1 space-y-1">
               <li>• Montant total incluant le budget média + tous les frais</li>
               <li>• Correspond au montant facturable au client</li>
-              <li>• Recommandé pour la planification financière</li>
             </ul>
           </div>
         </div>

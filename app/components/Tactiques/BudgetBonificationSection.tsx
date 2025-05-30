@@ -293,29 +293,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       )}
 
-      {/* Encadré explicatif */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <h5 className="text-sm font-medium text-green-800 mb-2">
-          🎁 À propos de la bonification
-        </h5>
-        <div className="text-sm text-green-700 space-y-2">
-          <div>
-            <strong>Principe :</strong> La bonification est une valeur ajoutée négociée avec le partenaire média.
-          </div>
-          <div>
-            <strong>Calcul :</strong> Bonification = Budget média - Valeur réelle payée
-          </div>
-          <div>
-            <strong>Avantages :</strong>
-            <ul className="ml-4 mt-1 space-y-1">
-              <li>• Maximise la portée sans coût supplémentaire</li>
-              <li>• Améliore le ROI de la tactique</li>
-              <li>• N'affecte pas les calculs de frais (basés sur le budget média)</li>
-              <li>• Permet de démontrer la valeur ajoutée de la négociation</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Résumé si bonification active */}
       {hasBonus && calculatedBonusValue > 0 && validationStatus.isValid && (

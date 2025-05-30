@@ -59,13 +59,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     if (budgetMode === 'client') {
       return {
         label: 'Budget client',
-        description: 'Budget total incluant tous les frais et commissions',
         tooltip: 'Montant total que le client paiera, incluant le budget média et tous les frais applicables'
       };
     } else {
       return {
         label: 'Budget média',
-        description: 'Budget net qui sera dépensé sur les plateformes média',
         tooltip: 'Montant net qui sera effectivement dépensé sur les plateformes publicitaires, sans les frais'
       };
     }
@@ -172,9 +170,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
             placeholder="0.00"
           />
-        </div>
-        <div className="mt-1 text-sm text-gray-600">
-          {budgetConfig.description}
         </div>
       </div>
 

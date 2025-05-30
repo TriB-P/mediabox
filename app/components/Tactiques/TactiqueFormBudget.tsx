@@ -195,10 +195,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       </div>
       
       {/* Paramètres généraux */}
-      <FormSection 
-        title="Paramètres généraux"
-        description="Configuration de base pour le calcul du budget"
-      >
+
         <BudgetGeneralParams
           formData={formData}
           onChange={onChange}
@@ -206,13 +203,10 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           unitTypeOptions={unitTypeOptions}
           disabled={isDisabled}
         />
-      </FormSection>
+
 
       {/* Section Budget */}
-      <FormSection 
-        title="Budget"
-        description="Saisie et calcul du budget principal"
-      >
+
         <BudgetMainSection
           formData={formData}
           onChange={onChange}
@@ -220,7 +214,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onCalculatedChange={handleCalculatedChange}
           disabled={isDisabled}
         />
-      </FormSection>
+
 
       {/* Section Bonification */}
       <FormSection 

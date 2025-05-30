@@ -474,18 +474,6 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Encadré explicatif */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <h5 className="text-sm font-medium text-amber-800 mb-2">
-          💰 Types de calcul des frais
-        </h5>
-        <div className="text-sm text-amber-700 space-y-1">
-          <p>• <strong>📊 Pourcentage budget :</strong> % appliqué sur le budget média ou sur le cumul des frais précédents</p>
-          <p>• <strong>📈 Volume d'unité :</strong> Montant fixe multiplié par le volume d'unité de la tactique</p>
-          <p>• <strong>🔢 Unités :</strong> Montant fixe multiplié par un nombre d'unités que vous spécifiez</p>
-          <p>• <strong>💰 Frais fixe :</strong> Montant fixe indépendant du budget ou du volume</p>
-        </div>
-      </div>
 
       {/* Liste des frais */}
       <div className="space-y-4">

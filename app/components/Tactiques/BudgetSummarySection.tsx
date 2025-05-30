@@ -332,20 +332,12 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   return (
     <div className="space-y-6">
       {/* En-tête du récapitulatif */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {createLabelWithHelp(
-            '🧾 Récapitulatif budgétaire',
-            'Détail complet des coûts avec frais et total client. Format facture avec conversion de devise si nécessaire.',
-            onTooltipChange
-          )}
-        </div>
+       
         {needsConversion && (
           <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
             Conversion {budgetSummary.currency} → {campaignCurrency}
           </div>
         )}
-      </div>
 
       {/* Récapitulatif principal - Format facture */}
       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
@@ -429,21 +421,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         onTooltipChange={onTooltipChange}
       />
 
-      {/* Informations complémentaires */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h5 className="text-sm font-medium text-gray-800 mb-2">
-          ℹ️ Informations importantes
-        </h5>
-        <div className="text-sm text-gray-700 space-y-1">
-          <p>• Le budget média représente le montant effectivement dépensé sur les plateformes</p>
-          <p>• Les frais s'ajoutent au budget média pour former le budget client total</p>
-          <p>• La bonification n'affecte pas les calculs de frais mais améliore le ROI</p>
-          {needsConversion && (
-            <p>• La conversion de devise utilise les taux configurés dans la section client</p>
-          )}
-          <p>• Ce récapitulatif peut servir de base pour la facturation client</p>
-        </div>
-      </div>
+    
 
       {/* Message si aucun frais */}
       {activeFees.length === 0 && (
