@@ -211,6 +211,12 @@ const FeeItem = memo<{
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Option du frais
+                {/* NOUVELLE FONCTIONNALITÉ: Indication si sélection automatique */}
+                {fee.options.length === 1 && (
+                  <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                    Sélectionnée automatiquement
+                  </span>
+                )}
               </label>
               <select
                 value={appliedFee.selectedOptionId || ''}
@@ -449,21 +455,32 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     });
   }, [clientFees, mediaBudget, unitVolume, setAppliedFees, calculateFeeAmount, appliedFees.map(af => `${af.feeId}-${af.isActive}-${af.selectedOptionId}-${af.customValue}-${af.customUnits}`).join('|')]);
 
-  // Gestionnaires d'événements
+  // NOUVELLE FONCTIONNALITÉ: Gestionnaire d'activation avec sélection automatique
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
-        ? { 
-            ...appliedFee, 
-            isActive,
-            selectedOptionId: isActive ? appliedFee.selectedOptionId : undefined,
-            customValue: isActive ? appliedFee.customValue : undefined,
-            customUnits: isActive ? appliedFee.customUnits : undefined,
-            calculatedAmount: isActive ? appliedFee.calculatedAmount : 0
-          }
-        : appliedFee
-    ));
-  }, [setAppliedFees]);
+    setAppliedFees(prev => prev.map(appliedFee => {
+      if (appliedFee.feeId !== feeId) return appliedFee;
+      
+      // Trouver le frais correspondant
+      const fee = clientFees.find(f => f.id === feeId);
+      
+      let selectedOptionId = isActive ? appliedFee.selectedOptionId : undefined;
+      
+      // NOUVELLE LOGIQUE: Si activation et une seule option disponible, la sélectionner automatiquement
+      if (isActive && fee && fee.options.length === 1 && !selectedOptionId) {
+        selectedOptionId = fee.options[0].id;
+        console.log(`Sélection automatique de l'option unique pour le frais "${fee.FE_Name}": ${fee.options[0].FO_Option}`);
+      }
+      
+      return { 
+        ...appliedFee, 
+        isActive,
+        selectedOptionId,
+        customValue: isActive ? appliedFee.customValue : undefined,
+        customUnits: isActive ? appliedFee.customUnits : undefined,
+        calculatedAmount: isActive ? appliedFee.calculatedAmount : 0
+      };
+    }));
+  }, [setAppliedFees, clientFees]);
 
   const handleOptionChange = useCallback((feeId: string, optionId: string) => {
     setAppliedFees(prev => prev.map(appliedFee => 

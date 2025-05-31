@@ -87,15 +87,21 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     return (calculatedBonusValue / mediaBudget) * 100;
   }, [hasBonus, mediaBudget, calculatedBonusValue]);
 
-  // Gestionnaire pour le toggle bonification avec possibilité de décocher
+  // CORRECTION: Gestionnaire pour le toggle bonification avec possibilité de décocher
   const handleHasBonusChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
+    
+    // IMPORTANT: Appeler onChange AVANT de faire les calculs pour s'assurer 
+    // que l'état parent est mis à jour en premier
     onChange(e);
     
     if (!checked) {
-      // Reset des valeurs si bonification désactivée
-      onCalculatedChange('TC_Real_Value', 0);
-      onCalculatedChange('TC_Bonus_Value', 0);
+      // CORRECTION: Reset des valeurs si bonification désactivée
+      // Utiliser setTimeout pour s'assurer que l'onChange parent a été traité
+      setTimeout(() => {
+        onCalculatedChange('TC_Real_Value', 0);
+        onCalculatedChange('TC_Bonus_Value', 0);
+      }, 0);
     }
   }, [onChange, onCalculatedChange]);
 
@@ -129,7 +135,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Toggle bonification - Maintenant toujours modifiable */}
+      {/* Toggle bonification - CORRECTION: Toujours modifiable */}
       <div className="flex items-start">
         <div className="flex items-center h-6">
           <input
@@ -138,7 +144,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             name="TC_Has_Bonus"
             checked={hasBonus}
             onChange={handleHasBonusChange}
-            disabled={disabled || mediaBudget <= 0}
+            disabled={disabled} // CORRECTION: Retiré la condition mediaBudget <= 0
             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
           />
         </div>
@@ -159,33 +165,35 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       </div>
 
-      {/* Message si budget média nécessaire */}
-      {mediaBudget <= 0 && (
+      {/* CORRECTION: Message si budget média nécessaire - seulement informatif */}
+      {mediaBudget <= 0 && hasBonus && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⚠️ Un budget média doit être défini avant de configurer la bonification.
+            ⚠️ Un budget média doit être défini pour calculer correctement la bonification.
           </p>
         </div>
       )}
 
       {/* Champs de bonification */}
-      {hasBonus && mediaBudget > 0 && (
+      {hasBonus && (
         <div className="space-y-6 pl-7">
-          {/* Information sur le budget média de référence */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h5 className="text-sm font-medium text-gray-800 mb-2">
-              📊 Budget média de référence
-            </h5>
-            <div className="text-sm text-gray-700">
-              <div className="flex justify-between items-center">
-                <span>Budget média actuel :</span>
-                <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                La valeur réelle doit être supérieure à ce montant pour générer une bonification.
+          {/* Information sur le budget média de référence - seulement si budget média > 0 */}
+          {mediaBudget > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-gray-800 mb-2">
+                📊 Budget média de référence
+              </h5>
+              <div className="text-sm text-gray-700">
+                <div className="flex justify-between items-center">
+                  <span>Budget média actuel :</span>
+                  <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  La valeur réelle doit être supérieure à ce montant pour générer une bonification.
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Valeur réelle */}
           <div>
@@ -222,7 +230,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             )}
             
             {/* Informations contextuelles */}
-            {realValue > 0 && validationStatus.isValid && (
+            {realValue > 0 && validationStatus.isValid && mediaBudget > 0 && (
               <div className="mt-2 text-sm text-gray-600">
                 {realValue >= mediaBudget 
                   ? `Économie de ${formatPercentage(((realValue - mediaBudget) / realValue) * 100)}% sur la valeur négociée`
@@ -268,7 +276,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           </div>
 
           {/* Récapitulatif de la bonification */}
-          {realValue > 0 && calculatedBonusValue > 0 && (
+          {realValue > 0 && calculatedBonusValue > 0 && mediaBudget > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h5 className="text-sm font-medium text-green-800 mb-3">
                 🎁 Récapitulatif de la bonification
