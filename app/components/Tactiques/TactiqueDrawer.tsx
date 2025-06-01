@@ -69,6 +69,21 @@ interface VisibleFields {
   [key: string]: boolean | undefined;
 }
 
+// NOUVEAU: Interface étendue pour les données du formulaire avec les frais
+interface ExtendedTactiqueFormData extends TactiqueFormData {
+  // Champs pour les frais persistés
+  TC_Fee_1_Option?: string;
+  TC_Fee_1_Value?: number;
+  TC_Fee_2_Option?: string;
+  TC_Fee_2_Value?: number;
+  TC_Fee_3_Option?: string;
+  TC_Fee_3_Value?: number;
+  TC_Fee_4_Option?: string;
+  TC_Fee_4_Value?: number;
+  TC_Fee_5_Option?: string;
+  TC_Fee_5_Value?: number;
+}
+
 // ==================== COMPOSANT PRINCIPAL ====================
 
 export default function TactiqueDrawer({
@@ -87,13 +102,32 @@ export default function TactiqueDrawer({
   // Onglet actif
   const [activeTab, setActiveTab] = useState('info');
   
-  // Données du formulaire
-  const [formData, setFormData] = useState<TactiqueFormData>({
+  // Données du formulaire - MODIFIÉ pour inclure les champs de frais
+  const [formData, setFormData] = useState<ExtendedTactiqueFormData>({
     TC_Label: '',
     TC_Budget: 0,
     TC_Order: 0,
     TC_SectionId: sectionId,
     TC_Status: 'Planned',
+    // Valeurs par défaut pour les champs Budget
+    TC_Currency: 'CAD',
+    TC_Budget_Mode: 'media',
+    TC_Cost_Per_Unit: 0,
+    TC_Unit_Volume: 0,
+    TC_Has_Bonus: false,
+    TC_Real_Value: 0,
+    TC_Bonus_Value: 0,
+    // NOUVEAU: Valeurs par défaut pour les champs de frais
+    TC_Fee_1_Option: '',
+    TC_Fee_1_Value: 0,
+    TC_Fee_2_Option: '',
+    TC_Fee_2_Value: 0,
+    TC_Fee_3_Option: '',
+    TC_Fee_3_Value: 0,
+    TC_Fee_4_Option: '',
+    TC_Fee_4_Value: 0,
+    TC_Fee_5_Option: '',
+    TC_Fee_5_Value: 0,
   });
 
   // KPIs multiples
@@ -148,7 +182,7 @@ export default function TactiqueDrawer({
 
   // ==================== EFFECTS ====================
   
-  // Initialiser le formulaire quand la tactique change
+  // Initialiser le formulaire quand la tactique change - MODIFIÉ pour inclure les frais
   useEffect(() => {
     if (tactique) {
       setFormData({
@@ -183,7 +217,7 @@ export default function TactiqueDrawer({
         TC_Billing_ID: tactique.TC_Billing_ID || '',
         TC_PO: tactique.TC_PO || '',
         
-        // Nouveaux champs Budget avec valeurs par défaut
+        // Champs Budget avec valeurs par défaut
         TC_Currency: tactique.TC_Currency || 'CAD',
         TC_Unit_Type: tactique.TC_Unit_Type || '',
         TC_Budget_Mode: tactique.TC_Budget_Mode || 'media',
@@ -192,6 +226,18 @@ export default function TactiqueDrawer({
         TC_Has_Bonus: tactique.TC_Has_Bonus || false,
         TC_Real_Value: tactique.TC_Real_Value || 0,
         TC_Bonus_Value: tactique.TC_Bonus_Value || 0,
+        
+        // NOUVEAU: Champs de frais - chargement depuis la tactique existante
+        TC_Fee_1_Option: (tactique as any).TC_Fee_1_Option || '',
+        TC_Fee_1_Value: (tactique as any).TC_Fee_1_Value || 0,
+        TC_Fee_2_Option: (tactique as any).TC_Fee_2_Option || '',
+        TC_Fee_2_Value: (tactique as any).TC_Fee_2_Value || 0,
+        TC_Fee_3_Option: (tactique as any).TC_Fee_3_Option || '',
+        TC_Fee_3_Value: (tactique as any).TC_Fee_3_Value || 0,
+        TC_Fee_4_Option: (tactique as any).TC_Fee_4_Option || '',
+        TC_Fee_4_Value: (tactique as any).TC_Fee_4_Value || 0,
+        TC_Fee_5_Option: (tactique as any).TC_Fee_5_Option || '',
+        TC_Fee_5_Value: (tactique as any).TC_Fee_5_Value || 0,
       });
 
       // Charger les KPIs existants
@@ -217,14 +263,14 @@ export default function TactiqueDrawer({
       setActiveTab('info');
       setIsDirty(false);
     } else {
-      // Nouvelle tactique - valeurs par défaut
+      // Nouvelle tactique - valeurs par défaut avec frais vides
       setFormData({
         TC_Label: '',
         TC_Budget: 0,
         TC_Order: 0,
         TC_SectionId: sectionId,
         TC_Status: 'Planned',
-        // Valeurs par défaut pour les nouveaux champs Budget
+        // Valeurs par défaut pour les champs Budget
         TC_Currency: 'CAD',
         TC_Budget_Mode: 'media',
         TC_Cost_Per_Unit: 0,
@@ -232,6 +278,17 @@ export default function TactiqueDrawer({
         TC_Has_Bonus: false,
         TC_Real_Value: 0,
         TC_Bonus_Value: 0,
+        // NOUVEAU: Valeurs par défaut pour les nouveaux frais
+        TC_Fee_1_Option: '',
+        TC_Fee_1_Value: 0,
+        TC_Fee_2_Option: '',
+        TC_Fee_2_Value: 0,
+        TC_Fee_3_Option: '',
+        TC_Fee_3_Value: 0,
+        TC_Fee_4_Option: '',
+        TC_Fee_4_Value: 0,
+        TC_Fee_5_Option: '',
+        TC_Fee_5_Value: 0,
       });
       setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
       setUseInheritedBilling(true);
@@ -374,7 +431,7 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
   
-  // Gérer la soumission du formulaire
+  // Gérer la soumission du formulaire - MODIFIÉ pour inclure les frais
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -382,7 +439,7 @@ export default function TactiqueDrawer({
       setLoading(true);
       setError(null);
 
-      // Préparer les données avec les KPIs
+      // Préparer les données avec les KPIs et les frais
       const dataToSave = { ...formData };
       
       // Ajouter les KPIs
@@ -400,6 +457,9 @@ export default function TactiqueDrawer({
       if (useInheritedPO) {
         (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
       }
+
+      // NOUVEAU: Les frais sont déjà dans formData, pas besoin de traitement supplémentaire
+      console.log('Données à sauvegarder (avec frais):', dataToSave);
 
       await onSave(dataToSave);
       setIsDirty(false);

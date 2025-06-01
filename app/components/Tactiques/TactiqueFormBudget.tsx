@@ -55,6 +55,17 @@ interface TactiqueFormBudgetProps {
     TC_Has_Bonus?: boolean;
     TC_Real_Value?: number;
     TC_Bonus_Value?: number;
+    // NOUVEAU: Champs pour les frais persistés
+    TC_Fee_1_Option?: string;
+    TC_Fee_1_Value?: number;
+    TC_Fee_2_Option?: string;
+    TC_Fee_2_Value?: number;
+    TC_Fee_3_Option?: string;
+    TC_Fee_3_Value?: number;
+    TC_Fee_4_Option?: string;
+    TC_Fee_4_Value?: number;
+    TC_Fee_5_Option?: string;
+    TC_Fee_5_Value?: number;
   };
   
   // Données externes
@@ -260,6 +271,72 @@ function calculateMediaBudgetInClientMode(
   return { mediaBudget: Math.max(0, mediaBudget), calculatedFees: updatedFees };
 }
 
+// NOUVELLE FONCTION: Charger les frais appliqués depuis les données de la tactique
+function loadAppliedFeesFromFormData(
+  formData: TactiqueFormBudgetProps['formData'],
+  clientFees: Fee[]
+): AppliedFee[] {
+  const appliedFees: AppliedFee[] = [];
+  
+  // Parcourir les frais clients et chercher les valeurs correspondantes dans formData
+  clientFees.forEach((fee, index) => {
+    const feeOrder = fee.FE_Order + 1; // Les champs commencent à 1
+    const optionKey = `TC_Fee_${feeOrder}_Option` as keyof typeof formData;
+    const valueKey = `TC_Fee_${feeOrder}_Value` as keyof typeof formData;
+    
+    const selectedOptionId = formData[optionKey] as string;
+    const customValue = formData[valueKey] as number;
+    
+    const isActive = !!selectedOptionId;
+    
+    appliedFees.push({
+      feeId: fee.id,
+      isActive,
+      selectedOptionId: isActive ? selectedOptionId : undefined,
+      customValue: customValue !== undefined ? customValue : undefined,
+      calculatedAmount: 0 // Sera calculé plus tard
+    });
+  });
+  
+  return appliedFees;
+}
+
+// NOUVELLE FONCTION: Sauvegarder les frais appliqués dans les données du formulaire
+function saveAppliedFeesToFormData(
+  appliedFees: AppliedFee[],
+  clientFees: Fee[],
+  onCalculatedChange: (field: string, value: number | string) => void
+): void {
+  
+  // Réinitialiser tous les champs de frais
+  for (let i = 1; i <= 5; i++) {
+    onCalculatedChange(`TC_Fee_${i}_Option`, '');
+    onCalculatedChange(`TC_Fee_${i}_Value`, 0);
+  }
+  
+  // Sauvegarder les frais actifs
+  clientFees.forEach((fee, index) => {
+    const appliedFee = appliedFees.find(af => af.feeId === fee.id);
+    if (!appliedFee) return;
+    
+    const feeOrder = fee.FE_Order + 1; // Les champs commencent à 1
+    
+    if (appliedFee.isActive && appliedFee.selectedOptionId) {
+      onCalculatedChange(`TC_Fee_${feeOrder}_Option`, appliedFee.selectedOptionId);
+      
+      if (appliedFee.customValue !== undefined) {
+        onCalculatedChange(`TC_Fee_${feeOrder}_Value`, appliedFee.customValue);
+      } else {
+        // Utiliser la valeur par défaut de l'option
+        const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
+        if (selectedOption) {
+          onCalculatedChange(`TC_Fee_${feeOrder}_Value`, selectedOption.FO_Value);
+        }
+      }
+    }
+  });
+}
+
 // ==================== COMPOSANT PRINCIPAL ====================
 
 const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
@@ -282,44 +359,34 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
-  // Initialiser les frais appliqués quand les frais client changent
+  // NOUVEAU: Charger les frais appliqués depuis les données du formulaire au démarrage
   useEffect(() => {
     if (clientFees.length > 0) {
-      setAppliedFees(prevAppliedFees => {
-        // Garder les frais existants qui correspondent toujours aux frais client
-        const existingFees = prevAppliedFees.filter(af => 
-          clientFees.some(cf => cf.id === af.feeId)
-        );
-        
-        // Ajouter les nouveaux frais qui n'existent pas encore
-        const newFees: AppliedFee[] = clientFees
-          .filter(cf => !existingFees.some(ef => ef.feeId === cf.id))
-          .map(fee => ({
-            feeId: fee.id,
-            isActive: false,
-            calculatedAmount: 0
-          }));
-        
-        return [...existingFees, ...newFees];
-      });
-    } else {
-      // Si pas de frais client, vider la liste
-      setAppliedFees([]);
+      const loadedAppliedFees = loadAppliedFeesFromFormData(formData, clientFees);
+      setAppliedFees(loadedAppliedFees);
     }
-  }, [clientFees]);
+  }, [clientFees, formData]);
 
-  // Fonction pour gérer les changements calculés
-  const handleCalculatedChange = useCallback((field: string, value: number) => {
+  // Fonction pour gérer les changements calculés avec sauvegarde des frais
+  const handleCalculatedChange = useCallback((field: string, value: number | string) => {
     const syntheticEvent = {
       target: {
         name: field,
         value: value.toString(),
-        type: 'number'
+        type: typeof value === 'number' ? 'number' : 'text'
       }
     } as React.ChangeEvent<HTMLInputElement>;
     
     onChange(syntheticEvent);
   }, [onChange]);
+
+  // NOUVEAU: Effect pour sauvegarder les frais quand ils changent
+  useEffect(() => {
+    if (appliedFees.length > 0) {
+      // Sauvegarder dans les propriétés de la tactique
+      saveAppliedFeesToFormData(appliedFees, clientFees, handleCalculatedChange);
+    }
+  }, [appliedFees, clientFees, handleCalculatedChange]);
 
   // CORRECTION MAJEURE : Calcul correct du budget média et des frais
   const { calculatedMediaBudget, calculatedTotalFees, correctedAppliedFees } = useMemo(() => {
@@ -490,7 +557,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         />
       </FormSection>
 
-      {/* Section Frais */}
+      {/* Section Frais - MODIFIÉE pour passer la devise de la tactique avec debug */}
       <FormSection 
         title="Frais"
         description="Application des frais configurés pour le client"
@@ -501,10 +568,23 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           setAppliedFees={setAppliedFees}
           mediaBudget={calculatedMediaBudget}
           unitVolume={formData.TC_Unit_Volume || 0}
+          tacticCurrency={formData.TC_Currency || 'CAD'}
           onTooltipChange={onTooltipChange}
           disabled={isDisabled}
         />
       </FormSection>
+
+      {/* Debug info en développement - AJOUTÉ pour vérifier la devise */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info - Devise</h5>
+          <div className="text-xs text-gray-600 space-y-1">
+            <div>formData.TC_Currency: "{formData.TC_Currency}"</div>
+            <div>formData.TC_Currency || 'CAD': "{formData.TC_Currency || 'CAD'}"</div>
+            <div>Type: {typeof formData.TC_Currency}</div>
+          </div>
+        </div>
+      )}
 
       {/* Section Récapitulatif */}
       <FormSection 
@@ -531,7 +611,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       {/* Debug info en développement */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Mode Client Fix)</h5>
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Persistance Frais)</h5>
           <div className="text-xs text-gray-600 space-y-1">
             <div>Budget saisi: {formData.TC_Budget || 0}</div>
             <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
@@ -539,6 +619,18 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             <div>Total frais calculé: {calculatedTotalFees}</div>
             <div>Budget client final: {budgetSummary.clientBudget}</div>
             <div>Frais actifs: {appliedFees.filter(af => af.isActive).length}</div>
+            <div>Frais persistés:</div>
+            {[1,2,3,4,5].map(i => {
+              const optionKey = `TC_Fee_${i}_Option` as keyof typeof formData;
+              const valueKey = `TC_Fee_${i}_Value` as keyof typeof formData;
+              const option = formData[optionKey];
+              const value = formData[valueKey];
+              return option ? (
+                <div key={i} className="ml-2">
+                  Fee_{i}: {option} = {value}
+                </div>
+              ) : null;
+            })}
           </div>
         </div>
       )}

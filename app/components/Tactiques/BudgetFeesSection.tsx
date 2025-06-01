@@ -43,6 +43,9 @@ interface BudgetFeesSectionProps {
   mediaBudget: number;
   unitVolume: number;
   
+  // NOUVEAU: Devise de la tactique pour l'affichage
+  tacticCurrency: string;
+  
   // Gestionnaires d'événements
   onTooltipChange: (tooltip: string | null) => void;
   
@@ -103,6 +106,7 @@ const FeeItem = memo<{
   onCustomValueChange: (feeId: string, value: number) => void;
   onCustomUnitsChange: (feeId: string, units: number) => void;
   onTooltipChange: (tooltip: string | null) => void;
+  tacticCurrency: string;
   disabled?: boolean;
 }>(({ 
   fee, 
@@ -112,6 +116,7 @@ const FeeItem = memo<{
   onCustomValueChange, 
   onCustomUnitsChange, 
   onTooltipChange, 
+  tacticCurrency,
   disabled = false 
 }) => {
   
@@ -145,13 +150,15 @@ const FeeItem = memo<{
     return baseValue * bufferMultiplier;
   }, [selectedOption, appliedFee.customValue]);
 
-  // Formatage des montants
+  // NOUVEAU: Formatage des montants dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
+    // CORRECTION: Vérifier que tacticCurrency n'est pas undefined
+    const currency = tacticCurrency || 'CAD';
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
-  }, []);
+    }).format(value) + ' ' + currency;
+  }, [tacticCurrency]);
 
   // Valeur affichée dans l'input (avec conversion pour les pourcentages)
   const displayValue = useMemo(() => {
@@ -192,11 +199,11 @@ const FeeItem = memo<{
           </div>
         </div>
         
-        {/* Montant calculé si activé */}
+        {/* MODIFIÉ: Montant calculé dans la devise de la tactique */}
         {appliedFee.isActive && (
           <div className="text-right ml-4">
             <div className="text-xl font-bold text-indigo-600">
-              {formatCurrency(appliedFee.calculatedAmount)} CAD
+              {formatCurrency(appliedFee.calculatedAmount)}
             </div>
             <div className="text-xs text-gray-500">Montant final</div>
           </div>
@@ -248,6 +255,7 @@ const FeeItem = memo<{
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Valeur personnalisée
                     {fee.FE_Calculation_Type === 'Pourcentage budget' && ' (%)'}
+                    {fee.FE_Calculation_Type !== 'Pourcentage budget' && ` (${tacticCurrency || 'CAD'})`}
                   </label>
                   <div className="relative">
                     <input
@@ -269,7 +277,7 @@ const FeeItem = memo<{
                   {selectedOption.FO_Buffer > 0 && (
                     <div className="mt-1 text-xs text-blue-600">
                       Valeur finale avec buffer (+{selectedOption.FO_Buffer}%) : {finalDisplayValue}
-                      {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ''}
+                      {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ` ${tacticCurrency || 'CAD'}`}
                     </div>
                   )}
                 </div>
@@ -281,6 +289,7 @@ const FeeItem = memo<{
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Valeur fixe
                     {fee.FE_Calculation_Type === 'Pourcentage budget' && ' (%)'}
+                    {fee.FE_Calculation_Type !== 'Pourcentage budget' && ` (${tacticCurrency || 'CAD'})`}
                   </label>
                   <div className="relative">
                     <input
@@ -325,7 +334,7 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* Explication du calcul */}
+          {/* MODIFIÉ: Explication du calcul avec devise */}
           {selectedOption && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-xs text-gray-600">
@@ -334,8 +343,8 @@ const FeeItem = memo<{
                   <div className="mt-1">
                     {finalDisplayValue}% × Base de calcul 
                     {fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-                      ? ' (budget média)' 
-                      : ' (budget média + frais précédents)'}
+                      ? ` (budget média en ${tacticCurrency || 'CAD'})` 
+                      : ` (budget média + frais précédents en ${tacticCurrency || 'CAD'})`}
                   </div>
                 )}
                 {fee.FE_Calculation_Type === 'Volume d\'unité' && (
@@ -377,6 +386,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   setAppliedFees,
   mediaBudget,
   unitVolume,
+  tacticCurrency,
   onTooltipChange,
   disabled = false
 }) => {
@@ -523,13 +533,13 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     [activeFees]
   );
 
-  // Formatage
+  // NOUVEAU: Formatage dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
-  }, []);
+    }).format(value) + ' ' + tacticCurrency;
+  }, [tacticCurrency]);
 
   // Message si aucun frais
   if (clientFees.length === 0) {
@@ -548,6 +558,20 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   return (
     <div className="space-y-6">
 
+      {/* En-tête avec information sur la devise */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-blue-600">💱</span>
+          <div className="text-sm text-blue-800">
+            <strong>Devise d'affichage :</strong> {tacticCurrency}
+          </div>
+        </div>
+        <div className="text-xs text-blue-600 mt-1">
+          Les montants de frais sont calculés et affichés dans la devise de la tactique. 
+          La conversion vers la devise de campagne se fait dans le récapitulatif final.
+        </div>
+      </div>
+
       {/* Liste des frais */}
       <div className="space-y-4">
         {sortedFees.map(fee => {
@@ -564,17 +588,18 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
               onCustomValueChange={handleCustomValueChange}
               onCustomUnitsChange={handleCustomUnitsChange}
               onTooltipChange={onTooltipChange}
+              tacticCurrency={tacticCurrency}
               disabled={disabled}
             />
           );
         })}
       </div>
 
-      {/* Résumé des frais actifs */}
+      {/* MODIFIÉ: Résumé des frais actifs dans la devise de la tactique */}
       {activeFees.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-indigo-800 mb-3">
-            📊 Frais appliqués (ordre d'application)
+            📊 Frais appliqués (en {tacticCurrency})
           </h5>
           <div className="space-y-2">
             {activeFees.map(appliedFee => {
@@ -589,30 +614,25 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
                     <span className="text-xs text-indigo-500">#{fee.FE_Order}</span>
                   </div>
                   <span className="font-medium text-indigo-800">
-                    {formatCurrency(appliedFee.calculatedAmount)} CAD
+                    {formatCurrency(appliedFee.calculatedAmount)}
                   </span>
                 </div>
               );
             })}
             <div className="border-t border-indigo-200 pt-2 mt-3 flex justify-between text-sm font-semibold text-indigo-800">
-              <span>Total des frais</span>
-              <span>{formatCurrency(totalFees)} CAD</span>
+              <span>Total des frais (en {tacticCurrency})</span>
+              <span>{formatCurrency(totalFees)}</span>
             </div>
+          </div>
+          
+          <div className="mt-3 text-xs text-indigo-600 bg-indigo-100 p-2 rounded">
+            💡 Ces montants seront automatiquement convertis dans la devise de campagne dans le récapitulatif final.
           </div>
         </div>
       )}
 
       {/* Message si budget média requis */}
       {mediaBudget <= 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">
-            ⚠️ Un budget média doit être défini pour calculer correctement les frais en pourcentage.
-          </p>
-        </div>
-      )}
-
-      {/* Message si volume requis */}
-      {unitVolume <= 0 && clientFees.some(f => f.FE_Calculation_Type === 'Volume d\'unité') && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
             ⚠️ Un volume d'unité doit être défini pour calculer les frais basés sur le volume.

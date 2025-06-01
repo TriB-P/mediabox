@@ -61,6 +61,46 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
+// NOUVEAU: Fonction pour calculer sur quoi chaque frais s'applique
+const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
+  const applications: { [feeId: string]: string } = {};
+  
+  // Trier les frais par ordre d'application
+  const sortedFees = [...activeFees].sort((a, b) => a.order - b.order);
+  
+  for (let i = 0; i < sortedFees.length; i++) {
+    const currentFee = sortedFees[i];
+    const fee = clientFees.find(f => f.id === currentFee.feeId);
+    
+    if (!fee) continue;
+    
+    if (fee.FE_Calculation_Mode === 'Directement sur le budget média') {
+      applications[currentFee.feeId] = 'Budget média';
+    } else {
+      // 'Applicable sur les frais précédents'
+      const appliedOn: string[] = ['Budget média'];
+      
+      // Ajouter tous les frais précédents
+      for (let j = 0; j < i; j++) {
+        const previousFee = clientFees.find(f => f.id === sortedFees[j].feeId);
+        if (previousFee) {
+          appliedOn.push(previousFee.FE_Name);
+        }
+      }
+      
+      if (appliedOn.length === 1) {
+        applications[currentFee.feeId] = appliedOn[0];
+      } else if (appliedOn.length === 2) {
+        applications[currentFee.feeId] = `${appliedOn[0]} + ${appliedOn[1]}`;
+      } else {
+        applications[currentFee.feeId] = `${appliedOn.slice(0, -1).join(' + ')} + ${appliedOn[appliedOn.length - 1]}`;
+      }
+    }
+  }
+  
+  return applications;
+};
+
 // ==================== COMPOSANTS ====================
 
 /**
@@ -167,32 +207,7 @@ const CurrencyConversion = memo<{
           <span className="font-mono">{formatExchangeRate(convertedValues.exchangeRate)}</span>
         </div>
         
-        <div className="space-y-1 pt-2 border-t border-blue-200">
-          <div className="flex justify-between">
-            <span>Budget média :</span>
-            <span className="font-mono">{formatCurrency(convertedValues.mediaBudget, convertedValues.currency)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Total frais :</span>
-            <span className="font-mono">{formatCurrency(convertedValues.totalFees, convertedValues.currency)}</span>
-          </div>
-          {convertedValues.bonusValue > 0 && (
-            <div className="flex justify-between">
-              <span>Bonification :</span>
-              <span className="font-mono text-green-600">+{formatCurrency(convertedValues.bonusValue, convertedValues.currency)}</span>
-            </div>
-          )}
-          <div className="flex justify-between font-semibold border-t border-blue-200 pt-1">
-            <span>Budget client total :</span>
-            <span className="font-mono">{formatCurrency(convertedValues.clientBudget, convertedValues.currency)}</span>
-          </div>
         </div>
-      </div>
-      
-      <div className="mt-3 text-xs text-blue-600 bg-blue-100 p-2 rounded">
-        💡 Cette conversion utilise les taux configurés dans la section devises du client. 
-        Le budget sera facturé dans la devise de la campagne ({convertedValues.currency}).
-      </div>
     </div>
   );
 });
@@ -259,7 +274,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   
   // Frais actifs triés par ordre
   const activeFees = useMemo(() => {
-    return appliedFees
+    const fees = appliedFees
       .filter(af => af.isActive && af.calculatedAmount > 0)
       .map(af => {
         const fee = clientFees.find(f => f.id === af.feeId);
@@ -270,7 +285,21 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         };
       })
       .sort((a, b) => a.order - b.order);
+    
+    // Debug: Log pour vérifier l'ordre
+    console.log('Frais triés par ordre:', fees.map(f => ({ 
+      name: f.fee?.FE_Name, 
+      order: f.fee?.FE_Order,
+      mappedOrder: f.order 
+    })));
+    
+    return fees;
   }, [appliedFees, clientFees]);
+
+  // NOUVEAU: Calculer les applications des frais
+  const feeApplications = useMemo(() => {
+    return calculateFeeApplications(activeFees, clientFees);
+  }, [activeFees, clientFees]);
 
   // Calcul de la conversion de devise
   const convertedSummary = useMemo(() => {
@@ -388,11 +417,14 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
-              {activeFees.map(appliedFee => {
+              {activeFees.map((appliedFee, index) => {
                 // Convertir le montant du frais si nécessaire
                 const feeAmount = showConvertedValues 
                   ? appliedFee.calculatedAmount * convertedSummary.convertedValues!.exchangeRate
                   : appliedFee.calculatedAmount;
+                
+                // MODIFIÉ: Utiliser l'information d'application calculée
+                const appliedOn = feeApplications[appliedFee.feeId] || 'Non défini';
                 
                 return (
                   <SummaryLine
@@ -400,7 +432,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
                     label={appliedFee.fee.FE_Name}
                     amount={feeAmount}
                     currency={displayCurrency}
-                    description={`${appliedFee.fee.FE_Calculation_Type} • Ordre #${appliedFee.fee.FE_Order}`}
+                    description={`Appliqué sur : ${appliedOn}`}
                     icon={getFeeTypeIcon(appliedFee.fee.FE_Calculation_Type)}
                   />
                 );
