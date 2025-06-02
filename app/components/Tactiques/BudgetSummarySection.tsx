@@ -38,7 +38,7 @@ interface BudgetSummary {
 }
 
 interface BudgetSummarySectionProps {
-  // Données du résumé
+  // Données du résumé (déjà calculées par le parent)
   budgetSummary: BudgetSummary;
   appliedFees: AppliedFee[];
   clientFees: Fee[];
@@ -61,7 +61,7 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
-// NOUVEAU: Fonction pour calculer sur quoi chaque frais s'applique
+// Calculer sur quoi chaque frais s'applique (simplifié)
 const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
   const applications: { [feeId: string]: string } = {};
   
@@ -175,15 +175,6 @@ const CurrencyConversion = memo<{
   
   if (!convertedValues) return null;
 
-  const formatCurrency = useCallback((value: number, currency: string) => {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
-  }, []);
-
   const formatExchangeRate = useCallback((rate: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 4,
@@ -206,8 +197,7 @@ const CurrencyConversion = memo<{
           <span>Taux de change ({originalCurrency} → {convertedValues.currency}) :</span>
           <span className="font-mono">{formatExchangeRate(convertedValues.exchangeRate)}</span>
         </div>
-        
-        </div>
+      </div>
     </div>
   );
 });
@@ -257,6 +247,43 @@ const BudgetMetrics = memo<{
 
   if (!metrics) return null;
 
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
+      <div className="flex items-center gap-3 mb-3">
+        {createLabelWithHelp(
+          '📈 Indicateurs budgétaires',
+          'Indicateurs de performance calculés automatiquement à partir des données de budget.',
+          onTooltipChange
+        )}
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">{formatPercentage(metrics.feePercentage)}%</div>
+          <div className="text-gray-600">Frais vs Média</div>
+        </div>
+        
+        {metrics.bonusPercentage > 0 && (
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">{formatPercentage(metrics.bonusPercentage)}%</div>
+            <div className="text-gray-600">Bonification</div>
+          </div>
+        )}
+        
+        {metrics.effectiveDiscount > 0 && (
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600">{formatPercentage(metrics.effectiveDiscount)}%</div>
+            <div className="text-gray-600">Économie totale</div>
+          </div>
+        )}
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-800">{formatCurrency(metrics.netSpend, budgetSummary.currency)}</div>
+          <div className="text-gray-600">Dépense nette</div>
+        </div>
+      </div>
+    </div>
+  );
 });
 
 BudgetMetrics.displayName = 'BudgetMetrics';
@@ -284,67 +311,32 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           order: fee?.FE_Order || 999
         };
       })
+      .filter(af => af.fee) // S'assurer que le frais existe
       .sort((a, b) => a.order - b.order);
-    
-    // Debug: Log pour vérifier l'ordre
-    console.log('Frais triés par ordre:', fees.map(f => ({ 
-      name: f.fee?.FE_Name, 
-      order: f.fee?.FE_Order,
-      mappedOrder: f.order 
-    })));
     
     return fees;
   }, [appliedFees, clientFees]);
 
-  // NOUVEAU: Calculer les applications des frais
+  // Calculer les applications des frais
   const feeApplications = useMemo(() => {
     return calculateFeeApplications(activeFees, clientFees);
   }, [activeFees, clientFees]);
 
-  // Calcul de la conversion de devise
-  const convertedSummary = useMemo(() => {
-    const tacticCurrency = budgetSummary.currency;
-    const needsConversion = tacticCurrency !== campaignCurrency;
+  // Déterminer si une conversion est nécessaire et possible
+  const conversionInfo = useMemo(() => {
+    const needsConversion = budgetSummary.currency !== campaignCurrency;
+    const hasConvertedValues = !!budgetSummary.convertedValues;
     
-    if (!needsConversion) {
-      return budgetSummary;
-    }
-
-    // Chercher le taux de change
-    const exchangeRateKey = `${tacticCurrency}_${campaignCurrency}`;
-    const directRate = exchangeRates[exchangeRateKey];
-    const simpleRate = exchangeRates[tacticCurrency]; // Fallback pour la structure simple
-    
-    const exchangeRate = directRate || simpleRate;
-    
-    if (!exchangeRate || exchangeRate <= 0) {
-      console.warn(`Taux de change non trouvé pour ${tacticCurrency} vers ${campaignCurrency}`);
-      return budgetSummary;
-    }
-
-    // Appliquer la conversion
-    const convertedValues = {
-      mediaBudget: budgetSummary.mediaBudget * exchangeRate,
-      totalFees: budgetSummary.totalFees * exchangeRate,
-      clientBudget: budgetSummary.clientBudget * exchangeRate,
-      bonusValue: budgetSummary.bonusValue * exchangeRate,
-      currency: campaignCurrency,
-      exchangeRate
-    };
-
     return {
-      ...budgetSummary,
-      convertedValues
+      needsConversion,
+      hasConvertedValues,
+      showConvertedValues: needsConversion && hasConvertedValues
     };
-  }, [budgetSummary, campaignCurrency, exchangeRates]);
-
-  // Déterminer si une conversion est nécessaire
-  const needsConversion = budgetSummary.currency !== campaignCurrency;
-  const showConvertedValues = needsConversion && convertedSummary.convertedValues;
+  }, [budgetSummary.currency, budgetSummary.convertedValues, campaignCurrency]);
 
   // Utiliser les valeurs converties pour l'affichage principal si disponibles
-  const displayValues = showConvertedValues ? convertedSummary.convertedValues! : budgetSummary;
-  const displayCurrency = showConvertedValues ? campaignCurrency : budgetSummary.currency;
+  const displayValues = conversionInfo.showConvertedValues ? budgetSummary.convertedValues! : budgetSummary;
+  const displayCurrency = conversionInfo.showConvertedValues ? campaignCurrency : budgetSummary.currency;
 
   // Vérifier si le budget est défini
   const hasValidBudget = budgetSummary.mediaBudget > 0;
@@ -365,12 +357,12 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   return (
     <div className="space-y-6">
       {/* En-tête du récapitulatif */}
-      {needsConversion && (
+      {conversionInfo.needsConversion && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
             💱 Conversion automatique : {budgetSummary.currency} → {campaignCurrency}
           </div>
-          {!convertedSummary.convertedValues && (
+          {!conversionInfo.hasConvertedValues && (
             <div className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-full">
               ⚠️ Taux de change manquant
             </div>
@@ -383,7 +375,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
           <h3 className="font-semibold text-gray-900">Détail des coûts</h3>
           <p className="text-sm text-gray-600">
-            {showConvertedValues 
+            {conversionInfo.showConvertedValues 
               ? `Montants en ${displayCurrency} (devise de campagne)` 
               : `Devise de la tactique : ${displayCurrency}`}
           </p>
@@ -417,13 +409,13 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
-              {activeFees.map((appliedFee, index) => {
+              {activeFees.map((appliedFee) => {
                 // Convertir le montant du frais si nécessaire
-                const feeAmount = showConvertedValues 
-                  ? appliedFee.calculatedAmount * convertedSummary.convertedValues!.exchangeRate
+                const feeAmount = conversionInfo.showConvertedValues 
+                  ? appliedFee.calculatedAmount * budgetSummary.convertedValues!.exchangeRate
                   : appliedFee.calculatedAmount;
                 
-                // MODIFIÉ: Utiliser l'information d'application calculée
+                // Utiliser l'information d'application calculée
                 const appliedOn = feeApplications[appliedFee.feeId] || 'Non défini';
                 
                 return (
@@ -460,7 +452,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       </div>
 
       {/* Conversion de devise si nécessaire */}
-      {needsConversion && !showConvertedValues && (
+      {conversionInfo.needsConversion && !conversionInfo.hasConvertedValues && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-red-800 mb-2">
             ⚠️ Conversion de devise impossible
@@ -474,17 +466,17 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       )}
 
       {/* Détails de conversion si disponible */}
-      {showConvertedValues && (
+      {conversionInfo.showConvertedValues && (
         <CurrencyConversion
           originalCurrency={budgetSummary.currency}
-          convertedValues={convertedSummary.convertedValues!}
+          convertedValues={budgetSummary.convertedValues!}
           onTooltipChange={onTooltipChange}
         />
       )}
 
       {/* Indicateurs de performance */}
       <BudgetMetrics
-        budgetSummary={showConvertedValues ? convertedSummary : budgetSummary}
+        budgetSummary={conversionInfo.showConvertedValues ? { ...budgetSummary, ...budgetSummary.convertedValues! } : budgetSummary}
         onTooltipChange={onTooltipChange}
       />
 
@@ -497,6 +489,19 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           </p>
         </div>
       )}
+
+      {/* Message informatif sur les calculs automatiques */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className="text-sm text-green-700">
+          ✅ <strong>Calculs automatiques</strong>
+          <ul className="mt-2 ml-4 space-y-1 text-xs">
+            <li>• Tous les montants sont calculés automatiquement par le système</li>
+            <li>• Les frais sont appliqués selon leur configuration et ordre</li>
+            <li>• La conversion de devise est effectuée si nécessaire</li>
+            <li>• Les indicateurs de performance sont mis à jour en temps réel</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 });

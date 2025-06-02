@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
 // ==================== TYPES ====================
@@ -39,11 +39,11 @@ interface BudgetFeesSectionProps {
   appliedFees: AppliedFee[];
   setAppliedFees: React.Dispatch<React.SetStateAction<AppliedFee[]>>;
   
-  // Données pour les calculs
+  // Données pour les calculs (informatives seulement)
   mediaBudget: number;
   unitVolume: number;
   
-  // NOUVEAU: Devise de la tactique pour l'affichage
+  // Devise de la tactique pour l'affichage
   tacticCurrency: string;
   
   // Gestionnaires d'événements
@@ -75,22 +75,20 @@ const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
-// CORRECTION: Formater une valeur pour l'affichage selon le type de frais
+// Formater une valeur pour l'affichage selon le type de frais
 const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculation_Type']) => {
   if (calculationType === 'Pourcentage budget') {
-    // PROBLÈME CORRIGÉ: La valeur en base est toujours en décimal (0.1 = 10%)
-    // On multiplie toujours par 100 pour l'affichage
+    // La valeur en base est en décimal (0.1 = 10%), on multiplie par 100 pour l'affichage
     return (value * 100).toFixed(2);
   }
   return value.toFixed(2);
 };
 
-// CORRECTION: Convertir une valeur d'affichage vers le stockage selon le type de frais  
+// Convertir une valeur d'affichage vers le stockage selon le type de frais  
 const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Calculation_Type']) => {
   const numValue = parseFloat(displayValue) || 0;
   if (calculationType === 'Pourcentage budget') {
-    // PROBLÈME CORRIGÉ: La valeur affichée est toujours en pourcentage
-    // On divise toujours par 100 pour stocker en décimal
+    // La valeur affichée est en pourcentage, on divise par 100 pour stocker en décimal
     return numValue / 100;
   }
   return numValue;
@@ -142,7 +140,7 @@ const FeeItem = memo<{
     onCustomUnitsChange(fee.id, units);
   }, [fee.id, onCustomUnitsChange]);
 
-  // Calcul du montant avec buffer si applicable
+  // Calcul du montant avec buffer si applicable (pour affichage informatif seulement)
   const finalValue = useMemo(() => {
     if (!selectedOption) return 0;
     const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
@@ -150,9 +148,8 @@ const FeeItem = memo<{
     return baseValue * bufferMultiplier;
   }, [selectedOption, appliedFee.customValue]);
 
-  // NOUVEAU: Formatage des montants dans la devise de la tactique
+  // Formatage des montants dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
-    // CORRECTION: Vérifier que tacticCurrency n'est pas undefined
     const currency = tacticCurrency || 'CAD';
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
@@ -199,13 +196,13 @@ const FeeItem = memo<{
           </div>
         </div>
         
-        {/* MODIFIÉ: Montant calculé dans la devise de la tactique */}
+        {/* Montant calculé dans la devise de la tactique */}
         {appliedFee.isActive && (
           <div className="text-right ml-4">
             <div className="text-xl font-bold text-indigo-600">
               {formatCurrency(appliedFee.calculatedAmount)}
             </div>
-            <div className="text-xs text-gray-500">Montant final</div>
+            <div className="text-xs text-gray-500">Montant calculé</div>
           </div>
         )}
       </div>
@@ -218,7 +215,7 @@ const FeeItem = memo<{
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Option du frais
-                {/* NOUVELLE FONCTIONNALITÉ: Indication si sélection automatique */}
+                {/* Indication si sélection automatique */}
                 {fee.options.length === 1 && (
                   <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
                     Sélectionnée automatiquement
@@ -334,11 +331,11 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* MODIFIÉ: Explication du calcul avec devise */}
+          {/* Explication du calcul avec devise - SIMPLIFIÉ */}
           {selectedOption && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-xs text-gray-600">
-                <strong>Calcul détaillé :</strong>
+                <strong>Type de calcul :</strong>
                 {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                   <div className="mt-1">
                     {finalDisplayValue}% × Base de calcul 
@@ -367,6 +364,9 @@ const FeeItem = memo<{
                     <strong>Buffer appliqué :</strong> +{selectedOption.FO_Buffer}% sur la valeur de base
                   </div>
                 )}
+                <div className="mt-2 text-green-600 font-medium">
+                  <strong>Montant final calculé automatiquement par le système</strong>
+                </div>
               </div>
             </div>
           )}
@@ -391,81 +391,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   disabled = false
 }) => {
 
-  // CORRECTION: Fonction pour calculer le montant d'un frais
-  const calculateFeeAmount = useCallback((fee: Fee, appliedFee: AppliedFee, cumulatedBase: number): number => {
-    if (!appliedFee.isActive || !appliedFee.selectedOptionId) return 0;
-    
-    const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
-    if (!selectedOption) return 0;
-    
-    // Valeur avec buffer - utiliser customValue si définie, sinon FO_Value
-    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
-    const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
-    
-    switch (fee.FE_Calculation_Type) {
-      case 'Pourcentage budget':
-        // CORRECTION: Utiliser la base de calcul cumulative selon le mode
-        const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-          ? mediaBudget 
-          : cumulatedBase;
-        // PROBLÈME CORRIGÉ: finalValue est déjà en décimal (ex: 0.1 pour 10%)
-        // Pas besoin de diviser par 100, la valeur est correcte
-        console.log(`Calcul frais ${fee.FE_Name}: ${finalValue} × ${baseAmount} = ${finalValue * baseAmount}`);
-        return finalValue * baseAmount;
-        
-      case 'Volume d\'unité':
-        return finalValue * unitVolume;
-        
-      case 'Unités':
-        const units = appliedFee.customUnits || 1;
-        return finalValue * units;
-        
-      case 'Frais fixe':
-        return finalValue;
-        
-      default:
-        return 0;
-    }
-  }, [mediaBudget, unitVolume]);
-
-  // Recalculer tous les frais quand les paramètres changent
-  useEffect(() => {
-    const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
-    let cumulatedBase = mediaBudget;
-    
-    setAppliedFees(prevAppliedFees => {
-      const updatedFees: AppliedFee[] = [];
-      
-      // Traiter les frais dans l'ordre pour calculer la base cumulative correctement
-      for (const fee of sortedFees) {
-        const appliedFee = prevAppliedFees.find(af => af.feeId === fee.id);
-        if (!appliedFee) continue;
-        
-        const calculatedAmount = calculateFeeAmount(fee, appliedFee, cumulatedBase);
-        
-        const updatedAppliedFee = {
-          ...appliedFee,
-          calculatedAmount
-        };
-        
-        updatedFees.push(updatedAppliedFee);
-        
-        // Ajouter ce frais à la base cumulative pour les frais suivants
-        // TOUS les frais actifs s'ajoutent à la base, peu importe leur mode
-        if (appliedFee.isActive && calculatedAmount > 0) {
-          cumulatedBase += calculatedAmount;
-        }
-      }
-      
-      // Retourner les frais dans l'ordre original (pas forcément l'ordre de traitement)
-      return prevAppliedFees.map(prevFee => {
-        const updatedFee = updatedFees.find(uf => uf.feeId === prevFee.feeId);
-        return updatedFee || prevFee;
-      });
-    });
-  }, [clientFees, mediaBudget, unitVolume, setAppliedFees, calculateFeeAmount, appliedFees.map(af => `${af.feeId}-${af.isActive}-${af.selectedOptionId}-${af.customValue}-${af.customUnits}`).join('|')]);
-
-  // NOUVELLE FONCTIONNALITÉ: Gestionnaire d'activation avec sélection automatique
+  // Gestionnaire d'activation avec sélection automatique
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
     setAppliedFees(prev => prev.map(appliedFee => {
       if (appliedFee.feeId !== feeId) return appliedFee;
@@ -475,7 +401,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
       
       let selectedOptionId = isActive ? appliedFee.selectedOptionId : undefined;
       
-      // NOUVELLE LOGIQUE: Si activation et une seule option disponible, la sélectionner automatiquement
+      // Si activation et une seule option disponible, la sélectionner automatiquement
       if (isActive && fee && fee.options.length === 1 && !selectedOptionId) {
         selectedOptionId = fee.options[0].id;
         console.log(`Sélection automatique de l'option unique pour le frais "${fee.FE_Name}": ${fee.options[0].FO_Option}`);
@@ -533,7 +459,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     [activeFees]
   );
 
-  // NOUVEAU: Formatage dans la devise de la tactique
+  // Formatage dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
@@ -568,7 +494,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         </div>
         <div className="text-xs text-blue-600 mt-1">
           Les montants de frais sont calculés et affichés dans la devise de la tactique. 
-          La conversion vers la devise de campagne se fait dans le récapitulatif final.
+          Les calculs exacts sont effectués automatiquement par le système.
         </div>
       </div>
 
@@ -595,7 +521,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         })}
       </div>
 
-      {/* MODIFIÉ: Résumé des frais actifs dans la devise de la tactique */}
+      {/* Résumé des frais actifs dans la devise de la tactique */}
       {activeFees.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-indigo-800 mb-3">
@@ -626,7 +552,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
           </div>
           
           <div className="mt-3 text-xs text-indigo-600 bg-indigo-100 p-2 rounded">
-            💡 Ces montants seront automatiquement convertis dans la devise de campagne dans le récapitulatif final.
+            💡 Ces montants sont calculés automatiquement selon la configuration de chaque frais.
           </div>
         </div>
       )}
@@ -635,7 +561,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
       {mediaBudget <= 0 && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⚠️ Un volume d'unité doit être défini pour calculer les frais basés sur le volume.
+            ⚠️ Un budget média doit être défini pour calculer les frais.
           </p>
         </div>
       )}

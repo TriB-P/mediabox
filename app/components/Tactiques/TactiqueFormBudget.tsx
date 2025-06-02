@@ -10,6 +10,17 @@ import BudgetBonificationSection from './BudgetBonificationSection';
 import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 
+// NOUVEAU: Import de la logique de calcul rebuild
+import {
+  calculateBudget,
+  validateBudgetInputs,
+  type FeeDefinition,
+  type BudgetInputs,
+  type BudgetResults,
+  type FeeCalculationType,
+  type FeeCalculationMode
+} from '../../lib/budgetCalculations';
+
 // ==================== TYPES ====================
 
 interface ListItem {
@@ -55,17 +66,8 @@ interface TactiqueFormBudgetProps {
     TC_Has_Bonus?: boolean;
     TC_Real_Value?: number;
     TC_Bonus_Value?: number;
-    // NOUVEAU: Champs pour les frais persistés
-    TC_Fee_1_Option?: string;
-    TC_Fee_1_Value?: number;
-    TC_Fee_2_Option?: string;
-    TC_Fee_2_Value?: number;
-    TC_Fee_3_Option?: string;
-    TC_Fee_3_Value?: number;
-    TC_Fee_4_Option?: string;
-    TC_Fee_4_Value?: number;
-    TC_Fee_5_Option?: string;
-    TC_Fee_5_Value?: number;
+    // Note: Les champs TC_Fee_X_Option et TC_Fee_X_Value ne sont plus utilisés
+    // pour éviter les boucles de re-render. Les frais sont gérés en état local.
   };
   
   // Données externes
@@ -101,241 +103,53 @@ interface BudgetSummary {
 // ==================== FONCTIONS UTILITAIRES ====================
 
 /**
- * CORRECTION COMPLÈTE : Calcule le budget média correct en mode client
- * en résolvant la dépendance circulaire ET en gérant les frais précédents
+ * Convertit les AppliedFee vers FeeDefinition pour la nouvelle logique
  */
-function calculateMediaBudgetInClientMode(
-  clientBudget: number,
+const convertAppliedFeesToDefinitions = (
   appliedFees: AppliedFee[],
-  clientFees: Fee[],
-  unitVolume: number
-): { mediaBudget: number; calculatedFees: AppliedFee[] } {
-  
-  if (clientBudget <= 0) {
-    return { mediaBudget: 0, calculatedFees: appliedFees };
-  }
-
-  // Trier les frais par ordre pour traitement séquentiel
-  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
-  
-  // NOUVELLE APPROCHE : Résolution itérative pour gérer les frais précédents
-  let mediaBudget = clientBudget * 0.8; // Estimation initiale
-  let iterations = 0;
-  const maxIterations = 20;
-  let converged = false;
-  
-  while (!converged && iterations < maxIterations) {
-    const previousMediaBudget = mediaBudget;
-    
-    // Calculer tous les frais avec ce budget média
-    let cumulatedBase = mediaBudget;
-    let totalCalculatedFees = 0;
-    const calculatedFeesAmounts: { [feeId: string]: number } = {};
-    
-    for (const fee of sortedFees) {
-      const appliedFee = appliedFees.find(af => af.feeId === fee.id);
-      if (!appliedFee || !appliedFee.isActive || !appliedFee.selectedOptionId) {
-        calculatedFeesAmounts[fee.id] = 0;
-        continue;
-      }
-
-      const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
-      if (!selectedOption) {
-        calculatedFeesAmounts[fee.id] = 0;
-        continue;
-      }
-
-      // Calculer la valeur avec buffer
-      const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
-      const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
-
-      let calculatedAmount = 0;
-      
-      // Calculer selon le type de frais
-      switch (fee.FE_Calculation_Type) {
-        case 'Volume d\'unité':
-          calculatedAmount = finalValue * unitVolume;
-          break;
-          
-        case 'Unités':
-          const units = appliedFee.customUnits || 1;
-          calculatedAmount = finalValue * units;
-          break;
-          
-        case 'Frais fixe':
-          calculatedAmount = finalValue;
-          break;
-          
-        case 'Pourcentage budget':
-          // CORRECTION : Utiliser la bonne base selon le mode
-          const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-            ? mediaBudget 
-            : cumulatedBase; // Base cumulative pour "frais précédents"
-          
-          calculatedAmount = finalValue * baseAmount;
-          break;
-      }
-
-      calculatedFeesAmounts[fee.id] = calculatedAmount;
-      totalCalculatedFees += calculatedAmount;
-      
-      // IMPORTANT : Ajouter ce frais à la base cumulative pour les suivants
-      cumulatedBase += calculatedAmount;
-    }
-    
-    // Nouveau budget média = Budget client - Total des frais
-    const newMediaBudget = clientBudget - totalCalculatedFees;
-    
-    // Vérifier la convergence
-    const difference = Math.abs(newMediaBudget - mediaBudget);
-    if (difference < 0.01) {
-      converged = true;
-    }
-    
-    mediaBudget = newMediaBudget;
-    iterations++;
-    
-    console.log(`Itération ${iterations}: Budget média = ${mediaBudget.toFixed(2)}, Total frais = ${totalCalculatedFees.toFixed(2)}, Différence = ${difference.toFixed(4)}`);
-  }
-  
-  if (!converged) {
-    console.warn(`Convergence non atteinte après ${maxIterations} itérations`);
-  }
-
-  // Calculer une dernière fois avec le budget média final
-  let cumulatedBase = mediaBudget;
-  const updatedFees: AppliedFee[] = [];
-  
-  for (const fee of sortedFees) {
-    const appliedFee = appliedFees.find(af => af.feeId === fee.id);
-    if (!appliedFee || !appliedFee.isActive || !appliedFee.selectedOptionId) {
-      updatedFees.push(appliedFee || { 
-        feeId: fee.id, 
-        isActive: false, 
-        calculatedAmount: 0 
-      });
-      continue;
-    }
-
-    const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
-    if (!selectedOption) {
-      updatedFees.push({ ...appliedFee, calculatedAmount: 0 });
-      continue;
-    }
-
-    // Calculer la valeur avec buffer
-    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
-    const finalValue = baseValue * ((100 + selectedOption.FO_Buffer) / 100);
-
-    let calculatedAmount = 0;
-    
-    // Calculer selon le type de frais
-    switch (fee.FE_Calculation_Type) {
-      case 'Volume d\'unité':
-        calculatedAmount = finalValue * unitVolume;
-        break;
-        
-      case 'Unités':
-        const units = appliedFee.customUnits || 1;
-        calculatedAmount = finalValue * units;
-        break;
-        
-      case 'Frais fixe':
-        calculatedAmount = finalValue;
-        break;
-        
-      case 'Pourcentage budget':
-        const baseAmount = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-          ? mediaBudget 
-          : cumulatedBase;
-        
-        calculatedAmount = finalValue * baseAmount;
-        break;
-    }
-
-    updatedFees.push({ ...appliedFee, calculatedAmount });
-    
-    // Ajouter à la base cumulative pour les frais suivants
-    cumulatedBase += calculatedAmount;
-  }
-
-  const finalTotalFees = updatedFees.reduce((sum, fee) => sum + (fee.calculatedAmount || 0), 0);
-  
-  console.log(`RÉSULTAT FINAL MODE CLIENT:
-    - Budget client: ${clientBudget}
-    - Budget média final: ${mediaBudget.toFixed(2)}
-    - Total frais: ${finalTotalFees.toFixed(2)}
-    - Vérification: ${(mediaBudget + finalTotalFees).toFixed(2)}
-    - Itérations: ${iterations}`);
-
-  return { mediaBudget: Math.max(0, mediaBudget), calculatedFees: updatedFees };
-}
-
-// NOUVELLE FONCTION: Charger les frais appliqués depuis les données de la tactique
-function loadAppliedFeesFromFormData(
-  formData: TactiqueFormBudgetProps['formData'],
   clientFees: Fee[]
-): AppliedFee[] {
-  const appliedFees: AppliedFee[] = [];
-  
-  // Parcourir les frais clients et chercher les valeurs correspondantes dans formData
-  clientFees.forEach((fee, index) => {
-    const feeOrder = fee.FE_Order + 1; // Les champs commencent à 1
-    const optionKey = `TC_Fee_${feeOrder}_Option` as keyof typeof formData;
-    const valueKey = `TC_Fee_${feeOrder}_Value` as keyof typeof formData;
-    
-    const selectedOptionId = formData[optionKey] as string;
-    const customValue = formData[valueKey] as number;
-    
-    const isActive = !!selectedOptionId;
-    
-    appliedFees.push({
-      feeId: fee.id,
-      isActive,
-      selectedOptionId: isActive ? selectedOptionId : undefined,
-      customValue: customValue !== undefined ? customValue : undefined,
-      calculatedAmount: 0 // Sera calculé plus tard
-    });
-  });
-  
-  return appliedFees;
-}
-
-// NOUVELLE FONCTION: Sauvegarder les frais appliqués dans les données du formulaire
-function saveAppliedFeesToFormData(
-  appliedFees: AppliedFee[],
-  clientFees: Fee[],
-  onCalculatedChange: (field: string, value: number | string) => void
-): void {
-  
-  // Réinitialiser tous les champs de frais
-  for (let i = 1; i <= 5; i++) {
-    onCalculatedChange(`TC_Fee_${i}_Option`, '');
-    onCalculatedChange(`TC_Fee_${i}_Value`, 0);
-  }
-  
-  // Sauvegarder les frais actifs
-  clientFees.forEach((fee, index) => {
-    const appliedFee = appliedFees.find(af => af.feeId === fee.id);
-    if (!appliedFee) return;
-    
-    const feeOrder = fee.FE_Order + 1; // Les champs commencent à 1
-    
-    if (appliedFee.isActive && appliedFee.selectedOptionId) {
-      onCalculatedChange(`TC_Fee_${feeOrder}_Option`, appliedFee.selectedOptionId);
+): FeeDefinition[] => {
+  return appliedFees
+    .filter(appliedFee => appliedFee.isActive && appliedFee.selectedOptionId)
+    .map(appliedFee => {
+      const fee = clientFees.find(f => f.id === appliedFee.feeId);
+      const selectedOption = fee?.options.find(opt => opt.id === appliedFee.selectedOptionId);
       
-      if (appliedFee.customValue !== undefined) {
-        onCalculatedChange(`TC_Fee_${feeOrder}_Value`, appliedFee.customValue);
-      } else {
-        // Utiliser la valeur par défaut de l'option
-        const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
-        if (selectedOption) {
-          onCalculatedChange(`TC_Fee_${feeOrder}_Value`, selectedOption.FO_Value);
-        }
+      if (!fee || !selectedOption) {
+        throw new Error(`Frais ou option non trouvé: ${appliedFee.feeId}`);
       }
-    }
+
+      // Utiliser la valeur personnalisée si disponible, sinon la valeur de l'option
+      const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
+
+      return {
+        id: fee.id,
+        name: fee.FE_Name,
+        calculationType: fee.FE_Calculation_Type as FeeCalculationType,
+        calculationMode: fee.FE_Calculation_Mode as FeeCalculationMode,
+        order: fee.FE_Order,
+        value: baseValue,
+        buffer: selectedOption.FO_Buffer,
+        customUnits: appliedFee.customUnits
+      };
+    });
+};
+
+/**
+ * Met à jour les AppliedFee avec les montants calculés par la nouvelle logique
+ */
+const updateAppliedFeesWithCalculations = (
+  appliedFees: AppliedFee[],
+  budgetResults: BudgetResults
+): AppliedFee[] => {
+  return appliedFees.map(appliedFee => {
+    const feeDetail = budgetResults.feeDetails.find(detail => detail.feeId === appliedFee.feeId);
+    return {
+      ...appliedFee,
+      calculatedAmount: feeDetail ? feeDetail.calculatedAmount : 0
+    };
   });
-}
+};
 
 // ==================== COMPOSANT PRINCIPAL ====================
 
@@ -352,6 +166,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   
   // États locaux
   const [appliedFees, setAppliedFees] = useState<AppliedFee[]>([]);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
   
   // Options pour le type d'unité
   const unitTypeOptions = dynamicLists.TC_Unit_Type || [];
@@ -359,16 +174,25 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
-  // NOUVEAU: Charger les frais appliqués depuis les données du formulaire au démarrage
+  // NOUVEAU: Initialisation simple des frais (une seule fois)
   useEffect(() => {
-    if (clientFees.length > 0) {
-      const loadedAppliedFees = loadAppliedFeesFromFormData(formData, clientFees);
-      setAppliedFees(loadedAppliedFees);
+    if (clientFees.length > 0 && appliedFees.length === 0) {
+      const initialAppliedFees = clientFees.map(fee => ({
+        feeId: fee.id,
+        isActive: false,
+        calculatedAmount: 0
+      }));
+      setAppliedFees(initialAppliedFees);
     }
-  }, [clientFees, formData]);
+  }, [clientFees.length]); // Seulement quand clientFees change
 
-  // Fonction pour gérer les changements calculés avec sauvegarde des frais
+  // Fonction pour gérer les changements calculés (SANS persistance automatique des frais)
   const handleCalculatedChange = useCallback((field: string, value: number | string) => {
+    // Ignorer les changements de frais pour éviter la boucle
+    if (field.startsWith('TC_Fee_')) {
+      return;
+    }
+    
     const syntheticEvent = {
       target: {
         name: field,
@@ -380,124 +204,146 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // NOUVEAU: Effect pour sauvegarder les frais quand ils changent
-  useEffect(() => {
-    if (appliedFees.length > 0) {
-      // Sauvegarder dans les propriétés de la tactique
-      saveAppliedFeesToFormData(appliedFees, clientFees, handleCalculatedChange);
-    }
-  }, [appliedFees, clientFees, handleCalculatedChange]);
+  // SUPPRIMÉ: Effect de sauvegarde automatique qui cause la boucle
 
-  // CORRECTION MAJEURE : Calcul correct du budget média et des frais
-  const { calculatedMediaBudget, calculatedTotalFees, correctedAppliedFees } = useMemo(() => {
-    const budget = formData.TC_Budget || 0;
-    const budgetMode = formData.TC_Budget_Mode || 'media';
-    const unitVolume = formData.TC_Unit_Volume || 0;
-    
-    if (budgetMode === 'client' && budget > 0) {
-      // NOUVEAU : Calcul correct pour le mode client
-      const result = calculateMediaBudgetInClientMode(budget, appliedFees, clientFees, unitVolume);
-      
-      const totalFees = result.calculatedFees
-        .filter(af => af.isActive)
-        .reduce((sum, af) => sum + af.calculatedAmount, 0);
-      
-      return {
-        calculatedMediaBudget: result.mediaBudget,
-        calculatedTotalFees: totalFees,
-        correctedAppliedFees: result.calculatedFees
-      };
-    } else {
-      // Mode média : logique normale
-      const totalFees = appliedFees
-        .filter(af => af.isActive && typeof af.calculatedAmount === 'number')
-        .reduce((sum, af) => sum + (af.calculatedAmount || 0), 0);
-      
-      return {
-        calculatedMediaBudget: budget,
-        calculatedTotalFees: isNaN(totalFees) ? 0 : totalFees,
-        correctedAppliedFees: appliedFees
-      };
-    }
-  }, [formData.TC_Budget, formData.TC_Budget_Mode, formData.TC_Unit_Volume, appliedFees, clientFees]);
-
-  // Synchroniser les frais corrigés
-  useEffect(() => {
-    if (formData.TC_Budget_Mode === 'client') {
-      setAppliedFees(correctedAppliedFees);
-    }
-  }, [correctedAppliedFees, formData.TC_Budget_Mode]);
-
-  // Calcul du résumé budgétaire
-  const budgetSummary = useMemo((): BudgetSummary => {
+  // NOUVEAU: Calcul principal avec la logique rebuild
+  const budgetCalculationResults = useMemo((): BudgetResults | null => {
     try {
-      const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
+      // Nettoyer les erreurs précédentes
+      setCalculationError(null);
+      
+      // Valeurs de base
       const budget = formData.TC_Budget || 0;
       const budgetMode = formData.TC_Budget_Mode || 'media';
-      const currency = formData.TC_Currency || 'CAD';
+      const costPerUnit = formData.TC_Cost_Per_Unit || 0;
+      const realValue = formData.TC_Has_Bonus ? (formData.TC_Real_Value || 0) : undefined;
+      const unitVolume = formData.TC_Unit_Volume || 0;
       
-      let finalMediaBudget: number;
-      let finalClientBudget: number;
+      // Validation de base
+      if (budget <= 0 || costPerUnit <= 0) {
+        return null; // Pas assez de données pour calculer
+      }
       
+      // Convertir les frais appliqués vers la nouvelle structure
+      const feeDefinitions = convertAppliedFeesToDefinitions(appliedFees, clientFees);
+      
+      // Préparer les inputs pour le calcul
+      const budgetInputs: BudgetInputs = {
+        costPerUnit,
+        realValue,
+        unitVolume: unitVolume > 0 ? unitVolume : undefined, // Laisser calculer si 0
+        fees: feeDefinitions
+      };
+      
+      // Définir le type de budget selon le mode
       if (budgetMode === 'client') {
-        // Mode client: utiliser les valeurs calculées
-        finalClientBudget = budget;
-        finalMediaBudget = calculatedMediaBudget;
+        budgetInputs.clientBudget = budget;
       } else {
-        // Mode média: budget saisi = budget média, on ajoute les frais pour le client
-        finalMediaBudget = budget;
-        finalClientBudget = budget + calculatedTotalFees;
+        budgetInputs.mediaBudget = budget;
       }
       
-      // Validation des valeurs
-      finalMediaBudget = isNaN(finalMediaBudget) ? 0 : finalMediaBudget;
-      finalClientBudget = isNaN(finalClientBudget) ? 0 : finalClientBudget;
-      const finalTotalFees = isNaN(calculatedTotalFees) ? 0 : calculatedTotalFees;
-      const finalBonusValue = isNaN(bonusValue) ? 0 : bonusValue;
-      
-      // Calcul de la conversion de devise si nécessaire
-      let convertedValues;
-      if (currency !== campaignCurrency && exchangeRates[currency]) {
-        const exchangeRate = exchangeRates[currency];
-        if (!isNaN(exchangeRate) && exchangeRate > 0) {
-          convertedValues = {
-            mediaBudget: finalMediaBudget * exchangeRate,
-            totalFees: finalTotalFees * exchangeRate,
-            clientBudget: finalClientBudget * exchangeRate,
-            bonusValue: finalBonusValue * exchangeRate,
-            currency: campaignCurrency,
-            exchangeRate
-          };
-        }
+      // Valider les inputs
+      const validationErrors = validateBudgetInputs(budgetInputs);
+      if (validationErrors.length > 0) {
+        console.warn('Erreurs de validation:', validationErrors);
+        return null;
       }
       
-      return {
-        mediaBudget: finalMediaBudget,
-        totalFees: finalTotalFees,
-        clientBudget: finalClientBudget,
-        bonusValue: finalBonusValue,
-        currency,
-        convertedValues
-      };
+      // Effectuer le calcul avec la nouvelle logique
+      const results = calculateBudget(budgetInputs);
+      
+      return results;
+      
     } catch (error) {
-      console.error('Erreur lors du calcul du résumé budgétaire:', error);
-      return {
-        mediaBudget: 0,
-        totalFees: 0,
-        clientBudget: 0,
-        bonusValue: 0,
-        currency: formData.TC_Currency || 'CAD'
-      };
+      console.error('Erreur dans le calcul de budget:', error);
+      setCalculationError(error instanceof Error ? error.message : 'Erreur de calcul');
+      return null;
     }
+  }, [
+    formData.TC_Budget,
+    formData.TC_Budget_Mode, 
+    formData.TC_Cost_Per_Unit,
+    formData.TC_Has_Bonus,
+    formData.TC_Real_Value,
+    formData.TC_Unit_Volume,
+    appliedFees,
+    clientFees
+  ]);
+
+  // Synchroniser les frais calculés avec les AppliedFee (SANS boucle)
+  useEffect(() => {
+    if (budgetCalculationResults && appliedFees.length > 0) {
+      const updatedAppliedFees = updateAppliedFeesWithCalculations(appliedFees, budgetCalculationResults);
+      
+      // Vérifier si les montants ont vraiment changé pour éviter les re-renders inutiles
+      const amountsChanged = updatedAppliedFees.some((updatedFee, index) => {
+        const currentFee = appliedFees[index];
+        return currentFee && Math.abs(updatedFee.calculatedAmount - currentFee.calculatedAmount) > 0.01;
+      });
+      
+      if (amountsChanged) {
+        setAppliedFees(updatedAppliedFees);
+      }
+      
+      // Mettre à jour le volume d'unité calculé si nécessaire (SANS déclencher de boucle)
+      if (Math.abs(budgetCalculationResults.unitVolume - (formData.TC_Unit_Volume || 0)) > 0.01) {
+        handleCalculatedChange('TC_Unit_Volume', budgetCalculationResults.unitVolume);
+      }
+      
+      // Mettre à jour la bonification calculée si nécessaire (SANS déclencher de boucle)
+      if (formData.TC_Has_Bonus && Math.abs(budgetCalculationResults.bonusValue - (formData.TC_Bonus_Value || 0)) > 0.01) {
+        handleCalculatedChange('TC_Bonus_Value', budgetCalculationResults.bonusValue);
+      }
+    }
+  }, [budgetCalculationResults]); // SEULEMENT budgetCalculationResults pour éviter la boucle
+
+  // Extraire les valeurs calculées ou utiliser les valeurs par défaut
+  const calculatedMediaBudget = budgetCalculationResults?.mediaBudget || 0;
+  const calculatedTotalFees = budgetCalculationResults?.totalFees || 0;
+  const calculatedClientBudget = budgetCalculationResults?.clientBudget || 0;
+
+  // Calcul du résumé budgétaire pour l'affichage
+  const budgetSummary = useMemo((): BudgetSummary => {
+    const currency = formData.TC_Currency || 'CAD';
+    const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
+    
+    // Utiliser les résultats calculés ou les valeurs par défaut
+    const mediaBudget = calculatedMediaBudget;
+    const totalFees = calculatedTotalFees;
+    const clientBudget = calculatedClientBudget;
+    
+    // Calcul de la conversion de devise si nécessaire
+    let convertedValues;
+    if (currency !== campaignCurrency && exchangeRates[currency]) {
+      const exchangeRate = exchangeRates[currency];
+      if (!isNaN(exchangeRate) && exchangeRate > 0) {
+        convertedValues = {
+          mediaBudget: mediaBudget * exchangeRate,
+          totalFees: totalFees * exchangeRate,
+          clientBudget: clientBudget * exchangeRate,
+          bonusValue: bonusValue * exchangeRate,
+          currency: campaignCurrency,
+          exchangeRate
+        };
+      }
+    }
+    
+    return {
+      mediaBudget,
+      totalFees,
+      clientBudget,
+      bonusValue,
+      currency,
+      convertedValues
+    };
   }, [
     calculatedMediaBudget,
     calculatedTotalFees,
-    formData.TC_Budget,
-    formData.TC_Budget_Mode,
-    formData.TC_Has_Bonus, 
-    formData.TC_Bonus_Value, 
-    formData.TC_Currency, 
-    campaignCurrency, 
+    calculatedClientBudget,
+    formData.TC_Currency,
+    formData.TC_Has_Bonus,
+    formData.TC_Bonus_Value,
+    campaignCurrency,
     exchangeRates
   ]);
 
@@ -512,6 +358,15 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           Configuration détaillée du budget et des frais applicables
         </p>
       </div>
+
+      {/* Message d'erreur de calcul */}
+      {calculationError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <p className="text-sm">
+            <strong>Erreur de calcul :</strong> {calculationError}
+          </p>
+        </div>
+      )}
       
       {/* Paramètres généraux */}
       <FormSection 
@@ -557,7 +412,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         />
       </FormSection>
 
-      {/* Section Frais - MODIFIÉE pour passer la devise de la tactique avec debug */}
+      {/* Section Frais */}
       <FormSection 
         title="Frais"
         description="Application des frais configurés pour le client"
@@ -573,18 +428,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           disabled={isDisabled}
         />
       </FormSection>
-
-      {/* Debug info en développement - AJOUTÉ pour vérifier la devise */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info - Devise</h5>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>formData.TC_Currency: "{formData.TC_Currency}"</div>
-            <div>formData.TC_Currency || 'CAD': "{formData.TC_Currency || 'CAD'}"</div>
-            <div>Type: {typeof formData.TC_Currency}</div>
-          </div>
-        </div>
-      )}
 
       {/* Section Récapitulatif */}
       <FormSection 
@@ -609,28 +452,24 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       )}
 
       {/* Debug info en développement */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === 'development' && budgetCalculationResults && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Persistance Frais)</h5>
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Nouvelle logique - SANS persistance automatique)</h5>
           <div className="text-xs text-gray-600 space-y-1">
             <div>Budget saisi: {formData.TC_Budget || 0}</div>
             <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
-            <div>Budget média calculé: {calculatedMediaBudget}</div>
-            <div>Total frais calculé: {calculatedTotalFees}</div>
-            <div>Budget client final: {budgetSummary.clientBudget}</div>
-            <div>Frais actifs: {appliedFees.filter(af => af.isActive).length}</div>
-            <div>Frais persistés:</div>
-            {[1,2,3,4,5].map(i => {
-              const optionKey = `TC_Fee_${i}_Option` as keyof typeof formData;
-              const valueKey = `TC_Fee_${i}_Value` as keyof typeof formData;
-              const option = formData[optionKey];
-              const value = formData[valueKey];
-              return option ? (
-                <div key={i} className="ml-2">
-                  Fee_{i}: {option} = {value}
-                </div>
-              ) : null;
-            })}
+            <div>Budget média calculé: {budgetCalculationResults.mediaBudget.toFixed(2)}</div>
+            <div>Total frais calculé: {budgetCalculationResults.totalFees.toFixed(2)}</div>
+            <div>Budget client final: {budgetCalculationResults.clientBudget.toFixed(2)}</div>
+            <div>Volume d'unité: {budgetCalculationResults.unitVolume}</div>
+            <div>Frais actifs: {budgetCalculationResults.feeDetails.length}</div>
+            <div>Avec bonification: {budgetCalculationResults.hasBonus ? 'Oui' : 'Non'}</div>
+            {budgetCalculationResults.hasBonus && (
+              <div>Bonification: {budgetCalculationResults.bonusValue.toFixed(2)}</div>
+            )}
+            <div className="mt-2 text-orange-600">
+              <strong>Note:</strong> Les frais ne sont plus persistés automatiquement pour éviter les boucles de re-render
+            </div>
           </div>
         </div>
       )}

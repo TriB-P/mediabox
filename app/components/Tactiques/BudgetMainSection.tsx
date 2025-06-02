@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { memo, useCallback, useMemo, useEffect } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
 // ==================== TYPES ====================
@@ -66,109 +66,53 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budgetMode]);
 
-  // CORRECTION: Calcul du budget média effectif avec logique inversée pour mode client
-  const mediaBudget = useMemo(() => {
-    try {
-      if (budgetMode === 'client') {
-        // PROBLÈME CORRIGÉ: En mode client, il faut calculer le budget média
-        // en résolvant l'équation : budgetClient = budgetMédia + (budgetMédia × tauxFrais)
-        // soit budgetClient = budgetMédia × (1 + tauxFrais)
-        // donc budgetMédia = budgetClient ÷ (1 + tauxFrais)
-        
-        if (totalFees === 0) {
-          // Si pas de frais, le budget média = budget client
-          return budget;
-        }
-        
-        // Calculer le taux de frais total approximatif
-        // On doit faire une approximation itérative car les frais peuvent dépendre du budget média
-        let estimatedMediaBudget = budget * 0.9; // Estimation initiale
-        let iterations = 0;
-        const maxIterations = 10;
-        
-        while (iterations < maxIterations) {
-          // Cette approximation suppose que la plupart des frais sont des pourcentages du budget média
-          // Pour une approche plus précise, il faudrait recalculer les frais à chaque itération
-          const totalFeeRate = totalFees / (estimatedMediaBudget || 1);
-          const newEstimatedMediaBudget = budget / (1 + totalFeeRate);
-          
-          // Si la différence est petite, on converge
-          if (Math.abs(newEstimatedMediaBudget - estimatedMediaBudget) < 0.01) {
-            break;
-          }
-          
-          estimatedMediaBudget = newEstimatedMediaBudget;
-          iterations++;
-        }
-        
-        console.log(`Mode client - Budget saisi: ${budget}, Frais: ${totalFees}, Budget média calculé: ${estimatedMediaBudget}`);
-        return Math.max(0, estimatedMediaBudget);
-      } else {
-        // En mode média, le budget saisi EST le budget média
-        return isNaN(budget) ? 0 : budget;
-      }
-    } catch (error) {
-      console.error('Erreur lors du calcul du budget média:', error);
-      return 0;
+  // NOUVEAU: Calcul simple du budget média (pour affichage informatif seulement)
+  // La vraie logique de calcul est maintenant dans TactiqueFormBudget.tsx
+  const displayMediaBudget = useMemo(() => {
+    if (budgetMode === 'client') {
+      // En mode client, estimation simple pour l'affichage
+      return Math.max(0, budget - totalFees);
+    } else {
+      // En mode média, le budget saisi EST le budget média
+      return budget;
     }
   }, [budget, totalFees, budgetMode]);
 
-  // Calcul du budget effectif pour le volume (média + bonification)
+  // Calcul du budget effectif pour le volume (média + bonification) - pour affichage
   const effectiveBudgetForVolume = useMemo(() => {
-    const baseBudget = mediaBudget;
+    const baseBudget = displayMediaBudget;
     const bonus = hasBonus ? bonusValue : 0;
     return baseBudget + bonus;
-  }, [mediaBudget, hasBonus, bonusValue]);
+  }, [displayMediaBudget, hasBonus, bonusValue]);
 
-  // Calcul automatique du volume d'unité quand les paramètres changent
-  useEffect(() => {
-    if (costPerUnit > 0 && effectiveBudgetForVolume > 0) {
-      const calculatedVolume = Math.round(effectiveBudgetForVolume / costPerUnit);
-      if (calculatedVolume !== unitVolume) {
-        onCalculatedChange('TC_Unit_Volume', calculatedVolume);
-      }
-    } else if (costPerUnit > 0 && effectiveBudgetForVolume === 0) {
-      // Si pas de budget effectif, volume = 0
-      if (unitVolume !== 0) {
-        onCalculatedChange('TC_Unit_Volume', 0);
-      }
-    }
-  }, [effectiveBudgetForVolume, costPerUnit, unitVolume, onCalculatedChange]);
-
-  // Calcul du budget client effectif (pour affichage informatif)
-  const clientBudget = useMemo(() => {
-    try {
-      if (budgetMode === 'client') {
-        // En mode client, le budget saisi EST le budget client
-        return budget;
-      } else {
-        // En mode média, on ajoute les frais au budget saisi
-        const result = budget + totalFees;
-        return isNaN(result) ? 0 : result;
-      }
-    } catch (error) {
-      console.error('Erreur lors du calcul du budget client:', error);
-      return 0;
+  // Calcul du budget client effectif (pour affichage informatif seulement)
+  const displayClientBudget = useMemo(() => {
+    if (budgetMode === 'client') {
+      // En mode client, le budget saisi EST le budget client
+      return budget;
+    } else {
+      // En mode média, on ajoute les frais au budget saisi
+      return budget + totalFees;
     }
   }, [budget, totalFees, budgetMode]);
 
   // Gestionnaire pour le changement de budget
   const handleBudgetChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e); // Mettre à jour le budget principal
-    // Le volume sera recalculé automatiquement par l'useEffect
+    // Note: Le volume sera recalculé automatiquement par la logique parent
   }, [onChange]);
 
   // Gestionnaire pour le changement de coût par unité
   const handleCostChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newCost = parseFloat(e.target.value) || 0;
     onCalculatedChange('TC_Cost_Per_Unit', newCost);
-    // Le volume sera recalculé automatiquement par l'useEffect
+    // Note: Le volume sera recalculé automatiquement par la logique parent
   }, [onCalculatedChange]);
 
-  // Déterminer les statuts de calcul
+  // Déterminer les statuts de calcul (pour l'affichage des messages)
   const calculationStatus = useMemo(() => {
     const hasValidBudget = budget > 0;
-    const hasValidMediaBudget = mediaBudget > 0;
+    const hasValidMediaBudget = displayMediaBudget > 0;
     const hasValidCost = costPerUnit > 0;
     const hasValidEffectiveBudget = effectiveBudgetForVolume > 0;
     
@@ -179,7 +123,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       mediaBudgetValid: hasValidMediaBudget,
       effectiveBudgetValid: hasValidEffectiveBudget
     };
-  }, [budget, mediaBudget, costPerUnit, effectiveBudgetForVolume]);
+  }, [budget, displayMediaBudget, costPerUnit, effectiveBudgetForVolume]);
 
   // Formater les nombres pour l'affichage
   const formatCurrency = useCallback((value: number) => {
@@ -233,7 +177,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* CORRECTION: Affichage informatif du budget média si en mode client */}
+      {/* Affichage informatif du budget média si en mode client */}
       {budgetMode === 'client' && budget > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-blue-800 mb-2">
@@ -245,8 +189,8 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               <span className="font-medium">{formatCurrency(budget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Budget média calculé :</span>
-              <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
+              <span>Budget média estimé :</span>
+              <span className="font-medium">{formatCurrency(displayMediaBudget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Frais applicables :</span>
@@ -254,13 +198,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             </div>
             <div className="flex justify-between items-center border-t border-blue-300 pt-2 mt-2 font-semibold">
               <span>Vérification :</span>
-              <span className="text-blue-800">{formatCurrency(mediaBudget + totalFees)} {currency}</span>
+              <span className="text-blue-800">{formatCurrency(displayMediaBudget + totalFees)} {currency}</span>
             </div>
-            {Math.abs((mediaBudget + totalFees) - budget) > 0.01 && (
-              <div className="text-xs text-orange-600 mt-1">
-                ⚠️ Petite différence due aux arrondis dans le calcul itératif
-              </div>
-            )}
+            <div className="text-xs text-blue-600 mt-2">
+              💡 Les calculs exacts sont effectués automatiquement par le système.
+            </div>
           </div>
         </div>
       )}
@@ -282,7 +224,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             </div>
             <div className="flex justify-between items-center border-t border-green-300 pt-2 mt-2 font-semibold">
               <span>Budget client facturé :</span>
-              <span className="text-green-800">{formatCurrency(clientBudget)} {currency}</span>
+              <span className="text-green-800">{formatCurrency(displayClientBudget)} {currency}</span>
             </div>
           </div>
         </div>
@@ -331,7 +273,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
               'Volume d\'unité (calculé)', 
-              'Nombre d\'unités calculé automatiquement selon la formule : (Budget média + Bonification) ÷ Coût par unité. Ce champ est en lecture seule.', 
+              'Nombre d\'unités calculé automatiquement selon la formule : (Budget média + Bonification) ÷ Coût par unité. Ce champ est en lecture seule et calculé par le système.', 
               onTooltipChange
             )}
           </div>
@@ -352,8 +294,40 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               = {formatCurrency(effectiveBudgetForVolume)} {currency} ÷ {formatCostPerUnit(costPerUnit)} {currency}
             </div>
           )}
+          {!calculationStatus.canCalculateVolume && budget > 0 && (
+            <div className="mt-1 text-xs text-orange-600">
+              Nécessite un coût par unité valide pour le calcul
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Messages d'information pour l'utilisateur */}
+      {budget > 0 && costPerUnit > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="text-sm text-green-700">
+            ✅ <strong>Calculs automatiques actifs</strong>
+            <ul className="mt-2 ml-4 space-y-1 text-xs">
+              <li>• Le volume d'unité est recalculé automatiquement</li>
+              <li>• Les frais sont appliqués selon leur configuration</li>
+              <li>• Les montants finaux sont mis à jour en temps réel</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Message si données incomplètes */}
+      {(!budget || !costPerUnit) && !disabled && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="text-sm text-yellow-700">
+            ⚠️ <strong>Configuration incomplète</strong>
+            <ul className="mt-2 ml-4 space-y-1 text-xs">
+              {!budget && <li>• Saisir un budget ({budgetMode === 'client' ? 'client' : 'média'})</li>}
+              {!costPerUnit && <li>• Saisir un coût par unité</li>}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Message si champs désactivés */}
       {disabled && (
