@@ -302,19 +302,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* Messages d'information pour l'utilisateur */}
-      {budget > 0 && costPerUnit > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <div className="text-sm text-green-700">
-            ✅ <strong>Calculs automatiques actifs</strong>
-            <ul className="mt-2 ml-4 space-y-1 text-xs">
-              <li>• Le volume d'unité est recalculé automatiquement</li>
-              <li>• Les frais sont appliqués selon leur configuration</li>
-              <li>• Les montants finaux sont mis à jour en temps réel</li>
-            </ul>
-          </div>
-        </div>
-      )}
 
       {/* Message si données incomplètes */}
       {(!budget || !costPerUnit) && !disabled && (

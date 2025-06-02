@@ -21,6 +21,17 @@ interface AppliedFee {
   calculatedAmount: number;
 }
 
+// NOUVEAU: Interface pour les informations de convergence
+interface ConvergenceInfo {
+  hasConverged: boolean;
+  finalDifference: number;
+  iterations: number;
+  tolerance: number;
+  targetBudget: number;
+  actualCalculatedTotal: number;
+}
+
+// NOUVEAU: Interface étendue pour le résumé budgétaire
 interface BudgetSummary {
   mediaBudget: number;
   totalFees: number;
@@ -35,6 +46,7 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
+  convergenceInfo?: ConvergenceInfo; // NOUVEAU
 }
 
 interface BudgetSummarySectionProps {
@@ -165,6 +177,81 @@ const SummaryLine = memo<{
 SummaryLine.displayName = 'SummaryLine';
 
 /**
+ * NOUVEAU: Alerte de convergence pour expliquer l'écart
+ */
+const ConvergenceAlert = memo<{
+  convergenceInfo: ConvergenceInfo;
+  currency: string;
+  onTooltipChange: (tooltip: string | null) => void;
+}>(({ convergenceInfo, currency, onTooltipChange }) => {
+  
+  const formatCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat('fr-CA', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  }, []);
+
+  const absEcart = Math.abs(convergenceInfo.finalDifference);
+  const isPositive = convergenceInfo.finalDifference > 0;
+
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <span className="text-xl">⚠️</span>
+        </div>
+        <div className="ml-3 flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            {createLabelWithHelp(
+              'Écart de convergence détecté',
+              `Le système utilise un algorithme itératif pour calculer le budget média à partir du budget client. Parfois, il n'arrive pas à trouver une correspondance parfaite à cause de la complexité des frais. L'écart est généralement très petit (quelques dollars).`,
+              onTooltipChange
+            )}
+          </div>
+          
+          <div className="text-sm text-orange-700 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="font-medium">Budget client visé :</div>
+                <div className="font-mono">{formatCurrency(convergenceInfo.targetBudget)} {currency}</div>
+              </div>
+              <div>
+                <div className="font-medium">Total calculé réel :</div>
+                <div className="font-mono">{formatCurrency(convergenceInfo.actualCalculatedTotal)} {currency}</div>
+              </div>
+            </div>
+            
+            <div className="bg-orange-100 border border-orange-300 rounded p-3">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Écart final :</span>
+                <span className="font-bold text-orange-800">
+                  {isPositive ? '+' : '-'}{formatCurrency(absEcart)} {currency}
+                </span>
+              </div>
+              <div className="text-xs text-orange-600 mt-1">
+                {isPositive 
+                  ? 'Le total calculé dépasse légèrement le budget visé'
+                  : 'Le total calculé est légèrement en dessous du budget visé'
+                }
+              </div>
+            </div>
+            
+            <div className="text-xs text-orange-600">
+              💡 <strong>Le récapitulatif ci-dessous affiche le total réellement calculé.</strong> 
+              Vous pouvez ajuster les paramètres de budget ou de frais pour réduire cet écart, ou accepter cette différence minime.
+              (Convergence après {convergenceInfo.iterations} itérations)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ConvergenceAlert.displayName = 'ConvergenceAlert';
+
+/**
  * Section de conversion de devise
  */
 const CurrencyConversion = memo<{
@@ -220,12 +307,13 @@ const BudgetMetrics = memo<{
     const feePercentage = (totalFees / mediaBudget) * 100;
     const bonusPercentage = (bonusValue / mediaBudget) * 100;
     const effectiveDiscount = bonusValue > 0 ? (bonusValue / (mediaBudget + totalFees)) * 100 : 0;
+    const netSpend = mediaBudget - bonusValue; // Ce qui est réellement dépensé
     
     return {
       feePercentage,
       bonusPercentage,
       effectiveDiscount,
-      netSpend: mediaBudget - bonusValue // Ce qui est réellement dépensé
+      netSpend
     };
   }, [budgetSummary]);
 
@@ -356,6 +444,15 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
 
   return (
     <div className="space-y-6">
+      {/* NOUVEAU: Alerte de convergence si applicable */}
+      {budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged && (
+        <ConvergenceAlert
+          convergenceInfo={budgetSummary.convergenceInfo}
+          currency={budgetSummary.currency}
+          onTooltipChange={onTooltipChange}
+        />
+      )}
+
       {/* En-tête du récapitulatif */}
       {conversionInfo.needsConversion && (
         <div className="flex items-center justify-between">
@@ -373,7 +470,15 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       {/* Récapitulatif principal - Format facture */}
       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
-          <h3 className="font-semibold text-gray-900">Détail des coûts</h3>
+          <h3 className="font-semibold text-gray-900">
+            Détail des coûts
+            {/* NOUVEAU: Indication si total calculé vs visé */}
+            {budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged && (
+              <span className="ml-2 text-sm font-normal text-orange-600">
+                (Total calculé réel)
+              </span>
+            )}
+          </h3>
           <p className="text-sm text-gray-600">
             {conversionInfo.showConvertedValues 
               ? `Montants en ${displayCurrency} (devise de campagne)` 
@@ -440,12 +545,20 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             </>
           )}
           
-          {/* Total client */}
+          {/* NOUVEAU: Total client - TOUJOURS le vrai total calculé */}
           <SummaryLine
-            label="TOTAL BUDGET CLIENT"
-            amount={displayValues.clientBudget}
+            label={
+              budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged
+                ? "TOTAL CALCULÉ RÉEL" // Différent si convergence échoue
+                : "TOTAL BUDGET CLIENT"
+            }
+            amount={displayValues.clientBudget} // Maintenant toujours le vrai total
             currency={displayCurrency}
-            description="Montant total facturable au client"
+            description={
+              budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged
+                ? "Montant total réellement calculé par le système"
+                : "Montant total facturable au client"
+            }
             isTotal
           />
         </div>
@@ -490,18 +603,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         </div>
       )}
 
-      {/* Message informatif sur les calculs automatiques */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-        <div className="text-sm text-green-700">
-          ✅ <strong>Calculs automatiques</strong>
-          <ul className="mt-2 ml-4 space-y-1 text-xs">
-            <li>• Tous les montants sont calculés automatiquement par le système</li>
-            <li>• Les frais sont appliqués selon leur configuration et ordre</li>
-            <li>• La conversion de devise est effectuée si nécessaire</li>
-            <li>• Les indicateurs de performance sont mis à jour en temps réel</li>
-          </ul>
-        </div>
-      </div>
     </div>
   );
 });

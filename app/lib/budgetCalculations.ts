@@ -1,12 +1,12 @@
 // app/lib/budgetCalculations.ts
 
 /**
- * SYSTÈME DE CALCUL DES FRAIS MÉDIA - VERSION REBUILD
+ * SYSTÈME DE CALCUL DES FRAIS MÉDIA - VERSION REBUILD AVEC CONVERGENCE
  * 
  * Ce fichier contient toute la logique de calcul bidirectionnel des budgets média,
  * remplaçant l'ancien système itératif par des calculs mathématiques précis.
  * 
- * Basé sur le brief technique du Google Doc fourni.
+ * NOUVEAU: Gestion de la convergence et des écarts
  */
 
 // ==================== TYPES ====================
@@ -40,6 +40,16 @@ export interface BudgetInputs {
   fees: FeeDefinition[];
 }
 
+// NOUVEAU: Interface pour les informations de convergence
+export interface ConvergenceInfo {
+  hasConverged: boolean;      // La convergence a-t-elle réussie ?
+  finalDifference: number;    // Écart final en dollars
+  iterations: number;         // Nombre d'itérations utilisées
+  tolerance: number;          // Tolérance utilisée
+  targetBudget: number;       // Budget visé
+  actualCalculatedTotal: number; // Total réellement calculé
+}
+
 export interface BudgetResults {
   mediaBudget: number;
   clientBudget: number;
@@ -49,6 +59,9 @@ export interface BudgetResults {
   feeDetails: FeeCalculationDetail[];
   hasBonus: boolean;
   bonusValue: number;
+  
+  // NOUVEAU: Informations de convergence (optionnel, seulement pour calcul inverse)
+  convergenceInfo?: ConvergenceInfo;
 }
 
 export interface FeeCalculationDetail {
@@ -207,6 +220,7 @@ export const calculateClientBudgetFromMedia = (inputs: BudgetInputs): BudgetResu
     feeDetails,
     hasBonus: !!hasBonus,
     bonusValue
+    // Pas de convergenceInfo pour le calcul direct
   };
 };
 
@@ -214,7 +228,7 @@ export const calculateClientBudgetFromMedia = (inputs: BudgetInputs): BudgetResu
 
 /**
  * Calcule le budget média à partir du budget client
- * NOUVELLE APPROCHE: Résolution itérative pour respecter l'ordre des frais
+ * NOUVELLE APPROCHE: Résolution itérative avec informations de convergence
  */
 export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResults => {
   const { clientBudget, costPerUnit, realValue, fees } = inputs;
@@ -232,8 +246,7 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
   let mediaBudgetEstimate = clientBudget * 0.73; // 73% au lieu de 75%
   let bestEstimate = mediaBudgetEstimate;
   let bestDifference = Infinity;
-  let bestEstimateBelow = mediaBudgetEstimate; // Meilleure estimation en dessous
-  let bestDifferenceBelow = Infinity;
+  let bestActualTotal = 0; // NOUVEAU: Garder le vrai total calculé
   
   console.log(`DÉBUT CALCUL ITÉRATIF pour budget client: ${clientBudget}$`);
   
@@ -254,12 +267,29 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
       
       console.log(`Itération ${iteration + 1}: Budget média ${mediaBudgetEstimate.toFixed(2)}$ → Budget client ${directResult.clientBudget.toFixed(2)}$ (écart: ${difference.toFixed(2)}$)`);
       
-      // AJUSTEMENT: Favoriser les estimations qui donnent un budget client en dessous
+      // Garder la meilleure estimation
+      if (absDifference < bestDifference) {
+        bestDifference = absDifference;
+        bestEstimate = mediaBudgetEstimate;
+        bestActualTotal = directResult.clientBudget; // NOUVEAU: Garder le vrai total
+      }
+      
+      // Vérifier la convergence
       if (absDifference < tolerance) {
         console.log(`CONVERGENCE atteinte après ${iteration + 1} itérations`);
         
         // Recalculer une dernière fois pour obtenir tous les détails
         const finalResult = calculateClientBudgetFromMedia(testInputs);
+        
+        // NOUVEAU: Ajouter les informations de convergence
+        const convergenceInfo: ConvergenceInfo = {
+          hasConverged: true,
+          finalDifference: difference,
+          iterations: iteration + 1,
+          tolerance,
+          targetBudget: clientBudget,
+          actualCalculatedTotal: finalResult.clientBudget
+        };
         
         return {
           mediaBudget: mediaBudgetEstimate,
@@ -269,20 +299,9 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
           totalFees: finalResult.totalFees,
           feeDetails: finalResult.feeDetails,
           hasBonus: finalResult.hasBonus,
-          bonusValue: finalResult.bonusValue
+          bonusValue: finalResult.bonusValue,
+          convergenceInfo // NOUVEAU
         };
-      }
-      
-      // Garder la meilleure estimation globale
-      if (absDifference < bestDifference) {
-        bestDifference = absDifference;
-        bestEstimate = mediaBudgetEstimate;
-      }
-      
-      // NOUVEAU: Garder spécifiquement la meilleure estimation qui donne un budget en dessous
-      if (difference > 0 && absDifference < bestDifferenceBelow) {
-        bestDifferenceBelow = absDifference;
-        bestEstimateBelow = mediaBudgetEstimate;
       }
       
       // AJUSTEMENT: Facteur de convergence plus conservateur pour éviter de dépasser
@@ -308,10 +327,10 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
     iteration++;
   }
   
-  // Si on n'a pas convergé, utiliser la meilleure estimation
+  // NOUVEAU: Si on n'a pas convergé, utiliser la meilleure estimation avec informations de convergence
   console.warn(`CONVERGENCE NON ATTEINTE après ${maxIterations} itérations. Meilleur écart: ${bestDifference.toFixed(2)}$`);
   
-  // Retourner le résultat avec la meilleure estimation
+  // Calculer le résultat final avec la meilleure estimation
   const finalInputs: BudgetInputs = {
     mediaBudget: bestEstimate,
     costPerUnit,
@@ -321,15 +340,26 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
   
   const finalResult = calculateClientBudgetFromMedia(finalInputs);
   
+  // NOUVEAU: Informations de convergence pour échec
+  const convergenceInfo: ConvergenceInfo = {
+    hasConverged: false,
+    finalDifference: bestActualTotal - clientBudget,
+    iterations: maxIterations,
+    tolerance,
+    targetBudget: clientBudget,
+    actualCalculatedTotal: bestActualTotal
+  };
+  
   return {
     mediaBudget: bestEstimate,
-    clientBudget,
+    clientBudget, // Garde le budget client saisi, mais convergenceInfo contient le vrai total
     effectiveBudgetForVolume: calculateEffectiveBudgetForVolume(bestEstimate, realValue),
     unitVolume: finalResult.unitVolume,
     totalFees: finalResult.totalFees,
     feeDetails: finalResult.feeDetails,
     hasBonus: finalResult.hasBonus,
-    bonusValue: finalResult.bonusValue
+    bonusValue: finalResult.bonusValue,
+    convergenceInfo // NOUVEAU
   };
 };
 

@@ -335,7 +335,6 @@ const FeeItem = memo<{
           {selectedOption && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-xs text-gray-600">
-                <strong>Type de calcul :</strong>
                 {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                   <div className="mt-1">
                     {finalDisplayValue}% × Base de calcul 
@@ -364,9 +363,6 @@ const FeeItem = memo<{
                     <strong>Buffer appliqué :</strong> +{selectedOption.FO_Buffer}% sur la valeur de base
                   </div>
                 )}
-                <div className="mt-2 text-green-600 font-medium">
-                  <strong>Montant final calculé automatiquement par le système</strong>
-                </div>
               </div>
             </div>
           )}

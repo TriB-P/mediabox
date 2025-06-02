@@ -10,7 +10,7 @@ import BudgetBonificationSection from './BudgetBonificationSection';
 import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 
-// NOUVEAU: Import de la logique de calcul rebuild
+// NOUVEAU: Import de la logique de calcul rebuild avec convergence
 import {
   calculateBudget,
   validateBudgetInputs,
@@ -18,7 +18,8 @@ import {
   type BudgetInputs,
   type BudgetResults,
   type FeeCalculationType,
-  type FeeCalculationMode
+  type FeeCalculationMode,
+  type ConvergenceInfo // NOUVEAU
 } from '../../lib/budgetCalculations';
 
 // ==================== TYPES ====================
@@ -84,6 +85,7 @@ interface TactiqueFormBudgetProps {
   loading?: boolean;
 }
 
+// NOUVEAU: Interface étendue pour le résumé budgétaire avec convergence
 interface BudgetSummary {
   mediaBudget: number;
   totalFees: number;
@@ -98,6 +100,8 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
+  // NOUVEAU: Informations de convergence
+  convergenceInfo?: ConvergenceInfo;
 }
 
 // ==================== FONCTIONS UTILITAIRES ====================
@@ -204,9 +208,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // SUPPRIMÉ: Effect de sauvegarde automatique qui cause la boucle
-
-  // NOUVEAU: Calcul principal avec la logique rebuild
+  // NOUVEAU: Calcul principal avec la logique rebuild (avec convergence)
   const budgetCalculationResults = useMemo((): BudgetResults | null => {
     try {
       // Nettoyer les erreurs précédentes
@@ -302,7 +304,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   const calculatedTotalFees = budgetCalculationResults?.totalFees || 0;
   const calculatedClientBudget = budgetCalculationResults?.clientBudget || 0;
 
-  // Calcul du résumé budgétaire pour l'affichage
+  // NOUVEAU: Calcul du résumé budgétaire pour l'affichage avec convergence
   const budgetSummary = useMemo((): BudgetSummary => {
     const currency = formData.TC_Currency || 'CAD';
     const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
@@ -310,7 +312,15 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     // Utiliser les résultats calculés ou les valeurs par défaut
     const mediaBudget = calculatedMediaBudget;
     const totalFees = calculatedTotalFees;
-    const clientBudget = calculatedClientBudget;
+    let clientBudget = calculatedClientBudget;
+    
+    // NOUVEAU: Si on a des informations de convergence et qu'elle a échoué,
+    // utiliser le vrai total calculé au lieu du budget client saisi
+    let convergenceInfo = budgetCalculationResults?.convergenceInfo;
+    if (convergenceInfo && !convergenceInfo.hasConverged) {
+      // Utiliser le vrai total calculé au lieu du budget client saisi
+      clientBudget = convergenceInfo.actualCalculatedTotal;
+    }
     
     // Calcul de la conversion de devise si nécessaire
     let convertedValues;
@@ -320,7 +330,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         convertedValues = {
           mediaBudget: mediaBudget * exchangeRate,
           totalFees: totalFees * exchangeRate,
-          clientBudget: clientBudget * exchangeRate,
+          clientBudget: clientBudget * exchangeRate, // NOUVEAU: Utilise le vrai total si convergence échoue
           bonusValue: bonusValue * exchangeRate,
           currency: campaignCurrency,
           exchangeRate
@@ -331,10 +341,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return {
       mediaBudget,
       totalFees,
-      clientBudget,
+      clientBudget, // NOUVEAU: Peut être différent du budget saisi si convergence échoue
       bonusValue,
       currency,
-      convertedValues
+      convertedValues,
+      convergenceInfo // NOUVEAU: Passer les informations de convergence
     };
   }, [
     calculatedMediaBudget,
@@ -344,7 +355,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     formData.TC_Has_Bonus,
     formData.TC_Bonus_Value,
     campaignCurrency,
-    exchangeRates
+    exchangeRates,
+    budgetCalculationResults?.convergenceInfo // NOUVEAU
   ]);
 
   return (
@@ -354,9 +366,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         <h3 className="text-xl font-semibold text-gray-900">
           Budget et frais
         </h3>
-        <p className="text-sm text-gray-600 mt-1">
-          Configuration détaillée du budget et des frais applicables
-        </p>
       </div>
 
       {/* Message d'erreur de calcul */}
@@ -367,12 +376,32 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           </p>
         </div>
       )}
+
+      {/* NOUVEAU: Message d'avertissement de convergence */}
+      {budgetCalculationResults?.convergenceInfo && !budgetCalculationResults.convergenceInfo.hasConverged && (
+        <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <span className="text-lg">⚠️</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">
+                Convergence imparfaite détectée
+              </p>
+              <p className="text-sm mt-1">
+                Le système n'a pas pu trouver un budget média qui génère exactement le budget client visé. 
+                Écart: <strong>{Math.abs(budgetCalculationResults.convergenceInfo.finalDifference).toFixed(2)}$ {formData.TC_Currency}</strong>
+              </p>
+              <p className="text-xs text-orange-600 mt-2">
+                Le récapitulatif affichera le total réellement calculé. Vous pouvez ajuster les paramètres ou accepter cet écart.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Paramètres généraux */}
-      <FormSection 
-        title="Paramètres généraux"
-        description="Configuration de base du budget"
-      >
+      
         <BudgetGeneralParams
           formData={formData}
           onChange={onChange}
@@ -380,7 +409,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           unitTypeOptions={unitTypeOptions}
           disabled={isDisabled}
         />
-      </FormSection>
 
       {/* Section Budget */}
       <FormSection 
@@ -454,7 +482,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       {/* Debug info en développement */}
       {process.env.NODE_ENV === 'development' && budgetCalculationResults && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Nouvelle logique - SANS persistance automatique)</h5>
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Avec convergence)</h5>
           <div className="text-xs text-gray-600 space-y-1">
             <div>Budget saisi: {formData.TC_Budget || 0}</div>
             <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
@@ -467,9 +495,17 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             {budgetCalculationResults.hasBonus && (
               <div>Bonification: {budgetCalculationResults.bonusValue.toFixed(2)}</div>
             )}
-            <div className="mt-2 text-orange-600">
-              <strong>Note:</strong> Les frais ne sont plus persistés automatiquement pour éviter les boucles de re-render
-            </div>
+            {/* NOUVEAU: Debug convergence */}
+            {budgetCalculationResults.convergenceInfo && (
+              <div className="mt-2 p-2 bg-orange-100 rounded">
+                <div className="font-medium text-orange-800">Informations de convergence:</div>
+                <div>Convergée: {budgetCalculationResults.convergenceInfo.hasConverged ? 'Oui' : 'Non'}</div>
+                <div>Écart final: {budgetCalculationResults.convergenceInfo.finalDifference.toFixed(4)}$</div>
+                <div>Itérations: {budgetCalculationResults.convergenceInfo.iterations}</div>
+                <div>Budget visé: {budgetCalculationResults.convergenceInfo.targetBudget.toFixed(2)}$</div>
+                <div>Total calculé: {budgetCalculationResults.convergenceInfo.actualCalculatedTotal.toFixed(2)}$</div>
+              </div>
+            )}
           </div>
         </div>
       )}
