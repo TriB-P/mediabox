@@ -260,9 +260,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
                 Économie de {formatCurrency(bonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget média)
               </div>
             )}
-            <div className="mt-1 text-xs text-blue-600">
-              💡 Cette valeur est calculée automatiquement par le système
-            </div>
           </div>
 
           {/* Récapitulatif de la bonification */}
@@ -290,18 +287,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
               </div>
             </div>
           )}
-
-          {/* Message sur les calculs automatiques */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="text-sm text-blue-700">
-              ✅ <strong>Calculs automatiques activés</strong>
-              <ul className="mt-2 ml-4 space-y-1 text-xs">
-                <li>• La bonification est calculée automatiquement (Valeur réelle - Budget média)</li>
-                <li>• Le volume d'unité est ajusté selon la valeur réelle</li>
-                <li>• Les pourcentages sont mis à jour en temps réel</li>
-              </ul>
-            </div>
-          </div>
         </div>
       )}
 

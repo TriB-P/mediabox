@@ -85,7 +85,7 @@ interface TactiqueFormBudgetProps {
   loading?: boolean;
 }
 
-// NOUVEAU: Interface étendue pour le résumé budgétaire avec convergence
+// Interface étendue pour le résumé budgétaire avec convergence
 interface BudgetSummary {
   mediaBudget: number;
   totalFees: number;
@@ -100,7 +100,7 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
-  // NOUVEAU: Informations de convergence
+  // Informations de convergence
   convergenceInfo?: ConvergenceInfo;
 }
 
@@ -178,7 +178,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
-  // NOUVEAU: Initialisation simple des frais (une seule fois)
+  // Initialisation simple des frais (une seule fois)
   useEffect(() => {
     if (clientFees.length > 0 && appliedFees.length === 0) {
       const initialAppliedFees = clientFees.map(fee => ({
@@ -208,7 +208,45 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // NOUVEAU: Calcul principal avec la logique rebuild (avec convergence)
+  // NOUVEAU: Validation spécifique pour le mode client
+  const clientModeValidation = useMemo(() => {
+    const budget = formData.TC_Budget || 0;
+    const budgetMode = formData.TC_Budget_Mode || 'media';
+    
+    // Ne valider que si on est en mode client et qu'on a un budget
+    if (budgetMode !== 'client' || budget <= 0) {
+      return { isValid: true, message: null };
+    }
+    
+    // Calculer le total des frais actifs (estimation rapide)
+    const activeFees = appliedFees.filter(af => af.isActive);
+    const totalFees = activeFees.reduce((sum, af) => sum + af.calculatedAmount, 0);
+    
+    // Vérifier si les frais dépassent ou sont très proches du budget client
+    if (totalFees >= budget) {
+      return {
+        isValid: false,
+        message: `Les frais (${totalFees.toFixed(2)}$) dépassent le budget client (${budget.toFixed(2)}$). Le budget média serait négatif.`
+      };
+    }
+    
+    // Avertissement si les frais représentent plus de 90% du budget client
+    const feePercentage = (totalFees / budget) * 100;
+    if (feePercentage > 90) {
+      return {
+        isValid: false,
+        message: `Les frais représentent ${feePercentage.toFixed(1)}% du budget client. Le budget média résultant sera très faible (${(budget - totalFees).toFixed(2)}$).`
+      };
+    }
+    
+    return { isValid: true, message: null };
+  }, [
+    formData.TC_Budget,
+    formData.TC_Budget_Mode,
+    appliedFees
+  ]);
+
+  // Calcul principal avec la logique rebuild (avec convergence)
   const budgetCalculationResults = useMemo((): BudgetResults | null => {
     try {
       // Nettoyer les erreurs précédentes
@@ -224,6 +262,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       // Validation de base
       if (budget <= 0 || costPerUnit <= 0) {
         return null; // Pas assez de données pour calculer
+      }
+      
+      // NOUVEAU: Vérifier la validation du mode client avant de continuer
+      if (!clientModeValidation.isValid) {
+        return null; // Ne pas calculer si la validation échoue
       }
       
       // Convertir les frais appliqués vers la nouvelle structure
@@ -269,7 +312,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     formData.TC_Real_Value,
     formData.TC_Unit_Volume,
     appliedFees,
-    clientFees
+    clientFees,
+    clientModeValidation.isValid // NOUVEAU: Dépendre de la validation
   ]);
 
   // Synchroniser les frais calculés avec les AppliedFee (SANS boucle)
@@ -304,7 +348,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   const calculatedTotalFees = budgetCalculationResults?.totalFees || 0;
   const calculatedClientBudget = budgetCalculationResults?.clientBudget || 0;
 
-  // NOUVEAU: Calcul du résumé budgétaire pour l'affichage avec convergence
+  // Calcul du résumé budgétaire pour l'affichage avec convergence
   const budgetSummary = useMemo((): BudgetSummary => {
     const currency = formData.TC_Currency || 'CAD';
     const bonusValue = formData.TC_Has_Bonus ? (formData.TC_Bonus_Value || 0) : 0;
@@ -314,7 +358,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     const totalFees = calculatedTotalFees;
     let clientBudget = calculatedClientBudget;
     
-    // NOUVEAU: Si on a des informations de convergence et qu'elle a échoué,
+    // Si on a des informations de convergence et qu'elle a échoué,
     // utiliser le vrai total calculé au lieu du budget client saisi
     let convergenceInfo = budgetCalculationResults?.convergenceInfo;
     if (convergenceInfo && !convergenceInfo.hasConverged) {
@@ -330,7 +374,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         convertedValues = {
           mediaBudget: mediaBudget * exchangeRate,
           totalFees: totalFees * exchangeRate,
-          clientBudget: clientBudget * exchangeRate, // NOUVEAU: Utilise le vrai total si convergence échoue
+          clientBudget: clientBudget * exchangeRate,
           bonusValue: bonusValue * exchangeRate,
           currency: campaignCurrency,
           exchangeRate
@@ -341,11 +385,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return {
       mediaBudget,
       totalFees,
-      clientBudget, // NOUVEAU: Peut être différent du budget saisi si convergence échoue
+      clientBudget,
       bonusValue,
       currency,
       convertedValues,
-      convergenceInfo // NOUVEAU: Passer les informations de convergence
+      convergenceInfo
     };
   }, [
     calculatedMediaBudget,
@@ -356,7 +400,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     formData.TC_Bonus_Value,
     campaignCurrency,
     exchangeRates,
-    budgetCalculationResults?.convergenceInfo // NOUVEAU
+    budgetCalculationResults?.convergenceInfo
   ]);
 
   return (
@@ -377,7 +421,29 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* NOUVEAU: Message d'avertissement de convergence */}
+      {/* NOUVEAU: Message d'erreur pour validation mode client */}
+      {!clientModeValidation.isValid && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <span className="text-lg">❌</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">
+                Configuration budgétaire invalide
+              </p>
+              <p className="text-sm mt-1">
+                {clientModeValidation.message}
+              </p>
+              <p className="text-xs text-red-600 mt-2">
+                💡 Réduisez les frais ou augmentez le budget client pour corriger ce problème.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message d'avertissement de convergence */}
       {budgetCalculationResults?.convergenceInfo && !budgetCalculationResults.convergenceInfo.hasConverged && (
         <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">
           <div className="flex items-start">
@@ -401,14 +467,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       )}
       
       {/* Paramètres généraux */}
-      
-        <BudgetGeneralParams
-          formData={formData}
-          onChange={onChange}
-          onTooltipChange={onTooltipChange}
-          unitTypeOptions={unitTypeOptions}
-          disabled={isDisabled}
-        />
+      <BudgetGeneralParams
+        formData={formData}
+        onChange={onChange}
+        onTooltipChange={onTooltipChange}
+        unitTypeOptions={unitTypeOptions}
+        disabled={isDisabled}
+      />
 
       {/* Section Budget */}
       <FormSection 
@@ -495,7 +560,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             {budgetCalculationResults.hasBonus && (
               <div>Bonification: {budgetCalculationResults.bonusValue.toFixed(2)}</div>
             )}
-            {/* NOUVEAU: Debug convergence */}
+            {/* NOUVEAU: Validation mode client */}
+            <div className="mt-2 p-2 bg-yellow-100 rounded">
+              <div className="font-medium text-yellow-800">Validation mode client:</div>
+              <div>Valide: {clientModeValidation.isValid ? 'Oui' : 'Non'}</div>
+              {clientModeValidation.message && <div>Message: {clientModeValidation.message}</div>}
+            </div>
+            {/* Debug convergence */}
             {budgetCalculationResults.convergenceInfo && (
               <div className="mt-2 p-2 bg-orange-100 rounded">
                 <div className="font-medium text-orange-800">Informations de convergence:</div>

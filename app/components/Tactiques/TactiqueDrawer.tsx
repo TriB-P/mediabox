@@ -387,13 +387,25 @@ export default function TactiqueDrawer({
     }
   }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, isPublishersLoading, publishersOptions.length]);
   
-  // Gérer les changements dans le formulaire
+  // CORRECTION: Gérer les changements dans le formulaire avec support des checkboxes
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
+    let processedValue: any = value;
+    
+    // Gérer les différents types d'inputs
+    if (type === 'checkbox') {
+      // Pour les checkboxes, utiliser checked au lieu de value
+      processedValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'number') {
+      // Pour les nombres, parser la valeur
+      processedValue = parseFloat(value) || 0;
+    }
+    // Pour les autres types (text, select, etc.), garder la valeur string
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? (parseFloat(value) || 0) : value
+      [name]: processedValue
     }));
     
     setIsDirty(true);
