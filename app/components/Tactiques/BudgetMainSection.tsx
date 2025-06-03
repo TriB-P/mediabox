@@ -22,14 +22,14 @@ interface BudgetMainSectionProps {
     TC_Budget_Mode?: 'client' | 'media';
     TC_Has_Bonus?: boolean;
     TC_Bonus_Value?: number;
-    TC_Unit_Type?: string; // AJOUTÉ: Type d'unité sélectionné
+    TC_Unit_Type?: string;
   };
   
-  // NOUVEAU: Options pour les types d'unité
+  // Options pour les types d'unité
   unitTypeOptions: ListItem[];
   
   // Données externes pour les calculs
-  totalFees: number; // Total des frais calculés
+  totalFees: number;
   
   // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
@@ -62,7 +62,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   const bonusValue = formData.TC_Bonus_Value || 0;
   const selectedUnitType = formData.TC_Unit_Type || '';
 
-  // NOUVEAU: Logique pour déterminer le type d'unité et ses propriétés
+  // CORRIGÉ: Logique pour déterminer le type d'unité et ses propriétés
   const unitTypeInfo = useMemo(() => {
     if (!selectedUnitType || unitTypeOptions.length === 0) {
       return {
@@ -91,9 +91,9 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     let costLabel, volumeLabel, volumeTooltip;
     
     if (isImpressions) {
-      costLabel = 'CPM';
+      costLabel = 'CPM (Coût pour 1000 impressions)';
       volumeLabel = 'Volume d\'impressions';
-      volumeTooltip = 'Nombre total d\'impressions calculé automatiquement. Le CPM représente le coût pour 1000 impressions.';
+      volumeTooltip = 'Nombre total d\'impressions calculé automatiquement. Le CPM représente le coût pour 1000 impressions, mais le volume affiché est le nombre total d\'impressions individuelles.';
     } else {
       costLabel = `Coût par ${displayName}`;
       volumeLabel = `Volume de ${displayName}`;
@@ -124,14 +124,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budgetMode]);
 
-  // NOUVEAU: Calcul simple du budget média (pour affichage informatif seulement)
-  // La vraie logique de calcul est maintenant dans TactiqueFormBudget.tsx
+  // Calcul simple du budget média (pour affichage informatif seulement)
   const displayMediaBudget = useMemo(() => {
     if (budgetMode === 'client') {
-      // En mode client, estimation simple pour l'affichage
       return Math.max(0, budget - totalFees);
     } else {
-      // En mode média, le budget saisi EST le budget média
       return budget;
     }
   }, [budget, totalFees, budgetMode]);
@@ -146,31 +143,29 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   // Calcul du budget client effectif (pour affichage informatif seulement)
   const displayClientBudget = useMemo(() => {
     if (budgetMode === 'client') {
-      // En mode client, le budget saisi EST le budget client
       return budget;
     } else {
-      // En mode média, on ajoute les frais au budget saisi
       return budget + totalFees;
     }
   }, [budget, totalFees, budgetMode]);
 
-  // Volume affiché - directement depuis TC_Unit_Volume (déjà ajusté si impressions)
+  // CORRIGÉ: Volume affiché avec formatage approprié pour les impressions
   const displayVolume = useMemo(() => {
-    return unitVolume; // Pas de conversion, la valeur est déjà correcte
+    // Le volume stocké dans formData.TC_Unit_Volume est déjà le volume d'affichage
+    // (converti en TactiqueFormBudget si nécessaire)
+    return unitVolume;
   }, [unitVolume]);
 
   // Gestionnaire pour le changement de budget
   const handleBudgetChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e); // Mettre à jour le budget principal
-    // Note: Le volume sera recalculé automatiquement par la logique parent
+    onChange(e);
   }, [onChange]);
 
   // Gestionnaire pour le changement de coût par unité
   const handleCostChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newCost = parseFloat(e.target.value) || 0;
-    onCalculatedChange('TC_Cost_Per_Unit', newCost);
-    // Note: Le volume sera recalculé automatiquement par la logique parent
-  }, [onCalculatedChange]);
+    // CORRIGÉ: Le coût par unité est un input utilisateur, pas une valeur calculée
+    onChange(e);
+  }, [onChange]);
 
   // Déterminer les statuts de calcul (pour l'affichage des messages)
   const calculationStatus = useMemo(() => {
@@ -203,20 +198,21 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }).format(value);
   }, []);
 
+  // CORRIGÉ: Formatage du volume selon le type d'unité avec plus de précision
   const formatVolume = useCallback((value: number) => {
-    // Pour les impressions, formater en nombre entier
     if (unitTypeInfo.isImpressions) {
+      // Pour les impressions, formatage en entier avec séparateurs de milliers
       return new Intl.NumberFormat('fr-CA', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
-      }).format(value);
+      }).format(Math.round(value));
     }
     
-    // Pour les autres types, formater en entier
+    // Pour les autres types, formatage en entier sans décimales
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(value);
+    }).format(Math.round(value));
   }, [unitTypeInfo.isImpressions]);
 
   return (
@@ -343,7 +339,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           )}
         </div>
 
-        {/* Volume d'unité - CALCULÉ AUTOMATIQUEMENT avec label dynamique */}
+          {/* Volume d'unité - CALCULÉ AUTOMATIQUEMENT avec label dynamique */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -353,21 +349,24 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             )}
           </div>
           <input
-            type="number"
-            value={displayVolume || ''}
+            type="text"
+            value={displayVolume > 0 ? formatVolume(displayVolume) : ''}
             disabled
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 font-medium"
-            placeholder="Calculé automatiquement"
+            placeholder={displayVolume > 0 ? formatVolume(displayVolume) : "Sera calculé automatiquement"}
           />
           {displayVolume > 0 && (
             <div className="mt-1 text-xs text-gray-500">
-              Formaté : {formatVolume(displayVolume)} {unitTypeInfo.isImpressions ? 'impressions' : (unitTypeInfo.displayName || 'unités')}
+              {unitTypeInfo.isImpressions 
+                ? `${formatVolume(displayVolume)} impressions totales`
+                : `${formatVolume(displayVolume)} ${unitTypeInfo.displayName || 'unités'}`
+              }
             </div>
           )}
-          {effectiveBudgetForVolume > 0 && costPerUnit > 0 && (
+          {effectiveBudgetForVolume > 0 && costPerUnit > 0 && displayVolume > 0 && (
             <div className="mt-1 text-xs text-green-600">
               = {formatCurrency(effectiveBudgetForVolume)} {currency} ÷ {formatCostPerUnit(costPerUnit)} {currency}
-              {unitTypeInfo.isImpressions && ' × 1000'}
+              {unitTypeInfo.isImpressions && ' × 1000 impressions'}
             </div>
           )}
           {!calculationStatus.canCalculateVolume && budget > 0 && (
@@ -378,7 +377,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* NOUVEAU: Information sur le type d'unité sélectionné */}
+      {/* Information sur le type d'unité sélectionné */}
       {unitTypeInfo.displayName && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
           <div className="flex items-center gap-2">
@@ -394,7 +393,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </div>
           {unitTypeInfo.isImpressions && (
             <div className="text-xs text-indigo-600 mt-1">
-              💡 Pour les impressions, le volume affiché correspond au nombre total d'impressions (CPM × 1000).
+              💡 Pour les impressions, le volume affiché correspond au nombre total d'impressions individuelles.
             </div>
           )}
         </div>

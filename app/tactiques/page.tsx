@@ -1,3 +1,5 @@
+// app/tactiques/page.tsx
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,6 +11,7 @@ import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { default as SectionModal } from '../components/Tactiques/SectionModal';
+import LoadingSpinner from '../components/Others/LoadingSpinner';
 import { 
   ChevronDownIcon, 
   PlusIcon, 
@@ -60,15 +63,56 @@ export default function TactiquesPage() {
     handleSelectOnglet,
   } = useTactiquesData(selectedCampaign, selectedVersion);
 
-  // États pour l'UI
+  // États pour l'UI et le loading
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [totalBudget, setTotalBudget] = useState<number>(0);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+  const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);
   
   // Refs pour les dropdowns
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
+
+  // États de chargement et erreur
+  const isLoading = campaignLoading || loading;
+  const hasError = campaignError || error;
+
+  // Gérer le loader avec une logique simplifiée
+  useEffect(() => {
+    if (isLoading) {
+      console.log('🔄 Début chargement');
+      setShowLoader(true);
+      setMinimumTimeElapsed(false);
+    } else {
+      console.log('🏁 Chargement terminé - attendre 2s minimum');
+      // Quand le chargement est fini, attendre 2s puis masquer
+      const timer = setTimeout(() => {
+        console.log('✅ 2 secondes écoulées - masquer loader');
+        setShowLoader(false);
+        setMinimumTimeElapsed(true);
+      }, 2000);
+
+      return () => {
+        console.log('🧹 Nettoyage timer fin de chargement');
+        clearTimeout(timer);
+      };
+    }
+  }, [isLoading]);
+
+  // Timeout de sécurité pour éviter les blocages
+  useEffect(() => {
+    if (showLoader) {
+      const safetyTimer = setTimeout(() => {
+        console.log('🚨 Timeout de sécurité (6s) - forcer l\'arrêt');
+        setShowLoader(false);
+        setMinimumTimeElapsed(true);
+      }, 6000);
+
+      return () => clearTimeout(safetyTimer);
+    }
+  }, [showLoader]);
   
   // Fermer les dropdowns quand on clique en dehors
   useEffect(() => {
@@ -137,9 +181,6 @@ export default function TactiquesPage() {
   }, {} as Record<string, string>);
     
   const flatTactiques = Object.values(tactiques).flat();
-
-  const isLoading = campaignLoading || loading;
-  const hasError = campaignError || error;
 
   return (
     <div className="space-y-6 pb-16">
@@ -231,7 +272,18 @@ export default function TactiquesPage() {
         </div>
       </div>
       
-      {selectedVersion && (
+      {/* Debug info - à supprimer après résolution */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-400 mb-2 p-2 bg-gray-100 rounded">
+          Debug: campaignLoading={campaignLoading.toString()}, loading={loading.toString()}, 
+          showLoader={showLoader.toString()}, minimumTimeElapsed={minimumTimeElapsed.toString()}
+        </div>
+      )}
+      
+      {/* LoadingSpinner avec timer minimum de 2 secondes */}
+      {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}
+      
+      {selectedVersion && !showLoader && (
         <div className="w-full">
           {/* Barre d'outils */}
           <div className="flex justify-between items-center mb-4">
@@ -254,13 +306,6 @@ export default function TactiquesPage() {
               )}
             </div>
           </div>
-
-          {/* État de chargement */}
-          {isLoading && (
-            <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
-              <div className="text-sm text-gray-500">Chargement en cours...</div>
-            </div>
-          )}
           
           {/* Message d'erreur */}
           {hasError && (
@@ -276,7 +321,7 @@ export default function TactiquesPage() {
           )}
           
           {/* Contenu selon le mode de vue */}
-          {!isLoading && !hasError && (
+          {!hasError && (
             <>
               {viewMode === 'hierarchy' && (
                 <>
@@ -348,7 +393,7 @@ export default function TactiquesPage() {
       )}
       
       {/* Message si aucune version sélectionnée */}
-      {!isLoading && !hasError && !selectedVersion && (
+      {!showLoader && !hasError && !selectedVersion && (
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500">
             Veuillez sélectionner une campagne et une version pour voir les tactiques.
@@ -357,7 +402,7 @@ export default function TactiquesPage() {
       )}
       
       {/* Footer avec onglets et boutons de vue */}
-      {selectedOnglet && (
+      {selectedOnglet && !showLoader && (
         <TactiquesFooter 
           viewMode={viewMode} 
           setViewMode={setViewMode}
