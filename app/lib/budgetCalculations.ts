@@ -248,7 +248,7 @@ export const calculateMediaBudgetFromClient = (inputs: BudgetInputs): BudgetResu
   }
 
   // Configuration de l'algorithme itératif
-  const tolerance = 0.01; // Tolérance de 1 centime
+  const tolerance = 0.004; // Tolérance de 1 centime
   const maxIterations = 100;
   let iteration = 0;
   
