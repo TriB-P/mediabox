@@ -155,6 +155,20 @@ const updateAppliedFeesWithCalculations = (
   });
 };
 
+/**
+ * NOUVEAU: Les impressions n'ont pas besoin d'ajustement de calcul
+ * Le calcul backend reste normal, on ajuste seulement l'affichage
+ */
+const getAdjustedVolumeForCalculation = (
+  volume: number,
+  unitType: string,
+  unitTypeOptions: ListItem[]
+): number => {
+  // Pas d'ajustement nécessaire, le calcul reste en "unités" standard
+  // Pour les impressions, 1 unité = 1000 impressions, mais on garde la logique simple
+  return volume;
+};
+
 // ==================== COMPOSANT PRINCIPAL ====================
 
 const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
@@ -190,23 +204,30 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     }
   }, [clientFees.length]); // Seulement quand clientFees change
 
-  // Fonction pour gérer les changements calculés (SANS persistance automatique des frais)
+  // Fonction pour gérer les changements calculés - CORRIGÉE
   const handleCalculatedChange = useCallback((field: string, value: number | string) => {
     // Ignorer les changements de frais pour éviter la boucle
     if (field.startsWith('TC_Fee_')) {
       return;
     }
     
+    // Créer un événement synthétique CORRECT
+    const numericValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
+    
     const syntheticEvent = {
       target: {
         name: field,
-        value: value.toString(),
-        type: typeof value === 'number' ? 'number' : 'text'
-      }
+        value: numericValue.toString(),
+        type: 'number'
+      } as HTMLInputElement
     } as React.ChangeEvent<HTMLInputElement>;
     
+    console.log(`Mise à jour ${field}:`, numericValue);
     onChange(syntheticEvent);
   }, [onChange]);
+
+  // Supprimer la ligne incorrecte
+  // const setFormData = useState()[1]; // SUPPRIMÉ
 
   // NOUVEAU: Validation spécifique pour le mode client
   const clientModeValidation = useMemo(() => {
@@ -318,30 +339,53 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 
   // Synchroniser les frais calculés avec les AppliedFee (SANS boucle)
   useEffect(() => {
-    if (budgetCalculationResults && appliedFees.length > 0) {
-      const updatedAppliedFees = updateAppliedFeesWithCalculations(appliedFees, budgetCalculationResults);
-      
-      // Vérifier si les montants ont vraiment changé pour éviter les re-renders inutiles
-      const amountsChanged = updatedAppliedFees.some((updatedFee, index) => {
-        const currentFee = appliedFees[index];
-        return currentFee && Math.abs(updatedFee.calculatedAmount - currentFee.calculatedAmount) > 0.01;
-      });
-      
-      if (amountsChanged) {
-        setAppliedFees(updatedAppliedFees);
+    if (budgetCalculationResults) {
+      // Mettre à jour les frais si nécessaire
+      if (appliedFees.length > 0) {
+        const updatedAppliedFees = updateAppliedFeesWithCalculations(appliedFees, budgetCalculationResults);
+        
+        const amountsChanged = updatedAppliedFees.some((updatedFee, index) => {
+          const currentFee = appliedFees[index];
+          return currentFee && Math.abs(updatedFee.calculatedAmount - currentFee.calculatedAmount) > 0.01;
+        });
+        
+        if (amountsChanged) {
+          setAppliedFees(updatedAppliedFees);
+        }
       }
       
-      // Mettre à jour le volume d'unité calculé si nécessaire (SANS déclencher de boucle)
-      if (Math.abs(budgetCalculationResults.unitVolume - (formData.TC_Unit_Volume || 0)) > 0.01) {
-        handleCalculatedChange('TC_Unit_Volume', budgetCalculationResults.unitVolume);
+      // TOUJOURS mettre à jour le volume (sans condition compliquée)
+      let finalVolume = budgetCalculationResults.unitVolume;
+      
+      // Si c'est des impressions, multiplier par 1000
+      const selectedUnitType = formData.TC_Unit_Type || '';
+      if (selectedUnitType && unitTypeOptions.length > 0) {
+        const selectedUnit = unitTypeOptions.find(unit => unit.id === selectedUnitType);
+        if (selectedUnit) {
+          const displayName = selectedUnit.SH_Display_Name_FR;
+          const isImpressions = displayName.toLowerCase() === 'impressions' || displayName.toLowerCase() === 'impression';
+          
+          if (isImpressions) {
+            finalVolume = budgetCalculationResults.unitVolume * 1000;
+          }
+        }
       }
       
-      // Mettre à jour la bonification calculée si nécessaire (SANS déclencher de boucle)
-      if (formData.TC_Has_Bonus && Math.abs(budgetCalculationResults.bonusValue - (formData.TC_Bonus_Value || 0)) > 0.01) {
+      // FORCER la mise à jour du volume sans condition
+      console.log('Mise à jour du volume:', finalVolume);
+      handleCalculatedChange('TC_Unit_Volume', finalVolume);
+      
+      // Mettre à jour la bonification si nécessaire
+      if (formData.TC_Has_Bonus) {
         handleCalculatedChange('TC_Bonus_Value', budgetCalculationResults.bonusValue);
       }
     }
-  }, [budgetCalculationResults]); // SEULEMENT budgetCalculationResults pour éviter la boucle
+  }, [
+    budgetCalculationResults?.unitVolume, // Dépendre directement du volume calculé
+    budgetCalculationResults?.bonusValue,
+    formData.TC_Unit_Type,
+    formData.TC_Has_Bonus
+  ]);
 
   // Extraire les valeurs calculées ou utiliser les valeurs par défaut
   const calculatedMediaBudget = budgetCalculationResults?.mediaBudget || 0;
@@ -482,6 +526,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       >
         <BudgetMainSection
           formData={formData}
+          unitTypeOptions={unitTypeOptions} 
           totalFees={calculatedTotalFees}
           onChange={onChange}
           onTooltipChange={onTooltipChange}
@@ -551,6 +596,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           <div className="text-xs text-gray-600 space-y-1">
             <div>Budget saisi: {formData.TC_Budget || 0}</div>
             <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
+            <div>Type d'unité: {formData.TC_Unit_Type || 'Aucun'}</div>
             <div>Budget média calculé: {budgetCalculationResults.mediaBudget.toFixed(2)}</div>
             <div>Total frais calculé: {budgetCalculationResults.totalFees.toFixed(2)}</div>
             <div>Budget client final: {budgetCalculationResults.clientBudget.toFixed(2)}</div>

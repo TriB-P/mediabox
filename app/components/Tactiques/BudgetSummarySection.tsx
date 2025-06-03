@@ -65,9 +65,9 @@ interface BudgetSummarySectionProps {
 
 const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   switch (calculationType) {
-    case 'Pourcentage budget': return '📊';
-    case 'Volume d\'unité': return '📈';
-    case 'Unités': return '🔢';
+    case 'Pourcentage budget': return '💰';
+    case 'Volume d\'unité': return '💰';
+    case 'Unités': return '💰';
     case 'Frais fixe': return '💰';
     default: return '⚙️';
   }
@@ -258,90 +258,6 @@ const CurrencyConversion = memo<{
 
 CurrencyConversion.displayName = 'CurrencyConversion';
 
-/**
- * Indicateurs de performance budgétaire
- */
-const BudgetMetrics = memo<{
-  budgetSummary: BudgetSummary;
-  onTooltipChange: (tooltip: string | null) => void;
-}>(({ budgetSummary, onTooltipChange }) => {
-  
-  const metrics = useMemo(() => {
-    const { mediaBudget, totalFees, bonusValue } = budgetSummary;
-    
-    if (mediaBudget <= 0) return null;
-    
-    const feePercentage = (totalFees / mediaBudget) * 100;
-    const bonusPercentage = (bonusValue / mediaBudget) * 100;
-    const effectiveDiscount = bonusValue > 0 ? (bonusValue / (mediaBudget + totalFees)) * 100 : 0;
-    const netSpend = mediaBudget - bonusValue; // Ce qui est réellement dépensé
-    
-    return {
-      feePercentage,
-      bonusPercentage,
-      effectiveDiscount,
-      netSpend
-    };
-  }, [budgetSummary]);
-
-  const formatPercentage = useCallback((value: number) => {
-    return new Intl.NumberFormat('fr-CA', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    }).format(value);
-  }, []);
-
-  const formatCurrency = useCallback((value: number, currency: string) => {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
-  }, []);
-
-  if (!metrics) return null;
-
-  return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-      <div className="flex items-center gap-3 mb-3">
-        {createLabelWithHelp(
-          '📈 Indicateurs budgétaires',
-          'Indicateurs de performance calculés automatiquement à partir des données de budget.',
-          onTooltipChange
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-600">{formatPercentage(metrics.feePercentage)}%</div>
-          <div className="text-gray-600">Frais vs Média</div>
-        </div>
-        
-        {metrics.bonusPercentage > 0 && (
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{formatPercentage(metrics.bonusPercentage)}%</div>
-            <div className="text-gray-600">Bonification</div>
-          </div>
-        )}
-        
-        {metrics.effectiveDiscount > 0 && (
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{formatPercentage(metrics.effectiveDiscount)}%</div>
-            <div className="text-gray-600">Économie totale</div>
-          </div>
-        )}
-        
-        <div className="text-center">
-          <div className="text-2xl font-bold text-gray-800">{formatCurrency(metrics.netSpend, budgetSummary.currency)}</div>
-          <div className="text-gray-600">Dépense nette</div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-BudgetMetrics.displayName = 'BudgetMetrics';
 
 // ==================== COMPOSANT PRINCIPAL ====================
 
@@ -540,11 +456,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         />
       )}
 
-      {/* Indicateurs de performance */}
-      <BudgetMetrics
-        budgetSummary={conversionInfo.showConvertedValues ? { ...budgetSummary, ...budgetSummary.convertedValues! } : budgetSummary}
-        onTooltipChange={onTooltipChange}
-      />
 
       {/* Message si aucun frais */}
       {activeFees.length === 0 && (

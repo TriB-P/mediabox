@@ -57,9 +57,9 @@ interface BudgetFeesSectionProps {
 
 const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   switch (calculationType) {
-    case 'Pourcentage budget': return '📊';
-    case 'Volume d\'unité': return '📈';
-    case 'Unités': return '🔢';
+    case 'Pourcentage budget': return '💰';
+    case 'Volume d\'unité': return '💰';
+    case 'Unités': return '💰';
     case 'Frais fixe': return '💰';
     default: return '⚙️';
   }
@@ -546,10 +546,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
               <span>{formatCurrency(totalFees)}</span>
             </div>
           </div>
-          
-          <div className="mt-3 text-xs text-indigo-600 bg-indigo-100 p-2 rounded">
-            💡 Ces montants sont calculés automatiquement selon la configuration de chaque frais.
-          </div>
+        
         </div>
       )}
 

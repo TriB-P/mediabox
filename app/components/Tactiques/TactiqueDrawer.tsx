@@ -16,7 +16,8 @@ import {
   LightBulbIcon, 
   ChartBarIcon, 
   CurrencyDollarIcon,
-  CogIcon
+  CogIcon,
+  BugAntIcon
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../types/tactiques';
 import { useClient } from '../../contexts/ClientContext';
@@ -69,20 +70,80 @@ interface VisibleFields {
   [key: string]: boolean | undefined;
 }
 
-// NOUVEAU: Interface étendue pour les données du formulaire avec les frais
+// NOUVEAU: Interface étendue pour les données du formulaire avec les frais CORRIGÉS
 interface ExtendedTactiqueFormData extends TactiqueFormData {
-  // Champs pour les frais persistés
+  // Champs pour les frais persistés - CORRIGÉ avec Input
   TC_Fee_1_Option?: string;
-  TC_Fee_1_Value?: number;
+  TC_Fee_1_Value?: number;   // Montant total calculé
+  TC_Fee_1_Input?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_1_Units?: number;
   TC_Fee_2_Option?: string;
-  TC_Fee_2_Value?: number;
+  TC_Fee_2_Value?: number;   // Montant total calculé
+  TC_Fee_2_Input?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_2_Units?: number;
   TC_Fee_3_Option?: string;
-  TC_Fee_3_Value?: number;
+  TC_Fee_3_Value?: number;   // Montant total calculé
+  TC_Fee_3_Input?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_3_Units?: number;
   TC_Fee_4_Option?: string;
-  TC_Fee_4_Value?: number;
+  TC_Fee_4_Value?: number;   // Montant total calculé
+  TC_Fee_4_Input?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_4_Units?: number;
   TC_Fee_5_Option?: string;
-  TC_Fee_5_Value?: number;
+  TC_Fee_5_Value?: number;   // Montant total calculé
+  TC_Fee_5_Input?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_5_Units?: number;
 }
+
+// ==================== UTILITAIRES POUR LES FRAIS ====================
+
+// Valeurs par défaut pour les nouveaux frais
+const getDefaultFeeValues = (): Partial<ExtendedTactiqueFormData> => ({
+  TC_Fee_1_Option: '',
+  TC_Fee_1_Value: 0,
+  TC_Fee_1_Input: 0,
+  TC_Fee_1_Units: 0,
+  TC_Fee_2_Option: '',
+  TC_Fee_2_Value: 0,
+  TC_Fee_2_Input: 0,
+  TC_Fee_2_Units: 0,
+  TC_Fee_3_Option: '',
+  TC_Fee_3_Value: 0,
+  TC_Fee_3_Input: 0,
+  TC_Fee_3_Units: 0,
+  TC_Fee_4_Option: '',
+  TC_Fee_4_Value: 0,
+  TC_Fee_4_Input: 0,
+  TC_Fee_4_Units: 0,
+  TC_Fee_5_Option: '',
+  TC_Fee_5_Value: 0,
+  TC_Fee_5_Input: 0,
+  TC_Fee_5_Units: 0,
+});
+
+// Chargement des frais existants
+const loadExistingFeeValues = (tactique: any): Partial<ExtendedTactiqueFormData> => ({
+  TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
+  TC_Fee_1_Value: tactique.TC_Fee_1_Value || 0,
+  TC_Fee_1_Input: tactique.TC_Fee_1_Input || 0,
+  TC_Fee_1_Units: tactique.TC_Fee_1_Units || 0,
+  TC_Fee_2_Option: tactique.TC_Fee_2_Option || '',
+  TC_Fee_2_Value: tactique.TC_Fee_2_Value || 0,
+  TC_Fee_2_Input: tactique.TC_Fee_2_Input || 0,
+  TC_Fee_2_Units: tactique.TC_Fee_2_Units || 0,
+  TC_Fee_3_Option: tactique.TC_Fee_3_Option || '',
+  TC_Fee_3_Value: tactique.TC_Fee_3_Value || 0,
+  TC_Fee_3_Input: tactique.TC_Fee_3_Input || 0,
+  TC_Fee_3_Units: tactique.TC_Fee_3_Units || 0,
+  TC_Fee_4_Option: tactique.TC_Fee_4_Option || '',
+  TC_Fee_4_Value: tactique.TC_Fee_4_Value || 0,
+  TC_Fee_4_Input: tactique.TC_Fee_4_Input || 0,
+  TC_Fee_4_Units: tactique.TC_Fee_4_Units || 0,
+  TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
+  TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
+  TC_Fee_5_Input: tactique.TC_Fee_5_Input || 0,
+  TC_Fee_5_Units: tactique.TC_Fee_5_Units || 0,
+});
 
 // ==================== COMPOSANT PRINCIPAL ====================
 
@@ -102,7 +163,10 @@ export default function TactiqueDrawer({
   // Onglet actif
   const [activeTab, setActiveTab] = useState('info');
   
-  // Données du formulaire - MODIFIÉ pour inclure les champs de frais
+  // NOUVEAU: État pour le toggle debug
+  const [debugMode, setDebugMode] = useState(false);
+  
+  // Données du formulaire - MODIFIÉ pour inclure les champs de frais CORRIGÉS
   const [formData, setFormData] = useState<ExtendedTactiqueFormData>({
     TC_Label: '',
     TC_Budget: 0,
@@ -117,17 +181,8 @@ export default function TactiqueDrawer({
     TC_Has_Bonus: false,
     TC_Real_Value: 0,
     TC_Bonus_Value: 0,
-    // NOUVEAU: Valeurs par défaut pour les champs de frais
-    TC_Fee_1_Option: '',
-    TC_Fee_1_Value: 0,
-    TC_Fee_2_Option: '',
-    TC_Fee_2_Value: 0,
-    TC_Fee_3_Option: '',
-    TC_Fee_3_Value: 0,
-    TC_Fee_4_Option: '',
-    TC_Fee_4_Value: 0,
-    TC_Fee_5_Option: '',
-    TC_Fee_5_Value: 0,
+    // NOUVEAU: Valeurs par défaut pour les frais CORRIGÉS
+    ...getDefaultFeeValues(),
   });
 
   // KPIs multiples
@@ -182,7 +237,7 @@ export default function TactiqueDrawer({
 
   // ==================== EFFECTS ====================
   
-  // Initialiser le formulaire quand la tactique change - MODIFIÉ pour inclure les frais
+  // Initialiser le formulaire quand la tactique change - MODIFIÉ pour inclure les frais CORRIGÉS
   useEffect(() => {
     if (tactique) {
       setFormData({
@@ -227,17 +282,8 @@ export default function TactiqueDrawer({
         TC_Real_Value: tactique.TC_Real_Value || 0,
         TC_Bonus_Value: tactique.TC_Bonus_Value || 0,
         
-        // NOUVEAU: Champs de frais - chargement depuis la tactique existante
-        TC_Fee_1_Option: (tactique as any).TC_Fee_1_Option || '',
-        TC_Fee_1_Value: (tactique as any).TC_Fee_1_Value || 0,
-        TC_Fee_2_Option: (tactique as any).TC_Fee_2_Option || '',
-        TC_Fee_2_Value: (tactique as any).TC_Fee_2_Value || 0,
-        TC_Fee_3_Option: (tactique as any).TC_Fee_3_Option || '',
-        TC_Fee_3_Value: (tactique as any).TC_Fee_3_Value || 0,
-        TC_Fee_4_Option: (tactique as any).TC_Fee_4_Option || '',
-        TC_Fee_4_Value: (tactique as any).TC_Fee_4_Value || 0,
-        TC_Fee_5_Option: (tactique as any).TC_Fee_5_Option || '',
-        TC_Fee_5_Value: (tactique as any).TC_Fee_5_Value || 0,
+        // NOUVEAU: Champs de frais - chargement depuis la tactique existante CORRIGÉ
+        ...loadExistingFeeValues(tactique),
       });
 
       // Charger les KPIs existants
@@ -263,7 +309,7 @@ export default function TactiqueDrawer({
       setActiveTab('info');
       setIsDirty(false);
     } else {
-      // Nouvelle tactique - valeurs par défaut avec frais vides
+      // Nouvelle tactique - valeurs par défaut avec frais vides CORRIGÉS
       setFormData({
         TC_Label: '',
         TC_Budget: 0,
@@ -278,17 +324,8 @@ export default function TactiqueDrawer({
         TC_Has_Bonus: false,
         TC_Real_Value: 0,
         TC_Bonus_Value: 0,
-        // NOUVEAU: Valeurs par défaut pour les nouveaux frais
-        TC_Fee_1_Option: '',
-        TC_Fee_1_Value: 0,
-        TC_Fee_2_Option: '',
-        TC_Fee_2_Value: 0,
-        TC_Fee_3_Option: '',
-        TC_Fee_3_Value: 0,
-        TC_Fee_4_Option: '',
-        TC_Fee_4_Value: 0,
-        TC_Fee_5_Option: '',
-        TC_Fee_5_Value: 0,
+        // NOUVEAU: Valeurs par défaut pour les nouveaux frais CORRIGÉS
+        ...getDefaultFeeValues(),
       });
       setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
       setUseInheritedBilling(true);
@@ -443,7 +480,7 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
   
-  // Gérer la soumission du formulaire - MODIFIÉ pour inclure les frais
+  // Gérer la soumission du formulaire - MODIFIÉ pour inclure les frais CORRIGÉS
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -451,7 +488,7 @@ export default function TactiqueDrawer({
       setLoading(true);
       setError(null);
 
-      // Préparer les données avec les KPIs et les frais
+      // Préparer les données avec les KPIs et les frais CORRIGÉS
       const dataToSave = { ...formData };
       
       // Ajouter les KPIs
@@ -470,8 +507,10 @@ export default function TactiqueDrawer({
         (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
       }
 
-      // NOUVEAU: Les frais sont déjà dans formData, pas besoin de traitement supplémentaire
-      console.log('Données à sauvegarder (avec frais):', dataToSave);
+      // NOUVEAU: Les frais CORRIGÉS sont déjà dans formData, pas besoin de traitement supplémentaire
+      if (debugMode) {
+        console.log('Données à sauvegarder (avec frais CORRIGÉS):', dataToSave);
+      }
 
       await onSave(dataToSave);
       setIsDirty(false);
@@ -482,7 +521,7 @@ export default function TactiqueDrawer({
     } finally {
       setLoading(false);
     }
-  }, [formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose]);
+  }, [formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, debugMode]);
 
   // Gérer la fermeture avec vérification
   const handleClose = useCallback(() => {
@@ -604,6 +643,8 @@ export default function TactiqueDrawer({
         
         {/* Footer avec les boutons d'action */}
         <div className="sticky bottom-0 bg-gray-50 px-6 py-4 sm:px-8 border-t border-gray-200">
+          
+          
           <div className="flex justify-end space-x-4">
             <button
               type="button"
