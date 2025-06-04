@@ -1,8 +1,8 @@
-// app/components/Tactiques/TactiqueFormBudget.tsx - VERSION REFAITE DE ZÉRO
+// app/components/Tactiques/TactiqueFormBudget.tsx - CORRECTION DÉFINITIVE
 
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { FormSection } from './TactiqueFormComponents';
 import BudgetGeneralParams from './BudgetGeneralParams';
 import BudgetMainSection from './BudgetMainSection';
@@ -10,7 +10,7 @@ import BudgetBonificationSection from './BudgetBonificationSection';
 import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 
-// Import du nouveau hook
+// Import du hook
 import { useBudgetCalculations } from '../../hooks/useBudgetCalculations';
 import { ClientFee } from '../../lib/budgetService';
 
@@ -22,7 +22,6 @@ interface ListItem {
 }
 
 interface TactiqueFormBudgetProps {
-  // Données du formulaire principal (format mixte pour compatibilité)
   formData: {
     TC_BudgetChoice?: 'client' | 'media';
     TC_BudgetInput?: number;
@@ -37,21 +36,18 @@ interface TactiqueFormBudgetProps {
     TC_Delta?: number;
     TC_Unit_Type?: string;
     TC_Has_Bonus?: boolean;
-    [key: string]: any; // Pour les champs de frais
+    [key: string]: any;
   };
   
-  // Données externes
   dynamicLists: { [key: string]: ListItem[] };
   clientFees: ClientFee[];
   campaignCurrency: string;
   exchangeRates: { [key: string]: number };
   
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onCalculatedChange: (updates: any) => void;
   onTooltipChange: (tooltip: string | null) => void;
   
-  // État de chargement
   loading?: boolean;
 }
 
@@ -68,8 +64,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   onTooltipChange,
   loading = false
 }) => {
-  
-  // ==================== HOOK BUDGET ====================
   
   const unitTypeOptions = dynamicLists.TC_Unit_Type || [];
   
@@ -89,12 +83,31 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     campaignCurrency,
     exchangeRates,
     unitTypeOptions,
-    autoCalculate: true // Auto-calcul activé
+    autoCalculate: true
+  });
+
+  // ==================== NOUVEL ÉTAT LOCAL POUR L'INTENTION D'ACTIVATION ====================
+  
+  // État séparé pour savoir quels frais l'utilisateur VEUT activer (indépendamment des calculs)
+  const [feeIntentions, setFeeIntentions] = useState<{ [feeId: string]: boolean }>(() => {
+    // Initialiser basé sur les données existantes
+    const intentions: { [feeId: string]: boolean } = {};
+    clientFees.forEach((fee, index) => {
+      const feeNumber = index + 1;
+      const optionKey = `TC_Fee_${feeNumber}_Option`;
+      const hasOption = !!(budgetData as any)[optionKey];
+      intentions[fee.id] = hasOption;
+    });
+    return intentions;
+  });
+
+  // État séparé pour la bonification
+  const [bonusIntention, setBonusIntention] = useState(() => {
+    return budgetData.TC_Media_Value > 0 || !!formData.TC_Has_Bonus;
   });
 
   // ==================== REMONTER LES CHANGEMENTS AU PARENT ====================
   
-  // Remonter les données calculées au parent (TactiqueDrawer)
   useEffect(() => {
     const dataForParent = getDataForFirestore();
     console.log('📤 Remontée des données au parent:', dataForParent);
@@ -103,20 +116,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 
   // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
   
-  /**
-   * Gestionnaire pour les changements de champs simples
-   */
   const handleFieldChange = useCallback((field: string, value: any) => {
     console.log(`🔄 Changement ${field}:`, value);
-    
-    // Mapper les noms legacy si nécessaire
     const mappedField = mapLegacyFieldName(field);
     updateField(mappedField as any, value);
   }, [updateField]);
 
-  /**
-   * Gestionnaire pour les événements de formulaire classiques
-   */
   const handleFormChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -128,19 +133,79 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       processedValue = parseFloat(value) || 0;
     }
     
-    // Appeler aussi le onChange du parent pour compatibilité
     onChange(e);
-    
-    // Mettre à jour nos données
     handleFieldChange(name, processedValue);
   }, [onChange, handleFieldChange]);
 
+  // ==================== GESTIONNAIRE BONUS CORRIGÉ ====================
+  
+  const handleBonusToggle = useCallback((hasBonus: boolean) => {
+    console.log(`🎁 Toggle bonus: ${hasBonus}`);
+    setBonusIntention(hasBonus);
+    
+    if (hasBonus) {
+      // Activer la bonification - garder les valeurs existantes ou mettre des valeurs par défaut
+      if (budgetData.TC_Media_Value === 0) {
+        // Pas de valeur existante, laisser l'utilisateur saisir
+        console.log('💡 Bonification activée - en attente de saisie utilisateur');
+      }
+    } else {
+      // Désactiver la bonification
+      updateMultipleFields({
+        TC_Media_Value: 0,
+        TC_Bonification: 0
+      });
+    }
+  }, [budgetData.TC_Media_Value, updateMultipleFields]);
+
+  // ==================== GESTIONNAIRE FRAIS CORRIGÉ ====================
+  
+  const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
+    console.log(`🔘 Toggle frais ${feeId}: ${isActive}`);
+    
+    // Mettre à jour l'intention d'activation
+    setFeeIntentions(prev => ({
+      ...prev,
+      [feeId]: isActive
+    }));
+    
+    const fee = clientFees.find(f => f.id === feeId);
+    if (!fee) return;
+    
+    const feeIndex = clientFees.findIndex(f => f.id === feeId);
+    const feeNumber = feeIndex + 1;
+    const optionKey = `TC_Fee_${feeNumber}_Option`;
+    const volumeKey = `TC_Fee_${feeNumber}_Volume`;
+    const valueKey = `TC_Fee_${feeNumber}_Value`;
+    
+    const updates: Record<string, any> = {};
+    
+    if (isActive) {
+      // Activer le frais
+      if (fee.options && fee.options.length === 1) {
+        // Auto-sélection si une seule option
+        updates[optionKey] = fee.options[0].id;
+        console.log(`✅ Auto-sélection option unique: ${fee.options[0].FO_Option}`);
+      } else if (fee.options && fee.options.length > 1) {
+        // Plusieurs options - marquer comme actif sans sélection
+        updates[optionKey] = 'ACTIVE_NO_SELECTION';
+      }
+      // Ne pas toucher aux valeurs, elles seront calculées quand option sélectionnée
+    } else {
+      // Désactiver le frais
+      updates[optionKey] = '';
+      updates[volumeKey] = 0;
+      updates[valueKey] = 0;
+    }
+    
+    console.log(`🔄 Updates pour toggle frais:`, updates);
+    updateMultipleFields(updates);
+  }, [clientFees, updateMultipleFields]);
+
   // ==================== DONNÉES POUR LES SOUS-COMPOSANTS ====================
   
-  // Calculer le budget média effectif pour l'affichage
   const calculatedMediaBudget = budgetData.TC_Media_Budget || 0;
   
-  // Calculer le total des frais (avec typage correct)
   const calculatedTotalFees = useMemo(() => {
     let total = 0;
     for (let i = 1; i <= 5; i++) {
@@ -150,7 +215,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return total;
   }, [budgetData]);
 
-  // Convertir les données budget vers le format attendu par les anciens composants
   const legacyFormData = useMemo(() => ({
     TC_Currency: budgetData.TC_BuyCurrency,
     TC_Unit_Type: budgetData.TC_Unit_Type,
@@ -158,91 +222,144 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     TC_Budget: budgetData.TC_BudgetInput,
     TC_Cost_Per_Unit: budgetData.TC_Unit_Price,
     TC_Unit_Volume: budgetData.TC_Unit_Volume,
-    TC_Has_Bonus: budgetData.TC_Media_Value > 0,
+    TC_Has_Bonus: bonusIntention, // 🔥 CORRECTION: Utiliser l'intention, pas les calculs
     TC_Real_Value: budgetData.TC_Media_Value,
     TC_Bonus_Value: budgetData.TC_Bonification
-  }), [budgetData]);
+  }), [budgetData, bonusIntention]);
 
-  // Préparer appliedFees pour BudgetFeesSection (format de compatibilité)
+  // ==================== APPLIEDFEES AVEC INTENTIONS ====================
+  
   const appliedFees = useMemo(() => {
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
     
     return sortedFees.map((fee, orderIndex) => {
       const feeNumber = orderIndex + 1;
-      const optionKey = `TC_Fee_${feeNumber}_Option` as keyof typeof budgetData;
-      const volumeKey = `TC_Fee_${feeNumber}_Volume` as keyof typeof budgetData;
-      const valueKey = `TC_Fee_${feeNumber}_Value` as keyof typeof budgetData;
+      const optionKey = `TC_Fee_${feeNumber}_Option`;
+      const volumeKey = `TC_Fee_${feeNumber}_Volume`;
+      const valueKey = `TC_Fee_${feeNumber}_Value`;
       
       const optionId = (budgetData as any)[optionKey] as string || '';
       const volumeValue = (budgetData as any)[volumeKey] as number || 0;
       const calculatedAmount = (budgetData as any)[valueKey] as number || 0;
       
+      // 🔥 CORRECTION: Utiliser l'intention d'activation au lieu des calculs
+      const isActive = feeIntentions[fee.id] || false;
+      
+      const selectedOption = fee.options?.find(opt => opt.id === optionId);
+      
       const appliedFee: any = {
         feeId: fee.id,
-        isActive: !!optionId,
+        isActive,
         selectedOptionId: optionId || undefined,
-        customUnits: fee.FE_Calculation_Type === 'Unités' ? volumeValue : undefined,
-        useCustomVolume: fee.FE_Calculation_Type === 'Volume d\'unité' && volumeValue > 0,
-        customVolume: fee.FE_Calculation_Type === 'Volume d\'unité' && volumeValue > 0 ? volumeValue : undefined,
-        customValue: fee.FE_Calculation_Type === 'Pourcentage budget' ? volumeValue : undefined,
         calculatedAmount
       };
       
+      // Ajouter les champs spécifiques selon le type de frais
+      if (selectedOption && appliedFee.isActive) {
+        switch (fee.FE_Calculation_Type) {
+          case 'Unités':
+            appliedFee.customUnits = volumeValue || 1;
+            break;
+          case 'Volume d\'unité':
+            if (volumeValue > 0) {
+              appliedFee.useCustomVolume = true;
+              appliedFee.customVolume = volumeValue;
+            }
+            break;
+          case 'Pourcentage budget':
+            if (selectedOption.FO_Editable) {
+              appliedFee.customValue = volumeValue;
+            }
+            break;
+          case 'Frais fixe':
+            if (selectedOption.FO_Editable) {
+              appliedFee.customValue = volumeValue;
+            }
+            break;
+        }
+      }
+      
       return appliedFee;
     });
-  }, [budgetData, clientFees]);
+  }, [budgetData, clientFees, feeIntentions]);
 
-  // Gestionnaire pour appliedFees (compatible avec le type attendu)
+  // ==================== GESTIONNAIRE APPLIEDFEES SIMPLIFIÉ ====================
+  
   const setAppliedFees = useCallback((value: any) => {
     console.log('🔄 Mise à jour appliedFees:', value);
     
-    // Gérer le cas où c'est une fonction (setter React)
     const newAppliedFees = typeof value === 'function' ? value(appliedFees) : value;
     
-    // Convertir les appliedFees vers notre format budgetData
-    const updates: Record<string, any> = {};
+    // Mettre à jour les intentions d'activation
+    const newIntentions: { [feeId: string]: boolean } = {};
+    newAppliedFees.forEach((af: any) => {
+      newIntentions[af.feeId] = af.isActive;
+    });
+    setFeeIntentions(newIntentions);
     
+    // Convertir vers budgetData
+    const updates: Record<string, any> = {};
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
     
     sortedFees.forEach((fee, orderIndex) => {
       const feeNumber = orderIndex + 1;
       const appliedFee = newAppliedFees.find((af: any) => af.feeId === fee.id);
       
-      const optionKey = `TC_Fee_${feeNumber}_Option` as keyof typeof budgetData;
-      const volumeKey = `TC_Fee_${feeNumber}_Volume` as keyof typeof budgetData;
-      const valueKey = `TC_Fee_${feeNumber}_Value` as keyof typeof budgetData;
+      const optionKey = `TC_Fee_${feeNumber}_Option`;
+      const volumeKey = `TC_Fee_${feeNumber}_Volume`;
+      const valueKey = `TC_Fee_${feeNumber}_Value`;
       
-      if (appliedFee && appliedFee.isActive && appliedFee.selectedOptionId) {
-        (updates as any)[optionKey] = appliedFee.selectedOptionId;
-        
-        // Déterminer la valeur de volume selon le type
-        let volumeValue = 0;
-        switch (fee.FE_Calculation_Type) {
-          case 'Unités':
-            volumeValue = appliedFee.customUnits || 1;
-            break;
-          case 'Volume d\'unité':
-            volumeValue = appliedFee.useCustomVolume ? (appliedFee.customVolume || 0) : 0;
-            break;
-          case 'Pourcentage budget':
-            volumeValue = appliedFee.customValue || 0;
-            break;
+      if (appliedFee && appliedFee.isActive) {
+        if (appliedFee.selectedOptionId && appliedFee.selectedOptionId !== 'ACTIVE_NO_SELECTION') {
+          // Frais avec option sélectionnée
+          updates[optionKey] = appliedFee.selectedOptionId;
+          
+          const selectedOption = fee.options?.find(opt => opt.id === appliedFee.selectedOptionId);
+          if (selectedOption) {
+            let volumeValue = 0;
+            
+            switch (fee.FE_Calculation_Type) {
+              case 'Unités':
+                volumeValue = appliedFee.customUnits || 1;
+                break;
+              case 'Volume d\'unité':
+                volumeValue = appliedFee.useCustomVolume ? (appliedFee.customVolume || 0) : 0;
+                break;
+              case 'Pourcentage budget':
+                if (selectedOption.FO_Editable && appliedFee.customValue !== undefined) {
+                  volumeValue = appliedFee.customValue;
+                }
+                break;
+              case 'Frais fixe':
+                if (selectedOption.FO_Editable && appliedFee.customValue !== undefined) {
+                  volumeValue = appliedFee.customValue;
+                }
+                break;
+            }
+            
+            updates[volumeKey] = volumeValue;
+            // La valeur sera recalculée par le hook
+          }
+        } else {
+          // Frais actif mais sans option sélectionnée
+          updates[optionKey] = 'ACTIVE_NO_SELECTION';
+          updates[volumeKey] = 0;
+          updates[valueKey] = 0;
         }
-        
-        (updates as any)[volumeKey] = volumeValue;
-        (updates as any)[valueKey] = appliedFee.calculatedAmount || 0;
       } else {
         // Frais inactif
-        (updates as any)[optionKey] = '';
-        (updates as any)[volumeKey] = 0;
-        (updates as any)[valueKey] = 0;
+        updates[optionKey] = '';
+        updates[volumeKey] = 0;
+        updates[valueKey] = 0;
       }
     });
     
+    console.log('🔄 Updates finaux:', updates);
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields, appliedFees]);
 
-  // Résumé budgétaire pour BudgetSummarySection
+  // ==================== RÉSUMÉ BUDGÉTAIRE ====================
+  
   const budgetSummary = useMemo(() => {
     const currency = budgetData.TC_BuyCurrency;
     const bonusValue = budgetData.TC_Bonification;
@@ -250,7 +367,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     const totalFees = calculatedTotalFees;
     const clientBudget = budgetData.TC_Client_Budget;
     
-    // Conversion de devise si nécessaire
     let convertedValues;
     const effectiveRate = budgetData.TC_Currency_Rate;
     if (currency !== campaignCurrency && effectiveRate !== 1) {
@@ -358,6 +474,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onChange={handleFormChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleFieldChange}
+          onToggle={handleBonusToggle} // 🔥 NOUVEAU: Gestionnaire spécifique
           mediaBudget={calculatedMediaBudget}
           disabled={loading}
         />
@@ -431,6 +548,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
                 <div>Convergé: {lastResult?.data?.hasConverged ? 'Oui' : 'Non'}</div>
               </div>
             </div>
+            
+            {/* Debug intentions */}
+            <div className="border-t pt-2 mt-2">
+              <div className="font-medium text-gray-800">Debug Intentions:</div>
+              <div>Bonus Intention: {bonusIntention.toString()}</div>
+              <div>Fee Intentions: {JSON.stringify(feeIntentions)}</div>
+            </div>
           </div>
         </div>
       )}
@@ -440,16 +564,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données budgétaires...</p>
         </div>
-      )}
+        )}
     </div>
   );
 });
 
 // ==================== UTILITAIRES ====================
 
-/**
- * Mappe les anciens noms de champs vers les nouveaux
- */
 function mapLegacyFieldName(field: string): string {
   const mapping: Record<string, string> = {
     'TC_Budget': 'TC_BudgetInput',

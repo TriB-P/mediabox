@@ -1,4 +1,4 @@
-// app/components/Tactiques/BudgetBonificationSection.tsx
+// app/components/Tactiques/BudgetBonificationSection.tsx - AVEC PROP ONTOGGLE
 
 'use client';
 
@@ -21,6 +21,9 @@ interface BudgetBonificationSectionProps {
   onTooltipChange: (tooltip: string | null) => void;
   onCalculatedChange: (field: string, value: number) => void;
   
+  // 🔥 NOUVEAU: Gestionnaire externe pour le toggle
+  onToggle?: (hasBonus: boolean) => void;
+  
   // Données externes (pour affichage informatif seulement)
   mediaBudget: number;
   
@@ -35,6 +38,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
   onChange,
   onTooltipChange,
   onCalculatedChange,
+  onToggle, // 🔥 NOUVEAU: Gestionnaire externe
   mediaBudget,
   disabled = false
 }) => {
@@ -81,22 +85,28 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     return (bonusValue / mediaBudget) * 100;
   }, [hasBonus, mediaBudget, bonusValue]);
 
-  // Gestionnaire pour le toggle bonification
+  // 🔥 CORRECTION: Gestionnaire pour le toggle bonification
   const handleHasBonusChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     
-    // Appeler onChange pour mettre à jour l'état parent
-    onChange(e);
-    
-    if (!checked) {
-      // Reset des valeurs si bonification désactivée
-      // Utiliser setTimeout pour s'assurer que l'onChange parent a été traité
-      setTimeout(() => {
-        onCalculatedChange('TC_Real_Value', 0);
-        onCalculatedChange('TC_Bonus_Value', 0);
-      }, 0);
+    if (onToggle) {
+      // Utiliser le gestionnaire externe si fourni
+      console.log('🎁 Utilisation gestionnaire externe pour toggle bonification');
+      onToggle(checked);
+    } else {
+      // Fallback vers l'ancien comportement
+      console.log('🎁 Utilisation gestionnaire interne pour toggle bonification');
+      onChange(e);
+      
+      if (!checked) {
+        // Reset des valeurs si bonification désactivée
+        setTimeout(() => {
+          onCalculatedChange('TC_Real_Value', 0);
+          onCalculatedChange('TC_Bonus_Value', 0);
+        }, 0);
+      }
     }
-  }, [onChange, onCalculatedChange]);
+  }, [onToggle, onChange, onCalculatedChange]);
 
   // Gestionnaire pour la valeur réelle
   const handleRealValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,6 +192,26 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
           )}
 
+          {/* 🔥 NOUVEAU: Message informatif si valeur réelle = 0 */}
+          {realValue === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <span className="text-lg">💡</span>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    Bonification activée - En attente de saisie
+                  </p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Saisissez la valeur réelle négociée avec le partenaire média ci-dessous. 
+                    Cette valeur doit être supérieure au budget média pour générer une économie.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Valeur réelle */}
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -244,7 +274,9 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
                 type="number"
                 value={bonusValue.toFixed(2)}
                 disabled
-                className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-green-50 text-green-800 font-medium"
+                className={`block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm font-medium ${
+                  bonusValue > 0 ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-600'
+                }`}
                 placeholder="0.00"
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -258,6 +290,14 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             {bonusValue > 0 && (
               <div className="mt-1 text-sm text-green-600">
                 Économie de {formatCurrency(bonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget média)
+              </div>
+            )}
+            {bonusValue === 0 && realValue > 0 && (
+              <div className="mt-1 text-sm text-gray-500">
+                {realValue === mediaBudget 
+                  ? 'Aucune bonification car valeur réelle = budget média'
+                  : 'Bonification sera calculée automatiquement'
+                }
               </div>
             )}
           </div>

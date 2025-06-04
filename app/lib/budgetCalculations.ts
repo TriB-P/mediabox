@@ -236,12 +236,15 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
   const { costPerUnit, realValue, fees, mediaBudget, clientBudget, unitType, unitTypeDisplayName } = inputs;
   
   // Calcul de la bonification
-  const bonusValue = realValue ? Math.max(0, realValue - costPerUnit) : 0;
   
   if (mediaBudget) {
     // Mode budget média → calculer le budget client
-    const effectiveBudgetForVolume = mediaBudget + bonusValue;
     
+    const bonusValue = realValue ? Math.max(0, realValue - mediaBudget) : 0;
+
+    const effectiveBudgetForVolume = mediaBudget + bonusValue;
+
+
     // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
     const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
     
