@@ -184,7 +184,7 @@ const calculateFees = (
         const baseForPercentage = fee.calculationMode === 'Directement sur le budget média' 
           ? mediaBudget 
           : (mediaBudget + runningFeesTotal);
-        calculatedAmount = (baseForPercentage * fee.value) / 100;
+        calculatedAmount = (baseForPercentage * fee.value);
         break;
         
       case 'Volume d\'unité':
@@ -249,6 +249,7 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
     const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
     
     const { totalFees, feeDetails } = calculateFees(mediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
+
     const calculatedClientBudget = mediaBudget + totalFees;
     
     return {
@@ -287,8 +288,10 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
   let iteration = 0;
   let finalDifference = 0;
   let hasConverged = false;
+
   
   while (iteration < maxIterations && !hasConverged) {
+
     // 🔥 CORRECTION: Calculer bonusValue avec le budget média actuel
     bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
     const effectiveBudgetForVolume = currentMediaBudget + bonusValue;
@@ -296,11 +299,15 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
     // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
     const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
     
+    //console.log(`Validation #${iteration}\nUnitVolume:${unitVolume}\nfees:${fees}\nunitType :${unitType}\nunitTypeDisplayName : ${unitTypeDisplayName}`)
+
     const { totalFees } = calculateFees(currentMediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
     const calculatedTotal = currentMediaBudget + totalFees;
     
     finalDifference = clientBudget - calculatedTotal;
-    
+   
+    console.log(`CONVERGENCE #${iteration}\nCurrent media budget:${currentMediaBudget}\nFinal delta:${finalDifference}\nObjectif :${clientBudget}\nFees : ${totalFees}`)
+
     if (Math.abs(finalDifference) <= tolerance) {
       hasConverged = true;
     } else {
@@ -325,6 +332,7 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
   const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
   
   const { totalFees, feeDetails } = calculateFees(currentMediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
+
   const actualCalculatedTotal = currentMediaBudget + totalFees;
   
   return {

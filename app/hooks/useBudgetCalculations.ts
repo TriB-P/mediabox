@@ -76,15 +76,41 @@ function calculateFeesCorrectly(
       return;
     }
     
-    // Valeur de base (avec valeur personnalisée si éditable)
+    // 🔥 CORRECTION: Logique pour valeur personnalisée vs valeur par défaut
     let baseValue = selectedOption.FO_Value;
     
     // Pour les champs éditables, utiliser la valeur personnalisée si fournie
-    if (selectedOption.FO_Editable && customVolume > 0) {
-      if (fee.FE_Calculation_Type === 'Pourcentage budget' || fee.FE_Calculation_Type === 'Frais fixe') {
-        baseValue = customVolume;
-        console.log(`✏️ Valeur personnalisée pour ${fee.FE_Name}: ${baseValue}`);
+    if (selectedOption.FO_Editable) {
+      switch (fee.FE_Calculation_Type) {
+        case 'Pourcentage budget':
+          // Pour les pourcentages, customVolume contient la valeur décimale (ex: 0.15 pour 15%)
+          if (customVolume !== undefined && customVolume !== null) {
+            baseValue = customVolume;
+            console.log(`✏️ Pourcentage personnalisé pour ${fee.FE_Name}: ${baseValue} (${(baseValue * 100).toFixed(2)}%)`);
+          }
+          break;
+        case 'Frais fixe':
+          // Pour les frais fixes, customVolume contient le montant direct
+          if (customVolume !== undefined && customVolume !== null && customVolume >= 0) {
+            baseValue = customVolume;
+            console.log(`✏️ Montant fixe personnalisé pour ${fee.FE_Name}: ${baseValue}`);
+          }
+          break;
+        case 'Volume d\'unité':
+          // Pour Volume d'unité, la valeur de base reste la même (prix unitaire)
+          // C'est le volume qui sera personnalisé plus tard dans le calcul
+          console.log(`📦 Volume d'unité ${fee.FE_Name}: prix unitaire = ${baseValue}, volume sera déterminé après`);
+          break;
+        case 'Unités':
+          // Pour Unités, la valeur de base reste la même (prix par unité)
+          // C'est le nombre d'unités qui sera personnalisé plus tard dans le calcul
+          console.log(`🔢 Unités ${fee.FE_Name}: prix par unité = ${baseValue}, nombre d'unités sera déterminé après`);
+          break;
+        default:
+          console.log(`⚙️ Type non reconnu pour ${fee.FE_Name}, utilisation valeur par défaut`);
       }
+    } else {
+      console.log(`🔒 Valeur non éditable pour ${fee.FE_Name}: ${baseValue}`);
     }
     
     // Appliquer le buffer
@@ -114,32 +140,44 @@ function calculateFeesCorrectly(
         console.log(`💰 POURCENTAGE: ${finalValue} × ${baseForPercentage.toFixed(2)} = ${calculatedAmount.toFixed(2)}`);
         break;
         
-        case 'Volume d\'unité':
-          // 🔥 CORRECTION: Logique pour volume d'unité personnalisé
-          let effectiveVolume: number;
-          
-          // Pour les frais "Volume d'unité", customVolume contient le volume personnalisé si défini
-          if (customVolume > 0) {
-            // Volume personnalisé saisi par l'utilisateur
-            effectiveVolume = customVolume;
-            console.log(`📦 VOLUME PERSONNALISÉ: ${fee.FE_Name} utilise volume personnalisé = ${effectiveVolume}`);
-          } else {
-            // Volume de la tactique par défaut
-            effectiveVolume = unitVolume;
-            console.log(`📦 VOLUME TACTIQUE: ${fee.FE_Name} utilise volume tactique = ${effectiveVolume}`);
-          }
-          
-          calculatedAmount = finalValue * effectiveVolume;
-          
-          if (effectiveVolume === 0) {
-            console.log(`📦 VOLUME (ZÉRO): ${finalValue} × ${effectiveVolume} = ${calculatedAmount} - FRAIS ACTIVÉ MAIS EN ATTENTE DE VOLUME`);
-          } else {
-            console.log(`📦 VOLUME: ${finalValue} × ${effectiveVolume} = ${calculatedAmount.toFixed(2)}`);
-          }
-          break;
+      case 'Volume d\'unité':
+        // 🔥 CORRECTION: Volume personnalisé pour Volume d'unité
+        let effectiveVolume: number;
+        
+        // Pour les frais "Volume d'unité", customVolume contient le volume personnalisé si défini
+        if (customVolume > 0) {
+          // Volume personnalisé saisi par l'utilisateur
+          effectiveVolume = customVolume;
+          console.log(`📦 VOLUME PERSONNALISÉ: ${fee.FE_Name} utilise volume personnalisé = ${effectiveVolume}`);
+        } else {
+          // Volume de la tactique par défaut
+          effectiveVolume = unitVolume;
+          console.log(`📦 VOLUME TACTIQUE: ${fee.FE_Name} utilise volume tactique = ${effectiveVolume}`);
+        }
+        
+        calculatedAmount = finalValue * effectiveVolume;
+        
+        if (effectiveVolume === 0) {
+          console.log(`📦 VOLUME (ZÉRO): ${finalValue} × ${effectiveVolume} = ${calculatedAmount} - FRAIS ACTIVÉ MAIS EN ATTENTE DE VOLUME`);
+        } else {
+          console.log(`📦 VOLUME CALCUL: ${finalValue} × ${effectiveVolume} = ${calculatedAmount.toFixed(2)}`);
+        }
+        break;
         
       case 'Unités':
-        const unitsCount = customVolume || 1;
+        // 🔥 CORRECTION: Nombre d'unités personnalisé
+        let unitsCount: number;
+        
+        if (selectedOption.FO_Editable && customVolume > 0) {
+          // Nombre d'unités personnalisé
+          unitsCount = customVolume;
+          console.log(`🔢 UNITÉS PERSONNALISÉES: ${fee.FE_Name} utilise ${unitsCount} unités`);
+        } else {
+          // Nombre d'unités par défaut (1)
+          unitsCount = 1;
+          console.log(`🔢 UNITÉS PAR DÉFAUT: ${fee.FE_Name} utilise ${unitsCount} unité`);
+        }
+        
         calculatedAmount = finalValue * unitsCount;
         console.log(`🔢 UNITÉS: ${finalValue} × ${unitsCount} = ${calculatedAmount}`);
         break;
@@ -158,7 +196,6 @@ function calculateFeesCorrectly(
     updates[valueKey] = calculatedAmount;
     
     // 🔥 CORRECTION: TOUS les frais s'ajoutent à la base cumulative pour les suivants
-    // (peu importe leur mode de calcul)
     if (calculatedAmount > 0) {
       cumulativeBase += calculatedAmount;
       console.log(`📈 Base cumulative mise à jour: ${mediaBudget.toFixed(2)} → ${cumulativeBase.toFixed(2)} (+${calculatedAmount.toFixed(2)} de ${fee.FE_Name})`);
