@@ -38,7 +38,7 @@ function calculateFeesCorrectly(
   budgetData: BudgetData, 
   clientFees: ClientFee[]
 ): Partial<BudgetData> {
-  console.log('🧮 Début calcul des frais corrigé');
+  console.log('🧮 Début calcul des frais corrigé avec logique séquentielle');
   
   const updates: any = {}; // Utiliser any pour les clés dynamiques
   const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
@@ -47,8 +47,10 @@ function calculateFeesCorrectly(
   const mediaBudget = budgetData.TC_Media_Budget || 0;
   const unitVolume = budgetData.TC_Unit_Volume || 0;
   
-  // Base de calcul cumulative pour les frais "sur frais précédents"
+  // 🔥 CORRECTION: Base de calcul cumulative pour TOUS les frais suivants
   let cumulativeBase = mediaBudget;
+  
+  console.log(`💰 Base initiale (budget média): ${mediaBudget.toFixed(2)}`);
   
   sortedFees.forEach((fee, orderIndex) => {
     const feeNumber = orderIndex + 1;
@@ -96,32 +98,47 @@ function calculateFeesCorrectly(
     
     switch (fee.FE_Calculation_Type) {
       case 'Pourcentage budget':
-        // 🔥 CORRECTION: Les pourcentages sont stockés comme décimales (0.05 = 5%)
-        // Base de calcul selon le mode
-        const baseForPercentage = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-          ? mediaBudget 
-          : cumulativeBase;
+        // 🔥 CORRECTION: Base de calcul selon le mode ET l'ordre séquentiel
+        let baseForPercentage: number;
+        
+        if (fee.FE_Calculation_Mode === 'Directement sur le budget média') {
+          baseForPercentage = mediaBudget;
+          console.log(`📊 ${fee.FE_Name}: Mode direct sur budget média`);
+        } else {
+          // 🔥 CORRECTION: Utiliser la base cumulative (budget + frais précédents)
+          baseForPercentage = cumulativeBase;
+          console.log(`📊 ${fee.FE_Name}: Mode cumulatif sur ${cumulativeBase.toFixed(2)}`);
+        }
         
         calculatedAmount = finalValue * baseForPercentage;
-        console.log(`💰 POURCENTAGE CORRIGÉ: ${finalValue} × ${baseForPercentage} = ${calculatedAmount}`);
+        console.log(`💰 POURCENTAGE: ${finalValue} × ${baseForPercentage.toFixed(2)} = ${calculatedAmount.toFixed(2)}`);
         break;
         
-      case 'Volume d\'unité':
-        // 🔥 CORRECTION: Permettre l'activation même si volume = 0
-        // Volume personnalisé ou volume de la tactique
-        const effectiveVolume = (selectedOption.FO_Editable && customVolume > 0) ? customVolume : unitVolume;
-        calculatedAmount = finalValue * effectiveVolume;
-        
-        // Log spécial pour les volumes zéro
-        if (effectiveVolume === 0) {
-          console.log(`📦 VOLUME (ZÉRO): ${finalValue} × ${effectiveVolume} = ${calculatedAmount} - FRAIS ACTIVÉ MAIS EN ATTENTE DE VOLUME`);
-        } else {
-          console.log(`📦 VOLUME: ${finalValue} × ${effectiveVolume} = ${calculatedAmount}`);
-        }
-        break;
+        case 'Volume d\'unité':
+          // 🔥 CORRECTION: Logique pour volume d'unité personnalisé
+          let effectiveVolume: number;
+          
+          // Pour les frais "Volume d'unité", customVolume contient le volume personnalisé si défini
+          if (customVolume > 0) {
+            // Volume personnalisé saisi par l'utilisateur
+            effectiveVolume = customVolume;
+            console.log(`📦 VOLUME PERSONNALISÉ: ${fee.FE_Name} utilise volume personnalisé = ${effectiveVolume}`);
+          } else {
+            // Volume de la tactique par défaut
+            effectiveVolume = unitVolume;
+            console.log(`📦 VOLUME TACTIQUE: ${fee.FE_Name} utilise volume tactique = ${effectiveVolume}`);
+          }
+          
+          calculatedAmount = finalValue * effectiveVolume;
+          
+          if (effectiveVolume === 0) {
+            console.log(`📦 VOLUME (ZÉRO): ${finalValue} × ${effectiveVolume} = ${calculatedAmount} - FRAIS ACTIVÉ MAIS EN ATTENTE DE VOLUME`);
+          } else {
+            console.log(`📦 VOLUME: ${finalValue} × ${effectiveVolume} = ${calculatedAmount.toFixed(2)}`);
+          }
+          break;
         
       case 'Unités':
-        // Nombre d'unités personnalisé
         const unitsCount = customVolume || 1;
         calculatedAmount = finalValue * unitsCount;
         console.log(`🔢 UNITÉS: ${finalValue} × ${unitsCount} = ${calculatedAmount}`);
@@ -137,24 +154,17 @@ function calculateFeesCorrectly(
         calculatedAmount = 0;
     }
     
-    // 🔥 NOUVEAU: Pour les frais "Volume d'unité", stocker même si montant = 0
-    // Cela permet de garder le frais "actif" visuellement
-    if (fee.FE_Calculation_Type === 'Volume d\'unité' && calculatedAmount === 0 && selectedOptionId) {
-      // Marquer comme actif avec montant 0 en attendant le volume
-      updates[valueKey] = 0;
-      console.log(`✅ ${fee.FE_Name}: 0.00 (en attente de volume d'unité)`);
-    } else {
-      updates[valueKey] = calculatedAmount;
-      console.log(`✅ ${fee.FE_Name}: ${calculatedAmount.toFixed(2)}`);
-    }
+    // Stocker le résultat
+    updates[valueKey] = calculatedAmount;
     
-    // Mettre à jour la base cumulative pour les frais suivants
-    if (fee.FE_Calculation_Mode === 'Applicable sur les frais précédents') {
+    // 🔥 CORRECTION: TOUS les frais s'ajoutent à la base cumulative pour les suivants
+    // (peu importe leur mode de calcul)
+    if (calculatedAmount > 0) {
       cumulativeBase += calculatedAmount;
-      console.log(`📈 Base cumulative mise à jour: ${cumulativeBase}`);
+      console.log(`📈 Base cumulative mise à jour: ${mediaBudget.toFixed(2)} → ${cumulativeBase.toFixed(2)} (+${calculatedAmount.toFixed(2)} de ${fee.FE_Name})`);
     }
     
-    console.log(`✅ ${fee.FE_Name}: ${calculatedAmount.toFixed(2)}`);
+    console.log(`✅ ${fee.FE_Name}: ${calculatedAmount.toFixed(2)} (mode: ${fee.FE_Calculation_Mode})`);
   });
   
   // Calculer le total des frais (pour référence dans les logs)
@@ -165,7 +175,7 @@ function calculateFeesCorrectly(
   }
   
   console.log(`💼 Total des frais calculé: ${totalFees.toFixed(2)}`);
-  // Note: TC_Total_Fees sera calculé par le service principal
+  console.log(`🏁 Base cumulative finale: ${cumulativeBase.toFixed(2)}`);
   
   return updates as Partial<BudgetData>;
 }

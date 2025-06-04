@@ -1,4 +1,4 @@
-// app/components/Tactiques/BudgetSummarySection.tsx - CORRECTION DONNÉES HOOK
+// app/components/Tactiques/BudgetSummarySection.tsx - CORRECTION DÉFINITIVE TOTAL
 
 'use client';
 
@@ -294,7 +294,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       .sort((a, b) => a.order - b.order);
     
     return fees;
-  }, [budgetSummary?.feeDetails, appliedFees, clientFees]); // 🔥 CORRECTION: Ajouter ? pour éviter l'erreur
+  }, [budgetSummary?.feeDetails, appliedFees, clientFees]);
 
   // Calculer les applications des frais
   const feeApplications = useMemo(() => {
@@ -316,6 +316,29 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   // Utiliser les valeurs converties pour l'affichage principal si disponibles
   const displayValues = conversionInfo.showConvertedValues ? budgetSummary.convertedValues! : budgetSummary;
   const displayCurrency = conversionInfo.showConvertedValues ? campaignCurrency : budgetSummary.currency;
+
+  // 🔥 NOUVEAU: Calculer les montants réels des frais affichés (avec conversion si nécessaire)
+  const displayedFeeAmounts = useMemo(() => {
+    return activeFees.map(activeFee => {
+      let feeAmount = activeFee.calculatedAmount;
+      
+      // Appliquer la conversion si nécessaire
+      if (conversionInfo.showConvertedValues && budgetSummary.convertedValues) {
+        feeAmount = feeAmount * budgetSummary.convertedValues.exchangeRate;
+      }
+      
+      return {
+        feeId: activeFee.feeId,
+        amount: feeAmount,
+        originalAmount: activeFee.calculatedAmount
+      };
+    });
+  }, [activeFees, conversionInfo.showConvertedValues, budgetSummary.convertedValues]);
+
+  // 🔥 CORRECTION: Calculer le total des frais à partir des montants réellement affichés
+  const displayedTotalFees = useMemo(() => {
+    return displayedFeeAmounts.reduce((sum, feeAmount) => sum + feeAmount.amount, 0);
+  }, [displayedFeeAmounts]);
 
   // Vérifier si le budget est défini
   const hasValidBudget = budgetSummary.mediaBudget > 0;
@@ -391,14 +414,9 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
-              {activeFees.map((activeFee) => {
-                // 🔥 UTILISER LES MONTANTS CORRIGÉS DU HOOK
-                let feeAmount = activeFee.calculatedAmount;
-                
-                // Convertir le montant du frais si nécessaire
-                if (conversionInfo.showConvertedValues && budgetSummary.convertedValues) {
-                  feeAmount = feeAmount * budgetSummary.convertedValues.exchangeRate;
-                }
+              {activeFees.map((activeFee, index) => {
+                // 🔥 UTILISER LES MONTANTS PRÉ-CALCULÉS
+                const displayedAmount = displayedFeeAmounts.find(fa => fa.feeId === activeFee.feeId)?.amount || 0;
                 
                 // Utiliser l'information d'application calculée
                 const appliedOn = feeApplications[activeFee.feeId] || 'Non défini';
@@ -407,7 +425,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
                   <SummaryLine
                     key={activeFee.feeId}
                     label={activeFee.fee.FE_Name}
-                    amount={feeAmount}
+                    amount={displayedAmount}
                     currency={displayCurrency}
                     description={`Appliqué sur : ${appliedOn}`}
                     icon={getFeeTypeIcon(activeFee.fee.FE_Calculation_Type)}
@@ -415,20 +433,20 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
                 );
               })}
               
-              {/* Sous-total frais */}
+              {/* 🔥 CORRECTION: Sous-total frais utilise le total calculé */}
               <SummaryLine
                 label="Sous-total frais"
-                amount={displayValues.totalFees}
+                amount={displayedTotalFees}
                 currency={displayCurrency}
                 isSubtotal
               />
             </>
           )}
           
-          {/* Total client */}
+          {/* 🔥 CORRECTION: Total client recalculé avec les vrais montants */}
           <SummaryLine
             label="TOTAL BUDGET CLIENT"
-            amount={displayValues.clientBudget}
+            amount={displayValues.mediaBudget + displayValues.bonusValue + displayedTotalFees}
             currency={displayCurrency}
             description="Montant total facturable au client"
             isTotal
@@ -474,6 +492,27 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             💡 Aucun frais appliqué. Le budget client correspond au budget média.
             Vous pouvez activer des frais dans la section précédente si nécessaire.
           </p>
+        </div>
+      )}
+
+      {/* 🔥 NOUVEAU: Debug pour vérifier les calculs */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <h5 className="text-sm font-medium text-yellow-800 mb-2">🐛 Debug Totaux</h5>
+          <div className="text-xs text-yellow-700 space-y-1">
+            <div>Total hook: {budgetSummary.totalFees.toFixed(2)} {budgetSummary.currency}</div>
+            <div>Total affiché: {displayedTotalFees.toFixed(2)} {displayCurrency}</div>
+            <div>Conversion appliquée: {conversionInfo.showConvertedValues ? 'Oui' : 'Non'}</div>
+            {conversionInfo.showConvertedValues && (
+              <div>Taux: {budgetSummary.convertedValues?.exchangeRate}</div>
+            )}
+            <div>Frais individuels:</div>
+            {displayedFeeAmounts.map(fa => (
+              <div key={fa.feeId} className="ml-2">
+                • {fa.originalAmount.toFixed(2)} → {fa.amount.toFixed(2)}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
