@@ -30,6 +30,9 @@ interface AppliedFee {
   selectedOptionId?: string;
   customValue?: number;
   customUnits?: number;
+  // NOUVEAU: Volume personnalisé pour les frais "Volume d'unité"
+  useCustomVolume?: boolean;
+  customVolume?: number;
   calculatedAmount: number;
 }
 
@@ -78,7 +81,6 @@ const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
 // Formater une valeur pour l'affichage selon le type de frais
 const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculation_Type']) => {
   if (calculationType === 'Pourcentage budget') {
-    // La valeur en base est en décimal (0.1 = 10%), on multiplie par 100 pour l'affichage
     return (value * 100).toFixed(2);
   }
   return value.toFixed(2);
@@ -88,7 +90,6 @@ const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculati
 const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Calculation_Type']) => {
   const numValue = parseFloat(displayValue) || 0;
   if (calculationType === 'Pourcentage budget') {
-    // La valeur affichée est en pourcentage, on divise par 100 pour stocker en décimal
     return numValue / 100;
   }
   return numValue;
@@ -103,8 +104,12 @@ const FeeItem = memo<{
   onOptionChange: (feeId: string, optionId: string) => void;
   onCustomValueChange: (feeId: string, value: number) => void;
   onCustomUnitsChange: (feeId: string, units: number) => void;
+  // NOUVEAU: Gestionnaires pour le volume personnalisé
+  onCustomVolumeToggle: (feeId: string, useCustom: boolean) => void;
+  onCustomVolumeChange: (feeId: string, volume: number) => void;
   onTooltipChange: (tooltip: string | null) => void;
   tacticCurrency: string;
+  unitVolume: number; // Volume d'unité de la tactique
   disabled?: boolean;
 }>(({ 
   fee, 
@@ -112,9 +117,12 @@ const FeeItem = memo<{
   onToggle, 
   onOptionChange, 
   onCustomValueChange, 
-  onCustomUnitsChange, 
+  onCustomUnitsChange,
+  onCustomVolumeToggle,
+  onCustomVolumeChange,
   onTooltipChange, 
   tacticCurrency,
+  unitVolume,
   disabled = false 
 }) => {
   
@@ -139,6 +147,16 @@ const FeeItem = memo<{
     const units = parseInt(e.target.value) || 0;
     onCustomUnitsChange(fee.id, units);
   }, [fee.id, onCustomUnitsChange]);
+
+  // NOUVEAU: Gestionnaires pour le volume personnalisé
+  const handleCustomVolumeToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onCustomVolumeToggle(fee.id, e.target.checked);
+  }, [fee.id, onCustomVolumeToggle]);
+
+  const handleCustomVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const volume = parseFloat(e.target.value) || 0;
+    onCustomVolumeChange(fee.id, volume);
+  }, [fee.id, onCustomVolumeChange]);
 
   // Calcul du montant avec buffer si applicable (pour affichage informatif seulement)
   const finalValue = useMemo(() => {
@@ -168,6 +186,14 @@ const FeeItem = memo<{
   const finalDisplayValue = useMemo(() => {
     return formatValueForDisplay(finalValue, fee.FE_Calculation_Type);
   }, [finalValue, fee.FE_Calculation_Type]);
+
+  // NOUVEAU: Volume effectif utilisé pour ce frais
+  const effectiveVolume = useMemo(() => {
+    if (fee.FE_Calculation_Type === 'Volume d\'unité' && appliedFee.useCustomVolume && appliedFee.customVolume) {
+      return appliedFee.customVolume;
+    }
+    return unitVolume;
+  }, [fee.FE_Calculation_Type, appliedFee.useCustomVolume, appliedFee.customVolume, unitVolume]);
 
   return (
     <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
@@ -215,7 +241,6 @@ const FeeItem = memo<{
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Option du frais
-                {/* Indication si sélection automatique */}
                 {fee.options.length === 1 && (
                   <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
                     Sélectionnée automatiquement
@@ -240,6 +265,58 @@ const FeeItem = memo<{
                   );
                 })}
               </select>
+            </div>
+          )}
+
+          {/* NOUVEAU: Option volume personnalisé pour les frais "Volume d'unité" */}
+          {selectedOption && fee.FE_Calculation_Type === 'Volume d\'unité' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex items-center h-6">
+                  <input
+                    type="checkbox"
+                    id={`custom_volume_${fee.id}`}
+                    checked={appliedFee.useCustomVolume || false}
+                    onChange={handleCustomVolumeToggle}
+                    disabled={disabled}
+                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                </div>
+                <div className="ml-3 flex-1">
+                  <label 
+                    htmlFor={`custom_volume_${fee.id}`}
+                    className="text-sm font-medium text-yellow-800 cursor-pointer"
+                  >
+                    Utiliser un autre volume d'unité pour calculer ce frais
+                  </label>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Par défaut, ce frais utilise le volume d'unité de la tactique ({unitVolume.toLocaleString()}). 
+                    Cochez pour saisir un volume différent.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Input pour le volume personnalisé */}
+              {appliedFee.useCustomVolume && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-yellow-800 mb-2">
+                    Volume d'unité personnalisé
+                  </label>
+                  <input
+                    type="number"
+                    value={appliedFee.customVolume || ''}
+                    onChange={handleCustomVolumeChange}
+                    min="0"
+                    step="1"
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-yellow-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 disabled:opacity-50 disabled:bg-gray-100"
+                    placeholder="Saisir le volume d'unité"
+                  />
+                  <div className="mt-1 text-xs text-yellow-700">
+                    Ce volume sera utilisé pour calculer le frais : {formatCurrency(finalValue)} × {appliedFee.customVolume || 0} = {formatCurrency(finalValue * (appliedFee.customVolume || 0))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -331,7 +408,7 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* Explication du calcul avec devise - SIMPLIFIÉ */}
+          {/* Explication du calcul avec devise - MODIFIÉE pour inclure le volume personnalisé */}
           {selectedOption && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-xs text-gray-600">
@@ -345,7 +422,10 @@ const FeeItem = memo<{
                 )}
                 {fee.FE_Calculation_Type === 'Volume d\'unité' && (
                   <div className="mt-1">
-                    {formatCurrency(finalValue)} × Volume d'unité de la tactique
+                    {formatCurrency(finalValue)} × {effectiveVolume.toLocaleString()} unités
+                    {appliedFee.useCustomVolume && (
+                      <span className="text-yellow-600 font-medium"> (volume personnalisé)</span>
+                    )}
                   </div>
                 )}
                 {fee.FE_Calculation_Type === 'Unités' && (
@@ -392,12 +472,10 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     setAppliedFees(prev => prev.map(appliedFee => {
       if (appliedFee.feeId !== feeId) return appliedFee;
       
-      // Trouver le frais correspondant
       const fee = clientFees.find(f => f.id === feeId);
       
       let selectedOptionId = isActive ? appliedFee.selectedOptionId : undefined;
       
-      // Si activation et une seule option disponible, la sélectionner automatiquement
       if (isActive && fee && fee.options.length === 1 && !selectedOptionId) {
         selectedOptionId = fee.options[0].id;
         console.log(`Sélection automatique de l'option unique pour le frais "${fee.FE_Name}": ${fee.options[0].FO_Option}`);
@@ -409,6 +487,9 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         selectedOptionId,
         customValue: isActive ? appliedFee.customValue : undefined,
         customUnits: isActive ? appliedFee.customUnits : undefined,
+        // NOUVEAU: Reset des options de volume personnalisé si désactivé
+        useCustomVolume: isActive ? appliedFee.useCustomVolume : false,
+        customVolume: isActive ? appliedFee.customVolume : undefined,
         calculatedAmount: isActive ? appliedFee.calculatedAmount : 0
       };
     }));
@@ -434,6 +515,27 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     setAppliedFees(prev => prev.map(appliedFee => 
       appliedFee.feeId === feeId 
         ? { ...appliedFee, customUnits: units }
+        : appliedFee
+    ));
+  }, [setAppliedFees]);
+
+  // NOUVEAU: Gestionnaires pour le volume personnalisé
+  const handleCustomVolumeToggle = useCallback((feeId: string, useCustom: boolean) => {
+    setAppliedFees(prev => prev.map(appliedFee => 
+      appliedFee.feeId === feeId 
+        ? { 
+            ...appliedFee, 
+            useCustomVolume: useCustom,
+            customVolume: useCustom ? (appliedFee.customVolume || unitVolume) : undefined
+          }
+        : appliedFee
+    ));
+  }, [setAppliedFees, unitVolume]);
+
+  const handleCustomVolumeChange = useCallback((feeId: string, volume: number) => {
+    setAppliedFees(prev => prev.map(appliedFee => 
+      appliedFee.feeId === feeId 
+        ? { ...appliedFee, customVolume: volume }
         : appliedFee
     ));
   }, [setAppliedFees]);
@@ -509,8 +611,11 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
               onOptionChange={handleOptionChange}
               onCustomValueChange={handleCustomValueChange}
               onCustomUnitsChange={handleCustomUnitsChange}
+              onCustomVolumeToggle={handleCustomVolumeToggle}
+              onCustomVolumeChange={handleCustomVolumeChange}
               onTooltipChange={onTooltipChange}
               tacticCurrency={tacticCurrency}
+              unitVolume={unitVolume}
               disabled={disabled}
             />
           );
@@ -534,6 +639,12 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
                     <span>{getFeeTypeIcon(fee.FE_Calculation_Type)}</span>
                     <span className="text-indigo-700">{fee.FE_Name}</span>
                     <span className="text-xs text-indigo-500">#{fee.FE_Order}</span>
+                    {/* NOUVEAU: Indicateur si volume personnalisé */}
+                    {fee.FE_Calculation_Type === 'Volume d\'unité' && appliedFee.useCustomVolume && (
+                      <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
+                        Vol. pers.
+                      </span>
+                    )}
                   </div>
                   <span className="font-medium text-indigo-800">
                     {formatCurrency(appliedFee.calculatedAmount)}

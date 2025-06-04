@@ -10,16 +10,18 @@ import BudgetBonificationSection from './BudgetBonificationSection';
 import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 
-// NOUVEAU: Import de la logique de calcul rebuild avec convergence
+// Import de la logique de calcul rebuild avec convergence et support impressions
 import {
   calculateBudget,
   validateBudgetInputs,
+  isImpressionType,
+  getCalculationExplanation,
   type FeeDefinition,
   type BudgetInputs,
   type BudgetResults,
   type FeeCalculationType,
   type FeeCalculationMode,
-  type ConvergenceInfo // NOUVEAU
+  type ConvergenceInfo
 } from '../../lib/budgetCalculations';
 
 // ==================== TYPES ====================
@@ -52,6 +54,9 @@ interface AppliedFee {
   selectedOptionId?: string;
   customValue?: number;
   customUnits?: number;
+  // NOUVEAU: Volume personnalisé pour les frais "Volume d'unité"
+  useCustomVolume?: boolean;
+  customVolume?: number;
   calculatedAmount: number;
 }
 
@@ -67,8 +72,6 @@ interface TactiqueFormBudgetProps {
     TC_Has_Bonus?: boolean;
     TC_Real_Value?: number;
     TC_Bonus_Value?: number;
-    // Note: Les champs TC_Fee_X_Option et TC_Fee_X_Value ne sont plus utilisés
-    // pour éviter les boucles de re-render. Les frais sont gérés en état local.
   };
   
   // Données externes
@@ -100,7 +103,6 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
-  // Informations de convergence
   convergenceInfo?: ConvergenceInfo;
 }
 
@@ -123,7 +125,6 @@ const convertAppliedFeesToDefinitions = (
         throw new Error(`Frais ou option non trouvé: ${appliedFee.feeId}`);
       }
 
-      // Utiliser la valeur personnalisée si disponible, sinon la valeur de l'option
       const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
 
       return {
@@ -134,7 +135,10 @@ const convertAppliedFeesToDefinitions = (
         order: fee.FE_Order,
         value: baseValue,
         buffer: selectedOption.FO_Buffer,
-        customUnits: appliedFee.customUnits
+        customUnits: appliedFee.customUnits,
+        // NOUVEAU: Support du volume personnalisé
+        useCustomVolume: appliedFee.useCustomVolume,
+        customVolume: appliedFee.customVolume
       };
     });
 };
@@ -188,10 +192,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       }));
       setAppliedFees(initialAppliedFees);
     }
-  }, [clientFees.length]); // Seulement quand clientFees change
+  }, [clientFees.length]);
 
-  // Fonction pour gérer les changements calculés (SANS persistance automatique des frais)
+  // Fonction pour gérer les changements calculés
   const handleCalculatedChange = useCallback((field: string, value: number | string) => {
+    console.log(`🔄 handleCalculatedChange: ${field} = ${value}`);
+    
     // Ignorer les changements de frais pour éviter la boucle
     if (field.startsWith('TC_Fee_')) {
       return;
@@ -208,7 +214,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onChange(syntheticEvent);
   }, [onChange]);
 
-  // NOUVEAU: Validation spécifique pour le mode client
+  // CORRIGÉ: Validation spécifique pour le mode client
   const clientModeValidation = useMemo(() => {
     const budget = formData.TC_Budget || 0;
     const budgetMode = formData.TC_Budget_Mode || 'media';
@@ -246,7 +252,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     appliedFees
   ]);
 
-  // Calcul principal avec la logique rebuild (avec convergence)
+  // CORRIGÉ: Calcul principal - Retirer TC_Unit_Volume des dépendances pour éviter les boucles
   const budgetCalculationResults = useMemo((): BudgetResults | null => {
     try {
       // Nettoyer les erreurs précédentes
@@ -257,27 +263,35 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       const budgetMode = formData.TC_Budget_Mode || 'media';
       const costPerUnit = formData.TC_Cost_Per_Unit || 0;
       const realValue = formData.TC_Has_Bonus ? (formData.TC_Real_Value || 0) : undefined;
-      const unitVolume = formData.TC_Unit_Volume || 0;
+      
+      console.log(`📊 Calcul budget - Budget: ${budget}, Mode: ${budgetMode}, Coût/unité: ${costPerUnit}, Valeur réelle: ${realValue}`);
       
       // Validation de base
       if (budget <= 0 || costPerUnit <= 0) {
-        return null; // Pas assez de données pour calculer
+        console.log('⚠️ Données insuffisantes pour le calcul');
+        return null;
       }
       
-      // NOUVEAU: Vérifier la validation du mode client avant de continuer
+      // Vérifier la validation du mode client avant de continuer
       if (!clientModeValidation.isValid) {
-        return null; // Ne pas calculer si la validation échoue
+        console.log('❌ Validation mode client échouée');
+        return null;
       }
       
       // Convertir les frais appliqués vers la nouvelle structure
       const feeDefinitions = convertAppliedFeesToDefinitions(appliedFees, clientFees);
       
-      // Préparer les inputs pour le calcul
+      // NOUVEAU: Récupérer le display name du type d'unité pour les impressions
+      const selectedUnitType = unitTypeOptions.find(option => option.id === formData.TC_Unit_Type);
+      const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_FR;
+      
+      // Préparer les inputs pour le calcul avec le type d'unité
       const budgetInputs: BudgetInputs = {
         costPerUnit,
         realValue,
-        unitVolume: unitVolume > 0 ? unitVolume : undefined, // Laisser calculer si 0
-        fees: feeDefinitions
+        fees: feeDefinitions,
+        unitType: formData.TC_Unit_Type,
+        unitTypeDisplayName
       };
       
       // Définir le type de budget selon le mode
@@ -297,6 +311,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       // Effectuer le calcul avec la nouvelle logique
       const results = calculateBudget(budgetInputs);
       
+      console.log(`✅ Calcul terminé - Volume: ${results.unitVolume}, Budget média: ${results.mediaBudget}`);
+      
       return results;
       
     } catch (error) {
@@ -305,20 +321,23 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       return null;
     }
   }, [
+    // CORRIGÉ: Retirer TC_Unit_Volume des dépendances car c'est un résultat calculé
     formData.TC_Budget,
     formData.TC_Budget_Mode, 
-    formData.TC_Cost_Per_Unit,
+    formData.TC_Cost_Per_Unit,  // IMPORTANT: Garder pour que les changements déclenchent le recalcul
     formData.TC_Has_Bonus,
-    formData.TC_Real_Value,
-    formData.TC_Unit_Volume,
+    formData.TC_Real_Value,     // IMPORTANT: Garder pour que les changements déclenchent le recalcul
     appliedFees,
     clientFees,
-    clientModeValidation.isValid // NOUVEAU: Dépendre de la validation
+    clientModeValidation.isValid
   ]);
 
-  // Synchroniser les frais calculés avec les AppliedFee (SANS boucle)
+  // CORRIGÉ: Synchroniser les résultats avec amélioration du debug
   useEffect(() => {
     if (budgetCalculationResults && appliedFees.length > 0) {
+      console.log('🔄 Synchronisation des résultats calculés');
+      
+      // Mettre à jour les frais calculés
       const updatedAppliedFees = updateAppliedFeesWithCalculations(appliedFees, budgetCalculationResults);
       
       // Vérifier si les montants ont vraiment changé pour éviter les re-renders inutiles
@@ -328,20 +347,37 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       });
       
       if (amountsChanged) {
+        console.log('💰 Montants des frais mis à jour');
         setAppliedFees(updatedAppliedFees);
       }
       
-      // Mettre à jour le volume d'unité calculé si nécessaire (SANS déclencher de boucle)
-      if (Math.abs(budgetCalculationResults.unitVolume - (formData.TC_Unit_Volume || 0)) > 0.01) {
-        handleCalculatedChange('TC_Unit_Volume', budgetCalculationResults.unitVolume);
+      // CORRIGÉ: Toujours mettre à jour le volume d'unité si différent
+      const currentVolume = formData.TC_Unit_Volume || 0;
+      const newVolume = budgetCalculationResults.unitVolume;
+      const volumeDifference = Math.abs(newVolume - currentVolume);
+      
+      console.log(`📏 Volume - Actuel: ${currentVolume}, Calculé: ${newVolume}, Différence: ${volumeDifference}`);
+      
+      if (volumeDifference > 0.01) {
+        console.log('🔄 Mise à jour du volume d\'unité');
+        handleCalculatedChange('TC_Unit_Volume', newVolume);
       }
       
-      // Mettre à jour la bonification calculée si nécessaire (SANS déclencher de boucle)
-      if (formData.TC_Has_Bonus && Math.abs(budgetCalculationResults.bonusValue - (formData.TC_Bonus_Value || 0)) > 0.01) {
-        handleCalculatedChange('TC_Bonus_Value', budgetCalculationResults.bonusValue);
+      // Mettre à jour la bonification calculée si nécessaire
+      if (formData.TC_Has_Bonus) {
+        const currentBonus = formData.TC_Bonus_Value || 0;
+        const newBonus = budgetCalculationResults.bonusValue;
+        const bonusDifference = Math.abs(newBonus - currentBonus);
+        
+        console.log(`🎁 Bonus - Actuel: ${currentBonus}, Calculé: ${newBonus}, Différence: ${bonusDifference}`);
+        
+        if (bonusDifference > 0.01) {
+          console.log('🔄 Mise à jour de la bonification');
+          handleCalculatedChange('TC_Bonus_Value', newBonus);
+        }
       }
     }
-  }, [budgetCalculationResults]); // SEULEMENT budgetCalculationResults pour éviter la boucle
+  }, [budgetCalculationResults, formData.TC_Has_Bonus, handleCalculatedChange]);
 
   // Extraire les valeurs calculées ou utiliser les valeurs par défaut
   const calculatedMediaBudget = budgetCalculationResults?.mediaBudget || 0;
@@ -362,7 +398,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     // utiliser le vrai total calculé au lieu du budget client saisi
     let convergenceInfo = budgetCalculationResults?.convergenceInfo;
     if (convergenceInfo && !convergenceInfo.hasConverged) {
-      // Utiliser le vrai total calculé au lieu du budget client saisi
       clientBudget = convergenceInfo.actualCalculatedTotal;
     }
     
@@ -421,7 +456,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* NOUVEAU: Message d'erreur pour validation mode client */}
+      {/* Message d'erreur pour validation mode client */}
       {!clientModeValidation.isValid && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           <div className="flex items-start">
@@ -483,6 +518,10 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         <BudgetMainSection
           formData={formData}
           totalFees={calculatedTotalFees}
+          unitTypeOptions={unitTypeOptions.map(item => ({ 
+            id: item.id, 
+            label: item.SH_Display_Name_FR 
+          }))}
           onChange={onChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleCalculatedChange}
@@ -544,28 +583,40 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* Debug info en développement */}
+      {/* Debug info en développement - AMÉLIORÉ */}
       {process.env.NODE_ENV === 'development' && budgetCalculationResults && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info (Avec convergence)</h5>
+          <h5 className="text-sm font-medium text-gray-800 mb-2">Debug Info - Calculs impressions</h5>
           <div className="text-xs text-gray-600 space-y-1">
-            <div>Budget saisi: {formData.TC_Budget || 0}</div>
-            <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
-            <div>Budget média calculé: {budgetCalculationResults.mediaBudget.toFixed(2)}</div>
-            <div>Total frais calculé: {budgetCalculationResults.totalFees.toFixed(2)}</div>
-            <div>Budget client final: {budgetCalculationResults.clientBudget.toFixed(2)}</div>
-            <div>Volume d'unité: {budgetCalculationResults.unitVolume}</div>
-            <div>Frais actifs: {budgetCalculationResults.feeDetails.length}</div>
-            <div>Avec bonification: {budgetCalculationResults.hasBonus ? 'Oui' : 'Non'}</div>
-            {budgetCalculationResults.hasBonus && (
-              <div>Bonification: {budgetCalculationResults.bonusValue.toFixed(2)}</div>
-            )}
-            {/* NOUVEAU: Validation mode client */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="font-medium text-gray-800">Inputs:</div>
+                <div>Budget saisi: {formData.TC_Budget || 0}</div>
+                <div>Mode: {formData.TC_Budget_Mode || 'media'}</div>
+                <div>Coût/unité: {formData.TC_Cost_Per_Unit || 0}</div>
+                <div>Valeur réelle: {formData.TC_Real_Value || 0}</div>
+                <div>Volume actuel: {formData.TC_Unit_Volume || 0}</div>
+                <div>Type d'unité: {formData.TC_Unit_Type || 'Non défini'}</div>
+                <div>Nom d'affichage: {unitTypeOptions.find(opt => opt.id === formData.TC_Unit_Type)?.SH_Display_Name_FR || 'Non trouvé'}</div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-800">Résultats:</div>
+                <div>Budget média calculé: {budgetCalculationResults.mediaBudget.toFixed(2)}</div>
+                <div>Budget effectif: {budgetCalculationResults.effectiveBudgetForVolume.toFixed(2)}</div>
+                <div>Volume calculé: {budgetCalculationResults.unitVolume.toFixed(2)}</div>
+                <div>Total frais: {budgetCalculationResults.totalFees.toFixed(2)}</div>
+                <div>Budget client final: {budgetCalculationResults.clientBudget.toFixed(2)}</div>
+                <div className="text-blue-600 font-medium">Est impression: {unitTypeOptions.find(opt => opt.id === formData.TC_Unit_Type)?.SH_Display_Name_FR?.toLowerCase().includes('impression') ? 'Oui' : 'Non'}</div>
+              </div>
+            </div>
+            
+            {/* Debug validation mode client */}
             <div className="mt-2 p-2 bg-yellow-100 rounded">
               <div className="font-medium text-yellow-800">Validation mode client:</div>
               <div>Valide: {clientModeValidation.isValid ? 'Oui' : 'Non'}</div>
               {clientModeValidation.message && <div>Message: {clientModeValidation.message}</div>}
             </div>
+            
             {/* Debug convergence */}
             {budgetCalculationResults.convergenceInfo && (
               <div className="mt-2 p-2 bg-orange-100 rounded">
