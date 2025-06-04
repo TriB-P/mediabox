@@ -70,79 +70,216 @@ interface VisibleFields {
   [key: string]: boolean | undefined;
 }
 
-// NOUVEAU: Interface étendue pour les données du formulaire avec les frais CORRIGÉS
+// NOUVEAU: Interface étendue pour les données du formulaire avec les nouveaux champs budget
 interface ExtendedTactiqueFormData extends TactiqueFormData {
-  // Champs pour les frais persistés - CORRIGÉ avec Input
-  TC_Fee_1_Option?: string;
-  TC_Fee_1_Value?: number;   // Montant total calculé
-  TC_Fee_1_Input?: number;   // Valeur saisie par l'utilisateur
-  TC_Fee_1_Units?: number;
+  // === NOUVEAUX CHAMPS BUDGET SELON LES SPÉCIFICATIONS ===
+  // Champs de base
+  TC_BudgetChoice?: 'media' | 'client';  // Mode d'input
+  TC_BudgetInput?: number;               // Montant saisi par l'utilisateur
+  TC_Unit_Price?: number;                // Coût par unité
+  TC_Unit_Volume?: number;               // Nombre d'unités (calculé)
+  TC_Media_Value?: number;               // Valeur réelle de la tactique
+  TC_Bonification?: number;              // Valeur de bonification (calculée)
+  TC_Media_Budget?: number;              // Budget média (calculé ou inputé)
+  TC_Client_Budget?: number;             // Budget client (calculé ou inputé)
+  TC_Currency_Rate?: number;             // Taux de conversion (défaut: 1)
+  TC_BuyCurrency?: string;               // Devise sélectionnée
+  TC_Delta?: number;                     // Différence de budget si convergence échoue
+  TC_Unit_Type?: string;
+  TC_Has_Bonus?: boolean;
+
+  
+  // Champs de frais - jusqu'à 5 frais selon FE_Order
+  TC_Fee_1_Option?: string;   // ID de l'option sélectionnée
+  TC_Fee_1_Volume?: number;   // Valeur saisie par l'utilisateur
+  TC_Fee_1_Value?: number;    // Coût total calculé
   TC_Fee_2_Option?: string;
-  TC_Fee_2_Value?: number;   // Montant total calculé
-  TC_Fee_2_Input?: number;   // Valeur saisie par l'utilisateur
-  TC_Fee_2_Units?: number;
+  TC_Fee_2_Volume?: number;
+  TC_Fee_2_Value?: number;
   TC_Fee_3_Option?: string;
-  TC_Fee_3_Value?: number;   // Montant total calculé
-  TC_Fee_3_Input?: number;   // Valeur saisie par l'utilisateur
-  TC_Fee_3_Units?: number;
+  TC_Fee_3_Volume?: number;
+  TC_Fee_3_Value?: number;
   TC_Fee_4_Option?: string;
-  TC_Fee_4_Value?: number;   // Montant total calculé
-  TC_Fee_4_Input?: number;   // Valeur saisie par l'utilisateur
-  TC_Fee_4_Units?: number;
+  TC_Fee_4_Volume?: number;
+  TC_Fee_4_Value?: number;
   TC_Fee_5_Option?: string;
-  TC_Fee_5_Value?: number;   // Montant total calculé
-  TC_Fee_5_Input?: number;   // Valeur saisie par l'utilisateur
-  TC_Fee_5_Units?: number;
+  TC_Fee_5_Volume?: number;
+  TC_Fee_5_Value?: number;
 }
 
-// ==================== UTILITAIRES POUR LES FRAIS ====================
+// ==================== UTILITAIRES POUR LE MAPPING DES CHAMPS ====================
+
+/**
+ * Convertit les données de la tactique Firestore vers le formulaire
+ */
+const mapTactiqueToForm = (tactique: any): ExtendedTactiqueFormData => {
+  return {
+    // Champs de base existants
+    TC_Label: tactique.TC_Label || '',
+    TC_Budget: tactique.TC_Budget || 0, // Maintenu pour compatibilité
+    TC_Order: tactique.TC_Order || 0,
+    TC_SectionId: tactique.TC_SectionId || '',
+    TC_Status: tactique.TC_Status || 'Planned',
+    TC_StartDate: tactique.TC_StartDate || '',
+    TC_EndDate: tactique.TC_EndDate || '',
+    TC_Bucket: tactique.TC_Bucket || '',
+    
+    // Tous les autres champs existants
+    TC_LoB: tactique.TC_LoB || '',
+    TC_Media_Type: tactique.TC_Media_Type || '',
+    TC_Publisher: tactique.TC_Publisher || '',
+    TC_Buying_Method: tactique.TC_Buying_Method || '',
+    TC_Custom_Dim_1: tactique.TC_Custom_Dim_1 || '',
+    TC_Custom_Dim_2: tactique.TC_Custom_Dim_2 || '',
+    TC_Custom_Dim_3: tactique.TC_Custom_Dim_3 || '',
+    TC_Inventory: tactique.TC_Inventory || '',
+    TC_Product_Open: tactique.TC_Product_Open || '',
+    TC_Targeting_Open: tactique.TC_Targeting_Open || '',
+    TC_Market_Open: tactique.TC_Market_Open || '',
+    TC_Frequence: tactique.TC_Frequence || '',
+    TC_Location: tactique.TC_Location || '',
+    TC_Market: tactique.TC_Market || '',
+    TC_Language: tactique.TC_Language || '',
+    TC_Format_Open: tactique.TC_Format_Open || '',
+    TC_NumberCreatives: tactique.TC_NumberCreatives || '',
+    TC_AssetDate: tactique.TC_AssetDate || '',
+    TC_Media_Objective: tactique.TC_Media_Objective || '',
+    TC_Billing_ID: tactique.TC_Billing_ID || '',
+    TC_PO: tactique.TC_PO || '',
+    
+    // === MAPPING DES NOUVEAUX CHAMPS BUDGET ===
+    // Champs directs (nouveaux noms)
+    TC_BudgetChoice: tactique.TC_BudgetChoice || tactique.TC_Budget_Mode || 'media',
+    TC_BudgetInput: tactique.TC_BudgetInput || tactique.TC_Budget || 0,
+    TC_Unit_Price: tactique.TC_Unit_Price || tactique.TC_Cost_Per_Unit || 0,
+    TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
+    TC_Media_Value: tactique.TC_Media_Value || tactique.TC_Real_Value || 0,
+    TC_Bonification: tactique.TC_Bonification || tactique.TC_Bonus_Value || 0,
+    TC_Media_Budget: tactique.TC_Media_Budget || 0,
+    TC_Client_Budget: tactique.TC_Client_Budget || 0,
+    TC_Currency_Rate: tactique.TC_Currency_Rate || 1,
+    TC_BuyCurrency: tactique.TC_BuyCurrency || tactique.TC_Currency || 'CAD',
+    TC_Delta: tactique.TC_Delta || 0,
+    
+    // Type d'unité et bonification (pour compatibilité avec l'interface existante)
+    TC_Unit_Type: tactique.TC_Unit_Type || '',
+    TC_Has_Bonus: (tactique.TC_Media_Value || tactique.TC_Real_Value || 0) > 0,
+    
+    // === MAPPING DES FRAIS ===
+    TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
+    TC_Fee_1_Volume: tactique.TC_Fee_1_Volume || tactique.TC_Fee_1_Input || tactique.TC_Fee_1_Units || 0,
+    TC_Fee_1_Value: tactique.TC_Fee_1_Value || 0,
+    TC_Fee_2_Option: tactique.TC_Fee_2_Option || '',
+    TC_Fee_2_Volume: tactique.TC_Fee_2_Volume || tactique.TC_Fee_2_Input || tactique.TC_Fee_2_Units || 0,
+    TC_Fee_2_Value: tactique.TC_Fee_2_Value || 0,
+    TC_Fee_3_Option: tactique.TC_Fee_3_Option || '',
+    TC_Fee_3_Volume: tactique.TC_Fee_3_Volume || tactique.TC_Fee_3_Input || tactique.TC_Fee_3_Units || 0,
+    TC_Fee_3_Value: tactique.TC_Fee_3_Value || 0,
+    TC_Fee_4_Option: tactique.TC_Fee_4_Option || '',
+    TC_Fee_4_Volume: tactique.TC_Fee_4_Volume || tactique.TC_Fee_4_Input || tactique.TC_Fee_4_Units || 0,
+    TC_Fee_4_Value: tactique.TC_Fee_4_Value || 0,
+    TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
+    TC_Fee_5_Volume: tactique.TC_Fee_5_Volume || tactique.TC_Fee_5_Input || tactique.TC_Fee_5_Units || 0,
+    TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
+  };
+};
+
+/**
+ * Convertit les données du formulaire vers le format Firestore
+ */
+const mapFormToTactique = (formData: ExtendedTactiqueFormData): any => {
+  return {
+    // Champs de base
+    TC_Label: formData.TC_Label,
+    TC_Budget: formData.TC_Client_Budget || formData.TC_Budget || 0, // Utiliser le budget client calculé
+    TC_Order: formData.TC_Order,
+    TC_SectionId: formData.TC_SectionId,
+    TC_Status: formData.TC_Status,
+    TC_StartDate: formData.TC_StartDate,
+    TC_EndDate: formData.TC_EndDate,
+    TC_Bucket: formData.TC_Bucket,
+    
+    // Tous les autres champs existants
+    TC_LoB: formData.TC_LoB,
+    TC_Media_Type: formData.TC_Media_Type,
+    TC_Publisher: formData.TC_Publisher,
+    TC_Buying_Method: formData.TC_Buying_Method,
+    TC_Custom_Dim_1: formData.TC_Custom_Dim_1,
+    TC_Custom_Dim_2: formData.TC_Custom_Dim_2,
+    TC_Custom_Dim_3: formData.TC_Custom_Dim_3,
+    TC_Inventory: formData.TC_Inventory,
+    TC_Product_Open: formData.TC_Product_Open,
+    TC_Targeting_Open: formData.TC_Targeting_Open,
+    TC_Market_Open: formData.TC_Market_Open,
+    TC_Frequence: formData.TC_Frequence,
+    TC_Location: formData.TC_Location,
+    TC_Market: formData.TC_Market,
+    TC_Language: formData.TC_Language,
+    TC_Format_Open: formData.TC_Format_Open,
+    TC_NumberCreatives: formData.TC_NumberCreatives,
+    TC_AssetDate: formData.TC_AssetDate,
+    TC_Media_Objective: formData.TC_Media_Objective,
+    TC_Billing_ID: formData.TC_Billing_ID,
+    TC_PO: formData.TC_PO,
+    TC_Unit_Type: formData.TC_Unit_Type,
+    
+    // === SAUVEGARDE DES NOUVEAUX CHAMPS BUDGET ===
+    TC_BudgetChoice: formData.TC_BudgetChoice,
+    TC_BudgetInput: formData.TC_BudgetInput,
+    TC_Unit_Price: formData.TC_Unit_Price,
+    TC_Unit_Volume: formData.TC_Unit_Volume,
+    TC_Media_Value: formData.TC_Media_Value,
+    TC_Bonification: formData.TC_Bonification,
+    TC_Media_Budget: formData.TC_Media_Budget,
+    TC_Client_Budget: formData.TC_Client_Budget,
+    TC_Currency_Rate: formData.TC_Currency_Rate || 1,
+    TC_BuyCurrency: formData.TC_BuyCurrency,
+    TC_Delta: formData.TC_Delta,
+    
+    // === SAUVEGARDE DES FRAIS ===
+    TC_Fee_1_Option: formData.TC_Fee_1_Option,
+    TC_Fee_1_Volume: formData.TC_Fee_1_Volume,
+    TC_Fee_1_Value: formData.TC_Fee_1_Value,
+    TC_Fee_2_Option: formData.TC_Fee_2_Option,
+    TC_Fee_2_Volume: formData.TC_Fee_2_Volume,
+    TC_Fee_2_Value: formData.TC_Fee_2_Value,
+    TC_Fee_3_Option: formData.TC_Fee_3_Option,
+    TC_Fee_3_Volume: formData.TC_Fee_3_Volume,
+    TC_Fee_3_Value: formData.TC_Fee_3_Value,
+    TC_Fee_4_Option: formData.TC_Fee_4_Option,
+    TC_Fee_4_Volume: formData.TC_Fee_4_Volume,
+    TC_Fee_4_Value: formData.TC_Fee_4_Value,
+    TC_Fee_5_Option: formData.TC_Fee_5_Option,
+    TC_Fee_5_Volume: formData.TC_Fee_5_Volume,
+    TC_Fee_5_Value: formData.TC_Fee_5_Value,
+    
+    // Champs legacy pour compatibilité (mapping inverse)
+    TC_Budget_Mode: formData.TC_BudgetChoice,
+    TC_Cost_Per_Unit: formData.TC_Unit_Price,
+    TC_Real_Value: formData.TC_Media_Value,
+    TC_Bonus_Value: formData.TC_Bonification,
+    TC_Currency: formData.TC_BuyCurrency,
+    TC_Has_Bonus: (formData.TC_Media_Value || 0) > 0,
+  };
+};
 
 // Valeurs par défaut pour les nouveaux frais
 const getDefaultFeeValues = (): Partial<ExtendedTactiqueFormData> => ({
   TC_Fee_1_Option: '',
+  TC_Fee_1_Volume: 0,
   TC_Fee_1_Value: 0,
-  TC_Fee_1_Input: 0,
-  TC_Fee_1_Units: 0,
   TC_Fee_2_Option: '',
+  TC_Fee_2_Volume: 0,
   TC_Fee_2_Value: 0,
-  TC_Fee_2_Input: 0,
-  TC_Fee_2_Units: 0,
   TC_Fee_3_Option: '',
+  TC_Fee_3_Volume: 0,
   TC_Fee_3_Value: 0,
-  TC_Fee_3_Input: 0,
-  TC_Fee_3_Units: 0,
   TC_Fee_4_Option: '',
+  TC_Fee_4_Volume: 0,
   TC_Fee_4_Value: 0,
-  TC_Fee_4_Input: 0,
-  TC_Fee_4_Units: 0,
   TC_Fee_5_Option: '',
+  TC_Fee_5_Volume: 0,
   TC_Fee_5_Value: 0,
-  TC_Fee_5_Input: 0,
-  TC_Fee_5_Units: 0,
-});
-
-// Chargement des frais existants
-const loadExistingFeeValues = (tactique: any): Partial<ExtendedTactiqueFormData> => ({
-  TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
-  TC_Fee_1_Value: tactique.TC_Fee_1_Value || 0,
-  TC_Fee_1_Input: tactique.TC_Fee_1_Input || 0,
-  TC_Fee_1_Units: tactique.TC_Fee_1_Units || 0,
-  TC_Fee_2_Option: tactique.TC_Fee_2_Option || '',
-  TC_Fee_2_Value: tactique.TC_Fee_2_Value || 0,
-  TC_Fee_2_Input: tactique.TC_Fee_2_Input || 0,
-  TC_Fee_2_Units: tactique.TC_Fee_2_Units || 0,
-  TC_Fee_3_Option: tactique.TC_Fee_3_Option || '',
-  TC_Fee_3_Value: tactique.TC_Fee_3_Value || 0,
-  TC_Fee_3_Input: tactique.TC_Fee_3_Input || 0,
-  TC_Fee_3_Units: tactique.TC_Fee_3_Units || 0,
-  TC_Fee_4_Option: tactique.TC_Fee_4_Option || '',
-  TC_Fee_4_Value: tactique.TC_Fee_4_Value || 0,
-  TC_Fee_4_Input: tactique.TC_Fee_4_Input || 0,
-  TC_Fee_4_Units: tactique.TC_Fee_4_Units || 0,
-  TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
-  TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
-  TC_Fee_5_Input: tactique.TC_Fee_5_Input || 0,
-  TC_Fee_5_Units: tactique.TC_Fee_5_Units || 0,
 });
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -166,22 +303,29 @@ export default function TactiqueDrawer({
   // NOUVEAU: État pour le toggle debug
   const [debugMode, setDebugMode] = useState(false);
   
-  // Données du formulaire - MODIFIÉ pour inclure les champs de frais CORRIGÉS
+  // Données du formulaire - MODIFIÉ pour utiliser ExtendedTactiqueFormData
   const [formData, setFormData] = useState<ExtendedTactiqueFormData>({
     TC_Label: '',
     TC_Budget: 0,
     TC_Order: 0,
     TC_SectionId: sectionId,
     TC_Status: 'Planned',
-    // Valeurs par défaut pour les champs Budget
-    TC_Currency: 'CAD',
-    TC_Budget_Mode: 'media',
-    TC_Cost_Per_Unit: 0,
+    // Valeurs par défaut pour les nouveaux champs Budget
+    TC_BudgetChoice: 'media',
+    TC_BudgetInput: 0,
+    TC_Unit_Price: 0,
     TC_Unit_Volume: 0,
+    TC_Media_Value: 0,
+    TC_Bonification: 0,
+    TC_Media_Budget: 0,
+    TC_Client_Budget: 0,
+    TC_Currency_Rate: 1,
+    TC_BuyCurrency: 'CAD',
+    TC_Delta: 0,
+    // Champs legacy pour compatibilité
+    TC_Unit_Type: '',
     TC_Has_Bonus: false,
-    TC_Real_Value: 0,
-    TC_Bonus_Value: 0,
-    // NOUVEAU: Valeurs par défaut pour les frais CORRIGÉS
+    // Valeurs par défaut pour les frais
     ...getDefaultFeeValues(),
   });
 
@@ -237,54 +381,16 @@ export default function TactiqueDrawer({
 
   // ==================== EFFECTS ====================
   
-  // Initialiser le formulaire quand la tactique change - MODIFIÉ pour inclure les frais CORRIGÉS
+  // Initialiser le formulaire quand la tactique change - MODIFIÉ pour utiliser le mapping
   useEffect(() => {
     if (tactique) {
-      setFormData({
-        TC_Label: tactique.TC_Label || '',
-        TC_Budget: tactique.TC_Budget || 0,
-        TC_Order: tactique.TC_Order || 0,
-        TC_SectionId: tactique.TC_SectionId || sectionId,
-        TC_Status: tactique.TC_Status || 'Planned',
-        TC_StartDate: tactique.TC_StartDate || '',
-        TC_EndDate: tactique.TC_EndDate || '',
-        TC_Bucket: tactique.TC_Bucket || '',
-        // ... tous les autres champs existants
-        TC_LoB: tactique.TC_LoB || '',
-        TC_Media_Type: tactique.TC_Media_Type || '',
-        TC_Publisher: tactique.TC_Publisher || '',
-        TC_Buying_Method: tactique.TC_Buying_Method || '',
-        TC_Custom_Dim_1: tactique.TC_Custom_Dim_1 || '',
-        TC_Custom_Dim_2: tactique.TC_Custom_Dim_2 || '',
-        TC_Custom_Dim_3: tactique.TC_Custom_Dim_3 || '',
-        TC_Inventory: tactique.TC_Inventory || '',
-        TC_Product_Open: tactique.TC_Product_Open || '',
-        TC_Targeting_Open: tactique.TC_Targeting_Open || '',
-        TC_Market_Open: tactique.TC_Market_Open || '',
-        TC_Frequence: tactique.TC_Frequence || '',
-        TC_Location: tactique.TC_Location || '',
-        TC_Market: tactique.TC_Market || '',
-        TC_Language: tactique.TC_Language || '',
-        TC_Format_Open: tactique.TC_Format_Open || '',
-        TC_NumberCreatives: tactique.TC_NumberCreatives || '',
-        TC_AssetDate: tactique.TC_AssetDate || '',
-        TC_Media_Objective: tactique.TC_Media_Objective || '',
-        TC_Billing_ID: tactique.TC_Billing_ID || '',
-        TC_PO: tactique.TC_PO || '',
-        
-        // Champs Budget avec valeurs par défaut
-        TC_Currency: tactique.TC_Currency || 'CAD',
-        TC_Unit_Type: tactique.TC_Unit_Type || '',
-        TC_Budget_Mode: tactique.TC_Budget_Mode || 'media',
-        TC_Cost_Per_Unit: tactique.TC_Cost_Per_Unit || 0,
-        TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
-        TC_Has_Bonus: tactique.TC_Has_Bonus || false,
-        TC_Real_Value: tactique.TC_Real_Value || 0,
-        TC_Bonus_Value: tactique.TC_Bonus_Value || 0,
-        
-        // NOUVEAU: Champs de frais - chargement depuis la tactique existante CORRIGÉ
-        ...loadExistingFeeValues(tactique),
-      });
+      console.log('🔄 Chargement tactique existante:', tactique);
+      
+      // Utiliser le mapping pour convertir les données Firestore vers le formulaire
+      const mappedFormData = mapTactiqueToForm(tactique);
+      setFormData(mappedFormData);
+      
+      console.log('📋 Données mappées pour le formulaire:', mappedFormData);
 
       // Charger les KPIs existants
       const existingKpis: KPIData[] = [];
@@ -309,22 +415,30 @@ export default function TactiqueDrawer({
       setActiveTab('info');
       setIsDirty(false);
     } else {
-      // Nouvelle tactique - valeurs par défaut avec frais vides CORRIGÉS
+      // Nouvelle tactique - valeurs par défaut
+      console.log('✨ Nouvelle tactique - valeurs par défaut');
       setFormData({
         TC_Label: '',
         TC_Budget: 0,
         TC_Order: 0,
         TC_SectionId: sectionId,
         TC_Status: 'Planned',
-        // Valeurs par défaut pour les champs Budget
-        TC_Currency: 'CAD',
-        TC_Budget_Mode: 'media',
-        TC_Cost_Per_Unit: 0,
+        // Valeurs par défaut pour les nouveaux champs Budget
+        TC_BudgetChoice: 'media',
+        TC_BudgetInput: 0,
+        TC_Unit_Price: 0,
         TC_Unit_Volume: 0,
+        TC_Media_Value: 0,
+        TC_Bonification: 0,
+        TC_Media_Budget: 0,
+        TC_Client_Budget: 0,
+        TC_Currency_Rate: 1,
+        TC_BuyCurrency: 'CAD',
+        TC_Delta: 0,
+        // Champs legacy pour compatibilité
+        TC_Unit_Type: '',
         TC_Has_Bonus: false,
-        TC_Real_Value: 0,
-        TC_Bonus_Value: 0,
-        // NOUVEAU: Valeurs par défaut pour les nouveaux frais CORRIGÉS
+        // Valeurs par défaut pour les frais
         ...getDefaultFeeValues(),
       });
       setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
@@ -408,6 +522,8 @@ export default function TactiqueDrawer({
         setClientFees(fees);
         setCampaignCurrency(currency);
         setExchangeRates(rates);
+        
+        console.log('💰 Données budget chargées:', { fees: fees.length, currency, ratesCount: Object.keys(rates).length });
       } catch (budgetError) {
         console.warn('Erreur lors du chargement des données budget:', budgetError);
         // Continuer avec des valeurs par défaut
@@ -448,6 +564,18 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
 
+  // NOUVEAU: Gestionnaire pour les changements calculés depuis le composant Budget
+  const handleBudgetCalculatedChange = useCallback((updates: Partial<ExtendedTactiqueFormData>) => {
+    console.log('🧮 Mise à jour calculée depuis Budget:', updates);
+    
+    setFormData(prev => ({
+      ...prev,
+      ...updates
+    }));
+    
+    setIsDirty(true);
+  }, []);
+
   // Gérer les changements de KPI
   const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number) => {
     setKpis(prev => {
@@ -480,7 +608,7 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
   
-  // Gérer la soumission du formulaire - MODIFIÉ pour inclure les frais CORRIGÉS
+  // Gérer la soumission du formulaire - MODIFIÉ pour utiliser le mapping
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -488,8 +616,8 @@ export default function TactiqueDrawer({
       setLoading(true);
       setError(null);
 
-      // Préparer les données avec les KPIs et les frais CORRIGÉS
-      const dataToSave = { ...formData };
+      // Préparer les données avec les KPIs
+      let dataToSave = { ...formData };
       
       // Ajouter les KPIs
       kpis.forEach((kpi, index) => {
@@ -507,12 +635,15 @@ export default function TactiqueDrawer({
         (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
       }
 
-      // NOUVEAU: Les frais CORRIGÉS sont déjà dans formData, pas besoin de traitement supplémentaire
+      // Utiliser le mapping pour convertir vers le format Firestore
+      const mappedData = mapFormToTactique(dataToSave);
+      
       if (debugMode) {
-        console.log('Données à sauvegarder (avec frais CORRIGÉS):', dataToSave);
+        console.log('📤 Données originales du formulaire:', dataToSave);
+        console.log('🔄 Données mappées pour Firestore:', mappedData);
       }
 
-      await onSave(dataToSave);
+      await onSave(mappedData);
       setIsDirty(false);
       onClose();
     } catch (err) {
@@ -588,6 +719,7 @@ export default function TactiqueDrawer({
             campaignCurrency={campaignCurrency}
             exchangeRates={exchangeRates}
             onChange={handleChange}
+            onCalculatedChange={handleBudgetCalculatedChange}
             onTooltipChange={setActiveTooltip}
             loading={loading}
           />
@@ -643,8 +775,6 @@ export default function TactiqueDrawer({
         
         {/* Footer avec les boutons d'action */}
         <div className="sticky bottom-0 bg-gray-50 px-6 py-4 sm:px-8 border-t border-gray-200">
-          
-          
           <div className="flex justify-end space-x-4">
             <button
               type="button"
