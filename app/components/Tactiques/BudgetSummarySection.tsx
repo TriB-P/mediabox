@@ -1,9 +1,14 @@
-// app/components/Tactiques/BudgetSummarySection.tsx - CORRECTION DÉFINITIVE TOTAL
+
+// Dans app/components/Tactiques/BudgetSummarySection.tsx
+// Correction des imports et suppression du type dupliqué
 
 'use client';
 
 import React, { memo, useMemo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
+
+// 🔥 CORRECTION: Importer ConvergenceInfo depuis budgetCalculations au lieu de le redéfinir
+import type { ConvergenceInfo } from '../../lib/budgetCalculations';
 
 // ==================== TYPES ====================
 
@@ -21,14 +26,15 @@ interface AppliedFee {
   calculatedAmount: number;
 }
 
-interface ConvergenceInfo {
-  hasConverged: boolean;
-  finalDifference: number;
-  iterations: number;
-  tolerance: number;
-  targetBudget: number;
-  actualCalculatedTotal: number;
-}
+// 🔥 SUPPRESSION: ConvergenceInfo est maintenant importé depuis budgetCalculations
+// interface ConvergenceInfo {
+//   hasConverged: boolean;
+//   finalDifference: number;
+//   iterations: number;
+//   tolerance: number;  // <- Cette propriété n'existe pas dans budgetCalculations
+//   targetBudget: number;
+//   actualCalculatedTotal: number;
+// }
 
 interface BudgetSummary {
   mediaBudget: number;
@@ -44,7 +50,7 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
-  convergenceInfo?: ConvergenceInfo;
+  convergenceInfo?: ConvergenceInfo; // 🔥 Utilise maintenant le type importé
   
   // 🔥 NOUVEAU: Détail des frais calculés par le hook
   feeDetails?: Array<{
@@ -54,6 +60,7 @@ interface BudgetSummary {
     order: number;
   }>;
 }
+
 
 interface BudgetSummarySectionProps {
   budgetSummary: BudgetSummary;
@@ -186,7 +193,7 @@ const ConvergenceMessage = memo<{
   }, []);
 
   const absEcart = Math.abs(convergenceInfo.finalDifference);
-  const isPositive = convergenceInfo.finalDifference > 0;
+  const isPositive = convergenceInfo.finalDifference < 0;
 
   return (
     <div className="px-3 py-2 bg-orange-50 border-t border-orange-200">
@@ -201,8 +208,8 @@ const ConvergenceMessage = memo<{
         </div>
         <div className="mt-1 text-orange-600">
           {isPositive 
-            ? 'Le total calculé dépasse légèrement le budget visé à cause de la complexité des frais.'
-            : 'Le total calculé est légèrement en dessous du budget visé à cause de la complexité des frais.'
+            ? 'Le total calculé dépasse le budget visé à cause de la complexité des frais.'
+            : 'Le total calculé est en dessous du budget visé à cause de la complexité des frais.'
           }
         </div>
       </div>
