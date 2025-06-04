@@ -279,16 +279,18 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
     throw new Error('Budget client requis pour ce calcul');
   }
   
-  const bonusValue = realValue ? Math.max(0, realValue - costPerUnit) : 0;
   const tolerance = 0.0004; 
   const maxIterations = 100;
   
   let currentMediaBudget = clientBudget * 0.8; // Estimation initiale
+  let bonusValue = 0; // 🔥 DÉCLARER ICI pour qu'elle soit accessible partout
   let iteration = 0;
   let finalDifference = 0;
   let hasConverged = false;
   
   while (iteration < maxIterations && !hasConverged) {
+    // 🔥 CORRECTION: Calculer bonusValue avec le budget média actuel
+    bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
     const effectiveBudgetForVolume = currentMediaBudget + bonusValue;
     
     // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
@@ -312,6 +314,9 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
     
     iteration++;
   }
+  
+  // 🔥 RECALCULER bonusValue une dernière fois avec le budget média final
+  bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
   
   // Calcul final avec le budget média optimisé
   const effectiveBudgetForVolume = currentMediaBudget + bonusValue;

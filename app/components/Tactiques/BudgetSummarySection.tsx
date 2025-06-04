@@ -1,4 +1,4 @@
-// app/components/Tactiques/BudgetSummarySection.tsx
+// app/components/Tactiques/BudgetSummarySection.tsx - CORRECTION DONNÉES HOOK
 
 'use client';
 
@@ -21,7 +21,6 @@ interface AppliedFee {
   calculatedAmount: number;
 }
 
-// Interface pour les informations de convergence
 interface ConvergenceInfo {
   hasConverged: boolean;
   finalDifference: number;
@@ -31,7 +30,6 @@ interface ConvergenceInfo {
   actualCalculatedTotal: number;
 }
 
-// Interface étendue pour le résumé budgétaire
 interface BudgetSummary {
   mediaBudget: number;
   totalFees: number;
@@ -47,17 +45,22 @@ interface BudgetSummary {
     exchangeRate: number;
   };
   convergenceInfo?: ConvergenceInfo;
+  
+  // 🔥 NOUVEAU: Détail des frais calculés par le hook
+  feeDetails?: Array<{
+    feeId: string;
+    name: string;
+    amount: number;
+    order: number;
+  }>;
 }
 
 interface BudgetSummarySectionProps {
-  // Données du résumé (déjà calculées par le parent)
   budgetSummary: BudgetSummary;
   appliedFees: AppliedFee[];
   clientFees: Fee[];
   campaignCurrency: string;
   exchangeRates: { [key: string]: number };
-  
-  // Gestionnaires d'événements
   onTooltipChange: (tooltip: string | null) => void;
 }
 
@@ -77,7 +80,6 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
 const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
   const applications: { [feeId: string]: string } = {};
   
-  // Trier les frais par ordre d'application
   const sortedFees = [...activeFees].sort((a, b) => a.order - b.order);
   
   for (let i = 0; i < sortedFees.length; i++) {
@@ -89,10 +91,8 @@ const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
     if (fee.FE_Calculation_Mode === 'Directement sur le budget média') {
       applications[currentFee.feeId] = 'Budget média';
     } else {
-      // 'Applicable sur les frais précédents'
       const appliedOn: string[] = ['Budget média'];
       
-      // Ajouter tous les frais précédents
       for (let j = 0; j < i; j++) {
         const previousFee = clientFees.find(f => f.id === sortedFees[j].feeId);
         if (previousFee) {
@@ -115,9 +115,6 @@ const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
 
 // ==================== COMPOSANTS ====================
 
-/**
- * Ligne de détail dans le récapitulatif
- */
 const SummaryLine = memo<{
   label: string;
   amount: number;
@@ -176,9 +173,6 @@ const SummaryLine = memo<{
 
 SummaryLine.displayName = 'SummaryLine';
 
-/**
- * NOUVEAU: Message de convergence discret sous le total
- */
 const ConvergenceMessage = memo<{
   convergenceInfo: ConvergenceInfo;
   currency: string;
@@ -218,9 +212,6 @@ const ConvergenceMessage = memo<{
 
 ConvergenceMessage.displayName = 'ConvergenceMessage';
 
-/**
- * Section de conversion de devise
- */
 const CurrencyConversion = memo<{
   originalCurrency: string;
   convertedValues: BudgetSummary['convertedValues'];
@@ -258,7 +249,6 @@ const CurrencyConversion = memo<{
 
 CurrencyConversion.displayName = 'CurrencyConversion';
 
-
 // ==================== COMPOSANT PRINCIPAL ====================
 
 const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
@@ -270,23 +260,41 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   onTooltipChange
 }) => {
   
-  // Frais actifs triés par ordre
+  // 🔥 CORRECTION: Créer les frais actifs à partir des données corrigées du hook
   const activeFees = useMemo(() => {
+    // Si on a des détails de frais du hook, les utiliser (données corrigées)
+    if (budgetSummary?.feeDetails && budgetSummary.feeDetails.length > 0) {
+      console.log('✅ Utilisation des feeDetails du hook:', budgetSummary.feeDetails);
+      return budgetSummary.feeDetails
+        .filter(detail => detail.amount > 0)
+        .map(detail => ({
+          feeId: detail.feeId,
+          fee: clientFees.find(f => f.id === detail.feeId)!,
+          calculatedAmount: detail.amount,
+          order: detail.order
+        }))
+        .filter(item => item.fee) // S'assurer que le frais existe
+        .sort((a, b) => a.order - b.order);
+    }
+    
+    // Fallback vers l'ancienne méthode si pas de feeDetails
+    console.log('⚠️ Fallback vers appliedFees car pas de feeDetails');
     const fees = appliedFees
       .filter(af => af.isActive && af.calculatedAmount > 0)
       .map(af => {
         const fee = clientFees.find(f => f.id === af.feeId);
         return {
-          ...af,
+          feeId: af.feeId,
           fee: fee!,
+          calculatedAmount: af.calculatedAmount,
           order: fee?.FE_Order || 999
         };
       })
-      .filter(af => af.fee) // S'assurer que le frais existe
+      .filter(af => af.fee)
       .sort((a, b) => a.order - b.order);
     
     return fees;
-  }, [appliedFees, clientFees]);
+  }, [budgetSummary?.feeDetails, appliedFees, clientFees]); // 🔥 CORRECTION: Ajouter ? pour éviter l'erreur
 
   // Calculer les applications des frais
   const feeApplications = useMemo(() => {
@@ -377,29 +385,32 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             />
           )}
           
-          {/* Frais détaillés */}
+          {/* 🔥 CORRECTION: Frais détaillés avec montants corrigés */}
           {activeFees.length > 0 && (
             <>
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
-              {activeFees.map((appliedFee) => {
+              {activeFees.map((activeFee) => {
+                // 🔥 UTILISER LES MONTANTS CORRIGÉS DU HOOK
+                let feeAmount = activeFee.calculatedAmount;
+                
                 // Convertir le montant du frais si nécessaire
-                const feeAmount = conversionInfo.showConvertedValues 
-                  ? appliedFee.calculatedAmount * budgetSummary.convertedValues!.exchangeRate
-                  : appliedFee.calculatedAmount;
+                if (conversionInfo.showConvertedValues && budgetSummary.convertedValues) {
+                  feeAmount = feeAmount * budgetSummary.convertedValues.exchangeRate;
+                }
                 
                 // Utiliser l'information d'application calculée
-                const appliedOn = feeApplications[appliedFee.feeId] || 'Non défini';
+                const appliedOn = feeApplications[activeFee.feeId] || 'Non défini';
                 
                 return (
                   <SummaryLine
-                    key={appliedFee.feeId}
-                    label={appliedFee.fee.FE_Name}
+                    key={activeFee.feeId}
+                    label={activeFee.fee.FE_Name}
                     amount={feeAmount}
                     currency={displayCurrency}
                     description={`Appliqué sur : ${appliedOn}`}
-                    icon={getFeeTypeIcon(appliedFee.fee.FE_Calculation_Type)}
+                    icon={getFeeTypeIcon(activeFee.fee.FE_Calculation_Type)}
                   />
                 );
               })}
@@ -424,7 +435,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           />
         </div>
 
-        {/* NOUVEAU: Message de convergence discret sous le total */}
+        {/* Message de convergence discret sous le total */}
         {budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged && (
           <ConvergenceMessage
             convergenceInfo={budgetSummary.convergenceInfo}
@@ -455,7 +466,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           onTooltipChange={onTooltipChange}
         />
       )}
-
 
       {/* Message si aucun frais */}
       {activeFees.length === 0 && (

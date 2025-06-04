@@ -358,7 +358,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields, appliedFees]);
 
-  // ==================== RÉSUMÉ BUDGÉTAIRE ====================
+  // ==================== RÉSUMÉ BUDGÉTAIRE AVEC DONNÉES CORRIGÉES ====================
   
   const budgetSummary = useMemo(() => {
     const currency = budgetData.TC_BuyCurrency;
@@ -366,6 +366,22 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     const mediaBudget = calculatedMediaBudget;
     const totalFees = calculatedTotalFees;
     const clientBudget = budgetData.TC_Client_Budget;
+    
+    // 🔥 NOUVEAU: Récupérer les détails de frais corrigés du hook
+    const feeDetails = clientFees.map((fee, index) => {
+      const feeNumber = index + 1;
+      const valueKey = `TC_Fee_${feeNumber}_Value`;
+      const amount = (budgetData as any)[valueKey] || 0;
+      
+      return {
+        feeId: fee.id,
+        name: fee.FE_Name,
+        amount,
+        order: fee.FE_Order
+      };
+    }).filter(detail => detail.amount > 0); // Garder seulement les frais avec montant > 0
+    
+    console.log('📊 Détails frais pour summary:', feeDetails);
     
     let convertedValues;
     const effectiveRate = budgetData.TC_Currency_Rate;
@@ -387,9 +403,10 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       bonusValue,
       currency,
       convertedValues,
-      convergenceInfo: lastResult?.data?.convergenceInfo
+      convergenceInfo: lastResult?.data?.convergenceInfo,
+      feeDetails // 🔥 NOUVEAU: Ajouter les détails corrigés
     };
-  }, [budgetData, calculatedMediaBudget, calculatedTotalFees, campaignCurrency, lastResult]);
+  }, [budgetData, calculatedMediaBudget, calculatedTotalFees, campaignCurrency, lastResult, clientFees]);
 
   // ==================== RENDU ====================
 
@@ -474,7 +491,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onChange={handleFormChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleFieldChange}
-          onToggle={handleBonusToggle} // 🔥 NOUVEAU: Gestionnaire spécifique
+          onToggle={handleBonusToggle} // 🔥 CORRECTION: Nom correct du prop
           mediaBudget={calculatedMediaBudget}
           disabled={loading}
         />
@@ -489,6 +506,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           clientFees={clientFees}
           appliedFees={appliedFees}
           setAppliedFees={setAppliedFees}
+          onToggle={handleToggleFee}
           mediaBudget={calculatedMediaBudget}
           unitVolume={budgetData.TC_Unit_Volume}
           tacticCurrency={budgetData.TC_BuyCurrency}
