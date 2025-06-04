@@ -446,7 +446,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           {/* 🔥 CORRECTION: Total client recalculé avec les vrais montants */}
           <SummaryLine
             label="TOTAL BUDGET CLIENT"
-            amount={displayValues.mediaBudget + displayValues.bonusValue + displayedTotalFees}
+            amount={displayValues.mediaBudget + displayedTotalFees}
             currency={displayCurrency}
             description="Montant total facturable au client"
             isTotal
