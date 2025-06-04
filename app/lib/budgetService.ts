@@ -259,67 +259,84 @@ export class BudgetService {
   /**
    * Construit les définitions de frais pour le calcul
    */
-  private buildFeeDefinitions(data: BudgetData, clientFees: ClientFee[]): FeeDefinition[] {
-    const definitions: FeeDefinition[] = [];
-    
-    // Trier les frais par ordre
-    const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
-    
-    sortedFees.forEach((fee, orderIndex) => {
-      const feeNumber = orderIndex + 1;
-      const optionKey = `TC_Fee_${feeNumber}_Option` as keyof BudgetData;
-      const volumeKey = `TC_Fee_${feeNumber}_Volume` as keyof BudgetData;
-      
-      const optionId = data[optionKey] as string;
-      const volumeValue = data[volumeKey] as number;
-      
-      // Seulement si le frais est actif
-      if (optionId && optionId !== '') {
-        const selectedOption = fee.options.find(opt => opt.id === optionId);
-        
-        if (selectedOption) {
-          let baseValue = selectedOption.FO_Value;
-          let customUnits: number | undefined;
-          let useCustomVolume: boolean | undefined;
-          let customVolume: number | undefined;
-          
-          // Déterminer les valeurs selon le type de frais
-          switch (fee.FE_Calculation_Type) {
-            case 'Unités':
-              customUnits = volumeValue || 1;
-              break;
-            case 'Volume d\'unité':
-              if (volumeValue > 0) {
-                useCustomVolume = true;
-                customVolume = volumeValue;
-              }
-              break;
-            case 'Pourcentage budget':
-              if (selectedOption.FO_Editable && volumeValue > 0) {
-                baseValue = volumeValue;
-              }
-              break;
-          }
-          
-          definitions.push({
-            id: fee.id,
-            name: fee.FE_Name,
-            calculationType: fee.FE_Calculation_Type,
-            calculationMode: fee.FE_Calculation_Mode,
-            order: fee.FE_Order,
-            value: baseValue,
-            buffer: selectedOption.FO_Buffer,
-            customUnits,
-            useCustomVolume,
-            customVolume
-          });
-        }
-      }
-    });
-    
-    return definitions;
-  }
+// Dans app/lib/budgetService.ts, ligne ~140
+// Méthode buildFeeDefinitions - CORRECTION
 
+private buildFeeDefinitions(data: BudgetData, clientFees: ClientFee[]): FeeDefinition[] {
+  const definitions: FeeDefinition[] = [];
+  
+  // Trier les frais par ordre
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  
+  sortedFees.forEach((fee, orderIndex) => {
+    const feeNumber = orderIndex + 1;
+    const optionKey = `TC_Fee_${feeNumber}_Option` as keyof BudgetData;
+    const volumeKey = `TC_Fee_${feeNumber}_Volume` as keyof BudgetData;
+    
+    const optionId = data[optionKey] as string;
+    const volumeValue = data[volumeKey] as number;
+    
+    // Seulement si le frais est actif
+    if (optionId && optionId !== '') {
+      const selectedOption = fee.options?.find(opt => opt.id === optionId);
+      
+      if (selectedOption) {
+        let baseValue = selectedOption.FO_Value;
+        let customUnits: number | undefined;
+        let useCustomVolume: boolean | undefined;
+        let customVolume: number | undefined;
+        
+        // 🔥 CORRECTION: Ajouter le case manquant pour 'Frais fixe'
+        switch (fee.FE_Calculation_Type) {
+          case 'Unités':
+            customUnits = volumeValue || 1;
+            break;
+          case 'Volume d\'unité':
+            if (volumeValue > 0) {
+              useCustomVolume = true;
+              customVolume = volumeValue;
+            }
+            break;
+          case 'Pourcentage budget':
+            if (selectedOption.FO_Editable && volumeValue > 0) {
+              baseValue = volumeValue;
+            }
+            break;
+          // 🔥 AJOUT: Case manquant pour les frais fixes
+          case 'Frais fixe':
+            if (selectedOption.FO_Editable && volumeValue > 0) {
+              baseValue = volumeValue;
+            }
+            break;
+        }
+        
+        console.log(`🐛 [buildFeeDefinitions] ${fee.FE_Name}:`, {
+          type: fee.FE_Calculation_Type,
+          originalValue: selectedOption.FO_Value,
+          volumeValue,
+          finalBaseValue: baseValue,
+          isEditable: selectedOption.FO_Editable
+        });
+        
+        definitions.push({
+          id: fee.id,
+          name: fee.FE_Name,
+          calculationType: fee.FE_Calculation_Type,
+          calculationMode: fee.FE_Calculation_Mode,
+          order: fee.FE_Order,
+          value: baseValue,
+          buffer: selectedOption.FO_Buffer,
+          customUnits,
+          useCustomVolume,
+          customVolume
+        });
+      }
+    }
+  });
+  
+  console.log(`🐛 [buildFeeDefinitions] Résultat final:`, definitions);
+  return definitions;
+}
   /**
    * Met à jour les données avec les résultats de calcul
    */
