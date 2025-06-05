@@ -1,3 +1,5 @@
+// app/types/tactiques.ts
+
 // Types pour le module de tactiques
 
 export interface Section {
@@ -91,6 +93,12 @@ export interface Placement {
   PL_Budget: number;
   PL_Order: number;
   PL_TactiqueId: string; // Référence à la tactique parente
+  
+  // Nouveaux champs de taxonomie
+  PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
+  PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
+  PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
+  
   createdAt?: string;
   updatedAt?: string;
 }
@@ -207,6 +215,11 @@ export interface PlacementFormData {
   PL_Budget: number;
   PL_Order: number;
   PL_TactiqueId: string;
+  
+  // Nouveaux champs de taxonomie
+  PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
+  PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
+  PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
 }
 
 export interface CreatifFormData {

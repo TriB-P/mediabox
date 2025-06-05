@@ -273,12 +273,12 @@ export default function TactiquesPage() {
       </div>
       
       {/* Debug info - à supprimer après résolution */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* {process.env.NODE_ENV === 'development' && (
         <div className="text-xs text-gray-400 mb-2 p-2 bg-gray-100 rounded">
           Debug: campaignLoading={campaignLoading.toString()}, loading={loading.toString()}, 
           showLoader={showLoader.toString()}, minimumTimeElapsed={minimumTimeElapsed.toString()}
         </div>
-      )}
+      )} */}
       
       {/* LoadingSpinner avec timer minimum de 2 secondes */}
       {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}

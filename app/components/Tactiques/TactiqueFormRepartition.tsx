@@ -9,7 +9,7 @@ import {
   FormSection 
 } from './TactiqueFormComponents';
 import { Breakdown } from '../../types/breakdown';
-import { CalendarIcon, ClockIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 // ==================== TYPES ====================
 
@@ -27,8 +27,15 @@ interface BreakdownPeriod {
   value: string;
   breakdownId: string;
   breakdownName: string;
-  isFirst?: boolean; // ✅ FEATURE 3: Marquer la première période
-  isLast?: boolean;  // ✅ FEATURE 3: Marquer la dernière période
+  isFirst?: boolean;
+  isLast?: boolean;
+}
+
+interface DistributionModalState {
+  isOpen: boolean;
+  breakdownId: string | null;
+  totalAmount: string;
+  distributionMode: 'equal' | 'weighted';
 }
 
 // ==================== UTILITAIRES ====================
@@ -39,7 +46,6 @@ interface BreakdownPeriod {
 function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
   
-  // ✅ FEATURE 2: Pour le breakdown par défaut, utiliser les dates de la tactique
   let startDate: Date, endDate: Date;
   
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
@@ -70,7 +76,6 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
     current.setMonth(current.getMonth() + 1);
   }
   
-  // ✅ FEATURE 3: Marquer première et dernière période
   if (periods.length > 0) {
     periods[0].isFirst = true;
     periods[periods.length - 1].isLast = true;
@@ -85,17 +90,14 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
 function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
   
-  // ✅ FEATURE 2: Pour le breakdown par défaut, utiliser les dates de la tactique
   let startDate: Date, endDate: Date;
   
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
     
-    // Pour les breakdown hebdomadaires par défaut, s'assurer qu'on commence bien le lundi
     const dayOfWeek = startDate.getDay();
-    if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
-      // Aller au lundi précédent ou suivant selon la logique du breakdown
+    if (dayOfWeek !== 1) {
       const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
       startDate.setDate(startDate.getDate() - daysToSubtract);
     }
@@ -123,7 +125,6 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
     current.setDate(current.getDate() + 7);
   }
   
-  // ✅ FEATURE 3: Marquer première et dernière période
   if (periods.length > 0) {
     periods[0].isFirst = true;
     periods[periods.length - 1].isLast = true;
@@ -183,8 +184,7 @@ function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string,
 }
 
 /**
- * ✅ FEATURE 1: Vérifie si toutes les valeurs non vides sont numériques pour un breakdown spécifique
- * ✅ FIX: Détection plus stricte pour rejeter les textes comme "15 avril"
+ * Vérifie si toutes les valeurs non vides sont numériques pour un breakdown spécifique
  */
 function areAllValuesNumericForBreakdown(
   values: { [key: string]: string }, 
@@ -193,7 +193,7 @@ function areAllValuesNumericForBreakdown(
   isDefaultBreakdown: boolean
 ): boolean {
   const breakdownValues = breakdownPeriods
-    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false) // Exclure les inactives
+    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false)
     .map(period => values[period.id] || '')
     .filter(value => value.trim() !== '');
   
@@ -201,22 +201,19 @@ function areAllValuesNumericForBreakdown(
   
   return breakdownValues.every(value => {
     const trimmedValue = value.trim();
-    
-    // ✅ FIX: Vérifier qu'il n'y a QUE des chiffres, points, virgules et signes
     const numericRegex = /^[-+]?(\d+([.,]\d*)?|\.\d+)$/;
     
     if (!numericRegex.test(trimmedValue)) {
-      return false; // Contient des caractères non numériques
+      return false;
     }
     
-    // Double vérification avec parseFloat
     const numValue = parseFloat(trimmedValue.replace(',', '.'));
     return !isNaN(numValue) && isFinite(numValue);
   });
 }
 
 /**
- * ✅ FEATURE 1: Calcule le total des valeurs numériques pour un breakdown spécifique
+ * Calcule le total des valeurs numériques pour un breakdown spécifique
  */
 function calculateTotalForBreakdown(
   values: { [key: string]: string }, 
@@ -225,7 +222,7 @@ function calculateTotalForBreakdown(
   isDefaultBreakdown: boolean
 ): number {
   return breakdownPeriods
-    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false) // Exclure les inactives
+    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false)
     .map(period => values[period.id] || '')
     .filter(value => value.trim() !== '')
     .reduce((sum, value) => {
@@ -235,7 +232,7 @@ function calculateTotalForBreakdown(
 }
 
 /**
- * ✅ FEATURE 1: Calcule le pourcentage d'une valeur par rapport au total du breakdown
+ * Calcule le pourcentage d'une valeur par rapport au total du breakdown
  */
 function calculatePercentageForBreakdown(value: string, total: number): number {
   if (total === 0) return 0;
@@ -244,17 +241,16 @@ function calculatePercentageForBreakdown(value: string, total: number): number {
 }
 
 /**
- * ✅ FEATURE 3: Obtient les dates complètes formatées pour afficher dans les cases
+ * Obtient les dates complètes formatées pour afficher dans les cases
  */
 function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string): { startDateFormatted: string; endDateFormatted: string } {
   if (!tactiqueStartDate || !tactiqueEndDate) {
     return { startDateFormatted: '', endDateFormatted: '' };
   }
   
-  // ✅ FIX: Utiliser une méthode plus robuste pour éviter les problèmes de fuseau horaire
   const parseDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
-    return new Date(year, month - 1, day); // month - 1 car les mois JS commencent à 0
+    return new Date(year, month - 1, day);
   };
   
   const startDate = parseDate(tactiqueStartDate);
@@ -275,40 +271,29 @@ function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string)
 }
 
 /**
- * ✅ FEATURE 2: Valide que les dates de tactique sont dans la plage de campagne
+ * Distribue équitablement un montant sur les périodes actives
  */
-function validateTactiqueDates(
-  tactiqueStartDate: string, 
-  tactiqueEndDate: string, 
-  breakdowns: Breakdown[]
-): string | null {
-  if (!tactiqueStartDate || !tactiqueEndDate) {
-    return null; // Pas d'erreur si les dates ne sont pas définies
-  }
+function distributeAmountEqually(
+  totalAmount: number, 
+  breakdownPeriods: BreakdownPeriod[], 
+  activePeriods: { [key: string]: boolean }, 
+  isDefaultBreakdown: boolean
+): { [key: string]: string } {
+  const activePeriodsList = breakdownPeriods.filter(period => 
+    !isDefaultBreakdown || activePeriods[period.id] !== false
+  );
   
-  const tactiqueStart = new Date(tactiqueStartDate);
-  const tactiqueEnd = new Date(tactiqueEndDate);
+  if (activePeriodsList.length === 0) return {};
   
-  // Trouver le breakdown par défaut pour obtenir les dates de campagne
-  const defaultBreakdown = breakdowns.find(b => b.isDefault);
-  if (!defaultBreakdown) {
-    return null; // Pas de validation si pas de breakdown par défaut
-  }
+  const amountPerPeriod = totalAmount / activePeriodsList.length;
+  const result: { [key: string]: string } = {};
   
-  const campaignStart = new Date(defaultBreakdown.startDate);
-  const campaignEnd = new Date(defaultBreakdown.endDate);
+  activePeriodsList.forEach(period => {
+    result[period.id] = amountPerPeriod.toFixed(2);
+  });
   
-  if (tactiqueStart < campaignStart) {
-    return `La date de début de la tactique ne peut pas être antérieure au début de la campagne (${defaultBreakdown.startDate})`;
-  }
-  
-  if (tactiqueEnd > campaignEnd) {
-    return `La date de fin de la tactique ne peut pas être postérieure à la fin de la campagne (${defaultBreakdown.endDate})`;
-  }
-  
-  return null;
+  return result;
 }
-
 
 /**
  * Obtient l'icône pour un type de breakdown
@@ -339,14 +324,19 @@ export default function TactiqueFormRepartition({
   // États
   const [periods, setPeriods] = useState<BreakdownPeriod[]>([]);
   const [periodValues, setPeriodValues] = useState<{ [key: string]: string }>({});
-  
-  // ✅ FEATURE 3: État pour gérer l'activation/désactivation des cases du breakdown par défaut
   const [activePeriods, setActivePeriods] = useState<{ [key: string]: boolean }>({});
+  
+  // État pour le modal de distribution
+  const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
+    isOpen: false,
+    breakdownId: null,
+    totalAmount: '',
+    distributionMode: 'equal'
+  });
   
   // Générer les périodes quand les breakdowns changent
   useEffect(() => {
     if (breakdowns.length > 0) {
-      // ✅ FEATURE 2: Passer les dates de tactique pour les breakdowns par défaut
       const allPeriods = generateAllPeriods(
         breakdowns, 
         formData.TC_StartDate, 
@@ -354,10 +344,8 @@ export default function TactiqueFormRepartition({
       );
       setPeriods(allPeriods);
       
-      // ✅ FEATURE 3: Obtenir les dates formatées pour l'initialisation
       const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
       
-      // Initialiser les valeurs depuis formData si elles existent
       const initialValues: { [key: string]: string } = {};
       const initialActivePeriods: { [key: string]: boolean } = {};
       
@@ -365,7 +353,6 @@ export default function TactiqueFormRepartition({
         const fieldName = `TC_Breakdown_${period.id}`;
         let initialValue = (formData as any)[fieldName] || '';
         
-        // ✅ FEATURE 3: Pour le breakdown par défaut, initialiser avec les dates formatées
         const breakdown = breakdowns.find(b => b.id === period.breakdownId);
         if (breakdown?.isDefault && !initialValue) {
           if (period.isFirst && startDateFormatted) {
@@ -377,14 +364,12 @@ export default function TactiqueFormRepartition({
         
         initialValues[period.id] = initialValue;
         
-        // ✅ FEATURE 3: Initialiser l'état d'activation (par défaut toutes actives)
         const activeFieldName = `TC_Breakdown_Active_${period.id}`;
         
         if (breakdown?.isDefault) {
-          // Pour le breakdown par défaut, vérifier si l'état d'activation existe déjà
           initialActivePeriods[period.id] = (formData as any)[activeFieldName] !== undefined 
             ? (formData as any)[activeFieldName] 
-            : true; // Par défaut, toutes actives
+            : true;
         }
       });
       
@@ -395,23 +380,20 @@ export default function TactiqueFormRepartition({
       setPeriodValues({});
       setActivePeriods({});
     }
-  }, [breakdowns, formData.TC_StartDate, formData.TC_EndDate]); // ✅ Ajouter les dates de tactique comme dépendances
+  }, [breakdowns, formData.TC_StartDate, formData.TC_EndDate]);
   
   // Gestionnaire pour les changements de valeurs de période
   const handlePeriodValueChange = (periodId: string, value: string) => {
-    // ✅ FEATURE 3: Vérifier si la case est active avant de permettre la saisie
     const breakdown = breakdowns.find(b => periods.find(p => p.id === periodId)?.breakdownId === b.id);
     if (breakdown?.isDefault && !activePeriods[periodId]) {
-      return; // Ne pas permettre la saisie si la case n'est pas active
+      return;
     }
     
-    // Mettre à jour l'état local
     setPeriodValues(prev => ({
       ...prev,
       [periodId]: value
     }));
     
-    // Créer un événement synthétique pour le gestionnaire onChange
     const fieldName = `TC_Breakdown_${periodId}`;
     const syntheticEvent = {
       target: {
@@ -424,57 +406,77 @@ export default function TactiqueFormRepartition({
     onChange(syntheticEvent);
   };
   
-  // ✅ FEATURE 3: Gestionnaire pour l'activation/désactivation des cases
+  // Gestionnaire pour l'activation/désactivation des cases
   const handlePeriodActiveChange = (periodId: string, isActive: boolean) => {
-    // Mettre à jour l'état local
     setActivePeriods(prev => ({
       ...prev,
       [periodId]: isActive
     }));
     
-    // Si on désactive la case, vider sa valeur
     if (!isActive) {
       handlePeriodValueChange(periodId, '');
     }
     
-    // Sauvegarder l'état d'activation dans le formulaire
     const activeFieldName = `TC_Breakdown_Active_${periodId}`;
     const syntheticEvent = {
       target: {
         name: activeFieldName,
-        value: isActive.toString(), // ✅ Convertir en string
+        value: isActive.toString(),
         type: 'checkbox',
-        checked: isActive // ✅ Ajouter la propriété checked
+        checked: isActive
       }
-    } as unknown as React.ChangeEvent<HTMLInputElement>; // ✅ Utiliser unknown d'abord
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
     
     onChange(syntheticEvent);
   };
   
-  // Valider les dates
-  const validateDateRange = () => {
-    if (!formData.TC_StartDate || !formData.TC_EndDate) {
-      return null;
-    }
-    
-    const startDate = new Date(formData.TC_StartDate);
-    const endDate = new Date(formData.TC_EndDate);
-    
-    if (endDate <= startDate) {
-      return 'La date de fin doit être postérieure à la date de début';
-    }
-    
-    return null;
+  // Gestionnaire pour ouvrir le modal de distribution
+  const handleOpenDistributionModal = (breakdownId: string) => {
+    setDistributionModal({
+      isOpen: true,
+      breakdownId,
+      totalAmount: '',
+      distributionMode: 'equal'
+    });
   };
   
-  const dateValidationError = validateDateRange();
+  // Gestionnaire pour fermer le modal de distribution
+  const handleCloseDistributionModal = () => {
+    setDistributionModal({
+      isOpen: false,
+      breakdownId: null,
+      totalAmount: '',
+      distributionMode: 'equal'
+    });
+  };
   
-  // ✅ FEATURE 2: Valider que les dates de tactique sont dans la plage de campagne
-  const tactiqueRangeError = validateTactiqueDates(
-    formData.TC_StartDate || '', 
-    formData.TC_EndDate || '', 
-    breakdowns
-  );
+  // Gestionnaire pour confirmer la distribution
+  const handleConfirmDistribution = () => {
+    if (!distributionModal.breakdownId || !distributionModal.totalAmount) return;
+    
+    const totalAmount = parseFloat(distributionModal.totalAmount);
+    if (isNaN(totalAmount)) return;
+    
+    const breakdown = breakdowns.find(b => b.id === distributionModal.breakdownId);
+    if (!breakdown) return;
+    
+    const breakdownPeriods = periods.filter(p => p.breakdownId === breakdown.id);
+    const isDefaultBreakdown = breakdown.isDefault;
+    
+    const distributedValues = distributeAmountEqually(
+      totalAmount, 
+      breakdownPeriods, 
+      activePeriods, 
+      isDefaultBreakdown
+    );
+    
+    // Appliquer les valeurs distribuées
+    Object.entries(distributedValues).forEach(([periodId, value]) => {
+      handlePeriodValueChange(periodId, value);
+    });
+    
+    handleCloseDistributionModal();
+  };
   
   // Organiser les périodes par breakdown
   const periodsByBreakdown = periods.reduce((acc, period) => {
@@ -486,225 +488,256 @@ export default function TactiqueFormRepartition({
   }, {} as { [key: string]: BreakdownPeriod[] });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 space-y-8">
       <FormSection
         title="Répartition temporelle"
         description="Configurez les dates de la tactique et répartissez les valeurs selon les breakdowns de la campagne"
       >
         
-        {/* Section des dates de tactique */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          {/* Date de début */}
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <HelpIcon 
-                tooltip="Date de début de cette tactique spécifique"
-                onTooltipChange={onTooltipChange}
+        {/* Section des dates de tactique - Design épuré */}
+        <div className="bg-slate-50 rounded-xl p-6 mb-8">
+          <div className="grid grid-cols-2 gap-6">
+            {/* Date de début */}
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <HelpIcon 
+                  tooltip="Date de début de cette tactique spécifique"
+                  onTooltipChange={onTooltipChange}
+                />
+                <label className="block text-sm font-medium text-slate-700">
+                  Date de début *
+                </label>
+              </div>
+              <input
+                type="date"
+                name="TC_StartDate"
+                value={formData.TC_StartDate || ''}
+                onChange={onChange}
+                disabled={loading}
+                className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
-              <label className="block text-sm font-medium text-gray-700">
-                Date de début *
-              </label>
             </div>
-            <input
-              type="date"
-              name="TC_StartDate"
-              value={formData.TC_StartDate || ''}
-              onChange={onChange}
-              disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
 
-          {/* Date de fin */}
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <HelpIcon 
-                tooltip="Date de fin de cette tactique spécifique"
-                onTooltipChange={onTooltipChange}
+            {/* Date de fin */}
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <HelpIcon 
+                  tooltip="Date de fin de cette tactique spécifique"
+                  onTooltipChange={onTooltipChange}
+                />
+                <label className="block text-sm font-medium text-slate-700">
+                  Date de fin *
+                </label>
+              </div>
+              <input
+                type="date"
+                name="TC_EndDate"
+                value={formData.TC_EndDate || ''}
+                onChange={onChange}
+                disabled={loading}
+                className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
-              <label className="block text-sm font-medium text-gray-700">
-                Date de fin *
-              </label>
             </div>
-            <input
-              type="date"
-              name="TC_EndDate"
-              value={formData.TC_EndDate || ''}
-              onChange={onChange}
-              disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
           </div>
         </div>
         
-        {/* Erreurs de validation des dates */}
-        {(dateValidationError || tactiqueRangeError) && (
-          <div className="mb-6 space-y-2">
-            {dateValidationError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {dateValidationError}
-              </div>
-            )}
-            {tactiqueRangeError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {tactiqueRangeError}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Section des breakdowns */}
+        {/* Section des breakdowns - Design épuré */}
         {breakdowns.length > 0 ? (
           <div className="space-y-8">
-            <div className="border-t border-gray-200 pt-6">
-              <div className="flex items-center gap-3 mb-6">
-                <HelpIcon 
-                  tooltip="Répartissez vos valeurs selon les périodes définies dans les breakdowns de la campagne"
-                  onTooltipChange={onTooltipChange}
-                />
-                <h3 className="text-lg font-medium text-gray-900">
-                  Répartition par breakdown
-                </h3>
-              </div>
+            {breakdowns.map(breakdown => {
+              const Icon = getBreakdownIcon(breakdown.type);
+              const breakdownPeriods = periodsByBreakdown[breakdown.id] || [];
+              const isDefaultBreakdown = breakdown.isDefault;
               
-              {breakdowns.map(breakdown => {
-                const Icon = getBreakdownIcon(breakdown.type);
-                const breakdownPeriods = periodsByBreakdown[breakdown.id] || [];
-                const isDefaultBreakdown = breakdown.isDefault;
-                
-                // ✅ FEATURE 1: Calculs indépendants pour ce breakdown
-                const showCalculationsForBreakdown = areAllValuesNumericForBreakdown(
-                  periodValues, 
-                  breakdownPeriods, 
-                  activePeriods, 
-                  isDefaultBreakdown
-                );
-                const totalValueForBreakdown = showCalculationsForBreakdown ? calculateTotalForBreakdown(
-                  periodValues, 
-                  breakdownPeriods, 
-                  activePeriods, 
-                  isDefaultBreakdown
-                ) : 0;
-                
-                return (
-                  <div key={breakdown.id} className="mb-8 last:mb-0">
-                    {/* En-tête du breakdown */}
-                    <div className="flex items-center gap-3 mb-4 p-4 bg-gray-50 rounded-lg">
-                      <Icon className="h-5 w-5 text-gray-600" />
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{breakdown.name}</h4>
-                        <p className="text-sm text-gray-500">
-                          {breakdown.type}
-                          {/* ✅ FEATURE 2: Indiquer si les dates de tactique sont utilisées */}
-                          {breakdown.isDefault && formData.TC_StartDate && formData.TC_EndDate ? (
-                            <> • Basé sur les dates de la tactique ({formData.TC_StartDate} → {formData.TC_EndDate})</>
-                          ) : (
-                            <> • {breakdown.startDate} → {breakdown.endDate}</>
-                          )}
-                          {breakdown.type === 'Custom' && breakdown.customPeriods && (
-                            <> • {breakdown.customPeriods.length} période(s)</>
-                          )}
-                        </p>
+              const showCalculationsForBreakdown = areAllValuesNumericForBreakdown(
+                periodValues, 
+                breakdownPeriods, 
+                activePeriods, 
+                isDefaultBreakdown
+              );
+              const totalValueForBreakdown = showCalculationsForBreakdown ? calculateTotalForBreakdown(
+                periodValues, 
+                breakdownPeriods, 
+                activePeriods, 
+                isDefaultBreakdown
+              ) : 0;
+              
+              return (
+                <div key={breakdown.id} className="bg-white rounded-xl shadow-sm">
+                  {/* En-tête du breakdown - Design épuré */}
+                  <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                          <Icon className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-semibold text-slate-900">{breakdown.name}</h4>
+                            {breakdown.isDefault && (
+                              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
+                                Par défaut
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500 mt-1">
+                            {breakdown.type}
+                            {breakdown.isDefault && formData.TC_StartDate && formData.TC_EndDate ? (
+                              <> • Basé sur les dates de la tactique</>
+                            ) : (
+                              <> • {breakdown.startDate} → {breakdown.endDate}</>
+                            )}
+                          </p>
+                        </div>
                       </div>
                       
-                      {/* ✅ FEATURE 1: Total pour ce breakdown spécifique */}
-                      {showCalculationsForBreakdown && totalValueForBreakdown > 0 && (
-                        <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
-                          Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                        </div>
-                      )}
-                      
-                      {breakdown.isDefault && (
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
-                          Par défaut
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {/* Total pour ce breakdown */}
+                        {showCalculationsForBreakdown && totalValueForBreakdown > 0 && (
+                          <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
+                            Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                          </div>
+                        )}
+                        
+                        {/* Bouton Distribuer */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDistributionModal(breakdown.id)}
+                          disabled={loading}
+                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                          Distribuer
+                        </button>
+                      </div>
                     </div>
-                    
-                    {/* Grille des périodes */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  </div>
+                  
+                  {/* Grille des périodes - Design épuré */}
+                  <div className="p-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {breakdownPeriods.map(period => {
                         const currentValue = periodValues[period.id] || '';
                         const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0 
                           ? calculatePercentageForBreakdown(currentValue, totalValueForBreakdown) 
                           : 0;
                         
-                        // ✅ FEATURE 3: Gestion de l'activation pour le breakdown par défaut
                         const isDefaultBreakdown = breakdown.isDefault;
                         const isActive = isDefaultBreakdown ? (activePeriods[period.id] ?? true) : true;
                         
                         return (
-                          <div key={period.id} className={`p-3 rounded-lg border transition-all duration-200 ${
+                          <div key={period.id} className={`rounded-lg transition-all duration-200 ${
                             isDefaultBreakdown && !isActive 
-                              ? 'bg-gray-50 border-gray-200' 
-                              : 'bg-white border-gray-300 shadow-sm hover:border-gray-400'
+                              ? 'bg-slate-50' 
+                              : 'bg-slate-50 hover:bg-slate-100'
                           }`}>
-                            {/* ✅ DESIGN AMÉLIORÉ: Label et checkbox plus discrets */}
-                            <div className="flex items-center justify-between mb-2">
-                              <label className={`text-xs font-medium ${
-                                isDefaultBreakdown && !isActive ? 'text-gray-400' : 'text-gray-600'
+                            {/* Label et checkbox */}
+                            <div className="flex items-center justify-between p-3 pb-2">
+                              <label className={`text-sm font-medium ${
+                                isDefaultBreakdown && !isActive ? 'text-slate-400' : 'text-slate-700'
                               }`}>
                                 {period.label}
                               </label>
                               
-                              {/* ✅ CHECKBOX PLUS DISCRÈTE: Plus petite et couleur neutre */}
                               {isDefaultBreakdown && (
                                 <input
                                   type="checkbox"
                                   checked={isActive}
                                   onChange={(e) => handlePeriodActiveChange(period.id, e.target.checked)}
                                   disabled={loading}
-                                  className="h-3 w-3 text-gray-500 focus:ring-gray-400 border-gray-300 rounded transition-colors"
+                                  className="h-4 w-4 text-slate-500 focus:ring-slate-400 border-slate-300 rounded"
                                 />
                               )}
                             </div>
                             
-                            {/* ✅ INPUT AVEC MEILLEUR CONTRASTE */}
-                            <input
-                              type="text"
-                              value={currentValue}
-                              onChange={(e) => handlePeriodValueChange(period.id, e.target.value)}
-                              disabled={loading || (isDefaultBreakdown && !isActive)}
-                              placeholder="Valeur"
-                              className={`w-full px-3 py-2 text-sm border rounded-md text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
-                                isDefaultBreakdown && !isActive 
-                                  ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                                  : 'border-gray-300 disabled:bg-gray-100 bg-white'
-                              }`}
-                            />
-                            
-                            {/* ✅ FEATURE 1: Affichage du pourcentage avec meilleur espacement */}
-                            {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && (
-                              <div className="mt-2 text-xs text-center space-y-1">
-                                <div className="text-indigo-600 font-medium">
-                                  {percentage.toFixed(1)}%
+                            {/* Input */}
+                            <div className="px-3 pb-3">
+                              <input
+                                type="text"
+                                value={currentValue}
+                                onChange={(e) => handlePeriodValueChange(period.id, e.target.value)}
+                                disabled={loading || (isDefaultBreakdown && !isActive)}
+                                placeholder="Valeur"
+                                className={`w-full px-3 py-2 text-sm rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
+                                  isDefaultBreakdown && !isActive 
+                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
+                                    : 'bg-white border-0 shadow-sm focus:shadow-md'
+                                }`}
+                              />
+                              
+                              {/* Pourcentage */}
+                              {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && (
+                                <div className="mt-2 text-center space-y-1">
+                                  <div className="text-sm font-medium text-indigo-600">
+                                    {percentage.toFixed(1)}%
+                                  </div>
                                 </div>
-                                <div className="text-gray-500">
-                                  {parseFloat(currentValue).toLocaleString('fr-CA', { 
-                                    minimumFractionDigits: 0, 
-                                    maximumFractionDigits: 2 
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>Aucun breakdown configuré pour cette campagne.</p>
-            <p className="text-sm mt-2">
+          <div className="text-center py-12 bg-slate-50 rounded-xl">
+            <p className="text-slate-500">Aucun breakdown configuré pour cette campagne.</p>
+            <p className="text-sm mt-2 text-slate-400">
               Les breakdowns sont définis lors de la création ou modification de la campagne.
             </p>
           </div>
         )}
       </FormSection>
+      
+      {/* Modal de distribution */}
+      {distributionModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Distribuer le montant
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Montant total à distribuer
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={distributionModal.totalAmount}
+                  onChange={(e) => setDistributionModal(prev => ({ ...prev, totalAmount: e.target.value }))}
+                  placeholder="Ex: 10000"
+                  className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                />
+                <p className="text-sm text-slate-500 mt-2">
+                  Le montant sera distribué équitablement sur toutes les périodes actives.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCloseDistributionModal}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleConfirmDistribution}
+                disabled={!distributionModal.totalAmount}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Distribuer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
