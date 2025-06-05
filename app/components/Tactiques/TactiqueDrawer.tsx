@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiqueDrawer.tsx - RÉÉCRITURE SIMPLIFIÉE
+// app/components/Tactiques/TactiqueDrawer.tsx - AVEC ONGLET RÉPARTITION
 
 'use client';
 
@@ -10,6 +10,7 @@ import TactiqueFormStrategie from './TactiqueFormStrategie';
 import TactiqueFormKPI from './TactiqueFormKPI';
 import TactiqueFormBudget from './TactiqueFormBudget';
 import TactiqueFormAdmin from './TactiqueFormAdmin';
+import TactiqueFormRepartition from './TactiqueFormRepartition';
 import { TooltipBanner } from './TactiqueFormComponents';
 import { 
   DocumentTextIcon, 
@@ -17,8 +18,10 @@ import {
   ChartBarIcon, 
   CurrencyDollarIcon,
   CogIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../types/tactiques';
+import { Breakdown } from '../../types/breakdown';
 import { useClient } from '../../contexts/ClientContext';
 import { useCampaignSelection } from '../../hooks/useCampaignSelection';
 import {
@@ -34,6 +37,7 @@ import {
   ClientCustomDimensions,
   CampaignBucket,
 } from '../../lib/tactiqueListService';
+import { getBreakdowns } from '../../lib/breakdownService';
 import { usePartners } from '../../contexts/PartnerContext';
 
 // ==================== TYPES SIMPLIFIÉS ====================
@@ -129,7 +133,8 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
         key.startsWith('TC_Cost_') ||
         key.startsWith('TC_Real_') ||
         key.startsWith('TC_Bonus_') ||
-        key.startsWith('TC_Has_')
+        key.startsWith('TC_Has_') ||
+        key.startsWith('TC_Breakdown_') // ✅ NOUVEAU : Inclure les champs breakdown
       )
     )
   };
@@ -206,6 +211,9 @@ export default function TactiqueDrawer({
   const [customDimensions, setCustomDimensions] = useState<ClientCustomDimensions>({});
   const [visibleFields, setVisibleFields] = useState<VisibleFields>({});
   
+  // ✅ NOUVEAU : État pour les breakdowns
+  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
+  
   // États de chargement et UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -224,6 +232,7 @@ export default function TactiqueDrawer({
     { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
     { id: 'kpi', name: 'KPI', icon: ChartBarIcon },
     { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
+    { id: 'repartition', name: 'Répartition', icon: CalendarDaysIcon }, // ✅ NOUVEAU ONGLET
     { id: 'admin', name: 'Admin', icon: CogIcon },
   ], []);
 
@@ -346,6 +355,16 @@ export default function TactiqueDrawer({
       
       setBuckets(campaignBuckets);
       setCampaignAdminValues(adminValues);
+      
+      // ✅ NOUVEAU : Charger les breakdowns de la campagne
+      try {
+        const campaignBreakdowns = await getBreakdowns(selectedClient.clientId, selectedCampaign.id);
+        setBreakdowns(campaignBreakdowns);
+        console.log('📊 Breakdowns chargés pour l\'onglet Répartition:', campaignBreakdowns.length);
+      } catch (breakdownError) {
+        console.warn('Erreur lors du chargement des breakdowns:', breakdownError);
+        setBreakdowns([]);
+      }
       
       // Charger les données pour l'onglet Budget
       try {
@@ -550,6 +569,17 @@ export default function TactiqueDrawer({
             onChange={handleChange}
             onCalculatedChange={handleBudgetChange} // ✅ SIMPLIFIÉ !
             onTooltipChange={setActiveTooltip}
+            loading={loading}
+          />
+        );
+        
+      case 'repartition': // ✅ NOUVEAU CAS
+        return (
+          <TactiqueFormRepartition
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            breakdowns={breakdowns}
             loading={loading}
           />
         );

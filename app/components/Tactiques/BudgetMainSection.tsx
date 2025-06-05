@@ -356,22 +356,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* NOUVEAU: Indication du type d'unité sélectionné */}
-      {unitType && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-indigo-700">
-            <span className="text-sm">📊</span>
-            <div className="text-sm">
-              <strong>Type d'unité sélectionné :</strong> {unitTypeOptions.find(opt => opt.id === unitType)?.label || unitType}
-              {dynamicLabels.costLabel === 'CPM' && (
-                <span className="ml-2 text-xs bg-indigo-100 px-2 py-0.5 rounded-full">
-                  Mode CPM activé
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+ 
 
       {/* Message si données incomplètes */}
       {(!budget || !costPerUnit) && !disabled && (

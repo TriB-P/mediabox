@@ -502,27 +502,7 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         </div>
       )}
 
-      {/* 🔥 NOUVEAU: Debug pour vérifier les calculs */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <h5 className="text-sm font-medium text-yellow-800 mb-2">🐛 Debug Totaux</h5>
-          <div className="text-xs text-yellow-700 space-y-1">
-            <div>Total hook: {budgetSummary.totalFees.toFixed(2)} {budgetSummary.currency}</div>
-            <div>Total affiché: {displayedTotalFees.toFixed(2)} {displayCurrency}</div>
-            <div>Conversion appliquée: {conversionInfo.showConvertedValues ? 'Oui' : 'Non'}</div>
-            {conversionInfo.showConvertedValues && (
-              <div>Taux: {budgetSummary.convertedValues?.exchangeRate}</div>
-            )}
-            <div>Frais individuels:</div>
-            {displayedFeeAmounts.map(fa => (
-              <div key={fa.feeId} className="ml-2">
-                • {fa.originalAmount.toFixed(2)} → {fa.amount.toFixed(2)}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      
     </div>
   );
 });

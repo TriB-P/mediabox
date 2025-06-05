@@ -70,6 +70,8 @@ function calculateFeesCorrectly(
     
     // Trouver l'option sélectionnée
     const selectedOption = fee.options?.find(opt => opt.id === selectedOptionId);
+
+    
     if (!selectedOption) {
       updates[valueKey] = 0;
       console.log(`❌ Frais ${fee.FE_Name}: option non trouvée`);
@@ -164,23 +166,24 @@ function calculateFeesCorrectly(
         }
         break;
         
-      case 'Unités':
-        // 🔥 CORRECTION: Nombre d'unités personnalisé
-        let unitsCount: number;
-        
-        if (selectedOption.FO_Editable && customVolume > 0) {
-          // Nombre d'unités personnalisé
-          unitsCount = customVolume;
-          console.log(`🔢 UNITÉS PERSONNALISÉES: ${fee.FE_Name} utilise ${unitsCount} unités`);
-        } else {
-          // Nombre d'unités par défaut (1)
-          unitsCount = 1;
-          console.log(`🔢 UNITÉS PAR DÉFAUT: ${fee.FE_Name} utilise ${unitsCount} unité`);
-        }
-        
-        calculatedAmount = finalValue * unitsCount;
-        console.log(`🔢 UNITÉS: ${finalValue} × ${unitsCount} = ${calculatedAmount}`);
-        break;
+        case 'Unités':
+          // 🔥 CORRECTION: Pour les frais de type "Unités", le nombre d'unités 
+          // est TOUJOURS modifiable, même si la valeur unitaire ne l'est pas
+          let unitsCount: number;
+          
+          // Utiliser le nombre d'unités saisi par l'utilisateur
+          if (customVolume > 0) {
+            unitsCount = customVolume;
+            console.log(`🔢 UNITÉS SAISIES: ${fee.FE_Name} utilise ${unitsCount} unités`);
+          } else {
+            // Nombre d'unités par défaut (1)
+            unitsCount = 1;
+            console.log(`🔢 UNITÉS PAR DÉFAUT: ${fee.FE_Name} utilise ${unitsCount} unité`);
+          }
+          
+          calculatedAmount = finalValue * unitsCount;
+          console.log(`🔢 UNITÉS CALCUL: ${finalValue} × ${unitsCount} = ${calculatedAmount}`);
+          break;
         
       case 'Frais fixe':
         calculatedAmount = finalValue;
