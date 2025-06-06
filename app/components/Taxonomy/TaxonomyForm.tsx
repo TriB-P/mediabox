@@ -24,7 +24,8 @@ const DYNAMIC_VARIABLES = [
   'UTM_TC_Language',
   'TC_Billing_ID',
   'TC_Targeting',
-  'TC_Media_Type'
+  'TC_Media_Type',
+  'TAX_Product'
 ];
 
 // Formats disponibles pour les variables

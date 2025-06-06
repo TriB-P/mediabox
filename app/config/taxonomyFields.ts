@@ -99,7 +99,7 @@ export const TAXONOMY_FIELD_SOURCES: FieldSourceConfig = {
   
   // Champs à saisir manuellement dans l'onglet
   manual: [
-    'TC_Media_Type'
+    'TAX_Product'
   ]
 };
 

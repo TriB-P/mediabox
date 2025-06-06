@@ -79,6 +79,31 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
   const [highlightState, setHighlightState] = useState<HighlightState>({
     mode: 'none'
   });
+  
+  // État pour l'expansion des aperçus (fermés par défaut)
+  const [expandedPreviews, setExpandedPreviews] = useState<{
+    tags: boolean;
+    platform: boolean;
+    mediaocean: boolean;
+  }>({
+    tags: false,
+    platform: false,
+    mediaocean: false
+  });
+
+  // ==================== FONCTIONS UTILITAIRES ====================
+  
+  // Fonction pour extraire la structure combinée d'une taxonomie
+  const extractTaxonomyStructure = useCallback((taxonomy: Taxonomy): string => {
+    const levels = [
+      taxonomy.NA_Name_Level_1,
+      taxonomy.NA_Name_Level_2,
+      taxonomy.NA_Name_Level_3,
+      taxonomy.NA_Name_Level_4
+    ].filter(Boolean); // Enlever les niveaux vides
+    
+    return levels.join('|');
+  }, []);
 
   // ==================== MEMOIZED VALUES ====================
   
@@ -99,7 +124,12 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
     tags: selectedTaxonomyData.tags ? extractTaxonomyStructure(selectedTaxonomyData.tags) : '',
     platform: selectedTaxonomyData.platform ? extractTaxonomyStructure(selectedTaxonomyData.platform) : '',
     mediaocean: selectedTaxonomyData.mediaocean ? extractTaxonomyStructure(selectedTaxonomyData.mediaocean) : ''
-  }), [selectedTaxonomyData]);
+  }), [selectedTaxonomyData, extractTaxonomyStructure]);
+
+  // Filtrer pour ne garder que les variables manuelles (modifiables par l'utilisateur)
+  const manualVariables = useMemo(() => 
+    parsedVariables.filter(variable => variable.source === 'manual')
+  , [parsedVariables]);
 
   const context: TaxonomyContext = useMemo(() => ({
     campaign: campaignData,
@@ -129,25 +159,35 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
 
   // Charger les options des champs quand les variables changent
   useEffect(() => {
-    if (parsedVariables.length > 0) {
+    if (manualVariables.length > 0) {
       loadFieldOptions();
     }
-  }, [parsedVariables, clientId]);
+  }, [manualVariables, clientId]);
 
   // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
   
-  // Fonction pour extraire la structure combinée d'une taxonomie
-  const extractTaxonomyStructure = (taxonomy: Taxonomy): string => {
-    const levels = [
-      taxonomy.NA_Name_Level_1,
-      taxonomy.NA_Name_Level_2,
-      taxonomy.NA_Name_Level_3,
-      taxonomy.NA_Name_Level_4
-    ].filter(Boolean); // Enlever les niveaux vides
+  // Fonction pour résoudre la valeur d'une variable (héritée ou manuelle)
+  const resolveVariableValue = useCallback((variableName: string): string => {
+    // 1. Vérifier d'abord les valeurs manuelles
+    const manualValue = taxonomyValues[variableName];
+    if (manualValue?.value) {
+      return manualValue.value;
+    }
     
-    return levels.join('|');
-  };
-
+    // 2. Chercher dans les données de campagne
+    if (campaignData && campaignData[variableName] !== undefined) {
+      return String(campaignData[variableName]);
+    }
+    
+    // 3. Chercher dans les données de tactique
+    if (tactiqueData && tactiqueData[variableName] !== undefined) {
+      return String(tactiqueData[variableName]);
+    }
+    
+    // 4. Retourner placeholder si aucune valeur trouvée
+    return `[${variableName}]`;
+  }, [taxonomyValues, campaignData, tactiqueData]);
+  
   const loadSelectedTaxonomies = async () => {
     console.log('📋 Chargement des taxonomies sélectionnées');
     setTaxonomiesLoading(true);
@@ -282,15 +322,25 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
   // ==================== FONCTIONS DE RENDU ====================
   
   const renderVariableFields = () => {
-    if (parsedVariables.length === 0) return null;
+    if (manualVariables.length === 0) {
+      return (
+        <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
+          <h4 className="text-md font-medium text-gray-900 mb-2">
+            Configuration des variables
+          </h4>
+          <p className="text-sm">
+            Aucune variable manuelle trouvée. Toutes les valeurs sont héritées automatiquement 
+            de la campagne et de la tactique.
+          </p>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-4">
-        <h4 className="text-md font-medium text-gray-900 border-t pt-6">
-          Configuration des variables
-        </h4>
+      
         
-        {parsedVariables.map((variable, index) => {
+        {manualVariables.map((variable, index) => {
           const fieldKey = `${variable.variable}_${variable.format}`;
           const fieldState = fieldStates[fieldKey];
           const sourceColor = getSourceColor(variable.source);
@@ -397,52 +447,167 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
     );
   };
 
+  const togglePreviewExpansion = (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
+    setExpandedPreviews(prev => ({
+      ...prev,
+      [taxonomyType]: !prev[taxonomyType]
+    }));
+  };
+
   const renderPreview = () => {
     if (parsedVariables.length === 0) return null;
 
     return (
-      <div className="border-t pt-6">
+      <div className="space-y-4">
         <h4 className="text-md font-medium text-gray-900 mb-4">
-          Aperçu des taxonomies générées
+          Aperçu des taxonomies
         </h4>
         
         <div className="space-y-3">
-          {taxonomyStructures.tags && (
-            <div className="bg-gray-50 p-3 rounded">
-              <span className="text-sm font-medium text-gray-700">Tags: </span>
-              <div className="text-sm text-gray-900 font-mono mt-1">
-                {renderTaxonomyWithHighlight(taxonomyStructures.tags)}
-              </div>
+          {selectedTaxonomyData.tags && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  togglePreviewExpansion('tags');
+                }}
+                className="w-full px-4 py-3 bg-blue-50 border-b border-gray-200 text-left flex items-center justify-between hover:bg-blue-100 transition-colors"
+              >
+                <span className="font-medium text-blue-900">Tags</span>
+                <span className="text-blue-700">
+                  {expandedPreviews.tags ? '−' : '+'}
+                </span>
+              </button>
+              {expandedPreviews.tags && (
+                <div className="p-4">
+                  {renderTaxonomyStructureWithTitles(selectedTaxonomyData.tags)}
+                </div>
+              )}
             </div>
           )}
           
-          {taxonomyStructures.platform && (
-            <div className="bg-gray-50 p-3 rounded">
-              <span className="text-sm font-medium text-gray-700">Platform: </span>
-              <div className="text-sm text-gray-900 font-mono mt-1">
-                {renderTaxonomyWithHighlight(taxonomyStructures.platform)}
-              </div>
+          {selectedTaxonomyData.platform && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  togglePreviewExpansion('platform');
+                }}
+                className="w-full px-4 py-3 bg-green-50 border-b border-gray-200 text-left flex items-center justify-between hover:bg-green-100 transition-colors"
+              >
+                <span className="font-medium text-green-900">Platform</span>
+                <span className="text-green-700">
+                  {expandedPreviews.platform ? '−' : '+'}
+                </span>
+              </button>
+              {expandedPreviews.platform && (
+                <div className="p-4">
+                  {renderTaxonomyStructureWithTitles(selectedTaxonomyData.platform)}
+                </div>
+              )}
             </div>
           )}
           
-          {taxonomyStructures.mediaocean && (
-            <div className="bg-gray-50 p-3 rounded">
-              <span className="text-sm font-medium text-gray-700">MediaOcean: </span>
-              <div className="text-sm text-gray-900 font-mono mt-1">
-                {renderTaxonomyWithHighlight(taxonomyStructures.mediaocean)}
-              </div>
+          {selectedTaxonomyData.mediaocean && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  togglePreviewExpansion('mediaocean');
+                }}
+                className="w-full px-4 py-3 bg-orange-50 border-b border-gray-200 text-left flex items-center justify-between hover:bg-orange-100 transition-colors"
+              >
+                <span className="font-medium text-orange-900">MediaOcean</span>
+                <span className="text-orange-700">
+                  {expandedPreviews.mediaocean ? '−' : '+'}
+                </span>
+              </button>
+              {expandedPreviews.mediaocean && (
+                <div className="p-4">
+                  {renderTaxonomyStructureWithTitles(selectedTaxonomyData.mediaocean)}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
     );
   };
+  
+  const renderTaxonomyStructureWithTitles = (taxonomy: Taxonomy) => {
+    const levels = [
+      { 
+        name: taxonomy.NA_Name_Level_1, 
+        title: taxonomy.NA_Name_Level_1_Title || 'Niveau 1',
+        level: 1
+      },
+      { 
+        name: taxonomy.NA_Name_Level_2, 
+        title: taxonomy.NA_Name_Level_2_Title || 'Niveau 2',
+        level: 2
+      },
+      { 
+        name: taxonomy.NA_Name_Level_3, 
+        title: taxonomy.NA_Name_Level_3_Title || 'Niveau 3',
+        level: 3
+      },
+      { 
+        name: taxonomy.NA_Name_Level_4, 
+        title: taxonomy.NA_Name_Level_4_Title || 'Niveau 4',
+        level: 4
+      }
+    ].filter(level => level.name); // Garder seulement les niveaux définis
 
-  const renderTaxonomyWithHighlight = (structure: string) => {
-    // Pour l'instant, afficher la structure brute
-    // TODO: Remplacer les variables par leurs valeurs résolues
-    return structure;
+    return (
+      <div className="space-y-3">
+        {levels.map((level, index) => (
+          <div key={level.level} className="border-l-2 border-gray-300 pl-3">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+              {level.title}
+            </div>
+            <div className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded border">
+              {renderLevelWithVariables(level.name)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
+  
+  const renderLevelWithVariables = (levelStructure: string) => {
+    // Utiliser une regex pour trouver et remplacer toutes les variables [VARIABLE:format]
+    const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+    
+    // Remplacer chaque variable par sa valeur résolue
+    const resolvedStructure = levelStructure.replace(VARIABLE_REGEX, (match, variableName, format) => {
+      const resolvedValue = resolveVariableValue(variableName);
+      
+      // Si la valeur est résolue, l'afficher avec une couleur selon la source
+      if (resolvedValue && resolvedValue !== `[${variableName}]`) {
+        // Déterminer la source de la variable pour la couleur
+        const variable = parsedVariables.find(v => v.variable === variableName);
+        const sourceColor = variable ? getSourceColor(variable.source) : getSourceColor(null);
+        
+        return `<span class="px-1 py-0.5 text-xs rounded ${sourceColor.bg} ${sourceColor.text}">${resolvedValue}</span>`;
+      }
+      
+      // Sinon afficher le placeholder original en rouge
+      return `<span class="px-1 py-0.5 text-xs rounded bg-red-100 text-red-800">${match}</span>`;
+    });
+    
+    // Retourner un élément dangerouslySetInnerHTML pour le rendu HTML
+    return (
+      <div 
+        dangerouslySetInnerHTML={{ __html: resolvedStructure }}
+        className="whitespace-pre-wrap"
+      />
+    );
+  };
+
+
 
   // ==================== RENDU PRINCIPAL ====================
   
@@ -480,29 +645,20 @@ const PlacementFormTaxonomy: React.FC<PlacementFormTaxonomyProps> = ({
         </div>
       )}
 
-      {/* Résumé des taxonomies sélectionnées */}
-      {hasTaxonomies && !taxonomiesLoading && (
-        <div className="bg-gray-50 border border-gray-200 px-4 py-3 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">Taxonomies sélectionnées :</h4>
-          <div className="space-y-1 text-sm text-gray-600">
-            {selectedTaxonomyData.tags && (
-              <div>• <span className="font-medium">Tags:</span> {selectedTaxonomyData.tags.NA_Display_Name}</div>
-            )}
-            {selectedTaxonomyData.platform && (
-              <div>• <span className="font-medium">Platform:</span> {selectedTaxonomyData.platform.NA_Display_Name}</div>
-            )}
-            {selectedTaxonomyData.mediaocean && (
-              <div>• <span className="font-medium">MediaOcean:</span> {selectedTaxonomyData.mediaocean.NA_Display_Name}</div>
-            )}
+      {/* Champs de variables et aperçu en colonnes */}
+      {hasTaxonomies && !taxonomiesLoading && Object.keys(selectedTaxonomyData).length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Colonne de gauche : Configuration des variables manuelles */}
+          <div>
+            {renderVariableFields()}
+          </div>
+          
+          {/* Colonne de droite : Aperçu */}
+          <div className="lg:sticky lg:top-8 lg:self-start">
+            {renderPreview()}
           </div>
         </div>
       )}
-
-      {/* Champs de variables */}
-      {renderVariableFields()}
-
-      {/* Aperçu */}
-      {renderPreview()}
 
       {/* Indicateur de chargement */}
       {(loading || taxonomiesLoading) && (
