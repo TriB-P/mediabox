@@ -6,8 +6,9 @@ import React, { useState, useCallback } from 'react';
 import FormDrawer from './FormDrawer';
 import FormTabs, { FormTab } from './FormTabs';
 import PlacementFormInfo from './PlacementFormInfo';
+import PlacementFormTaxonomy from './PlacementFormTaxonomy';
 import { TooltipBanner } from './TactiqueFormComponents';
-import { DocumentTextIcon, PhotoIcon, ChartBarIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PhotoIcon, ChartBarIcon, CurrencyDollarIcon, TagIcon } from '@heroicons/react/24/outline';
 import { Placement, PlacementFormData } from '../../types/tactiques';
 import { useClient } from '../../contexts/ClientContext';
 
@@ -42,15 +43,20 @@ export default function PlacementDrawer({
     PL_Order: placement?.PL_Order || 0,
     PL_TactiqueId: tactiqueId,
     
-    // Nouveaux champs de taxonomie
+    // Champs de taxonomie existants (pour compatibilité)
     PL_Taxonomy_Tags: (placement as any)?.PL_Taxonomy_Tags || '',
     PL_Taxonomy_Platform: (placement as any)?.PL_Taxonomy_Platform || '',
     PL_Taxonomy_MediaOcean: (placement as any)?.PL_Taxonomy_MediaOcean || '',
+    
+    // Nouveaux champs de taxonomie dynamique
+    PL_Taxonomy_Values: (placement as any)?.PL_Taxonomy_Values || {},
+    PL_Generated_Taxonomies: (placement as any)?.PL_Generated_Taxonomies || {},
   });
   
   // Définition des onglets
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
+    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon },
     { id: 'formats', name: 'Formats', icon: PhotoIcon },
     { id: 'kpis', name: 'KPIs', icon: ChartBarIcon },
     { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
@@ -108,6 +114,31 @@ export default function PlacementDrawer({
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
+          />
+        );
+        
+      case 'taxonomie':
+        if (!selectedClient) {
+          return (
+            <div className="p-8">
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
+                <p className="text-sm">
+                  Veuillez sélectionner un client pour configurer les taxonomies du placement.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        
+        return (
+          <PlacementFormTaxonomy
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={handleTooltipChange}
+            clientId={selectedClient.clientId}
+            // TODO: Ajouter campaignData et tactiqueData quand disponibles dans le contexte
+            // campaignData={campaignData}
+            // tactiqueData={tactiqueData}
           />
         );
       
