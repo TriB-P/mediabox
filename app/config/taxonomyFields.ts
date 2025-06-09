@@ -9,6 +9,9 @@
 
 export type FieldSource = 'campaign' | 'tactique' | 'manual';
 
+// 🔥 NOUVEAUX FORMATS ÉTENDUS
+export type TaxonomyFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom_utm' | 'custom_code' | 'open';
+
 export interface FieldSourceConfig {
   campaign: string[];
   tactique: string[];
@@ -16,14 +19,16 @@ export interface FieldSourceConfig {
 }
 
 export interface FormatOption {
-  id: string;
+  id: TaxonomyFormat;
   label: string;
-  field: string;
+  description: string;
+  requiresShortcode: boolean; // Indique si ce format nécessite un shortcode
+  allowsUserInput: boolean;   // Indique si l'utilisateur peut saisir une valeur libre
 }
 
 export interface ParsedVariable {
   variable: string;
-  format: string;
+  format: TaxonomyFormat;
   source: FieldSource;
   level: number;
   isValid: boolean;
@@ -34,7 +39,9 @@ export interface TaxonomyValues {
   [variableName: string]: {
     value: string;
     source: FieldSource;
-    format: string;
+    format: TaxonomyFormat;
+    shortcodeId?: string; // 🔥 NOUVEAU : Pour stocker l'ID du shortcode sélectionné
+    openValue?: string;   // 🔥 NOUVEAU : Pour stocker la valeur libre saisie
   };
 }
 
@@ -99,41 +106,68 @@ export const TAXONOMY_FIELD_SOURCES: FieldSourceConfig = {
   
   // Champs à saisir manuellement dans l'onglet
   manual: [
-    'TAX_Product'
+    'TAX_Product',
+    'TAX_Location',
+    'TAX_Custom_Field_1',
+    'TAX_Custom_Field_2',
+    'TAX_Custom_Field_3'
   ]
 };
 
 // ==================== FORMATS DISPONIBLES ====================
 
 /**
- * Formats disponibles pour les variables dans les taxonomies
- * Chaque format correspond à un champ spécifique dans les shortcodes
+ * 🔥 NOUVEAUX FORMATS ÉTENDUS pour les variables dans les taxonomies
  */
-export const SHORTCODE_FORMATS: FormatOption[] = [
+export const TAXONOMY_FORMATS: FormatOption[] = [
   { 
     id: 'code', 
     label: 'Code', 
-    field: 'SH_Code' 
+    description: 'Utilise la valeur SH_Code du shortcode',
+    requiresShortcode: true,
+    allowsUserInput: false
   },
   { 
     id: 'display_fr', 
     label: 'Display FR', 
-    field: 'SH_Display_Name_FR' 
+    description: 'Utilise la valeur SH_Display_Name_FR du shortcode',
+    requiresShortcode: true,
+    allowsUserInput: false
   },
   { 
     id: 'display_en', 
     label: 'Display EN', 
-    field: 'SH_Display_Name_EN' 
+    description: 'Utilise la valeur SH_Display_Name_EN du shortcode',
+    requiresShortcode: true,
+    allowsUserInput: false
   },
   { 
     id: 'utm', 
     label: 'UTM', 
-    field: 'SH_Default_UTM' 
+    description: 'Utilise la valeur SH_Default_UTM du shortcode',
+    requiresShortcode: true,
+    allowsUserInput: false
   },
   { 
-    id: 'custom', 
-    label: 'Custom Code', 
-    field: 'customCode' 
+    id: 'custom_utm', 
+    label: 'UTM Personnalisé', 
+    description: 'Utilise la valeur personnalisée UTM du client, sinon SH_Default_UTM',
+    requiresShortcode: true,
+    allowsUserInput: false
+  },
+  { 
+    id: 'custom_code', 
+    label: 'Code Personnalisé', 
+    description: 'Utilise la valeur personnalisée Code du client, sinon SH_Code',
+    requiresShortcode: true,
+    allowsUserInput: false
+  },
+  { 
+    id: 'open', 
+    label: 'Saisie Libre', 
+    description: 'Utilise directement la valeur saisie par l\'utilisateur',
+    requiresShortcode: false,
+    allowsUserInput: true
   }
 ];
 
@@ -169,6 +203,49 @@ export const SOURCE_COLORS = {
   }
 } as const;
 
+// ==================== COULEURS POUR LES FORMATS ====================
+
+/**
+ * 🔥 NOUVEAU : Couleurs pour identifier les types de formats
+ */
+export const FORMAT_COLORS = {
+  code: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    border: 'border-purple-300'
+  },
+  display_fr: {
+    bg: 'bg-indigo-100',
+    text: 'text-indigo-800',
+    border: 'border-indigo-300'
+  },
+  display_en: {
+    bg: 'bg-blue-100',
+    text: 'text-blue-800',
+    border: 'border-blue-300'
+  },
+  utm: {
+    bg: 'bg-cyan-100',
+    text: 'text-cyan-800',
+    border: 'border-cyan-300'
+  },
+  custom_utm: {
+    bg: 'bg-teal-100',
+    text: 'text-teal-800',
+    border: 'border-teal-300'
+  },
+  custom_code: {
+    bg: 'bg-emerald-100',
+    text: 'text-emerald-800',
+    border: 'border-emerald-300'
+  },
+  open: {
+    bg: 'bg-amber-100',
+    text: 'text-amber-800',
+    border: 'border-amber-300'
+  }
+} as const;
+
 // ==================== FONCTIONS UTILITAIRES ====================
 
 /**
@@ -188,17 +265,17 @@ export function getFieldSource(fieldName: string): FieldSource | null {
 }
 
 /**
- * Valide qu'un format existe dans la configuration
+ * 🔥 NOUVEAU : Valide qu'un format existe dans la configuration
  */
 export function isValidFormat(formatId: string): boolean {
-  return SHORTCODE_FORMATS.some(format => format.id === formatId);
+  return TAXONOMY_FORMATS.some(format => format.id === formatId);
 }
 
 /**
- * Obtient les informations d'un format par son ID
+ * 🔥 NOUVEAU : Obtient les informations d'un format par son ID
  */
-export function getFormatInfo(formatId: string): FormatOption | null {
-  return SHORTCODE_FORMATS.find(format => format.id === formatId) || null;
+export function getFormatInfo(formatId: TaxonomyFormat): FormatOption | null {
+  return TAXONOMY_FORMATS.find(format => format.id === formatId) || null;
 }
 
 /**
@@ -207,6 +284,13 @@ export function getFormatInfo(formatId: string): FormatOption | null {
 export function getSourceColor(source: FieldSource | null) {
   if (!source) return SOURCE_COLORS.empty;
   return SOURCE_COLORS[source];
+}
+
+/**
+ * 🔥 NOUVEAU : Obtient la configuration de couleur pour un format donné
+ */
+export function getFormatColor(format: TaxonomyFormat) {
+  return FORMAT_COLORS[format] || FORMAT_COLORS.display_fr;
 }
 
 /**
@@ -228,6 +312,39 @@ export function isKnownVariable(variableName: string): boolean {
  */
 export function getFieldsBySource(source: FieldSource): string[] {
   return TAXONOMY_FIELD_SOURCES[source] || [];
+}
+
+/**
+ * 🔥 NOUVEAU : Détermine si un format nécessite un shortcode
+ */
+export function formatRequiresShortcode(format: TaxonomyFormat): boolean {
+  const formatInfo = getFormatInfo(format);
+  return formatInfo?.requiresShortcode ?? true;
+}
+
+/**
+ * 🔥 NOUVEAU : Détermine si un format permet la saisie libre
+ */
+export function formatAllowsUserInput(format: TaxonomyFormat): boolean {
+  const formatInfo = getFormatInfo(format);
+  return formatInfo?.allowsUserInput ?? false;
+}
+
+/**
+ * 🔥 NOUVEAU : Obtient les formats compatibles avec une source donnée
+ */
+export function getCompatibleFormats(source: FieldSource): FormatOption[] {
+  // Les champs hérités (campaign/tactique) ne peuvent utiliser que certains formats
+  if (source === 'campaign' || source === 'tactique') {
+    return TAXONOMY_FORMATS.filter(format => 
+      format.id === 'display_fr' || 
+      format.id === 'code' || 
+      format.id === 'open'
+    );
+  }
+  
+  // Les champs manuels peuvent utiliser tous les formats
+  return TAXONOMY_FORMATS;
 }
 
 // ==================== CONSTANTES ====================
@@ -261,5 +378,7 @@ export const ERROR_MESSAGES = {
   UNKNOWN_VARIABLE: 'Variable non reconnue dans la configuration',
   INVALID_FORMAT: 'Format non valide pour cette variable',
   MISSING_VALUE: 'Valeur manquante pour cette variable',
-  PARSING_ERROR: 'Erreur lors de l\'analyse de la structure de taxonomie'
+  PARSING_ERROR: 'Erreur lors de l\'analyse de la structure de taxonomie',
+  SHORTCODE_REQUIRED: 'Ce format nécessite la sélection d\'un shortcode',
+  USER_INPUT_REQUIRED: 'Ce format nécessite une saisie utilisateur'
 } as const;

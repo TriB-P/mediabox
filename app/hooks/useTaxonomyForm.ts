@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getClientTaxonomies, getTaxonomyById } from '../lib/taxonomyService';
 import { getDynamicList, hasDynamicList } from '../lib/tactiqueListService';
+import { useShortcodeFormatter } from './useShortcodeFormatter';
 import { Taxonomy } from '../types/taxonomy';
 import {
-  createFieldConfig,
+  parseAllTaxonomies,
   extractUniqueVariables,
-  parseAllTaxonomies
+  createFieldConfig,
+  processTaxonomies
 } from '../lib/taxonomyParser';
 import type {
   PlacementFormData,
@@ -15,8 +17,10 @@ import type {
   TaxonomyContext,
   HighlightState,
   ParsedTaxonomyVariable,
-  TaxonomyValues
+  TaxonomyValues,
+  TaxonomyVariableValue
 } from '../types/tactiques';
+import type { TaxonomyFormat } from '../config/taxonomyFields';
 
 // ==================== TYPES ====================
 
@@ -57,7 +61,7 @@ interface UseTaxonomyFormReturn {
   };
   
   // Actions
-  handleFieldChange: (variableName: string, value: string, format: string) => void;
+  handleFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   handleFieldHighlight: (variableName?: string) => void;
   togglePreviewExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
   retryLoadTaxonomies: () => void;
@@ -66,6 +70,10 @@ interface UseTaxonomyFormReturn {
   hasTaxonomies: boolean;
   manualVariables: ParsedTaxonomyVariable[];
   hasLoadingFields: boolean;
+  
+  // 🔥 NOUVEAU : Fonctions de formatage
+  getFormattedValue: (variableName: string) => string;
+  getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string;
 }
 
 // ==================== HOOK PRINCIPAL ====================
@@ -77,6 +85,9 @@ export function useTaxonomyForm({
   campaignData,
   tactiqueData
 }: UseTaxonomyFormProps): UseTaxonomyFormReturn {
+  
+  // 🔥 NOUVEAU : Hook de formatage des shortcodes
+  const { formatValue } = useShortcodeFormatter(clientId);
   
   // ==================== ÉTATS ====================
   
@@ -93,6 +104,9 @@ export function useTaxonomyForm({
   const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(
     formData.PL_Taxonomy_Values || {}
   );
+  
+  // 🔥 NOUVEAU : État pour les valeurs formatées en cache
+  const [formattedValuesCache, setFormattedValuesCache] = useState<{[variableName: string]: string}>({});
   
   const [highlightState, setHighlightState] = useState<HighlightState>({
     mode: 'none'
@@ -117,21 +131,10 @@ export function useTaxonomyForm({
     return levels.join('|');
   }, []);
 
-  const getDisplayValueForFormat = useCallback((item: any, format: string): string => {
-    switch (format) {
-      case 'code':
-        return item.SH_Code || item.id;
-      case 'display_fr':
-        return item.SH_Display_Name_FR || item.SH_Code || item.id;
-      case 'display_en':
-        return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Code || item.id;
-      case 'utm':
-        return item.SH_Default_UTM || item.SH_Code || item.id;
-      case 'custom':
-        return item.customCode || item.SH_Code || item.id;
-      default:
-        return item.SH_Display_Name_FR || item.SH_Code || item.id;
-    }
+  const getDisplayValueForFormat = useCallback((item: any, format: TaxonomyFormat): string => {
+    // 🔥 CORRECTION : TOUJOURS afficher display_fr dans les menus déroulants
+    // Le format sera appliqué seulement lors de la génération des chaînes taxonomiques
+    return item.SH_Display_Name_FR || item.SH_Code || item.id;
   }, []);
 
   // ==================== VALEURS CALCULÉES ====================
@@ -179,12 +182,84 @@ export function useTaxonomyForm({
     }
   }, [selectedTaxonomyData]);
 
-  // NOUVEAU : Charger toutes les listes manuelles en une fois
+  // Charger toutes les listes manuelles en une fois
   useEffect(() => {
     if (manualVariables.length > 0) {
       loadAllManualFieldOptions();
     }
   }, [manualVariables, clientId]);
+
+  // 🔥 NOUVEAU : Effet pour mettre à jour le cache des valeurs formatées
+  useEffect(() => {
+    if (parsedVariables.length === 0) return;
+    
+    console.log('🔄 Mise à jour du cache des valeurs formatées');
+    
+    const updateFormattedCache = async () => {
+      const newCache: {[variableName: string]: string} = {};
+      
+      for (const variable of parsedVariables) {
+        const variableName = variable.variable;
+        const taxonomyValue = taxonomyValues[variableName];
+        
+        if (!taxonomyValue) {
+          // Valeur héritée : chercher dans campaign/tactique
+          let rawValue: any = null;
+          
+          if (variable.source === 'campaign' && campaignData?.[variableName]) {
+            rawValue = campaignData[variableName];
+          } else if (variable.source === 'tactique' && tactiqueData?.[variableName]) {
+            rawValue = tactiqueData[variableName];
+          }
+          
+          if (rawValue) {
+            const rawValueStr = String(rawValue);
+            
+            // Si c'est potentiellement un ID de shortcode, utiliser le formatter
+            if (variable.format !== 'open' && rawValueStr.length > 5 && !rawValueStr.includes(' ')) {
+              const formatResult = formatValue(rawValueStr, variable.format);
+              if (formatResult.value && !formatResult.loading) {
+                newCache[variableName] = formatResult.value;
+              } else if (!formatResult.loading && formatResult.error) {
+                newCache[variableName] = rawValueStr; // Fallback sur la valeur brute
+              } else {
+                newCache[variableName] = `⏳ ${variableName}`; // En cours de chargement
+              }
+            } else {
+              newCache[variableName] = rawValueStr;
+            }
+          } else {
+            newCache[variableName] = '';
+          }
+        } else {
+          // Valeur manuelle
+          if (taxonomyValue.format === 'open' && taxonomyValue.openValue) {
+            newCache[variableName] = taxonomyValue.openValue;
+          } else if (taxonomyValue.shortcodeId) {
+            const formatResult = formatValue(taxonomyValue.shortcodeId, taxonomyValue.format);
+            if (formatResult.value && !formatResult.loading) {
+              newCache[variableName] = formatResult.value;
+            } else if (!formatResult.loading && formatResult.error) {
+              newCache[variableName] = taxonomyValue.value || `[${variableName}:${variable.format}]`;
+            } else {
+              newCache[variableName] = `⏳ ${variableName}`;
+            }
+          } else {
+            newCache[variableName] = taxonomyValue.value || `[${variableName}:${variable.format}]`;
+          }
+        }
+      }
+      
+      setFormattedValuesCache(newCache);
+    };
+    
+    updateFormattedCache();
+    
+    // Répéter toutes les 500ms pour capturer les chargements asynchrones
+    const interval = setInterval(updateFormattedCache, 500);
+    
+    return () => clearInterval(interval);
+  }, [parsedVariables, taxonomyValues, campaignData, tactiqueData, formatValue]);
 
   // ==================== FONCTIONS DE CHARGEMENT ====================
   
@@ -255,11 +330,10 @@ export function useTaxonomyForm({
     }
   };
 
-  // NOUVEAU : Chargement simultané de toutes les listes manuelles
+  // Chargement simultané de toutes les listes manuelles
   const loadAllManualFieldOptions = async () => {
     console.log('📦 Chargement simultané de toutes les listes manuelles');
     
-    // Initialiser tous les états avec isLoading: true pour les champs manuels
     const initialFieldStates: { [key: string]: FieldState } = {};
     const loadPromises: Promise<void>[] = [];
     
@@ -267,7 +341,7 @@ export function useTaxonomyForm({
       const fieldKey = `${variable.variable}_${variable.format}`;
       
       initialFieldStates[fieldKey] = {
-        config: createFieldConfig(variable, '', false),
+        config: createFieldConfig(variable as any, '', false),
         options: [],
         hasCustomList: false,
         isLoading: true,
@@ -275,15 +349,12 @@ export function useTaxonomyForm({
         error: undefined
       };
 
-      // Créer une promesse pour charger ce champ
       const loadPromise = loadSingleFieldOptions(fieldKey, variable);
       loadPromises.push(loadPromise);
     }
     
-    // Mettre à jour l'état initial
     setFieldStates(initialFieldStates);
     
-    // Attendre que tous les chargements se terminent
     try {
       await Promise.allSettled(loadPromises);
       console.log('✅ Chargement de toutes les listes terminé');
@@ -307,7 +378,6 @@ export function useTaxonomyForm({
         }));
       }
       
-      // Mettre à jour ce champ spécifiquement
       setFieldStates(prev => ({
         ...prev,
         [fieldKey]: {
@@ -334,18 +404,80 @@ export function useTaxonomyForm({
     }
   };
 
+  // ==================== NOUVELLES FONCTIONS DE FORMATAGE ====================
+  
+  /**
+   * 🔥 NOUVEAU : Obtient la valeur formatée pour une variable donnée (depuis le cache)
+   */
+  const getFormattedValue = useCallback((variableName: string): string => {
+    return formattedValuesCache[variableName] || '';
+  }, [formattedValuesCache]);
+
+  /**
+   * 🔥 NOUVEAU : Génère l'aperçu formaté pour un type de taxonomie (depuis le cache)
+   */
+  const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
+    const structure = taxonomyStructures[taxonomyType];
+    if (!structure) return '';
+    
+    // Remplacer chaque variable par sa valeur formatée depuis le cache
+    const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+    
+    return structure.replace(VARIABLE_REGEX, (match, variableName, format) => {
+      const formattedValue = formattedValuesCache[variableName];
+      
+      if (formattedValue && formattedValue.trim() && !formattedValue.startsWith('⏳') && !formattedValue.startsWith('[')) {
+        return formattedValue;
+      }
+      
+      // Si pas de valeur ou en cours de chargement, retourner le placeholder
+      return match;
+    });
+  }, [taxonomyStructures, formattedValuesCache]);
+
   // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
   
-  const handleFieldChange = useCallback((variableName: string, value: string, format: string) => {
-    console.log(`🔄 Changement field ${variableName}: ${value}`);
+  /**
+   * 🔥 NOUVEAU : Gestionnaire de changement de champ avec support shortcode/open
+   */
+  const handleFieldChange = useCallback((
+    variableName: string, 
+    value: string, 
+    format: TaxonomyFormat, 
+    shortcodeId?: string
+  ) => {
+    console.log(`🔄 Changement field ${variableName}: ${value} (format: ${format}, shortcodeId: ${shortcodeId})`);
+    
+    let newValue: TaxonomyVariableValue;
+    
+    if (format === 'open') {
+      // Format open : stocker la valeur saisie
+      newValue = {
+        value,
+        source: 'manual',
+        format,
+        openValue: value
+      };
+    } else if (shortcodeId) {
+      // Format shortcode : stocker l'ID du shortcode
+      newValue = {
+        value, // Valeur d'affichage temporaire
+        source: 'manual',
+        format,
+        shortcodeId
+      };
+    } else {
+      // Autre format : stocker directement la valeur
+      newValue = {
+        value,
+        source: 'manual',
+        format
+      };
+    }
     
     const newTaxonomyValues = {
       ...taxonomyValues,
-      [variableName]: {
-        value,
-        source: 'manual' as const,
-        format: format as any
-      }
+      [variableName]: newValue
     };
     
     setTaxonomyValues(newTaxonomyValues);
@@ -402,6 +534,10 @@ export function useTaxonomyForm({
     // Données calculées
     hasTaxonomies,
     manualVariables,
-    hasLoadingFields
+    hasLoadingFields,
+    
+    // 🔥 NOUVELLES FONCTIONS DE FORMATAGE
+    getFormattedValue,
+    getFormattedPreview
   };
 }

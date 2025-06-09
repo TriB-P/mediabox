@@ -1,8 +1,8 @@
-// app/components/Tactiques/PlacementFormTaxonomy.tsx
+// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx
 
 'use client';
 
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo } from 'react';
 import TaxonomyFieldRenderer from './TaxonomyFieldRenderer';
 import TaxonomyPreview from './TaxonomyPreview';
 import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
@@ -22,7 +22,7 @@ interface PlacementFormTaxonomyProps {
   // Contexte client
   clientId: string;
   
-  // NOUVEAU: Données héritées
+  // 🔥 NOUVEAU : Données héritées
   campaignData?: Campaign;
   tactiqueData?: Tactique;
   
@@ -42,7 +42,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   loading = false
 }) => {
   
-  // Utiliser le hook avec les données héritées
+  // 🔥 NOUVEAU : Utiliser le hook avec toutes les nouvelles fonctionnalités
   const {
     selectedTaxonomyData,
     taxonomiesLoading,
@@ -58,7 +58,9 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     retryLoadTaxonomies,
     hasTaxonomies,
     manualVariables,
-    hasLoadingFields
+    hasLoadingFields,
+    getFormattedValue, // 🔥 NOUVEAU
+    getFormattedPreview // 🔥 NOUVEAU
   } = useTaxonomyForm({
     formData,
     onChange,
@@ -72,7 +74,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     tactiqueData: tactiqueData?.TC_Label,
     hasTaxonomies,
     parsedVariables: parsedVariables.length,
-    manualVariables: manualVariables.length
+    manualVariables: manualVariables.length,
+    formattedValuesTest: manualVariables.length > 0 ? getFormattedValue(manualVariables[0].variable) : 'N/A'
   });
 
   return (
@@ -101,6 +104,21 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
               </div>
             </div>
           )}
+
+          {/* 🔥 NOUVEAU : Statistiques des variables */}
+          {parsedVariables.length > 0 && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <h4 className="text-sm font-medium text-green-900 mb-2">Analyse des variables :</h4>
+              <div className="text-xs text-green-800 space-y-1">
+                <div>📋 <span className="font-medium">Total variables :</span> {parsedVariables.length}</div>
+                <div>✏️ <span className="font-medium">Manuelles :</span> {manualVariables.length}</div>
+                <div>🔄 <span className="font-medium">Héritées :</span> {parsedVariables.length - manualVariables.length}</div>
+                {hasLoadingFields && (
+                  <div>⏳ <span className="font-medium">Chargement en cours...</span></div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Message d'erreur */}
@@ -125,8 +143,9 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
             highlightState={highlightState}
             campaignData={campaignData}
             tactiqueData={tactiqueData}
-            onFieldChange={handleFieldChange}
+            onFieldChange={handleFieldChange} // 🔥 NOUVEAU : Signature étendue
             onFieldHighlight={handleFieldHighlight}
+            getFormattedValue={getFormattedValue} // 🔥 NOUVEAU
           />
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
@@ -158,6 +177,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           tactiqueData={tactiqueData}
           hasLoadingFields={hasLoadingFields}
           onToggleExpansion={togglePreviewExpansion}
+          getFormattedValue={getFormattedValue} // 🔥 NOUVEAU
+          getFormattedPreview={getFormattedPreview} // 🔥 NOUVEAU
         />
       </div>
     </div>

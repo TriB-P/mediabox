@@ -2,6 +2,10 @@
 
 // Types pour le module de tactiques
 
+// ==================== IMPORTS DES NOUVEAUX TYPES ====================
+
+import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
+
 // ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
 export interface Section {
@@ -91,22 +95,26 @@ export interface Tactique {
 // ==================== NOUVEAUX TYPES POUR LES TAXONOMIES ====================
 
 /**
- * Format des valeurs de variables utilisées dans les taxonomies
+ * 🔥 NOUVEAU : Format des valeurs de variables utilisées dans les taxonomies
+ * Utilise maintenant le type importé de la configuration
  */
-export type TaxonomyVariableFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom';
+export type TaxonomyVariableFormat = TaxonomyFormat;
 
 /**
- * Source d'une valeur de variable
+ * 🔥 NOUVEAU : Source d'une valeur de variable
+ * Utilise maintenant le type importé de la configuration
  */
-export type TaxonomyVariableSource = 'campaign' | 'tactique' | 'manual';
+export type TaxonomyVariableSource = FieldSource;
 
 /**
- * Valeur d'une variable de taxonomie avec ses métadonnées
+ * 🔥 NOUVEAU : Valeur d'une variable de taxonomie avec ses métadonnées étendues
  */
 export interface TaxonomyVariableValue {
   value: string;                          // Valeur finale utilisée
   source: TaxonomyVariableSource;         // Source de la valeur
   format: TaxonomyVariableFormat;         // Format utilisé
+  shortcodeId?: string;                   // 🔥 NOUVEAU : ID du shortcode sélectionné (pour formats shortcode)
+  openValue?: string;                     // 🔥 NOUVEAU : Valeur libre saisie (pour format open)
 }
 
 /**
@@ -126,11 +134,11 @@ export interface GeneratedTaxonomies {
 }
 
 /**
- * Variable parsée depuis une structure de taxonomie
+ * 🔥 NOUVEAU : Variable parsée depuis une structure de taxonomie
  */
 export interface ParsedTaxonomyVariable {
   variable: string;                   // Nom de la variable (ex: "TC_Publisher")
-  format: TaxonomyVariableFormat;     // Format demandé (ex: "code")
+  format: TaxonomyVariableFormat;     // Format demandé (ex: "display_fr")
   source: TaxonomyVariableSource;     // Source déterminée automatiquement
   level: number;                      // Niveau dans la taxonomie (1-4)
   isValid: boolean;                   // Indique si la variable/format est valide
@@ -161,7 +169,7 @@ export interface Placement {
   PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
   PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
   
-  // NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
+  // 🔥 NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
   PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
   PL_Generated_Taxonomies?: GeneratedTaxonomies; // Chaînes taxonomiques générées
   
@@ -278,7 +286,7 @@ export interface TactiqueFormData {
 }
 
 /**
- * Données de formulaire pour les placements avec support des taxonomies
+ * 🔥 NOUVEAU : Données de formulaire pour les placements avec support des taxonomies étendues
  */
 export interface PlacementFormData {
   PL_Label: string;
@@ -292,7 +300,7 @@ export interface PlacementFormData {
   PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
   PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
   
-  // NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
+  // 🔥 NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
   PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
   PL_Generated_Taxonomies?: GeneratedTaxonomies; // Chaînes taxonomiques générées
 }
@@ -328,7 +336,7 @@ export interface TaxonomyProcessingResult {
 }
 
 /**
- * Configuration pour un champ de saisie de taxonomie
+ * 🔥 NOUVEAU : Configuration pour un champ de saisie de taxonomie
  */
 export interface TaxonomyFieldConfig {
   variable: string;                    // Nom de la variable
@@ -338,6 +346,8 @@ export interface TaxonomyFieldConfig {
   hasCustomList: boolean;              // Possède une liste dynamique
   currentValue?: string;               // Valeur actuelle
   placeholder?: string;                // Placeholder à afficher
+  requiresShortcode?: boolean;         // 🔥 NOUVEAU : Nécessite un shortcode
+  allowsUserInput?: boolean;           // 🔥 NOUVEAU : Permet la saisie libre
 }
 
 /**

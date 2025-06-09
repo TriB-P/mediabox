@@ -1,15 +1,16 @@
-// app/components/Tactiques/TaxonomyFieldRenderer.tsx
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx
 
 'use client';
 
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
-import { getSourceColor } from '../../../config/taxonomyFields';
+import { getSourceColor, getFormatColor, formatRequiresShortcode, formatAllowsUserInput } from '../../../config/taxonomyFields';
 import type {
   ParsedTaxonomyVariable,
   TaxonomyValues,
   HighlightState
 } from '../../../types/tactiques';
+import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
 // ==================== TYPES ====================
 
@@ -29,8 +30,9 @@ interface TaxonomyFieldRendererProps {
   highlightState: HighlightState;
   campaignData?: any;
   tactiqueData?: any;
-  onFieldChange: (variableName: string, value: string, format: string) => void;
+  onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
+  getFormattedValue: (variableName: string) => string; // 🔥 NOUVEAU
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -43,27 +45,85 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   campaignData,
   tactiqueData,
   onFieldChange,
-  onFieldHighlight
+  onFieldHighlight,
+  getFormattedValue // 🔥 NOUVEAU
 }) => {
 
   // ==================== FONCTIONS DE RENDU ====================
   
-  const renderVariableInput = (variable: ParsedTaxonomyVariable, fieldState: FieldState) => {
-    const fieldKey = `${variable.variable}_${variable.format}`;
-    const currentValue = taxonomyValues[variable.variable]?.value || '';
+  /**
+   * 🔥 NOUVEAU : Obtient la valeur actuelle pour un champ
+   */
+  const getCurrentFieldValue = (variable: ParsedTaxonomyVariable): { displayValue: string; actualValue: string } => {
+    const taxonomyValue = taxonomyValues[variable.variable];
     
     if (variable.source === 'campaign' || variable.source === 'tactique') {
-      // Champs en lecture seule avec valeurs héritées
+      // Champs hérités : utiliser la valeur formatée
+      const formattedValue = getFormattedValue(variable.variable);
+      return {
+        displayValue: formattedValue,
+        actualValue: formattedValue
+      };
+    }
+    
+    if (!taxonomyValue) {
+      return {
+        displayValue: '',
+        actualValue: ''
+      };
+    }
+    
+    if (variable.format === 'open') {
+      // Format open : utiliser directement la valeur saisie
+      return {
+        displayValue: taxonomyValue.openValue || '',
+        actualValue: taxonomyValue.openValue || ''
+      };
+    }
+    
+    if (taxonomyValue.shortcodeId) {
+      // Format shortcode : afficher le shortcode sélectionné
+      const fieldKey = `${variable.variable}_${variable.format}`;
+      const fieldState = fieldStates[fieldKey];
+      
+      if (fieldState?.options) {
+        const selectedOption = fieldState.options.find(opt => opt.id === taxonomyValue.shortcodeId);
+        if (selectedOption) {
+          return {
+            displayValue: selectedOption.label, // Toujours display_fr pour l'affichage
+            actualValue: taxonomyValue.shortcodeId
+          };
+        }
+      }
+    }
+    
+    return {
+      displayValue: taxonomyValue.value || '',
+      actualValue: taxonomyValue.value || ''
+    };
+  };
+
+  /**
+   * 🔥 NOUVEAU : Rend un champ selon son format et sa source
+   */
+  const renderVariableInput = (variable: ParsedTaxonomyVariable, fieldState: FieldState) => {
+    const fieldKey = `${variable.variable}_${variable.format}`;
+    const { displayValue, actualValue } = getCurrentFieldValue(variable);
+    
+    // 🔥 CHAMPS HÉRITÉS (lecture seule)
+    if (variable.source === 'campaign' || variable.source === 'tactique') {
       const inheritedValue = variable.source === 'campaign' 
         ? (campaignData?.[variable.variable] || '')
         : (tactiqueData?.[variable.variable] || '');
+      
+      const formattedValue = getFormattedValue(variable.variable);
       
       return (
         <div className="relative">
           <FormInput
             id={fieldKey}
             name={fieldKey}
-            value={String(inheritedValue)}
+            value={formattedValue}
             onChange={() => {}} // Lecture seule
             type="text"
             placeholder={`Valeur héritée de ${variable.source}`}
@@ -71,62 +131,105 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           />
           <div className="absolute top-2 right-2">
             <span className="text-xs text-gray-500">
-              {inheritedValue ? '✓ Valeur héritée' : '⚠ Aucune valeur'}
+              {formattedValue ? '✓ Valeur héritée' : '⚠ Aucune valeur'}
             </span>
           </div>
           {/* Overlay pour indiquer visuellement la lecture seule */}
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 cursor-not-allowed rounded pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gray-100 bg-opacity-30 cursor-not-allowed rounded pointer-events-none"></div>
         </div>
       );
     }
     
-    // Champs manuels
-    if (fieldState.hasCustomList && fieldState.options.length > 0) {
+    // 🔥 CHAMPS MANUELS
+    
+    // Format OPEN (saisie libre)
+    if (variable.format === 'open') {
       return (
         <div className="relative">
-          <SmartSelect
+          <FormInput
             id={fieldKey}
             name={fieldKey}
-            value={currentValue}
-            onChange={fieldState.isLoading ? () => {} : (e) => onFieldChange(variable.variable, e.target.value, variable.format)}
-            options={fieldState.options}
-            placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner une valeur..."}
+            value={displayValue}
+            onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.format)}
+            type="text"
+            placeholder={`Saisir ${variable.format}...`}
             label=""
           />
-          {/* Overlay de chargement */}
-          {fieldState.isLoading && (
-            <div className="absolute inset-0 bg-gray-100 bg-opacity-70 cursor-not-allowed rounded pointer-events-none flex items-center justify-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            </div>
-          )}
           {renderFieldStatus(fieldState)}
         </div>
       );
     }
     
-    // Champ de saisie libre
+    // Formats nécessitant un SHORTCODE
+    if (formatRequiresShortcode(variable.format)) {
+      if (fieldState.hasCustomList && fieldState.options.length > 0) {
+        return (
+          <div className="relative">
+            <SmartSelect
+              id={fieldKey}
+              name={fieldKey}
+              value={actualValue} // ID du shortcode sélectionné
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
+                const displayValue = selectedOption?.label || '';
+                
+                onFieldChange(variable.variable, displayValue, variable.format, selectedId);
+              }}
+              options={fieldState.options}
+              placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner une valeur..."}
+              label=""
+            />
+            {/* Overlay de chargement */}
+            {fieldState.isLoading && (
+              <div className="absolute inset-0 bg-gray-100 bg-opacity-70 cursor-not-allowed rounded pointer-events-none flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+            {renderFieldStatus(fieldState)}
+          </div>
+        );
+      } else {
+        // Pas de liste disponible pour ce format shortcode
+        return (
+          <div className="relative">
+            <FormInput
+              id={fieldKey}
+              name={fieldKey}
+              value=""
+              onChange={() => {}}
+              type="text"
+              placeholder="Liste non disponible pour ce format"
+              label=""
+            />
+            <div className="text-xs text-amber-600 mt-1">
+              ⚠ Format {variable.format} nécessite une liste de shortcodes
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    // Fallback : champ de saisie libre
     return (
       <div className="relative">
         <FormInput
           id={fieldKey}
           name={fieldKey}
-          value={currentValue}
-          onChange={fieldState.isLoading ? () => {} : (e) => onFieldChange(variable.variable, e.target.value, variable.format)}
+          value={displayValue}
+          onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.format)}
           type="text"
-          placeholder={fieldState.isLoading ? "Chargement..." : `Saisir ${variable.format}...`}
+          placeholder={`Saisir ${variable.format}...`}
           label=""
         />
-        {/* Overlay de chargement */}
-        {fieldState.isLoading && (
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-70 cursor-not-allowed rounded pointer-events-none flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-          </div>
-        )}
         {renderFieldStatus(fieldState)}
       </div>
     );
   };
 
+  /**
+   * Rend le statut d'un champ (erreur, chargement, etc.)
+   */
   const renderFieldStatus = (fieldState: FieldState) => {
     if (fieldState.error) {
       return (
@@ -135,12 +238,57 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         </div>
       );
     }
-    
-
-    
     return null;
   };
 
+  /**
+   * 🔥 NOUVEAU : Rend la badge de format avec couleur
+   */
+  const renderFormatBadge = (format: TaxonomyFormat) => {
+    const formatColor = getFormatColor(format);
+    const formatLabel = (() => {
+      switch (format) {
+        case 'code': return 'Code';
+        case 'display_fr': return 'FR';
+        case 'display_en': return 'EN';
+        case 'utm': return 'UTM';
+        case 'custom_utm': return 'UTM+';
+        case 'custom_code': return 'Code+';
+        case 'open': return 'Libre';
+        default: return format;
+      }
+    })();
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${formatColor.bg} ${formatColor.text}`}>
+        {formatLabel}
+      </span>
+    );
+  };
+
+  /**
+   * 🔥 NOUVEAU : Rend une info sur le type de champ
+   */
+  const renderFieldTypeInfo = (variable: ParsedTaxonomyVariable) => {
+    if (variable.format === 'open') {
+      return (
+        <div className="text-xs text-gray-500 flex items-center">
+          <span>✏️ Saisie libre</span>
+        </div>
+      );
+    } else if (formatRequiresShortcode(variable.format)) {
+      return (
+        <div className="text-xs text-gray-500 flex items-center">
+          <span>📋 Sélection depuis liste</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  /**
+   * Rend les champs de variables
+   */
   const renderVariableFields = () => {
     if (manualVariables.length === 0) {
       return (
@@ -185,6 +333,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     );
   };
 
+  /**
+   * 🔥 NOUVEAU : Rend une carte de variable avec les nouvelles informations
+   */
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = `${variable.variable}_${variable.format}`;
     const fieldState = fieldStates[fieldKey];
@@ -205,13 +356,10 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            
             <span className="text-sm font-medium text-gray-900">
               {variable.variable}
             </span>
-            <span className="text-xs text-gray-500">
-              ({variable.format})
-            </span>
+            {renderFormatBadge(variable.format)}
           </div>
           
           <div className="flex items-center space-x-2">
@@ -220,8 +368,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
                 ⚠ {variable.errorMessage}
               </span>
             )}
-            
- 
+            {renderFieldTypeInfo(variable)}
           </div>
         </div>
         
@@ -234,7 +381,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   
   return (
     <div>
-      
       {renderVariableFields()}
     </div>
   );
