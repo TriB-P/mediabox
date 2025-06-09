@@ -9,14 +9,16 @@ import PlacementFormInfo from './PlacementFormInfo';
 import PlacementFormTaxonomy from './PlacementFormTaxonomy';
 import { TooltipBanner } from './TactiqueFormComponents';
 import { DocumentTextIcon, PhotoIcon, ChartBarIcon, CurrencyDollarIcon, TagIcon } from '@heroicons/react/24/outline';
-import { Placement, PlacementFormData } from '../../types/tactiques';
+import { Placement, PlacementFormData, Tactique } from '../../types/tactiques';
 import { useClient } from '../../contexts/ClientContext';
+import { useCampaignSelection } from '../../hooks/useCampaignSelection';
 
 interface PlacementDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   placement?: Placement | null;
   tactiqueId: string;
+  tactiqueData?: Tactique; // NOUVEAU: Données de la tactique parente
   onSave: (placementData: PlacementFormData) => Promise<void>;
 }
 
@@ -25,9 +27,13 @@ export default function PlacementDrawer({
   onClose,
   placement,
   tactiqueId,
+  tactiqueData, // NOUVEAU: Reçu en props
   onSave
 }: PlacementDrawerProps) {
   const { selectedClient } = useClient();
+  
+  // NOUVEAU: Récupérer les données de campagne
+  const { selectedCampaign, selectedVersion } = useCampaignSelection();
   
   // État pour les onglets
   const [activeTab, setActiveTab] = useState('infos');
@@ -92,6 +98,13 @@ export default function PlacementDrawer({
     onClose();
   };
   
+  // NOUVEAU: Debug des données héritées
+  console.log('🔍 Données héritées dans PlacementDrawer:', {
+    campaign: selectedCampaign,
+    tactique: tactiqueData,
+    version: selectedVersion
+  });
+  
   // Rendu du contenu selon l'onglet actif
   const renderTabContent = () => {
     switch (activeTab) {
@@ -136,9 +149,9 @@ export default function PlacementDrawer({
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
-            // TODO: Ajouter campaignData et tactiqueData quand disponibles dans le contexte
-            // campaignData={campaignData}
-            // tactiqueData={tactiqueData}
+            // NOUVEAU: Transmettre les données héritées (convertir null en undefined)
+            campaignData={selectedCampaign || undefined}
+            tactiqueData={tactiqueData || undefined}
           />
         );
       

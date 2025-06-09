@@ -296,6 +296,20 @@ export default function TactiquesHierarchyView({
       tactiques: tactiquesWithPlacements
     };
   });
+  // 🔥 NOUVELLE FONCTION : Trouver la tactique par son ID
+const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
+  for (const section of sections) {
+    const tactique = section.tactiques.find(t => t.id === tactiqueId);
+    if (tactique) return tactique;
+  }
+  return undefined;
+};
+
+// 🔥 RÉCUPÉRER LES DONNÉES DE LA TACTIQUE pour le PlacementDrawer
+const currentTactiqueData = placementDrawer.tactiqueId ? 
+  findTactiqueById(placementDrawer.tactiqueId) : 
+  undefined;
+
 
   return (
     <>
@@ -587,13 +601,14 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveTactique}
       />
       
-      <PlacementDrawer
-        isOpen={placementDrawer.isOpen}
-        onClose={closePlacementDrawer}
-        placement={placementDrawer.placement}
-        tactiqueId={placementDrawer.tactiqueId}
-        onSave={handleSavePlacement}
-      />
+    <PlacementDrawer
+  isOpen={placementDrawer.isOpen}
+  onClose={closePlacementDrawer}
+  placement={placementDrawer.placement}
+  tactiqueId={placementDrawer.tactiqueId}
+  tactiqueData={currentTactiqueData} // 🔥 NOUVEAU : Transmettre les données de tactique
+  onSave={handleSavePlacement}
+/>
       
       <CreatifDrawer
         isOpen={creatifDrawer.isOpen}
