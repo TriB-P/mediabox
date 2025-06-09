@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - VERSION CORRIGÉE
 
 'use client';
 
@@ -15,11 +15,9 @@ import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 // ==================== TYPES ====================
 
 interface FieldState {
-  config: any;
   options: Array<{ id: string; label: string; code?: string }>;
   hasCustomList: boolean;
   isLoading: boolean;
-  isLoaded: boolean;
   error?: string;
 }
 
@@ -32,7 +30,7 @@ interface TaxonomyFieldRendererProps {
   tactiqueData?: any;
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
-  getFormattedValue: (variableName: string) => string; // 🔥 NOUVEAU
+  getFormattedValue: (variableName: string) => string; // FONCTION SYNCHRONE
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -46,19 +44,19 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   tactiqueData,
   onFieldChange,
   onFieldHighlight,
-  getFormattedValue // 🔥 NOUVEAU
+  getFormattedValue // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
 }) => {
 
   // ==================== FONCTIONS DE RENDU ====================
   
   /**
-   * 🔥 NOUVEAU : Obtient la valeur actuelle pour un champ
+   * Obtient la valeur actuelle pour un champ - VERSION SIMPLIFIÉE
    */
   const getCurrentFieldValue = (variable: ParsedTaxonomyVariable): { displayValue: string; actualValue: string } => {
     const taxonomyValue = taxonomyValues[variable.variable];
     
     if (variable.source === 'campaign' || variable.source === 'tactique') {
-      // Champs hérités : utiliser la valeur formatée
+      // Champs hérités : utiliser la valeur formatée SYNCHRONE
       const formattedValue = getFormattedValue(variable.variable);
       return {
         displayValue: formattedValue,
@@ -90,7 +88,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         const selectedOption = fieldState.options.find(opt => opt.id === taxonomyValue.shortcodeId);
         if (selectedOption) {
           return {
-            displayValue: selectedOption.label, // Toujours display_fr pour l'affichage
+            displayValue: selectedOption.label,
             actualValue: taxonomyValue.shortcodeId
           };
         }
@@ -104,19 +102,15 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * 🔥 NOUVEAU : Rend un champ selon son format et sa source
+   * Rend un champ selon son format et sa source - VERSION SIMPLIFIÉE
    */
   const renderVariableInput = (variable: ParsedTaxonomyVariable, fieldState: FieldState) => {
     const fieldKey = `${variable.variable}_${variable.format}`;
     const { displayValue, actualValue } = getCurrentFieldValue(variable);
     
-    // 🔥 CHAMPS HÉRITÉS (lecture seule)
+    // CHAMPS HÉRITÉS (lecture seule)
     if (variable.source === 'campaign' || variable.source === 'tactique') {
-      const inheritedValue = variable.source === 'campaign' 
-        ? (campaignData?.[variable.variable] || '')
-        : (tactiqueData?.[variable.variable] || '');
-      
-      const formattedValue = getFormattedValue(variable.variable);
+      const formattedValue = getFormattedValue(variable.variable); // APPEL SYNCHRONE
       
       return (
         <div className="relative">
@@ -140,7 +134,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       );
     }
     
-    // 🔥 CHAMPS MANUELS
+    // CHAMPS MANUELS
     
     // Format OPEN (saisie libre)
     if (variable.format === 'open') {
@@ -242,7 +236,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * 🔥 NOUVEAU : Rend la badge de format avec couleur
+   * Rend la badge de format avec couleur
    */
   const renderFormatBadge = (format: TaxonomyFormat) => {
     const formatColor = getFormatColor(format);
@@ -266,25 +260,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     );
   };
 
-  /**
-   * 🔥 NOUVEAU : Rend une info sur le type de champ
-   */
-  const renderFieldTypeInfo = (variable: ParsedTaxonomyVariable) => {
-    if (variable.format === 'open') {
-      return (
-        <div className="text-xs text-gray-500 flex items-center">
-          <span>✏️ Saisie libre</span>
-        </div>
-      );
-    } else if (formatRequiresShortcode(variable.format)) {
-      return (
-        <div className="text-xs text-gray-500 flex items-center">
-          <span>📋 Sélection depuis liste</span>
-        </div>
-      );
-    }
-    return null;
-  };
+
 
   /**
    * Rend les champs de variables
@@ -334,7 +310,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * 🔥 NOUVEAU : Rend une carte de variable avec les nouvelles informations
+   * Rend une carte de variable avec les informations
    */
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = `${variable.variable}_${variable.format}`;
@@ -365,10 +341,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           <div className="flex items-center space-x-2">
             {!variable.isValid && (
               <span className="text-xs text-red-600">
-                ⚠ {variable.errorMessage}
+                ⚠ Variable invalide
               </span>
             )}
-            {renderFieldTypeInfo(variable)}
           </div>
         </div>
         

@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx
+// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx - VERSION ADAPTÉE
 
 'use client';
 
@@ -22,7 +22,7 @@ interface PlacementFormTaxonomyProps {
   // Contexte client
   clientId: string;
   
-  // 🔥 NOUVEAU : Données héritées
+  // Données héritées
   campaignData?: Campaign;
   tactiqueData?: Tactique;
   
@@ -42,7 +42,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   loading = false
 }) => {
   
-  // 🔥 NOUVEAU : Utiliser le hook avec toutes les nouvelles fonctionnalités
+  // Utiliser le hook corrigé avec toutes les nouvelles fonctionnalités
   const {
     selectedTaxonomyData,
     taxonomiesLoading,
@@ -59,8 +59,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     hasTaxonomies,
     manualVariables,
     hasLoadingFields,
-    getFormattedValue, // 🔥 NOUVEAU
-    getFormattedPreview // 🔥 NOUVEAU
+    getFormattedValue, // FONCTION SYNCHRONE
+    getFormattedPreview // FONCTION SYNCHRONE
   } = useTaxonomyForm({
     formData,
     onChange,
@@ -75,52 +75,15 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     hasTaxonomies,
     parsedVariables: parsedVariables.length,
     manualVariables: manualVariables.length,
-    formattedValuesTest: manualVariables.length > 0 ? getFormattedValue(manualVariables[0].variable) : 'N/A'
+    taxonomiesLoading,
+    hasLoadingFields
   });
 
   return (
     <div className="flex h-full">
       {/* Colonne de gauche : Configuration des variables */}
-      <div className="flex-1 p-8 space-y-6 overflow-y-auto">
-        <div className="border-b border-gray-200 pb-4">
-          <h3 className="text-xl font-semibold text-gray-900">
-            Configuration des variables
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Configurez les valeurs des variables identifiées dans les taxonomies
-          </p>
-          
-          {/* Debug des données héritées */}
-          {(campaignData || tactiqueData) && (
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Données héritées détectées :</h4>
-              <div className="text-xs text-blue-800 space-y-1">
-                {campaignData && (
-                  <div>📊 <span className="font-medium">Campagne :</span> {campaignData.name}</div>
-                )}
-                {tactiqueData && (
-                  <div>🎯 <span className="font-medium">Tactique :</span> {tactiqueData.TC_Label}</div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 🔥 NOUVEAU : Statistiques des variables */}
-          {parsedVariables.length > 0 && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <h4 className="text-sm font-medium text-green-900 mb-2">Analyse des variables :</h4>
-              <div className="text-xs text-green-800 space-y-1">
-                <div>📋 <span className="font-medium">Total variables :</span> {parsedVariables.length}</div>
-                <div>✏️ <span className="font-medium">Manuelles :</span> {manualVariables.length}</div>
-                <div>🔄 <span className="font-medium">Héritées :</span> {parsedVariables.length - manualVariables.length}</div>
-                {hasLoadingFields && (
-                  <div>⏳ <span className="font-medium">Chargement en cours...</span></div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
+      <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
+        
         {/* Message d'erreur */}
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -143,9 +106,9 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
             highlightState={highlightState}
             campaignData={campaignData}
             tactiqueData={tactiqueData}
-            onFieldChange={handleFieldChange} // 🔥 NOUVEAU : Signature étendue
+            onFieldChange={handleFieldChange}
             onFieldHighlight={handleFieldHighlight}
-            getFormattedValue={getFormattedValue} // 🔥 NOUVEAU
+            getFormattedValue={getFormattedValue}
           />
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
@@ -166,7 +129,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
       </div>
 
       {/* Colonne de droite : Aperçu */}
-      <div className="w-96 bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
+      <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
         <TaxonomyPreview
           parsedVariables={parsedVariables}
           selectedTaxonomyData={selectedTaxonomyData}
@@ -177,8 +140,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           tactiqueData={tactiqueData}
           hasLoadingFields={hasLoadingFields}
           onToggleExpansion={togglePreviewExpansion}
-          getFormattedValue={getFormattedValue} // 🔥 NOUVEAU
-          getFormattedPreview={getFormattedPreview} // 🔥 NOUVEAU
+          getFormattedValue={getFormattedValue} // NOUVEAU : Fonction synchrone
+          getFormattedPreview={getFormattedPreview} // NOUVEAU : Fonction synchrone
         />
       </div>
     </div>

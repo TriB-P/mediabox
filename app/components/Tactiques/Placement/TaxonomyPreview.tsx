@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/TaxonomyPreview.tsx
+// app/components/Tactiques/Placement/TaxonomyPreview.tsx - VERSION CORRIGÉE
 
 'use client';
 
@@ -13,11 +13,9 @@ import type {
 // ==================== TYPES ====================
 
 interface FieldState {
-  config: any;
   options: Array<{ id: string; label: string; code?: string }>;
   hasCustomList: boolean;
   isLoading: boolean;
-  isLoaded: boolean;
   error?: string;
 }
 
@@ -39,8 +37,8 @@ interface TaxonomyPreviewProps {
   tactiqueData?: any;
   hasLoadingFields: boolean;
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
-  getFormattedValue: (variableName: string) => string; // 🔥 NOUVEAU
-  getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string; // 🔥 NOUVEAU
+  getFormattedValue: (variableName: string) => string; // FONCTION SYNCHRONE
+  getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string; // FONCTION SYNCHRONE
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -55,14 +53,14 @@ export default function TaxonomyPreview({
   tactiqueData,
   hasLoadingFields,
   onToggleExpansion,
-  getFormattedValue, // 🔥 NOUVEAU
-  getFormattedPreview // 🔥 NOUVEAU
+  getFormattedValue, // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
+  getFormattedPreview // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
 }: TaxonomyPreviewProps) {
 
   // ==================== FONCTIONS UTILITAIRES ====================
   
   /**
-   * 🔥 NOUVEAU : Détermine la source d'une variable pour la coloration
+   * Détermine la source d'une variable pour la coloration
    */
   const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'manual' => {
     const variable = parsedVariables.find(v => v.variable === variableName);
@@ -70,7 +68,7 @@ export default function TaxonomyPreview({
   };
 
   /**
-   * 🔥 NOUVEAU : Détermine le format d'une variable pour la coloration
+   * Détermine le format d'une variable pour la coloration
    */
   const getVariableFormat = (variableName: string): string => {
     const variable = parsedVariables.find(v => v.variable === variableName);
@@ -78,17 +76,23 @@ export default function TaxonomyPreview({
   };
 
   /**
-   * 🔥 NOUVEAU : Vérifie si une variable a une valeur définie
+   * Vérifie si une variable a une valeur définie - VERSION SYNCHRONE
    */
   const hasVariableValue = (variableName: string): boolean => {
-    const formattedValue = getFormattedValue(variableName);
-    return Boolean(formattedValue && formattedValue.trim() !== '' && !formattedValue.startsWith('['));
+    const formattedValue = getFormattedValue(variableName); // APPEL SYNCHRONE
+    
+    // 🔥 CORRECTION : Une variable a une valeur si elle n'est pas vide ET ne commence pas par [
+    return Boolean(
+      formattedValue && 
+      formattedValue.trim() !== '' && 
+      !formattedValue.startsWith('[')
+    );
   };
 
   // ==================== FONCTIONS DE RENDU ====================
   
   /**
-   * 🔥 NOUVEAU : Rend un niveau de taxonomie avec formatage intelligent
+   * Rend un niveau de taxonomie avec formatage intelligent - VERSION SYNCHRONE
    */
   const renderLevelWithVariables = (levelStructure: string) => {
     // Utiliser une regex pour trouver et remplacer toutes les variables [VARIABLE:format]
@@ -96,21 +100,22 @@ export default function TaxonomyPreview({
     
     // Remplacer chaque variable par sa valeur résolue avec le bon style
     const resolvedStructure = levelStructure.replace(VARIABLE_REGEX, (match, variableName, format) => {
-      const formattedValue = getFormattedValue(variableName);
+      const formattedValue = getFormattedValue(variableName); // APPEL SYNCHRONE
       const source = getVariableSource(variableName);
-      const hasValue = hasVariableValue(variableName);
+      const hasValue = hasVariableValue(variableName); // APPEL SYNCHRONE
       
+      // 🔥 NOUVEAU : Toujours utiliser les couleurs de source et format
+      const sourceColor = getSourceColor(source);
+      const formatColor = getFormatColor(format as any);
+
       if (hasValue) {
-        // Variable avec valeur : utiliser les couleurs de source et format
-        const sourceColor = getSourceColor(source);
-        const formatColor = getFormatColor(format as any);
-        
-        return `<span class="inline-flex items-center px-2 py-1 mr-1 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border ${formatColor.border}" title="Source: ${source} | Format: ${format} | Valeur: ${formattedValue}">${formattedValue}</span>`;
+        // Variable avec valeur : contour normal
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text}" title="${variableName} |  ${format}">${formattedValue}</span>`;
       } else {
-        // Variable sans valeur : afficher le placeholder en rouge
-        return `<span class="inline-flex items-center px-2 py-1 mr-1 text-xs rounded-md bg-red-100 text-red-800 border border-red-300" title="Valeur manquante | Variable: ${variableName} | Format: ${format}">${match}</span>`;
+        // Variable sans valeur : même couleurs mais contour rouge épais + icône
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border-2 border-red-400 " title="⚠ ${variableName} |  ${format}">${match}</span>`;
       }
-    });
+          });
     
     // Retourner un élément dangerouslySetInnerHTML pour le rendu HTML
     return (
@@ -122,7 +127,7 @@ export default function TaxonomyPreview({
   };
 
   /**
-   * 🔥 NOUVEAU : Rend la structure complète d'une taxonomie avec aperçu formaté
+   * Rend la structure complète d'une taxonomie avec aperçu formaté - VERSION SYNCHRONE
    */
   const renderTaxonomyStructureWithPreview = (taxonomy: Taxonomy, taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
     const levels = [
@@ -148,27 +153,13 @@ export default function TaxonomyPreview({
       }
     ].filter(level => level.name); // Garder seulement les niveaux définis
 
-    // 🔥 NOUVEAU : Aperçu formaté complet
+    // Aperçu formaté complet - APPEL SYNCHRONE
     const fullPreview = getFormattedPreview(taxonomyType);
     
     return (
       <div className="space-y-4">
-        {/* Aperçu formaté complet */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <div className="text-sm font-medium text-green-900 mb-2 flex items-center">
-            <span className="mr-2">🎯</span>
-            Aperçu final formaté
-          </div>
-          <div className="font-mono text-sm text-green-800 bg-white p-2 rounded border">
-            {fullPreview || (
-              <span className="text-gray-500 italic">Aucune variable configurée</span>
-            )}
-          </div>
-        </div>
 
         {/* Détail par niveau */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <div className="text-sm font-medium text-gray-700 mb-3">Détail par niveau :</div>
           <div className="space-y-3">
             {levels.map((level) => (
               <div key={level.level} className="border-l-2 border-gray-300 pl-3">
@@ -181,13 +172,12 @@ export default function TaxonomyPreview({
               </div>
             ))}
           </div>
-        </div>
       </div>
     );
   };
 
   /**
-   * 🔥 NOUVEAU : Rend une carte de taxonomie avec les nouvelles fonctionnalités
+   * Rend une carte de taxonomie avec les nouvelles fonctionnalités - VERSION SYNCHRONE
    */
   const renderTaxonomyCard = (
     type: 'tags' | 'platform' | 'mediaocean',
@@ -195,9 +185,10 @@ export default function TaxonomyPreview({
     colorClass: string,
     label: string
   ) => {
-    const fullPreview = getFormattedPreview(type);
-    const hasValidPreview = fullPreview && !fullPreview.includes('[');
+    const fullPreview = getFormattedPreview(type); // APPEL SYNCHRONE
     
+    const hasValidPreview = fullPreview 
+
     return (
       <div key={type} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <button
@@ -212,16 +203,7 @@ export default function TaxonomyPreview({
             <span className="font-medium">
               {label}
             </span>
-            {/* 🔥 NOUVEAU : Indicateur de statut */}
-            {hasValidPreview ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                ✓ Configuré
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                ⚠ En attente
-              </span>
-            )}
+
           </div>
           <div className="flex items-center space-x-2">
             {hasLoadingFields && (
@@ -233,15 +215,7 @@ export default function TaxonomyPreview({
           </div>
         </button>
         
-        {/* 🔥 NOUVEAU : Aperçu condensé quand fermé */}
-        {!expandedPreviews[type] && hasValidPreview && (
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-            <div className="text-xs text-gray-600 mb-1">Aperçu :</div>
-            <div className="font-mono text-xs text-gray-800 truncate">
-              {fullPreview}
-            </div>
-          </div>
-        )}
+
         
         {expandedPreviews[type] && (
           <div className="p-4">
@@ -282,31 +256,19 @@ export default function TaxonomyPreview({
         )}
       </div>
       
-      {/* 🔥 NOUVELLE : Légende enrichie des couleurs */}
+      {/* Légende enrichie des couleurs */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-        <div className="text-xs font-medium text-gray-700 mb-2">Légende :</div>
         <div className="space-y-2">
           {/* Sources */}
           <div>
-            <div className="text-xs text-gray-600 mb-1">Sources des données :</div>
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Campagne</span>
               <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Tactique</span>
               <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">Placement</span>
-              <span className="px-2 py-1 bg-red-100 text-red-800 rounded">Manquant</span>
+              <span className="px-2 py-1 bg-white-100 text-black-800 border-2 border-red-400 rounded">Manquant</span>
             </div>
           </div>
-          {/* Formats */}
-          <div>
-            <div className="text-xs text-gray-600 mb-1">Formats de données :</div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded border border-purple-300">Code</span>
-              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-300">FR</span>
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-300">EN</span>
-              <span className="px-2 py-1 bg-cyan-100 text-cyan-800 rounded border border-cyan-300">UTM</span>
-              <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded border border-amber-300">Libre</span>
-            </div>
-          </div>
+
         </div>
       </div>
       

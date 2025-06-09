@@ -25,7 +25,10 @@ const DYNAMIC_VARIABLES = [
   'TC_Billing_ID',
   'TC_Targeting',
   'TC_Media_Type',
-  'TAX_Product'
+  'TAX_Product',
+  'CA_Client',
+  'CA_Division',
+  'CA_Year'
 ];
 
 // Formats disponibles pour les variables

@@ -64,6 +64,7 @@ export const TAXONOMY_FIELD_SOURCES: FieldSourceConfig = {
   // Champs provenant de la campagne (mise à jour automatique)
   campaign: [
     'CA_Campaign_Identifier',
+    'CA_Client',
     'CA_Division',
     'CA_Quarter', 
     'CA_Year',
@@ -180,19 +181,19 @@ export const SOURCE_COLORS = {
   campaign: {
     bg: 'bg-blue-100',
     text: 'text-blue-800',
-    border: 'border-blue-300',
+    border: 'bg-blue-100',
     hex: '#3B82F6'
   },
   tactique: {
     bg: 'bg-green-100', 
     text: 'text-green-800',
-    border: 'border-green-300',
+    border: 'bg-green-100', 
     hex: '#10B981'
   },
   manual: {
     bg: 'bg-orange-100',
     text: 'text-orange-800', 
-    border: 'border-orange-300',
+    border: 'bg-orange-100',
     hex: '#F59E0B'
   },
   empty: {

@@ -62,10 +62,7 @@ export default function PlacementDrawer({
   // Définition des onglets
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
-    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon },
-    { id: 'formats', name: 'Formats', icon: PhotoIcon },
-    { id: 'kpis', name: 'KPIs', icon: ChartBarIcon },
-    { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
+    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon }
   ];
   
   // Gestionnaire de changement des champs
@@ -155,30 +152,7 @@ export default function PlacementDrawer({
           />
         );
       
-      case 'formats':
-        return (
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Formats</h3>
-            <p className="text-gray-500">Cette section sera implémentée ultérieurement.</p>
-          </div>
-        );
-        
-      case 'kpis':
-        return (
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">KPIs</h3>
-            <p className="text-gray-500">Cette section sera implémentée ultérieurement.</p>
-          </div>
-        );
-        
-      case 'budget':
-        return (
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Budget</h3>
-            <p className="text-gray-500">Cette section sera implémentée ultérieurement.</p>
-          </div>
-        );
-        
+      
       default:
         return null;
     }
