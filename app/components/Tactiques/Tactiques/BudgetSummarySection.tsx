@@ -8,7 +8,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
 // 🔥 CORRECTION: Importer ConvergenceInfo depuis budgetCalculations au lieu de le redéfinir
-import type { ConvergenceInfo } from '../../lib/budgetCalculations';
+import type { ConvergenceInfo } from '../../../lib/budgetCalculations';
 
 // ==================== TYPES ====================
 

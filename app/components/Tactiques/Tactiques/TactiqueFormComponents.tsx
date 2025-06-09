@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
-import SearchableSelect from './SearchableSelect';
+import SearchableSelect from '../SearchableSelect';
 
 // ==================== TYPES ====================
 

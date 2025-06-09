@@ -11,8 +11,8 @@ import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 
 // Import du hook
-import { useBudgetCalculations } from '../../hooks/useBudgetCalculations';
-import { ClientFee } from '../../lib/budgetService';
+import { useBudgetCalculations } from '../../../hooks/useBudgetCalculations';
+import { ClientFee } from '../../../lib/budgetService';
 
 // ==================== TYPES ====================
 

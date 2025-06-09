@@ -16,7 +16,7 @@ import {
   HelpIcon, 
   createLabelWithHelp,
   FormSection 
-} from '../Tactiques/TactiqueFormComponents';
+} from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { 
   Breakdown, 
   BreakdownFormData, 

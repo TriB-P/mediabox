@@ -3,8 +3,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import FormDrawer from './FormDrawer';
-import FormTabs, { FormTab } from './FormTabs';
+import FormDrawer from '../FormDrawer';
+import FormTabs, { FormTab } from '../FormTabs';
 import TactiqueFormInfo from './TactiqueFormInfo';
 import TactiqueFormStrategie from './TactiqueFormStrategie';
 import TactiqueFormKPI from './TactiqueFormKPI';
@@ -20,10 +20,10 @@ import {
   CogIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { Tactique, TactiqueFormData } from '../../types/tactiques';
-import { Breakdown } from '../../types/breakdown';
-import { useClient } from '../../contexts/ClientContext';
-import { useCampaignSelection } from '../../hooks/useCampaignSelection';
+import { Tactique, TactiqueFormData } from '../../../types/tactiques';
+import { Breakdown } from '../../../types/breakdown';
+import { useClient } from '../../../contexts/ClientContext';
+import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import {
   getDynamicList,
   getClientCustomDimensions,
@@ -36,9 +36,9 @@ import {
   ListItem,
   ClientCustomDimensions,
   CampaignBucket,
-} from '../../lib/tactiqueListService';
-import { getBreakdowns } from '../../lib/breakdownService';
-import { usePartners } from '../../contexts/PartnerContext';
+} from '../../../lib/tactiqueListService';
+import { getBreakdowns } from '../../../lib/breakdownService';
+import { usePartners } from '../../../contexts/PartnerContext';
 
 // ==================== TYPES SIMPLIFIÉS ====================
 

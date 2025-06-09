@@ -3,12 +3,12 @@
 'use client';
 
 import React from 'react';
-import { getSourceColor } from '../../config/taxonomyFields';
-import { Taxonomy } from '../../types/taxonomy';
+import { getSourceColor } from '../../../config/taxonomyFields';
+import { Taxonomy } from '../../../types/taxonomy';
 import type {
   ParsedTaxonomyVariable,
   TaxonomyValues
-} from '../../types/tactiques';
+} from '../../../types/tactiques';
 
 // ==================== TYPES ====================
 

@@ -7,9 +7,9 @@ import {
   FormInput, 
   SmartSelect, 
   createLabelWithHelp 
-} from './TactiqueFormComponents';
-import { getClientTaxonomies } from '../../lib/taxonomyService';
-import { Taxonomy } from '../../types/taxonomy';
+} from '../Tactiques/TactiqueFormComponents';
+import { getClientTaxonomies } from '../../../lib/taxonomyService';
+import { Taxonomy } from '../../../types/taxonomy';
 
 // ==================== TYPES ====================
 

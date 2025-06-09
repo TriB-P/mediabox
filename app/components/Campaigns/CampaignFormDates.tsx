@@ -8,7 +8,7 @@ import {
   FormTextarea,
   createLabelWithHelp,
   FormSection 
-} from '../Tactiques/TactiqueFormComponents';
+} from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
 
 // ==================== TYPES ====================

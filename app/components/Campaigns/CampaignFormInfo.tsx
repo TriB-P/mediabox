@@ -8,7 +8,7 @@ import {
   SmartSelect, 
   createLabelWithHelp,
   FormSection 
-} from '../Tactiques/TactiqueFormComponents';
+} from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
 import { ShortcodeItem } from '../../lib/listService';
 

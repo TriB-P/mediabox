@@ -16,7 +16,7 @@ import { Campaign, CampaignFormData } from '../../types/campaign';
 import { BreakdownFormData } from '../../types/breakdown';
 import { useClient } from '../../contexts/ClientContext';
 import FormTabs, { FormTab } from '../Tactiques/FormTabs';
-import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
+import { TooltipBanner } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import CampaignFormInfo from './CampaignFormInfo';
 import CampaignFormDates from './CampaignFormDates';
 import CampaignFormBudget from './CampaignFormBudget';

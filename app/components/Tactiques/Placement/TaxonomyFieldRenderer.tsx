@@ -3,13 +3,13 @@
 'use client';
 
 import React from 'react';
-import { FormInput, SmartSelect } from './TactiqueFormComponents';
-import { getSourceColor } from '../../config/taxonomyFields';
+import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
+import { getSourceColor } from '../../../config/taxonomyFields';
 import type {
   ParsedTaxonomyVariable,
   TaxonomyValues,
   HighlightState
-} from '../../types/tactiques';
+} from '../../../types/tactiques';
 
 // ==================== TYPES ====================
 

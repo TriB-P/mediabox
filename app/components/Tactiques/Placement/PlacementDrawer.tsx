@@ -3,15 +3,15 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import FormDrawer from './FormDrawer';
-import FormTabs, { FormTab } from './FormTabs';
+import FormDrawer from '../FormDrawer';
+import FormTabs, { FormTab } from '../FormTabs';
 import PlacementFormInfo from './PlacementFormInfo';
 import PlacementFormTaxonomy from './PlacementFormTaxonomy';
-import { TooltipBanner } from './TactiqueFormComponents';
+import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
 import { DocumentTextIcon, PhotoIcon, ChartBarIcon, CurrencyDollarIcon, TagIcon } from '@heroicons/react/24/outline';
-import { Placement, PlacementFormData, Tactique } from '../../types/tactiques';
-import { useClient } from '../../contexts/ClientContext';
-import { useCampaignSelection } from '../../hooks/useCampaignSelection';
+import { Placement, PlacementFormData, Tactique } from '../../../types/tactiques';
+import { useClient } from '../../../contexts/ClientContext';
+import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 
 interface PlacementDrawerProps {
   isOpen: boolean;

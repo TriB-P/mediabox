@@ -21,8 +21,8 @@ import {
   PlacementFormData,
   CreatifFormData
 } from '../../types/tactiques';
-import TactiqueDrawer from './TactiqueDrawer';
-import PlacementDrawer from './PlacementDrawer';
+import TactiqueDrawer from './Tactiques/TactiqueDrawer';
+import PlacementDrawer from './Placement/PlacementDrawer';
 import CreatifDrawer from './CreatifDrawer';
 
 interface TactiquesHierarchyViewProps {

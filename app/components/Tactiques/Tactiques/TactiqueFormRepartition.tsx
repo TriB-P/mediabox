@@ -8,7 +8,7 @@ import {
   createLabelWithHelp,
   FormSection 
 } from './TactiqueFormComponents';
-import { Breakdown } from '../../types/breakdown';
+import { Breakdown } from '../../../types/breakdown';
 import { CalendarIcon, ClockIcon, Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 // ==================== TYPES ====================

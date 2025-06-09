@@ -5,9 +5,9 @@
 import React, { memo, useState, useEffect } from 'react';
 import TaxonomyFieldRenderer from './TaxonomyFieldRenderer';
 import TaxonomyPreview from './TaxonomyPreview';
-import { useTaxonomyForm } from '../../hooks/useTaxonomyForm';
-import { PlacementFormData, Tactique } from '../../types/tactiques';
-import { Campaign } from '../../types/campaign';
+import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
+import { PlacementFormData, Tactique } from '../../../types/tactiques';
+import { Campaign } from '../../../types/campaign';
 
 // ==================== TYPES ====================
 

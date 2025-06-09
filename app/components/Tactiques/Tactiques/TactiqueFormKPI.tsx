@@ -6,7 +6,7 @@ import {
   SelectionButtons,
   createLabelWithHelp 
 } from './TactiqueFormComponents';
-import SearchableSelect from './SearchableSelect';
+import SearchableSelect from '../SearchableSelect';
 
 // ==================== TYPES ====================
 
