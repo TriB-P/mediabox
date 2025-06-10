@@ -130,6 +130,7 @@ export function isFormatAllowed(variableName: string, format: TaxonomyFormat): b
   return config ? config.allowedFormats.includes(format) : false;
 }
 
+// 🔥 NOUVELLE FONCTION AJOUTÉE
 export function getVariableConfig(variableName: string): VariableConfig | null {
   return TAXONOMY_VARIABLE_CONFIG[variableName] || null;
 }
@@ -178,7 +179,7 @@ export function getCompatibleFormats(source: FieldSource): FormatOption[] {
 
 // ==================== CONSTANTES (RÉINTÉGRÉES) ====================
 
-export const MAX_TAXONOMY_LEVELS = 6; // Augmenté pour correspondre à TaxonomyForm
+export const MAX_TAXONOMY_LEVELS = 6;
 
 export const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
 

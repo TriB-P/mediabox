@@ -5,6 +5,7 @@
 // ==================== IMPORTS DES NOUVEAUX TYPES ====================
 
 import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
+export type { TaxonomyFormat, FieldSource }; 
 
 // ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
