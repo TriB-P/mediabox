@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { getSourceColor } from '../../../config/taxonomyFields';
 import { Taxonomy } from '../../../types/taxonomy';
 import type {
@@ -11,10 +11,11 @@ import type {
   HighlightState
 } from '../../../types/tactiques';
 import { TAXONOMY_VARIABLE_REGEX } from '../../../config/taxonomyFields';
+import { StarIcon } from 'lucide-react';
+
 
 // ==================== TYPES ====================
 
-// 🔥 MODIFIÉ : Ajout des props manquantes
 interface TaxonomyPreviewProps {
   parsedVariables: ParsedTaxonomyVariable[];
   selectedTaxonomyData: {
@@ -28,7 +29,7 @@ interface TaxonomyPreviewProps {
     platform: boolean;
     mediaocean: boolean;
   };
-  hasLoadingFields: boolean; // Prop qui manquait
+  hasLoadingFields: boolean;
   highlightState: HighlightState;
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
   getFormattedValue: (variableName: string, format: string) => string;
@@ -42,7 +43,7 @@ export default function TaxonomyPreview({
   selectedTaxonomyData,
   taxonomyValues,
   expandedPreviews,
-  hasLoadingFields, // Prop maintenant acceptée
+  hasLoadingFields,
   highlightState,
   onToggleExpansion,
   getFormattedValue,
@@ -60,6 +61,23 @@ export default function TaxonomyPreview({
     const formattedValue = getFormattedValue(variableName, format);
     return Boolean(formattedValue && !formattedValue.startsWith('['));
   };
+
+  const isVariableInSection = useCallback((taxonomy: Taxonomy | undefined, variableName: string): boolean => {
+    if (!taxonomy || !variableName) {
+      return false;
+    }
+    const fullStructure = [
+      taxonomy.NA_Name_Level_1,
+      taxonomy.NA_Name_Level_2,
+      taxonomy.NA_Name_Level_3,
+      taxonomy.NA_Name_Level_4,
+      taxonomy.NA_Name_Level_5,
+      taxonomy.NA_Name_Level_6,
+    ].join('|');
+
+    const variableRegex = new RegExp(`\\[${variableName}:`);
+    return variableRegex.test(fullStructure);
+  }, []);
 
   const getMemoizedPreview = useMemo(() => {
     return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
@@ -87,9 +105,12 @@ export default function TaxonomyPreview({
       const isHighlighted = highlightState.activeVariable === variableName;
 
       const sourceColor = getSourceColor(source);
+      
       const highlightClasses = isHighlighted 
         ? 'font-bold ring-2 ring-yellow-400 ring-opacity-75 transform scale-105 transition-all duration-200 shadow-lg z-10 relative' 
         : 'transition-all duration-200';
+
+      const content = hasValue ? formattedValue : fullMatch;
 
       parts.push(
         <span 
@@ -97,7 +118,7 @@ export default function TaxonomyPreview({
           className={`inline-flex items-center px-2 py-1 mx-0.5 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} ${highlightClasses} ${!hasValue ? 'border-2 border-red-400' : ''}`}
           title={`Variable: ${variableName} | Format: ${format} | Source: ${source}`}
         >
-          {hasValue ? formattedValue : fullMatch}
+          {content}
         </span>
       );
       
@@ -120,7 +141,9 @@ export default function TaxonomyPreview({
         { name: taxonomy.NA_Name_Level_1, title: taxonomy.NA_Name_Level_1_Title || 'Niveau 1' },
         { name: taxonomy.NA_Name_Level_2, title: taxonomy.NA_Name_Level_2_Title || 'Niveau 2' },
         { name: taxonomy.NA_Name_Level_3, title: taxonomy.NA_Name_Level_3_Title || 'Niveau 3' },
-        { name: taxonomy.NA_Name_Level_4, title: taxonomy.NA_Name_Level_4_Title || 'Niveau 4' }
+        { name: taxonomy.NA_Name_Level_4, title: taxonomy.NA_Name_Level_4_Title || 'Niveau 4' },
+        { name: taxonomy.NA_Name_Level_5, title: taxonomy.NA_Name_Level_5_Title || 'Niveau 5' },
+        { name: taxonomy.NA_Name_Level_6, title: taxonomy.NA_Name_Level_6_Title || 'Niveau 6' }
       ].filter(level => level.name);
 
       return (
@@ -145,14 +168,19 @@ export default function TaxonomyPreview({
     colorClass: string,
     label: string
   ) => {
-    const fullPreview = getMemoizedPreview(type);
+    const showStar = highlightState.activeVariable && isVariableInSection(taxonomy, highlightState.activeVariable);
+    
     return (
       <div key={`${type}-${highlightState.activeVariable}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleExpansion(type); }}
           className={`w-full px-4 py-3 ${colorClass} border-b border-gray-200 text-left flex items-center justify-between hover:opacity-80 transition-colors`}
         >
-          <span className="font-medium">{label}</span>
+          {/* CORRECTION: Étoile déplacée après le titre */}
+          <div className="flex items-center space-x-2">
+            <span className="font-medium">{label}</span>
+            {showStar && <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />}
+          </div>
           <span>{expandedPreviews[type] ? '−' : '+'}</span>
         </button>
         
@@ -200,9 +228,9 @@ export default function TaxonomyPreview({
       </div>
       
       <div className="space-y-3">
-        {selectedTaxonomyData.tags && renderTaxonomyCard('tags', selectedTaxonomyData.tags, 'bg-blue-50 text-blue-900', 'Tags')}
-        {selectedTaxonomyData.platform && renderTaxonomyCard('platform', selectedTaxonomyData.platform, 'bg-green-50 text-green-900', 'Platform')}
-        {selectedTaxonomyData.mediaocean && renderTaxonomyCard('mediaocean', selectedTaxonomyData.mediaocean, 'bg-orange-50 text-orange-900', 'MediaOcean')}
+        {selectedTaxonomyData.tags && renderTaxonomyCard('tags', selectedTaxonomyData.tags, 'bg-grey-50 text-grey-900', 'Tags')}
+        {selectedTaxonomyData.platform && renderTaxonomyCard('platform', selectedTaxonomyData.platform, 'bg-grey-50 text-grey-900', 'Platform')}
+        {selectedTaxonomyData.mediaocean && renderTaxonomyCard('mediaocean', selectedTaxonomyData.mediaocean, 'bg-grey-50 text-grey-900', 'MediaOcean')}
       </div>
     </div>
   );
