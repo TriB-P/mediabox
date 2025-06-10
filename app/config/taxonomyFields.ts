@@ -1,21 +1,26 @@
-// app/config/taxonomyFields.ts
+// app/config/taxonomyFields.ts - CONFIGURATION CENTRALISÉE COMPLÈTE
 
 /**
- * Configuration des sources de données pour les champs de taxonomie
- * Définit d'où proviennent les valeurs des variables utilisées dans les taxonomies
+ * Configuration centralisée de tous les champs disponibles dans les taxonomies
+ * C'est ici qu'on ajoute de nouveaux champs pour qu'ils soient automatiquement
+ * disponibles dans TaxonomyForm et PlacementDrawer
  */
 
 // ==================== TYPES ====================
 
 export type FieldSource = 'campaign' | 'tactique' | 'manual';
 
-// 🔥 NOUVEAUX FORMATS ÉTENDUS
 export type TaxonomyFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom_utm' | 'custom_code' | 'open';
 
-export interface FieldSourceConfig {
-  campaign: string[];
-  tactique: string[];
-  manual: string[];
+export interface FieldDefinition {
+  id: string;                    // Identifiant unique du champ
+  name: string;                  // Nom d'affichage
+  source: FieldSource;           // Source du champ
+  description?: string;          // Description du champ
+  supportedFormats: TaxonomyFormat[]; // Formats supportés par ce champ
+  defaultFormat: TaxonomyFormat; // Format par défaut
+  isRequired?: boolean;          // Champ obligatoire
+  hasCustomList?: boolean;       // Possède une liste dynamique de shortcodes
 }
 
 export interface FormatOption {
@@ -24,101 +29,13 @@ export interface FormatOption {
   description: string;
   requiresShortcode: boolean; // Indique si ce format nécessite un shortcode
   allowsUserInput: boolean;   // Indique si l'utilisateur peut saisir une valeur libre
+  fallbackChain?: TaxonomyFormat[]; // Chaîne de fallback si valeur non trouvée
 }
 
-export interface ParsedVariable {
-  variable: string;
-  format: TaxonomyFormat;
-  source: FieldSource;
-  level: number;
-  isValid: boolean;
-  errorMessage?: string;
-}
-
-export interface TaxonomyValues {
-  [variableName: string]: {
-    value: string;
-    source: FieldSource;
-    format: TaxonomyFormat;
-    shortcodeId?: string; // 🔥 NOUVEAU : Pour stocker l'ID du shortcode sélectionné
-    openValue?: string;   // 🔥 NOUVEAU : Pour stocker la valeur libre saisie
-  };
-}
-
-export interface GeneratedTaxonomies {
-  tags?: string;
-  platform?: string;
-  mediaocean?: string;
-}
-
-// ==================== CONFIGURATION DES SOURCES ====================
+// ==================== DÉFINITION DES FORMATS ====================
 
 /**
- * Configuration des sources de données pour chaque type de champ
- * 
- * - campaign: Champs provenant des données de campagne (hérités automatiquement)
- * - tactique: Champs provenant des données de tactique (hérités automatiquement)  
- * - manual: Champs qui doivent être saisis manuellement dans l'onglet
- */
-export const TAXONOMY_FIELD_SOURCES: FieldSourceConfig = {
-  // Champs provenant de la campagne (mise à jour automatique)
-  campaign: [
-    'CA_Campaign_Identifier',
-    'CA_Client',
-    'CA_Division',
-    'CA_Quarter', 
-    'CA_Year',
-    'CA_Custom_Dim_1',
-    'CA_Custom_Dim_2',
-    'CA_Custom_Dim_3',
-    'CA_Billing_ID',
-    'CA_PO',
-    'CA_Budget',
-    'CA_Currency',
-    'CA_Start_Date',
-    'CA_End_Date',
-  ],
-  
-  // Champs provenant de la tactique (mise à jour automatique)
-  tactique: [
-    'TC_Publisher',
-    'TC_Objective', 
-    'TC_LOB',
-    'TC_Media_Type',
-    'TC_Buying_Method',
-    'TC_Custom_Dim_1',
-    'TC_Custom_Dim_2', 
-    'TC_Custom_Dim_3',
-    'TC_Inventory',
-    'TC_Market',
-    'TC_Language',
-    'TC_Media_Objective',
-    'TC_Kpi',
-    'TC_Unit_Type',
-    'TC_Budget',
-    'TC_Currency',
-    'TC_Billing_ID',
-    'TC_PO',
-    'TC_Start_Date',
-    'TC_End_Date',
-    'TC_Format',
-    'TC_Placement',
-  ],
-  
-  // Champs à saisir manuellement dans l'onglet
-  manual: [
-    'TAX_Product',
-    'TAX_Location',
-    'TAX_Custom_Field_1',
-    'TAX_Custom_Field_2',
-    'TAX_Custom_Field_3'
-  ]
-};
-
-// ==================== FORMATS DISPONIBLES ====================
-
-/**
- * 🔥 NOUVEAUX FORMATS ÉTENDUS pour les variables dans les taxonomies
+ * Configuration complète de tous les formats supportés
  */
 export const TAXONOMY_FORMATS: FormatOption[] = [
   { 
@@ -138,30 +55,34 @@ export const TAXONOMY_FORMATS: FormatOption[] = [
   { 
     id: 'display_en', 
     label: 'Display EN', 
-    description: 'Utilise la valeur SH_Display_Name_EN du shortcode',
+    description: 'Utilise la valeur SH_Display_Name_EN du shortcode avec fallback sur SH_Display_Name_FR',
     requiresShortcode: true,
-    allowsUserInput: false
+    allowsUserInput: false,
+    fallbackChain: ['display_fr']
   },
   { 
     id: 'utm', 
     label: 'UTM', 
-    description: 'Utilise la valeur SH_Default_UTM du shortcode',
+    description: 'Utilise la valeur SH_Default_UTM du shortcode avec fallback sur SH_Code',
     requiresShortcode: true,
-    allowsUserInput: false
+    allowsUserInput: false,
+    fallbackChain: ['code']
   },
   { 
     id: 'custom_utm', 
     label: 'UTM Personnalisé', 
-    description: 'Utilise la valeur personnalisée UTM du client, sinon SH_Default_UTM',
+    description: 'Utilise la valeur personnalisée UTM du client, sinon SH_Default_UTM, sinon SH_Code',
     requiresShortcode: true,
-    allowsUserInput: false
+    allowsUserInput: false,
+    fallbackChain: ['utm', 'code']
   },
   { 
     id: 'custom_code', 
     label: 'Code Personnalisé', 
     description: 'Utilise la valeur personnalisée Code du client, sinon SH_Code',
     requiresShortcode: true,
-    allowsUserInput: false
+    allowsUserInput: false,
+    fallbackChain: ['code']
   },
   { 
     id: 'open', 
@@ -172,28 +93,357 @@ export const TAXONOMY_FORMATS: FormatOption[] = [
   }
 ];
 
-// ==================== COULEURS POUR LES SOURCES ====================
+// ==================== DÉFINITION DES CHAMPS DISPONIBLES ====================
 
 /**
- * Couleurs utilisées pour identifier les sources dans l'interface
+ * 🔥 CONFIGURATION CENTRALISÉE : Tous les champs disponibles dans les taxonomies
+ * Pour ajouter un nouveau champ, l'ajouter ici avec sa source et ses formats supportés
  */
+export const AVAILABLE_FIELDS: FieldDefinition[] = [
+  
+  // ==================== CHAMPS DE CAMPAGNE ====================
+  {
+    id: 'CA_Campaign_Identifier',
+    name: 'Identifiant de campagne',
+    source: 'campaign',
+    description: 'Nom de la campagne',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'CA_Client',
+    name: 'Client',
+    source: 'campaign',
+    description: 'Nom du client',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'CA_Division',
+    name: 'Division',
+    source: 'campaign',
+    description: 'Division de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Quarter',
+    name: 'Trimestre',
+    source: 'campaign',
+    description: 'Trimestre de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'code',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Year',
+    name: 'Année',
+    source: 'campaign',
+    description: 'Année de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'code',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Custom_Dim_1',
+    name: 'Dimension personnalisée 1 (Campagne)',
+    source: 'campaign',
+    description: 'Première dimension personnalisée de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Custom_Dim_2',
+    name: 'Dimension personnalisée 2 (Campagne)',
+    source: 'campaign',
+    description: 'Deuxième dimension personnalisée de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Custom_Dim_3',
+    name: 'Dimension personnalisée 3 (Campagne)',
+    source: 'campaign',
+    description: 'Troisième dimension personnalisée de la campagne',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'CA_Budget',
+    name: 'Budget de campagne',
+    source: 'campaign',
+    description: 'Budget total de la campagne',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'CA_Currency',
+    name: 'Devise de campagne',
+    source: 'campaign',
+    description: 'Devise de la campagne',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+  {
+    id: 'CA_Start_Date',
+    name: 'Date de début (Campagne)',
+    source: 'campaign',
+    description: 'Date de début de la campagne',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'CA_End_Date',
+    name: 'Date de fin (Campagne)',
+    source: 'campaign',
+    description: 'Date de fin de la campagne',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'CA_Billing_ID',
+    name: 'ID de facturation (Campagne)',
+    source: 'campaign',
+    description: 'Identifiant de facturation de la campagne',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+  {
+    id: 'CA_PO',
+    name: 'PO (Campagne)',
+    source: 'campaign',
+    description: 'Numéro de bon de commande de la campagne',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+
+  // ==================== CHAMPS DE TACTIQUE ====================
+  {
+    id: 'TC_Publisher',
+    name: 'Partenaire',
+    source: 'tactique',
+    description: 'Partenaire média sélectionné',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Objective',
+    name: 'Objectif',
+    source: 'tactique',
+    description: 'Objectif de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_LOB',
+    name: 'Ligne d\'affaires',
+    source: 'tactique',
+    description: 'Ligne d\'affaires de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Media_Type',
+    name: 'Type média',
+    source: 'tactique',
+    description: 'Type de média utilisé',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Buying_Method',
+    name: 'Méthode d\'achat',
+    source: 'tactique',
+    description: 'Méthode d\'achat média',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Custom_Dim_1',
+    name: 'Dimension personnalisée 1 (Tactique)',
+    source: 'tactique',
+    description: 'Première dimension personnalisée de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Custom_Dim_2',
+    name: 'Dimension personnalisée 2 (Tactique)',
+    source: 'tactique',
+    description: 'Deuxième dimension personnalisée de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Custom_Dim_3',
+    name: 'Dimension personnalisée 3 (Tactique)',
+    source: 'tactique',
+    description: 'Troisième dimension personnalisée de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Inventory',
+    name: 'Inventaire',
+    source: 'tactique',
+    description: 'Type d\'inventaire utilisé',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Market',
+    name: 'Marché',
+    source: 'tactique',
+    description: 'Marché ciblé',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Language',
+    name: 'Langue',
+    source: 'tactique',
+    description: 'Langue de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'code',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Media_Objective',
+    name: 'Objectif média',
+    source: 'tactique',
+    description: 'Objectif média de la tactique',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Kpi',
+    name: 'KPI principal',
+    source: 'tactique',
+    description: 'Indicateur de performance principal',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Unit_Type',
+    name: 'Type d\'unité',
+    source: 'tactique',
+    description: 'Type d\'unité d\'achat',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  },
+  {
+    id: 'TC_Budget',
+    name: 'Budget de tactique',
+    source: 'tactique',
+    description: 'Budget alloué à la tactique',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'TC_Currency',
+    name: 'Devise de tactique',
+    source: 'tactique',
+    description: 'Devise d\'achat de la tactique',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+  {
+    id: 'TC_Billing_ID',
+    name: 'ID de facturation (Tactique)',
+    source: 'tactique',
+    description: 'Identifiant de facturation de la tactique',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+  {
+    id: 'TC_PO',
+    name: 'PO (Tactique)',
+    source: 'tactique',
+    description: 'Numéro de bon de commande de la tactique',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'code'
+  },
+  {
+    id: 'TC_Start_Date',
+    name: 'Date de début (Tactique)',
+    source: 'tactique',
+    description: 'Date de début de la tactique',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'TC_End_Date',
+    name: 'Date de fin (Tactique)',
+    source: 'tactique',
+    description: 'Date de fin de la tactique',
+    supportedFormats: ['display_fr', 'code', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'TC_Format',
+    name: 'Format (Tactique)',
+    source: 'tactique',
+    description: 'Format de la tactique',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'display_fr'
+  },
+  {
+    id: 'TC_Placement',
+    name: 'Placement (Tactique)',
+    source: 'tactique',
+    description: 'Placement de la tactique',
+    supportedFormats: ['code', 'display_fr', 'open'],
+    defaultFormat: 'display_fr'
+  },
+
+  // ==================== CHAMPS MANUELS (PLACEMENT) ====================
+  {
+    id: 'TAX_Product',
+    name: 'Produit',
+    source: 'manual',
+    description: 'Produit ou service promu',
+    supportedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'],
+    defaultFormat: 'display_fr',
+    hasCustomList: true
+  }
+];
+
+// ==================== COULEURS POUR LES SOURCES ====================
+
 export const SOURCE_COLORS = {
   campaign: {
     bg: 'bg-blue-100',
     text: 'text-blue-800',
-    border: 'bg-blue-100',
+    border: 'border-blue-300',
     hex: '#3B82F6'
   },
   tactique: {
     bg: 'bg-green-100', 
     text: 'text-green-800',
-    border: 'bg-green-100', 
+    border: 'border-green-300', 
     hex: '#10B981'
   },
   manual: {
     bg: 'bg-orange-100',
     text: 'text-orange-800', 
-    border: 'bg-orange-100',
+    border: 'border-orange-300',
     hex: '#F59E0B'
   },
   empty: {
@@ -206,9 +456,6 @@ export const SOURCE_COLORS = {
 
 // ==================== COULEURS POUR LES FORMATS ====================
 
-/**
- * 🔥 NOUVEAU : Couleurs pour identifier les types de formats
- */
 export const FORMAT_COLORS = {
   code: {
     bg: 'bg-purple-100',
@@ -250,30 +497,29 @@ export const FORMAT_COLORS = {
 // ==================== FONCTIONS UTILITAIRES ====================
 
 /**
+ * Obtient la définition d'un champ par son ID
+ */
+export function getFieldDefinition(fieldId: string): FieldDefinition | null {
+  return AVAILABLE_FIELDS.find(field => field.id === fieldId) || null;
+}
+
+/**
+ * Obtient tous les champs d'une source donnée
+ */
+export function getFieldsBySource(source: FieldSource): FieldDefinition[] {
+  return AVAILABLE_FIELDS.filter(field => field.source === source);
+}
+
+/**
  * Détermine la source d'un champ donné
  */
-export function getFieldSource(fieldName: string): FieldSource | null {
-  if (TAXONOMY_FIELD_SOURCES.campaign.includes(fieldName)) {
-    return 'campaign';
-  }
-  if (TAXONOMY_FIELD_SOURCES.tactique.includes(fieldName)) {
-    return 'tactique';
-  }
-  if (TAXONOMY_FIELD_SOURCES.manual.includes(fieldName)) {
-    return 'manual';
-  }
-  return null;
+export function getFieldSource(fieldId: string): FieldSource | null {
+  const field = getFieldDefinition(fieldId);
+  return field?.source || null;
 }
 
 /**
- * 🔥 NOUVEAU : Valide qu'un format existe dans la configuration
- */
-export function isValidFormat(formatId: string): boolean {
-  return TAXONOMY_FORMATS.some(format => format.id === formatId);
-}
-
-/**
- * 🔥 NOUVEAU : Obtient les informations d'un format par son ID
+ * Obtient les informations d'un format par son ID
  */
 export function getFormatInfo(formatId: TaxonomyFormat): FormatOption | null {
   return TAXONOMY_FORMATS.find(format => format.id === formatId) || null;
@@ -288,35 +534,21 @@ export function getSourceColor(source: FieldSource | null) {
 }
 
 /**
- * 🔥 NOUVEAU : Obtient la configuration de couleur pour un format donné
+ * Obtient la configuration de couleur pour un format donné
  */
 export function getFormatColor(format: TaxonomyFormat) {
   return FORMAT_COLORS[format] || FORMAT_COLORS.display_fr;
 }
 
 /**
- * Génère un ID unique pour un champ de saisie
+ * Valide qu'un format existe dans la configuration
  */
-export function generateFieldId(variable: string, level: number): string {
-  return `taxonomy_field_${variable}_level_${level}`;
+export function isValidFormat(formatId: string): boolean {
+  return TAXONOMY_FORMATS.some(format => format.id === formatId);
 }
 
 /**
- * Valide qu'une variable est reconnue dans notre configuration
- */
-export function isKnownVariable(variableName: string): boolean {
-  return getFieldSource(variableName) !== null;
-}
-
-/**
- * Obtient tous les champs d'une source donnée
- */
-export function getFieldsBySource(source: FieldSource): string[] {
-  return TAXONOMY_FIELD_SOURCES[source] || [];
-}
-
-/**
- * 🔥 NOUVEAU : Détermine si un format nécessite un shortcode
+ * Détermine si un format nécessite un shortcode
  */
 export function formatRequiresShortcode(format: TaxonomyFormat): boolean {
   const formatInfo = getFormatInfo(format);
@@ -324,7 +556,7 @@ export function formatRequiresShortcode(format: TaxonomyFormat): boolean {
 }
 
 /**
- * 🔥 NOUVEAU : Détermine si un format permet la saisie libre
+ * Détermine si un format permet la saisie libre
  */
 export function formatAllowsUserInput(format: TaxonomyFormat): boolean {
   const formatInfo = getFormatInfo(format);
@@ -332,20 +564,37 @@ export function formatAllowsUserInput(format: TaxonomyFormat): boolean {
 }
 
 /**
- * 🔥 NOUVEAU : Obtient les formats compatibles avec une source donnée
+ * Obtient la chaîne de fallback pour un format
  */
-export function getCompatibleFormats(source: FieldSource): FormatOption[] {
-  // Les champs hérités (campaign/tactique) ne peuvent utiliser que certains formats
-  if (source === 'campaign' || source === 'tactique') {
-    return TAXONOMY_FORMATS.filter(format => 
-      format.id === 'display_fr' || 
-      format.id === 'code' || 
-      format.id === 'open'
-    );
-  }
+export function getFormatFallbackChain(format: TaxonomyFormat): TaxonomyFormat[] {
+  const formatInfo = getFormatInfo(format);
+  return formatInfo?.fallbackChain || [];
+}
+
+/**
+ * Valide qu'une variable est reconnue dans notre configuration
+ */
+export function isKnownVariable(variableName: string): boolean {
+  return getFieldDefinition(variableName) !== null;
+}
+
+/**
+ * Obtient les formats compatibles avec un champ donné
+ */
+export function getCompatibleFormats(fieldId: string): FormatOption[] {
+  const field = getFieldDefinition(fieldId);
+  if (!field) return [];
   
-  // Les champs manuels peuvent utiliser tous les formats
-  return TAXONOMY_FORMATS;
+  return TAXONOMY_FORMATS.filter(format => 
+    field.supportedFormats.includes(format.id)
+  );
+}
+
+/**
+ * Génère un ID unique pour un champ de saisie
+ */
+export function generateFieldId(variable: string, level: number): string {
+  return `taxonomy_field_${variable}_level_${level}`;
 }
 
 // ==================== CONSTANTES ====================
@@ -383,3 +632,25 @@ export const ERROR_MESSAGES = {
   SHORTCODE_REQUIRED: 'Ce format nécessite la sélection d\'un shortcode',
   USER_INPUT_REQUIRED: 'Ce format nécessite une saisie utilisateur'
 } as const;
+
+// ==================== MAPPING HÉRITÉ POUR COMPATIBILITÉ ====================
+
+/**
+ * Mapping des anciens noms vers les nouveaux pour compatibilité ascendante
+ */
+export const LEGACY_FIELD_MAPPING: { [oldName: string]: string } = {
+  'UTM_TC_Channel': 'TC_Media_Type',
+  'UTM_TC_Publisher': 'TC_Publisher',
+  'UTM_CR_Format_Details': 'TC_Format',
+  'CR_Plateform_Name': 'TC_Publisher',
+  'UTM_TC_Language': 'TC_Language',
+  'TC_Targeting': 'TC_Custom_Dim_1', // À adapter selon le besoin
+  'TAX_Product': 'TAX_Product'
+};
+
+/**
+ * Résout un nom de champ hérité vers le nouveau système
+ */
+export function resolveFieldName(fieldName: string): string {
+  return LEGACY_FIELD_MAPPING[fieldName] || fieldName;
+}
