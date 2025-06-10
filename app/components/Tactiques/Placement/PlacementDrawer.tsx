@@ -1,24 +1,26 @@
-// app/components/Tactiques/PlacementDrawer.tsx
+// app/components/Tactiques/Placement/PlacementDrawer.tsx
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import PlacementFormInfo from './PlacementFormInfo';
 import PlacementFormTaxonomy from './PlacementFormTaxonomy';
 import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
-import { DocumentTextIcon, PhotoIcon, ChartBarIcon, CurrencyDollarIcon, TagIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, TagIcon } from '@heroicons/react/24/outline';
 import { Placement, PlacementFormData, Tactique } from '../../../types/tactiques';
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
+// 🔥 NOUVEAU: Import du hook que nous allons déplacer ici
+import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 
 interface PlacementDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   placement?: Placement | null;
   tactiqueId: string;
-  tactiqueData?: Tactique; // NOUVEAU: Données de la tactique parente
+  tactiqueData?: Tactique;
   onSave: (placementData: PlacementFormData) => Promise<void>;
 }
 
@@ -27,97 +29,91 @@ export default function PlacementDrawer({
   onClose,
   placement,
   tactiqueId,
-  tactiqueData, // NOUVEAU: Reçu en props
+  tactiqueData,
   onSave
 }: PlacementDrawerProps) {
   const { selectedClient } = useClient();
+  const { selectedCampaign } = useCampaignSelection();
   
-  // NOUVEAU: Récupérer les données de campagne
-  const { selectedCampaign, selectedVersion } = useCampaignSelection();
-  
-  // État pour les onglets
   const [activeTab, setActiveTab] = useState('infos');
-  
-  // État pour les tooltips
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   
-  // État pour le formulaire avec les nouveaux champs
   const [formData, setFormData] = useState<PlacementFormData>({
-    PL_Label: placement?.PL_Label || '',
-    PL_Format: placement?.PL_Format || '',
-    PL_Budget: placement?.PL_Budget || 0,
-    PL_Order: placement?.PL_Order || 0,
+    PL_Label: '',
+    PL_Format: '',
+    PL_Budget: 0,
+    PL_Order: 0,
     PL_TactiqueId: tactiqueId,
-    
-    // Champs de taxonomie existants (pour compatibilité)
-    PL_Taxonomy_Tags: (placement as any)?.PL_Taxonomy_Tags || '',
-    PL_Taxonomy_Platform: (placement as any)?.PL_Taxonomy_Platform || '',
-    PL_Taxonomy_MediaOcean: (placement as any)?.PL_Taxonomy_MediaOcean || '',
-    
-    // Nouveaux champs de taxonomie dynamique
-    PL_Taxonomy_Values: (placement as any)?.PL_Taxonomy_Values || {},
-    PL_Generated_Taxonomies: (placement as any)?.PL_Generated_Taxonomies || {},
+    PL_Taxonomy_Tags: '',
+    PL_Taxonomy_Platform: '',
+    PL_Taxonomy_MediaOcean: '',
+    PL_Taxonomy_Values: {},
+    PL_Generated_Taxonomies: {},
   });
-  
-  // Définition des onglets
+
+  useEffect(() => {
+    if (placement) {
+      setFormData({
+        PL_Label: placement.PL_Label || '',
+        PL_Format: placement.PL_Format || '',
+        PL_Budget: placement.PL_Budget || 0,
+        PL_Order: placement.PL_Order || 0,
+        PL_TactiqueId: placement.PL_TactiqueId,
+        PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
+        PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
+        PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
+        PL_Taxonomy_Values: placement.PL_Taxonomy_Values || {},
+        PL_Generated_Taxonomies: placement.PL_Generated_Taxonomies || {},
+      });
+    } else {
+        // Reset pour un nouveau placement
+        setFormData({
+            PL_Label: '', PL_Format: '', PL_Budget: 0, PL_Order: 0,
+            PL_TactiqueId: tactiqueId, PL_Taxonomy_Tags: '',
+            PL_Taxonomy_Platform: '', PL_Taxonomy_MediaOcean: '',
+            PL_Taxonomy_Values: {}, PL_Generated_Taxonomies: {}
+        });
+    }
+  }, [placement, tactiqueId]);
+
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
     { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon }
   ];
   
-  // Gestionnaire de changement des champs
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    
-    let processedValue: any = value;
-    
-    if (type === 'checkbox') {
-      processedValue = (e.target as HTMLInputElement).checked;
-    } else if (type === 'number') {
-      processedValue = parseFloat(value) || 0;
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: processedValue
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
-  // Gestionnaire pour les tooltips
   const handleTooltipChange = useCallback((tooltip: string | null) => {
     setActiveTooltip(tooltip);
   }, []);
   
-  // Gérer la soumission du formulaire
+  // 🔥 NOUVEAU: Le hook est maintenant appelé ici, au niveau supérieur.
+  const taxonomyProps = useTaxonomyForm({
+    formData,
+    onChange: handleChange,
+    clientId: selectedClient?.clientId || '',
+    campaignData: selectedCampaign,
+    tactiqueData: tactiqueData,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave(formData);
+    // Intégrer les dernières valeurs de taxonomie au moment de la sauvegarde
+    const finalFormData = {
+      ...formData,
+      PL_Taxonomy_Values: taxonomyProps.taxonomyValues
+    };
+    await onSave(finalFormData);
     onClose();
   };
   
-  // NOUVEAU: Debug des données héritées
-  console.log('🔍 Données héritées dans PlacementDrawer:', {
-    campaign: selectedCampaign,
-    tactique: tactiqueData,
-    version: selectedVersion
-  });
-  
-  // Rendu du contenu selon l'onglet actif
   const renderTabContent = () => {
     switch (activeTab) {
       case 'infos':
-        if (!selectedClient) {
-          return (
-            <div className="p-8">
-              <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-                <p className="text-sm">
-                  Veuillez sélectionner un client pour configurer les informations du placement.
-                </p>
-              </div>
-            </div>
-          );
-        }
-        
+        if (!selectedClient) return null;
         return (
           <PlacementFormInfo
             formData={formData}
@@ -128,30 +124,20 @@ export default function PlacementDrawer({
         );
         
       case 'taxonomie':
-        if (!selectedClient) {
-          return (
-            <div className="p-8">
-              <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-                <p className="text-sm">
-                  Veuillez sélectionner un client pour configurer les taxonomies du placement.
-                </p>
-              </div>
-            </div>
-          );
-        }
+        if (!selectedClient) return null;
         
+        // 🔥 MODIFIÉ: Passe toutes les props du hook au composant enfant
         return (
           <PlacementFormTaxonomy
             formData={formData}
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
-            // NOUVEAU: Transmettre les données héritées (convertir null en undefined)
             campaignData={selectedCampaign || undefined}
-            tactiqueData={tactiqueData || undefined}
+            tactiqueData={tactiqueData}
+            {...taxonomyProps} // Passe toutes les valeurs et fonctions du hook
           />
         );
-      
       
       default:
         return null;
@@ -162,42 +148,28 @@ export default function PlacementDrawer({
     <FormDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={placement ? `Modifier le placement: ${placement.PL_Label}` : 'Nouveau placement'}
+      title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
     >
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
-        {/* Navigation par onglets */}
         <FormTabs
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
-        
-        {/* Contenu de l'onglet actif */}
         <div className="flex-1 overflow-y-auto">
           {renderTabContent()}
         </div>
-        
-        {/* Footer avec les boutons d'action */}
         <div className="sticky bottom-0 bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
           <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-            >
+            <button type="button" onClick={onClose} className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
               Annuler
             </button>
-            <button
-              type="submit"
-              className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-            >
+            <button type="submit" className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
               {placement ? 'Mettre à jour' : 'Créer'}
             </button>
           </div>
         </div>
       </form>
-      
-      {/* Bandeau de tooltip */}
       <TooltipBanner tooltip={activeTooltip} />
     </FormDrawer>
   );

@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx - VERSION AVEC HIGHLIGHT
+// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx
 
 'use client';
 
@@ -12,21 +12,12 @@ import { Campaign } from '../../../types/campaign';
 // ==================== TYPES ====================
 
 interface PlacementFormTaxonomyProps {
-  // Données du formulaire
   formData: PlacementFormData;
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  
-  // Contexte client
   clientId: string;
-  
-  // Données héritées
   campaignData?: Campaign;
   tactiqueData?: Tactique;
-  
-  // État de chargement
   loading?: boolean;
 }
 
@@ -42,7 +33,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   loading = false
 }) => {
   
-  // Utiliser le hook corrigé avec toutes les nouvelles fonctionnalités
   const {
     selectedTaxonomyData,
     taxonomiesLoading,
@@ -50,7 +40,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     parsedVariables,
     fieldStates,
     taxonomyValues,
-    highlightState, // 🔥 RÉCUPÉRATION : État de highlight
+    highlightState,
     expandedPreviews,
     handleFieldChange,
     handleFieldHighlight,
@@ -59,8 +49,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     hasTaxonomies,
     manualVariables,
     hasLoadingFields,
-    getFormattedValue, // FONCTION SYNCHRONE
-    getFormattedPreview // FONCTION SYNCHRONE
+    getFormattedValue,
+    getFormattedPreview
   } = useTaxonomyForm({
     formData,
     onChange,
@@ -77,7 +67,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     manualVariables: manualVariables.length,
     taxonomiesLoading,
     hasLoadingFields,
-    highlightState: highlightState.activeVariable // 🔥 AJOUT : Log du highlight
+    highlightState: highlightState.activeVariable
   });
 
   return (
@@ -85,7 +75,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
       {/* Colonne de gauche : Configuration des variables */}
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
         
-        {/* Message d'erreur */}
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {taxonomiesError}
@@ -98,7 +87,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           </div>
         )}
 
-        {/* Configuration des variables */}
         {hasTaxonomies ? (
           <TaxonomyFieldRenderer
             manualVariables={manualVariables}
@@ -113,17 +101,19 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           />
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
+            <h4 className="text-md font-medium text-gray-900 mb-2">
+              Configuration des taxonomies
+            </h4>
             <p className="text-sm">
               Veuillez d'abord sélectionner des taxonomies dans l'onglet "Informations" pour configurer les variables.
             </p>
           </div>
         )}
 
-        {/* Message d'information si en chargement */}
         {(loading || taxonomiesLoading) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              {loading ? 'Chargement des données...' : 'Chargement du parsing des taxonomies...'}
+              {loading ? 'Chargement des données...' : 'Analyse des taxonomies...'}
             </p>
           </div>
         )}
@@ -131,19 +121,17 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
 
       {/* Colonne de droite : Aperçu */}
       <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
+        {/* 🔥 MODIFIÉ: Retrait des props "campaignData" et "tactiqueData" qui ne sont pas utilisées par TaxonomyPreview */}
         <TaxonomyPreview
           parsedVariables={parsedVariables}
           selectedTaxonomyData={selectedTaxonomyData}
           taxonomyValues={taxonomyValues}
-          fieldStates={fieldStates}
           expandedPreviews={expandedPreviews}
-          campaignData={campaignData}
-          tactiqueData={tactiqueData}
           hasLoadingFields={hasLoadingFields}
-          highlightState={highlightState} // 🔥 NOUVEAU : Transmission du highlightState
+          highlightState={highlightState}
           onToggleExpansion={togglePreviewExpansion}
-          getFormattedValue={getFormattedValue} // NOUVEAU : Fonction synchrone
-          getFormattedPreview={getFormattedPreview} // NOUVEAU : Fonction synchrone
+          getFormattedValue={getFormattedValue}
+          getFormattedPreview={getFormattedPreview}
         />
       </div>
     </div>
