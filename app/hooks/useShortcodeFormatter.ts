@@ -1,5 +1,7 @@
 // app/hooks/useShortcodeFormatter.ts
 
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -16,11 +18,11 @@ interface ShortcodeData {
   SH_Default_UTM?: string;
 }
 
+// CORRIGÉ: Interface alignée avec la structure de données sauvegardée
 interface CustomCode {
   id: string;
-  CC_Shortcode_ID: string;
-  CC_Custom_UTM?: string;
-  CC_Custom_Code?: string;
+  shortcodeId: string;
+  customCode: string;
 }
 
 interface FormattedValueResult {
@@ -37,9 +39,8 @@ interface UseShortcodeFormatterReturn {
 
 // ==================== CACHE ====================
 
-// Cache pour éviter les requêtes multiples pour les mêmes shortcodes
 const shortcodeCache = new Map<string, ShortcodeData>();
-const customCodesCache = new Map<string, CustomCode[]>(); // clé = clientId
+const customCodesCache = new Map<string, CustomCode[]>();
 
 // ==================== HOOK PRINCIPAL ====================
 
@@ -53,7 +54,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
    * Charge un shortcode depuis Firestore avec mise en cache
    */
   const loadShortcode = useCallback(async (shortcodeId: string): Promise<ShortcodeData | null> => {
-    // Vérifier le cache d'abord
     if (shortcodeCache.has(shortcodeId)) {
       return shortcodeCache.get(shortcodeId)!;
     }
@@ -76,7 +76,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
         SH_Default_UTM: data.SH_Default_UTM,
       };
 
-      // Mettre en cache
       shortcodeCache.set(shortcodeId, shortcodeData);
       return shortcodeData;
 
@@ -90,7 +89,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
    * Charge les custom codes pour un client avec mise en cache
    */
   const loadClientCustomCodes = useCallback(async (clientId: string): Promise<CustomCode[]> => {
-    // Vérifier le cache d'abord
     if (customCodesCache.has(clientId)) {
       return customCodesCache.get(clientId)!;
     }
@@ -99,14 +97,13 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
       const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
       const snapshot = await getDocs(customCodesRef);
 
+      // CORRIGÉ: Mappage avec les bons noms de champs
       const customCodes: CustomCode[] = snapshot.docs.map(doc => ({
         id: doc.id,
-        CC_Shortcode_ID: doc.data().CC_Shortcode_ID,
-        CC_Custom_UTM: doc.data().CC_Custom_UTM,
-        CC_Custom_Code: doc.data().CC_Custom_Code,
+        shortcodeId: doc.data().shortcodeId,
+        customCode: doc.data().customCode,
       }));
 
-      // Mettre en cache
       customCodesCache.set(clientId, customCodes);
       return customCodes;
 
@@ -121,7 +118,8 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
    */
   const findCustomCode = useCallback(async (shortcodeId: string): Promise<CustomCode | null> => {
     const customCodes = await loadClientCustomCodes(clientId);
-    return customCodes.find(cc => cc.CC_Shortcode_ID === shortcodeId) || null;
+    // CORRIGÉ: Recherche avec le bon nom de champ
+    return customCodes.find(cc => cc.shortcodeId === shortcodeId) || null;
   }, [clientId, loadClientCustomCodes]);
 
   // ==================== FORMATAGE ====================
@@ -136,32 +134,18 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
   ): FormattedValueResult => {
     const cacheKey = `${shortcodeId}_${format}_${openValue || ''}`;
 
-    // Gérer le format 'open' directement
     if (format === 'open') {
-      return {
-        value: openValue || '',
-        loading: false
-      };
+      return { value: openValue || '', loading: false };
     }
 
-    // Vérifier si on est en train de charger
     if (loadingStates[cacheKey]) {
-      return {
-        value: '',
-        loading: true
-      };
+      return { value: '', loading: true };
     }
 
-    // Vérifier s'il y a une erreur
     if (errors[cacheKey]) {
-      return {
-        value: '',
-        loading: false,
-        error: errors[cacheKey]
-      };
+      return { value: '', loading: false, error: errors[cacheKey] };
     }
 
-    // Fonction asynchrone pour charger et formater
     const loadAndFormat = async () => {
       setLoadingStates(prev => ({ ...prev, [cacheKey]: true }));
       setErrors(prev => {
@@ -171,7 +155,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
       });
 
       try {
-        // Charger le shortcode
         const shortcodeData = await loadShortcode(shortcodeId);
         
         if (!shortcodeData) {
@@ -184,29 +167,25 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
           case 'code':
             formattedValue = shortcodeData.SH_Code;
             break;
-
           case 'display_fr':
             formattedValue = shortcodeData.SH_Display_Name_FR;
             break;
-
           case 'display_en':
             formattedValue = shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR;
             break;
-
           case 'utm':
             formattedValue = shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
             break;
-
+          
+          // CORRIGÉ: Logique de formatage pour les codes personnalisés
           case 'custom_utm':
-            // Chercher d'abord dans les custom codes
             const customCodeForUTM = await findCustomCode(shortcodeId);
-            formattedValue = customCodeForUTM?.CC_Custom_UTM || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
+            formattedValue = customCodeForUTM?.customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
             break;
 
           case 'custom_code':
-            // Chercher d'abord dans les custom codes
             const customCodeForCode = await findCustomCode(shortcodeId);
-            formattedValue = customCodeForCode?.CC_Custom_Code || shortcodeData.SH_Code;
+            formattedValue = customCodeForCode?.customCode || shortcodeData.SH_Code;
             break;
 
           default:
@@ -224,19 +203,11 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
       }
     };
 
-    // Lancer le chargement en arrière-plan
     loadAndFormat();
 
-    // Retourner l'état de chargement pour l'instant
-    return {
-      value: '',
-      loading: true
-    };
+    return { value: '', loading: true };
   }, [loadShortcode, findCustomCode, loadingStates, errors]);
 
-  /**
-   * Formate plusieurs valeurs en une fois
-   */
   const formatMultipleValues = useCallback((
     values: Array<{id: string, format: ShortcodeFormat, openValue?: string}>
   ): FormattedValueResult[] => {
@@ -245,9 +216,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
     );
   }, [formatValue]);
 
-  /**
-   * Vide le cache (utile pour forcer un rechargement)
-   */
   const clearCache = useCallback(() => {
     shortcodeCache.clear();
     customCodesCache.clear();
@@ -255,8 +223,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
     setErrors({});
     console.log('🧹 Cache shortcode formatter vidé');
   }, []);
-
-  // ==================== RETURN ====================
 
   return {
     formatValue,
@@ -267,9 +233,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
 
 // ==================== FONCTIONS UTILITAIRES ====================
 
-/**
- * Hook simplifié pour formater une seule valeur
- */
 export function useFormattedValue(
   clientId: string,
   shortcodeId: string,
@@ -280,12 +243,8 @@ export function useFormattedValue(
   return formatValue(shortcodeId, format, openValue);
 }
 
-/**
- * Fonction utilitaire pour nettoyer tous les caches (peut être appelée depuis l'extérieur)
- */
 export function clearAllShortcodeFormatCache(): void {
   shortcodeCache.clear();
   customCodesCache.clear();
   console.log('🧹 Cache global shortcode formatter vidé');
 }
-//

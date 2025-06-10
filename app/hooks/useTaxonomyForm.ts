@@ -1,5 +1,7 @@
 // app/hooks/useTaxonomyForm.ts
 
+'use client';
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getTaxonomyById } from '../lib/taxonomyService';
 import { getDynamicList, hasDynamicList } from '../lib/tactiqueListService';
@@ -38,9 +40,8 @@ interface ShortcodeData {
 }
 
 interface CustomCode {
-  CC_Shortcode_ID: string;
-  CC_Custom_UTM?: string;
-  CC_Custom_Code?: string;
+  shortcodeId: string;
+  customCode: string;
 }
 
 interface UseTaxonomyFormProps {
@@ -97,7 +98,7 @@ export function useTaxonomyForm({
     try {
       const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
       const customSnapshot = await getDocs(customCodesRef);
-      const customCodes: CustomCode[] = customSnapshot.docs.map(doc => ({ CC_Shortcode_ID: doc.data().CC_Shortcode_ID, CC_Custom_UTM: doc.data().CC_Custom_UTM, CC_Custom_Code: doc.data().CC_Custom_Code } as CustomCode));
+      const customCodes: CustomCode[] = customSnapshot.docs.map(doc => ({ shortcodeId: doc.data().shortcodeId, customCode: doc.data().customCode } as CustomCode));
       setCustomCodesCache(customCodes);
       setCacheLoaded(true);
     } catch (error) { console.error('Erreur chargement cache:', error); setCacheLoaded(true); }
@@ -119,17 +120,20 @@ export function useTaxonomyForm({
   const formatShortcode = useCallback((shortcodeId: string, format: TaxonomyFormat): string => {
     const shortcodeData = shortcodeCache.get(shortcodeId);
     if (!shortcodeData) { loadShortcode(shortcodeId); return shortcodeId; }
+    
+    // ✅ DEBUG LOG 2 : VÉRIFIER LA RECHERCHE DANS LE CACHE
+    const customCodeMatch = customCodesCache.find(cc => cc.shortcodeId === shortcodeId);
+
+    
     switch (format) {
       case 'code': return shortcodeData.SH_Code;
       case 'display_fr': return shortcodeData.SH_Display_Name_FR;
       case 'display_en': return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR;
       case 'utm': return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
       case 'custom_utm':
-        const customForUTM = customCodesCache.find(cc => cc.CC_Shortcode_ID === shortcodeId);
-        return customForUTM?.CC_Custom_UTM || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
+        return customCodeMatch?.customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
       case 'custom_code':
-        const customForCode = customCodesCache.find(cc => cc.CC_Shortcode_ID === shortcodeId);
-        return customForCode?.CC_Custom_Code || shortcodeData.SH_Code;
+        return customCodeMatch?.customCode || shortcodeData.SH_Code;
       default: return shortcodeData.SH_Display_Name_FR;
     }
   }, [shortcodeCache, customCodesCache, loadShortcode]);
@@ -212,6 +216,10 @@ export function useTaxonomyForm({
       ...(format === 'open' ? { openValue: value } : {}),
       ...(shortcodeId ? { shortcodeId } : {})
     };
+    
+
+    
+    
     const newTaxonomyValues = { ...taxonomyValues, [variableName]: newValue };
     setTaxonomyValues(newTaxonomyValues);
     setPreviewUpdateTime(Date.now());
@@ -229,11 +237,11 @@ export function useTaxonomyForm({
 
   const retryLoadTaxonomies = useCallback(() => { loadAndParseTaxonomies(); }, [loadAndParseTaxonomies]);
 
-  /**
-   * 🔥 MODIFIÉ: Accepte maintenant un format spécifique pour résoudre la valeur.
-   */
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const manualValue = taxonomyValues[variable.variable];
+
+
+
     if (manualValue) {
       if (manualValue.format === 'open') return manualValue.openValue || '';
       if (manualValue.shortcodeId) return formatShortcode(manualValue.shortcodeId, format);
@@ -264,9 +272,6 @@ export function useTaxonomyForm({
     return `[${variable.variable}]`;
   }, [taxonomyValues, campaignData, tactiqueData, formatShortcode]);
 
-  /**
-   * 🔥 MODIFIÉ: La fonction getFormattedValue accepte maintenant le format en paramètre.
-   */
   const getFormattedValue = useCallback((variableName: string, format: string): string => {
     const variable = parsedVariables.find(v => v.variable === variableName);
     if (!variable) return '';
@@ -301,7 +306,7 @@ export function useTaxonomyForm({
     hasTaxonomies,
     manualVariables,
     hasLoadingFields,
-    getFormattedValue, // Expose la nouvelle fonction
+    getFormattedValue,
     getFormattedPreview
   };
 }

@@ -118,7 +118,7 @@ export function parseTaxonomyStructure(
   }
 
   console.log(`✅ Parsing terminé: ${result.variables.length} variables uniques trouvées, valide: ${result.isValid}`);
-  
+  console.log(`[DEBUG 1] Parsing de la structure "${structure}"`, result);
   return result;
 }
 

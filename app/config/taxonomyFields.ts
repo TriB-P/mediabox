@@ -64,7 +64,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Placement': { source: 'tactique', allowedFormats: ['open'] },
 
   // --- Variables de niveau Placement (Manuelles) ---
-  'TAX_Product': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr'] },
+  'TAX_Product': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] },
   'TAX_Location': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr'] },
   'TAX_Custom_Field_1': { source: 'manual', allowedFormats: ['open'] },
   'TAX_Custom_Field_2': { source: 'manual', allowedFormats: ['open'] },
