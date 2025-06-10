@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx - VERSION ADAPTÉE
+// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx - VERSION AVEC HIGHLIGHT
 
 'use client';
 
@@ -50,7 +50,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     parsedVariables,
     fieldStates,
     taxonomyValues,
-    highlightState,
+    highlightState, // 🔥 RÉCUPÉRATION : État de highlight
     expandedPreviews,
     handleFieldChange,
     handleFieldHighlight,
@@ -76,7 +76,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     parsedVariables: parsedVariables.length,
     manualVariables: manualVariables.length,
     taxonomiesLoading,
-    hasLoadingFields
+    hasLoadingFields,
+    highlightState: highlightState.activeVariable // 🔥 AJOUT : Log du highlight
   });
 
   return (
@@ -139,6 +140,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           campaignData={campaignData}
           tactiqueData={tactiqueData}
           hasLoadingFields={hasLoadingFields}
+          highlightState={highlightState} // 🔥 NOUVEAU : Transmission du highlightState
           onToggleExpansion={togglePreviewExpansion}
           getFormattedValue={getFormattedValue} // NOUVEAU : Fonction synchrone
           getFormattedPreview={getFormattedPreview} // NOUVEAU : Fonction synchrone

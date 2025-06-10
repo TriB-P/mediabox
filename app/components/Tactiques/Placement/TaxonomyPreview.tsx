@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/TaxonomyPreview.tsx - VERSION CORRIGÉE MISE À JOUR
+// app/components/Tactiques/Placement/TaxonomyPreview.tsx - VERSION AVEC HIGHLIGHT EN GRAS
 
 'use client';
 
@@ -19,6 +19,12 @@ interface FieldState {
   error?: string;
 }
 
+interface HighlightState {
+  activeField?: string;
+  activeVariable?: string;
+  mode: 'field' | 'preview' | 'none';
+}
+
 interface TaxonomyPreviewProps {
   parsedVariables: ParsedTaxonomyVariable[];
   selectedTaxonomyData: {
@@ -36,6 +42,7 @@ interface TaxonomyPreviewProps {
   campaignData?: any;
   tactiqueData?: any;
   hasLoadingFields: boolean;
+  highlightState: HighlightState; // 🔥 NOUVEAU : Ajout du highlightState
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
   getFormattedValue: (variableName: string) => string;
   getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string;
@@ -52,6 +59,7 @@ export default function TaxonomyPreview({
   campaignData,
   tactiqueData,
   hasLoadingFields,
+  highlightState, // 🔥 NOUVEAU : Récupération du highlightState
   onToggleExpansion,
   getFormattedValue,
   getFormattedPreview
@@ -92,6 +100,7 @@ export default function TaxonomyPreview({
   
   /**
    * 🔥 NOUVEAU : Génère l'aperçu avec memoization pour éviter les re-calculs inutiles
+   * Maintenant avec prise en compte du highlightState
    */
   const getMemoizedPreview = useMemo(() => {
     return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
@@ -99,10 +108,10 @@ export default function TaxonomyPreview({
       console.log(`🎯 Aperçu mémorisé pour ${taxonomyType}: ${preview}`);
       return preview;
     };
-  }, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, parsedVariables]);
+  }, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, parsedVariables, highlightState]);
 
   /**
-   * Rend un niveau de taxonomie avec formatage intelligent - VERSION SYNCHRONE
+   * 🔥 MODIFIÉ : Rend un niveau de taxonomie avec formatage intelligent et highlight
    */
   const renderLevelWithVariables = (levelStructure: string) => {
     // Utiliser une regex pour trouver et remplacer toutes les variables [VARIABLE:format]
@@ -114,16 +123,24 @@ export default function TaxonomyPreview({
       const source = getVariableSource(variableName);
       const hasValue = hasVariableValue(variableName);
       
+      // 🔥 NOUVEAU : Vérifier si cette variable est en cours de highlight
+      const isHighlighted = highlightState.activeVariable === variableName;
+      
       // Toujours utiliser les couleurs de source et format
       const sourceColor = getSourceColor(source);
       const formatColor = getFormatColor(format as any);
 
+      // 🔥 NOUVEAU : Classes CSS supplémentaires pour le highlight
+      const highlightClasses = isHighlighted 
+        ? 'font-bold ring-2 ring-yellow-400 ring-opacity-75 transform scale-105 transition-all duration-200 shadow-lg z-10 relative' 
+        : 'transition-all duration-200';
+
       if (hasValue) {
-        // Variable avec valeur : contour normal
-        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text}" title="${variableName} | ${format}">${formattedValue}</span>`;
+        // Variable avec valeur : contour normal + éventuel highlight
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} ${highlightClasses}" title="${variableName} | ${format}">${formattedValue}</span>`;
       } else {
-        // Variable sans valeur : même couleurs mais contour rouge épais + icône
-        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border-2 border-red-400 " title="⚠ ${variableName} | ${format}">${match}</span>`;
+        // Variable sans valeur : même couleurs mais contour rouge épais + éventuel highlight
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border-2 border-red-400 ${highlightClasses}" title="⚠ ${variableName} | ${format}">${match}</span>`;
       }
     });
     
@@ -183,7 +200,7 @@ export default function TaxonomyPreview({
   };
 
   /**
-   * 🔥 NOUVEAU : Rend une carte de taxonomie avec aperçu forcé
+   * 🔥 MODIFIÉ : Rend une carte de taxonomie avec aperçu forcé et mise à jour basée sur highlight
    */
   const renderTaxonomyCard = (
     type: 'tags' | 'platform' | 'mediaocean',
@@ -191,13 +208,14 @@ export default function TaxonomyPreview({
     colorClass: string,
     label: string
   ) => {
-    // 🔥 CORRECTION : Utiliser la fonction mémorisée et forcer la mise à jour
+    // 🔥 MODIFICATION : Forcer le recalcul quand highlightState change
+    const highlightKey = highlightState.activeVariable || 'none';
     const fullPreview = getMemoizedPreview(type);
     
-    console.log(`🎯 Rendu carte ${type}, aperçu: ${fullPreview}`);
+    console.log(`🎯 Rendu carte ${type}, aperçu: ${fullPreview}, highlight: ${highlightKey}`);
 
     return (
-      <div key={`${type}-${Date.now()}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div key={`${type}-${highlightKey}-${Date.now()}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -210,6 +228,12 @@ export default function TaxonomyPreview({
             <span className="font-medium">
               {label}
             </span>
+            {/* 🔥 NOUVEAU : Indicateur de highlight actif */}
+            {highlightState.activeVariable && (
+              <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">
+                ← {highlightState.activeVariable}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             {hasLoadingFields && (
@@ -260,7 +284,7 @@ export default function TaxonomyPreview({
         )}
       </div>
       
-      {/* Légende enrichie des couleurs */}
+      {/* 🔥 MODIFIÉ : Légende enrichie des couleurs avec info sur highlight */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
         <div className="space-y-2">
           {/* Sources */}
@@ -271,6 +295,10 @@ export default function TaxonomyPreview({
               <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">Placement</span>
               <span className="px-2 py-1 bg-white-100 text-black-800 border-2 border-red-400 rounded">Manquant</span>
             </div>
+          </div>
+          {/* 🔥 NOUVEAU : Instructions pour l'utilisateur */}
+          <div className="text-xs text-gray-600">
+            💡 Survolez un champ dans la section "Variables à configurer" pour le mettre en surbrillance dans l'aperçu
           </div>
         </div>
       </div>
