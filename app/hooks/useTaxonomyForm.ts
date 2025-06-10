@@ -1,4 +1,4 @@
-// app/hooks/useTaxonomyForm.ts - VERSION FINALE SANS BOUCLES
+// app/hooks/useTaxonomyForm.ts - VERSION CORRIGÉE FORMATS SPÉCIFIQUES
 
 import { useState, useEffect, useCallback } from 'react';
 import { getTaxonomyById } from '../lib/taxonomyService';
@@ -6,17 +6,26 @@ import { getDynamicList, hasDynamicList } from '../lib/tactiqueListService';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Taxonomy } from '../types/taxonomy';
-import { TAXONOMY_FIELD_SOURCES } from '../config/taxonomyFields'; // 🔥 IMPORT DIRECT
+import { TAXONOMY_FIELD_SOURCES } from '../config/taxonomyFields';
 import type {
   PlacementFormData,
   HighlightState,
-  ParsedTaxonomyVariable,
   TaxonomyValues,
   TaxonomyVariableValue
 } from '../types/tactiques';
 import type { TaxonomyFormat } from '../config/taxonomyFields';
 
-// ==================== TYPES ====================
+// ==================== TYPES MODIFIÉS ====================
+
+// 🔥 NOUVEAU : Variable avec multiples formats
+interface ExtendedParsedTaxonomyVariable {
+  variable: string;
+  formats: TaxonomyFormat[]; // 🔥 CHANGEMENT : Array de formats au lieu d'un seul
+  source: 'campaign' | 'tactique' | 'manual';
+  level: number;
+  isValid: boolean;
+  errorMessage?: string;
+}
 
 interface FieldState {
   options: Array<{ id: string; label: string; code?: string }>;
@@ -67,13 +76,16 @@ export function useTaxonomyForm({
   
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(false);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
-  const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
+  const [parsedVariables, setParsedVariables] = useState<ExtendedParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
   const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(
     formData.PL_Taxonomy_Values || {}
   );
   
-  // Cache pour les shortcodes - CHARGÉ UNE SEULE FOIS
+  // 🔥 NOUVEAU : Timestamp pour forcer la mise à jour des aperçus
+  const [previewUpdateTime, setPreviewUpdateTime] = useState(Date.now());
+  
+  // Cache pour les shortcodes
   const [shortcodeCache, setShortcodeCache] = useState<Map<string, ShortcodeData>>(new Map());
   const [customCodesCache, setCustomCodesCache] = useState<CustomCode[]>([]);
   const [cacheLoaded, setCacheLoaded] = useState(false);
@@ -113,7 +125,6 @@ export function useTaxonomyForm({
     console.log('🔄 Chargement initial du cache shortcodes');
     
     try {
-      // Charger les custom codes du client
       const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
       const customSnapshot = await getDocs(customCodesRef);
       
@@ -130,11 +141,10 @@ export function useTaxonomyForm({
       
     } catch (error) {
       console.error('Erreur chargement cache:', error);
-      setCacheLoaded(true); // Marquer comme chargé même en cas d'erreur
+      setCacheLoaded(true);
     }
   }, [clientId, cacheLoaded]);
 
-  // Charger un shortcode spécifique si pas en cache
   const loadShortcode = useCallback(async (shortcodeId: string): Promise<ShortcodeData | null> => {
     if (shortcodeCache.has(shortcodeId)) {
       return shortcodeCache.get(shortcodeId)!;
@@ -155,7 +165,6 @@ export function useTaxonomyForm({
         SH_Default_UTM: data.SH_Default_UTM,
       };
       
-      // Ajouter au cache
       setShortcodeCache(prev => new Map(prev).set(shortcodeId, shortcodeData));
       return shortcodeData;
       
@@ -168,15 +177,12 @@ export function useTaxonomyForm({
   // ==================== FORMATAGE SYNCHRONE ====================
   
   const formatShortcode = useCallback((shortcodeId: string, format: TaxonomyFormat): string => {
-    // 1. Vérifier le cache synchrone
     const shortcodeData = shortcodeCache.get(shortcodeId);
     if (!shortcodeData) {
-      // Si pas en cache, charger de manière asynchrone (sans bloquer)
       loadShortcode(shortcodeId);
-      return shortcodeId; // Retourner l'ID en attendant
+      return shortcodeId;
     }
     
-    // 2. Appliquer le format
     switch (format) {
       case 'code':
         return shortcodeData.SH_Code;
@@ -197,19 +203,18 @@ export function useTaxonomyForm({
     }
   }, [shortcodeCache, customCodesCache, loadShortcode]);
 
-  // ==================== PARSING DES VARIABLES ====================
+  // ==================== PARSING DES VARIABLES CORRIGÉ ====================
   
-  function parseVariablesFromStructure(structure: string): ParsedTaxonomyVariable[] {
+  function parseVariablesFromStructure(structure: string): Array<{ variable: string; format: TaxonomyFormat; source: 'campaign' | 'tactique' | 'manual' }> {
     if (!structure) return [];
     
     const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-    const variables: ParsedTaxonomyVariable[] = [];
+    const variables: Array<{ variable: string; format: TaxonomyFormat; source: 'campaign' | 'tactique' | 'manual' }> = [];
     let match;
     
     while ((match = VARIABLE_REGEX.exec(structure)) !== null) {
       const [, variableName, format] = match;
       
-      // 🔥 CORRECTION : Utiliser la configuration importée
       let source: 'campaign' | 'tactique' | 'manual' = 'manual';
       
       if (TAXONOMY_FIELD_SOURCES.campaign.includes(variableName)) {
@@ -223,43 +228,63 @@ export function useTaxonomyForm({
       variables.push({
         variable: variableName,
         format: format as TaxonomyFormat,
-        source,
-        level: 1,
-        isValid: true
+        source
       });
     }
     
     return variables;
   }
 
-  function getAllVariables(): ParsedTaxonomyVariable[] {
-    const allVariables: ParsedTaxonomyVariable[] = [];
+  // 🔥 FONCTION CORRIGÉE : Déduplication par nom de variable
+  function getAllVariables(): ExtendedParsedTaxonomyVariable[] {
+    const rawVariables: Array<{ variable: string; format: TaxonomyFormat; source: 'campaign' | 'tactique' | 'manual' }> = [];
     
     if (selectedTaxonomyData.tags) {
       const structure = extractTaxonomyStructure(selectedTaxonomyData.tags);
-      allVariables.push(...parseVariablesFromStructure(structure));
+      rawVariables.push(...parseVariablesFromStructure(structure));
     }
     
     if (selectedTaxonomyData.platform) {
       const structure = extractTaxonomyStructure(selectedTaxonomyData.platform);
-      allVariables.push(...parseVariablesFromStructure(structure));
+      rawVariables.push(...parseVariablesFromStructure(structure));
     }
     
     if (selectedTaxonomyData.mediaocean) {
       const structure = extractTaxonomyStructure(selectedTaxonomyData.mediaocean);
-      allVariables.push(...parseVariablesFromStructure(structure));
+      rawVariables.push(...parseVariablesFromStructure(structure));
     }
     
-    // Éliminer les doublons
-    const uniqueVariables = new Map<string, ParsedTaxonomyVariable>();
-    allVariables.forEach(variable => {
-      const key = `${variable.variable}:${variable.format}`;
-      if (!uniqueVariables.has(key)) {
-        uniqueVariables.set(key, variable);
+    // 🔥 CORRECTION : Déduplication par nom de variable uniquement
+    const variableMap = new Map<string, ExtendedParsedTaxonomyVariable>();
+    
+    rawVariables.forEach(({ variable, format, source }) => {
+      if (variableMap.has(variable)) {
+        // Variable déjà présente : ajouter le format s'il n'y est pas déjà
+        const existing = variableMap.get(variable)!;
+        if (!existing.formats.includes(format)) {
+          existing.formats.push(format);
+        }
+      } else {
+        // Nouvelle variable : créer l'entrée
+        variableMap.set(variable, {
+          variable,
+          formats: [format], // 🔥 CHANGEMENT : Array avec le premier format
+          source,
+          level: 1,
+          isValid: true
+        });
       }
     });
     
-    return Array.from(uniqueVariables.values());
+    const result = Array.from(variableMap.values());
+    
+    console.log('🔍 Variables après déduplication:', result.map(v => ({
+      variable: v.variable,
+      formats: v.formats,
+      source: v.source
+    })));
+    
+    return result;
   }
 
   function extractTaxonomyStructure(taxonomy: Taxonomy): string {
@@ -275,16 +300,18 @@ export function useTaxonomyForm({
 
   // ==================== RÉSOLUTION DES VALEURS (SYNCHRONE) ====================
   
-  const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable): string => {
-    const { variable: varName, format, source } = variable;
+  const resolveVariableValue = useCallback((variable: ExtendedParsedTaxonomyVariable): string => {
+    const { variable: varName, source } = variable;
     
     // 1. Vérifier s'il y a une valeur manuelle
     const manualValue = taxonomyValues[varName];
     if (manualValue) {
-      if (format === 'open' && manualValue.openValue) {
+      if (manualValue.format === 'open' && manualValue.openValue) {
         return manualValue.openValue;
       } else if (manualValue.shortcodeId) {
-        return formatShortcode(manualValue.shortcodeId, format);
+        // 🔥 NOUVEAU : Pour les multiples formats, utiliser le premier format pour l'affichage
+        const primaryFormat = variable.formats[0];
+        return formatShortcode(manualValue.shortcodeId, primaryFormat);
       } else {
         return manualValue.value || '';
       }
@@ -301,26 +328,19 @@ export function useTaxonomyForm({
     if (rawValue) {
       const rawValueStr = String(rawValue);
       
-      // 🔥 CORRECTION : Si c'est un ID de shortcode (long et sans espaces), le formater
-      if (format !== 'open' && rawValueStr.length > 5 && !rawValueStr.includes(' ')) {
-        const formattedValue = formatShortcode(rawValueStr, format);
-        // Si le formatage a réussi (pas juste l'ID retourné), utiliser la valeur formatée
+      // Pour les valeurs héritées, utiliser le premier format demandé
+      const primaryFormat = variable.formats[0];
+      if (primaryFormat !== 'open' && rawValueStr.length > 5 && !rawValueStr.includes(' ')) {
+        const formattedValue = formatShortcode(rawValueStr, primaryFormat);
         if (formattedValue && formattedValue !== rawValueStr) {
           return formattedValue;
         }
       }
       
-      // 🔥 NOUVEAU : Pour les valeurs héritées, toujours retourner la valeur brute si formatage échoue
       return rawValueStr;
     }
     
-    // 3. 🔥 CORRECTION : Pour les champs manuels sans valeur, retourner une chaîne vide au lieu d'un placeholder
-    if (source === 'manual') {
-      return ''; // Chaîne vide pour ne pas affecter l'aperçu
-    }
-    
-    // 4. Retourner un placeholder seulement pour debug
-    return `[${varName}:${format}]`;
+    return source === 'manual' ? '' : `[${varName}:${variable.formats.join('|')}]`;
   }, [taxonomyValues, campaignData, tactiqueData, formatShortcode]);
 
   // ==================== FONCTIONS DE FORMATAGE (SYNCHRONES) ====================
@@ -332,30 +352,100 @@ export function useTaxonomyForm({
     return resolveVariableValue(variable);
   }, [parsedVariables, resolveVariableValue]);
 
+  // 🔥 FONCTION CORRIGÉE : Respecte le format spécifique de chaque occurrence
   const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
+    console.log(`🎯 Génération aperçu pour ${taxonomyType}`);
+    
     const taxonomy = selectedTaxonomyData[taxonomyType];
-    if (!taxonomy) return '';
+    if (!taxonomy) {
+      console.log(`❌ Pas de taxonomie pour ${taxonomyType}`);
+      return '';
+    }
     
     const structure = extractTaxonomyStructure(taxonomy);
-    if (!structure) return '';
+    if (!structure) {
+      console.log(`❌ Pas de structure pour ${taxonomyType}`);
+      return '';
+    }
     
+    console.log(`📋 Structure à traiter: ${structure}`);
+    
+    // 🔥 NOUVEAU : Créer une nouvelle regex à chaque appel pour éviter les problèmes de state
     const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
     
-    return structure.replace(VARIABLE_REGEX, (match, variableName, format) => {
-      const variable = parsedVariables.find(v => 
-        v.variable === variableName && v.format === format
-      );
+    const result = structure.replace(VARIABLE_REGEX, (match, variableName, requestedFormat) => {
+      console.log(`🔍 Traitement ${variableName} avec format ${requestedFormat} dans ${taxonomyType}`);
       
-      if (variable) {
-        const resolvedValue = resolveVariableValue(variable);
-        if (resolvedValue && !resolvedValue.startsWith('[')) {
-          return resolvedValue;
+      const variable = parsedVariables.find(v => v.variable === variableName);
+      
+      if (!variable) {
+        console.log(`❌ Variable ${variableName} non trouvée dans parsedVariables`);
+        return match;
+      }
+      
+      const taxonomyValue = taxonomyValues[variableName];
+      
+      // Pour les champs hérités (campaign/tactique)
+      if (variable.source === 'campaign' || variable.source === 'tactique') {
+        let rawValue: any = null;
+        if (variable.source === 'campaign' && campaignData?.[variableName]) {
+          rawValue = campaignData[variableName];
+        } else if (variable.source === 'tactique' && tactiqueData?.[variableName]) {
+          rawValue = tactiqueData[variableName];
+        }
+        
+        if (rawValue) {
+          const rawValueStr = String(rawValue);
+          
+          // 🔥 CORRECTION : Utiliser le format spécifique demandé dans cette occurrence
+          if (requestedFormat !== 'open' && rawValueStr.length > 5 && !rawValueStr.includes(' ')) {
+            const formattedValue = formatShortcode(rawValueStr, requestedFormat as TaxonomyFormat);
+            if (formattedValue && formattedValue !== rawValueStr) {
+              console.log(`✅ HÉRITÉ ${variableName} formaté: ${rawValueStr} → ${formattedValue} (format: ${requestedFormat})`);
+              return formattedValue;
+            }
+          }
+          
+          console.log(`📝 HÉRITÉ ${variableName} valeur brute: ${rawValueStr}`);
+          return rawValueStr;
+        }
+      } 
+      // Pour les champs manuels
+      else if (variable.source === 'manual' && taxonomyValue) {
+        if (requestedFormat === 'open' && taxonomyValue.openValue) {
+          console.log(`📝 MANUEL ${variableName} saisie libre: ${taxonomyValue.openValue}`);
+          return taxonomyValue.openValue;
+        } else if (taxonomyValue.shortcodeId) {
+          // 🔥 CORRECTION : Utiliser le format spécifique demandé dans cette occurrence
+          const formattedValue = formatShortcode(taxonomyValue.shortcodeId, requestedFormat as TaxonomyFormat);
+          console.log(`✅ MANUEL ${variableName} shortcode formaté: ${taxonomyValue.shortcodeId} → ${formattedValue} (format: ${requestedFormat})`);
+          return formattedValue;
+        } else if (taxonomyValue.value) {
+          console.log(`📝 MANUEL ${variableName} valeur directe: ${taxonomyValue.value}`);
+          return taxonomyValue.value;
         }
       }
       
-      return match;
+      console.log(`❌ ${variableName} non résolu, garde ${match}`);
+      return match; // Garder la variable non résolue
     });
-  }, [selectedTaxonomyData, parsedVariables, resolveVariableValue]);
+    
+    console.log(`🎯 Résultat final pour ${taxonomyType}: ${result}`);
+    return result;
+    
+  }, [
+    selectedTaxonomyData, 
+    parsedVariables, 
+    taxonomyValues, 
+    campaignData, 
+    tactiqueData, 
+    formatShortcode,
+    // 🔥 NOUVEAU : Forcer la re-exécution quand le cache change
+    shortcodeCache,
+    customCodesCache,
+    // 🔥 NOUVEAU : Forcer la mise à jour avec timestamp
+    previewUpdateTime
+  ]);
 
   // ==================== CHARGEMENT DES DONNÉES ====================
   
@@ -422,7 +512,8 @@ export function useTaxonomyForm({
     console.log('📦 Chargement des listes pour', manualVars.length, 'variables');
     
     for (const variable of manualVars) {
-      const fieldKey = `${variable.variable}_${variable.format}`;
+      // 🔥 CORRECTION : Une seule clé par variable (pas par format)
+      const fieldKey = variable.variable;
       
       setFieldStates(prev => ({
         ...prev,
@@ -473,19 +564,16 @@ export function useTaxonomyForm({
 
   // ==================== EFFECTS ====================
   
-  // Charger le cache au début
   useEffect(() => {
     loadShortcodeCache();
   }, [loadShortcodeCache]);
 
-  // Charger les taxonomies quand les IDs changent
   useEffect(() => {
     if (cacheLoaded) {
       loadTaxonomies();
     }
   }, [loadTaxonomies, cacheLoaded]);
 
-  // Parser les variables quand les taxonomies sont prêtes
   useEffect(() => {
     if (Object.keys(selectedTaxonomyData).length > 0) {
       const variables = getAllVariables();
@@ -493,6 +581,14 @@ export function useTaxonomyForm({
       loadFieldOptions();
     }
   }, [selectedTaxonomyData, loadFieldOptions]);
+  
+  // 🔥 NOUVEAU : Forcer la mise à jour des aperçus quand les shortcodes sont chargés
+  useEffect(() => {
+    if (shortcodeCache.size > 0 || customCodesCache.length > 0) {
+      console.log('🔄 Cache shortcode mis à jour, forcer aperçu');
+      setPreviewUpdateTime(Date.now());
+    }
+  }, [shortcodeCache.size, customCodesCache.length]);
 
   // ==================== GESTIONNAIRES ====================
   
@@ -502,7 +598,7 @@ export function useTaxonomyForm({
     format: TaxonomyFormat, 
     shortcodeId?: string
   ) => {
-    console.log(`🔄 Changement ${variableName}: ${value}`);
+    console.log(`🔄 Changement ${variableName}: ${value} (format: ${format})`);
     
     const newValue: TaxonomyVariableValue = {
       value,
@@ -518,6 +614,9 @@ export function useTaxonomyForm({
     };
     
     setTaxonomyValues(newTaxonomyValues);
+    
+    // 🔥 NOUVEAU : Forcer la mise à jour des aperçus
+    setPreviewUpdateTime(Date.now());
     
     const syntheticEvent = {
       target: {

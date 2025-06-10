@@ -1,4 +1,4 @@
-// app/types/tactiques.ts
+// app/types/tactiques.ts - MISE À JOUR POUR MULTIPLES FORMATS
 
 // Types pour le module de tactiques
 
@@ -134,14 +134,14 @@ export interface GeneratedTaxonomies {
 }
 
 /**
- * 🔥 NOUVEAU : Variable parsée depuis une structure de taxonomie
+ * 🔥 NOUVEAU CORRIGÉ : Variable parsée depuis une structure de taxonomie avec support multiples formats
  */
 export interface ParsedTaxonomyVariable {
   variable: string;                   // Nom de la variable (ex: "TC_Publisher")
-  format: TaxonomyVariableFormat;     // Format demandé (ex: "display_fr")
+  formats: TaxonomyVariableFormat[];  // 🔥 CHANGEMENT : Array de formats demandés au lieu d'un seul
   source: TaxonomyVariableSource;     // Source déterminée automatiquement
   level: number;                      // Niveau dans la taxonomie (1-4)
-  isValid: boolean;                   // Indique si la variable/format est valide
+  isValid: boolean;                   // Indique si la variable/formats sont valides
   errorMessage?: string;              // Message d'erreur si invalide
 }
 
@@ -341,7 +341,7 @@ export interface TaxonomyProcessingResult {
 export interface TaxonomyFieldConfig {
   variable: string;                    // Nom de la variable
   source: TaxonomyVariableSource;      // Source de la donnée
-  format: TaxonomyVariableFormat;      // Format requis
+  formats: TaxonomyVariableFormat[];   // 🔥 CHANGEMENT : Array de formats requis
   isRequired: boolean;                 // Champ obligatoire
   hasCustomList: boolean;              // Possède une liste dynamique
   currentValue?: string;               // Valeur actuelle

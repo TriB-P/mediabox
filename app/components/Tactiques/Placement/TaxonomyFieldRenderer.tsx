@@ -1,18 +1,39 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - VERSION CORRIGÉE
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - VERSION CORRIGÉE MULTIPLES FORMATS
 
 'use client';
 
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, getFormatColor, formatRequiresShortcode, formatAllowsUserInput } from '../../../config/taxonomyFields';
-import type {
-  ParsedTaxonomyVariable,
-  TaxonomyValues,
-  HighlightState
-} from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
-// ==================== TYPES ====================
+// ==================== TYPES ADAPTÉS ====================
+
+// 🔥 NOUVEAU : Variable avec multiples formats
+interface ExtendedParsedTaxonomyVariable {
+  variable: string;
+  formats: TaxonomyFormat[]; // 🔥 CHANGEMENT : Array de formats
+  source: 'campaign' | 'tactique' | 'manual';
+  level: number;
+  isValid: boolean;
+  errorMessage?: string;
+}
+
+interface TaxonomyValues {
+  [variableName: string]: {
+    value: string;
+    source: 'campaign' | 'tactique' | 'manual';
+    format: TaxonomyFormat;
+    shortcodeId?: string;
+    openValue?: string;
+  };
+}
+
+interface HighlightState {
+  activeField?: string;
+  activeVariable?: string;
+  mode: 'field' | 'preview' | 'none';
+}
 
 interface FieldState {
   options: Array<{ id: string; label: string; code?: string }>;
@@ -22,7 +43,7 @@ interface FieldState {
 }
 
 interface TaxonomyFieldRendererProps {
-  manualVariables: ParsedTaxonomyVariable[];
+  manualVariables: ExtendedParsedTaxonomyVariable[]; // 🔥 CHANGEMENT : Type mis à jour
   fieldStates: { [key: string]: FieldState };
   taxonomyValues: TaxonomyValues;
   highlightState: HighlightState;
@@ -30,7 +51,7 @@ interface TaxonomyFieldRendererProps {
   tactiqueData?: any;
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
-  getFormattedValue: (variableName: string) => string; // FONCTION SYNCHRONE
+  getFormattedValue: (variableName: string) => string;
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -44,19 +65,19 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   tactiqueData,
   onFieldChange,
   onFieldHighlight,
-  getFormattedValue // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
+  getFormattedValue
 }) => {
 
   // ==================== FONCTIONS DE RENDU ====================
   
   /**
-   * Obtient la valeur actuelle pour un champ - VERSION SIMPLIFIÉE
+   * 🔥 FONCTION ADAPTÉE : Obtient la valeur actuelle pour un champ
    */
-  const getCurrentFieldValue = (variable: ParsedTaxonomyVariable): { displayValue: string; actualValue: string } => {
+  const getCurrentFieldValue = (variable: ExtendedParsedTaxonomyVariable): { displayValue: string; actualValue: string } => {
     const taxonomyValue = taxonomyValues[variable.variable];
     
     if (variable.source === 'campaign' || variable.source === 'tactique') {
-      // Champs hérités : utiliser la valeur formatée SYNCHRONE
+      // Champs hérités : utiliser la valeur formatée
       const formattedValue = getFormattedValue(variable.variable);
       return {
         displayValue: formattedValue,
@@ -71,8 +92,8 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       };
     }
     
-    if (variable.format === 'open') {
-      // Format open : utiliser directement la valeur saisie
+    // 🔥 NOUVEAU : Gérer format open
+    if (variable.formats.includes('open')) {
       return {
         displayValue: taxonomyValue.openValue || '',
         actualValue: taxonomyValue.openValue || ''
@@ -81,7 +102,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     
     if (taxonomyValue.shortcodeId) {
       // Format shortcode : afficher le shortcode sélectionné
-      const fieldKey = `${variable.variable}_${variable.format}`;
+      const fieldKey = variable.variable; // 🔥 CORRECTION : Plus de format dans la clé
       const fieldState = fieldStates[fieldKey];
       
       if (fieldState?.options) {
@@ -102,15 +123,15 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * Rend un champ selon son format et sa source - VERSION SIMPLIFIÉE
+   * 🔥 FONCTION ADAPTÉE : Rend un champ selon ses formats et sa source
    */
-  const renderVariableInput = (variable: ParsedTaxonomyVariable, fieldState: FieldState) => {
-    const fieldKey = `${variable.variable}_${variable.format}`;
+  const renderVariableInput = (variable: ExtendedParsedTaxonomyVariable, fieldState: FieldState) => {
+    const fieldKey = variable.variable; // 🔥 CORRECTION : Plus de format dans la clé
     const { displayValue, actualValue } = getCurrentFieldValue(variable);
     
     // CHAMPS HÉRITÉS (lecture seule)
     if (variable.source === 'campaign' || variable.source === 'tactique') {
-      const formattedValue = getFormattedValue(variable.variable); // APPEL SYNCHRONE
+      const formattedValue = getFormattedValue(variable.variable);
       
       return (
         <div className="relative">
@@ -136,17 +157,21 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     
     // CHAMPS MANUELS
     
-    // Format OPEN (saisie libre)
-    if (variable.format === 'open') {
+    // 🔥 NOUVEAU : Déterminer le mode d'input selon les formats demandés
+    const hasOpenFormat = variable.formats.includes('open');
+    const hasShortcodeFormats = variable.formats.some(format => formatRequiresShortcode(format));
+    
+    // Si on a le format 'open', privilégier la saisie libre
+    if (hasOpenFormat && !hasShortcodeFormats) {
       return (
         <div className="relative">
           <FormInput
             id={fieldKey}
             name={fieldKey}
             value={displayValue}
-            onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.format)}
+            onChange={(e) => onFieldChange(variable.variable, e.target.value, 'open')}
             type="text"
-            placeholder={`Saisir ${variable.format}...`}
+            placeholder="Saisir la valeur..."
             label=""
           />
           {renderFieldStatus(fieldState)}
@@ -154,54 +179,119 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       );
     }
     
-    // Formats nécessitant un SHORTCODE
-    if (formatRequiresShortcode(variable.format)) {
-      if (fieldState.hasCustomList && fieldState.options.length > 0) {
-        return (
-          <div className="relative">
-            <SmartSelect
-              id={fieldKey}
-              name={fieldKey}
-              value={actualValue} // ID du shortcode sélectionné
-              onChange={(e) => {
-                const selectedId = e.target.value;
-                const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
-                const displayValue = selectedOption?.label || '';
-                
-                onFieldChange(variable.variable, displayValue, variable.format, selectedId);
+    // Si on a des formats shortcode et une liste disponible
+    if (hasShortcodeFormats && fieldState.hasCustomList && fieldState.options.length > 0) {
+      return (
+        <div className="relative">
+          <SmartSelect
+            id={fieldKey}
+            name={fieldKey}
+            value={actualValue} // ID du shortcode sélectionné
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
+              const displayValue = selectedOption?.label || '';
+              
+              // 🔥 NOUVEAU : Utiliser le premier format shortcode trouvé
+              const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || variable.formats[0];
+              
+              onFieldChange(variable.variable, displayValue, primaryFormat, selectedId);
+            }}
+            options={fieldState.options}
+            placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner une valeur..."}
+            label=""
+          />
+          {/* Overlay de chargement */}
+          {fieldState.isLoading && (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-70 cursor-not-allowed rounded pointer-events-none flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+          {renderFieldStatus(fieldState)}
+        </div>
+      );
+    }
+    
+    // Si on a les deux types de formats, permettre le choix
+    if (hasOpenFormat && hasShortcodeFormats) {
+      const currentIsOpen = taxonomyValues[variable.variable]?.format === 'open';
+      
+      return (
+        <div className="space-y-2">
+          {/* Toggle pour choisir le mode */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!currentIsOpen) {
+                  onFieldChange(variable.variable, '', 'open');
+                }
               }}
-              options={fieldState.options}
-              placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner une valeur..."}
-              label=""
-            />
-            {/* Overlay de chargement */}
-            {fieldState.isLoading && (
-              <div className="absolute inset-0 bg-gray-100 bg-opacity-70 cursor-not-allowed rounded pointer-events-none flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              </div>
-            )}
-            {renderFieldStatus(fieldState)}
+              className={`px-2 py-1 text-xs rounded ${
+                currentIsOpen 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Saisie libre
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentIsOpen) {
+                  const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || variable.formats[0];
+                  onFieldChange(variable.variable, '', primaryFormat);
+                }
+              }}
+              className={`px-2 py-1 text-xs rounded ${
+                !currentIsOpen 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Sélection
+            </button>
           </div>
-        );
-      } else {
-        // Pas de liste disponible pour ce format shortcode
-        return (
-          <div className="relative">
+          
+          {/* Champ selon le mode */}
+          {currentIsOpen ? (
             <FormInput
               id={fieldKey}
               name={fieldKey}
-              value=""
-              onChange={() => {}}
+              value={displayValue}
+              onChange={(e) => onFieldChange(variable.variable, e.target.value, 'open')}
               type="text"
-              placeholder="Liste non disponible pour ce format"
+              placeholder="Saisir la valeur..."
               label=""
             />
-            <div className="text-xs text-amber-600 mt-1">
-              ⚠ Format {variable.format} nécessite une liste de shortcodes
-            </div>
-          </div>
-        );
-      }
+          ) : (
+            fieldState.hasCustomList && fieldState.options.length > 0 ? (
+              <SmartSelect
+                id={fieldKey}
+                name={fieldKey}
+                value={actualValue}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
+                  const displayValue = selectedOption?.label || '';
+                  const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || variable.formats[0];
+                  
+                  onFieldChange(variable.variable, displayValue, primaryFormat, selectedId);
+                }}
+                options={fieldState.options}
+                placeholder="Sélectionner une valeur..."
+                label=""
+              />
+            ) : (
+              <div className="text-xs text-amber-600">
+                ⚠ Liste non disponible pour cette variable
+              </div>
+            )
+          )}
+          
+          {renderFieldStatus(fieldState)}
+        </div>
+      );
     }
     
     // Fallback : champ de saisie libre
@@ -211,9 +301,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           id={fieldKey}
           name={fieldKey}
           value={displayValue}
-          onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.format)}
+          onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.formats[0])}
           type="text"
-          placeholder={`Saisir ${variable.format}...`}
+          placeholder="Saisir la valeur..."
           label=""
         />
         {renderFieldStatus(fieldState)}
@@ -236,34 +326,41 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * Rend la badge de format avec couleur
+   * 🔥 FONCTION ADAPTÉE : Rend les badges de multiples formats
    */
-  const renderFormatBadge = (format: TaxonomyFormat) => {
-    const formatColor = getFormatColor(format);
-    const formatLabel = (() => {
-      switch (format) {
-        case 'code': return 'Code';
-        case 'display_fr': return 'FR';
-        case 'display_en': return 'EN';
-        case 'utm': return 'UTM';
-        case 'custom_utm': return 'UTM+';
-        case 'custom_code': return 'Code+';
-        case 'open': return 'Libre';
-        default: return format;
-      }
-    })();
-    
+  const renderFormatBadges = (formats: TaxonomyFormat[]) => {
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${formatColor.bg} ${formatColor.text}`}>
-        {formatLabel}
-      </span>
+      <div className="flex flex-wrap gap-1">
+        {formats.map((format, index) => {
+          const formatColor = getFormatColor(format);
+          const formatLabel = (() => {
+            switch (format) {
+              case 'code': return 'Code';
+              case 'display_fr': return 'FR';
+              case 'display_en': return 'EN';
+              case 'utm': return 'UTM';
+              case 'custom_utm': return 'UTM+';
+              case 'custom_code': return 'Code+';
+              case 'open': return 'Libre';
+              default: return format;
+            }
+          })();
+          
+          return (
+            <span 
+              key={index}
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${formatColor.bg} ${formatColor.text}`}
+            >
+              {formatLabel}
+            </span>
+          );
+        })}
+      </div>
     );
   };
 
-
-
   /**
-   * Rend les champs de variables
+   * 🔥 FONCTION ADAPTÉE : Rend les champs de variables
    */
   const renderVariableFields = () => {
     if (manualVariables.length === 0) {
@@ -310,10 +407,10 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   /**
-   * Rend une carte de variable avec les informations
+   * 🔥 FONCTION ADAPTÉE : Rend une carte de variable avec multiples formats
    */
-  const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
-    const fieldKey = `${variable.variable}_${variable.format}`;
+  const renderVariableCard = (variable: ExtendedParsedTaxonomyVariable) => {
+    const fieldKey = variable.variable; // 🔥 CORRECTION : Plus de format dans la clé
     const fieldState = fieldStates[fieldKey];
     const sourceColor = getSourceColor(variable.source);
     
@@ -335,7 +432,8 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             <span className="text-sm font-medium text-gray-900">
               {variable.variable}
             </span>
-            {renderFormatBadge(variable.format)}
+            {/* 🔥 NOUVEAU : Afficher tous les formats demandés */}
+            {renderFormatBadges(variable.formats)}
           </div>
           
           <div className="flex items-center space-x-2">
@@ -346,6 +444,8 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             )}
           </div>
         </div>
+        
+
         
         {renderVariableInput(variable, fieldState)}
       </div>

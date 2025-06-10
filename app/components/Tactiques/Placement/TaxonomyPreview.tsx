@@ -1,8 +1,8 @@
-// app/components/Tactiques/Placement/TaxonomyPreview.tsx - VERSION CORRIGÉE
+// app/components/Tactiques/Placement/TaxonomyPreview.tsx - VERSION CORRIGÉE MISE À JOUR
 
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { getSourceColor, getFormatColor } from '../../../config/taxonomyFields';
 import { Taxonomy } from '../../../types/taxonomy';
 import type {
@@ -37,8 +37,8 @@ interface TaxonomyPreviewProps {
   tactiqueData?: any;
   hasLoadingFields: boolean;
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
-  getFormattedValue: (variableName: string) => string; // FONCTION SYNCHRONE
-  getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string; // FONCTION SYNCHRONE
+  getFormattedValue: (variableName: string) => string;
+  getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string;
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -53,8 +53,8 @@ export default function TaxonomyPreview({
   tactiqueData,
   hasLoadingFields,
   onToggleExpansion,
-  getFormattedValue, // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
-  getFormattedPreview // UTILISATION DIRECTE SANS APPELS ASYNCHRONES
+  getFormattedValue,
+  getFormattedPreview
 }: TaxonomyPreviewProps) {
 
   // ==================== FONCTIONS UTILITAIRES ====================
@@ -68,20 +68,19 @@ export default function TaxonomyPreview({
   };
 
   /**
-   * Détermine le format d'une variable pour la coloration
+   * Détermine les formats d'une variable pour la coloration
    */
-  const getVariableFormat = (variableName: string): string => {
+  const getVariableFormats = (variableName: string): string[] => {
     const variable = parsedVariables.find(v => v.variable === variableName);
-    return variable?.format || 'display_fr';
+    return variable?.formats || ['display_fr'];
   };
 
   /**
    * Vérifie si une variable a une valeur définie - VERSION SYNCHRONE
    */
   const hasVariableValue = (variableName: string): boolean => {
-    const formattedValue = getFormattedValue(variableName); // APPEL SYNCHRONE
+    const formattedValue = getFormattedValue(variableName);
     
-    // 🔥 CORRECTION : Une variable a une valeur si elle n'est pas vide ET ne commence pas par [
     return Boolean(
       formattedValue && 
       formattedValue.trim() !== '' && 
@@ -92,6 +91,17 @@ export default function TaxonomyPreview({
   // ==================== FONCTIONS DE RENDU ====================
   
   /**
+   * 🔥 NOUVEAU : Génère l'aperçu avec memoization pour éviter les re-calculs inutiles
+   */
+  const getMemoizedPreview = useMemo(() => {
+    return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
+      const preview = getFormattedPreview(taxonomyType);
+      console.log(`🎯 Aperçu mémorisé pour ${taxonomyType}: ${preview}`);
+      return preview;
+    };
+  }, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, parsedVariables]);
+
+  /**
    * Rend un niveau de taxonomie avec formatage intelligent - VERSION SYNCHRONE
    */
   const renderLevelWithVariables = (levelStructure: string) => {
@@ -100,22 +110,22 @@ export default function TaxonomyPreview({
     
     // Remplacer chaque variable par sa valeur résolue avec le bon style
     const resolvedStructure = levelStructure.replace(VARIABLE_REGEX, (match, variableName, format) => {
-      const formattedValue = getFormattedValue(variableName); // APPEL SYNCHRONE
+      const formattedValue = getFormattedValue(variableName);
       const source = getVariableSource(variableName);
-      const hasValue = hasVariableValue(variableName); // APPEL SYNCHRONE
+      const hasValue = hasVariableValue(variableName);
       
-      // 🔥 NOUVEAU : Toujours utiliser les couleurs de source et format
+      // Toujours utiliser les couleurs de source et format
       const sourceColor = getSourceColor(source);
       const formatColor = getFormatColor(format as any);
 
       if (hasValue) {
         // Variable avec valeur : contour normal
-        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text}" title="${variableName} |  ${format}">${formattedValue}</span>`;
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text}" title="${variableName} | ${format}">${formattedValue}</span>`;
       } else {
         // Variable sans valeur : même couleurs mais contour rouge épais + icône
-        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border-2 border-red-400 " title="⚠ ${variableName} |  ${format}">${match}</span>`;
+        return `<span class="inline-flex items-center px-2 py-1 mx-0.3 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} border-2 border-red-400 " title="⚠ ${variableName} | ${format}">${match}</span>`;
       }
-          });
+    });
     
     // Retourner un élément dangerouslySetInnerHTML pour le rendu HTML
     return (
@@ -151,33 +161,29 @@ export default function TaxonomyPreview({
         title: taxonomy.NA_Name_Level_4_Title || 'Niveau 4',
         level: 4
       }
-    ].filter(level => level.name); // Garder seulement les niveaux définis
+    ].filter(level => level.name);
 
-    // Aperçu formaté complet - APPEL SYNCHRONE
-    const fullPreview = getFormattedPreview(taxonomyType);
-    
     return (
       <div className="space-y-4">
-
         {/* Détail par niveau */}
-          <div className="space-y-3">
-            {levels.map((level) => (
-              <div key={level.level} className="border-l-2 border-gray-300 pl-3">
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                  {level.title}
-                </div>
-                <div className="text-sm text-gray-900 font-mono bg-white p-2 rounded border">
-                  {renderLevelWithVariables(level.name)}
-                </div>
+        <div className="space-y-3">
+          {levels.map((level) => (
+            <div key={level.level} className="border-l-2 border-gray-300 pl-3">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                {level.title}
               </div>
-            ))}
-          </div>
+              <div className="text-sm text-gray-900 font-mono bg-white p-2 rounded border">
+                {renderLevelWithVariables(level.name)}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
 
   /**
-   * Rend une carte de taxonomie avec les nouvelles fonctionnalités - VERSION SYNCHRONE
+   * 🔥 NOUVEAU : Rend une carte de taxonomie avec aperçu forcé
    */
   const renderTaxonomyCard = (
     type: 'tags' | 'platform' | 'mediaocean',
@@ -185,12 +191,13 @@ export default function TaxonomyPreview({
     colorClass: string,
     label: string
   ) => {
-    const fullPreview = getFormattedPreview(type); // APPEL SYNCHRONE
+    // 🔥 CORRECTION : Utiliser la fonction mémorisée et forcer la mise à jour
+    const fullPreview = getMemoizedPreview(type);
     
-    const hasValidPreview = fullPreview 
+    console.log(`🎯 Rendu carte ${type}, aperçu: ${fullPreview}`);
 
     return (
-      <div key={type} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div key={`${type}-${Date.now()}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -203,7 +210,6 @@ export default function TaxonomyPreview({
             <span className="font-medium">
               {label}
             </span>
-
           </div>
           <div className="flex items-center space-x-2">
             {hasLoadingFields && (
@@ -214,8 +220,6 @@ export default function TaxonomyPreview({
             </span>
           </div>
         </button>
-        
-
         
         {expandedPreviews[type] && (
           <div className="p-4">
@@ -268,7 +272,6 @@ export default function TaxonomyPreview({
               <span className="px-2 py-1 bg-white-100 text-black-800 border-2 border-red-400 rounded">Manquant</span>
             </div>
           </div>
-
         </div>
       </div>
       
