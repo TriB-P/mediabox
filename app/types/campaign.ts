@@ -1,76 +1,80 @@
+
+import { BreakdownFormData } from './breakdown';
 // Types pour les campagnes qui correspondent à votre structure Firestore
 export interface Campaign {
   id: string;
   
-  // Infos
-  name: string;
-  division?: string;
-  status: 'Draft' | 'Cancelled' | 'Done' | 'Active' | 'Planned';
-  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'Full Year';
-  year: number;
-  creativeFolder?: string;
-  customDim1?: string;
-  customDim2?: string;
-  customDim3?: string;
+  // 🔥 CORRECTION : Ajout de CA_Name et renommage des autres champs
+  CA_Name: string; // Nom d'affichage principal
+  CA_Campaign_Identifier: string; // Identifiant technique
+  CA_Division?: string;
+  CA_Status: 'Draft' | 'Cancelled' | 'Done' | 'Active' | 'Planned';
+  CA_Quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'Full Year';
+  CA_Year: number;
+  CA_Creative_Folder?: string;
+  CA_Custom_Dim_1?: string;
+  CA_Custom_Dim_2?: string;
+  CA_Custom_Dim_3?: string;
   
   // Dates
-  startDate: string; // Format: YYYY-MM-DD
-  endDate: string;   // Format: YYYY-MM-DD
-  sprintDates?: string;
-  lastEdit?: string; // Format ISO string
+  CA_Start_Date: string;
+  CA_End_Date: string;
+  CA_Sprint_Dates?: string;
+  CA_Last_Edit?: string;
   
   // Budget
-  budget: number;
-  currency?: string;
-  customFee1?: number;
-  customFee2?: number;
-  customFee3?: number;
-  customFee4?: number;
-  customFee5?: number;
+  CA_Budget: number;
+  CA_Currency?: string;
+  CA_Custom_Fee_1?: number;
+  CA_Custom_Fee_2?: number;
+  CA_Custom_Fee_3?: number;
+  CA_Custom_Fee_4?: number;
+  CA_Custom_Fee_5?: number;
   
   // Admin
   clientId?: string;
-  clientExtId?: string;
-  po?: string;
-  billingId?: string;
+  CA_Client_Ext_Id?: string;
+  CA_PO?: string;
+  CA_Billing_ID?: string;
   
   // Métadonnées
-  createdAt: string; // Format ISO string
-  updatedAt: string; // Format ISO string
+  createdAt: string;
+  updatedAt: string;
   officialVersionId?: string;
 }
 
 // Type pour le formulaire de création/édition
 export interface CampaignFormData {
-  // Infos
-  name: string;
-  division?: string;
-  status: Campaign['status'];
-  quarter: Campaign['quarter'];
-  year: string; // String pour le formulaire, converti en number après
-  creativeFolder?: string;
-  customDim1?: string;
-  customDim2?: string;
-  customDim3?: string;
+  // 🔥 CORRECTION : Ajout de CA_Name
+  CA_Name: string;
+  CA_Campaign_Identifier: string;
+  CA_Division?: string;
+  CA_Status: Campaign['CA_Status'];
+  CA_Quarter: Campaign['CA_Quarter'];
+  CA_Year: string;
+  CA_Creative_Folder?: string;
+  CA_Custom_Dim_1?: string;
+  CA_Custom_Dim_2?: string;
+  CA_Custom_Dim_3?: string;
   
   // Dates
-  startDate: string;
-  endDate: string;
-  sprintDates?: string;
+  CA_Start_Date: string;
+  CA_End_Date: string;
+  CA_Sprint_Dates?: string;
   
   // Budget
-  budget: string; // String pour le formulaire, converti en number après
-  currency?: string;
-  customFee1?: string;
-  customFee2?: string;
-  customFee3?: string;
-  customFee4?: string;
-  customFee5?: string;
+  CA_Budget: string;
+  CA_Currency?: string;
+  CA_Custom_Fee_1?: string;
+  CA_Custom_Fee_2?: string;
+  CA_Custom_Fee_3?: string;
+  CA_Custom_Fee_4?: string;
+  CA_Custom_Fee_5?: string;
   
   // Admin
-  clientExtId?: string;
-  po?: string;
-  billingId?: string;
+  CA_Client_Ext_Id?: string;
+  CA_PO?: string;
+  CA_Billing_ID?: string;
 }
 
 // Props pour le drawer de formulaire
@@ -78,5 +82,5 @@ export interface CampaignDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   campaign?: Campaign | null;
-  onSave: (campaign: CampaignFormData) => void;
+  onSave: (campaign: CampaignFormData, additionalBreakdowns?: BreakdownFormData[]) => void;
 }

@@ -26,7 +26,6 @@ export default function CampaignTable({
   const { selectedClient } = useClient();
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
 
-  // Charger les divisions
   useEffect(() => {
     const loadDivisions = async () => {
       if (!selectedClient) return;
@@ -36,7 +35,6 @@ export default function CampaignTable({
           .catch(() => getClientList('CA_Division', 'PlusCo'));
         
         setDivisions(divisionsData);
-        console.log(`${divisionsData.length} divisions chargées`);
       } catch (error) {
         console.warn('Impossible de charger les divisions:', error);
       }
@@ -62,16 +60,10 @@ export default function CampaignTable({
     });
   };
 
-  // Fonction pour obtenir le nom d'affichage de la division
   const getDivisionName = (divisionId: string | undefined): string => {
     if (!divisionId) return '';
-    
     const division = divisions.find(d => d.id === divisionId);
-    if (division) {
-      return division.SH_Display_Name_FR || division.SH_Code || divisionId;
-    }
-    
-    return divisionId; // Fallback sur l'ID si pas trouvé
+    return division ? division.SH_Display_Name_FR || division.SH_Code || divisionId : divisionId;
   };
 
   if (loading) {
@@ -110,13 +102,12 @@ export default function CampaignTable({
 
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">
-      {/* Version desktop */}
       <div className="hidden md:block">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Nom
+                Nom / Identifiant
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Période
@@ -134,31 +125,31 @@ export default function CampaignTable({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {campaigns.map((campaign) => {
-              const divisionName = getDivisionName(campaign.division);
+              const divisionName = getDivisionName(campaign.CA_Division);
               
               return (
                 <tr key={campaign.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
+                      {/* 🔥 CORRECTION : Affiche CA_Name en principal */}
                       <div className="text-sm font-medium text-gray-900">
-                        {campaign.name}
+                        {campaign.CA_Name}
                       </div>
-                      {divisionName && (
-                        <div className="text-sm text-gray-500">
-                          {divisionName}
-                        </div>
-                      )}
+                      {/* 🔥 CORRECTION : Affiche CA_Campaign_Identifier en secondaire */}
+                      <div className="text-sm text-gray-500">
+                        {campaign.CA_Campaign_Identifier}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {campaign.quarter} {campaign.year}
+                    {campaign.CA_Quarter} {campaign.CA_Year}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(campaign.budget, campaign.currency)}
+                    {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>
-                      {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
+                      {formatDate(campaign.CA_Start_Date)} - {formatDate(campaign.CA_End_Date)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -176,17 +167,14 @@ export default function CampaignTable({
         </table>
       </div>
 
-      {/* Version mobile */}
       <div className="md:hidden">
         <div className="divide-y divide-gray-200">
           {campaigns.map((campaign) => {
-            const divisionName = getDivisionName(campaign.division);
-            
             return (
               <div key={campaign.id} className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-900 truncate flex-1">
-                    {campaign.name}
+                    {campaign.CA_Name}
                   </h3>
                   <CampaignActions
                     campaign={campaign}
@@ -200,22 +188,20 @@ export default function CampaignTable({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-900 font-medium">
-                      {campaign.quarter} {campaign.year}
+                      {campaign.CA_Quarter} {campaign.CA_Year}
                     </span>
                     <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(campaign.budget, campaign.currency)}
+                      {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
                     </span>
                   </div>
                   
                   <div className="text-xs text-gray-500">
-                    {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
+                    {formatDate(campaign.CA_Start_Date)} - {formatDate(campaign.CA_End_Date)}
                   </div>
                   
-                  {divisionName && (
-                    <div className="text-xs text-gray-500">
-                      Division: {divisionName}
-                    </div>
-                  )}
+                  <div className="text-xs text-gray-500">
+                    ID: {campaign.CA_Campaign_Identifier}
+                  </div>
                 </div>
               </div>
             );

@@ -135,7 +135,7 @@ export default function TactiquesPage() {
   // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
-      setTotalBudget(selectedCampaign.budget || 0);
+      setTotalBudget(selectedCampaign.CA_Budget || 0);
     } else {
       setTotalBudget(0);
     }
@@ -204,7 +204,7 @@ export default function TactiquesPage() {
             </div>
             {selectedCampaign && selectedVersion && (
               <div className="text-xs text-gray-400 mt-1">
-                {selectedCampaign.name} • {selectedVersion.name}
+                {selectedCampaign.CA_Name} • {selectedVersion.name}
               </div>
             )}
           </div>
@@ -220,7 +220,7 @@ export default function TactiquesPage() {
             className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
           >
-            <span>{selectedCampaign?.name || 'Sélectionner une campagne'}</span>
+            <span>{selectedCampaign?.CA_Name || 'Sélectionner une campagne'}</span>
             <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
           </button>
           
@@ -235,7 +235,7 @@ export default function TactiquesPage() {
                     }`}
                     onClick={() => handleCampaignChangeLocal(campaign)}
                   >
-                    {campaign.name}
+                    {campaign.CA_Name}
                   </li>
                 ))}
               </ul>
@@ -376,8 +376,8 @@ export default function TactiquesPage() {
                 <TactiquesTimelineView
                   tactiques={flatTactiques}
                   sectionNames={sectionNames}
-                  campaignStartDate={selectedCampaign.startDate}
-                  campaignEndDate={selectedCampaign.endDate}
+                  campaignStartDate={selectedCampaign.CA_Start_Date}
+                  campaignEndDate={selectedCampaign.CA_End_Date}
                   formatCurrency={formatCurrency}
                   onEditTactique={(tactiqueId, sectionId) => {
                     const tactique = flatTactiques.find(t => t.id === tactiqueId);
