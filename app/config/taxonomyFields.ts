@@ -199,3 +199,83 @@ export const ERROR_MESSAGES = {
   SHORTCODE_REQUIRED: 'Ce format nécessite la sélection d\'un shortcode',
   USER_INPUT_REQUIRED: 'Ce format nécessite une saisie utilisateur'
 } as const;
+
+// ==================== 🔥 NOUVELLES FONCTIONS UTILITAIRES POUR LES CHAMPS MANUELS ====================
+
+/**
+ * 🔥 NOUVEAU : Extrait tous les noms de variables qui ont source: 'manual'
+ */
+export function getManualVariableNames(): string[] {
+  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
+    .filter(([_, config]) => config.source === 'manual')
+    .map(([variableName, _]) => variableName);
+}
+
+/**
+ * 🔥 NOUVEAU : Génère un objet TypeScript pour les champs manuels
+ * Utilisé pour générer dynamiquement les types de Placement et PlacementFormData
+ */
+export function generateManualFieldsTypeDefinition(): { [key: string]: 'string | undefined' } {
+  const manualVars = getManualVariableNames();
+  const typeDefinition: { [key: string]: 'string | undefined' } = {};
+  
+  manualVars.forEach(varName => {
+    typeDefinition[varName] = 'string | undefined';
+  });
+  
+  return typeDefinition;
+}
+
+/**
+ * 🔥 NOUVEAU : Crée un objet vide avec tous les champs manuels initialisés
+ * Utilisé pour initialiser les formulaires
+ */
+export function createEmptyManualFieldsObject(): { [key: string]: string } {
+  const manualVars = getManualVariableNames();
+  const emptyObject: { [key: string]: string } = {};
+  
+  manualVars.forEach(varName => {
+    emptyObject[varName] = '';
+  });
+  
+  return emptyObject;
+}
+
+/**
+ * 🔥 NOUVEAU : Extrait les valeurs des champs manuels depuis un objet de données
+ * Utilisé pour extraire uniquement les champs manuels depuis un placement
+ */
+export function extractManualFieldsFromData(data: any): { [key: string]: string } {
+  const manualVars = getManualVariableNames();
+  const extractedFields: { [key: string]: string } = {};
+  
+  manualVars.forEach(varName => {
+    if (data[varName]) {
+      extractedFields[varName] = data[varName];
+    }
+  });
+  
+  return extractedFields;
+}
+
+/**
+ * 🔥 NOUVEAU : Valide qu'un nom de variable est bien un champ manuel
+ */
+export function isManualVariable(variableName: string): boolean {
+  const config = TAXONOMY_VARIABLE_CONFIG[variableName];
+  return config ? config.source === 'manual' : false;
+}
+
+/**
+ * 🔥 NOUVEAU : Log de debug pour voir tous les champs manuels disponibles
+ */
+export function logManualVariables(): void {
+  const manualVars = getManualVariableNames();
+  console.log('🔧 Variables manuelles disponibles:', manualVars);
+  console.log('📋 Nombre total:', manualVars.length);
+  
+  manualVars.forEach(varName => {
+    const config = TAXONOMY_VARIABLE_CONFIG[varName];
+    console.log(`  - ${varName}: formats [${config.allowedFormats.join(', ')}]`);
+  });
+}

@@ -1,4 +1,4 @@
-// app/components/Tactiques/PlacementFormInfo.tsx
+// app/components/Tactiques/Placement/PlacementFormInfo.tsx
 
 'use client';
 
@@ -14,9 +14,10 @@ import { Taxonomy } from '../../../types/taxonomy';
 // ==================== TYPES ====================
 
 interface PlacementFormInfoProps {
-  // Données du formulaire
+  // Données du formulaire (sans budget et format)
   formData: {
     PL_Label?: string;
+    // 🔥 SUPPRIMÉ : PL_Budget et PL_Format
     PL_Taxonomy_Tags?: string;
     PL_Taxonomy_Platform?: string;
     PL_Taxonomy_MediaOcean?: string;
@@ -102,14 +103,16 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           value={formData.PL_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannières Desktop 728x90"
+          placeholder="Ex: Bannières Desktop, Vidéo Mobile, Display Tablet"
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Étiquette *', 
-            'Nom du placement. Open string, pas de contraintes', 
+            'Nom du placement *', 
+            'Nom descriptif du placement. Soyez spécifique pour faciliter l\'identification.', 
             onTooltipChange
           )}
         />
+
+        {/* 🔥 SUPPRIMÉ : Champs PL_Budget et PL_Format */}
 
         {/* Message d'erreur pour les taxonomies */}
         {taxonomiesError && (

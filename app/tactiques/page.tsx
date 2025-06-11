@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx
+// app/tactiques/page.tsx - AVEC GESTION DES PLACEMENTS
 
 'use client';
 
@@ -40,6 +40,7 @@ export default function TactiquesPage() {
     selectedOnglet,
     sections,
     tactiques,
+    placements, // 🔥 NOUVEAU : Récupération des placements
     // NOUVEAU: Propriétés du modal
     sectionModal,
     handleSaveSection,
@@ -51,7 +52,7 @@ export default function TactiquesPage() {
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
-    handleCreatePlacement,
+    handleCreatePlacement, // 🔥 NOUVEAU : Actions pour placements
     handleUpdatePlacement,
     handleDeletePlacement,
     handleCreateCreatif,
@@ -182,6 +183,13 @@ export default function TactiquesPage() {
     
   const flatTactiques = Object.values(tactiques).flat();
 
+  // 🔥 NOUVEAU : Log pour debug des placements
+  useEffect(() => {
+    console.log('📋 Placements actuels:', placements);
+    const totalPlacements = Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0);
+    console.log(`📊 Total placements: ${totalPlacements}`);
+  }, [placements]);
+
   return (
     <div className="space-y-6 pb-16">
       {/* En-tête */}
@@ -272,14 +280,6 @@ export default function TactiquesPage() {
         </div>
       </div>
       
-      {/* Debug info - à supprimer après résolution */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-400 mb-2 p-2 bg-gray-100 rounded">
-          Debug: campaignLoading={campaignLoading.toString()}, loading={loading.toString()}, 
-          showLoader={showLoader.toString()}, minimumTimeElapsed={minimumTimeElapsed.toString()}
-        </div>
-      )} */}
-      
       {/* LoadingSpinner avec timer minimum de 2 secondes */}
       {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}
       
@@ -328,6 +328,7 @@ export default function TactiquesPage() {
                   {sectionsWithTactiques.length > 0 ? (
                     <TactiquesHierarchyView
                       sections={sectionsWithTactiques}
+                      placements={placements} // 🔥 NOUVEAU : Passer les placements
                       onSectionExpand={handleSectionExpand}
                       onDragEnd={handleDragEnd}
                       onEditSection={handleEditSection}

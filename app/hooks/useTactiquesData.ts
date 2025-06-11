@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesData.ts
+// app/hooks/useTactiquesData.ts - AVEC INTÉGRATION PLACEMENT SERVICE
 
 import { useState, useEffect } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -15,6 +15,16 @@ import {
   updateTactique,
   deleteTactique
 } from '../lib/tactiqueService';
+
+// 🔥 NOUVEAU : Import du service de placement
+import {
+  getPlacementsForTactique,
+  createPlacement,
+  updatePlacement,
+  deletePlacement,
+  getPlacementById
+} from '../lib/placementService';
+
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -22,6 +32,11 @@ interface SectionModalState {
   isOpen: boolean;
   section: Section | null;
   mode: 'create' | 'edit';
+}
+
+// 🔥 NOUVEAU : État pour stocker les placements par tactique
+interface PlacementsByTactique {
+  [tactiqueId: string]: Placement[];
 }
 
 interface UseTactiquesDataReturn {
@@ -35,6 +50,9 @@ interface UseTactiquesDataReturn {
   selectedOnglet: Onglet | null;
   sections: Array<Section & { isExpanded: boolean }>;
   tactiques: { [sectionId: string]: Tactique[] };
+  
+  // 🔥 NOUVEAU : Placements par tactique
+  placements: PlacementsByTactique;
   
   // Modal de section
   sectionModal: SectionModalState;
@@ -53,7 +71,7 @@ interface UseTactiquesDataReturn {
   handleUpdateTactique: (sectionId: string, tactiqueId: string, updates: Partial<Tactique>) => Promise<void>;
   handleDeleteTactique: (sectionId: string, tactiqueId: string) => Promise<void>;
   
-  // Actions pour placements (temporaires)
+  // 🔥 NOUVELLES ACTIONS POUR PLACEMENTS (vrais)
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
   handleDeletePlacement: (placementId: string) => Promise<void>;
@@ -77,13 +95,16 @@ export function useTactiquesData(
   const { selectedClient } = useClient();
   const { selectedOngletId, setSelectedOngletId } = useSelection();
   
-  // États
+  // États existants
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [onglets, setOnglets] = useState<Onglet[]>([]);
   const [selectedOnglet, setSelectedOnglet] = useState<Onglet | null>(null);
   const [sections, setSections] = useState<Array<Section & { isExpanded: boolean }>>([]);
   const [tactiques, setTactiques] = useState<{ [sectionId: string]: Tactique[] }>({});
+
+  // 🔥 NOUVEAU : État pour les placements
+  const [placements, setPlacements] = useState<PlacementsByTactique>({});
 
   // État pour le modal de section
   const [sectionModal, setSectionModal] = useState<SectionModalState>({
@@ -100,6 +121,7 @@ export function useTactiquesData(
         setSelectedOnglet(null);
         setSections([]);
         setTactiques({});
+        setPlacements({}); // 🔥 NOUVEAU : Reset des placements
         setLoading(false);
         return;
       }
@@ -174,6 +196,7 @@ export function useTactiquesData(
           setSelectedOnglet(null);
           setSections([]);
           setTactiques({});
+          setPlacements({}); // 🔥 NOUVEAU
         }
       } catch (err) {
         console.error('Erreur lors du chargement des onglets:', err);
@@ -186,7 +209,7 @@ export function useTactiquesData(
     loadOnglets();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOngletId]);
 
-  // Charger les sections et tactiques lorsqu'un onglet est sélectionné
+  // 🔥 MODIFIÉ : Charger les sections, tactiques ET placements
   useEffect(() => {
     async function loadSectionsAndTactiques() {
       if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedOnglet) return;
@@ -209,8 +232,10 @@ export function useTactiquesData(
         setSections(sectionsWithExpanded);
         
         const tactiquesObj: { [sectionId: string]: Tactique[] } = {};
+        const placementsObj: PlacementsByTactique = {}; // 🔥 NOUVEAU
         
         for (const section of sectionsData) {
+          // Charger les tactiques
           const sectionTactiques = await getTactiques(
             selectedClient.clientId,
             selectedCampaign.id,
@@ -220,9 +245,30 @@ export function useTactiquesData(
           );
           
           tactiquesObj[section.id] = sectionTactiques;
+          
+          // 🔥 NOUVEAU : Charger les placements pour chaque tactique
+          for (const tactique of sectionTactiques) {
+            try {
+              const tactiquePlacements = await getPlacementsForTactique(
+                selectedClient.clientId,
+                selectedCampaign.id,
+                selectedVersion.id,
+                selectedOnglet.id,
+                section.id,
+                tactique.id
+              );
+              
+              placementsObj[tactique.id] = tactiquePlacements;
+              console.log(`📋 ${tactiquePlacements.length} placements chargés pour tactique ${tactique.TC_Label}`);
+            } catch (error) {
+              console.error(`Erreur chargement placements pour tactique ${tactique.id}:`, error);
+              placementsObj[tactique.id] = [];
+            }
+          }
         }
         
         setTactiques(tactiquesObj);
+        setPlacements(placementsObj); // 🔥 NOUVEAU
         
         // Calculer les budgets des sections
         const sectionsWithBudget = sectionsWithExpanded.map(section => {
@@ -250,7 +296,183 @@ export function useTactiquesData(
     loadSectionsAndTactiques();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOnglet]);
 
-  // Fonctions pour le modal de section
+  // 🔥 FONCTION UTILITAIRE : Trouver les chemins pour une tactique
+  const findTactiquePaths = (tactiqueId: string) => {
+    for (const section of sections) {
+      const tactique = tactiques[section.id]?.find(t => t.id === tactiqueId);
+      if (tactique) {
+        return {
+          sectionId: section.id,
+          tactique,
+          paths: {
+            clientId: selectedClient!.clientId,
+            campaignId: selectedCampaign!.id,
+            versionId: selectedVersion!.id,
+            ongletId: selectedOnglet!.id,
+            sectionId: section.id,
+            tactiqueId
+          }
+        };
+      }
+    }
+    return null;
+  };
+
+  // 🔥 FONCTION UTILITAIRE : Trouver les chemins pour un placement
+  const findPlacementPaths = (placementId: string) => {
+    for (const [tactiqueId, tactiquesPlacements] of Object.entries(placements)) {
+      const placement = tactiquesPlacements.find(p => p.id === placementId);
+      if (placement) {
+        const tactiqueInfo = findTactiquePaths(tactiqueId);
+        if (tactiqueInfo) {
+          return {
+            placement,
+            ...tactiqueInfo,
+            placementId
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  // 🔥 NOUVEAU : Gestionnaires pour les placements (vrais)
+  const handleCreatePlacement = async (tactiqueId: string): Promise<Placement> => {
+    const tactiqueInfo = findTactiquePaths(tactiqueId);
+    if (!tactiqueInfo) {
+      throw new Error('Tactique non trouvée pour créer un placement');
+    }
+    
+    try {
+      // Déterminer l'ordre pour le nouveau placement
+      const existingPlacements = placements[tactiqueId] || [];
+      const nextOrder = existingPlacements.length;
+      
+      const newPlacementData = {
+        PL_Label: 'Nouveau placement',
+        PL_Budget: 0,
+        PL_Order: nextOrder,
+        PL_TactiqueId: tactiqueId,
+        PL_Taxonomy_Values: {},
+        PL_Generated_Taxonomies: {}
+      };
+      
+      const placementId = await createPlacement(
+        tactiqueInfo.paths.clientId,
+        tactiqueInfo.paths.campaignId,
+        tactiqueInfo.paths.versionId,
+        tactiqueInfo.paths.ongletId,
+        tactiqueInfo.paths.sectionId,
+        tactiqueInfo.paths.tactiqueId,
+        newPlacementData,
+        selectedCampaign, // Données de campagne pour taxonomies
+        tactiqueInfo.tactique // Données de tactique pour taxonomies
+      );
+      
+      const newPlacement = {
+        id: placementId,
+        ...newPlacementData
+      };
+      
+      // Mettre à jour l'état local
+      setPlacements(prev => ({
+        ...prev,
+        [tactiqueId]: [
+          ...(prev[tactiqueId] || []),
+          newPlacement
+        ]
+      }));
+      
+      console.log('✅ Placement créé:', newPlacement);
+      return newPlacement;
+    } catch (err) {
+      console.error('Erreur lors de la création du placement:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdatePlacement = async (placementId: string, data: Partial<Placement>) => {
+    const placementInfo = findPlacementPaths(placementId);
+    if (!placementInfo) {
+      throw new Error('Placement non trouvé pour mise à jour');
+    }
+    
+    try {
+      await updatePlacement(
+        placementInfo.paths.clientId,
+        placementInfo.paths.campaignId,
+        placementInfo.paths.versionId,
+        placementInfo.paths.ongletId,
+        placementInfo.paths.sectionId,
+        placementInfo.paths.tactiqueId,
+        placementId,
+        data,
+        selectedCampaign, // Données de campagne pour taxonomies
+        placementInfo.tactique // Données de tactique pour taxonomies
+      );
+      
+      // Mettre à jour l'état local
+      setPlacements(prev => {
+        const tactiqueId = placementInfo.tactique.id;
+        const updatedPlacements = (prev[tactiqueId] || []).map(placement => 
+          placement.id === placementId ? { ...placement, ...data } : placement
+        );
+        
+        return {
+          ...prev,
+          [tactiqueId]: updatedPlacements
+        };
+      });
+      
+      console.log('✅ Placement mis à jour');
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du placement:', err);
+      throw err;
+    }
+  };
+
+  const handleDeletePlacement = async (placementId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce placement et ses créatifs ?')) {
+      return;
+    }
+    
+    const placementInfo = findPlacementPaths(placementId);
+    if (!placementInfo) {
+      throw new Error('Placement non trouvé pour suppression');
+    }
+    
+    try {
+      await deletePlacement(
+        placementInfo.paths.clientId,
+        placementInfo.paths.campaignId,
+        placementInfo.paths.versionId,
+        placementInfo.paths.ongletId,
+        placementInfo.paths.sectionId,
+        placementInfo.paths.tactiqueId,
+        placementId
+      );
+      
+      // Mettre à jour l'état local
+      setPlacements(prev => {
+        const tactiqueId = placementInfo.tactique.id;
+        const filteredPlacements = (prev[tactiqueId] || []).filter(p => p.id !== placementId);
+        
+        return {
+          ...prev,
+          [tactiqueId]: filteredPlacements
+        };
+      });
+      
+      console.log('✅ Placement supprimé');
+    } catch (err) {
+      console.error('Erreur lors de la suppression du placement:', err);
+      throw err;
+    }
+  };
+
+  // ... [Le reste des fonctions existantes reste inchangé] ...
+
+  // Fonctions pour le modal de section [INCHANGÉES]
   const openSectionModal = () => {
     setSectionModal({
       isOpen: true,
@@ -329,7 +551,7 @@ export function useTactiquesData(
     }
   };
 
-  // Gestionnaires pour les sections
+  // Gestionnaires pour les sections [INCHANGÉS]
   const handleAddSection = () => {
     openSectionModal();
   };
@@ -384,7 +606,7 @@ export function useTactiquesData(
     );
   };
 
-  // Gestionnaires pour les tactiques
+  // Gestionnaires pour les tactiques [INCHANGÉS]
   const handleCreateTactique = async (sectionId: string): Promise<Tactique> => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedOnglet) {
       throw new Error('Contexte manquant pour créer une tactique');
@@ -424,6 +646,12 @@ export function useTactiquesData(
           ...(prev[sectionId] || []),
           newTactique
         ]
+      }));
+      
+      // 🔥 NOUVEAU : Initialiser les placements pour cette tactique
+      setPlacements(prev => ({
+        ...prev,
+        [tactiqueId]: []
       }));
       
       return newTactique;
@@ -514,6 +742,13 @@ export function useTactiquesData(
         };
       });
       
+      // 🔥 NOUVEAU : Nettoyer les placements de cette tactique
+      setPlacements(prev => {
+        const newPlacements = { ...prev };
+        delete newPlacements[tactiqueId];
+        return newPlacements;
+      });
+      
       setSections(prev => {
         const section = prev.find(s => s.id === sectionId);
         if (!section) return prev;
@@ -530,26 +765,7 @@ export function useTactiquesData(
     }
   };
 
-  // Gestionnaires temporaires pour placements et créatifs
-  const handleCreatePlacement = async (tactiqueId: string): Promise<Placement> => {
-    console.log('Création de placement pour tactique:', tactiqueId);
-    return {
-      id: `temp-placement-${Date.now()}`,
-      PL_Label: 'Nouveau placement',
-      PL_Budget: 0,
-      PL_Order: 0,
-      PL_TactiqueId: tactiqueId
-    };
-  };
-
-  const handleUpdatePlacement = async (placementId: string, data: Partial<Placement>) => {
-    console.log('Mise à jour placement:', placementId, data);
-  };
-
-  const handleDeletePlacement = async (placementId: string) => {
-    console.log('Suppression placement:', placementId);
-  };
-
+  // Gestionnaires temporaires pour créatifs [INCHANGÉS]
   const handleCreateCreatif = async (placementId: string): Promise<Creatif> => {
     console.log('Création de créatif pour placement:', placementId);
     return {
@@ -568,7 +784,7 @@ export function useTactiquesData(
     console.log('Suppression créatif:', creatifId);
   };
 
-  // Gestionnaires pour les onglets
+  // Gestionnaires pour les onglets [INCHANGÉS] ...
   const handleAddOnglet = async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
     
@@ -698,6 +914,7 @@ export function useTactiquesData(
     selectedOnglet,
     sections,
     tactiques,
+    placements, // 🔥 NOUVEAU : Export des placements
     
     // Modal de section
     sectionModal,
@@ -716,7 +933,7 @@ export function useTactiquesData(
     handleUpdateTactique,
     handleDeleteTactique,
     
-    // Actions pour placements
+    // Actions pour placements (maintenant réelles)
     handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,

@@ -1,11 +1,30 @@
-// app/types/tactiques.ts - MISE À JOUR POUR MULTIPLES FORMATS
+// app/types/tactiques.ts - COMPLET AVEC CHAMPS MANUELS DYNAMIQUES
 
 // Types pour le module de tactiques
 
-// ==================== IMPORTS DES NOUVEAUX TYPES ====================
+// ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
 import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
 export type { TaxonomyFormat, FieldSource }; 
+
+// ==================== TYPES DYNAMIQUES POUR CHAMPS MANUELS ====================
+
+/**
+ * 🔥 NOTE : Les champs manuels sont maintenant définis directement dans les interfaces
+ * Placement et PlacementFormData. Ils correspondent aux variables avec source: 'manual'
+ * dans TAXONOMY_VARIABLE_CONFIG :
+ * 
+ * - TAX_Product
+ * - TAX_Location  
+ * - TAX_Custom_Field_1/2/3
+ * - UTM_CR_Format_Details
+ * - CR_Plateform_Name
+ * 
+ * Pour ajouter un nouveau champ manuel :
+ * 1. L'ajouter dans TAXONOMY_VARIABLE_CONFIG avec source: 'manual'
+ * 2. L'ajouter dans les interfaces Placement et PlacementFormData ci-dessous
+ * 3. Utiliser les fonctions utilitaires dans taxonomyFields.ts pour la logique
+ */
 
 // ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
@@ -93,29 +112,27 @@ export interface Tactique {
   TC_Bonus_Value?: number;        // Bonification calculée
 }
 
-// ==================== NOUVEAUX TYPES POUR LES TAXONOMIES ====================
+// ==================== TYPES TAXONOMIE ====================
 
 /**
- * 🔥 NOUVEAU : Format des valeurs de variables utilisées dans les taxonomies
- * Utilise maintenant le type importé de la configuration
+ * Format des valeurs de variables utilisées dans les taxonomies
  */
 export type TaxonomyVariableFormat = TaxonomyFormat;
 
 /**
- * 🔥 NOUVEAU : Source d'une valeur de variable
- * Utilise maintenant le type importé de la configuration
+ * Source d'une valeur de variable
  */
 export type TaxonomyVariableSource = FieldSource;
 
 /**
- * 🔥 NOUVEAU : Valeur d'une variable de taxonomie avec ses métadonnées étendues
+ * Valeur d'une variable de taxonomie avec ses métadonnées étendues
  */
 export interface TaxonomyVariableValue {
   value: string;                          // Valeur finale utilisée
   source: TaxonomyVariableSource;         // Source de la valeur
   format: TaxonomyVariableFormat;         // Format utilisé
-  shortcodeId?: string;                   // 🔥 NOUVEAU : ID du shortcode sélectionné (pour formats shortcode)
-  openValue?: string;                     // 🔥 NOUVEAU : Valeur libre saisie (pour format open)
+  shortcodeId?: string;                   // ID du shortcode sélectionné (pour formats shortcode)
+  openValue?: string;                     // Valeur libre saisie (pour format open)
 }
 
 /**
@@ -135,11 +152,11 @@ export interface GeneratedTaxonomies {
 }
 
 /**
- * 🔥 NOUVEAU CORRIGÉ : Variable parsée depuis une structure de taxonomie avec support multiples formats
+ * Variable parsée depuis une structure de taxonomie avec support multiples formats
  */
 export interface ParsedTaxonomyVariable {
   variable: string;                   // Nom de la variable (ex: "TC_Publisher")
-  formats: TaxonomyVariableFormat[];  // 🔥 CHANGEMENT : Array de formats demandés au lieu d'un seul
+  formats: TaxonomyVariableFormat[];  // Array de formats demandés
   source: TaxonomyVariableSource;     // Source déterminée automatiquement
   level: number;                      // Niveau dans la taxonomie (1-4)
   isValid: boolean;                   // Indique si la variable/formats sont valides
@@ -155,13 +172,12 @@ export interface ParsedTaxonomyStructure {
   errors: string[];                    // Liste des erreurs trouvées
 }
 
-// ==================== PLACEMENT AVEC TAXONOMIES ====================
+// ==================== PLACEMENT AVEC CHAMPS MANUELS DYNAMIQUES ====================
 
 export interface Placement {
   id: string;
   PL_Label: string;
-  PL_Format?: string;
-  PL_Budget: number;
+  // 🔥 SUPPRIMÉ : PL_Format et PL_Budget
   PL_Order: number;
   PL_TactiqueId: string; // Référence à la tactique parente
   
@@ -169,6 +185,15 @@ export interface Placement {
   PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
   PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
   PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
+  
+  // 🔥 NOUVEAU : Champs manuels depuis TAXONOMY_VARIABLE_CONFIG (source: 'manual')
+  TAX_Product?: string;
+  TAX_Location?: string;
+  TAX_Custom_Field_1?: string;
+  TAX_Custom_Field_2?: string;
+  TAX_Custom_Field_3?: string;
+  UTM_CR_Format_Details?: string;
+  CR_Plateform_Name?: string;
   
   // 🔥 NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
   PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
@@ -218,7 +243,7 @@ export interface PlacementWithCreatifs extends Placement {
   creatifs: Creatif[];
 }
 
-// ==================== TYPES DE FORMULAIRES AVEC TAXONOMIES ====================
+// ==================== TYPES DE FORMULAIRES ====================
 
 // Types pour les formulaires
 export interface TactiqueFormData {
@@ -287,12 +312,10 @@ export interface TactiqueFormData {
 }
 
 /**
- * 🔥 NOUVEAU : Données de formulaire pour les placements avec support des taxonomies étendues
+ * 🔥 NOUVEAU : Données de formulaire pour les placements avec champs manuels dynamiques
  */
 export interface PlacementFormData {
   PL_Label: string;
-  PL_Format?: string;
-  PL_Budget: number;
   PL_Order: number;
   PL_TactiqueId: string;
   
@@ -300,6 +323,15 @@ export interface PlacementFormData {
   PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
   PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
   PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
+  
+  // 🔥 NOUVEAU : Champs manuels depuis TAXONOMY_VARIABLE_CONFIG (source: 'manual')
+  TAX_Product?: string;
+  TAX_Location?: string;
+  TAX_Custom_Field_1?: string;
+  TAX_Custom_Field_2?: string;
+  TAX_Custom_Field_3?: string;
+  UTM_CR_Format_Details?: string;
+  CR_Plateform_Name?: string;
   
   // 🔥 NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
   PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
@@ -337,18 +369,18 @@ export interface TaxonomyProcessingResult {
 }
 
 /**
- * 🔥 NOUVEAU : Configuration pour un champ de saisie de taxonomie
+ * Configuration pour un champ de saisie de taxonomie
  */
 export interface TaxonomyFieldConfig {
   variable: string;                    // Nom de la variable
   source: TaxonomyVariableSource;      // Source de la donnée
-  formats: TaxonomyVariableFormat[];   // 🔥 CHANGEMENT : Array de formats requis
+  formats: TaxonomyVariableFormat[];   // Array de formats requis
   isRequired: boolean;                 // Champ obligatoire
   hasCustomList: boolean;              // Possède une liste dynamique
   currentValue?: string;               // Valeur actuelle
   placeholder?: string;                // Placeholder à afficher
-  requiresShortcode?: boolean;         // 🔥 NOUVEAU : Nécessite un shortcode
-  allowsUserInput?: boolean;           // 🔥 NOUVEAU : Permet la saisie libre
+  requiresShortcode?: boolean;         // Nécessite un shortcode
+  allowsUserInput?: boolean;           // Permet la saisie libre
 }
 
 /**
