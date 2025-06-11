@@ -2,11 +2,13 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { Campaign } from '../../types/campaign';
 import CampaignActions from './CampaignActions';
+import CampaignVersions from './CampaignVersions'; // Importer le composant des versions
 import { useClient } from '../../contexts/ClientContext';
 import { getClientList, ShortcodeItem } from '../../lib/listService';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface CampaignTableProps {
   campaigns: Campaign[];
@@ -25,6 +27,7 @@ export default function CampaignTable({
 }: CampaignTableProps) {
   const { selectedClient } = useClient();
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDivisions = async () => {
@@ -53,6 +56,7 @@ export default function CampaignTable({
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('fr-CA', {
       year: 'numeric',
       month: 'short',
@@ -64,6 +68,10 @@ export default function CampaignTable({
     if (!divisionId) return '';
     const division = divisions.find(d => d.id === divisionId);
     return division ? division.SH_Display_Name_FR || division.SH_Code || divisionId : divisionId;
+  };
+
+  const toggleRow = (campaignId: string) => {
+    setExpandedRowId(prevId => (prevId === campaignId ? null : campaignId));
   };
 
   if (loading) {
@@ -106,6 +114,7 @@ export default function CampaignTable({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="w-12"></th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Nom / Identifiant
               </th>
@@ -124,18 +133,23 @@ export default function CampaignTable({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {campaigns.map((campaign) => {
-              const divisionName = getDivisionName(campaign.CA_Division);
-              
-              return (
-                <tr key={campaign.id} className="hover:bg-gray-50">
+            {campaigns.map((campaign) => (
+              <Fragment key={campaign.id}>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-4 py-4">
+                    <button onClick={() => toggleRow(campaign.id)} className="text-gray-400 hover:text-gray-600">
+                      {expandedRowId === campaign.id ? (
+                        <ChevronDownIcon className="h-5 w-5" />
+                      ) : (
+                        <ChevronRightIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      {/* 🔥 CORRECTION : Affiche CA_Name en principal */}
                       <div className="text-sm font-medium text-gray-900">
                         {campaign.CA_Name}
                       </div>
-                      {/* 🔥 CORRECTION : Affiche CA_Campaign_Identifier en secondaire */}
                       <div className="text-sm text-gray-500">
                         {campaign.CA_Campaign_Identifier}
                       </div>
@@ -161,8 +175,22 @@ export default function CampaignTable({
                     />
                   </td>
                 </tr>
-              );
-            })}
+                {expandedRowId === campaign.id && (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      <div className="px-4 py-4 bg-slate-50">
+                        <CampaignVersions
+                          clientId={clientId}
+                          campaignId={campaign.id}
+                          officialVersionId={campaign.officialVersionId}
+                          onVersionChange={onRefresh}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>

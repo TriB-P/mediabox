@@ -38,9 +38,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
         <div className="space-y-6">
           {/* ID externe client */}
           <FormInput
-            id="clientExtId"
-            name="clientExtId"
-            value={formData.clientExtId || ''}
+            id="CA_Client_Ext_Id"
+            name="CA_Client_Ext_Id"
+            value={formData.CA_Client_Ext_Id || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: CLI-2024-001"
@@ -53,9 +53,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
 
           {/* Numéro de PO */}
           <FormInput
-            id="po"
-            name="po"
-            value={formData.po || ''}
+            id="CA_PO"
+            name="CA_PO"
+            value={formData.CA_PO || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: PO-2024-12345"
@@ -68,9 +68,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
 
           {/* ID Facturation */}
           <FormInput
-            id="billingId"
-            name="billingId"
-            value={formData.billingId || ''}
+            id="CA_Billing_ID"
+            name="CA_Billing_ID"
+            value={formData.CA_Billing_ID || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: BILL-2024-789"
@@ -83,9 +83,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
 
           {/* Dossier créatifs */}
           <FormInput
-            id="creativeFolder"
-            name="creativeFolder"
-            value={formData.creativeFolder || ''}
+            id="CA_Creative_Folder"
+            name="CA_Creative_Folder"
+            value={formData.CA_Creative_Folder || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: /assets/campaigns/2024/summer-launch"

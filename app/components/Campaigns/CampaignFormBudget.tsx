@@ -39,18 +39,18 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   // Calculer le total des frais personnalisés
   const getTotalCustomFees = (): number => {
     const fees = [
-      parseFloat(formData.customFee1 || '0'),
-      parseFloat(formData.customFee2 || '0'),
-      parseFloat(formData.customFee3 || '0'),
-      parseFloat(formData.customFee4 || '0'),
-      parseFloat(formData.customFee5 || '0'),
+      parseFloat(formData.CA_Custom_Fee_1 || '0'),
+      parseFloat(formData.CA_Custom_Fee_2 || '0'),
+      parseFloat(formData.CA_Custom_Fee_3 || '0'),
+      parseFloat(formData.CA_Custom_Fee_4 || '0'),
+      parseFloat(formData.CA_Custom_Fee_5 || '0'),
     ];
     
     return fees.reduce((sum, fee) => sum + (isNaN(fee) ? 0 : fee), 0);
   };
 
   const totalCustomFees = getTotalCustomFees();
-  const mainBudget = parseFloat(formData.budget || '0');
+  const mainBudget = parseFloat(formData.CA_Budget || '0');
   const totalBudget = mainBudget + totalCustomFees;
 
   return (
@@ -75,10 +75,10 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               </div>
               <input
                 type="number"
-                name="budget"
-                id="budget"
+                name="CA_Budget"
+                id="CA_Budget"
                 required={!isDisabled}
-                value={formData.budget}
+                value={formData.CA_Budget}
                 onChange={onChange}
                 className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="0.00"
@@ -98,9 +98,9 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               )}
             </div>
             <select
-              name="currency"
-              id="currency"
-              value={formData.currency || 'CAD'}
+              name="CA_Currency"
+              id="CA_Currency"
+              value={formData.CA_Currency || 'CAD'}
               onChange={onChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
@@ -135,9 +135,9 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 </div>
                 <input
                   type="number"
-                  name={`customFee${num}`}
-                  id={`customFee${num}`}
-                  value={formData[`customFee${num}` as keyof CampaignFormData] as string || ''}
+                  name={`CA_Custom_Fee_${num}`}
+                  id={`CA_Custom_Fee_${num}`}
+                  value={formData[`CA_Custom_Fee_${num}` as keyof CampaignFormData] as string || ''}
                   onChange={onChange}
                   className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="0.00"
@@ -160,7 +160,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               <span className="font-medium">
                 {new Intl.NumberFormat('fr-CA', {
                   style: 'currency',
-                  currency: formData.currency || 'CAD',
+                  currency: formData.CA_Currency || 'CAD',
                 }).format(mainBudget)}
               </span>
             </div>
@@ -171,7 +171,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 <span className="font-medium">
                   {new Intl.NumberFormat('fr-CA', {
                     style: 'currency',
-                    currency: formData.currency || 'CAD',
+                    currency: formData.CA_Currency || 'CAD',
                   }).format(totalCustomFees)}
                 </span>
               </div>
@@ -182,7 +182,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               <span className="font-bold text-lg text-indigo-600">
                 {new Intl.NumberFormat('fr-CA', {
                   style: 'currency',
-                  currency: formData.currency || 'CAD',
+                  currency: formData.CA_Currency || 'CAD',
                 }).format(totalBudget)}
               </span>
             </div>

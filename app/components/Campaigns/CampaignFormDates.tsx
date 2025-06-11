@@ -32,10 +32,10 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
   // Validation des dates
   const getDateValidationMessage = (): string | null => {
-    if (!formData.startDate || !formData.endDate) return null;
+    if (!formData.CA_Start_Date || !formData.CA_End_Date) return null;
     
-    const startDate = new Date(formData.startDate);
-    const endDate = new Date(formData.endDate);
+    const startDate = new Date(formData.CA_Start_Date);
+    const endDate = new Date(formData.CA_End_Date);
     
     if (endDate <= startDate) {
       return 'La date de fin doit être postérieure à la date de début';
@@ -55,9 +55,9 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
         <div className="space-y-6">
           {/* Date de début */}
           <FormInput
-            id="startDate"
-            name="startDate"
-            value={formData.startDate}
+            id="CA_Start_Date"
+            name="CA_Start_Date"
+            value={formData.CA_Start_Date}
             onChange={onChange}
             type="date"
             required={!isDisabled}
@@ -70,9 +70,9 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
           {/* Date de fin */}
           <FormInput
-            id="endDate"
-            name="endDate"
-            value={formData.endDate}
+            id="CA_End_Date"
+            name="CA_End_Date"
+            value={formData.CA_End_Date}
             onChange={onChange}
             type="date"
             required={!isDisabled}
@@ -92,9 +92,9 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
           {/* Dates de sprint */}
           <FormTextarea
-            id="sprintDates"
-            name="sprintDates"
-            value={formData.sprintDates || ''}
+            id="CA_Sprint_Dates"
+            name="CA_Sprint_Dates"
+            value={formData.CA_Sprint_Dates || ''}
             onChange={onChange}
             rows={3}
             placeholder="Ex: Sprint 1: 01/01/2024 - 15/01/2024&#10;Sprint 2: 16/01/2024 - 31/01/2024"
@@ -106,12 +106,12 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
           />
 
           {/* Information sur la durée */}
-          {formData.startDate && formData.endDate && !dateValidationError && (
+          {formData.CA_Start_Date && formData.CA_End_Date && !dateValidationError && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
               <p className="text-sm">
                 <strong>Durée de la campagne :</strong> {
                   Math.ceil(
-                    (new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) 
+                    (new Date(formData.CA_End_Date).getTime() - new Date(formData.CA_Start_Date).getTime()) 
                     / (1000 * 60 * 60 * 24)
                   )
                 } jours
