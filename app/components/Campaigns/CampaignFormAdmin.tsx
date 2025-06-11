@@ -81,20 +81,6 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
             )}
           />
 
-          {/* Dossier créatifs */}
-          <FormInput
-            id="CA_Creative_Folder"
-            name="CA_Creative_Folder"
-            value={formData.CA_Creative_Folder || ''}
-            onChange={onChange}
-            type="text"
-            placeholder="Ex: /assets/campaigns/2024/summer-launch"
-            label={createLabelWithHelp(
-              'Dossier créatifs', 
-              'Chemin ou référence vers le dossier contenant les créatifs de cette campagne', 
-              onTooltipChange
-            )}
-          />
         </div>
       </FormSection>
 

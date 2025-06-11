@@ -2,8 +2,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useMemo } from 'react';
+import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Campaign, CampaignFormData } from '../types/campaign';
@@ -20,6 +20,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // États du drawer
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -50,6 +51,23 @@ export default function CampaignsPage() {
       setLoading(false);
     }
   };
+
+  // Filtrer les campagnes en fonction de la recherche
+  const filteredCampaigns = useMemo(() => {
+    if (!searchTerm) {
+      return campaigns;
+    }
+    const lowercasedFilter = searchTerm.toLowerCase();
+    return campaigns.filter(campaign =>
+      campaign.CA_Name.toLowerCase().includes(lowercasedFilter) ||
+      campaign.CA_Campaign_Identifier.toLowerCase().includes(lowercasedFilter)
+    );
+  }, [campaigns, searchTerm]);
+  
+  // Calculer le budget total correctement
+  const totalBudget = useMemo(() => {
+    return campaigns.reduce((total, campaign) => total + (campaign.CA_Budget || 0), 0);
+  }, [campaigns]);
 
   // Gestionnaires d'événements
   const handleCreateCampaign = () => {
@@ -113,10 +131,13 @@ export default function CampaignsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* En-tête */}
-      <div className="bg-white shadow">
-        <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+      {/* Conteneur principal de la page */}
+      <div className="px-4 sm:px-6 lg:px-8 py-6">
+        {/* En-tête avec la nouvelle disposition */}
+        <div className="space-y-4 mb-6">
+          
+          {/* Rangée du haut: Titre et Totaux */}
+          <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 Campagnes
@@ -125,6 +146,53 @@ export default function CampaignsPage() {
                 Client: {selectedClient.CL_Name}
               </p>
             </div>
+            
+            {/* 🔥 CORRECTION: Conteneur pour les boîtes de totaux avec des largeurs fixes */}
+            <div className="flex items-center gap-4">
+              <div className="bg-white rounded-lg shadow p-3 text-center w-40">
+                <div className="text-xl font-bold text-gray-900">
+                  {campaigns.length}
+                </div>
+                <div className="text-xs text-gray-600">
+                  Campagnes totales
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-3 text-center w-40">
+                <div className="text-xl font-bold text-indigo-600">
+                  {new Intl.NumberFormat('fr-CA', {
+                    style: 'currency',
+                    currency: 'CAD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  }).format(totalBudget)}
+                </div>
+                <div className="text-xs text-gray-600">
+                  Budget total
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rangée du bas: Recherche et Bouton */}
+          <div className="flex justify-between items-end">
+            <div className="w-full max-w-md">
+              {/* Le label est caché visuellement mais accessible */}
+              <label htmlFor="search" className="sr-only">Rechercher une campagne</label>
+              <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </div>
+                  <input
+                      type="text"
+                      id="search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Rechercher par nom ou identifiant..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+              </div>
+            </div>
+            
             <button
               onClick={handleCreateCampaign}
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
@@ -134,10 +202,7 @@ export default function CampaignsPage() {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Contenu principal */}
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
         {/* Messages d'erreur */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -151,36 +216,9 @@ export default function CampaignsPage() {
           </div>
         )}
 
-        {/* Statistiques rapides */}
-        {!loading && campaigns.length > 0 && (
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {campaigns.length}
-              </div>
-              <div className="text-sm text-gray-600">
-                Nombre total de campagnes
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-2xl font-bold text-indigo-600">
-                {new Intl.NumberFormat('fr-CA', {
-                  style: 'currency',
-                  currency: 'CAD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }).format(campaigns.reduce((total, campaign) => total + campaign.budget, 0))}
-              </div>
-              <div className="text-sm text-gray-600">
-                Budget total
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tableau des campagnes */}
         <CampaignTable
-          campaigns={campaigns}
+          campaigns={filteredCampaigns}
           clientId={selectedClient.clientId}
           onEdit={handleEditCampaign}
           onRefresh={loadCampaigns}

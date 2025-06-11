@@ -5,7 +5,6 @@
 import React, { memo } from 'react';
 import { 
   FormInput, 
-  FormTextarea,
   createLabelWithHelp,
   FormSection 
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
@@ -90,20 +89,24 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
             </div>
           )}
 
-          {/* Dates de sprint */}
-          <FormTextarea
-            id="CA_Sprint_Dates"
-            name="CA_Sprint_Dates"
-            value={formData.CA_Sprint_Dates || ''}
-            onChange={onChange}
-            rows={3}
-            placeholder="Ex: Sprint 1: 01/01/2024 - 15/01/2024&#10;Sprint 2: 16/01/2024 - 31/01/2024"
-            label={createLabelWithHelp(
-              'Dates de sprint', 
-              'Définissez les phases ou sprints de votre campagne (optionnel)', 
-              onTooltipChange
-            )}
-          />
+          {/* 🔥 CORRECTION: Champ "Dates de sprint" remplacé par un encadré de texte */}
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              {createLabelWithHelp(
+                'Période de sprint (automatique)', 
+                'Ce champ est généré automatiquement à partir des dates de début et de fin.', 
+                onTooltipChange
+              )}
+            </div>
+            <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+              {formData.CA_Sprint_Dates ? (
+                <p className="font-mono text-sm">{formData.CA_Sprint_Dates}</p>
+              ) : (
+                <p className="text-sm text-gray-400 italic">Généré avec les dates</p>
+              )}
+            </div>
+          </div>
+
 
           {/* Information sur la durée */}
           {formData.CA_Start_Date && formData.CA_End_Date && !dateValidationError && (

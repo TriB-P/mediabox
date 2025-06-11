@@ -23,12 +23,12 @@ import {
 
 // La fonction createOriginalVersion reste inchangée
 async function createOriginalVersion(
-  clientId: string,
+  CA_Client: string,
   campaignId: string,
   userEmail: string
 ): Promise<string> {
   try {
-    const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions');
+    const versionsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions');
     const originalVersion = {
       name: 'Originale',
       isOfficial: true,
@@ -36,7 +36,7 @@ async function createOriginalVersion(
       createdBy: userEmail,
     };
     const docRef = await addDoc(versionsRef, originalVersion);
-    const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
+    const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     await updateDoc(campaignRef, { officialVersionId: docRef.id });
     return docRef.id;
   } catch (error) {
@@ -46,10 +46,11 @@ async function createOriginalVersion(
 }
 
 // getCampaigns reste inchangée
-export async function getCampaigns(clientId: string): Promise<Campaign[]> {
+export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
   try {
-    const campaignsCollection = collection(db, 'clients', clientId, 'campaigns');
-    const q = query(campaignsCollection, orderBy('createdAt', 'desc'));
+    const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
+    // 🔥 CORRECTION: Tri par date de début, de la plus récente à la plus ancienne
+    const q = query(campaignsCollection, orderBy('CA_Start_Date', 'desc'));
     const querySnapshot = await getDocs(q);
 
     const campaigns = querySnapshot.docs.map(doc => ({
@@ -60,7 +61,7 @@ export async function getCampaigns(clientId: string): Promise<Campaign[]> {
     campaigns.forEach(async (campaign) => {
       if (campaign.CA_Start_Date && campaign.CA_End_Date) {
         try {
-          await ensureDefaultBreakdownExists(clientId, campaign.id, campaign.CA_Start_Date, campaign.CA_End_Date);
+          await ensureDefaultBreakdownExists(CA_Client, campaign.id, campaign.CA_Start_Date, campaign.CA_End_Date);
         } catch (error) {
           console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
         }
@@ -75,13 +76,13 @@ export async function getCampaigns(clientId: string): Promise<Campaign[]> {
 }
 
 export async function createCampaign(
-  clientId: string,
+  CA_Client: string,
   campaignData: CampaignFormData,
   userEmail: string,
   additionalBreakdowns: any[] = [] 
 ): Promise<string> {
   try {
-    const campaignsCollection = collection(db, 'clients', clientId, 'campaigns');
+    const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const now = new Date().toISOString();
 
     const newCampaign = {
@@ -104,9 +105,7 @@ export async function createCampaign(
       CA_Custom_Fee_1: campaignData.CA_Custom_Fee_1 ? parseFloat(campaignData.CA_Custom_Fee_1) : null,
       CA_Custom_Fee_2: campaignData.CA_Custom_Fee_2 ? parseFloat(campaignData.CA_Custom_Fee_2) : null,
       CA_Custom_Fee_3: campaignData.CA_Custom_Fee_3 ? parseFloat(campaignData.CA_Custom_Fee_3) : null,
-      CA_Custom_Fee_4: campaignData.CA_Custom_Fee_4 ? parseFloat(campaignData.CA_Custom_Fee_4) : null,
-      CA_Custom_Fee_5: campaignData.CA_Custom_Fee_5 ? parseFloat(campaignData.CA_Custom_Fee_5) : null,
-      clientId: clientId,
+      CA_Client: CA_Client,
       CA_Client_Ext_Id: campaignData.CA_Client_Ext_Id || '',
       CA_PO: campaignData.CA_PO || '',
       CA_Billing_ID: campaignData.CA_Billing_ID || '',
@@ -115,18 +114,18 @@ export async function createCampaign(
     };
 
     const docRef = await addDoc(campaignsCollection, newCampaign);
-    await createOriginalVersion(clientId, docRef.id, userEmail);
+    await createOriginalVersion(CA_Client, docRef.id, userEmail);
 
     if (additionalBreakdowns.length > 0) {
       const { createBreakdown } = await import('./breakdownService');
       for (const breakdown of additionalBreakdowns) {
-        await createBreakdown(clientId, docRef.id, breakdown, breakdown.isDefault || false);
+        await createBreakdown(CA_Client, docRef.id, breakdown, breakdown.isDefault || false);
       }
     } else {
       // 🔥 CORRECTION : On ne crée le breakdown par défaut que si les dates existent
       if (campaignData.CA_Start_Date && campaignData.CA_End_Date) {
         await createDefaultBreakdown(
-          clientId,
+          CA_Client,
           docRef.id,
           campaignData.CA_Start_Date,
           campaignData.CA_End_Date
@@ -143,15 +142,15 @@ export async function createCampaign(
 
 // updateCampaign reste inchangée
 export async function updateCampaign(
-  clientId: string,
+  CA_Client: string,
   campaignId: string,
   campaignData: CampaignFormData
 ): Promise<void> {
   try {
-    const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
+    const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     const now = new Date().toISOString();
 
-    const oldCampaigns = await getCampaigns(clientId);
+    const oldCampaigns = await getCampaigns(CA_Client);
     const oldCampaign = oldCampaigns.find(c => c.id === campaignId);
 
     const updatedCampaign = {
@@ -174,8 +173,6 @@ export async function updateCampaign(
       CA_Custom_Fee_1: campaignData.CA_Custom_Fee_1 ? parseFloat(campaignData.CA_Custom_Fee_1) : null,
       CA_Custom_Fee_2: campaignData.CA_Custom_Fee_2 ? parseFloat(campaignData.CA_Custom_Fee_2) : null,
       CA_Custom_Fee_3: campaignData.CA_Custom_Fee_3 ? parseFloat(campaignData.CA_Custom_Fee_3) : null,
-      CA_Custom_Fee_4: campaignData.CA_Custom_Fee_4 ? parseFloat(campaignData.CA_Custom_Fee_4) : null,
-      CA_Custom_Fee_5: campaignData.CA_Custom_Fee_5 ? parseFloat(campaignData.CA_Custom_Fee_5) : null,
       CA_Client_Ext_Id: campaignData.CA_Client_Ext_Id || '',
       CA_PO: campaignData.CA_PO || '',
       CA_Billing_ID: campaignData.CA_Billing_ID || '',
@@ -188,13 +185,13 @@ export async function updateCampaign(
         (oldCampaign.CA_Start_Date !== campaignData.CA_Start_Date || 
          oldCampaign.CA_End_Date !== campaignData.CA_End_Date)) {
       await ensureDefaultBreakdownExists(
-        clientId,
+        CA_Client,
         campaignId,
         campaignData.CA_Start_Date,
         campaignData.CA_End_Date
       );
       await updateDefaultBreakdownDates(
-        clientId,
+        CA_Client,
         campaignId,
         campaignData.CA_Start_Date,
         campaignData.CA_End_Date
@@ -208,19 +205,19 @@ export async function updateCampaign(
 
 // deleteCampaign et duplicateCampaign restent inchangées
 export async function deleteCampaign(
-  clientId: string,
+  CA_Client: string,
   campaignId: string
 ): Promise<void> {
     try {
         const subcollections = ['versions', 'breakdowns'];
         for (const subcollection of subcollections) {
-            const subRef = collection(db, 'clients', clientId, 'campaigns', campaignId, subcollection);
+            const subRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, subcollection);
             const snapshot = await getDocs(subRef);
             for (const doc of snapshot.docs) {
                 await deleteDoc(doc.ref);
             }
         }
-        const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
+        const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
         await deleteDoc(campaignRef);
     } catch (error) {
         console.error('Erreur lors de la suppression de la campagne:', error);
@@ -229,12 +226,12 @@ export async function deleteCampaign(
 }
 
 export async function duplicateCampaign(
-  clientId: string,
+  CA_Client: string,
   sourceCampaignId: string,
   userEmail: string,
   newName?: string
 ): Promise<string> {
-    const campaigns = await getCampaigns(clientId);
+    const campaigns = await getCampaigns(CA_Client);
     const sourceCampaign = campaigns.find(c => c.id === sourceCampaignId);
     if (!sourceCampaign) {
       throw new Error('Campagne source non trouvée');
@@ -250,14 +247,14 @@ export async function duplicateCampaign(
     newCampaignData.updatedAt = new Date().toISOString();
     newCampaignData.CA_Last_Edit = new Date().toISOString();
 
-    const campaignsCollection = collection(db, 'clients', clientId, 'campaigns');
+    const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const docRef = await addDoc(campaignsCollection, newCampaignData);
     const newCampaignId = docRef.id;
 
-    await duplicateBreakdowns(clientId, sourceCampaignId, newCampaignId);
-    await duplicateOnglets(clientId, sourceCampaignId, newCampaignId);
-    await duplicateSectionsAndTactiques(clientId, sourceCampaignId, newCampaignId);
-    await createOriginalVersion(clientId, newCampaignId, userEmail);
+    await duplicateBreakdowns(CA_Client, sourceCampaignId, newCampaignId);
+    await duplicateOnglets(CA_Client, sourceCampaignId, newCampaignId);
+    await duplicateSectionsAndTactiques(CA_Client, sourceCampaignId, newCampaignId);
+    await createOriginalVersion(CA_Client, newCampaignId, userEmail);
 
     return newCampaignId;
 }

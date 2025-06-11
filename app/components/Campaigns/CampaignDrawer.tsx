@@ -2,7 +2,7 @@
 
 'use client';
 
-import { Fragment, useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { 
@@ -52,7 +52,6 @@ export default function CampaignDrawer({
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
-  // 🔥 CORRECTION : Ajout de CA_Name à l'état initial
   const [formData, setFormData] = useState<CampaignFormData>({
     CA_Name: '',
     CA_Campaign_Identifier: '',
@@ -61,6 +60,7 @@ export default function CampaignDrawer({
     CA_Year: new Date().getFullYear().toString(),
     CA_Start_Date: '',
     CA_End_Date: '',
+    CA_Sprint_Dates: '',
     CA_Budget: '',
     CA_Currency: 'CAD',
   });
@@ -87,7 +87,6 @@ export default function CampaignDrawer({
     { id: 'admin', name: 'Administration', icon: CogIcon },
   ], []);
 
-  // 🔥 CORRECTION : Initialiser le formulaire avec CA_Name
   useEffect(() => {
     if (campaign) {
       setFormData({
@@ -108,8 +107,6 @@ export default function CampaignDrawer({
         CA_Custom_Fee_1: campaign.CA_Custom_Fee_1?.toString() || '',
         CA_Custom_Fee_2: campaign.CA_Custom_Fee_2?.toString() || '',
         CA_Custom_Fee_3: campaign.CA_Custom_Fee_3?.toString() || '',
-        CA_Custom_Fee_4: campaign.CA_Custom_Fee_4?.toString() || '',
-        CA_Custom_Fee_5: campaign.CA_Custom_Fee_5?.toString() || '',
         CA_Client_Ext_Id: campaign.CA_Client_Ext_Id || '',
         CA_PO: campaign.CA_PO || '',
         CA_Billing_ID: campaign.CA_Billing_ID || '',
@@ -126,6 +123,7 @@ export default function CampaignDrawer({
         CA_Year: new Date().getFullYear().toString(),
         CA_Start_Date: '',
         CA_End_Date: '',
+        CA_Sprint_Dates: '',
         CA_Budget: '',
         CA_Currency: 'CAD',
       });
@@ -133,6 +131,36 @@ export default function CampaignDrawer({
       setAdditionalBreakdowns([]);
     }
   }, [campaign]);
+  
+  // 🔥 NOUVEAU: useEffect pour mettre à jour CA_Sprint_Dates automatiquement
+  useEffect(() => {
+    const { CA_Start_Date, CA_End_Date } = formData;
+
+    if (CA_Start_Date && CA_End_Date) {
+      const startDate = new Date(CA_Start_Date);
+      const endDate = new Date(CA_End_Date);
+
+      // Vérifier si les dates sont valides
+      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate <= endDate) {
+        const formatSprintDate = (date: Date): string => {
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const month = monthNames[date.getUTCMonth()]; // Utiliser getUTCMonth pour éviter les pbs de fuseau horaire
+          const year = date.getUTCFullYear();
+          return `${month}${year}`;
+        };
+
+        const formattedSprintDates = `${formatSprintDate(startDate)}-${formatSprintDate(endDate)}`;
+        
+        // Mettre à jour le formulaire seulement si la valeur a changé
+        if (formattedSprintDates !== formData.CA_Sprint_Dates) {
+          setFormData(prev => ({
+            ...prev,
+            CA_Sprint_Dates: formattedSprintDates
+          }));
+        }
+      }
+    }
+  }, [formData.CA_Start_Date, formData.CA_End_Date]);
 
   useEffect(() => {
     if (!selectedClient || !isOpen) return;

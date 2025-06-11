@@ -28,8 +28,6 @@ export interface Campaign {
   CA_Custom_Fee_1?: number;
   CA_Custom_Fee_2?: number;
   CA_Custom_Fee_3?: number;
-  CA_Custom_Fee_4?: number;
-  CA_Custom_Fee_5?: number;
   
   // Admin
   clientId?: string;
@@ -68,8 +66,7 @@ export interface CampaignFormData {
   CA_Custom_Fee_1?: string;
   CA_Custom_Fee_2?: string;
   CA_Custom_Fee_3?: string;
-  CA_Custom_Fee_4?: string;
-  CA_Custom_Fee_5?: string;
+
   
   // Admin
   CA_Client_Ext_Id?: string;
