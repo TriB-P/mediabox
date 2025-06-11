@@ -12,7 +12,8 @@ import {
   parseAllTaxonomies, 
   extractUniqueVariables 
 } from '../lib/taxonomyParser';
-import { TAXONOMY_VARIABLE_REGEX, formatRequiresShortcode } from '../config/taxonomyFields';
+// 🔥 CORRECTION: Import des nouvelles fonctions utilitaires
+import { TAXONOMY_VARIABLE_REGEX, formatRequiresShortcode, isManualVariable } from '../config/taxonomyFields';
 import type {
   PlacementFormData,
   HighlightState,
@@ -46,7 +47,7 @@ interface CustomCode {
 
 interface UseTaxonomyFormProps {
   formData: PlacementFormData;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   clientId: string;
   campaignData?: any;
   tactiqueData?: any;
@@ -90,7 +91,13 @@ export function useTaxonomyForm({
   };
 
   const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
-  const manualVariables = useMemo(() => parsedVariables.filter(variable => variable.source === 'manual'), [parsedVariables]);
+  
+  // 🔥 CORRECTION: Utilise la fonction isManualVariable pour identifier les champs de placement.
+  const manualVariables = useMemo(() => 
+    parsedVariables.filter(variable => isManualVariable(variable.variable)), 
+    [parsedVariables]
+  );
+  
   const hasLoadingFields = Object.values(fieldStates).some(fs => fs.isLoading);
 
   const loadShortcodeCache = useCallback(async () => {
@@ -121,9 +128,7 @@ export function useTaxonomyForm({
     const shortcodeData = shortcodeCache.get(shortcodeId);
     if (!shortcodeData) { loadShortcode(shortcodeId); return shortcodeId; }
     
-    // ✅ DEBUG LOG 2 : VÉRIFIER LA RECHERCHE DANS LE CACHE
     const customCodeMatch = customCodesCache.find(cc => cc.shortcodeId === shortcodeId);
-
     
     switch (format) {
       case 'code': return shortcodeData.SH_Code;
@@ -185,10 +190,9 @@ export function useTaxonomyForm({
   }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean]);
 
   const loadFieldOptions = useCallback(async () => {
-    const manualVars = parsedVariables.filter(v => v.source === 'manual');
-    if (manualVars.length === 0) return;
+    if (manualVariables.length === 0) return;
 
-    for (const variable of manualVars) {
+    for (const variable of manualVariables) {
       const fieldKey = variable.variable;
       setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: true } }));
       try {
@@ -203,28 +207,40 @@ export function useTaxonomyForm({
         setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: false, error: 'Erreur' } }));
       }
     }
-  }, [clientId, parsedVariables]);
+  }, [clientId, manualVariables]);
   
   useEffect(() => { loadShortcodeCache(); }, [loadShortcodeCache]);
   useEffect(() => { if (cacheLoaded) loadAndParseTaxonomies(); }, [loadAndParseTaxonomies, cacheLoaded]);
   useEffect(() => { if (parsedVariables.length > 0) loadFieldOptions(); }, [parsedVariables, loadFieldOptions]);
   useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
 
+  // 🔥 CORRECTION : handleFieldChange met à jour formData ET taxonomyValues
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
-    const newValue: TaxonomyVariableValue = {
+    // 1. Mettre à jour l'objet taxonomyValues pour l'aperçu et la logique interne
+    const newTaxonomyValue: TaxonomyVariableValue = {
       value, source: 'manual', format,
       ...(format === 'open' ? { openValue: value } : {}),
       ...(shortcodeId ? { shortcodeId } : {})
     };
     
-
-    
-    
-    const newTaxonomyValues = { ...taxonomyValues, [variableName]: newValue };
+    const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
     setTaxonomyValues(newTaxonomyValues);
+    
+    // 2. Créer un événement synthétique pour mettre à jour PL_Taxonomy_Values dans formData
+    const taxonomyValuesEvent = {
+      target: { name: 'PL_Taxonomy_Values', value: newTaxonomyValues }
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onChange(taxonomyValuesEvent);
+
+    // 3. 🔥 NOUVEAU : Mettre aussi à jour directement le champ de placement dans formData
+    if (isManualVariable(variableName)) {
+        const fieldChangeEvent = {
+            target: { name: variableName, value }
+        } as unknown as React.ChangeEvent<HTMLInputElement>;
+        onChange(fieldChangeEvent);
+    }
+
     setPreviewUpdateTime(Date.now());
-    const syntheticEvent = { target: { name: 'PL_Taxonomy_Values', value: newTaxonomyValues } } as unknown as React.ChangeEvent<HTMLInputElement>;
-    onChange(syntheticEvent);
   }, [taxonomyValues, onChange]);
 
   const handleFieldHighlight = useCallback((variableName?: string) => {
@@ -239,9 +255,6 @@ export function useTaxonomyForm({
 
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const manualValue = taxonomyValues[variable.variable];
-
-
-
     if (manualValue) {
       if (manualValue.format === 'open') return manualValue.openValue || '';
       if (manualValue.shortcodeId) return formatShortcode(manualValue.shortcodeId, format);

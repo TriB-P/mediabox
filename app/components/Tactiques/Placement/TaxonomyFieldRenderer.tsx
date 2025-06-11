@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
-import { getSourceColor, getFormatColor, formatRequiresShortcode, formatAllowsUserInput } from '../../../config/taxonomyFields';
+import { getSourceColor, formatRequiresShortcode } from '../../../config/taxonomyFields';
 import type { ParsedTaxonomyVariable, TaxonomyValues, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -20,14 +20,11 @@ interface FieldState {
 interface TaxonomyFieldRendererProps {
   manualVariables: ParsedTaxonomyVariable[];
   fieldStates: { [key: string]: FieldState };
-  taxonomyValues: TaxonomyValues;
+  // 🔥 NOUVEAU: Reçoit directement formData pour lire les valeurs des champs
+  formData: any; 
   highlightState: HighlightState;
-  campaignData?: any;
-  tactiqueData?: any;
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
-  // 🔥 MODIFIÉ: La signature de la fonction attend maintenant le format.
-  getFormattedValue: (variableName: string, format: string) => string;
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -35,85 +32,38 @@ interface TaxonomyFieldRendererProps {
 const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   manualVariables,
   fieldStates,
-  taxonomyValues,
+  formData,
   highlightState,
-  campaignData,
-  tactiqueData,
   onFieldChange,
   onFieldHighlight,
-  getFormattedValue
 }) => {
 
   // ==================== FONCTIONS DE RENDU ====================
   
-  const getCurrentFieldValue = (variable: ParsedTaxonomyVariable): { displayValue: string; actualValue: string } => {
-    // 🔥 MODIFIÉ: Utilise le premier format comme format par défaut pour l'affichage.
-    const formattedValue = getFormattedValue(variable.variable, variable.formats[0]);
-    
-    if (variable.source !== 'manual') {
-      return { displayValue: formattedValue, actualValue: formattedValue };
-    }
-    
-    const taxonomyValue = taxonomyValues[variable.variable];
-    if (!taxonomyValue) return { displayValue: '', actualValue: '' };
-    
-    if (taxonomyValue.format === 'open') {
-      return { displayValue: taxonomyValue.openValue || '', actualValue: taxonomyValue.openValue || '' };
-    }
-    
-    if (taxonomyValue.shortcodeId) {
-      const fieldState = fieldStates[variable.variable];
-      if (fieldState?.options) {
-        const selectedOption = fieldState.options.find(opt => opt.id === taxonomyValue.shortcodeId);
-        if (selectedOption) {
-          return { displayValue: selectedOption.label, actualValue: taxonomyValue.shortcodeId };
-        }
-      }
-    }
-    
-    return { displayValue: taxonomyValue.value || '', actualValue: taxonomyValue.value || '' };
-  };
-
-  const renderVariableInput = (variable: ParsedTaxonomyVariable, fieldState: FieldState) => {
+  /**
+   * 🔥 SIMPLIFIÉ: Rend un champ de formulaire pour une variable de placement.
+   */
+  const renderVariableInput = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
-    const { displayValue, actualValue } = getCurrentFieldValue(variable);
+    const fieldState = fieldStates[fieldKey];
     
-    if (variable.source !== 'manual') {
-      return (
-        <div className="relative">
-          <FormInput id={fieldKey} name={fieldKey} value={displayValue} onChange={() => {}} type="text" placeholder={`Hérité de ${variable.source}`} label="" />
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 cursor-not-allowed rounded-lg"></div>
-        </div>
-      );
-    }
+    // La valeur est lue directement depuis le formData principal
+    const currentValue = formData[fieldKey] || '';
     
-    const hasOpenFormat = variable.formats.includes('open');
-    const hasShortcodeFormats = variable.formats.some(formatRequiresShortcode);
+    // Déterminer si on doit afficher un dropdown ou un champ de texte
+    const hasShortcodeList = variable.formats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
 
-    if (hasOpenFormat && (!hasShortcodeFormats || !fieldState.hasCustomList)) {
-      return (
-        <FormInput
-          id={fieldKey}
-          name={fieldKey}
-          value={displayValue}
-          onChange={(e) => onFieldChange(variable.variable, e.target.value, 'open')}
-          type="text"
-          placeholder="Saisir la valeur..."
-          label=""
-        />
-      );
-    }
-    
-    if (hasShortcodeFormats && fieldState.hasCustomList) {
+    if (hasShortcodeList) {
       return (
         <div className="relative">
           <SmartSelect
             id={fieldKey}
             name={fieldKey}
-            value={actualValue}
+            value={currentValue}
             onChange={(e) => {
               const selectedId = e.target.value;
               const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
+              // On utilise le premier format compatible comme format par défaut pour le shortcode
               const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || 'code';
               onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
             }}
@@ -122,7 +72,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             label=""
           />
           {fieldState.isLoading && (
-            <div className="absolute inset-0 bg-gray-100 bg-opacity-70 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-70 flex items-center justify-center rounded-lg">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             </div>
           )}
@@ -130,43 +80,24 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       );
     }
     
+    // Par défaut, ou si pas de liste, on affiche un champ de texte libre
     return (
       <FormInput
         id={fieldKey}
         name={fieldKey}
-        value={displayValue}
-        onChange={(e) => onFieldChange(variable.variable, e.target.value, variable.formats[0])}
+        value={currentValue}
+        // Le format 'open' est utilisé pour la saisie libre
+        onChange={(e) => onFieldChange(variable.variable, e.target.value, 'open')}
         type="text"
-        placeholder="Saisie libre (pas de liste trouvée)"
+        placeholder="Saisir la valeur..."
         label=""
       />
     );
   };
 
-  const renderFormatBadges = (formats: TaxonomyFormat[]) => {
-    return (
-      <div className="flex flex-wrap gap-1">
-        {formats.map((format, index) => {
-          const formatColor = getFormatColor(format);
-          return (
-            <span 
-              key={index}
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${formatColor.bg} ${formatColor.text}`}
-            >
-              {format}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
-  
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
-    const fieldState = fieldStates[fieldKey];
     const sourceColor = getSourceColor(variable.source);
-    
-    if (!fieldState && variable.source === 'manual') return null;
     
     return (
       <div
@@ -183,10 +114,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           <span className="text-sm font-medium text-gray-900">
             {variable.variable}
           </span>
-          {renderFormatBadges(variable.formats)}
         </div>
         
-        {renderVariableInput(variable, fieldState!)}
+        {renderVariableInput(variable)}
       </div>
     );
   };
@@ -197,7 +127,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     return (
       <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
         <h4 className="text-md font-medium text-gray-900 mb-2">
-          Configuration des variables
+          Configuration des champs de placement
         </h4>
         <p className="text-sm">
           Toutes les variables sont héritées automatiquement. Aucune configuration manuelle n'est requise.
@@ -209,7 +139,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   return (
     <div className="space-y-4">
       <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
-        Variables à configurer ({manualVariables.length})
+        Champs de placement à configurer ({manualVariables.length})
       </h4>
       {manualVariables.map((variable) => renderVariableCard(variable))}
     </div>

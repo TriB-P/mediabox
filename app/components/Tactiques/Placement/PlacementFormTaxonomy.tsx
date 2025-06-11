@@ -9,19 +9,15 @@ import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 import { PlacementFormData, Tactique } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
 
-// ==================== TYPES ====================
-
 interface PlacementFormTaxonomyProps {
   formData: PlacementFormData;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   clientId: string;
   campaignData?: Campaign;
   tactiqueData?: Tactique;
   loading?: boolean;
 }
-
-// ==================== COMPOSANT PRINCIPAL ====================
 
 const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   formData,
@@ -59,17 +55,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     tactiqueData
   });
 
-  console.log('🏗️ PlacementFormTaxonomy rendu avec:', {
-    campaignData: campaignData?.name,
-    tactiqueData: tactiqueData?.TC_Label,
-    hasTaxonomies,
-    parsedVariables: parsedVariables.length,
-    manualVariables: manualVariables.length,
-    taxonomiesLoading,
-    hasLoadingFields,
-    highlightState: highlightState.activeVariable
-  });
-
   return (
     <div className="flex h-full">
       {/* Colonne de gauche : Configuration des variables */}
@@ -88,16 +73,14 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         )}
 
         {hasTaxonomies ? (
+          // 🔥 CORRECTION: On passe formData au lieu de taxonomyValues
           <TaxonomyFieldRenderer
             manualVariables={manualVariables}
             fieldStates={fieldStates}
-            taxonomyValues={taxonomyValues}
+            formData={formData}
             highlightState={highlightState}
-            campaignData={campaignData}
-            tactiqueData={tactiqueData}
             onFieldChange={handleFieldChange}
             onFieldHighlight={handleFieldHighlight}
-            getFormattedValue={getFormattedValue}
           />
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
@@ -121,7 +104,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
 
       {/* Colonne de droite : Aperçu */}
       <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
-        {/* 🔥 MODIFIÉ: Retrait des props "campaignData" et "tactiqueData" qui ne sont pas utilisées par TaxonomyPreview */}
         <TaxonomyPreview
           parsedVariables={parsedVariables}
           selectedTaxonomyData={selectedTaxonomyData}

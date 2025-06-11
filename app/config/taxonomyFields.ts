@@ -31,7 +31,7 @@ export interface FormatOption {
   allowsUserInput: boolean;
 }
 
-// ==================== CONFIGURATION CENTRALE DES VARIABLES (NOUVEAU) ====================
+// ==================== CONFIGURATION CENTRALE DES VARIABLES ====================
 
 export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
 
@@ -63,27 +63,17 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Format': { source: 'tactique', allowedFormats: ['open'] },
   'TC_Placement': { source: 'tactique', allowedFormats: ['open'] },
 
-  // --- Variables de niveau Placement (Manuelles) ---
+  // --- 🔥 CORRECTION : Nos deux champs manuels bien définis ---
   'TAX_Product': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] },
   'TAX_Location': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr'] },
-  'TAX_Custom_Field_1': { source: 'manual', allowedFormats: ['open'] },
-  'TAX_Custom_Field_2': { source: 'manual', allowedFormats: ['open'] },
-  'TAX_Custom_Field_3': { source: 'manual', allowedFormats: ['open'] },
-  
-  // --- Variables spéciales (souvent pour les UTM) ---
-  'UTM_TC_Channel': { source: 'tactique', allowedFormats: ['utm'] },
-  'UTM_TC_Publisher': { source: 'tactique', allowedFormats: ['utm'] },
-  'UTM_CR_Format_Details': { source: 'manual', allowedFormats: ['open'] }, // Créatif/Placement
-  'CR_Plateform_Name': { source: 'manual', allowedFormats: ['open'] }, // Créatif/Placement
-  'UTM_TC_Language': { source: 'tactique', allowedFormats: ['utm', 'code'] },
-  
-  // --- Variables Admin (héritées) ---
+
+  // --- Variables Admin ---
   'TC_Billing_ID': { source: 'tactique', allowedFormats: ['open'] },
   'TC_PO': { source: 'tactique', allowedFormats: ['open'] },
 };
 
 
-// ==================== FORMATS DISPONIBLES (RÉINTÉGRÉ) ====================
+// ==================== FORMATS DISPONIBLES ====================
 
 export const TAXONOMY_FORMATS: FormatOption[] = [
   { id: 'code', label: 'Code', description: 'Utilise la valeur SH_Code du shortcode', requiresShortcode: true, allowsUserInput: false },
@@ -95,7 +85,7 @@ export const TAXONOMY_FORMATS: FormatOption[] = [
   { id: 'open', label: 'Saisie Libre', description: 'Utilise directement la valeur saisie par l\'utilisateur', requiresShortcode: false, allowsUserInput: true }
 ];
 
-// ==================== COULEURS (RÉINTÉGRÉ) ====================
+// ==================== COULEURS ====================
 
 export const SOURCE_COLORS = {
   campaign: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', hex: '#3B82F6' },
@@ -115,7 +105,7 @@ export const FORMAT_COLORS = {
 } as const;
 
 
-// ==================== FONCTIONS UTILITAIRES (MISES À JOUR ET RÉINTÉGRÉES) ====================
+// ==================== FONCTIONS UTILITAIRES ====================
 
 export function getFieldSource(fieldName: string): FieldSource | null {
   return TAXONOMY_VARIABLE_CONFIG[fieldName]?.source || null;
@@ -130,7 +120,6 @@ export function isFormatAllowed(variableName: string, format: TaxonomyFormat): b
   return config ? config.allowedFormats.includes(format) : false;
 }
 
-// 🔥 NOUVELLE FONCTION AJOUTÉE
 export function getVariableConfig(variableName: string): VariableConfig | null {
   return TAXONOMY_VARIABLE_CONFIG[variableName] || null;
 }
@@ -177,7 +166,7 @@ export function getCompatibleFormats(source: FieldSource): FormatOption[] {
   return TAXONOMY_FORMATS;
 }
 
-// ==================== CONSTANTES (RÉINTÉGRÉES) ====================
+// ==================== CONSTANTES ====================
 
 export const MAX_TAXONOMY_LEVELS = 6;
 
@@ -203,7 +192,7 @@ export const ERROR_MESSAGES = {
 // ==================== 🔥 NOUVELLES FONCTIONS UTILITAIRES POUR LES CHAMPS MANUELS ====================
 
 /**
- * 🔥 NOUVEAU : Extrait tous les noms de variables qui ont source: 'manual'
+ * Extrait tous les noms de variables qui ont source: 'manual'
  */
 export function getManualVariableNames(): string[] {
   return Object.entries(TAXONOMY_VARIABLE_CONFIG)
@@ -212,23 +201,7 @@ export function getManualVariableNames(): string[] {
 }
 
 /**
- * 🔥 NOUVEAU : Génère un objet TypeScript pour les champs manuels
- * Utilisé pour générer dynamiquement les types de Placement et PlacementFormData
- */
-export function generateManualFieldsTypeDefinition(): { [key: string]: 'string | undefined' } {
-  const manualVars = getManualVariableNames();
-  const typeDefinition: { [key: string]: 'string | undefined' } = {};
-  
-  manualVars.forEach(varName => {
-    typeDefinition[varName] = 'string | undefined';
-  });
-  
-  return typeDefinition;
-}
-
-/**
- * 🔥 NOUVEAU : Crée un objet vide avec tous les champs manuels initialisés
- * Utilisé pour initialiser les formulaires
+ * Crée un objet vide avec tous les champs manuels initialisés
  */
 export function createEmptyManualFieldsObject(): { [key: string]: string } {
   const manualVars = getManualVariableNames();
@@ -242,15 +215,14 @@ export function createEmptyManualFieldsObject(): { [key: string]: string } {
 }
 
 /**
- * 🔥 NOUVEAU : Extrait les valeurs des champs manuels depuis un objet de données
- * Utilisé pour extraire uniquement les champs manuels depuis un placement
+ * Extrait les valeurs des champs manuels depuis un objet de données
  */
 export function extractManualFieldsFromData(data: any): { [key: string]: string } {
   const manualVars = getManualVariableNames();
   const extractedFields: { [key: string]: string } = {};
   
   manualVars.forEach(varName => {
-    if (data[varName]) {
+    if (data && typeof data[varName] !== 'undefined') {
       extractedFields[varName] = data[varName];
     }
   });
@@ -259,23 +231,9 @@ export function extractManualFieldsFromData(data: any): { [key: string]: string 
 }
 
 /**
- * 🔥 NOUVEAU : Valide qu'un nom de variable est bien un champ manuel
+ * Valide qu'un nom de variable est bien un champ manuel
  */
 export function isManualVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
   return config ? config.source === 'manual' : false;
-}
-
-/**
- * 🔥 NOUVEAU : Log de debug pour voir tous les champs manuels disponibles
- */
-export function logManualVariables(): void {
-  const manualVars = getManualVariableNames();
-  console.log('🔧 Variables manuelles disponibles:', manualVars);
-  console.log('📋 Nombre total:', manualVars.length);
-  
-  manualVars.forEach(varName => {
-    const config = TAXONOMY_VARIABLE_CONFIG[varName];
-    console.log(`  - ${varName}: formats [${config.allowedFormats.join(', ')}]`);
-  });
 }

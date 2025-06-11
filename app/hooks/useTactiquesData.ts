@@ -22,7 +22,6 @@ import {
   createPlacement,
   updatePlacement,
   deletePlacement,
-  getPlacementById
 } from '../lib/placementService';
 
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
