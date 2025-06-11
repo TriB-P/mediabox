@@ -39,6 +39,9 @@ interface ClientConfig {
   CA_Custom_Dim_1?: string;
   CA_Custom_Dim_2?: string;
   CA_Custom_Dim_3?: string;
+  CL_Custom_Fee_1?: string;
+  CL_Custom_Fee_2?: string;
+  CL_Custom_Fee_3?: string;
 }
 
 export default function CampaignDrawer({
@@ -132,7 +135,6 @@ export default function CampaignDrawer({
     }
   }, [campaign]);
   
-  // 🔥 NOUVEAU: useEffect pour mettre à jour CA_Sprint_Dates automatiquement
   useEffect(() => {
     const { CA_Start_Date, CA_End_Date } = formData;
 
@@ -140,18 +142,16 @@ export default function CampaignDrawer({
       const startDate = new Date(CA_Start_Date);
       const endDate = new Date(CA_End_Date);
 
-      // Vérifier si les dates sont valides
       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate <= endDate) {
         const formatSprintDate = (date: Date): string => {
           const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const month = monthNames[date.getUTCMonth()]; // Utiliser getUTCMonth pour éviter les pbs de fuseau horaire
+          const month = monthNames[date.getUTCMonth()];
           const year = date.getUTCFullYear();
           return `${month}${year}`;
         };
 
         const formattedSprintDates = `${formatSprintDate(startDate)}-${formatSprintDate(endDate)}`;
         
-        // Mettre à jour le formulaire seulement si la valeur a changé
         if (formattedSprintDates !== formData.CA_Sprint_Dates) {
           setFormData(prev => ({
             ...prev,
@@ -174,15 +174,20 @@ export default function CampaignDrawer({
       const clientInfo = await getClientInfo(selectedClient.clientId);
       if (clientInfo) {
         setClientConfig({
-          CA_Custom_Dim_1: clientInfo.CA_Custom_Dim_1 || undefined,
-          CA_Custom_Dim_2: clientInfo.CA_Custom_Dim_2 || undefined,
-          CA_Custom_Dim_3: clientInfo.CA_Custom_Dim_3 || undefined,
+          CA_Custom_Dim_1: clientInfo.Custom_Dim_CA_1 || undefined,
+          CA_Custom_Dim_2: clientInfo.Custom_Dim_CA_2 || undefined,
+          CA_Custom_Dim_3: clientInfo.Custom_Dim_CA_3 || undefined,
+          CL_Custom_Fee_1: clientInfo.CL_Custom_Fee_1 || undefined,
+          CL_Custom_Fee_2: clientInfo.CL_Custom_Fee_2 || undefined,
+          CL_Custom_Fee_3: clientInfo.CL_Custom_Fee_3 || undefined,
         });
         setLoadingCustomDims(true);
+        // 🔥 CORRECTION : On utilise la clé statique (ex: 'CA_Custom_Dim_1') pour chercher la liste, 
+        // pas le libellé dynamique (ex: clientInfo.Custom_Dim_CA_1)
         const customDimPromises = [
-          clientInfo.CA_Custom_Dim_1 ? getClientList('CA_Custom_Dim_1', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_1', 'PlusCo')).then(setCustomDim1List) : Promise.resolve(),
-          clientInfo.CA_Custom_Dim_2 ? getClientList('CA_Custom_Dim_2', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_2', 'PlusCo')).then(setCustomDim2List) : Promise.resolve(),
-          clientInfo.CA_Custom_Dim_3 ? getClientList('CA_Custom_Dim_3', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_3', 'PlusCo')).then(setCustomDim3List) : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_1 ? getClientList('CA_Custom_Dim_1', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_1', 'PlusCo')).then(setCustomDim1List) : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_2 ? getClientList('CA_Custom_Dim_2', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_2', 'PlusCo')).then(setCustomDim2List) : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_3 ? getClientList('CA_Custom_Dim_3', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_3', 'PlusCo')).then(setCustomDim3List) : Promise.resolve(),
         ];
         await Promise.all(customDimPromises);
         setLoadingCustomDims(false);
@@ -230,7 +235,7 @@ export default function CampaignDrawer({
       case 'dates':
         return <CampaignFormDates formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} loading={loading} />;
       case 'budget':
-        return <CampaignFormBudget formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} loading={loading} />;
+        return <CampaignFormBudget formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} clientConfig={clientConfig} loading={loading} />;
       case 'breakdown':
         return (
           <CampaignFormBreakdown

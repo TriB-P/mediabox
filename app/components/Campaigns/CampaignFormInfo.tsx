@@ -60,7 +60,6 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
         description="Configuration de base de la campagne"
       >
         <div className="space-y-6">
-          {/* 🔥 NOUVEAU : Champ pour CA_Name */}
           <FormInput
             id="CA_Name"
             name="CA_Name"
@@ -76,7 +75,6 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             )}
           />
           
-          {/* 🔥 MODIFIÉ : Champ pour CA_Campaign_Identifier */}
           <FormInput
             id="CA_Campaign_Identifier"
             name="CA_Campaign_Identifier"
@@ -92,7 +90,6 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             )}
           />
 
-          {/* 🔥 CORRECTION : Ancien champ CA_Creative_Folder qui était manquant */}
           <FormInput
             id="CA_Creative_Folder"
             name="CA_Creative_Folder"
@@ -164,15 +161,27 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 {createLabelWithHelp(clientConfig.CA_Custom_Dim_1, `Dimension: ${clientConfig.CA_Custom_Dim_1}`, onTooltipChange)}
               </div>
               {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
-                <SmartSelect
-                  id="CA_Custom_Dim_1"
-                  name="CA_Custom_Dim_1"
-                  value={formData.CA_Custom_Dim_1 || ''}
-                  onChange={onChange}
-                  options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                  placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_1}`}
-                  label=""
-                />
+                customDim1List.length > 0 ? (
+                  <SmartSelect
+                    id="CA_Custom_Dim_1"
+                    name="CA_Custom_Dim_1"
+                    value={formData.CA_Custom_Dim_1 || ''}
+                    onChange={onChange}
+                    options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_1}`}
+                    label=""
+                  />
+                ) : (
+                  <FormInput
+                    id="CA_Custom_Dim_1"
+                    name="CA_Custom_Dim_1"
+                    value={formData.CA_Custom_Dim_1 || ''}
+                    onChange={onChange}
+                    type="text"
+                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_1}`}
+                    label=""
+                  />
+                )
               )}
             </div>
           )}
@@ -183,15 +192,27 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 {createLabelWithHelp(clientConfig.CA_Custom_Dim_2, `Dimension: ${clientConfig.CA_Custom_Dim_2}`, onTooltipChange)}
               </div>
               {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
-                <SmartSelect
-                  id="CA_Custom_Dim_2"
-                  name="CA_Custom_Dim_2"
-                  value={formData.CA_Custom_Dim_2 || ''}
-                  onChange={onChange}
-                  options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                  placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_2}`}
-                  label=""
-                />
+                customDim2List.length > 0 ? (
+                  <SmartSelect
+                    id="CA_Custom_Dim_2"
+                    name="CA_Custom_Dim_2"
+                    value={formData.CA_Custom_Dim_2 || ''}
+                    onChange={onChange}
+                    options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_2}`}
+                    label=""
+                  />
+                ) : (
+                  <FormInput
+                    id="CA_Custom_Dim_2"
+                    name="CA_Custom_Dim_2"
+                    value={formData.CA_Custom_Dim_2 || ''}
+                    onChange={onChange}
+                    type="text"
+                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_2}`}
+                    label=""
+                  />
+                )
               )}
             </div>
           )}
@@ -202,15 +223,27 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 {createLabelWithHelp(clientConfig.CA_Custom_Dim_3, `Dimension: ${clientConfig.CA_Custom_Dim_3}`, onTooltipChange)}
               </div>
               {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
-                <SmartSelect
-                  id="CA_Custom_Dim_3"
-                  name="CA_Custom_Dim_3"
-                  value={formData.CA_Custom_Dim_3 || ''}
-                  onChange={onChange}
-                  options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                  placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_3}`}
-                  label=""
-                />
+                customDim3List.length > 0 ? (
+                  <SmartSelect
+                    id="CA_Custom_Dim_3"
+                    name="CA_Custom_Dim_3"
+                    value={formData.CA_Custom_Dim_3 || ''}
+                    onChange={onChange}
+                    options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_3}`}
+                    label=""
+                  />
+                ) : (
+                  <FormInput
+                    id="CA_Custom_Dim_3"
+                    name="CA_Custom_Dim_3"
+                    value={formData.CA_Custom_Dim_3 || ''}
+                    onChange={onChange}
+                    type="text"
+                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_3}`}
+                    label=""
+                  />
+                )
               )}
             </div>
           )}

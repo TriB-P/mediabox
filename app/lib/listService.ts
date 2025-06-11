@@ -54,32 +54,54 @@ export async function getClientList(
       `Récupération de la liste ${listType} pour le client ${clientId}`
     );
 
-    const shortcodesRef = collection(
+    // 1. Récupérer les IDs des shortcodes de la liste du client
+    const shortcodeRefs = collection(
       db,
       'lists',
-      listType, // On utilise directement le nom de la liste (ex: CA_Custom_Dim_1)
+      listType,
       'clients',
       clientId,
       'shortcodes'
     );
 
-    const q = query(shortcodesRef);
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(query(shortcodeRefs));
+    const shortcodeIds = snapshot.docs.map(doc => doc.id);
 
-    console.log(`${snapshot.size} éléments trouvés dans la liste ${listType}`);
+    if (shortcodeIds.length === 0) {
+      console.log(`Aucun shortcode trouvé dans la liste ${listType} pour le client ${clientId}`);
+      return [];
+    }
+    
+    console.log(`${shortcodeIds.length} IDs de shortcode trouvés pour ${listType}. Récupération des détails...`);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      SH_Code: doc.data().SH_Code || doc.id,
-      SH_Display_Name_FR:
-        doc.data().SH_Display_Name_FR || doc.data().SH_Code || doc.id,
-      SH_Display_Name_EN:
-        doc.data().SH_Display_Name_EN || doc.data().SH_Code || doc.id,
-      SH_Default_UTM: doc.data().SH_Default_UTM,
-      SH_Logo: doc.data().SH_Logo,
-      SH_Type: doc.data().SH_Type,
-      SH_Tags: doc.data().SH_Tags || [],
-    }));
+    // 2. Récupérer les détails de chaque shortcode depuis la collection racine 'shortcodes'
+    const shortcodesPromises = shortcodeIds.map(async (id) => {
+      const shortcodeRef = doc(db, 'shortcodes', id);
+      const shortcodeSnap = await getDoc(shortcodeRef);
+      if (shortcodeSnap.exists()) {
+        const data = shortcodeSnap.data();
+        return {
+          id: shortcodeSnap.id,
+          SH_Code: data.SH_Code || id,
+          SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || id,
+          SH_Display_Name_EN: data.SH_Display_Name_EN,
+          SH_Default_UTM: data.SH_Default_UTM,
+          SH_Logo: data.SH_Logo,
+          SH_Type: data.SH_Type,
+          SH_Tags: data.SH_Tags || [],
+        } as ShortcodeItem;
+      }
+      return null;
+    });
+
+    const resolvedShortcodes = await Promise.all(shortcodesPromises);
+    const finalShortcodes = resolvedShortcodes.filter(s => s !== null) as ShortcodeItem[];
+
+    // Trier par nom d'affichage français
+    return finalShortcodes.sort((a, b) => 
+      a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+    );
+
   } catch (error) {
     console.error(
       `Erreur lors de la récupération de la liste ${listType}:`,
@@ -181,4 +203,3 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
     return null;
   }
 }
-
