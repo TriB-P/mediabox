@@ -350,7 +350,6 @@ export function useTactiquesData(
       
       const newPlacementData = {
         PL_Label: 'Nouveau placement',
-        PL_Budget: 0,
         PL_Order: nextOrder,
         PL_TactiqueId: tactiqueId,
         PL_Taxonomy_Values: {},

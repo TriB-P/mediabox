@@ -17,7 +17,6 @@ interface PlacementFormInfoProps {
   // Données du formulaire (sans budget et format)
   formData: {
     PL_Label?: string;
-    // 🔥 SUPPRIMÉ : PL_Budget et PL_Format
     PL_Taxonomy_Tags?: string;
     PL_Taxonomy_Platform?: string;
     PL_Taxonomy_MediaOcean?: string;
@@ -112,7 +111,6 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           )}
         />
 
-        {/* 🔥 SUPPRIMÉ : Champs PL_Budget et PL_Format */}
 
         {/* Message d'erreur pour les taxonomies */}
         {taxonomiesError && (

@@ -14,24 +14,13 @@ import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 // 🔥 NOUVEAU : Import des fonctions utilitaires pour les champs manuels
-import { createEmptyManualFieldsObject, extractManualFieldsFromData } from '../../../config/taxonomyFields';
+import { createEmptyManualFieldsObject, extractManualFieldsFromData, getManualVariableNames } from '../../../config/taxonomyFields';
 
 /**
- * 🔥 PLACEMENT DRAWER AVEC CHAMPS MANUELS DYNAMIQUES
+ * 🔥 PLACEMENT DRAWER AVEC CHAMPS MANUELS DYNAMIQUES - VERSION CORRIGÉE
  * 
- * Ce composant gère maintenant automatiquement tous les champs manuels définis 
- * dans TAXONOMY_VARIABLE_CONFIG avec source: 'manual'. 
- * 
- * Fonctionnalités automatiques :
- * - Initialisation de tous les champs manuels (nouveau placement)
- * - Extraction des champs manuels (placement existant)  
- * - Sauvegarde des champs manuels vers Firestore
- * - Logs de debug pour tracer les valeurs
- * 
- * Pour ajouter un nouveau champ manuel :
- * 1. L'ajouter dans TAXONOMY_VARIABLE_CONFIG avec source: 'manual'
- * 2. L'ajouter dans les types Placement et PlacementFormData
- * 3. Il sera automatiquement géré par ce composant
+ * CORRECTION : Assure que les champs manuels modifiés dans TaxonomyFieldRenderer 
+ * sont correctement sauvegardés comme propriétés indépendantes dans Firestore.
  */
 
 interface PlacementDrawerProps {
@@ -39,8 +28,8 @@ interface PlacementDrawerProps {
   onClose: () => void;
   placement?: Placement | null;
   tactiqueId: string;
-  tactiqueData?: Tactique; // ✅ VÉRIFICATION : Bien reçu pour les taxonomies
-  onSave: (placementData: PlacementFormData) => Promise<void>; // ✅ VÉRIFICATION : Compatible avec placementService
+  tactiqueData?: Tactique;
+  onSave: (placementData: PlacementFormData) => Promise<void>;
 }
 
 export default function PlacementDrawer({
@@ -48,11 +37,11 @@ export default function PlacementDrawer({
   onClose,
   placement,
   tactiqueId,
-  tactiqueData, // ✅ VÉRIFICATION : Utilisé pour le contexte taxonomie
+  tactiqueData,
   onSave
 }: PlacementDrawerProps) {
   const { selectedClient } = useClient();
-  const { selectedCampaign } = useCampaignSelection(); // ✅ VÉRIFICATION : Pour le contexte taxonomie
+  const { selectedCampaign } = useCampaignSelection();
   
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -64,14 +53,13 @@ export default function PlacementDrawer({
     
     return {
       PL_Label: '',
-      // 🔥 SUPPRIMÉ : PL_Format et PL_Budget
       PL_Order: 0,
       PL_TactiqueId: tactiqueId,
       PL_Taxonomy_Tags: '',
       PL_Taxonomy_Platform: '',
       PL_Taxonomy_MediaOcean: '',
-      PL_Taxonomy_Values: {}, // ✅ VÉRIFICATION : Initialisé comme objet vide
-      PL_Generated_Taxonomies: {}, // ✅ VÉRIFICATION : Sera rempli par le service
+      PL_Taxonomy_Values: {},
+      PL_Generated_Taxonomies: {},
       
       // 🔥 NOUVEAU : Tous les champs manuels initialisés automatiquement
       ...emptyManualFields
@@ -89,14 +77,13 @@ export default function PlacementDrawer({
       
       setFormData({
         PL_Label: placement.PL_Label || '',
-        // 🔥 SUPPRIMÉ : PL_Format et PL_Budget
         PL_Order: placement.PL_Order || 0,
         PL_TactiqueId: placement.PL_TactiqueId,
         PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
-        PL_Taxonomy_Values: placement.PL_Taxonomy_Values || {}, // ✅ VÉRIFICATION : Récupéré depuis Firestore
-        PL_Generated_Taxonomies: placement.PL_Generated_Taxonomies || {}, // ✅ VÉRIFICATION : Récupéré depuis Firestore
+        PL_Taxonomy_Values: placement.PL_Taxonomy_Values || {},
+        PL_Generated_Taxonomies: placement.PL_Generated_Taxonomies || {},
         
         // 🔥 NOUVEAU : Champs manuels extraits automatiquement
         ...manualFieldsFromPlacement
@@ -110,14 +97,13 @@ export default function PlacementDrawer({
       
       setFormData({
         PL_Label: '', 
-        // 🔥 SUPPRIMÉ : PL_Format et PL_Budget
         PL_Order: 0,
         PL_TactiqueId: tactiqueId, 
         PL_Taxonomy_Tags: '',
         PL_Taxonomy_Platform: '', 
         PL_Taxonomy_MediaOcean: '',
-        PL_Taxonomy_Values: {}, // ✅ VÉRIFICATION : Objet vide pour nouveau placement
-        PL_Generated_Taxonomies: {}, // ✅ VÉRIFICATION : Sera généré par le service
+        PL_Taxonomy_Values: {},
+        PL_Generated_Taxonomies: {},
         
         // 🔥 NOUVEAU : Tous les champs manuels initialisés automatiquement
         ...emptyManualFields
@@ -144,64 +130,84 @@ export default function PlacementDrawer({
     formData,
     onChange: handleChange,
     clientId: selectedClient?.clientId || '',
-    campaignData: selectedCampaign, // ✅ VÉRIFICATION : Données de campagne pour résoudre les variables
-    tactiqueData: tactiqueData, // ✅ VÉRIFICATION : Données de tactique pour résoudre les variables
+    campaignData: selectedCampaign,
+    tactiqueData: tactiqueData,
   });
 
-  // ✅ VÉRIFICATION : Sauvegarde compatible avec placementService
+  // 🔥 CORRECTION : Sauvegarde corrigée pour les champs manuels
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('💾 PlacementDrawer - Début sauvegarde');
+    console.log('💾 PlacementDrawer - Début sauvegarde CORRIGÉE');
     console.log('📋 Données actuelles du formulaire:', formData);
     console.log('🏷️ Valeurs de taxonomie du hook:', taxonomyProps.taxonomyValues);
     
-    // 🔥 NOUVEAU : Debug des champs manuels
-    const manualFieldsInForm = extractManualFieldsFromData(formData);
-    console.log('🔧 Champs manuels dans le formulaire:', manualFieldsInForm);
+    // 🔥 CORRECTION : Obtenir la liste des variables manuelles depuis la config
+    const manualVariableNames = getManualVariableNames();
+    console.log('🔧 Variables manuelles disponibles:', manualVariableNames);
     
-    // 🔥 NOUVEAU : Transférer les valeurs de taxonomie vers les champs distincts
-    const updatedManualFields: any = { ...manualFieldsInForm };
+    // 🔥 CORRECTION : Créer un objet avec les champs manuels mis à jour
+    const updatedManualFields: any = {};
     
-    // Parcourir toutes les valeurs de taxonomie et les affecter aux champs distincts correspondants
+    // Initialiser avec les valeurs actuelles du formulaire
+    manualVariableNames.forEach(varName => {
+      updatedManualFields[varName] = (formData as any)[varName] || '';
+    });
+    
+    console.log('📊 Champs manuels actuels dans le formulaire:', updatedManualFields);
+    
+    // 🔥 CORRECTION : Transférer les valeurs depuis taxonomyValues vers les champs distincts
     Object.entries(taxonomyProps.taxonomyValues).forEach(([variableName, taxonomyValue]) => {
-      // Vérifier si cette variable correspond à un champ manuel distinct
-      if (variableName in formData) {
+      // 🔥 CORRECTION : Vérifier si c'est une variable manuelle configurée
+      if (manualVariableNames.includes(variableName)) {
         let finalValue = '';
         
         // Déterminer la valeur finale selon le format
         if (taxonomyValue.format === 'open' && taxonomyValue.openValue) {
           finalValue = taxonomyValue.openValue;
+          console.log(`🔄 Transfer OPEN ${variableName}: "${finalValue}"`);
         } else if (taxonomyValue.value) {
           finalValue = taxonomyValue.value;
+          console.log(`🔄 Transfer VALUE ${variableName}: "${finalValue}"`);
+        } else if (taxonomyValue.shortcodeId) {
+          // Pour les shortcodes, utiliser la valeur affichée
+          finalValue = taxonomyValue.value || taxonomyValue.shortcodeId;
+          console.log(`🔄 Transfer SHORTCODE ${variableName}: "${finalValue}" (ID: ${taxonomyValue.shortcodeId})`);
         }
         
         // Affecter la valeur au champ distinct
         updatedManualFields[variableName] = finalValue;
         
-        console.log(`🔄 Transfert ${variableName}: "${finalValue}" (format: ${taxonomyValue.format})`);
+        console.log(`✅ ${variableName} transféré: "${finalValue}" (format: ${taxonomyValue.format})`);
+      } else {
+        console.log(`⚠️ ${variableName} n'est pas une variable manuelle configurée`);
       }
     });
     
-    console.log('🎯 Champs manuels mis à jour:', updatedManualFields);
+    console.log('🎯 Champs manuels finaux:', updatedManualFields);
     
-    // ✅ VÉRIFICATION : Intégrer les dernières valeurs de taxonomie ET les champs distincts
+    // 🔥 CORRECTION : Construire les données finales avec les champs manuels corrigés
     const finalFormData: PlacementFormData = {
       ...formData,
-      ...updatedManualFields, // 🔥 NOUVEAU : Champs manuels distincts mis à jour
+      ...updatedManualFields, // 🔥 CORRECTION : Champs manuels mis à jour
       PL_Taxonomy_Values: taxonomyProps.taxonomyValues // ✅ IMPORTANT : Prendre les valeurs du hook
     };
     
-    console.log('🎯 Données finales envoyées au service:', finalFormData);
+    console.log('🎯 Données finales envoyées au service (avec champs manuels):', finalFormData);
+    
+    // 🔥 DEBUG : Vérifier spécifiquement TAX_Product
+    if (finalFormData.TAX_Product) {
+      console.log('🛍️ TAX_Product sera sauvegardé:', finalFormData.TAX_Product);
+    } else {
+      console.log('❌ TAX_Product est vide ou undefined');
+    }
     
     try {
-      // ✅ VÉRIFICATION : onSave attend PlacementFormData, compatible avec placementService
       await onSave(finalFormData);
-      console.log('✅ PlacementDrawer - Sauvegarde réussie');
+      console.log('✅ PlacementDrawer - Sauvegarde réussie avec champs manuels');
       onClose();
     } catch (error) {
       console.error('❌ PlacementDrawer - Erreur sauvegarde:', error);
-      // Ici on pourrait ajouter un état d'erreur si nécessaire
     }
   };
   
@@ -221,16 +227,15 @@ export default function PlacementDrawer({
       case 'taxonomie':
         if (!selectedClient) return null;
         
-        // ✅ VÉRIFICATION : Passe toutes les props du hook au composant enfant
         return (
           <PlacementFormTaxonomy
             formData={formData}
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
-            campaignData={selectedCampaign || undefined} // ✅ VÉRIFICATION : Pour le contexte
-            tactiqueData={tactiqueData} // ✅ VÉRIFICATION : Pour le contexte
-            {...taxonomyProps} // ✅ VÉRIFICATION : Toutes les valeurs et fonctions du hook
+            campaignData={selectedCampaign || undefined}
+            tactiqueData={tactiqueData}
+            {...taxonomyProps}
           />
         );
       

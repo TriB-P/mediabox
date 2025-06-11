@@ -9,23 +9,6 @@ export type { TaxonomyFormat, FieldSource };
 
 // ==================== TYPES DYNAMIQUES POUR CHAMPS MANUELS ====================
 
-/**
- * 🔥 NOTE : Les champs manuels sont maintenant définis directement dans les interfaces
- * Placement et PlacementFormData. Ils correspondent aux variables avec source: 'manual'
- * dans TAXONOMY_VARIABLE_CONFIG :
- * 
- * - TAX_Product
- * - TAX_Location  
- * - TAX_Custom_Field_1/2/3
- * - UTM_CR_Format_Details
- * - CR_Plateform_Name
- * 
- * Pour ajouter un nouveau champ manuel :
- * 1. L'ajouter dans TAXONOMY_VARIABLE_CONFIG avec source: 'manual'
- * 2. L'ajouter dans les interfaces Placement et PlacementFormData ci-dessous
- * 3. Utiliser les fonctions utilitaires dans taxonomyFields.ts pour la logique
- */
-
 // ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
 export interface Section {
@@ -177,7 +160,6 @@ export interface ParsedTaxonomyStructure {
 export interface Placement {
   id: string;
   PL_Label: string;
-  // 🔥 SUPPRIMÉ : PL_Format et PL_Budget
   PL_Order: number;
   PL_TactiqueId: string; // Référence à la tactique parente
   

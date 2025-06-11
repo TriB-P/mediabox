@@ -1,4 +1,4 @@
-// app/lib/placementService.ts - VERSION COMPLÈTE
+// app/lib/placementService.ts - VERSION CORRIGÉE POUR CHAMPS MANUELS
 
 import {
     collection,
@@ -17,7 +17,7 @@ import {
   import { Placement, PlacementFormData, GeneratedTaxonomies, TaxonomyValues } from '../types/tactiques';
   import { getTaxonomyById } from './taxonomyService';
   import { Taxonomy } from '../types/taxonomy';
-  import { TAXONOMY_VARIABLE_REGEX } from '../config/taxonomyFields';
+  import { TAXONOMY_VARIABLE_REGEX, getManualVariableNames } from '../config/taxonomyFields';
   
   // ==================== INTERFACES POUR LES CHAÎNES TAXONOMIQUES ====================
   
@@ -41,7 +41,21 @@ import {
     PL_MO_4?: string;
   }
   
-  interface PlacementFirestoreData extends PlacementFormData, GeneratedTaxonomyChains {
+  // 🔥 CORRECTION : Interface pour les données Firestore incluant TOUS les champs
+  interface PlacementFirestoreData extends Omit<PlacementFormData, 'PL_Taxonomy_Values' | 'PL_Generated_Taxonomies'>, GeneratedTaxonomyChains {
+    // Champs de taxonomie stockés séparément
+    PL_Taxonomy_Values: TaxonomyValues;
+    PL_Generated_Taxonomies: GeneratedTaxonomies;
+    
+    // 🔥 NOUVEAU : S'assurer que tous les champs manuels sont inclus explicitement
+    TAX_Product?: string;
+    TAX_Location?: string;
+    TAX_Custom_Field_1?: string;
+    TAX_Custom_Field_2?: string;
+    TAX_Custom_Field_3?: string;
+    UTM_CR_Format_Details?: string;
+    CR_Plateform_Name?: string;
+    
     // Métadonnées
     createdAt: string;
     updatedAt: string;
@@ -293,7 +307,65 @@ import {
   }
   
   /**
-   * Créer un nouveau placement
+   * 🔥 CORRECTION : Préparer les données pour Firestore en incluant TOUS les champs
+   */
+  function prepareDataForFirestore(
+    placementData: PlacementFormData,
+    taxonomyChains: GeneratedTaxonomyChains,
+    isUpdate: boolean = false
+  ): PlacementFirestoreData {
+    console.log('🔧 Préparation des données pour Firestore...');
+    
+    // 🔥 CORRECTION : Extraire tous les champs manuels explicitement
+    const manualVariableNames = getManualVariableNames();
+    const manualFields: any = {};
+    
+    manualVariableNames.forEach(varName => {
+      const value = (placementData as any)[varName];
+      if (value !== undefined) {
+        manualFields[varName] = value;
+        console.log(`📝 Champ manuel ${varName}: "${value}"`);
+      }
+    });
+    
+    const firestoreData: PlacementFirestoreData = {
+      // Champs de base
+      PL_Label: placementData.PL_Label,
+      PL_Order: placementData.PL_Order,
+      PL_TactiqueId: placementData.PL_TactiqueId,
+      
+      // Champs de taxonomie
+      PL_Taxonomy_Tags: placementData.PL_Taxonomy_Tags,
+      PL_Taxonomy_Platform: placementData.PL_Taxonomy_Platform,
+      PL_Taxonomy_MediaOcean: placementData.PL_Taxonomy_MediaOcean,
+      PL_Taxonomy_Values: placementData.PL_Taxonomy_Values || {},
+      PL_Generated_Taxonomies: placementData.PL_Generated_Taxonomies || {},
+      
+      // 🔥 CORRECTION : Inclure tous les champs manuels
+      ...manualFields,
+      
+      // Chaînes taxonomiques générées
+      ...taxonomyChains,
+      
+      // Métadonnées
+      updatedAt: new Date().toISOString(),
+      ...(isUpdate ? {} : { createdAt: new Date().toISOString() })
+    };
+    
+    console.log('✅ Données préparées pour Firestore:', firestoreData);
+    
+    // 🔥 DEBUG : Vérifier spécifiquement TAX_Product
+    if (firestoreData.TAX_Product) {
+      console.log('🛍️ TAX_Product dans les données Firestore:', firestoreData.TAX_Product);
+    } else {
+      console.log('❌ TAX_Product absent des données Firestore');
+    }
+    
+    return firestoreData;
+  }
+  
+  /**
+   * 🔥 CORRECTION : Créer un nouveau placement avec sauvegarde correcte des champs manuels
    */
   export async function createPlacement(
     clientId: string,
@@ -308,6 +380,7 @@ import {
   ): Promise<string> {
     try {
       console.log('✨ Création d\'un nouveau placement');
+      console.log('📝 Données reçues:', placementData);
       
       const placementsCollection = collection(
         db,
@@ -334,19 +407,15 @@ import {
         tactiqueData
       );
       
-      // Préparer les données pour Firestore
-      const firestoreData: PlacementFirestoreData = {
-        ...placementData,
-        ...taxonomyChains,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-  
-      console.log('💾 Données à sauvegarder:', firestoreData);
+      // 🔥 CORRECTION : Préparer les données avec tous les champs manuels
+      const firestoreData = prepareDataForFirestore(placementData, taxonomyChains, false);
       
+      console.log('💾 Sauvegarde dans Firestore...');
       const docRef = await addDoc(placementsCollection, firestoreData);
       
       console.log('✅ Placement créé avec ID:', docRef.id);
+      console.log('🎯 Document sauvegardé dans Firestore avec tous les champs manuels');
+      
       return docRef.id;
     } catch (error) {
       console.error("❌ Erreur lors de la création du placement:", error);
@@ -355,7 +424,7 @@ import {
   }
   
   /**
-   * Mettre à jour un placement existant
+   * 🔥 CORRECTION : Mettre à jour un placement existant avec sauvegarde correcte des champs manuels
    */
   export async function updatePlacement(
     clientId: string,
@@ -371,6 +440,7 @@ import {
   ): Promise<void> {
     try {
       console.log('🔄 Mise à jour du placement:', placementId);
+      console.log('📝 Données de mise à jour reçues:', placementData);
       
       const placementRef = doc(
         db,
@@ -399,6 +469,8 @@ import {
       const existingData = existingDoc.data() as PlacementFormData;
       const mergedData = { ...existingData, ...placementData };
       
+      console.log('🔄 Données fusionnées:', mergedData);
+      
       // Régénérer les chaînes taxonomiques si nécessaire
       let taxonomyChains: GeneratedTaxonomyChains = {};
       
@@ -417,18 +489,13 @@ import {
         );
       }
       
-      // Préparer les données de mise à jour
-      const updateData = {
-        ...placementData,
-        ...taxonomyChains,
-        updatedAt: new Date().toISOString(),
-      };
+      // 🔥 CORRECTION : Préparer les données de mise à jour avec tous les champs manuels
+      const updateData = prepareDataForFirestore(mergedData, taxonomyChains, true);
       
-      console.log('💾 Données de mise à jour:', updateData);
-      
+      console.log('💾 Mise à jour dans Firestore...');
       await updateDoc(placementRef, updateData);
       
-      console.log('✅ Placement mis à jour avec succès');
+      console.log('✅ Placement mis à jour avec succès avec tous les champs manuels');
     } catch (error) {
       console.error("❌ Erreur lors de la mise à jour du placement:", error);
       throw error;
