@@ -129,7 +129,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
               <SmartSelect
                 id="CA_Quarter"
                 name="CA_Quarter"
-                value={formData.CA_Quarter}
+                value={formData.CA_Quarter|| ''}
                 onChange={onChange}
                 options={quarters.map(q => ({ id: q.id, label: q.SH_Display_Name_FR }))}
                 placeholder="Sélectionner un trimestre"
