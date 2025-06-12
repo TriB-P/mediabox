@@ -620,8 +620,8 @@ export function useTactiquesData(
         TC_Order: nextOrder,
         TC_SectionId: sectionId,
         TC_Status: 'Planned' as const,
-        TC_StartDate: selectedCampaign.startDate,
-        TC_EndDate: selectedCampaign.endDate
+        TC_StartDate: selectedCampaign.CA_Start_Date,
+        TC_EndDate: selectedCampaign.CA_End_Date
       };
       
       const tactiqueId = await addTactique(

@@ -262,12 +262,13 @@ export function useTaxonomyForm({
     }
     
     let rawValue: any = null;
-    const campaignMap: { [key: string]: keyof typeof campaignData } = { 'CA_Campaign_Identifier': 'name', 'CA_Year': 'year', 'CA_Division': 'division', 'CA_Quarter': 'quarter' };
+    // 🔥 SUPPRESSION DE campaignMap
+    
     const tactiqueMap: { [key: string]: keyof typeof tactiqueData } = { 'TC_Publisher': 'TC_Publisher', 'TC_Media_Type': 'TC_Media_Type' };
     
     if (variable.source === 'campaign' && campaignData) {
-      const field = campaignMap[variable.variable] || variable.variable;
-      rawValue = campaignData[field];
+      // ✅ CORRECTION: Accès direct à la propriété
+      rawValue = (campaignData as any)[variable.variable];
     }
     if (variable.source === 'tactique' && tactiqueData) {
       const field = tactiqueMap[variable.variable] || variable.variable;
