@@ -93,9 +93,9 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
         } else {
              rawValue = context.placementData[variableName];
         }
-    } else if (source === 'campaign' && context.campaignData) {
-        const key = variableName.split('_').pop()?.toLowerCase() || '';
-        rawValue = context.campaignData[key];
+      } else if (source === 'campaign' && context.campaignData) {
+        // ✅ CORRECTION : On accède directement à la propriété avec le nom complet.
+        rawValue = context.campaignData[variableName];
     } else if (source === 'tactique' && context.tactiqueData) {
         rawValue = context.tactiqueData[variableName];
     }
@@ -129,25 +129,37 @@ async function generateLevelString(structure: string, context: ResolutionContext
                 const [, variableName, format] = variableMatch;
                 finalString += await resolveVariable(variableName, format as TaxonomyFormat, context);
             }
-        } else if (segment.startsWith('<') && segment.endsWith('>')) {
+          } else if (segment.startsWith('<') && segment.endsWith('>')) {
             const groupContent = segment.slice(1, -1);
+            
             const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-            let resolvedGroupContent = groupContent;
-            let allVarsInGroupResolved = true;
+            if (variablesInGroup.length === 0) {
+                finalString += groupContent; // Ajoute le contenu statique s'il n'y a pas de variables
+                continue;
+            }
 
+            // 1. Résoudre toutes les variables et ne garder que celles qui ont une valeur
+            const resolvedValues = [];
             for (const match of variablesInGroup) {
-                const [fullMatch, variableName, format] = match;
-                const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
-                if (resolvedValue) {
-                    resolvedGroupContent = resolvedGroupContent.replace(fullMatch, resolvedValue);
-                } else {
-                    allVarsInGroupResolved = false;
-                    break;
+                const [, variableName, format] = match;
+                const resolved = await resolveVariable(variableName, format as TaxonomyFormat, context);
+                if (resolved && !resolved.startsWith('[')) {
+                    resolvedValues.push(resolved);
                 }
             }
-            if (allVarsInGroupResolved) {
-                finalString += resolvedGroupContent;
+            
+            // 2. Si aucune variable n'a été résolue, le groupe est ignoré
+            if (resolvedValues.length === 0) {
+                continue;
             }
+
+            // 3. Trouver le délimiteur (même logique que dans le parser)
+            const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
+            const delimiter = delimiterMatch ? delimiterMatch[1] : '';
+
+            // 4. Joindre UNIQUEMENT les valeurs résolues et les ajouter à la chaîne finale
+            finalString += resolvedValues.join(delimiter);
+            
         } else {
             finalString += segment;
         }

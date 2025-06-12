@@ -232,11 +232,15 @@ export function useTaxonomyForm({
     } as unknown as React.ChangeEvent<HTMLInputElement>;
     onChange(taxonomyValuesEvent);
 
-    // 3. 🔥 NOUVEAU : Mettre aussi à jour directement le champ de placement dans formData
-    if (isManualVariable(variableName)) {
+       // 3. 🔥 CORRECTION : Mettre à jour le champ de placement avec la bonne valeur (ID ou texte)
+       if (isManualVariable(variableName)) {
+        // On utilise le 'shortcodeId' pour les listes, ou la 'value' pour le texte libre.
+        const eventValue = shortcodeId ?? value;
+        
         const fieldChangeEvent = {
-            target: { name: variableName, value }
+            target: { name: variableName, value: eventValue }
         } as unknown as React.ChangeEvent<HTMLInputElement>;
+        
         onChange(fieldChangeEvent);
     }
 

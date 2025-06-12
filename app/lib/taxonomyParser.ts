@@ -46,19 +46,28 @@ export function generateFinalTaxonomyString(
       const groupContent = segment.slice(1, -1);
       
       const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-      if (variablesInGroup.length === 0) return '';
+      if (variablesInGroup.length === 0) return groupContent; // Retourne le contenu statique s'il n'y a pas de variables
 
-      const resolvedValues = variablesInGroup.map(match => {
-        const [, variableName, format] = match;
-        return valueResolver(variableName, format as TaxonomyFormat);
-      }).filter(value => value && !value.startsWith('[')); // Filtrer les valeurs non résolues ou vides
+      // 1. Résoudre toutes les variables et ne garder que celles qui ont une valeur
+      const resolvedValues = variablesInGroup
+        .map(match => {
+          const [, variableName, format] = match;
+          const resolved = valueResolver(variableName, format as TaxonomyFormat);
+          // Retourner la valeur si elle est valide, sinon null
+          return (resolved && !resolved.startsWith('[')) ? resolved : null;
+        })
+        .filter((value): value is string => value !== null && value.trim() !== ''); // Filtre les null et les chaînes vides
 
-      if (resolvedValues.length === 0) return '';
+      // 2. Si aucune variable n'a pu être résolue, le groupe est vide
+      if (resolvedValues.length === 0) {
+        return '';
+      }
 
-      // Extraire le délimiteur (ce qui se trouve entre les variables)
+      // 3. Trouver le délimiteur (logique existante, suppose un délimiteur constant)
       const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
       const delimiter = delimiterMatch ? delimiterMatch[1] : '';
 
+      // 4. Joindre UNIQUEMENT les valeurs résolues
       return resolvedValues.join(delimiter);
     }
 
