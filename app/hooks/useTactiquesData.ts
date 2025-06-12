@@ -623,7 +623,7 @@ export function useTactiquesData(
         TC_StartDate: selectedCampaign.CA_Start_Date,
         TC_EndDate: selectedCampaign.CA_End_Date
       };
-      
+      //
       const tactiqueId = await addTactique(
         selectedClient.clientId,
         selectedCampaign.id,
