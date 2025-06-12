@@ -5,6 +5,7 @@
 import React, { memo } from 'react';
 import { 
   FormInput, 
+  FormTextarea,
   createLabelWithHelp,
   FormSection 
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
@@ -31,10 +32,10 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
   // Validation des dates
   const getDateValidationMessage = (): string | null => {
-    if (!formData.CA_Start_Date || !formData.CA_End_Date) return null;
+    if (!formData.startDate || !formData.endDate) return null;
     
-    const startDate = new Date(formData.CA_Start_Date);
-    const endDate = new Date(formData.CA_End_Date);
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
     
     if (endDate <= startDate) {
       return 'La date de fin doit être postérieure à la date de début';
@@ -54,9 +55,9 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
         <div className="space-y-6">
           {/* Date de début */}
           <FormInput
-            id="CA_Start_Date"
-            name="CA_Start_Date"
-            value={formData.CA_Start_Date}
+            id="startDate"
+            name="startDate"
+            value={formData.startDate}
             onChange={onChange}
             type="date"
             required={!isDisabled}
@@ -69,9 +70,9 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
           {/* Date de fin */}
           <FormInput
-            id="CA_End_Date"
-            name="CA_End_Date"
-            value={formData.CA_End_Date}
+            id="endDate"
+            name="endDate"
+            value={formData.endDate}
             onChange={onChange}
             type="date"
             required={!isDisabled}
@@ -89,32 +90,28 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
             </div>
           )}
 
-          {/* 🔥 CORRECTION: Champ "Dates de sprint" remplacé par un encadré de texte */}
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              {createLabelWithHelp(
-                'Période de sprint (automatique)', 
-                'Ce champ est généré automatiquement à partir des dates de début et de fin.', 
-                onTooltipChange
-              )}
-            </div>
-            <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-              {formData.CA_Sprint_Dates ? (
-                <p className="font-mono text-sm">{formData.CA_Sprint_Dates}</p>
-              ) : (
-                <p className="text-sm text-gray-400 italic">Généré avec les dates</p>
-              )}
-            </div>
-          </div>
-
+          {/* Dates de sprint */}
+          <FormTextarea
+            id="sprintDates"
+            name="sprintDates"
+            value={formData.sprintDates || ''}
+            onChange={onChange}
+            rows={3}
+            placeholder="Ex: Sprint 1: 01/01/2024 - 15/01/2024&#10;Sprint 2: 16/01/2024 - 31/01/2024"
+            label={createLabelWithHelp(
+              'Dates de sprint', 
+              'Définissez les phases ou sprints de votre campagne (optionnel)', 
+              onTooltipChange
+            )}
+          />
 
           {/* Information sur la durée */}
-          {formData.CA_Start_Date && formData.CA_End_Date && !dateValidationError && (
+          {formData.startDate && formData.endDate && !dateValidationError && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
               <p className="text-sm">
                 <strong>Durée de la campagne :</strong> {
                   Math.ceil(
-                    (new Date(formData.CA_End_Date).getTime() - new Date(formData.CA_Start_Date).getTime()) 
+                    (new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) 
                     / (1000 * 60 * 60 * 24)
                   )
                 } jours

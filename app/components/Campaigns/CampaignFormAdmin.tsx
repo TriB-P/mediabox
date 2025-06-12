@@ -38,9 +38,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
         <div className="space-y-6">
           {/* ID externe client */}
           <FormInput
-            id="CA_Client_Ext_Id"
-            name="CA_Client_Ext_Id"
-            value={formData.CA_Client_Ext_Id || ''}
+            id="clientExtId"
+            name="clientExtId"
+            value={formData.clientExtId || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: CLI-2024-001"
@@ -53,9 +53,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
 
           {/* Numéro de PO */}
           <FormInput
-            id="CA_PO"
-            name="CA_PO"
-            value={formData.CA_PO || ''}
+            id="po"
+            name="po"
+            value={formData.po || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: PO-2024-12345"
@@ -68,9 +68,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
 
           {/* ID Facturation */}
           <FormInput
-            id="CA_Billing_ID"
-            name="CA_Billing_ID"
-            value={formData.CA_Billing_ID || ''}
+            id="billingId"
+            name="billingId"
+            value={formData.billingId || ''}
             onChange={onChange}
             type="text"
             placeholder="Ex: BILL-2024-789"
@@ -81,6 +81,20 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
             )}
           />
 
+          {/* Dossier créatifs */}
+          <FormInput
+            id="creativeFolder"
+            name="creativeFolder"
+            value={formData.creativeFolder || ''}
+            onChange={onChange}
+            type="text"
+            placeholder="Ex: /assets/campaigns/2024/summer-launch"
+            label={createLabelWithHelp(
+              'Dossier créatifs', 
+              'Chemin ou référence vers le dossier contenant les créatifs de cette campagne', 
+              onTooltipChange
+            )}
+          />
         </div>
       </FormSection>
 

@@ -1,56 +1,71 @@
 // app/hooks/useTaxonomyForm.ts
 
-'use client';
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getTaxonomyById } from '../lib/taxonomyService';
+import { getClientTaxonomies, getTaxonomyById } from '../lib/taxonomyService';
 import { getDynamicList, hasDynamicList } from '../lib/tactiqueListService';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Taxonomy } from '../types/taxonomy';
-import { 
-  parseAllTaxonomies, 
-  extractUniqueVariables 
+import {
+  createFieldConfig,
+  extractUniqueVariables,
+  parseAllTaxonomies
 } from '../lib/taxonomyParser';
-// 🔥 CORRECTION: Import des nouvelles fonctions utilitaires
-import { TAXONOMY_VARIABLE_REGEX, formatRequiresShortcode, isManualVariable } from '../config/taxonomyFields';
 import type {
   PlacementFormData,
+  TaxonomyFieldConfig,
+  TaxonomyContext,
   HighlightState,
-  TaxonomyValues,
-  TaxonomyVariableValue,
   ParsedTaxonomyVariable,
+  TaxonomyValues
 } from '../types/tactiques';
-import type { TaxonomyFormat } from '../config/taxonomyFields';
 
 // ==================== TYPES ====================
 
 interface FieldState {
+  config: TaxonomyFieldConfig;
   options: Array<{ id: string; label: string; code?: string }>;
   hasCustomList: boolean;
   isLoading: boolean;
+  isLoaded: boolean;
   error?: string;
-}
-
-interface ShortcodeData {
-  id: string;
-  SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
-  SH_Default_UTM?: string;
-}
-
-interface CustomCode {
-  shortcodeId: string;
-  customCode: string;
 }
 
 interface UseTaxonomyFormProps {
   formData: PlacementFormData;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   clientId: string;
   campaignData?: any;
   tactiqueData?: any;
+}
+
+interface UseTaxonomyFormReturn {
+  // États
+  selectedTaxonomyData: {
+    tags?: Taxonomy;
+    platform?: Taxonomy;
+    mediaocean?: Taxonomy;
+  };
+  taxonomiesLoading: boolean;
+  taxonomiesError: string | null;
+  parsedVariables: ParsedTaxonomyVariable[];
+  fieldStates: { [key: string]: FieldState };
+  taxonomyValues: TaxonomyValues;
+  highlightState: HighlightState;
+  expandedPreviews: {
+    tags: boolean;
+    platform: boolean;
+    mediaocean: boolean;
+  };
+  
+  // Actions
+  handleFieldChange: (variableName: string, value: string, format: string) => void;
+  handleFieldHighlight: (variableName?: string) => void;
+  togglePreviewExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
+  retryLoadTaxonomies: () => void;
+  
+  // Données calculées
+  hasTaxonomies: boolean;
+  manualVariables: ParsedTaxonomyVariable[];
+  hasLoadingFields: boolean;
 }
 
 // ==================== HOOK PRINCIPAL ====================
@@ -61,254 +76,314 @@ export function useTaxonomyForm({
   clientId,
   campaignData,
   tactiqueData
-}: UseTaxonomyFormProps) {
+}: UseTaxonomyFormProps): UseTaxonomyFormReturn {
+  
+  // ==================== ÉTATS ====================
   
   const [selectedTaxonomyData, setSelectedTaxonomyData] = useState<{
     tags?: Taxonomy;
     platform?: Taxonomy;
     mediaocean?: Taxonomy;
   }>({});
-  
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(false);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
+  
   const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
   const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(
     formData.PL_Taxonomy_Values || {}
   );
   
-  const [previewUpdateTime, setPreviewUpdateTime] = useState(Date.now());
-  const [shortcodeCache, setShortcodeCache] = useState<Map<string, ShortcodeData>>(new Map());
-  const [customCodesCache, setCustomCodesCache] = useState<CustomCode[]>([]);
-  const [cacheLoaded, setCacheLoaded] = useState(false);
-  const [highlightState, setHighlightState] = useState<HighlightState>({ mode: 'none' });
-  const [expandedPreviews, setExpandedPreviews] = useState({ tags: false, platform: false, mediaocean: false });
+  const [highlightState, setHighlightState] = useState<HighlightState>({
+    mode: 'none'
+  });
+  
+  const [expandedPreviews, setExpandedPreviews] = useState({
+    tags: false,
+    platform: false,
+    mediaocean: false
+  });
 
-  const selectedTaxonomyIds = {
+  // ==================== FONCTIONS UTILITAIRES ====================
+  
+  const extractTaxonomyStructure = useCallback((taxonomy: Taxonomy): string => {
+    const levels = [
+      taxonomy.NA_Name_Level_1,
+      taxonomy.NA_Name_Level_2,
+      taxonomy.NA_Name_Level_3,
+      taxonomy.NA_Name_Level_4
+    ].filter(Boolean);
+    
+    return levels.join('|');
+  }, []);
+
+  const getDisplayValueForFormat = useCallback((item: any, format: string): string => {
+    switch (format) {
+      case 'code':
+        return item.SH_Code || item.id;
+      case 'display_fr':
+        return item.SH_Display_Name_FR || item.SH_Code || item.id;
+      case 'display_en':
+        return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Code || item.id;
+      case 'utm':
+        return item.SH_Default_UTM || item.SH_Code || item.id;
+      case 'custom':
+        return item.customCode || item.SH_Code || item.id;
+      default:
+        return item.SH_Display_Name_FR || item.SH_Code || item.id;
+    }
+  }, []);
+
+  // ==================== VALEURS CALCULÉES ====================
+  
+  const selectedTaxonomyIds = useMemo(() => ({
     tags: formData.PL_Taxonomy_Tags || '',
     platform: formData.PL_Taxonomy_Platform || '',
     mediaocean: formData.PL_Taxonomy_MediaOcean || ''
-  };
+  }), [formData.PL_Taxonomy_Tags, formData.PL_Taxonomy_Platform, formData.PL_Taxonomy_MediaOcean]);
 
-  const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
-  
-  // 🔥 CORRECTION: Utilise la fonction isManualVariable pour identifier les champs de placement.
+  const hasTaxonomies = useMemo(() => 
+    Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean)
+  , [selectedTaxonomyIds]);
+
+  const taxonomyStructures = useMemo(() => ({
+    tags: selectedTaxonomyData.tags ? extractTaxonomyStructure(selectedTaxonomyData.tags) : '',
+    platform: selectedTaxonomyData.platform ? extractTaxonomyStructure(selectedTaxonomyData.platform) : '',
+    mediaocean: selectedTaxonomyData.mediaocean ? extractTaxonomyStructure(selectedTaxonomyData.mediaocean) : ''
+  }), [selectedTaxonomyData, extractTaxonomyStructure]);
+
   const manualVariables = useMemo(() => 
-    parsedVariables.filter(variable => isManualVariable(variable.variable)), 
-    [parsedVariables]
-  );
+    parsedVariables.filter(variable => variable.source === 'manual')
+  , [parsedVariables]);
+
+  const hasLoadingFields = useMemo(() =>
+    Object.values(fieldStates).some(fs => fs.isLoading)
+  , [fieldStates]);
+
+  // ==================== EFFECTS ====================
   
-  const hasLoadingFields = Object.values(fieldStates).some(fs => fs.isLoading);
-
-  const loadShortcodeCache = useCallback(async () => {
-    if (cacheLoaded || !clientId) return;
-    try {
-      const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
-      const customSnapshot = await getDocs(customCodesRef);
-      const customCodes: CustomCode[] = customSnapshot.docs.map(doc => ({ shortcodeId: doc.data().shortcodeId, customCode: doc.data().customCode } as CustomCode));
-      setCustomCodesCache(customCodes);
-      setCacheLoaded(true);
-    } catch (error) { console.error('Erreur chargement cache:', error); setCacheLoaded(true); }
-  }, [clientId, cacheLoaded]);
-
-  const loadShortcode = useCallback(async (shortcodeId: string): Promise<ShortcodeData | null> => {
-    if (shortcodeCache.has(shortcodeId)) return shortcodeCache.get(shortcodeId)!;
-    try {
-      const shortcodeRef = doc(db, 'shortcodes', shortcodeId);
-      const shortcodeSnap = await getDoc(shortcodeRef);
-      if (!shortcodeSnap.exists()) return null;
-      const data = shortcodeSnap.data();
-      const shortcodeData: ShortcodeData = { id: shortcodeSnap.id, SH_Code: data.SH_Code || shortcodeSnap.id, SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || shortcodeSnap.id, SH_Display_Name_EN: data.SH_Display_Name_EN, SH_Default_UTM: data.SH_Default_UTM };
-      setShortcodeCache(prev => new Map(prev).set(shortcodeId, shortcodeData));
-      return shortcodeData;
-    } catch (error) { console.error(`Erreur chargement shortcode ${shortcodeId}:`, error); return null; }
-  }, [shortcodeCache]);
-
-  const formatShortcode = useCallback((shortcodeId: string, format: TaxonomyFormat): string => {
-    const shortcodeData = shortcodeCache.get(shortcodeId);
-    if (!shortcodeData) { loadShortcode(shortcodeId); return shortcodeId; }
-    
-    const customCodeMatch = customCodesCache.find(cc => cc.shortcodeId === shortcodeId);
-    
-    switch (format) {
-      case 'code': return shortcodeData.SH_Code;
-      case 'display_fr': return shortcodeData.SH_Display_Name_FR;
-      case 'display_en': return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR;
-      case 'utm': return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
-      case 'custom_utm':
-        return customCodeMatch?.customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
-      case 'custom_code':
-        return customCodeMatch?.customCode || shortcodeData.SH_Code;
-      default: return shortcodeData.SH_Display_Name_FR;
-    }
-  }, [shortcodeCache, customCodesCache, loadShortcode]);
-  
-  const loadAndParseTaxonomies = useCallback(async () => {
-    if (!hasTaxonomies) {
+  // Charger les taxonomies quand les IDs changent
+  useEffect(() => {
+    if (hasTaxonomies) {
+      loadSelectedTaxonomies();
+    } else {
       setSelectedTaxonomyData({});
       setParsedVariables([]);
-      return;
     }
-    
+  }, [selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean, hasTaxonomies, clientId]);
+
+  // Parser les structures quand elles sont chargées
+  useEffect(() => {
+    if (Object.keys(selectedTaxonomyData).length > 0) {
+      parseTaxonomyStructures();
+    }
+  }, [selectedTaxonomyData]);
+
+  // NOUVEAU : Charger toutes les listes manuelles en une fois
+  useEffect(() => {
+    if (manualVariables.length > 0) {
+      loadAllManualFieldOptions();
+    }
+  }, [manualVariables, clientId]);
+
+  // ==================== FONCTIONS DE CHARGEMENT ====================
+  
+  const loadSelectedTaxonomies = async () => {
+    console.log('📋 Chargement des taxonomies sélectionnées');
     setTaxonomiesLoading(true);
     setTaxonomiesError(null);
     
     try {
-      const dataPromises = {
-        tags: selectedTaxonomyIds.tags ? getTaxonomyById(clientId, selectedTaxonomyIds.tags) : Promise.resolve(null),
-        platform: selectedTaxonomyIds.platform ? getTaxonomyById(clientId, selectedTaxonomyIds.platform) : Promise.resolve(null),
-        mediaocean: selectedTaxonomyIds.mediaocean ? getTaxonomyById(clientId, selectedTaxonomyIds.mediaocean) : Promise.resolve(null),
-      };
-
-      const results = await Promise.all(Object.values(dataPromises));
-      const newTaxonomyData = {
-        tags: results[0] || undefined,
-        platform: results[1] || undefined,
-        mediaocean: results[2] || undefined,
-      };
+      const newTaxonomyData: {
+        tags?: Taxonomy;
+        platform?: Taxonomy;
+        mediaocean?: Taxonomy;
+      } = {};
       
+      const promises = [];
+      
+      if (selectedTaxonomyIds.tags) {
+        promises.push(
+          getTaxonomyById(clientId, selectedTaxonomyIds.tags)
+            .then(data => data && (newTaxonomyData.tags = data))
+        );
+      }
+      
+      if (selectedTaxonomyIds.platform) {
+        promises.push(
+          getTaxonomyById(clientId, selectedTaxonomyIds.platform)
+            .then(data => data && (newTaxonomyData.platform = data))
+        );
+      }
+      
+      if (selectedTaxonomyIds.mediaocean) {
+        promises.push(
+          getTaxonomyById(clientId, selectedTaxonomyIds.mediaocean)
+            .then(data => data && (newTaxonomyData.mediaocean = data))
+        );
+      }
+      
+      await Promise.all(promises);
       setSelectedTaxonomyData(newTaxonomyData);
-
-      const extractFullStructure = (taxonomy?: Taxonomy) => {
-        if (!taxonomy) return '';
-        return [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
-      };
-      
-      const structures = parseAllTaxonomies(
-        extractFullStructure(newTaxonomyData.tags),
-        extractFullStructure(newTaxonomyData.platform),
-        extractFullStructure(newTaxonomyData.mediaocean)
-      );
-      const variables = extractUniqueVariables(structures);
-      setParsedVariables(variables);
+      console.log('✅ Taxonomies chargées:', Object.keys(newTaxonomyData));
       
     } catch (error) {
-      setTaxonomiesError('Erreur lors du chargement des taxonomies.');
+      console.error('Erreur lors du chargement des taxonomies:', error);
+      setTaxonomiesError('Erreur lors du chargement des taxonomies');
     } finally {
       setTaxonomiesLoading(false);
     }
-  }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean]);
-
-  const loadFieldOptions = useCallback(async () => {
-    if (manualVariables.length === 0) return;
-
-    for (const variable of manualVariables) {
-      const fieldKey = variable.variable;
-      setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: true } }));
-      try {
-        const hasCustom = await hasDynamicList(variable.variable, clientId);
-        let options: Array<{ id: string; label: string; code?: string }> = [];
-        if (hasCustom) {
-          const dynamicList = await getDynamicList(variable.variable, clientId);
-          options = dynamicList.map(item => ({ id: item.id, label: item.SH_Display_Name_FR || item.SH_Code || item.id, code: item.SH_Code }));
-        }
-        setFieldStates(prev => ({ ...prev, [fieldKey]: { options, hasCustomList: hasCustom, isLoading: false } }));
-      } catch (error) {
-        setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: false, error: 'Erreur' } }));
-      }
-    }
-  }, [clientId, manualVariables]);
+  };
   
-  useEffect(() => { loadShortcodeCache(); }, [loadShortcodeCache]);
-  useEffect(() => { if (cacheLoaded) loadAndParseTaxonomies(); }, [loadAndParseTaxonomies, cacheLoaded]);
-  useEffect(() => { if (parsedVariables.length > 0) loadFieldOptions(); }, [parsedVariables, loadFieldOptions]);
-  useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
+  const parseTaxonomyStructures = () => {
+    console.log('🔍 Parsing des structures de taxonomie');
+    
+    try {
+      const structures = parseAllTaxonomies(
+        taxonomyStructures.tags,
+        taxonomyStructures.platform,
+        taxonomyStructures.mediaocean
+      );
+      
+      const uniqueVariables = extractUniqueVariables(structures);
+      setParsedVariables(uniqueVariables);
+      
+      console.log(`✅ ${uniqueVariables.length} variables uniques identifiées`);
+    } catch (error) {
+      console.error('Erreur lors du parsing des taxonomies:', error);
+      setParsedVariables([]);
+    }
+  };
 
-  // 🔥 CORRECTION : handleFieldChange met à jour formData ET taxonomyValues
-  const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
-    // 1. Mettre à jour l'objet taxonomyValues pour l'aperçu et la logique interne
-    const newTaxonomyValue: TaxonomyVariableValue = {
-      value, source: 'manual', format,
-      ...(format === 'open' ? { openValue: value } : {}),
-      ...(shortcodeId ? { shortcodeId } : {})
+  // NOUVEAU : Chargement simultané de toutes les listes manuelles
+  const loadAllManualFieldOptions = async () => {
+    console.log('📦 Chargement simultané de toutes les listes manuelles');
+    
+    // Initialiser tous les états avec isLoading: true pour les champs manuels
+    const initialFieldStates: { [key: string]: FieldState } = {};
+    const loadPromises: Promise<void>[] = [];
+    
+    for (const variable of manualVariables) {
+      const fieldKey = `${variable.variable}_${variable.format}`;
+      
+      initialFieldStates[fieldKey] = {
+        config: createFieldConfig(variable, '', false),
+        options: [],
+        hasCustomList: false,
+        isLoading: true,
+        isLoaded: false,
+        error: undefined
+      };
+
+      // Créer une promesse pour charger ce champ
+      const loadPromise = loadSingleFieldOptions(fieldKey, variable);
+      loadPromises.push(loadPromise);
+    }
+    
+    // Mettre à jour l'état initial
+    setFieldStates(initialFieldStates);
+    
+    // Attendre que tous les chargements se terminent
+    try {
+      await Promise.allSettled(loadPromises);
+      console.log('✅ Chargement de toutes les listes terminé');
+    } catch (error) {
+      console.error('Erreur lors du chargement des listes:', error);
+    }
+  };
+
+  const loadSingleFieldOptions = async (fieldKey: string, variable: ParsedTaxonomyVariable): Promise<void> => {
+    try {
+      const hasCustom = await hasDynamicList(variable.variable, clientId);
+      
+      let options: Array<{ id: string; label: string; code?: string }> = [];
+      
+      if (hasCustom) {
+        const dynamicList = await getDynamicList(variable.variable, clientId);
+        options = dynamicList.map(item => ({
+          id: item.id,
+          label: getDisplayValueForFormat(item, variable.format),
+          code: item.SH_Code
+        }));
+      }
+      
+      // Mettre à jour ce champ spécifiquement
+      setFieldStates(prev => ({
+        ...prev,
+        [fieldKey]: {
+          ...prev[fieldKey],
+          options,
+          hasCustomList: hasCustom,
+          isLoading: false,
+          isLoaded: true,
+          error: undefined
+        }
+      }));
+      
+    } catch (error) {
+      console.error(`Erreur chargement ${fieldKey}:`, error);
+      setFieldStates(prev => ({
+        ...prev,
+        [fieldKey]: {
+          ...prev[fieldKey],
+          isLoading: false,
+          isLoaded: false,
+          error: 'Erreur de chargement'
+        }
+      }));
+    }
+  };
+
+  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
+  
+  const handleFieldChange = useCallback((variableName: string, value: string, format: string) => {
+    console.log(`🔄 Changement field ${variableName}: ${value}`);
+    
+    const newTaxonomyValues = {
+      ...taxonomyValues,
+      [variableName]: {
+        value,
+        source: 'manual' as const,
+        format: format as any
+      }
     };
     
-    const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
     setTaxonomyValues(newTaxonomyValues);
     
-    // 2. Créer un événement synthétique pour mettre à jour PL_Taxonomy_Values dans formData
-    const taxonomyValuesEvent = {
-      target: { name: 'PL_Taxonomy_Values', value: newTaxonomyValues }
+    // Déclencher le changement pour le parent
+    const syntheticEvent = {
+      target: {
+        name: 'PL_Taxonomy_Values',
+        value: newTaxonomyValues
+      }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
-    onChange(taxonomyValuesEvent);
-
-       // 3. 🔥 CORRECTION : Mettre à jour le champ de placement avec la bonne valeur (ID ou texte)
-       if (isManualVariable(variableName)) {
-        // On utilise le 'shortcodeId' pour les listes, ou la 'value' pour le texte libre.
-        const eventValue = shortcodeId ?? value;
-        
-        const fieldChangeEvent = {
-            target: { name: variableName, value: eventValue }
-        } as unknown as React.ChangeEvent<HTMLInputElement>;
-        
-        onChange(fieldChangeEvent);
-    }
-
-    setPreviewUpdateTime(Date.now());
+    
+    onChange(syntheticEvent);
   }, [taxonomyValues, onChange]);
 
   const handleFieldHighlight = useCallback((variableName?: string) => {
-    setHighlightState({ activeField: variableName, activeVariable: variableName, mode: variableName ? 'field' : 'none' });
+    setHighlightState({
+      activeField: variableName,
+      activeVariable: variableName,
+      mode: variableName ? 'field' : 'none'
+    });
   }, []);
 
   const togglePreviewExpansion = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
-    setExpandedPreviews(prev => ({ ...prev, [taxonomyType]: !prev[taxonomyType] }));
+    setExpandedPreviews(prev => ({
+      ...prev,
+      [taxonomyType]: !prev[taxonomyType]
+    }));
   }, []);
 
-  const retryLoadTaxonomies = useCallback(() => { loadAndParseTaxonomies(); }, [loadAndParseTaxonomies]);
+  const retryLoadTaxonomies = useCallback(() => {
+    loadSelectedTaxonomies();
+  }, [selectedTaxonomyIds, clientId]);
 
-  const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
-    const manualValue = taxonomyValues[variable.variable];
-    if (manualValue) {
-      if (manualValue.format === 'open') return manualValue.openValue || '';
-      if (manualValue.shortcodeId) return formatShortcode(manualValue.shortcodeId, format);
-      return manualValue.value || '';
-    }
-    
-    let rawValue: any = null;
-    // 🔥 SUPPRESSION DE campaignMap
-    
-    const tactiqueMap: { [key: string]: keyof typeof tactiqueData } = { 'TC_Publisher': 'TC_Publisher', 'TC_Media_Type': 'TC_Media_Type' };
-    
-    if (variable.source === 'campaign' && campaignData) {
-      // ✅ CORRECTION: Accès direct à la propriété
-      rawValue = (campaignData as any)[variable.variable];
-    }
-    if (variable.source === 'tactique' && tactiqueData) {
-      const field = tactiqueMap[variable.variable] || variable.variable;
-      rawValue = tactiqueData[field];
-    }
-    
-    if (rawValue) {
-      const rawValueStr = String(rawValue);
-      if (formatRequiresShortcode(format)) {
-        return formatShortcode(rawValueStr, format);
-      }
-      return rawValueStr;
-    }
-    
-    return `[${variable.variable}]`;
-  }, [taxonomyValues, campaignData, tactiqueData, formatShortcode]);
-
-  const getFormattedValue = useCallback((variableName: string, format: string): string => {
-    const variable = parsedVariables.find(v => v.variable === variableName);
-    if (!variable) return '';
-    return resolveVariableValue(variable, format as TaxonomyFormat);
-  }, [parsedVariables, resolveVariableValue]);
-  
-  const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
-    const taxonomy = selectedTaxonomyData[taxonomyType];
-    if (!taxonomy) return '';
-    const structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
-    
-    TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
-    
-    return structure.replace(TAXONOMY_VARIABLE_REGEX, (match, variableName, format) => {
-        return getFormattedValue(variableName, format) || match;
-    });
-  }, [selectedTaxonomyData, getFormattedValue, previewUpdateTime]);
+  // ==================== RETURN ====================
   
   return {
+    // États
     selectedTaxonomyData,
     taxonomiesLoading,
     taxonomiesError,
@@ -317,14 +392,16 @@ export function useTaxonomyForm({
     taxonomyValues,
     highlightState,
     expandedPreviews,
+    
+    // Actions
     handleFieldChange,
     handleFieldHighlight,
     togglePreviewExpansion,
     retryLoadTaxonomies,
+    
+    // Données calculées
     hasTaxonomies,
     manualVariables,
-    hasLoadingFields,
-    getFormattedValue,
-    getFormattedPreview
+    hasLoadingFields
   };
 }

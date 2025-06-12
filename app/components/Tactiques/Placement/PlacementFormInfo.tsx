@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementFormInfo.tsx
+// app/components/Tactiques/PlacementFormInfo.tsx
 
 'use client';
 
@@ -14,7 +14,7 @@ import { Taxonomy } from '../../../types/taxonomy';
 // ==================== TYPES ====================
 
 interface PlacementFormInfoProps {
-  // Données du formulaire (sans budget et format)
+  // Données du formulaire
   formData: {
     PL_Label?: string;
     PL_Taxonomy_Tags?: string;
@@ -102,15 +102,14 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           value={formData.PL_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannières Desktop, Vidéo Mobile, Display Tablet"
+          placeholder="Ex: Bannières Desktop 728x90"
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Nom du placement *', 
-            'Nom descriptif du placement. Soyez spécifique pour faciliter l\'identification.', 
+            'Étiquette *', 
+            'Nom du placement. Open string, pas de contraintes', 
             onTooltipChange
           )}
         />
-
 
         {/* Message d'erreur pour les taxonomies */}
         {taxonomiesError && (

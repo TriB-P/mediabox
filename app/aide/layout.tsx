@@ -1,4 +1,5 @@
 // Chemin du fichier : app/aide/layout.tsx
+// Ajout
 'use client';
 
 import ProtectedRoute from '../components/Others/ProtectedRoute';

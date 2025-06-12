@@ -142,39 +142,23 @@ export const SmartSelect = memo<SmartSelectProps>(({
       <div className="flex items-center gap-3 mb-2">
         {label}
       </div>
-      
-      {/* NOUVELLE LOGIQUE : Vérifie si des options sont disponibles */}
-      {options && options.length > 0 ? (
-        // Comportement existant si des options sont fournies
-        options.length <= 5 ? (
-          <SelectionButtons
-            options={options}
-            value={value}
-            onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
-            name={name}
-            placeholder={placeholder}
-          />
-        ) : (
-          <SearchableSelect
-            id={id}
-            name={name}
-            value={value}
-            onChange={onChange}
-            options={options}
-            placeholder={placeholder}
-            label=""
-          />
-        )
+      {options.length <= 5 ? (
+        <SelectionButtons
+          options={options}
+          value={value}
+          onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
+          name={name}
+          placeholder={placeholder}
+        />
       ) : (
-        // NOUVEAU : Affiche un champ de saisie libre si aucune option n'est disponible
-        <FormInput
+        <SearchableSelect
           id={id}
           name={name}
           value={value}
-          onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
-          type="text"
-          placeholder="Saisir une valeur..."
-          label="" // Le label est déjà affiché au-dessus
+          onChange={onChange}
+          options={options}
+          placeholder={placeholder}
+          label=""
         />
       )}
     </div>

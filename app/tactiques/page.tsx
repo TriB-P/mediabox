@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - AVEC GESTION DES PLACEMENTS
+// app/tactiques/page.tsx
 
 'use client';
 
@@ -40,7 +40,6 @@ export default function TactiquesPage() {
     selectedOnglet,
     sections,
     tactiques,
-    placements, // 🔥 NOUVEAU : Récupération des placements
     // NOUVEAU: Propriétés du modal
     sectionModal,
     handleSaveSection,
@@ -52,7 +51,7 @@ export default function TactiquesPage() {
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
-    handleCreatePlacement, // 🔥 NOUVEAU : Actions pour placements
+    handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
     handleCreateCreatif,
@@ -135,7 +134,7 @@ export default function TactiquesPage() {
   // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
-      setTotalBudget(selectedCampaign.CA_Budget || 0);
+      setTotalBudget(selectedCampaign.budget || 0);
     } else {
       setTotalBudget(0);
     }
@@ -183,13 +182,6 @@ export default function TactiquesPage() {
     
   const flatTactiques = Object.values(tactiques).flat();
 
-  // 🔥 NOUVEAU : Log pour debug des placements
-  useEffect(() => {
-    console.log('📋 Placements actuels:', placements);
-    const totalPlacements = Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0);
-    console.log(`📊 Total placements: ${totalPlacements}`);
-  }, [placements]);
-
   return (
     <div className="space-y-6 pb-16">
       {/* En-tête */}
@@ -204,7 +196,7 @@ export default function TactiquesPage() {
             </div>
             {selectedCampaign && selectedVersion && (
               <div className="text-xs text-gray-400 mt-1">
-                {selectedCampaign.CA_Name} • {selectedVersion.name}
+                {selectedCampaign.name} • {selectedVersion.name}
               </div>
             )}
           </div>
@@ -220,7 +212,7 @@ export default function TactiquesPage() {
             className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
           >
-            <span>{selectedCampaign?.CA_Name || 'Sélectionner une campagne'}</span>
+            <span>{selectedCampaign?.name || 'Sélectionner une campagne'}</span>
             <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
           </button>
           
@@ -235,7 +227,7 @@ export default function TactiquesPage() {
                     }`}
                     onClick={() => handleCampaignChangeLocal(campaign)}
                   >
-                    {campaign.CA_Name}
+                    {campaign.name}
                   </li>
                 ))}
               </ul>
@@ -279,6 +271,14 @@ export default function TactiquesPage() {
           )}
         </div>
       </div>
+      
+      {/* Debug info - à supprimer après résolution */}
+      {/* {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-400 mb-2 p-2 bg-gray-100 rounded">
+          Debug: campaignLoading={campaignLoading.toString()}, loading={loading.toString()}, 
+          showLoader={showLoader.toString()}, minimumTimeElapsed={minimumTimeElapsed.toString()}
+        </div>
+      )} */}
       
       {/* LoadingSpinner avec timer minimum de 2 secondes */}
       {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}
@@ -328,7 +328,6 @@ export default function TactiquesPage() {
                   {sectionsWithTactiques.length > 0 ? (
                     <TactiquesHierarchyView
                       sections={sectionsWithTactiques}
-                      placements={placements} // 🔥 NOUVEAU : Passer les placements
                       onSectionExpand={handleSectionExpand}
                       onDragEnd={handleDragEnd}
                       onEditSection={handleEditSection}
@@ -376,8 +375,8 @@ export default function TactiquesPage() {
                 <TactiquesTimelineView
                   tactiques={flatTactiques}
                   sectionNames={sectionNames}
-                  campaignStartDate={selectedCampaign.CA_Start_Date}
-                  campaignEndDate={selectedCampaign.CA_End_Date}
+                  campaignStartDate={selectedCampaign.startDate}
+                  campaignEndDate={selectedCampaign.endDate}
                   formatCurrency={formatCurrency}
                   onEditTactique={(tactiqueId, sectionId) => {
                     const tactique = flatTactiques.find(t => t.id === tactiqueId);

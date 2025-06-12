@@ -105,7 +105,7 @@ export default function StrategiePage() {
   // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
-      setTotalBudget(selectedCampaign.CA_Budget);
+      setTotalBudget(selectedCampaign.budget);
     } else {
       setTotalBudget(0);
     }
@@ -222,7 +222,7 @@ export default function StrategiePage() {
   useEffect(() => {
     if (selectedCampaign) {
       const allocated = buckets.reduce((sum, bucket) => sum + bucket.target, 0);
-      setRemainingBudget(selectedCampaign.CA_Budget - allocated);
+      setRemainingBudget(selectedCampaign.budget - allocated);
     }
   }, [buckets, selectedCampaign]);
 
@@ -382,7 +382,7 @@ export default function StrategiePage() {
             <h1 className="text-2xl font-bold text-gray-900">Stratégie</h1>
             {selectedCampaign && selectedVersion && (
               <div className="text-right text-sm text-gray-500">
-                <div>Campagne: <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
+                <div>Campagne: <span className="font-medium">{selectedCampaign.name}</span></div>
                 <div>Version: <span className="font-medium">{selectedVersion.name}</span></div>
               </div>
             )}
@@ -401,7 +401,7 @@ export default function StrategiePage() {
                   <div className="w-6 h-6 mr-2 flex items-center justify-center bg-indigo-100 rounded-md text-indigo-600">
                     <span className="text-xs">📊</span>
                   </div>
-                  <span>{selectedCampaign?.CA_Name || 'Sélectionner une campagne'}</span>
+                  <span>{selectedCampaign?.name || 'Sélectionner une campagne'}</span>
                 </div>
                 <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" aria-hidden="true" />
               </button>
@@ -421,7 +421,7 @@ export default function StrategiePage() {
                         <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 rounded text-indigo-600 mr-2">
                           <span className="text-xs">📊</span>
                         </div>
-                        {campaign.CA_Name}
+                        {campaign.name}
                       </li>
                     ))}
                     {campaigns.length === 0 && (

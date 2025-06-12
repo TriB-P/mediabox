@@ -1,5 +1,3 @@
-// app/components/Tactiques/TactiquesHierarchyView.tsx - AVEC VRAIS PLACEMENTS
-
 'use client';
 
 import React, { useState } from 'react';
@@ -17,6 +15,8 @@ import {
   Tactique, 
   Placement, 
   Creatif, 
+  TactiqueWithPlacements, 
+  PlacementWithCreatifs,
   TactiqueFormData,
   PlacementFormData,
   CreatifFormData
@@ -27,8 +27,6 @@ import CreatifDrawer from './CreatifDrawer';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
-  // 🔥 NOUVEAU : Ajout des placements par tactique
-  placements: { [tactiqueId: string]: Placement[] };
   onSectionExpand: (sectionId: string) => void;
   onDragEnd: (result: any) => void;
   onEditSection?: (sectionId: string) => void;
@@ -48,7 +46,6 @@ interface TactiquesHierarchyViewProps {
 
 export default function TactiquesHierarchyView({
   sections,
-  placements, // 🔥 NOUVEAU : Récupération des placements
   onSectionExpand,
   onDragEnd,
   onEditSection,
@@ -258,19 +255,61 @@ export default function TactiquesHierarchyView({
     setCreatifDrawer(prev => ({ ...prev, isOpen: false }));
   };
 
-  // 🔥 NOUVEAU : Fonction pour trouver la tactique par son ID
-  const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
-    for (const section of sections) {
-      const tactique = section.tactiques.find(t => t.id === tactiqueId);
-      if (tactique) return tactique;
-    }
-    return undefined;
-  };
+  // Conversion temporaire des données pour les maquettes
+  const sectionsWithPlacements = sections.map(section => {
+    const tactiquesWithPlacements = section.tactiques.map(tactique => {
+      const placements: PlacementWithCreatifs[] = [
+        {
+          id: `placement-${tactique.id}-1`,
+          PL_Label: 'Bannière principale',
+          PL_Format: '300x250',
+          PL_Budget: tactique.TC_Budget * 0.6,
+          PL_Order: 0,
+          PL_TactiqueId: tactique.id,
+          creatifs: [
+            {
+              id: `creatif-${tactique.id}-1-1`,
+              CR_Label: 'Créatif A',
+              CR_URL: 'https://example.com/creatif-a.jpg',
+              CR_Order: 0,
+              CR_PlacementId: `placement-${tactique.id}-1`
+            },
+            {
+              id: `creatif-${tactique.id}-1-2`,
+              CR_Label: 'Créatif B',
+              CR_URL: 'https://example.com/creatif-b.jpg',
+              CR_Order: 1,
+              CR_PlacementId: `placement-${tactique.id}-1`
+            }
+          ]
+        }
+      ];
+      
+      return {
+        ...tactique,
+        placements
+      } as TactiqueWithPlacements;
+    });
+    
+    return {
+      ...section,
+      tactiques: tactiquesWithPlacements
+    };
+  });
+  // 🔥 NOUVELLE FONCTION : Trouver la tactique par son ID
+const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
+  for (const section of sections) {
+    const tactique = section.tactiques.find(t => t.id === tactiqueId);
+    if (tactique) return tactique;
+  }
+  return undefined;
+};
 
-  // 🔥 RÉCUPÉRER LES DONNÉES DE LA TACTIQUE pour le PlacementDrawer
-  const currentTactiqueData = placementDrawer.tactiqueId ? 
-    findTactiqueById(placementDrawer.tactiqueId) : 
-    undefined;
+// 🔥 RÉCUPÉRER LES DONNÉES DE LA TACTIQUE pour le PlacementDrawer
+const currentTactiqueData = placementDrawer.tactiqueId ? 
+  findTactiqueById(placementDrawer.tactiqueId) : 
+  undefined;
+
 
   return (
     <>
@@ -283,7 +322,7 @@ export default function TactiquesHierarchyView({
                 {...provided.droppableProps}
                 className="divide-y divide-gray-200"
               >
-                {sections.map((section, sectionIndex) => (
+                {sectionsWithPlacements.map((section, sectionIndex) => (
                   <Draggable
                     key={`section-${section.id}`}
                     draggableId={`section-${section.id}`}
@@ -382,165 +421,163 @@ export default function TactiquesHierarchyView({
                                 Aucune tactique dans cette section
                               </div>
                             ) : (
-                              section.tactiques.map((tactique) => {
-                                // 🔥 NOUVEAU : Récupérer les placements réels pour cette tactique
-                                const tactiquePlacements = placements[tactique.id] || [];
-                                
-                                return (
-                                  <div
-                                    key={tactique.id}
-                                    className="border-b border-gray-100 last:border-b-0 pl-8"
-                                    onMouseEnter={() => setHoveredTactique({sectionId: section.id, tactiqueId: tactique.id})}
-                                    onMouseLeave={() => setHoveredTactique(null)}
+                              section.tactiques.map((tactique) => (
+                                <div
+                                  key={tactique.id}
+                                  className="border-b border-gray-100 last:border-b-0 pl-8"
+                                  onMouseEnter={() => setHoveredTactique({sectionId: section.id, tactiqueId: tactique.id})}
+                                  onMouseLeave={() => setHoveredTactique(null)}
+                                >
+                                  <div 
+                                    className="flex justify-between items-center px-4 py-3 cursor-pointer"
+                                    onClick={() => handleTactiqueExpand(tactique.id)}
                                   >
-                                    <div 
-                                      className="flex justify-between items-center px-4 py-3 cursor-pointer"
-                                      onClick={() => handleTactiqueExpand(tactique.id)}
-                                    >
-                                      <div className="flex items-center">
-                                        <Bars3Icon className="h-4 w-4 text-gray-400 mr-2" />
-                                        
-                                        {expandedTactiques[tactique.id] ? (
-                                          <ChevronDownIcon className="h-4 w-4 text-gray-500 mr-2" />
-                                        ) : (
-                                          <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
-                                        )}
-                                        
-                                        <div className="text-sm text-gray-800 font-medium">
-                                          {tactique.TC_Label}
-                                        </div>
-                                        
-                                        {/* Bouton d'ajout de placement */}
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCreatePlacement(tactique.id);
-                                          }} 
-                                          className={`ml-2 p-1 rounded hover:bg-gray-200 ${
-                                            hoveredTactique?.tactiqueId === tactique.id ? 'text-indigo-600' : 'text-indigo-400'
-                                          }`}
-                                          title="Ajouter un placement"
-                                        >
-                                          <PlusIcon className="h-4 w-4" />
-                                        </button>
+                                    <div className="flex items-center">
+                                      <Bars3Icon className="h-4 w-4 text-gray-400 mr-2" />
+                                      
+                                      {expandedTactiques[tactique.id] ? (
+                                        <ChevronDownIcon className="h-4 w-4 text-gray-500 mr-2" />
+                                      ) : (
+                                        <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
+                                      )}
+                                      
+                                      <div className="text-sm text-gray-800 font-medium">
+                                        {tactique.TC_Label}
                                       </div>
-                                      <div className="flex items-center space-x-4">
-                                        {/* Actions de tactique */}
-                                        {hoveredTactique?.sectionId === section.id && 
-                                         hoveredTactique?.tactiqueId === tactique.id && (
-                                          <div className="flex space-x-1">
+                                      
+                                      {/* Bouton d'ajout de placement */}
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCreatePlacement(tactique.id);
+                                        }} 
+                                        className={`ml-2 p-1 rounded hover:bg-gray-200 ${
+                                          hoveredTactique?.tactiqueId === tactique.id ? 'text-indigo-600' : 'text-indigo-400'
+                                        }`}
+                                        title="Ajouter un placement"
+                                      >
+                                        <PlusIcon className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                      {/* Actions de tactique */}
+                                      {hoveredTactique?.sectionId === section.id && 
+                                       hoveredTactique?.tactiqueId === tactique.id && (
+                                        <div className="flex space-x-1">
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditTactique(section.id, tactique);
+                                            }} 
+                                            className="p-1 rounded hover:bg-gray-200"
+                                          >
+                                            <PencilIcon className="h-4 w-4 text-gray-500" />
+                                          </button>
+                                          {onDeleteTactique && (
                                             <button 
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleEditTactique(section.id, tactique);
+                                                onDeleteTactique(section.id, tactique.id);
                                               }} 
                                               className="p-1 rounded hover:bg-gray-200"
                                             >
-                                              <PencilIcon className="h-4 w-4 text-gray-500" />
+                                              <TrashIcon className="h-4 w-4 text-gray-500" />
                                             </button>
-                                            {onDeleteTactique && (
+                                          )}
+                                        </div>
+                                      )}
+                                      <div className="text-sm font-medium">
+                                        {formatCurrency(tactique.TC_Budget)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Placements */}
+                                  {expandedTactiques[tactique.id] && (
+                                    <div className="pl-8 pb-2 bg-gray-100">
+                                      {tactique.placements.map((placement) => (
+                                        <div key={placement.id} className="border-b border-gray-200 last:border-b-0">
+                                          <div 
+                                            className="flex justify-between items-center px-4 py-2 cursor-pointer"
+                                            onClick={() => handlePlacementExpand(placement.id)}
+                                          >
+                                            <div className="flex items-center">
+                                              <Bars3Icon className="h-3 w-3 text-gray-400 mr-2" />
+                                              
+                                              {expandedPlacements[placement.id] ? (
+                                                <ChevronDownIcon className="h-3 w-3 text-gray-500 mr-2" />
+                                              ) : (
+                                                <ChevronRightIcon className="h-3 w-3 text-gray-500 mr-2" />
+                                              )}
+                                              
+                                              <div className="text-xs text-gray-700">
+                                                {placement.PL_Label}
+                                                {placement.PL_Format && (
+                                                  <span className="ml-2 text-gray-500">{placement.PL_Format}</span>
+                                                )}
+                                              </div>
+                                              
+                                              {/* Bouton d'ajout de créatif */}
                                               <button 
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  onDeleteTactique(section.id, tactique.id);
+                                                  handleCreateCreatif(placement.id);
                                                 }} 
-                                                className="p-1 rounded hover:bg-gray-200"
+                                                className="ml-2 p-1 rounded hover:bg-gray-200 text-indigo-400"
+                                                title="Ajouter un créatif"
                                               >
-                                                <TrashIcon className="h-4 w-4 text-gray-500" />
+                                                <PlusIcon className="h-3 w-3" />
                                               </button>
-                                            )}
-                                          </div>
-                                        )}
-                                        <div className="text-sm font-medium">
-                                          {formatCurrency(tactique.TC_Budget)}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    
-                                    {/* 🔥 MODIFIÉ : Placements réels */}
-                                    {expandedTactiques[tactique.id] && (
-                                      <div className="pl-8 pb-2 bg-gray-100">
-                                        {tactiquePlacements.length === 0 ? (
-                                          <div className="px-4 py-2 text-xs text-gray-500 italic">
-                                            Aucun placement dans cette tactique
-                                          </div>
-                                        ) : (
-                                          tactiquePlacements.map((placement) => (
-                                            <div key={placement.id} className="border-b border-gray-200 last:border-b-0">
-                                              <div 
-                                                className="flex justify-between items-center px-4 py-2 cursor-pointer"
-                                                onClick={() => handlePlacementExpand(placement.id)}
-                                              >
-                                                <div className="flex items-center">
-                                                  <Bars3Icon className="h-3 w-3 text-gray-400 mr-2" />
-                                                  
-                                                  {expandedPlacements[placement.id] ? (
-                                                    <ChevronDownIcon className="h-3 w-3 text-gray-500 mr-2" />
-                                                  ) : (
-                                                    <ChevronRightIcon className="h-3 w-3 text-gray-500 mr-2" />
-                                                  )}
-                                                  
-                                                  <div className="text-xs text-gray-700">
-                                                    {placement.PL_Label}
-                                                   
-                                                  </div>
-                                                  
-                                                  {/* Bouton d'ajout de créatif */}
-                                                  <button 
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      handleCreateCreatif(placement.id);
-                                                    }} 
-                                                    className="ml-2 p-1 rounded hover:bg-gray-200 text-indigo-400"
-                                                    title="Ajouter un créatif"
-                                                  >
-                                                    <PlusIcon className="h-3 w-3" />
-                                                  </button>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                  {/* Actions de placement */}
-                                                  <button 
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      handleEditPlacement(tactique.id, placement);
-                                                    }}
-                                                    className="p-1 rounded hover:bg-gray-200"
-                                                    title="Modifier le placement"
-                                                  >
-                                                    <PencilIcon className="h-3 w-3 text-gray-400" />
-                                                  </button>
-                                                  {onDeletePlacement && (
-                                                    <button 
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onDeletePlacement(placement.id);
-                                                      }}
-                                                      className="p-1 rounded hover:bg-gray-200"
-                                                      title="Supprimer le placement"
-                                                    >
-                                                      <TrashIcon className="h-3 w-3 text-gray-400" />
-                                                    </button>
-                                                  )}
-                                            
-                                                </div>
-                                              </div>
-                                              
-                                              {/* Créatifs - Pour l'instant toujours vide car pas encore implémenté */}
-                                              {expandedPlacements[placement.id] && (
-                                                <div className="pl-8 bg-white py-1">
-                                                  <div className="px-3 py-1 text-xs text-gray-500 italic">
-                                                    Aucun créatif pour ce placement
-                                                  </div>
-                                                </div>
-                                              )}
                                             </div>
-                                          ))
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
+                                            <div className="text-xs font-medium">
+                                              {formatCurrency(placement.PL_Budget)}
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Créatifs */}
+                                          {expandedPlacements[placement.id] && (
+                                            <div className="pl-8 bg-white py-1">
+                                              {placement.creatifs.map((creatif) => (
+                                                <div 
+                                                  key={creatif.id}
+                                                  className="flex justify-between items-center px-3 py-1"
+                                                >
+                                                  <div className="flex items-center">
+                                                    <Bars3Icon className="h-2 w-2 text-gray-400 mr-1" />
+                                                    <div className="w-2 h-2 rounded-full bg-gray-400 ml-1 mr-2"></div>
+                                                    <div className="text-xs text-gray-600">
+                                                      {creatif.CR_Label}
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  <div className="flex space-x-1">
+                                                    <button 
+                                                      onClick={() => handleEditCreatif(placement.id, creatif)}
+                                                      className="p-1 rounded hover:bg-gray-100"
+                                                      title="Modifier le créatif"
+                                                    >
+                                                      <PencilIcon className="h-3 w-3 text-gray-400" />
+                                                    </button>
+                                                    {onDeleteCreatif && (
+                                                      <button 
+                                                        onClick={() => onDeleteCreatif(creatif.id)}
+                                                        className="p-1 rounded hover:bg-gray-100"
+                                                        title="Supprimer le créatif"
+                                                      >
+                                                        <TrashIcon className="h-3 w-3 text-gray-400" />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
                             )}
                           </div>
                         )}
@@ -564,14 +601,14 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveTactique}
       />
       
-      <PlacementDrawer
-        isOpen={placementDrawer.isOpen}
-        onClose={closePlacementDrawer}
-        placement={placementDrawer.placement}
-        tactiqueId={placementDrawer.tactiqueId}
-        tactiqueData={currentTactiqueData} // 🔥 NOUVEAU : Transmettre les données de tactique
-        onSave={handleSavePlacement}
-      />
+    <PlacementDrawer
+  isOpen={placementDrawer.isOpen}
+  onClose={closePlacementDrawer}
+  placement={placementDrawer.placement}
+  tactiqueId={placementDrawer.tactiqueId}
+  tactiqueData={currentTactiqueData} // 🔥 NOUVEAU : Transmettre les données de tactique
+  onSave={handleSavePlacement}
+/>
       
       <CreatifDrawer
         isOpen={creatifDrawer.isOpen}

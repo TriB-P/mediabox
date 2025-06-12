@@ -20,7 +20,7 @@ export interface CampaignWithVersions {
   budget: number;
   startDate: string;
   endDate: string;
-  quarter: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'Full Year';
   year: number;
   po?: string;
   sprintDates?: string;

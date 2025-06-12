@@ -16,11 +16,6 @@ interface CampaignFormBudgetProps {
   formData: CampaignFormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  clientConfig: { 
-    CL_Custom_Fee_1?: string;
-    CL_Custom_Fee_2?: string;
-    CL_Custom_Fee_3?: string;
-  };
   loading?: boolean;
 }
 
@@ -30,7 +25,6 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   formData,
   onChange,
   onTooltipChange,
-  clientConfig, 
   loading = false
 }) => {
   const isDisabled = loading;
@@ -45,16 +39,18 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   // Calculer le total des frais personnalisés
   const getTotalCustomFees = (): number => {
     const fees = [
-      parseFloat(formData.CA_Custom_Fee_1 || '0'),
-      parseFloat(formData.CA_Custom_Fee_2 || '0'),
-      parseFloat(formData.CA_Custom_Fee_3 || '0'),
+      parseFloat(formData.customFee1 || '0'),
+      parseFloat(formData.customFee2 || '0'),
+      parseFloat(formData.customFee3 || '0'),
+      parseFloat(formData.customFee4 || '0'),
+      parseFloat(formData.customFee5 || '0'),
     ];
     
     return fees.reduce((sum, fee) => sum + (isNaN(fee) ? 0 : fee), 0);
   };
 
   const totalCustomFees = getTotalCustomFees();
-  const mainBudget = parseFloat(formData.CA_Budget || '0');
+  const mainBudget = parseFloat(formData.budget || '0');
   const totalBudget = mainBudget + totalCustomFees;
 
   return (
@@ -79,10 +75,10 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               </div>
               <input
                 type="number"
-                name="CA_Budget"
-                id="CA_Budget"
+                name="budget"
+                id="budget"
                 required={!isDisabled}
-                value={formData.CA_Budget}
+                value={formData.budget}
                 onChange={onChange}
                 className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="0.00"
@@ -102,9 +98,9 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               )}
             </div>
             <select
-              name="CA_Currency"
-              id="CA_Currency"
-              value={formData.CA_Currency || 'CAD'}
+              name="currency"
+              id="currency"
+              value={formData.currency || 'CAD'}
               onChange={onChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
@@ -123,45 +119,34 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
         description="Ajoutez des frais additionnels spécifiques à votre campagne"
       >
         <div className="space-y-6">
-          {/* 🔥 CORRECTION: Boucle et condition d'affichage */}
-          {[1, 2, 3].map((num) => {
-            const feeConfigName = `CL_Custom_Fee_${num}` as keyof typeof clientConfig;
-            const customLabel = clientConfig[feeConfigName];
-
-            // Ne rend le champ que si le libellé personnalisé existe
-            if (customLabel && customLabel.trim() !== '') {
-              const feeValueName = `CA_Custom_Fee_${num}` as keyof CampaignFormData;
-
-              return (
-                <div key={num}>
-                  <div className="flex items-center gap-3 mb-2">
-                    {createLabelWithHelp(
-                      customLabel, 
-                      `Frais additionnel #${num}`, 
-                      onTooltipChange
-                    )}
-                  </div>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <span className="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <input
-                      type="number"
-                      name={feeValueName}
-                      id={feeValueName}
-                      value={formData[feeValueName] as string || ''}
-                      onChange={onChange}
-                      className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
+          {/* Frais personnalisés 1-5 */}
+          {[1, 2, 3, 4, 5].map((num) => (
+            <div key={num}>
+              <div className="flex items-center gap-3 mb-2">
+                {createLabelWithHelp(
+                  `Frais personnalisé ${num}`, 
+                  `Frais additionnel #${num} (ex: frais de production, commission, etc.)`, 
+                  onTooltipChange
+                )}
+              </div>
+              <div className="relative rounded-md shadow-sm">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <span className="text-gray-500 sm:text-sm">$</span>
                 </div>
-              );
-            }
-            return null; // Ne rien afficher si le libellé est vide
-          })}
+                <input
+                  type="number"
+                  name={`customFee${num}`}
+                  id={`customFee${num}`}
+                  value={formData[`customFee${num}` as keyof CampaignFormData] as string || ''}
+                  onChange={onChange}
+                  className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </FormSection>
 
@@ -175,7 +160,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               <span className="font-medium">
                 {new Intl.NumberFormat('fr-CA', {
                   style: 'currency',
-                  currency: formData.CA_Currency || 'CAD',
+                  currency: formData.currency || 'CAD',
                 }).format(mainBudget)}
               </span>
             </div>
@@ -186,7 +171,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 <span className="font-medium">
                   {new Intl.NumberFormat('fr-CA', {
                     style: 'currency',
-                    currency: formData.CA_Currency || 'CAD',
+                    currency: formData.currency || 'CAD',
                   }).format(totalCustomFees)}
                 </span>
               </div>
@@ -197,7 +182,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               <span className="font-bold text-lg text-indigo-600">
                 {new Intl.NumberFormat('fr-CA', {
                   style: 'currency',
-                  currency: formData.CA_Currency || 'CAD',
+                  currency: formData.currency || 'CAD',
                 }).format(totalBudget)}
               </span>
             </div>
