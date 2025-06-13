@@ -1,5 +1,4 @@
 // Chemin du fichier : app/aide/page.tsx
-// Help
 'use client';
 
 // Importe les hooks et composants nécessaires de React
