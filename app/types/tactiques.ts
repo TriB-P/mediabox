@@ -118,6 +118,7 @@ export interface ParsedTaxonomyVariable {
   variable: string;
   formats: TaxonomyVariableFormat[];
   source: TaxonomyVariableSource;
+  label?: string;
   level: number;
   isValid: boolean;
   errorMessage?: string;

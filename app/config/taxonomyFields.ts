@@ -20,6 +20,8 @@ export type TaxonomyFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'cus
 export interface VariableConfig {
   source: FieldSource;
   allowedFormats: TaxonomyFormat[];
+  label?: string; 
+
 }
 
 // Interface pour les options de formatage
@@ -62,19 +64,38 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Custom_Dim_3': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Format': { source: 'tactique', allowedFormats: ['open'] },
   'TC_Placement': { source: 'tactique', allowedFormats: ['open'] },
-
-  // --- 🔥 CORRECTION : Nos deux champs manuels bien définis ---
-  'TAX_Product': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] },
-  'TAX_Location': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr'] },
-  'TAX_Audience_Demographics': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
-  'TAX_Device': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
-  'TAX_Targeting': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
-
-
-  // --- Variables Admin ---
   'TC_Billing_ID': { source: 'tactique', allowedFormats: ['open'] },
   'TC_PO': { source: 'tactique', allowedFormats: ['open'] },
+
+  // Variable placement
+  'TAX_Product': { 
+    source: 'manual', 
+    label: 'Produit', 
+    allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] 
+  },
+  'TAX_Location': { 
+    source: 'manual', 
+    label: 'Emplacement', 
+    allowedFormats: ['open', 'code', 'display_fr'] 
+  },
+  'TAX_Audience_Demographics': { 
+    source: 'manual', 
+    label: 'Audience - Démographique', 
+    allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
+  },
+  'TAX_Device': { 
+    source: 'manual', 
+    label: 'Appareil', 
+    allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
+  },
+  'TAX_Targeting': { 
+    source: 'manual', 
+    label: 'Type de ciblage', 
+    allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
+  },
+
 };
+
 
 
 // ==================== FORMATS DISPONIBLES ====================

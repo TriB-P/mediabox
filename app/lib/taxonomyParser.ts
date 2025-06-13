@@ -121,6 +121,8 @@ export function parseTaxonomyStructure(
 
     const source = getFieldSource(variableName);
     const validation = validateVariable(variableName, format as TaxonomyFormat);
+    const config = getVariableConfig(variableName); // ✅ NOUVEAU: Récupérer la config
+
     
     const existingVarIndex = result.variables.findIndex(v => v.variable === variableName);
     if (existingVarIndex > -1) {
@@ -132,6 +134,7 @@ export function parseTaxonomyStructure(
         variable: variableName,
         formats: [format as TaxonomyFormat],
         source: source || 'manual',
+        label: config?.label,
         level,
         isValid: validation.isValid,
         errorMessage: validation.errorMessage,

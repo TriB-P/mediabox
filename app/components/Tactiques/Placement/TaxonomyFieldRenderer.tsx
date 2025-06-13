@@ -112,7 +112,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       >
         <div className="flex items-start justify-between mb-1">
           <span className="text-sm font-medium text-gray-900">
-            {variable.variable}
+          {variable.label || variable.variable}
           </span>
         </div>
         
@@ -137,7 +137,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0">
       <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
         Champs de placement à configurer ({manualVariables.length})
       </h4>

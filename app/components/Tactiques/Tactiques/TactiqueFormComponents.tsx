@@ -201,6 +201,7 @@ export const FormInput = memo<FormInputProps>(({
     <div className="flex items-center gap-3 mb-2">
       {label}
     </div>
+    {/* ✅ CORRECTION : Les classes ici ont été ajustées pour correspondre à SearchableSelect */}
     <input
       type={type}
       id={id}
@@ -208,7 +209,7 @@ export const FormInput = memo<FormInputProps>(({
       value={value}
       onChange={onChange}
       required={required}
-      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
       placeholder={placeholder}
     />
   </div>
