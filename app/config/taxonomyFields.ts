@@ -66,6 +66,10 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   // --- 🔥 CORRECTION : Nos deux champs manuels bien définis ---
   'TAX_Product': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] },
   'TAX_Location': { source: 'manual', allowedFormats: ['open', 'code', 'display_fr'] },
+  'TAX_Audience_Demographics': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
+  'TAX_Device': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
+  'TAX_Targeting': { source: 'manual', allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] },
+
 
   // --- Variables Admin ---
   'TC_Billing_ID': { source: 'tactique', allowedFormats: ['open'] },

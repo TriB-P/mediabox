@@ -102,15 +102,15 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     return (
       <div
         key={fieldKey}
-        className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+        className={`p-2 rounded-lg border-2 transition-all duration-200 ${
           highlightState.activeVariable === variable.variable
             ? `${sourceColor.border} bg-${sourceColor.bg.split('-')[1]}-50`
-            : 'border-gray-200 hover:border-gray-300'
+            : 'border-transparent hover:border-gray-300'
         }`}
         onMouseEnter={() => onFieldHighlight(variable.variable)}
         onMouseLeave={() => onFieldHighlight()}
       >
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-1">
           <span className="text-sm font-medium text-gray-900">
             {variable.variable}
           </span>

@@ -143,8 +143,11 @@ export interface Placement {
   
   // 🔥 CORRECTION : Ajout des champs de placement
   TAX_Product?: string;
+  TAX_Audience_Demographics?: string;
   TAX_Location?: string;
-  
+  TAX_Device?: string;
+  TAX_Targeting?: string;
+
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
   
@@ -256,7 +259,11 @@ export interface PlacementFormData {
   // 🔥 CORRECTION : Ajout des champs de placement
   TAX_Product?: string;
   TAX_Location?: string;
-  
+  TAX_Audience_Demographic?:string;
+  TAX_Device?:string;
+  TAX_Targeting?: string;
+
+
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
