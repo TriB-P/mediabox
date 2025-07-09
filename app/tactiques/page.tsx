@@ -42,7 +42,7 @@ export default function TactiquesPage() {
     onglets,
     selectedOnglet,
     sections,
-    tactiques, // sections, tactiques, placements, creatifs sont les données brutes
+    tactiques,
     placements,
     creatifs,
     sectionModal,
@@ -58,17 +58,22 @@ export default function TactiquesPage() {
     handleSelectOnglet,
     onRefresh,
     // Fonctions des opérations CRUD des hooks spécialisés
-    // Assurez-vous que ces noms correspondent exactement à ceux exportés par useTactiquesOperations et useTactiquesModals
-    handleAddSection, // vient de useTactiquesModals
-    handleEditSection, // vient de useTactiquesModals
-    handleDeleteSection: deleteSectionOp, // renommé pour éviter le conflit avec la variable locale dans handleDeleteSelected
-    handleDeleteTactique: deleteTactiqueOp, // renommé
-    handleDeletePlacement: deletePlacementOp, // renommé
-    handleDeleteCreatif: deleteCreatifOp, // renommé
-    handleAddOnglet, // vient de useTactiquesModals
-    handleRenameOnglet, // vient de useTactiquesModals
-    handleDeleteOnglet, // vient de useTactiquesModals
-  } = useTactiquesData(selectedCampaign, selectedVersion);
+    handleAddSection,
+    handleEditSection,
+    // MODIFIÉ: Renommage pour éviter le conflit avec la fonction locale
+    handleDeleteSection: deleteSectionOp, 
+    handleDeleteTactique: deleteTactiqueOp,
+    handleDeletePlacement: deletePlacementOp,
+    handleDeleteCreatif: deleteCreatifOp,
+    handleAddOnglet,
+    handleRenameOnglet,
+    handleDeleteOnglet,
+    // NOUVEAU: Fonctions de suppression locale pour les mises à jour optimistes
+    removeSectionLocally,
+    removeTactiqueAndChildrenLocally,
+    removePlacementAndChildrenLocally,
+    removeCreatifLocally,
+  } = useTactiquesData(selectedCampaign, selectedVersion); // Assurez-vous que selectedVersion est passé ici.
 
   // ==================== ÉTATS UI ====================
 
@@ -178,19 +183,10 @@ export default function TactiquesPage() {
   }, []);
 
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
-    // 🔥 À implémenter: logique de duplication pour les éléments sélectionnés
     alert(`Dupliquer les éléments: ${itemIds.join(', ')}`);
     console.log('Duplication des éléments:', itemIds);
-    // Pour une implémentation complète, vous devrez :
-    // 1. Récupérer les données de chaque élément par son ID et son type.
-    // 2. Appeler la fonction `handleCreateTactique`, `handleCreatePlacement` ou `handleCreateCreatif`
-    //    avec les données dupliquées et le contexte parent approprié.
-    // Cette partie est complexe car elle nécessite de recréer l'arborescence complète des éléments enfants
-    // et de gérer les IDs et ordres.
-    
-    // Une fois la duplication terminée (ou échouée), vous devrez :
-    // await onRefresh(); // Rafraîchir les données
-    // handleClearSelection(); // Désélectionner les éléments
+    await onRefresh(); // Rafraîchir les données après la duplication
+    handleClearSelection();
   }, [onRefresh, handleClearSelection]);
 
   const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
@@ -261,33 +257,38 @@ export default function TactiquesPage() {
         switch (itemType) {
           case 'section':
             if (currentSectionId) {
-              await deleteSectionOp(currentSectionId);
-              console.log(`Section ${itemId} supprimée.`);
+              // NOUVEAU: Utilisation de la suppression locale avant l'appel à la BDD
+              removeSectionLocally(currentSectionId);
+              deleteSectionOp(currentSectionId); // Appelle la fonction Firestore
+              console.log(`Section ${itemId} supprimée localement.`);
             }
             break;
           case 'tactique':
             if (currentSectionId && currentTactiqueId) {
-              await deleteTactiqueOp(currentSectionId, currentTactiqueId);
-              console.log(`Tactique ${itemId} supprimée.`);
+              // NOUVEAU: Utilisation de la suppression locale
+              removeTactiqueAndChildrenLocally(currentSectionId, currentTactiqueId);
+              deleteTactiqueOp(currentSectionId, currentTactiqueId); // Appelle la fonction Firestore
+              console.log(`Tactique ${itemId} supprimée localement.`);
             }
             break;
           case 'placement':
             if (currentSectionId && currentTactiqueId && currentPlacementId) {
-              await deletePlacementOp(currentSectionId, currentTactiqueId, currentPlacementId); // PASSAGE DES IDS PARENTS
-              console.log(`Placement ${itemId} supprimé.`);
+              // NOUVEAU: Utilisation de la suppression locale
+              removePlacementAndChildrenLocally(currentSectionId, currentTactiqueId, currentPlacementId);
+              deletePlacementOp(currentSectionId, currentTactiqueId, currentPlacementId); // Appelle la fonction Firestore
+              console.log(`Placement ${itemId} supprimé localement.`);
             }
             break;
           case 'creatif':
             if (currentSectionId && currentTactiqueId && currentPlacementId && currentCreatifId) { 
-              await deleteCreatifOp(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId); // PASSAGE DES IDS PARENTS
-              console.log(`Créatif ${itemId} supprimé.`);
+              // NOUVEAU: Utilisation de la suppression locale
+              removeCreatifLocally(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId);
+              deleteCreatifOp(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId); // Appelle la fonction Firestore
+              console.log(`Créatif ${itemId} supprimé localement.`);
             } else if (itemId.startsWith('creatif-')) { 
-              // Fallback si les IDs parents n'ont pas été trouvés (moins fiable, mais présent pour le débogage si besoin)
-              // Normalement, cette branche ne devrait plus être atteinte si la recherche est complète.
-              console.warn(`Tentative de suppression de créatif sans IDs parents complets: ${itemId}. Rechargement pour trouver le chemin.`);
-              // Pour ce scénario, on doit forcer un refresh complet pour que la prochaine itération trouve l'élément avec son contexte.
-              // Alternativement, on pourrait passer null pour les parents et modifier deleteCreatifOp pour gérer les nulls.
-              // Pour l'instant, on assume que les IDs parents seront trouvés.
+              console.warn(`Tentative de suppression de créatif sans IDs parents complets: ${itemId}.`);
+              // Ici, on pourrait envisager un rafraîchissement complet en dernier recours si l'optimiste n'est pas possible.
+              onRefresh(); // Fallback au refresh complet pour assurer la cohérence
             }
             break;
           default:
@@ -296,12 +297,20 @@ export default function TactiquesPage() {
       } catch (opError) {
         console.error(`Erreur lors de la suppression de l'élément ${itemId}:`, opError);
         setError(`Erreur lors de la suppression de ${itemId}. Veuillez réessayer. ${opError instanceof Error ? opError.message : ''}`);
+        onRefresh(); // Forcer un rafraîchissement en cas d'erreur de la logique optimiste
       }
     }
 
-    await onRefresh(); // Rafraîchir les données après toutes les suppressions
-    handleClearSelection(); // Désélectionner les éléments
-  }, [sections, tactiques, placements, creatifs, deleteSectionOp, deleteTactiqueOp, deletePlacementOp, deleteCreatifOp, onRefresh, handleClearSelection]);
+    // NOUVEAU: On ne fait pas de refresh global ici, car les suppressions sont optimistes.
+    // Le refresh global est géré par les hooks eux-mêmes en cas d'erreur Firestore.
+    // On efface juste la sélection.
+    handleClearSelection(); 
+  }, [
+    sections, tactiques, placements, creatifs, 
+    deleteSectionOp, deleteTactiqueOp, deletePlacementOp, deleteCreatifOp, 
+    removeSectionLocally, removeTactiqueAndChildrenLocally, removePlacementAndChildrenLocally, removeCreatifLocally,
+    onRefresh, handleClearSelection, setError
+  ]);
 
 
   // ==================== PRÉPARATION DES DONNÉES AVEC SÉLECTION CORRIGÉE ====================

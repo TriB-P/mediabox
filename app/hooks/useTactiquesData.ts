@@ -1,6 +1,6 @@
-// app/hooks/useTactiquesData.ts - Hook principal orchestrateur (VERSION MISE À JOUR)
+// app/hooks/useTactiquesData.ts
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
 import { useClient } from '../contexts/ClientContext';
 import {
@@ -59,12 +59,12 @@ interface UseTactiquesDataReturn {
   // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; // MODIFIÉ
+  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; 
 
   // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; // MODIFIÉ
+  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 
   // Opérations sections
   handleAddSection: () => void;
@@ -79,6 +79,12 @@ interface UseTactiquesDataReturn {
 
   // Fonction de rafraîchissement pour le drag and drop
   onRefresh: () => Promise<void>;
+
+  // NOUVEAU: Fonctions pour la suppression locale (mise à jour optimiste)
+  removeSectionLocally: (sectionId: string) => void;
+  removeTactiqueAndChildrenLocally: (sectionId: string, tactiqueId: string) => void;
+  removePlacementAndChildrenLocally: (sectionId: string, tactiqueId: string, placementId: string) => void;
+  removeCreatifLocally: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
 }
 
 export const useTactiquesData = (
@@ -293,7 +299,7 @@ export const useTactiquesData = (
         loadOngletData(selectedOngletId);
       }
     }
-  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]); // Ajout de loadOngletData aux dépendances
+  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]); 
 
   /**
    * Gestionnaire pour la sélection d'onglet
@@ -327,6 +333,86 @@ export const useTactiquesData = (
     ));
   }, []);
 
+  // NOUVEAU: Fonctions pour la suppression locale (mise à jour optimiste)
+  const filterAndReorder = useCallback(<T extends { id: string; TC_Order?: number; PL_Order?: number; CR_Order?: number; SECTION_Order?: number }>(
+    items: T[], 
+    itemIdToRemove: string,
+    orderField: 'TC_Order' | 'PL_Order' | 'CR_Order' | 'SECTION_Order'
+  ): T[] => {
+    let orderCounter = 0;
+    return items.filter(item => item.id !== itemIdToRemove).map(item => ({
+      ...item,
+      [orderField]: orderCounter++
+    }));
+  }, []);
+
+  const removeCreatifLocally = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
+    setCreatifs(prevCreatifs => {
+      const newCreatifs = { ...prevCreatifs };
+      if (newCreatifs[placementId]) {
+        newCreatifs[placementId] = filterAndReorder(newCreatifs[placementId], creatifId, 'CR_Order');
+      }
+      return newCreatifs;
+    });
+  }, [filterAndReorder]);
+
+  const removePlacementAndChildrenLocally = useCallback((sectionId: string, tactiqueId: string, placementId: string) => {
+    setPlacements(prevPlacements => {
+      const newPlacements = { ...prevPlacements };
+      if (newPlacements[tactiqueId]) {
+        newPlacements[tactiqueId] = filterAndReorder(newPlacements[tactiqueId], placementId, 'PL_Order');
+      }
+      return newPlacements;
+    });
+    // Remove all children creatifs associated with this placement
+    setCreatifs(prevCreatifs => {
+      const newCreatifs = { ...prevCreatifs };
+      delete newCreatifs[placementId];
+      return newCreatifs;
+    });
+  }, [filterAndReorder]);
+
+  const removeTactiqueAndChildrenLocally = useCallback((sectionId: string, tactiqueId: string) => {
+    setTactiques(prevTactiques => {
+      const newTactiques = { ...prevTactiques };
+      if (newTactiques[sectionId]) {
+        newTactiques[sectionId] = filterAndReorder(newTactiques[sectionId], tactiqueId, 'TC_Order');
+      }
+      return newTactiques;
+    });
+    // Remove all children placements and their creatifs associated with this tactique
+    setPlacements(prevPlacements => {
+      const newPlacements = { ...prevPlacements };
+      const placementsToRemove = newPlacements[tactiqueId] || [];
+      placementsToRemove.forEach(p => {
+        delete newPlacements[p.id]; 
+        setCreatifs(prevCreatifs => {
+          const newCreatifs = { ...prevCreatifs };
+          delete newCreatifs[p.id];
+          return newCreatifs;
+        });
+      });
+      delete newPlacements[tactiqueId]; 
+      return newPlacements;
+    });
+  }, [filterAndReorder]);
+
+  const removeSectionLocally = useCallback((sectionId: string) => {
+    setSections(prevSections => {
+      return filterAndReorder(prevSections, sectionId, 'SECTION_Order');
+    });
+    // Remove all children tactiques, placements, and creatifs associated with this section
+    setTactiques(prevTactiques => {
+      const newTactiques = { ...prevTactiques };
+      const tactiquesToRemove = newTactiques[sectionId] || [];
+      tactiquesToRemove.forEach(t => {
+        removeTactiqueAndChildrenLocally(sectionId, t.id); 
+      });
+      delete newTactiques[sectionId];
+      return newTactiques;
+    });
+  }, [filterAndReorder, removeTactiqueAndChildrenLocally]); 
+
   // ==================== INTÉGRATION DES HOOKS SPÉCIALISÉS ====================
 
   // Hook des opérations CRUD
@@ -335,7 +421,7 @@ export const useTactiquesData = (
     selectedOnglet,
     sections,
     tactiques,
-    onRefresh
+    onRefresh // onRefresh is still provided for fallback/full sync
   });
 
   // Hook des modals
@@ -370,17 +456,17 @@ export const useTactiquesData = (
     // Opérations tactiques
     handleCreateTactique: operations.handleCreateTactique,
     handleUpdateTactique: operations.handleUpdateTactique,
-    handleDeleteTactique: operations.handleDeleteTactique,
+    handleDeleteTactique: operations.handleDeleteTactique, 
 
     // Opérations placements
     handleCreatePlacement: operations.handleCreatePlacement,
     handleUpdatePlacement: operations.handleUpdatePlacement,
-    handleDeletePlacement: operations.handleDeletePlacement, // CONFORME À LA NOUVELLE SIGNATURE
+    handleDeletePlacement: operations.handleDeletePlacement, 
 
     // Opérations créatifs
     handleCreateCreatif: operations.handleCreateCreatif,
     handleUpdateCreatif: operations.handleUpdateCreatif,
-    handleDeleteCreatif: operations.handleDeleteCreatif, // CONFORME À LA NOUVELLE SIGNATURE
+    handleDeleteCreatif: operations.handleDeleteCreatif, 
 
     // Opérations sections
     handleAddSection: modals.handleAddSection,
@@ -395,5 +481,11 @@ export const useTactiquesData = (
 
     // Fonction de rafraîchissement
     onRefresh,
+
+    // NOUVEAU: Fonctions de suppression locale (optimiste)
+    removeSectionLocally,
+    removeTactiqueAndChildrenLocally,
+    removePlacementAndChildrenLocally,
+    removeCreatifLocally,
   };
 };

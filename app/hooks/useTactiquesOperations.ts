@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesOperations.ts - Hook pour les opérations CRUD tactiques
+// app/hooks/useTactiquesOperations.ts
 
 import { useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -33,12 +33,21 @@ import {
   deleteCreatif
 } from '../lib/creatifService';
 
+// NOUVEAU: Les fonctions de suppression locale ne sont plus importées directement du hook
+// useTactiquesData, mais reçues via les props du hook useTactiquesOperations.
+
 interface UseTactiquesOperationsProps {
   selectedCampaign: Campaign | null;
   selectedOnglet: Onglet | null;
   sections: Section[];
   tactiques: { [sectionId: string]: Tactique[] };
   onRefresh: () => Promise<void>;
+
+  // NOUVEAU: Ajout des fonctions de suppression locale dans les props du hook
+  removeSectionLocally: (sectionId: string) => void;
+  removeTactiqueAndChildrenLocally: (sectionId: string, tactiqueId: string) => void;
+  removePlacementAndChildrenLocally: (sectionId: string, tactiqueId: string, placementId: string) => void;
+  removeCreatifLocally: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
 }
 
 interface UseTactiquesOperationsReturn {
@@ -50,12 +59,12 @@ interface UseTactiquesOperationsReturn {
   // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; // MODIFIÉ
+  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; 
 
   // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; // MODIFIÉ
+  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 
   // Opérations sections
   handleAddSection: () => void;
@@ -73,12 +82,17 @@ export const useTactiquesOperations = ({
   selectedOnglet,
   sections,
   tactiques,
-  onRefresh
+  onRefresh,
+  // NOUVEAU: Récupération des fonctions de suppression locale depuis les props
+  removeSectionLocally, 
+  removeTactiqueAndChildrenLocally, 
+  removePlacementAndChildrenLocally, 
+  removeCreatifLocally 
 }: UseTactiquesOperationsProps): UseTactiquesOperationsReturn => {
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
-
+  
   // ==================== TACTIQUES ====================
 
   const handleCreateTactique = useCallback(async (sectionId: string): Promise<Tactique> => {
@@ -147,7 +161,10 @@ export const useTactiquesOperations = ({
       console.error('Contexte manquant pour supprimer la tactique');
       return;
     }
-    // RETIRÉ: confirm() car la confirmation est gérée au niveau de SelectedActionsPanel
+    // Mise à jour optimiste: retirer l'élément de l'interface
+    removeTactiqueAndChildrenLocally(sectionId, tactiqueId); 
+    
+    // Suppression en base de données
     deleteTactique(
       selectedClient.clientId,
       selectedCampaignId,
@@ -155,12 +172,12 @@ export const useTactiquesOperations = ({
       selectedOngletId,
       sectionId,
       tactiqueId
-    ).then(() => {
-      onRefresh();
-    }).catch(error => {
-      console.error('Erreur lors de la suppression de la tactique:', error);
+    ).catch(error => {
+      console.error('Erreur lors de la suppression de la tactique Firestore:', error);
+      // En cas d'échec, rafraîchir pour resynchroniser l'interface avec la base de données
+      onRefresh(); 
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removeTactiqueAndChildrenLocally, onRefresh]);
 
   // ==================== PLACEMENTS ====================
 
@@ -251,26 +268,29 @@ export const useTactiquesOperations = ({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
 
-  const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => { // MODIFIÉ: Ajout de sectionId et tactiqueId
+  const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => { 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour supprimer le placement');
       return;
     }
-    // RETIRÉ: confirm()
+    // Mise à jour optimiste: retirer l'élément de l'interface
+    removePlacementAndChildrenLocally(sectionId, tactiqueId, placementId); 
+
+    // Suppression en base de données
     deletePlacement(
       selectedClient.clientId,
       selectedCampaignId,
       selectedVersionId,
       selectedOngletId,
-      sectionId, // UTILISÉ DIRECTEMENT
-      tactiqueId, // UTILISÉ DIRECTEMENT
+      sectionId, 
+      tactiqueId, 
       placementId
-    ).then(() => {
-      onRefresh();
-    }).catch(error => {
-      console.error('Erreur lors de la suppression du placement:', error);
+    ).catch(error => {
+      console.error('Erreur lors de la suppression du placement Firestore:', error);
+      // En cas d'échec, rafraîchir pour resynchroniser l'interface
+      onRefresh(); 
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removePlacementAndChildrenLocally, onRefresh]);
 
   // ==================== CRÉATIFS ====================
 
@@ -285,8 +305,6 @@ export const useTactiquesOperations = ({
 
     for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
       for (const tactique of sectionTactiques) {
-        // Cette logique est simplifiée et devrait idéalement s'assurer que le placement existe sous cette tactique
-        // Pour cet exemple, nous supposons que le placementId correspond à une tactique existante.
         sectionId = sId;
         tactiqueId = tactique.id;
         break; 
@@ -342,8 +360,6 @@ export const useTactiquesOperations = ({
       for (const tactique of sectionTactiques) {
         sectionId = sId;
         tactiqueId = tactique.id;
-        // Ici, il faudrait chercher le placement sous la tactique, mais pour simplifier
-        // nous nous appuyons sur CR_PlacementId dans les données si fourni, sinon il est vide.
         break;
       }
       if (sectionId) break;
@@ -372,27 +388,30 @@ export const useTactiquesOperations = ({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
 
-  const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => { // MODIFIÉ: Ajout des IDs parents
+  const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => { 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour supprimer le créatif');
       return;
     }
-    // RETIRÉ: confirm()
+    // Mise à jour optimiste: retirer l'élément de l'interface
+    removeCreatifLocally(sectionId, tactiqueId, placementId, creatifId); 
+    
+    // Suppression en base de données
     deleteCreatif(
       selectedClient.clientId,
       selectedCampaignId,
       selectedVersionId,
       selectedOngletId,
-      sectionId, // UTILISÉ DIRECTEMENT
-      tactiqueId, // UTILISÉ DIRECTEMENT
-      placementId, // UTILISÉ DIRECTEMENT
+      sectionId, 
+      tactiqueId, 
+      placementId, 
       creatifId
-    ).then(() => {
-      onRefresh();
-    }).catch(error => {
-      console.error('Erreur lors de la suppression du créatif:', error);
+    ).catch(error => {
+      console.error('Erreur lors de la suppression du créatif Firestore:', error);
+      // En cas d'échec, rafraîchir pour resynchroniser l'interface
+      onRefresh(); 
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removeCreatifLocally, onRefresh]);
 
   // ==================== SECTIONS & ONGLETS ====================
   // TODO: Implémenter ces fonctions dans le prochain artefact (useTactiquesModals)
@@ -406,27 +425,38 @@ export const useTactiquesOperations = ({
   }, []);
 
   const handleDeleteSection = useCallback((sectionId: string) => {
-    console.log('TODO: handleDeleteSection - à implémenter dans useTactiquesModals');
-    // Le vrai deleteSection est maintenant géré dans useTactiquesModals et appelé directement
-    // depuis handleDeleteSelected dans tactiques/page.tsx
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
         console.error('Contexte manquant pour supprimer la section');
         return;
     }
-    // RETIRÉ: confirm()
-    deleteSection(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId
-    ).then(() => {
-        onRefresh();
-    }).catch(error => {
-        console.error('Erreur lors de la suppression de la section:', error);
-    });
 
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) {
+      console.error('Section non trouvée');
+      return;
+    }
+
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer la section "${section.SECTION_Name}" et toutes ses tactiques ?`;
+    
+    if (confirm(confirmMessage)) {
+      // Mise à jour optimiste: retirer l'élément de l'interface
+      removeSectionLocally(sectionId); 
+
+      // Suppression en base de données
+      deleteSection(
+          selectedClient.clientId,
+          selectedCampaignId,
+          selectedVersionId,
+          selectedOngletId,
+          sectionId
+      ).catch(error => {
+          console.error('Erreur lors de la suppression de la section Firestore:', error);
+          // En cas d'échec, rafraîchir pour resynchroniser l'interface
+          onRefresh(); 
+      });
+    }
+
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, removeSectionLocally, onRefresh]);
 
   const handleAddOnglet = useCallback(async () => {
     console.log('TODO: handleAddOnglet - à implémenter dans useTactiquesModals');
@@ -441,25 +471,27 @@ export const useTactiquesOperations = ({
   }, []);
 
   return {
-    // Tactiques
+    // Opérations tactiques
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
 
-    // Placements
+    // Opérations placements
     handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
 
-    // Créatifs
+    // Opérations créatifs
     handleCreateCreatif,
     handleUpdateCreatif,
     handleDeleteCreatif,
 
-    // Sections & Onglets (TODO)
+    // Opérations sections
     handleAddSection,
     handleEditSection,
     handleDeleteSection,
+
+    // Opérations onglets
     handleAddOnglet,
     handleRenameOnglet,
     handleDeleteOnglet,
