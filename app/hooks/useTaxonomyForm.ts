@@ -1,4 +1,4 @@
-// app/hooks/useTaxonomyForm.ts
+// app/hooks/useTaxonomyForm.ts - ADAPTÉ POUR CRÉATIFS
 
 'use client';
 
@@ -12,10 +12,16 @@ import {
   parseAllTaxonomies, 
   extractUniqueVariables 
 } from '../lib/taxonomyParser';
-// 🔥 CORRECTION: Import des nouvelles fonctions utilitaires
-import { TAXONOMY_VARIABLE_REGEX, formatRequiresShortcode, isManualVariable } from '../config/taxonomyFields';
+import { 
+  TAXONOMY_VARIABLE_REGEX, 
+  formatRequiresShortcode, 
+  isManualVariable,
+  isCreatifVariable,
+  isPlacementVariable
+} from '../config/taxonomyFields';
 import type {
   PlacementFormData,
+  CreatifFormData,
   HighlightState,
   TaxonomyValues,
   TaxonomyVariableValue,
@@ -45,12 +51,15 @@ interface CustomCode {
   customCode: string;
 }
 
+// 🆕 Props adaptées pour supporter les créatifs
 interface UseTaxonomyFormProps {
-  formData: PlacementFormData;
+  formData: PlacementFormData | CreatifFormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   clientId: string;
   campaignData?: any;
   tactiqueData?: any;
+  placementData?: any; // 🆕 Nouveau contexte placement
+  formType?: 'placement' | 'creatif'; // 🆕 Type de formulaire
 }
 
 // ==================== HOOK PRINCIPAL ====================
@@ -60,7 +69,9 @@ export function useTaxonomyForm({
   onChange,
   clientId,
   campaignData,
-  tactiqueData
+  tactiqueData,
+  placementData,
+  formType = 'placement'
 }: UseTaxonomyFormProps) {
   
   const [selectedTaxonomyData, setSelectedTaxonomyData] = useState<{
@@ -73,9 +84,13 @@ export function useTaxonomyForm({
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
   const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
-  const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(
-    formData.PL_Taxonomy_Values || {}
-  );
+  const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(() => {
+    // 🆕 Support des deux types de formulaires
+    if (formType === 'creatif') {
+      return (formData as CreatifFormData).CR_Taxonomy_Values || {};
+    }
+    return (formData as PlacementFormData).PL_Taxonomy_Values || {};
+  });
   
   const [previewUpdateTime, setPreviewUpdateTime] = useState(Date.now());
   const [shortcodeCache, setShortcodeCache] = useState<Map<string, ShortcodeData>>(new Map());
@@ -84,19 +99,35 @@ export function useTaxonomyForm({
   const [highlightState, setHighlightState] = useState<HighlightState>({ mode: 'none' });
   const [expandedPreviews, setExpandedPreviews] = useState({ tags: false, platform: false, mediaocean: false });
 
-  const selectedTaxonomyIds = {
-    tags: formData.PL_Taxonomy_Tags || '',
-    platform: formData.PL_Taxonomy_Platform || '',
-    mediaocean: formData.PL_Taxonomy_MediaOcean || ''
-  };
+  // 🆕 Sélection taxonomique adaptée au type de formulaire
+  const selectedTaxonomyIds = useMemo(() => {
+    if (formType === 'creatif') {
+      const creatifData = formData as CreatifFormData;
+      return {
+        tags: creatifData.CR_Taxonomy_Tags || '',
+        platform: creatifData.CR_Taxonomy_Platform || '',
+        mediaocean: creatifData.CR_Taxonomy_MediaOcean || ''
+      };
+    } else {
+      const placementData = formData as PlacementFormData;
+      return {
+        tags: placementData.PL_Taxonomy_Tags || '',
+        platform: placementData.PL_Taxonomy_Platform || '',
+        mediaocean: placementData.PL_Taxonomy_MediaOcean || ''
+      };
+    }
+  }, [formData, formType]);
 
   const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
   
-  // 🔥 CORRECTION: Utilise la fonction isManualVariable pour identifier les champs de placement.
-  const manualVariables = useMemo(() => 
-    parsedVariables.filter(variable => isManualVariable(variable.variable)), 
-    [parsedVariables]
-  );
+  // 🆕 Variables manuelles adaptées au type
+  const manualVariables = useMemo(() => {
+    if (formType === 'creatif') {
+      return parsedVariables.filter(variable => isCreatifVariable(variable.variable));
+    } else {
+      return parsedVariables.filter(variable => isManualVariable(variable.variable) && !isCreatifVariable(variable.variable));
+    }
+  }, [parsedVariables, formType]);
   
   const hasLoadingFields = Object.values(fieldStates).some(fs => fs.isLoading);
 
@@ -105,10 +136,16 @@ export function useTaxonomyForm({
     try {
       const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
       const customSnapshot = await getDocs(customCodesRef);
-      const customCodes: CustomCode[] = customSnapshot.docs.map(doc => ({ shortcodeId: doc.data().shortcodeId, customCode: doc.data().customCode } as CustomCode));
+      const customCodes: CustomCode[] = customSnapshot.docs.map(doc => ({ 
+        shortcodeId: doc.data().shortcodeId, 
+        customCode: doc.data().customCode 
+      } as CustomCode));
       setCustomCodesCache(customCodes);
       setCacheLoaded(true);
-    } catch (error) { console.error('Erreur chargement cache:', error); setCacheLoaded(true); }
+    } catch (error) { 
+      console.error('Erreur chargement cache:', error); 
+      setCacheLoaded(true); 
+    }
   }, [clientId, cacheLoaded]);
 
   const loadShortcode = useCallback(async (shortcodeId: string): Promise<ShortcodeData | null> => {
@@ -118,15 +155,27 @@ export function useTaxonomyForm({
       const shortcodeSnap = await getDoc(shortcodeRef);
       if (!shortcodeSnap.exists()) return null;
       const data = shortcodeSnap.data();
-      const shortcodeData: ShortcodeData = { id: shortcodeSnap.id, SH_Code: data.SH_Code || shortcodeSnap.id, SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || shortcodeSnap.id, SH_Display_Name_EN: data.SH_Display_Name_EN, SH_Default_UTM: data.SH_Default_UTM };
+      const shortcodeData: ShortcodeData = { 
+        id: shortcodeSnap.id, 
+        SH_Code: data.SH_Code || shortcodeSnap.id, 
+        SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || shortcodeSnap.id, 
+        SH_Display_Name_EN: data.SH_Display_Name_EN, 
+        SH_Default_UTM: data.SH_Default_UTM 
+      };
       setShortcodeCache(prev => new Map(prev).set(shortcodeId, shortcodeData));
       return shortcodeData;
-    } catch (error) { console.error(`Erreur chargement shortcode ${shortcodeId}:`, error); return null; }
+    } catch (error) { 
+      console.error(`Erreur chargement shortcode ${shortcodeId}:`, error); 
+      return null; 
+    }
   }, [shortcodeCache]);
 
   const formatShortcode = useCallback((shortcodeId: string, format: TaxonomyFormat): string => {
     const shortcodeData = shortcodeCache.get(shortcodeId);
-    if (!shortcodeData) { loadShortcode(shortcodeId); return shortcodeId; }
+    if (!shortcodeData) { 
+      loadShortcode(shortcodeId); 
+      return shortcodeId; 
+    }
     
     const customCodeMatch = customCodesCache.find(cc => cc.shortcodeId === shortcodeId);
     
@@ -169,9 +218,17 @@ export function useTaxonomyForm({
       
       setSelectedTaxonomyData(newTaxonomyData);
 
+      // 🆕 Extraction différente selon le type de formulaire
       const extractFullStructure = (taxonomy?: Taxonomy) => {
         if (!taxonomy) return '';
-        return [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
+        
+        if (formType === 'creatif') {
+          // Niveaux 5-6 pour les créatifs
+          return [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
+        } else {
+          // Niveaux 1-4 pour les placements
+          return [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
+        }
       };
       
       const structures = parseAllTaxonomies(
@@ -187,7 +244,7 @@ export function useTaxonomyForm({
     } finally {
       setTaxonomiesLoading(false);
     }
-  }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean]);
+  }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean, formType]);
 
   const loadFieldOptions = useCallback(async () => {
     if (manualVariables.length === 0) return;
@@ -200,7 +257,11 @@ export function useTaxonomyForm({
         let options: Array<{ id: string; label: string; code?: string }> = [];
         if (hasCustom) {
           const dynamicList = await getDynamicList(variable.variable, clientId);
-          options = dynamicList.map(item => ({ id: item.id, label: item.SH_Display_Name_FR || item.SH_Code || item.id, code: item.SH_Code }));
+          options = dynamicList.map(item => ({ 
+            id: item.id, 
+            label: item.SH_Display_Name_FR || item.SH_Code || item.id, 
+            code: item.SH_Code 
+          }));
         }
         setFieldStates(prev => ({ ...prev, [fieldKey]: { options, hasCustomList: hasCustom, isLoading: false } }));
       } catch (error) {
@@ -214,9 +275,8 @@ export function useTaxonomyForm({
   useEffect(() => { if (parsedVariables.length > 0) loadFieldOptions(); }, [parsedVariables, loadFieldOptions]);
   useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
 
-  // 🔥 CORRECTION : handleFieldChange met à jour formData ET taxonomyValues
+  // 🆕 Gestion des champs adaptée au type de formulaire
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
-    // 1. Mettre à jour l'objet taxonomyValues pour l'aperçu et la logique interne
     const newTaxonomyValue: TaxonomyVariableValue = {
       value, source: 'manual', format,
       ...(format === 'open' ? { openValue: value } : {}),
@@ -226,26 +286,25 @@ export function useTaxonomyForm({
     const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
     setTaxonomyValues(newTaxonomyValues);
     
-    // 2. Créer un événement synthétique pour mettre à jour PL_Taxonomy_Values dans formData
+    // Mise à jour selon le type de formulaire
+    const taxonomyValuesFieldName = formType === 'creatif' ? 'CR_Taxonomy_Values' : 'PL_Taxonomy_Values';
     const taxonomyValuesEvent = {
-      target: { name: 'PL_Taxonomy_Values', value: newTaxonomyValues }
+      target: { name: taxonomyValuesFieldName, value: newTaxonomyValues }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
     onChange(taxonomyValuesEvent);
 
-       // 3. 🔥 CORRECTION : Mettre à jour le champ de placement avec la bonne valeur (ID ou texte)
-       if (isManualVariable(variableName)) {
-        // On utilise le 'shortcodeId' pour les listes, ou la 'value' pour le texte libre.
-        const eventValue = shortcodeId ?? value;
-        
-        const fieldChangeEvent = {
-            target: { name: variableName, value: eventValue }
-        } as unknown as React.ChangeEvent<HTMLInputElement>;
-        
-        onChange(fieldChangeEvent);
+    // Mise à jour du champ spécifique
+    if ((formType === 'creatif' && isCreatifVariable(variableName)) || 
+        (formType === 'placement' && isManualVariable(variableName) && !isCreatifVariable(variableName))) {
+      const eventValue = shortcodeId ?? value;
+      const fieldChangeEvent = {
+        target: { name: variableName, value: eventValue }
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      onChange(fieldChangeEvent);
     }
 
     setPreviewUpdateTime(Date.now());
-  }, [taxonomyValues, onChange]);
+  }, [taxonomyValues, onChange, formType]);
 
   const handleFieldHighlight = useCallback((variableName?: string) => {
     setHighlightState({ activeField: variableName, activeVariable: variableName, mode: variableName ? 'field' : 'none' });
@@ -257,6 +316,7 @@ export function useTaxonomyForm({
 
   const retryLoadTaxonomies = useCallback(() => { loadAndParseTaxonomies(); }, [loadAndParseTaxonomies]);
 
+  // 🆕 Résolution enrichie avec support placement
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const manualValue = taxonomyValues[variable.variable];
     if (manualValue) {
@@ -266,17 +326,14 @@ export function useTaxonomyForm({
     }
     
     let rawValue: any = null;
-    // 🔥 SUPPRESSION DE campaignMap
     
-    const tactiqueMap: { [key: string]: keyof typeof tactiqueData } = { 'TC_Publisher': 'TC_Publisher', 'TC_Media_Type': 'TC_Media_Type' };
-    
+    // 🆕 Résolution selon la source avec support placement
     if (variable.source === 'campaign' && campaignData) {
-      // ✅ CORRECTION: Accès direct à la propriété
       rawValue = (campaignData as any)[variable.variable];
-    }
-    if (variable.source === 'tactique' && tactiqueData) {
-      const field = tactiqueMap[variable.variable] || variable.variable;
-      rawValue = tactiqueData[field];
+    } else if (variable.source === 'tactique' && tactiqueData) {
+      rawValue = tactiqueData[variable.variable];
+    } else if (variable.source === 'placement' && placementData) {
+      rawValue = placementData[variable.variable];
     }
     
     if (rawValue) {
@@ -288,7 +345,7 @@ export function useTaxonomyForm({
     }
     
     return `[${variable.variable}]`;
-  }, [taxonomyValues, campaignData, tactiqueData, formatShortcode]);
+  }, [taxonomyValues, campaignData, tactiqueData, placementData, formatShortcode]);
 
   const getFormattedValue = useCallback((variableName: string, format: string): string => {
     const variable = parsedVariables.find(v => v.variable === variableName);
@@ -299,14 +356,23 @@ export function useTaxonomyForm({
   const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
     const taxonomy = selectedTaxonomyData[taxonomyType];
     if (!taxonomy) return '';
-    const structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
+    
+    // 🆕 Structure différente selon le type de formulaire
+    let structure = '';
+    if (formType === 'creatif') {
+      // Niveaux 5-6 pour les créatifs
+      structure = [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
+    } else {
+      // Niveaux 1-4 pour les placements
+      structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
+    }
     
     TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
     
     return structure.replace(TAXONOMY_VARIABLE_REGEX, (match, variableName, format) => {
         return getFormattedValue(variableName, format) || match;
     });
-  }, [selectedTaxonomyData, getFormattedValue, previewUpdateTime]);
+  }, [selectedTaxonomyData, getFormattedValue, previewUpdateTime, formType]);
   
   return {
     selectedTaxonomyData,

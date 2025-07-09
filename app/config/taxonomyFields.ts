@@ -3,7 +3,7 @@
 /**
  * Configuration centrale pour toutes les variables de taxonomie et leurs utilitaires.
  * Ce fichier est la source de vérité pour déterminer :
- * 1. La source d'une variable (héritée de la campagne, de la tactique, ou manuelle).
+ * 1. La source d'une variable (héritée de la campagne, de la tactique, du placement, ou manuelle).
  * 2. Les formats de sortie autorisés pour chaque variable.
  * 3. Des fonctions utilitaires pour manipuler ces configurations.
  */
@@ -11,7 +11,7 @@
 // ==================== TYPES ====================
 
 // Définit les sources possibles pour une variable de taxonomie.
-export type FieldSource = 'campaign' | 'tactique' | 'manual';
+export type FieldSource = 'campaign' | 'tactique' | 'placement' | 'manual';
 
 // Définit tous les formats de sortie possibles pour une variable.
 export type TaxonomyFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom_utm' | 'custom_code' | 'open';
@@ -21,7 +21,6 @@ export interface VariableConfig {
   source: FieldSource;
   allowedFormats: TaxonomyFormat[];
   label?: string; 
-
 }
 
 // Interface pour les options de formatage
@@ -67,36 +66,93 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Billing_ID': { source: 'tactique', allowedFormats: ['open'] },
   'TC_PO': { source: 'tactique', allowedFormats: ['open'] },
 
-  // Variable placement
-  'TAX_Product': { 
+  // --- 🆕 Variables de niveau Placement ---
+  'PL_Label': { source: 'placement', allowedFormats: ['open'] },
+  'TAX_Product': { source: 'placement', allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TAX_Location': { source: 'placement', allowedFormats: ['open', 'code', 'display_fr', 'display_en'] },
+  'TAX_Audience_Demographics': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TAX_Device': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TAX_Targeting': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+
+  // --- 🆕 Variables de niveau Créatif (manuelles) ---
+  'CR_Start_Date': { 
+    source: 'manual', 
+    label: 'Date de début créatif', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_End_Date': { 
+    source: 'manual', 
+    label: 'Date de fin créatif', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Rotation_Weight': { 
+    source: 'manual', 
+    label: 'Poids de rotation', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_CTA': { 
+    source: 'manual', 
+    label: 'Call-to-Action', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Format_Details': { 
+    source: 'manual', 
+    label: 'Détails du format', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Offer': { 
+    source: 'manual', 
+    label: 'Offre', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Plateform_Name': { 
+    source: 'manual', 
+    label: 'Nom de plateforme', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Primary_Product': { 
+    source: 'manual', 
+    label: 'Produit principal', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_URL': { 
+    source: 'manual', 
+    label: 'URL du créatif', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+  'CR_Version': { 
+    source: 'manual', 
+    label: 'Version du créatif', 
+    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] 
+  },
+
+  // Variables placement (legacy - pour compatibilité)
+  'TAX_Product_Legacy': { 
     source: 'manual', 
     label: 'Produit', 
     allowedFormats: ['open', 'code', 'display_fr','custom_utm','utm','custom_code'] 
   },
-  'TAX_Location': { 
+  'TAX_Location_Legacy': { 
     source: 'manual', 
     label: 'Emplacement', 
     allowedFormats: ['open', 'code', 'display_fr'] 
   },
-  'TAX_Audience_Demographics': { 
+  'TAX_Audience_Demographics_Legacy': { 
     source: 'manual', 
     label: 'Audience - Démographique', 
     allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
   },
-  'TAX_Device': { 
+  'TAX_Device_Legacy': { 
     source: 'manual', 
     label: 'Appareil', 
     allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
   },
-  'TAX_Targeting': { 
+  'TAX_Targeting_Legacy': { 
     source: 'manual', 
     label: 'Type de ciblage', 
     allowedFormats: ['code', 'display_fr','custom_utm','utm','custom_code'] 
   },
-
 };
-
-
 
 // ==================== FORMATS DISPONIBLES ====================
 
@@ -115,6 +171,7 @@ export const TAXONOMY_FORMATS: FormatOption[] = [
 export const SOURCE_COLORS = {
   campaign: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', hex: '#3B82F6' },
   tactique: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', hex: '#10B981' },
+  placement: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', hex: '#8B5CF6' },
   manual: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', hex: '#F59E0B' },
   empty: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300', hex: '#6B7280' }
 } as const;
@@ -128,7 +185,6 @@ export const FORMAT_COLORS = {
   custom_code: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
   open: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' }
 } as const;
-
 
 // ==================== FONCTIONS UTILITAIRES ====================
 
@@ -181,7 +237,7 @@ export function formatAllowsUserInput(format: TaxonomyFormat): boolean {
 }
 
 export function getCompatibleFormats(source: FieldSource): FormatOption[] {
-  if (source === 'campaign' || source === 'tactique') {
+  if (source === 'campaign' || source === 'tactique' || source === 'placement') {
     return TAXONOMY_FORMATS.filter(format => 
       format.id === 'display_fr' || 
       format.id === 'code' || 
@@ -214,7 +270,7 @@ export const ERROR_MESSAGES = {
   USER_INPUT_REQUIRED: 'Ce format nécessite une saisie utilisateur'
 } as const;
 
-// ==================== 🔥 NOUVELLES FONCTIONS UTILITAIRES POUR LES CHAMPS MANUELS ====================
+// ==================== 🆕 FONCTIONS UTILITAIRES POUR LES CHAMPS MANUELS ====================
 
 /**
  * Extrait tous les noms de variables qui ont source: 'manual'
@@ -226,6 +282,24 @@ export function getManualVariableNames(): string[] {
 }
 
 /**
+ * 🆕 Extrait tous les noms de variables qui ont source: 'manual' et commencent par 'CR_'
+ */
+export function getCreatifVariableNames(): string[] {
+  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
+    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('CR_'))
+    .map(([variableName, _]) => variableName);
+}
+
+/**
+ * 🆕 Extrait tous les noms de variables qui ont source: 'manual' et commencent par 'TAX_' (pour les placements)
+ */
+export function getPlacementVariableNames(): string[] {
+  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
+    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('TAX_'))
+    .map(([variableName, _]) => variableName);
+}
+
+/**
  * Crée un objet vide avec tous les champs manuels initialisés
  */
 export function createEmptyManualFieldsObject(): { [key: string]: string } {
@@ -233,6 +307,20 @@ export function createEmptyManualFieldsObject(): { [key: string]: string } {
   const emptyObject: { [key: string]: string } = {};
   
   manualVars.forEach(varName => {
+    emptyObject[varName] = '';
+  });
+  
+  return emptyObject;
+}
+
+/**
+ * 🆕 Crée un objet vide avec tous les champs créatifs initialisés
+ */
+export function createEmptyCreatifFieldsObject(): { [key: string]: string } {
+  const creatifVars = getCreatifVariableNames();
+  const emptyObject: { [key: string]: string } = {};
+  
+  creatifVars.forEach(varName => {
     emptyObject[varName] = '';
   });
   
@@ -256,9 +344,41 @@ export function extractManualFieldsFromData(data: any): { [key: string]: string 
 }
 
 /**
+ * 🆕 Extrait les valeurs des champs créatifs depuis un objet de données
+ */
+export function extractCreatifFieldsFromData(data: any): { [key: string]: string } {
+  const creatifVars = getCreatifVariableNames();
+  const extractedFields: { [key: string]: string } = {};
+  
+  creatifVars.forEach(varName => {
+    if (data && typeof data[varName] !== 'undefined') {
+      extractedFields[varName] = data[varName];
+    }
+  });
+  
+  return extractedFields;
+}
+
+/**
  * Valide qu'un nom de variable est bien un champ manuel
  */
 export function isManualVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
   return config ? config.source === 'manual' : false;
+}
+
+/**
+ * 🆕 Valide qu'un nom de variable est bien un champ créatif
+ */
+export function isCreatifVariable(variableName: string): boolean {
+  const config = TAXONOMY_VARIABLE_CONFIG[variableName];
+  return config ? config.source === 'manual' && variableName.startsWith('CR_') : false;
+}
+
+/**
+ * 🆕 Valide qu'un nom de variable est bien un champ placement
+ */
+export function isPlacementVariable(variableName: string): boolean {
+  const config = TAXONOMY_VARIABLE_CONFIG[variableName];
+  return config ? config.source === 'placement' || (config.source === 'manual' && variableName.startsWith('TAX_')) : false;
 }

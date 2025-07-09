@@ -1,4 +1,4 @@
-// app/types/tactiques.ts - COMPLET AVEC CHAMPS DE PLACEMENT
+// app/types/tactiques.ts - ENRICHI AVEC CHAMPS CRÉATIFS COMPLETS
 
 // ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
@@ -142,7 +142,7 @@ export interface Placement {
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
   
-  // 🔥 CORRECTION : Ajout des champs de placement
+  // Champs de placement
   TAX_Product?: string;
   TAX_Audience_Demographics?: string;
   TAX_Location?: string;
@@ -156,12 +156,35 @@ export interface Placement {
   updatedAt?: string;
 }
 
+// ==================== 🆕 CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
+
 export interface Creatif {
   id: string;
   CR_Label: string;
-  CR_URL?: string;
   CR_Order: number;
   CR_PlacementId: string;
+  
+  // 🆕 Taxonomies créatifs (niveaux 5-6)
+  CR_Taxonomy_Tags?: string;
+  CR_Taxonomy_Platform?: string;
+  CR_Taxonomy_MediaOcean?: string;
+  
+  // 🆕 10 champs spécifiques aux créatifs
+  CR_Start_Date?: string;           // Date de début créatif
+  CR_End_Date?: string;             // Date de fin créatif
+  CR_Rotation_Weight?: string;      // Poids de rotation
+  CR_CTA?: string;                  // Call-to-Action
+  CR_Format_Details?: string;       // Détails du format
+  CR_Offer?: string;                // Offre
+  CR_Plateform_Name?: string;       // Nom de plateforme
+  CR_Primary_Product?: string;      // Produit principal
+  CR_URL?: string;                  // URL du créatif
+  CR_Version?: string;              // Version du créatif
+  
+  // 🆕 Stockage des valeurs taxonomie et générations
+  CR_Taxonomy_Values?: TaxonomyValues;
+  CR_Generated_Taxonomies?: GeneratedTaxonomies;
+  
   createdAt?: string;
   updatedAt?: string;
 }
@@ -245,9 +268,6 @@ export interface TactiqueFormData {
   TC_EndDate?: string;
 }
 
-/**
- * 🔥 CORRECTION : Données de formulaire pour les placements avec champs de placement
- */
 export interface PlacementFormData {
   PL_Label: string;
   PL_Order: number;
@@ -257,23 +277,44 @@ export interface PlacementFormData {
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
   
-  // 🔥 CORRECTION : Ajout des champs de placement
+  // Champs de placement
   TAX_Product?: string;
   TAX_Location?: string;
-  TAX_Audience_Demographic?:string;
-  TAX_Device?:string;
+  TAX_Audience_Demographics?: string;
+  TAX_Device?: string;
   TAX_Targeting?: string;
-
 
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
+// ==================== 🆕 FORMULAIRE CRÉATIF COMPLET ====================
+
 export interface CreatifFormData {
   CR_Label: string;
-  CR_URL?: string;
   CR_Order: number;
   CR_PlacementId: string;
+  
+  // 🆕 Sélection des taxonomies (niveaux 5-6)
+  CR_Taxonomy_Tags?: string;
+  CR_Taxonomy_Platform?: string;
+  CR_Taxonomy_MediaOcean?: string;
+  
+  // 🆕 10 champs spécifiques aux créatifs
+  CR_Start_Date?: string;           // Date de début créatif
+  CR_End_Date?: string;             // Date de fin créatif
+  CR_Rotation_Weight?: string;      // Poids de rotation
+  CR_CTA?: string;                  // Call-to-Action
+  CR_Format_Details?: string;       // Détails du format
+  CR_Offer?: string;                // Offre
+  CR_Plateform_Name?: string;       // Nom de plateforme
+  CR_Primary_Product?: string;      // Produit principal
+  CR_URL?: string;                  // URL du créatif
+  CR_Version?: string;              // Version du créatif
+  
+  // 🆕 Stockage des valeurs taxonomie
+  CR_Taxonomy_Values?: TaxonomyValues;
+  CR_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
 // ==================== TYPES UTILITAIRES POUR LES TAXONOMIES ====================
@@ -281,7 +322,7 @@ export interface CreatifFormData {
 export interface TaxonomyContext {
   campaign?: any;
   tactique?: any;
-  placement?: any;
+  placement?: any;  // 🆕 Ajout du contexte placement
   clientId: string;
 }
 

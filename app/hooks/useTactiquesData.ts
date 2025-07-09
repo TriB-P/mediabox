@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesData.ts - AVEC INTÉGRATION PLACEMENT SERVICE
+// app/hooks/useTactiquesData.ts - AVEC INTÉGRATION CRÉATIFS COMPLÈTE
 
 import { useState, useEffect } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -16,13 +16,21 @@ import {
   deleteTactique
 } from '../lib/tactiqueService';
 
-// 🔥 NOUVEAU : Import du service de placement
+// 🔥 Import du service de placement
 import {
   getPlacementsForTactique,
   createPlacement,
   updatePlacement,
   deletePlacement,
 } from '../lib/placementService';
+
+// 🔥 NOUVEAU : Import du service de créatifs
+import {
+  getCreatifsForPlacement,
+  createCreatif,
+  updateCreatif,
+  deleteCreatif,
+} from '../lib/creatifService';
 
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -33,9 +41,13 @@ interface SectionModalState {
   mode: 'create' | 'edit';
 }
 
-// 🔥 NOUVEAU : État pour stocker les placements par tactique
 interface PlacementsByTactique {
   [tactiqueId: string]: Placement[];
+}
+
+// 🔥 NOUVEAU : État pour stocker les créatifs par placement
+interface CreatifsByPlacement {
+  [placementId: string]: Creatif[];
 }
 
 interface UseTactiquesDataReturn {
@@ -49,9 +61,8 @@ interface UseTactiquesDataReturn {
   selectedOnglet: Onglet | null;
   sections: Array<Section & { isExpanded: boolean }>;
   tactiques: { [sectionId: string]: Tactique[] };
-  
-  // 🔥 NOUVEAU : Placements par tactique
   placements: PlacementsByTactique;
+  creatifs: CreatifsByPlacement; // 🔥 NOUVEAU : Export des créatifs
   
   // Modal de section
   sectionModal: SectionModalState;
@@ -70,12 +81,12 @@ interface UseTactiquesDataReturn {
   handleUpdateTactique: (sectionId: string, tactiqueId: string, updates: Partial<Tactique>) => Promise<void>;
   handleDeleteTactique: (sectionId: string, tactiqueId: string) => Promise<void>;
   
-  // 🔥 NOUVELLES ACTIONS POUR PLACEMENTS (vrais)
+  // Actions pour placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
   handleDeletePlacement: (placementId: string) => Promise<void>;
   
-  // Actions pour créatifs (temporaires)
+  // 🔥 NOUVELLES ACTIONS POUR CRÉATIFS (vraies)
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
   handleDeleteCreatif: (creatifId: string) => Promise<void>;
@@ -101,9 +112,10 @@ export function useTactiquesData(
   const [selectedOnglet, setSelectedOnglet] = useState<Onglet | null>(null);
   const [sections, setSections] = useState<Array<Section & { isExpanded: boolean }>>([]);
   const [tactiques, setTactiques] = useState<{ [sectionId: string]: Tactique[] }>({});
-
-  // 🔥 NOUVEAU : État pour les placements
   const [placements, setPlacements] = useState<PlacementsByTactique>({});
+
+  // 🔥 NOUVEAU : État pour les créatifs
+  const [creatifs, setCreatifs] = useState<CreatifsByPlacement>({});
 
   // État pour le modal de section
   const [sectionModal, setSectionModal] = useState<SectionModalState>({
@@ -120,7 +132,8 @@ export function useTactiquesData(
         setSelectedOnglet(null);
         setSections([]);
         setTactiques({});
-        setPlacements({}); // 🔥 NOUVEAU : Reset des placements
+        setPlacements({});
+        setCreatifs({}); // 🔥 NOUVEAU : Reset des créatifs
         setLoading(false);
         return;
       }
@@ -195,7 +208,8 @@ export function useTactiquesData(
           setSelectedOnglet(null);
           setSections([]);
           setTactiques({});
-          setPlacements({}); // 🔥 NOUVEAU
+          setPlacements({});
+          setCreatifs({}); // 🔥 NOUVEAU
         }
       } catch (err) {
         console.error('Erreur lors du chargement des onglets:', err);
@@ -208,9 +222,9 @@ export function useTactiquesData(
     loadOnglets();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOngletId]);
 
-  // 🔥 MODIFIÉ : Charger les sections, tactiques ET placements
+  // 🔥 MODIFIÉ : Charger les sections, tactiques, placements ET créatifs
   useEffect(() => {
-    async function loadSectionsAndTactiques() {
+    async function loadSectionsTactiquesPlacementsCreatifs() {
       if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedOnglet) return;
       
       try {
@@ -231,7 +245,8 @@ export function useTactiquesData(
         setSections(sectionsWithExpanded);
         
         const tactiquesObj: { [sectionId: string]: Tactique[] } = {};
-        const placementsObj: PlacementsByTactique = {}; // 🔥 NOUVEAU
+        const placementsObj: PlacementsByTactique = {};
+        const creatifsObj: CreatifsByPlacement = {}; // 🔥 NOUVEAU
         
         for (const section of sectionsData) {
           // Charger les tactiques
@@ -245,7 +260,7 @@ export function useTactiquesData(
           
           tactiquesObj[section.id] = sectionTactiques;
           
-          // 🔥 NOUVEAU : Charger les placements pour chaque tactique
+          // Charger les placements pour chaque tactique
           for (const tactique of sectionTactiques) {
             try {
               const tactiquePlacements = await getPlacementsForTactique(
@@ -259,6 +274,27 @@ export function useTactiquesData(
               
               placementsObj[tactique.id] = tactiquePlacements;
               console.log(`📋 ${tactiquePlacements.length} placements chargés pour tactique ${tactique.TC_Label}`);
+              
+              // 🔥 NOUVEAU : Charger les créatifs pour chaque placement
+              for (const placement of tactiquePlacements) {
+                try {
+                  const placementCreatifs = await getCreatifsForPlacement(
+                    selectedClient.clientId,
+                    selectedCampaign.id,
+                    selectedVersion.id,
+                    selectedOnglet.id,
+                    section.id,
+                    tactique.id,
+                    placement.id
+                  );
+                  
+                  creatifsObj[placement.id] = placementCreatifs;
+                  console.log(`🎨 ${placementCreatifs.length} créatifs chargés pour placement ${placement.PL_Label}`);
+                } catch (error) {
+                  console.error(`Erreur chargement créatifs pour placement ${placement.id}:`, error);
+                  creatifsObj[placement.id] = [];
+                }
+              }
             } catch (error) {
               console.error(`Erreur chargement placements pour tactique ${tactique.id}:`, error);
               placementsObj[tactique.id] = [];
@@ -267,7 +303,8 @@ export function useTactiquesData(
         }
         
         setTactiques(tactiquesObj);
-        setPlacements(placementsObj); // 🔥 NOUVEAU
+        setPlacements(placementsObj);
+        setCreatifs(creatifsObj); // 🔥 NOUVEAU
         
         // Calculer les budgets des sections
         const sectionsWithBudget = sectionsWithExpanded.map(section => {
@@ -292,7 +329,7 @@ export function useTactiquesData(
       }
     }
     
-    loadSectionsAndTactiques();
+    loadSectionsTactiquesPlacementsCreatifs();
   }, [selectedClient, selectedCampaign, selectedVersion, selectedOnglet]);
 
   // 🔥 FONCTION UTILITAIRE : Trouver les chemins pour une tactique
@@ -335,7 +372,25 @@ export function useTactiquesData(
     return null;
   };
 
-  // 🔥 NOUVEAU : Gestionnaires pour les placements (vrais)
+  // 🔥 NOUVELLE FONCTION UTILITAIRE : Trouver les chemins pour un créatif
+  const findCreatifPaths = (creatifId: string) => {
+    for (const [placementId, placementCreatifs] of Object.entries(creatifs)) {
+      const creatif = placementCreatifs.find(c => c.id === creatifId);
+      if (creatif) {
+        const placementInfo = findPlacementPaths(placementId);
+        if (placementInfo) {
+          return {
+            creatif,
+            ...placementInfo,
+            creatifId
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  // Actions pour les placements [INCHANGÉES]
   const handleCreatePlacement = async (tactiqueId: string): Promise<Placement> => {
     const tactiqueInfo = findTactiquePaths(tactiqueId);
     if (!tactiqueInfo) {
@@ -343,7 +398,6 @@ export function useTactiquesData(
     }
     
     try {
-      // Déterminer l'ordre pour le nouveau placement
       const existingPlacements = placements[tactiqueId] || [];
       const nextOrder = existingPlacements.length;
       
@@ -363,8 +417,8 @@ export function useTactiquesData(
         tactiqueInfo.paths.sectionId,
         tactiqueInfo.paths.tactiqueId,
         newPlacementData,
-        selectedCampaign, // Données de campagne pour taxonomies
-        tactiqueInfo.tactique // Données de tactique pour taxonomies
+        selectedCampaign,
+        tactiqueInfo.tactique
       );
       
       const newPlacement = {
@@ -372,13 +426,18 @@ export function useTactiquesData(
         ...newPlacementData
       };
       
-      // Mettre à jour l'état local
       setPlacements(prev => ({
         ...prev,
         [tactiqueId]: [
           ...(prev[tactiqueId] || []),
           newPlacement
         ]
+      }));
+      
+      // 🔥 NOUVEAU : Initialiser les créatifs pour ce placement
+      setCreatifs(prev => ({
+        ...prev,
+        [placementId]: []
       }));
       
       console.log('✅ Placement créé:', newPlacement);
@@ -405,11 +464,10 @@ export function useTactiquesData(
         placementInfo.paths.tactiqueId,
         placementId,
         data,
-        selectedCampaign, // Données de campagne pour taxonomies
-        placementInfo.tactique // Données de tactique pour taxonomies
+        selectedCampaign,
+        placementInfo.tactique
       );
       
-      // Mettre à jour l'état local
       setPlacements(prev => {
         const tactiqueId = placementInfo.tactique.id;
         const updatedPlacements = (prev[tactiqueId] || []).map(placement => 
@@ -450,7 +508,6 @@ export function useTactiquesData(
         placementId
       );
       
-      // Mettre à jour l'état local
       setPlacements(prev => {
         const tactiqueId = placementInfo.tactique.id;
         const filteredPlacements = (prev[tactiqueId] || []).filter(p => p.id !== placementId);
@@ -461,6 +518,13 @@ export function useTactiquesData(
         };
       });
       
+      // 🔥 NOUVEAU : Nettoyer les créatifs de ce placement
+      setCreatifs(prev => {
+        const newCreatifs = { ...prev };
+        delete newCreatifs[placementId];
+        return newCreatifs;
+      });
+      
       console.log('✅ Placement supprimé');
     } catch (err) {
       console.error('Erreur lors de la suppression du placement:', err);
@@ -468,7 +532,141 @@ export function useTactiquesData(
     }
   };
 
-  // ... [Le reste des fonctions existantes reste inchangé] ...
+  // 🔥 NOUVELLES ACTIONS POUR CRÉATIFS (vraies, plus temporaires)
+  const handleCreateCreatif = async (placementId: string): Promise<Creatif> => {
+    const placementInfo = findPlacementPaths(placementId);
+    if (!placementInfo) {
+      throw new Error('Placement non trouvé pour créer un créatif');
+    }
+    
+    try {
+      const existingCreatifs = creatifs[placementId] || [];
+      const nextOrder = existingCreatifs.length;
+      
+      const newCreatifData = {
+        CR_Label: 'Nouveau créatif',
+        CR_Order: nextOrder,
+        CR_PlacementId: placementId,
+        CR_Taxonomy_Values: {},
+        CR_Generated_Taxonomies: {}
+      };
+      
+      const creatifId = await createCreatif(
+        placementInfo.paths.clientId,
+        placementInfo.paths.campaignId,
+        placementInfo.paths.versionId,
+        placementInfo.paths.ongletId,
+        placementInfo.paths.sectionId,
+        placementInfo.paths.tactiqueId,
+        placementId,
+        newCreatifData,
+        selectedCampaign,
+        placementInfo.tactique,
+        placementInfo.placement
+      );
+      
+      const newCreatif = {
+        id: creatifId,
+        ...newCreatifData
+      };
+      
+      setCreatifs(prev => ({
+        ...prev,
+        [placementId]: [
+          ...(prev[placementId] || []),
+          newCreatif
+        ]
+      }));
+      
+      console.log('✅ Créatif créé:', newCreatif);
+      return newCreatif;
+    } catch (err) {
+      console.error('Erreur lors de la création du créatif:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateCreatif = async (creatifId: string, data: Partial<Creatif>) => {
+    const creatifInfo = findCreatifPaths(creatifId);
+    if (!creatifInfo) {
+      throw new Error('Créatif non trouvé pour mise à jour');
+    }
+    
+    try {
+      await updateCreatif(
+        creatifInfo.paths.clientId,
+        creatifInfo.paths.campaignId,
+        creatifInfo.paths.versionId,
+        creatifInfo.paths.ongletId,
+        creatifInfo.paths.sectionId,
+        creatifInfo.paths.tactiqueId,
+        creatifInfo.placementId,
+        creatifId,
+        data,
+        selectedCampaign,
+        creatifInfo.tactique,
+        creatifInfo.placement
+      );
+      
+      setCreatifs(prev => {
+        const placementId = creatifInfo.placement.id;
+        const updatedCreatifs = (prev[placementId] || []).map(creatif => 
+          creatif.id === creatifId ? { ...creatif, ...data } : creatif
+        );
+        
+        return {
+          ...prev,
+          [placementId]: updatedCreatifs
+        };
+      });
+      
+      console.log('✅ Créatif mis à jour');
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du créatif:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteCreatif = async (creatifId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce créatif ?')) {
+      return;
+    }
+    
+    const creatifInfo = findCreatifPaths(creatifId);
+    if (!creatifInfo) {
+      throw new Error('Créatif non trouvé pour suppression');
+    }
+    
+    try {
+      await deleteCreatif(
+        creatifInfo.paths.clientId,
+        creatifInfo.paths.campaignId,
+        creatifInfo.paths.versionId,
+        creatifInfo.paths.ongletId,
+        creatifInfo.paths.sectionId,
+        creatifInfo.paths.tactiqueId,
+        creatifInfo.placementId,
+        creatifId
+      );
+      
+      setCreatifs(prev => {
+        const placementId = creatifInfo.placement.id;
+        const filteredCreatifs = (prev[placementId] || []).filter(c => c.id !== creatifId);
+        
+        return {
+          ...prev,
+          [placementId]: filteredCreatifs
+        };
+      });
+      
+      console.log('✅ Créatif supprimé');
+    } catch (err) {
+      console.error('Erreur lors de la suppression du créatif:', err);
+      throw err;
+    }
+  };
+
+  // ... [Le reste des fonctions (sections, tactiques, onglets) restent inchangées] ...
 
   // Fonctions pour le modal de section [INCHANGÉES]
   const openSectionModal = () => {
@@ -492,7 +690,6 @@ export function useTactiquesData(
     
     try {
       if (sectionModal.mode === 'create') {
-        // Créer une nouvelle section
         const nextOrder = sections.length;
         
         const newSectionData = {
@@ -524,7 +721,6 @@ export function useTactiquesData(
           [sectionId]: []
         }));
       } else if (sectionModal.mode === 'edit' && sectionModal.section) {
-        // Modifier une section existante
         const updates = {
           SECTION_Name: sectionData.SECTION_Name,
           SECTION_Color: sectionData.SECTION_Color
@@ -623,7 +819,7 @@ export function useTactiquesData(
         TC_StartDate: selectedCampaign.CA_Start_Date,
         TC_EndDate: selectedCampaign.CA_End_Date
       };
-      //
+      
       const tactiqueId = await addTactique(
         selectedClient.clientId,
         selectedCampaign.id,
@@ -646,7 +842,6 @@ export function useTactiquesData(
         ]
       }));
       
-      // 🔥 NOUVEAU : Initialiser les placements pour cette tactique
       setPlacements(prev => ({
         ...prev,
         [tactiqueId]: []
@@ -685,7 +880,6 @@ export function useTactiquesData(
         };
       });
       
-      // Recalculer le budget de la section si nécessaire
       if (updates.TC_Budget !== undefined) {
         const updatedSectionTactiques = tactiques[sectionId].map(tactique => 
           tactique.id === tactiqueId 
@@ -740,11 +934,20 @@ export function useTactiquesData(
         };
       });
       
-      // 🔥 NOUVEAU : Nettoyer les placements de cette tactique
       setPlacements(prev => {
         const newPlacements = { ...prev };
         delete newPlacements[tactiqueId];
         return newPlacements;
+      });
+      
+      // 🔥 NOUVEAU : Nettoyer les créatifs des placements de cette tactique
+      setCreatifs(prev => {
+        const newCreatifs = { ...prev };
+        const tactiquePlacements = placements[tactiqueId] || [];
+        tactiquePlacements.forEach(placement => {
+          delete newCreatifs[placement.id];
+        });
+        return newCreatifs;
       });
       
       setSections(prev => {
@@ -761,25 +964,6 @@ export function useTactiquesData(
       console.error('Erreur lors de la suppression de la tactique:', err);
       setError('Erreur lors de la suppression de la tactique');
     }
-  };
-
-  // Gestionnaires temporaires pour créatifs [INCHANGÉS]
-  const handleCreateCreatif = async (placementId: string): Promise<Creatif> => {
-    console.log('Création de créatif pour placement:', placementId);
-    return {
-      id: `temp-creatif-${Date.now()}`,
-      CR_Label: 'Nouveau créatif',
-      CR_Order: 0,
-      CR_PlacementId: placementId
-    };
-  };
-
-  const handleUpdateCreatif = async (creatifId: string, data: Partial<Creatif>) => {
-    console.log('Mise à jour créatif:', creatifId, data);
-  };
-
-  const handleDeleteCreatif = async (creatifId: string) => {
-    console.log('Suppression créatif:', creatifId);
   };
 
   // Gestionnaires pour les onglets [INCHANGÉS] ...
@@ -912,7 +1096,8 @@ export function useTactiquesData(
     selectedOnglet,
     sections,
     tactiques,
-    placements, // 🔥 NOUVEAU : Export des placements
+    placements,
+    creatifs, // 🔥 NOUVEAU : Export des créatifs
     
     // Modal de section
     sectionModal,
@@ -931,12 +1116,12 @@ export function useTactiquesData(
     handleUpdateTactique,
     handleDeleteTactique,
     
-    // Actions pour placements (maintenant réelles)
+    // Actions pour placements
     handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
     
-    // Actions pour créatifs
+    // Actions pour créatifs (maintenant réelles)
     handleCreateCreatif,
     handleUpdateCreatif,
     handleDeleteCreatif,

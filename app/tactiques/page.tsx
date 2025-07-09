@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx
+// app/tactiques/page.tsx - AVEC CRÉATIFS INTÉGRÉS
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -11,7 +11,7 @@ import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import LoadingSpinner from '../components/Others/LoadingSpinner';
-import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel'; // Import the new component
+import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
 import {
   ChevronDownIcon,
   PlusIcon,
@@ -40,8 +40,9 @@ export default function TactiquesPage() {
     selectedOnglet,
     sections,
     tactiques,
-    placements, // 🔥 NOUVEAU : Récupération des placements
-    // NOUVEAU: Propriétés du modal
+    placements,
+    creatifs, // 🔥 NOUVEAU : Récupération des créatifs
+    // Propriétés du modal
     sectionModal,
     handleSaveSection,
     closeSectionModal,
@@ -52,10 +53,10 @@ export default function TactiquesPage() {
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
-    handleCreatePlacement, // 🔥 NOUVEAU : Actions pour placements
+    handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
-    handleCreateCreatif,
+    handleCreateCreatif, // 🔥 NOUVEAU : Actions créatifs réelles
     handleUpdateCreatif,
     handleDeleteCreatif,
     handleAddOnglet,
@@ -183,12 +184,31 @@ export default function TactiquesPage() {
 
   const flatTactiques = Object.values(tactiques).flat();
 
-  // 🔥 NOUVEAU : Log pour debug des placements
+  // 🔥 NOUVEAU : Logs et statistiques pour les créatifs
   useEffect(() => {
     console.log('📋 Placements actuels:', placements);
+    console.log('🎨 Créatifs actuels:', creatifs);
+    
     const totalPlacements = Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0);
+    const totalCreatifs = Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0);
+    
     console.log(`📊 Total placements: ${totalPlacements}`);
-  }, [placements]);
+    console.log(`🎯 Total créatifs: ${totalCreatifs}`);
+    
+    // Statistiques détaillées par tactique
+    Object.entries(tactiques).forEach(([sectionId, sectionTactiques]) => {
+      sectionTactiques.forEach(tactique => {
+        const tactiquesPlacements = placements[tactique.id] || [];
+        const tactiquesCreatifs = tactiquesPlacements.reduce((sum, placement) => {
+          return sum + (creatifs[placement.id] || []).length;
+        }, 0);
+        
+        if (tactiquesPlacements.length > 0 || tactiquesCreatifs > 0) {
+          console.log(`🔍 Tactique "${tactique.TC_Label}": ${tactiquesPlacements.length} placements, ${tactiquesCreatifs} créatifs`);
+        }
+      });
+    });
+  }, [placements, creatifs, tactiques]);
 
   return (
     <div className="space-y-6 pb-16">
@@ -284,9 +304,9 @@ export default function TactiquesPage() {
       {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}
 
       {selectedVersion && !showLoader && (
-        <div className="w-full flex"> {/* Use flex to place panel next to content */}
-          {/* Main content area */}
-          <div className="flex-1 mr-4"> {/* Add margin-right to separate from the panel */}
+        <div className="w-full flex">
+          {/* Zone de contenu principal */}
+          <div className="flex-1 mr-4">
             {/* Barre d'outils */}
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-2">
@@ -307,6 +327,18 @@ export default function TactiquesPage() {
                   </button>
                 )}
               </div>
+
+              {/* 🔥 NOUVEAU : Statistiques créatifs dans la barre d'outils */}
+              {sectionsWithTactiques.length > 0 && (
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <span>
+                    {Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0)} placement{Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0) !== 1 ? 's' : ''}
+                  </span>
+                  <span>
+                    {Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0)} créatif{Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0) !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Message d'erreur */}
@@ -331,6 +363,7 @@ export default function TactiquesPage() {
                       <TactiquesHierarchyView
                         sections={sectionsWithTactiques}
                         placements={placements}
+                        creatifs={creatifs} // 🔥 NOUVEAU : Données créatifs
                         onSectionExpand={handleSectionExpand}
                         onDragEnd={handleDragEnd}
                         onEditSection={handleEditSection}
@@ -341,7 +374,7 @@ export default function TactiquesPage() {
                         onCreatePlacement={handleCreatePlacement}
                         onUpdatePlacement={handleUpdatePlacement}
                         onDeletePlacement={handleDeletePlacement}
-                        onCreateCreatif={handleCreateCreatif}
+                        onCreateCreatif={handleCreateCreatif} // 🔥 NOUVEAU : Actions créatifs
                         onUpdateCreatif={handleUpdateCreatif}
                         onDeleteCreatif={handleDeleteCreatif}
                         formatCurrency={formatCurrency}
@@ -384,7 +417,6 @@ export default function TactiquesPage() {
                     onEditTactique={(tactiqueId, sectionId) => {
                       const tactique = flatTactiques.find(t => t.id === tactiqueId);
                       if (tactique) {
-                        // Logique d'édition à implémenter
                         console.log('Éditer tactique:', tactique);
                       }
                     }}
@@ -394,7 +426,7 @@ export default function TactiquesPage() {
             )}
           </div>
 
-          {/* Budget Panel - only show in hierarchy view */}
+          {/* Budget Panel - seulement en mode hiérarchie */}
           {viewMode === 'hierarchy' && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
@@ -431,7 +463,7 @@ export default function TactiquesPage() {
         />
       )}
 
-      {/* NOUVEAU: Modal de section */}
+      {/* Modal de section */}
       <SectionModal
         isOpen={sectionModal.isOpen}
         onClose={closeSectionModal}
