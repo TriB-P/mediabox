@@ -1,4 +1,4 @@
-// app/types/tactiques.ts - CORRIGÉ AVEC isExpanded ET AUTRES AMÉLIORATIONS
+// app/types/tactiques.ts
 
 // ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
@@ -14,6 +14,7 @@ export interface Section {
   SECTION_Color?: string;
   SECTION_Budget?: number; // Calculé à partir de la somme des budgets des tactiques
   isExpanded?: boolean; // 🔥 AJOUTÉ : État d'expansion pour l'UI
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
 // ==================== TYPES EXISTANTS (INCHANGÉS) ====================
@@ -92,6 +93,8 @@ export interface Tactique {
   TC_Has_Bonus?: boolean;         // Inclut bonification
   TC_Real_Value?: number;         // Valeur réelle payée
   TC_Bonus_Value?: number;        // Bonification calculée
+
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
 // ==================== TYPES TAXONOMIE ====================
@@ -102,7 +105,7 @@ export type TaxonomyVariableSource = FieldSource;
 export interface TaxonomyVariableValue {
   value: string;
   source: TaxonomyVariableSource;
-  format: TaxonomyVariableFormat;
+  format: TaxonomyFormat;
   shortcodeId?: string;
   openValue?: string;
 }
@@ -119,7 +122,7 @@ export interface GeneratedTaxonomies {
 
 export interface ParsedTaxonomyVariable {
   variable: string;
-  formats: TaxonomyVariableFormat[];
+  formats: TaxonomyFormat[];
   source: TaxonomyVariableSource;
   label?: string;
   level: number;
@@ -157,6 +160,7 @@ export interface Placement {
   
   createdAt?: string;
   updatedAt?: string;
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
 // ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
@@ -190,6 +194,7 @@ export interface Creatif {
   
   createdAt?: string;
   updatedAt?: string;
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
 export interface Onglet {
@@ -340,8 +345,8 @@ export interface TaxonomyProcessingResult {
 
 export interface TaxonomyFieldConfig {
   variable: string;
-  source: TaxonomyVariableSource;
-  formats: TaxonomyVariableFormat[];
+  source: FieldSource;
+  formats: TaxonomyFormat[];
   isRequired: boolean;
   hasCustomList: boolean;
   currentValue?: string;

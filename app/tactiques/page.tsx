@@ -2,10 +2,10 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { useTactiquesData } from '../hooks/useTactiquesData';
-import { SectionWithTactiques } from '../types/tactiques';
+import { SectionWithTactiques, Section, Tactique, Placement, Creatif } from '../types/tactiques';
 import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
 import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
@@ -13,6 +13,7 @@ import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import LoadingSpinner from '../components/Others/LoadingSpinner';
 import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
+import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
 import {
   ChevronDownIcon,
   PlusIcon,
@@ -41,9 +42,9 @@ export default function TactiquesPage() {
     onglets,
     selectedOnglet,
     sections,
-    tactiques,
-    placements,
-    creatifs,
+    tactiques, // C'est un objet { sectionId: Tactique[] }
+    placements, // C'est un objet { tactiqueId: Placement[] }
+    creatifs, // C'est un objet { placementId: Creatif[] }
     // Modal de section
     sectionModal,
     handleSaveSection,
@@ -81,6 +82,10 @@ export default function TactiquesPage() {
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);
+
+  // 🔥 NOUVEAU: État pour les éléments sélectionnés (Set pour l'efficacité)
+  // Stocke les IDs des éléments sélectionnés
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Refs pour les dropdowns
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
@@ -147,20 +152,6 @@ export default function TactiquesPage() {
     }
   }, [selectedCampaign]);
 
-  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
-
-  // Gestionnaires pour les changements de sélection avec dropdown
-  const handleCampaignChangeLocal = (campaign: any) => {
-    handleCampaignChange(campaign);
-    setShowCampaignDropdown(false);
-    setShowVersionDropdown(false);
-  };
-
-  const handleVersionChangeLocal = (version: any) => {
-    handleVersionChange(version);
-    setShowVersionDropdown(false);
-  };
-
   // Formater les montants en CAD
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
@@ -170,14 +161,97 @@ export default function TactiquesPage() {
     }).format(amount);
   }, []);
 
-  // ==================== PRÉPARATION DES DONNÉES ====================
+  // ==================== GESTION DES SÉLECTIONS (NOUVEAU) ====================
 
-  // Préparer les données pour les vues avec états d'expansion préservés
-  const sectionsWithTactiques: SectionWithTactiques[] = sections.map(section => ({
-    ...section,
-    tactiques: tactiques[section.id] || [],
-    // isExpanded est déjà inclus dans section depuis useTactiquesData
-  }));
+  const handleSelectItems = useCallback((
+    itemIds: string[],
+    type: 'section' | 'tactique' | 'placement' | 'creatif',
+    isSelected: boolean
+  ) => {
+    setSelectedItems(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      itemIds.forEach(id => {
+        if (isSelected) {
+          newSelected.add(id);
+        } else {
+          newSelected.delete(id);
+        }
+      });
+      return newSelected;
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedItems(new Set());
+  }, []);
+
+  const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
+    // 🔥 Implémentation réelle à venir dans useTactiquesOperations.ts
+    alert(`Dupliquer les éléments: ${itemIds.join(', ')}`);
+    // Exemple d'appel au service (sera implémenté plus tard)
+    // await duplicateItems(itemIds);
+    // await onRefresh();
+    // handleClearSelection();
+  }, [handleClearSelection]);
+
+  const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer les ${itemIds.length} éléments sélectionnés ? Cette action est irréversible.`)) {
+      return;
+    }
+    // 🔥 Implémentation réelle à venir dans useTactiquesOperations.ts
+    alert(`Supprimer les éléments: ${itemIds.join(', ')}`);
+    // Exemple d'appel au service (sera implémenté plus tard)
+    // await deleteItems(itemIds);
+    // await onRefresh();
+    // handleClearSelection();
+  }, [handleClearSelection]);
+
+  // ==================== PRÉPARATION DES DONNÉES (CORRIGÉ POUR LA SÉLECTION) ====================
+
+  // Préparer les données pour les vues avec états d'expansion et SÉLECTION préservés
+  const sectionsWithTactiques: SectionWithTactiques[] = useMemo(() => {
+    return sections.map(section => {
+      const mappedTactiques = (tactiques[section.id] || []).map(tactique => {
+        const mappedPlacements = (placements[tactique.id] || []).map(placement => {
+          const mappedCreatifs = (creatifs[placement.id] || []).map(creatif => ({
+            ...creatif,
+            isSelected: selectedItems.has(creatif.id)
+          }));
+
+          // Un placement est sélectionné si son ID est dans selectedItems OU si tous ses créatifs sont sélectionnés
+          const isPlacementSelected = selectedItems.has(placement.id) || 
+                                      (mappedCreatifs.length > 0 && mappedCreatifs.every(c => c.isSelected));
+
+          return {
+            ...placement,
+            creatifs: mappedCreatifs,
+            isSelected: isPlacementSelected
+          };
+        });
+
+        // Une tactique est sélectionnée si son ID est dans selectedItems OU si tous ses placements sont sélectionnés
+        const isTactiqueSelected = selectedItems.has(tactique.id) || 
+                                   (mappedPlacements.length > 0 && mappedPlacements.every(p => p.isSelected));
+
+        return {
+          ...tactique,
+          placements: mappedPlacements,
+          isSelected: isTactiqueSelected
+        };
+      });
+
+      // Une section est sélectionnée si son ID est dans selectedItems OU si toutes ses tactiques sont sélectionnées
+      const isSectionSelected = selectedItems.has(section.id) ||
+                                (mappedTactiques.length > 0 && mappedTactiques.every(t => t.isSelected));
+
+      return {
+        ...section,
+        tactiques: mappedTactiques,
+        isSelected: isSectionSelected
+      };
+    });
+  }, [sections, tactiques, placements, creatifs, selectedItems]);
+
 
   const budgetUtilisé = sections.reduce((total, section) => total + (section.SECTION_Budget || 0), 0);
   const budgetRestant = totalBudget - budgetUtilisé;
@@ -248,7 +322,7 @@ export default function TactiquesPage() {
                     className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
                       selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
                     }`}
-                    onClick={() => handleCampaignChangeLocal(campaign)}
+                    onClick={() => handleCampaignChange(campaign)}
                   >
                     {campaign.CA_Name}
                   </li>
@@ -279,7 +353,7 @@ export default function TactiquesPage() {
                     className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
                       selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
                     }`}
-                    onClick={() => handleVersionChangeLocal(version)}
+                    onClick={() => handleVersionChange(version)}
                   >
                     {version.name}
                     {version.isOfficial && (
@@ -302,6 +376,37 @@ export default function TactiquesPage() {
         <div className="w-full flex">
           {/* Zone de contenu principal */}
           <div className="flex-1 mr-4">
+            {/* 🔥 NOUVEAU: Panneau d'actions groupées */}
+            {selectedItems.size > 0 && (
+              <SelectedActionsPanel
+                selectedItems={Array.from(selectedItems).map(id => {
+                  // Trouver l'élément original par ID
+                  // Il est important que cette logique soit robuste pour trouver l'élément dans la hiérarchie aplatie
+                  for (const section of sectionsWithTactiques) { // sectionsWithTactiques est déjà une structure hiérarchique avec les isSelected
+                    if (section.id === id) return section;
+                    for (const tactique of section.tactiques) {
+                      if (tactique.id === id) return tactique;
+                      if (tactique.placements) { // Vérifier que placements existe
+                        for (const placement of tactique.placements) {
+                          if (placement.id === id) return placement;
+                          if (placement.creatifs) { // Vérifier que creatifs existe
+                            for (const creatif of placement.creatifs) {
+                              if (creatif.id === id) return creatif;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  return { id, name: 'Unknown', type: 'unknown'} as any; // Fallback, à ajuster si des propriétés spécifiques sont nécessaires
+                }).filter(Boolean)}
+                onDuplicateSelected={handleDuplicateSelected}
+                onDeleteSelected={handleDeleteSelected}
+                onClearSelection={handleClearSelection}
+                loading={isLoading}
+              />
+            )}
+            
             {/* Barre d'outils */}
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-2">
@@ -364,7 +469,8 @@ export default function TactiquesPage() {
                         onDeleteCreatif={handleDeleteCreatif}
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
-                        onRefresh={onRefresh} // 🔥 NOUVEAU : Fonction de rafraîchissement pour le drag and drop
+                        onRefresh={onRefresh}
+                        onSelectItems={handleSelectItems}
                       />
                     ) : (
                       <div className="bg-white p-8 rounded-lg shadow text-center">

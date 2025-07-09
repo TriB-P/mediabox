@@ -43,6 +43,11 @@ interface TactiquesHierarchyViewProps {
   formatCurrency: (amount: number) => string;
   totalBudget: number;
   onRefresh?: () => Promise<void>;
+  onSelectItems: (
+    itemIds: string[], 
+    type: 'section' | 'tactique' | 'placement' | 'creatif', 
+    isSelected: boolean
+  ) => void; // 🔥 NOUVEAU: Gestionnaire de sélection au niveau de la page
 }
 
 export default function TactiquesHierarchyView({
@@ -63,19 +68,20 @@ export default function TactiquesHierarchyView({
   onDeleteCreatif,
   formatCurrency,
   totalBudget,
-  onRefresh
+  onRefresh,
+  onSelectItems // 🔥 NOUVEAU: onSelectItems
 }: TactiquesHierarchyViewProps) {
 
   // ==================== HOOK DRAG AND DROP ====================
   
-  const tactiques = sections.reduce((acc, section) => {
+  const tactiquesFlat = sections.reduce((acc, section) => {
     acc[section.id] = section.tactiques;
     return acc;
   }, {} as { [sectionId: string]: Tactique[] });
 
   const { isDragLoading, handleDragEnd } = useDragAndDrop({
     sections,
-    tactiques,
+    tactiques: tactiquesFlat,
     placements,
     creatifs,
     onRefresh
@@ -149,6 +155,63 @@ export default function TactiquesHierarchyView({
       [placementId]: !prev[placementId]
     }));
   };
+
+  // 🔥 NOUVEAU: Gestionnaire de sélection pour les sections
+  const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
+    // Collecter les IDs de la section et de tous ses enfants
+    const itemIds: string[] = [sectionId];
+    const sectionTactiques = sections.find(s => s.id === sectionId)?.tactiques || [];
+    
+    sectionTactiques.forEach(tactique => {
+      itemIds.push(tactique.id);
+      const tactiquePlacements = placements[tactique.id] || [];
+      tactiquePlacements.forEach(placement => {
+        itemIds.push(placement.id);
+        const placementCreatifs = creatifs[placement.id] || [];
+        placementCreatifs.forEach(creatif => {
+          itemIds.push(creatif.id);
+        });
+      });
+    });
+
+    onSelectItems(itemIds, 'section', isSelected);
+  };
+
+  // 🔥 NOUVEAU: Gestionnaire de sélection pour les tactiques
+  const handleTactiqueSelect = (tactiqueId: string, isSelected: boolean) => {
+    // Collecter les IDs de la tactique et de tous ses enfants
+    const itemIds: string[] = [tactiqueId];
+    const tactiquePlacements = placements[tactiqueId] || [];
+
+    tactiquePlacements.forEach(placement => {
+      itemIds.push(placement.id);
+      const placementCreatifs = creatifs[placement.id] || [];
+      placementCreatifs.forEach(creatif => {
+        itemIds.push(creatif.id);
+      });
+    });
+
+    onSelectItems(itemIds, 'tactique', isSelected);
+  };
+
+  // 🔥 NOUVEAU: Gestionnaire de sélection pour les placements
+  const handlePlacementSelect = (placementId: string, isSelected: boolean) => {
+    // Collecter les IDs du placement et de tous ses enfants
+    const itemIds: string[] = [placementId];
+    const placementCreatifs = creatifs[placementId] || [];
+    
+    placementCreatifs.forEach(creatif => {
+      itemIds.push(creatif.id);
+    });
+
+    onSelectItems(itemIds, 'placement', isSelected);
+  };
+
+  // 🔥 NOUVEAU: Gestionnaire de sélection pour les créatifs
+  const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
+    onSelectItems([creatifId], 'creatif', isSelected);
+  };
+
 
   // ==================== GESTIONNAIRES DE CRÉATION ====================
 
@@ -336,14 +399,23 @@ export default function TactiquesHierarchyView({
                           onMouseEnter={() => setHoveredSection(section.id)}
                           onMouseLeave={() => setHoveredSection(null)}
                         >
+                          {/* 🔥 CORRECTION: Le onClick pour l'expansion est sur un div séparé */}
                           <div
                             className={`flex justify-between items-center px-4 py-3 cursor-pointer ${
                               section.isExpanded ? 'bg-gray-50' : ''
-                            }`}
-                            onClick={() => onSectionExpand(section.id)}
+                            } ${section.isSelected ? 'bg-indigo-50' : ''}`}
                             style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
+                            onClick={() => onSectionExpand(section.id)} 
                           >
                             <div className="flex items-center">
+                              {/* Checkbox pour la section */}
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
+                                checked={section.isSelected || false}
+                                onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
+                                onClick={(e) => e.stopPropagation()} 
+                              />
                               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                                 <Bars3Icon className="h-4 w-4 text-gray-400" />
                               </span>
@@ -379,7 +451,7 @@ export default function TactiquesHierarchyView({
                                       }} 
                                       className="p-1 rounded hover:bg-gray-200"
                                     >
-                                      <PencilIcon className="h-4 w-4 text-gray-500" />
+                                      <PencilIcon className="h-4 w-4" />
                                     </button>
                                   )}
                                   {onDeleteSection && (
@@ -390,7 +462,7 @@ export default function TactiquesHierarchyView({
                                       }} 
                                       className="p-1 rounded hover:bg-gray-200"
                                     >
-                                      <TrashIcon className="h-4 w-4 text-gray-500" />
+                                      <TrashIcon className="h-4 w-4" />
                                     </button>
                                   )}
                                 </div>
@@ -407,7 +479,7 @@ export default function TactiquesHierarchyView({
                           </div>
                         </div>
 
-                        {/* Rendu des tactiques - logique similaire mais raccourcie */}
+                        {/* Rendu des tactiques */}
                         {section.isExpanded && (
                           <div className="bg-gray-50">
                             {section.tactiques.length === 0 ? (
@@ -418,8 +490,9 @@ export default function TactiquesHierarchyView({
                               <Droppable droppableId={`tactiques-${section.id}`} type="TACTIQUE">
                                 {(provided) => (
                                   <div ref={provided.innerRef} {...provided.droppableProps}>
-                                            {section.tactiques.map((tactique, tactiqueIndex) => {
-                                      const tactiquePlacements = placements[tactique.id] || [];
+                                    {/* 🔥 CORRECTION: Typage des éléments dans la map */}
+                                    {section.tactiques.map((tactique: TactiqueWithPlacements, tactiqueIndex) => { 
+                                      const tactiquePlacements = tactique.placements || []; // Utilisez tactique.placements ici
                                       
                                       return (
                                         <TactiqueItem
@@ -448,6 +521,7 @@ export default function TactiquesHierarchyView({
                                           onEditCreatif={handleEditCreatif}
                                           onDeleteCreatif={onDeleteCreatif}
                                           formatCurrency={formatCurrency}
+                                          onSelect={handleTactiqueSelect}
                                         />
                                       );
                                     })}

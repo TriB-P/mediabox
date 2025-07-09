@@ -18,6 +18,7 @@ import { Tactique, Placement, Creatif } from '../../types/tactiques';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
+  onSelect: (id: string, type: 'section' | 'tactique' | 'placement' | 'creatif', isSelected: boolean) => void;
 }
 
 // ==================== COMPOSANT CRÉATIF ====================
@@ -43,7 +44,8 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   hoveredCreatif,
   onHover,
   onEdit,
-  onDelete
+  onDelete,
+  onSelect
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
@@ -59,11 +61,19 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
           {...provided.draggableProps}
           className={`flex justify-between items-center px-3 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          }`}
+          } ${creatif.isSelected ? 'bg-indigo-50' : ''}`}
           onMouseEnter={() => onHover({sectionId, tactiqueId, placementId, creatifId: creatif.id})}
           onMouseLeave={() => onHover(null)}
         >
           <div className="flex items-center">
+            {/* Checkbox pour le créatif */}
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
+              checked={creatif.isSelected || false}
+              onChange={(e) => onSelect(creatif.id, 'creatif', e.target.checked)}
+              onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic à l'élément parent
+            />
             <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
               <Bars3Icon className="h-3 w-3 text-gray-300" />
             </span>
@@ -147,10 +157,14 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   onDelete,
   onCreateCreatif,
   onEditCreatif,
-  onDeleteCreatif
+  onDeleteCreatif,
+  onSelect
 }) => {
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
+
+  // Déterminer si tous les créatifs sont sélectionnés
+  const allCreatifsSelected = creatifs.length > 0 && creatifs.every(c => c.isSelected);
 
   return (
     <Draggable
@@ -164,7 +178,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
           {...provided.draggableProps}
           className={`border-b border-gray-200 last:border-b-0 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          }`}
+          } ${placement.isSelected ? 'bg-indigo-50' : ''}`}
           onMouseEnter={() => onHoverPlacement({sectionId, tactiqueId, placementId: placement.id})}
           onMouseLeave={() => onHoverPlacement(null)}
         >
@@ -173,6 +187,16 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
             onClick={() => onExpand(placement.id)}
           >
             <div className="flex items-center">
+              {/* Checkbox pour le placement */}
+              <input
+                type="checkbox"
+                className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
+                checked={placement.isSelected || false}
+                // Si tous les créatifs sont sélectionnés, la checkbox du parent doit l'être aussi
+                // Sinon, si le parent est sélectionné mais pas tous les enfants, c'est un état intermédiaire
+                onChange={(e) => onSelect(placement.id, 'placement', e.target.checked)}
+                onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic
+              />
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-3 w-3 text-gray-400" />
               </span>
@@ -260,6 +284,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                           onEdit={onEditCreatif}
                           onDelete={onDeleteCreatif}
                           formatCurrency={() => ''}
+                          onSelect={onSelect}
                         />
                       ))}
                       {provided.placeholder}
@@ -327,10 +352,14 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   onCreateCreatif,
   onEditCreatif,
   onDeleteCreatif,
-  formatCurrency
+  formatCurrency,
+  onSelect
 }) => {
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
+
+  // Déterminer si tous les placements sont sélectionnés
+  const allPlacementsSelected = placements.length > 0 && placements.every(p => p.isSelected);
 
   return (
     <Draggable
@@ -344,7 +373,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
           {...provided.draggableProps}
           className={`border-b border-gray-100 last:border-b-0 pl-8 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          }`}
+          } ${tactique.isSelected ? 'bg-indigo-50' : ''}`}
           onMouseEnter={() => onHoverTactique({sectionId, tactiqueId: tactique.id})}
           onMouseLeave={() => onHoverTactique(null)}
         >
@@ -353,6 +382,16 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
             onClick={() => onExpandTactique(tactique.id)}
           >
             <div className="flex items-center">
+              {/* Checkbox pour la tactique */}
+              <input
+                type="checkbox"
+                className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
+                checked={tactique.isSelected || false}
+                // Si tous les placements sont sélectionnés, la checkbox du parent doit l'être aussi
+                // Sinon, si le parent est sélectionné mais pas tous les enfants, c'est un état intermédiaire
+                onChange={(e) => onSelect(tactique.id, 'tactique', e.target.checked)}
+                onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic
+              />
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-4 w-4 text-gray-400" />
               </span>
@@ -442,6 +481,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                           onEditCreatif={onEditCreatif}
                           onDeleteCreatif={onDeleteCreatif}
                           formatCurrency={formatCurrency}
+                          onSelect={onSelect}
                         />
                       ))}
                       {provided.placeholder}
