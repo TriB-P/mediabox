@@ -1,4 +1,5 @@
-// app/tactiques/page.tsx - AVEC CRÉATIFS INTÉGRÉS
+// app/tactiques/page.tsx - AVEC INTÉGRATION COMPLÈTE DU DRAG AND DROP
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -20,7 +21,8 @@ import {
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
 export default function TactiquesPage() {
-  // Hooks
+  // ==================== HOOKS PRINCIPAUX ====================
+
   const {
     campaigns,
     versions,
@@ -41,8 +43,8 @@ export default function TactiquesPage() {
     sections,
     tactiques,
     placements,
-    creatifs, // 🔥 NOUVEAU : Récupération des créatifs
-    // Propriétés du modal
+    creatifs,
+    // Modal de section
     sectionModal,
     handleSaveSection,
     closeSectionModal,
@@ -50,22 +52,29 @@ export default function TactiquesPage() {
     handleEditSection,
     handleDeleteSection,
     handleSectionExpand,
+    // Opérations tactiques
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
+    // Opérations placements
     handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
-    handleCreateCreatif, // 🔥 NOUVEAU : Actions créatifs réelles
+    // Opérations créatifs
+    handleCreateCreatif,
     handleUpdateCreatif,
     handleDeleteCreatif,
+    // Opérations onglets
     handleAddOnglet,
     handleRenameOnglet,
     handleDeleteOnglet,
     handleSelectOnglet,
+    // 🔥 NOUVEAU : Fonction de rafraîchissement pour le drag and drop
+    onRefresh,
   } = useTactiquesData(selectedCampaign, selectedVersion);
 
-  // États pour l'UI et le loading
+  // ==================== ÉTATS UI ====================
+
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [totalBudget, setTotalBudget] = useState<number>(0);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
@@ -77,29 +86,21 @@ export default function TactiquesPage() {
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
 
-  // États de chargement et erreur
+  // ==================== LOGIQUE DE CHARGEMENT ====================
+
   const isLoading = campaignLoading || loading;
   const hasError = campaignError || error;
 
-  // Gérer le loader avec une logique simplifiée
+  // Gérer le loader avec une logique simplifiée - SANS minimum de 2 secondes
   useEffect(() => {
     if (isLoading) {
       console.log('🔄 Début chargement');
       setShowLoader(true);
       setMinimumTimeElapsed(false);
     } else {
-      console.log('🏁 Chargement terminé - attendre 2s minimum');
-      // Quand le chargement est fini, attendre 2s puis masquer
-      const timer = setTimeout(() => {
-        console.log('✅ 2 secondes écoulées - masquer loader');
-        setShowLoader(false);
-        setMinimumTimeElapsed(true);
-      }, 2000);
-
-      return () => {
-        console.log('🧹 Nettoyage timer fin de chargement');
-        clearTimeout(timer);
-      };
+      console.log('🏁 Chargement terminé - masquer loader immédiatement');
+      setShowLoader(false);
+      setMinimumTimeElapsed(true);
     }
   }, [isLoading]);
 
@@ -115,6 +116,8 @@ export default function TactiquesPage() {
       return () => clearTimeout(safetyTimer);
     }
   }, [showLoader]);
+
+  // ==================== GESTION DES DROPDOWNS ====================
 
   // Fermer les dropdowns quand on clique en dehors
   useEffect(() => {
@@ -133,6 +136,8 @@ export default function TactiquesPage() {
     };
   }, []);
 
+  // ==================== GESTION DU BUDGET ====================
+
   // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
@@ -141,6 +146,8 @@ export default function TactiquesPage() {
       setTotalBudget(0);
     }
   }, [selectedCampaign]);
+
+  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
 
   // Gestionnaires pour les changements de sélection avec dropdown
   const handleCampaignChangeLocal = (campaign: any) => {
@@ -154,11 +161,6 @@ export default function TactiquesPage() {
     setShowVersionDropdown(false);
   };
 
-  // Gestionnaire temporaire pour le drag and drop
-  const handleDragEnd = async (result: any) => {
-    console.log('Drag and drop à implémenter:', result);
-  };
-
   // Formater les montants en CAD
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
@@ -168,10 +170,13 @@ export default function TactiquesPage() {
     }).format(amount);
   }, []);
 
-  // Préparer les données pour les vues
+  // ==================== PRÉPARATION DES DONNÉES ====================
+
+  // Préparer les données pour les vues avec états d'expansion préservés
   const sectionsWithTactiques: SectionWithTactiques[] = sections.map(section => ({
     ...section,
     tactiques: tactiques[section.id] || [],
+    // isExpanded est déjà inclus dans section depuis useTactiquesData
   }));
 
   const budgetUtilisé = sections.reduce((total, section) => total + (section.SECTION_Budget || 0), 0);
@@ -184,7 +189,9 @@ export default function TactiquesPage() {
 
   const flatTactiques = Object.values(tactiques).flat();
 
-  // 🔥 NOUVEAU : Logs et statistiques pour les créatifs
+  // ==================== LOGS ET STATISTIQUES ====================
+
+  // Logs et statistiques pour les créatifs
   useEffect(() => {
     console.log('📋 Placements actuels:', placements);
     console.log('🎨 Créatifs actuels:', creatifs);
@@ -209,6 +216,8 @@ export default function TactiquesPage() {
       });
     });
   }, [placements, creatifs, tactiques]);
+
+  // ==================== RENDU ====================
 
   return (
     <div className="space-y-6 pb-16">
@@ -303,10 +312,9 @@ export default function TactiquesPage() {
                   <PlusIcon className="h-5 w-5 mr-1.5" />
                   Nouvelle section
                 </button>
-           
               </div>
 
-              {/* 🔥 NOUVEAU : Statistiques créatifs dans la barre d'outils */}
+              {/* Statistiques créatifs dans la barre d'outils */}
               {sectionsWithTactiques.length > 0 && (
                 <div className="flex items-center space-x-4 text-sm text-gray-500">
                   <span>
@@ -341,9 +349,8 @@ export default function TactiquesPage() {
                       <TactiquesHierarchyView
                         sections={sectionsWithTactiques}
                         placements={placements}
-                        creatifs={creatifs} // 🔥 NOUVEAU : Données créatifs
+                        creatifs={creatifs}
                         onSectionExpand={handleSectionExpand}
-                        onDragEnd={handleDragEnd}
                         onEditSection={handleEditSection}
                         onDeleteSection={handleDeleteSection}
                         onCreateTactique={handleCreateTactique}
@@ -352,11 +359,12 @@ export default function TactiquesPage() {
                         onCreatePlacement={handleCreatePlacement}
                         onUpdatePlacement={handleUpdatePlacement}
                         onDeletePlacement={handleDeletePlacement}
-                        onCreateCreatif={handleCreateCreatif} // 🔥 NOUVEAU : Actions créatifs
+                        onCreateCreatif={handleCreateCreatif}
                         onUpdateCreatif={handleUpdateCreatif}
                         onDeleteCreatif={handleDeleteCreatif}
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
+                        onRefresh={onRefresh} // 🔥 NOUVEAU : Fonction de rafraîchissement pour le drag and drop
                       />
                     ) : (
                       <div className="bg-white p-8 rounded-lg shadow text-center">

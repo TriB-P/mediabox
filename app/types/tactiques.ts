@@ -1,11 +1,11 @@
-// app/types/tactiques.ts - ENRICHI AVEC CHAMPS CRÉATIFS COMPLETS
+// app/types/tactiques.ts - CORRIGÉ AVEC isExpanded ET AUTRES AMÉLIORATIONS
 
 // ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
 import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
 export type { TaxonomyFormat, FieldSource }; 
 
-// ==================== TYPES EXISTANTS (INCHANGÉS) ====================
+// ==================== INTERFACE SECTION CORRIGÉE ====================
 
 export interface Section {
   id: string;
@@ -13,7 +13,10 @@ export interface Section {
   SECTION_Order: number;
   SECTION_Color?: string;
   SECTION_Budget?: number; // Calculé à partir de la somme des budgets des tactiques
+  isExpanded?: boolean; // 🔥 AJOUTÉ : État d'expansion pour l'UI
 }
+
+// ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
 export interface Tactique {
   id: string;
@@ -156,7 +159,7 @@ export interface Placement {
   updatedAt?: string;
 }
 
-// ==================== 🆕 CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
+// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
 
 export interface Creatif {
   id: string;
@@ -164,12 +167,12 @@ export interface Creatif {
   CR_Order: number;
   CR_PlacementId: string;
   
-  // 🆕 Taxonomies créatifs (niveaux 5-6)
+  // Taxonomies créatifs (niveaux 5-6)
   CR_Taxonomy_Tags?: string;
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
   
-  // 🆕 10 champs spécifiques aux créatifs
+  // 10 champs spécifiques aux créatifs
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
   CR_Rotation_Weight?: string;      // Poids de rotation
@@ -181,7 +184,7 @@ export interface Creatif {
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
   
-  // 🆕 Stockage des valeurs taxonomie et générations
+  // Stockage des valeurs taxonomie et générations
   CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
   
@@ -203,9 +206,11 @@ export interface Version {
   createdBy: string;
 }
 
+// ==================== SECTION AVEC TACTIQUES CORRIGÉE ====================
+
 export interface SectionWithTactiques extends Section {
   tactiques: Tactique[];
-  isExpanded: boolean;
+  // isExpanded héritée de Section - plus besoin de la redéfinir
 }
 
 export interface TactiqueWithPlacements extends Tactique {
@@ -219,7 +224,6 @@ export interface PlacementWithCreatifs extends Placement {
 // ==================== TYPES DE FORMULAIRES ====================
 
 export interface TactiqueFormData {
-  // ... (champs de tactique inchangés)
   TC_Label: string;
   TC_Budget: number;
   TC_Order: number;
@@ -288,19 +292,19 @@ export interface PlacementFormData {
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
-// ==================== 🆕 FORMULAIRE CRÉATIF COMPLET ====================
+// ==================== FORMULAIRE CRÉATIF COMPLET ====================
 
 export interface CreatifFormData {
   CR_Label: string;
   CR_Order: number;
   CR_PlacementId: string;
   
-  // 🆕 Sélection des taxonomies (niveaux 5-6)
+  // Sélection des taxonomies (niveaux 5-6)
   CR_Taxonomy_Tags?: string;
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
   
-  // 🆕 10 champs spécifiques aux créatifs
+  // 10 champs spécifiques aux créatifs
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
   CR_Rotation_Weight?: string;      // Poids de rotation
@@ -312,7 +316,7 @@ export interface CreatifFormData {
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
   
-  // 🆕 Stockage des valeurs taxonomie
+  // Stockage des valeurs taxonomie
   CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
 }
@@ -322,7 +326,7 @@ export interface CreatifFormData {
 export interface TaxonomyContext {
   campaign?: any;
   tactique?: any;
-  placement?: any;  // 🆕 Ajout du contexte placement
+  placement?: any;
   clientId: string;
 }
 
