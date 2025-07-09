@@ -14,23 +14,12 @@ import { Taxonomy } from '../../../types/taxonomy';
 // ==================== TYPES ====================
 
 interface CreatifFormInfoProps {
-  // Données du formulaire créatif
+  // Données simplifiées du formulaire créatif
   formData: {
     CR_Label?: string;
     CR_Taxonomy_Tags?: string;
     CR_Taxonomy_Platform?: string;
     CR_Taxonomy_MediaOcean?: string;
-    // 10 champs spécifiques aux créatifs
-    CR_Start_Date?: string;
-    CR_End_Date?: string;
-    CR_Rotation_Weight?: string;
-    CR_CTA?: string;
-    CR_Format_Details?: string;
-    CR_Offer?: string;
-    CR_Plateform_Name?: string;
-    CR_Primary_Product?: string;
-    CR_URL?: string;
-    CR_Version?: string;
   };
   
   // Gestionnaires d'événements
@@ -99,7 +88,7 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           Informations du créatif
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration de base et taxonomies pour le créatif
+          Configuration de base et sélection des taxonomies pour le créatif
         </p>
       </div>
       
@@ -113,172 +102,14 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           value={formData.CR_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannière 300x250, Vidéo 15s, Native Ad"
+          placeholder="Ex: Bannière 300x250 v1, Vidéo 15s A/B test, Native Ad mobile"
           required={!isDisabled}
           label={createLabelWithHelp(
             'Nom du créatif *', 
-            'Nom descriptif du créatif. Soyez spécifique pour faciliter l\'identification.', 
+            'Nom descriptif du créatif. Soyez spécifique pour faciliter l\'identification lors des rapports.', 
             onTooltipChange
           )}
         />
-
-        {/* Section des champs créatifs spécifiques */}
-        <div className="border-t border-gray-200 pt-6">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">
-            Informations créatives
-          </h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* CR_Start_Date */}
-            <FormInput
-              id="CR_Start_Date"
-              name="CR_Start_Date"
-              value={formData.CR_Start_Date || ''}
-              onChange={onChange}
-              type="date"
-              label={createLabelWithHelp(
-                'Date de début créatif', 
-                'Date de début de diffusion de ce créatif spécifique', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_End_Date */}
-            <FormInput
-              id="CR_End_Date"
-              name="CR_End_Date"
-              value={formData.CR_End_Date || ''}
-              onChange={onChange}
-              type="date"
-              label={createLabelWithHelp(
-                'Date de fin créatif', 
-                'Date de fin de diffusion de ce créatif spécifique', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Rotation_Weight */}
-            <FormInput
-              id="CR_Rotation_Weight"
-              name="CR_Rotation_Weight"
-              value={formData.CR_Rotation_Weight || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: 50%, 33%, 25%"
-              label={createLabelWithHelp(
-                'Poids de rotation', 
-                'Pourcentage de répartition de ce créatif dans la rotation (ex: 50%)', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_CTA */}
-            <FormInput
-              id="CR_CTA"
-              name="CR_CTA"
-              value={formData.CR_CTA || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: Achetez maintenant, En savoir plus, Découvrir"
-              label={createLabelWithHelp(
-                'Call-to-Action', 
-                'Texte d\'appel à l\'action principal du créatif', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Format_Details */}
-            <FormInput
-              id="CR_Format_Details"
-              name="CR_Format_Details"
-              value={formData.CR_Format_Details || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: 300x250, 728x90, 16:9 Full HD"
-              label={createLabelWithHelp(
-                'Détails du format', 
-                'Spécifications techniques du format (taille, ratio, résolution)', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Offer */}
-            <FormInput
-              id="CR_Offer"
-              name="CR_Offer"
-              value={formData.CR_Offer || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: -20%, Livraison gratuite, Offre limitée"
-              label={createLabelWithHelp(
-                'Offre', 
-                'Offre promotionnelle ou message principal du créatif', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Plateform_Name */}
-            <FormInput
-              id="CR_Plateform_Name"
-              name="CR_Plateform_Name"
-              value={formData.CR_Plateform_Name || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: Facebook, Google Ads, YouTube"
-              label={createLabelWithHelp(
-                'Nom de plateforme', 
-                'Plateforme spécifique où ce créatif sera diffusé', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Primary_Product */}
-            <FormInput
-              id="CR_Primary_Product"
-              name="CR_Primary_Product"
-              value={formData.CR_Primary_Product || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: iPhone 15, MacBook Pro, AirPods"
-              label={createLabelWithHelp(
-                'Produit principal', 
-                'Produit ou service mis en avant dans ce créatif', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_URL */}
-            <FormInput
-              id="CR_URL"
-              name="CR_URL"
-              value={formData.CR_URL || ''}
-              onChange={onChange}
-              type="url"
-              placeholder="https://example.com/landing-page"
-              label={createLabelWithHelp(
-                'URL du créatif', 
-                'URL de destination ou lien vers les assets créatifs', 
-                onTooltipChange
-              )}
-            />
-
-            {/* CR_Version */}
-            <FormInput
-              id="CR_Version"
-              name="CR_Version"
-              value={formData.CR_Version || ''}
-              onChange={onChange}
-              type="text"
-              placeholder="Ex: v1.0, A, B, Test-1"
-              label={createLabelWithHelp(
-                'Version du créatif', 
-                'Version ou variante de ce créatif (pour A/B testing)', 
-                onTooltipChange
-              )}
-            />
-          </div>
-        </div>
 
         {/* Message d'erreur pour les taxonomies */}
         {taxonomiesError && (
@@ -293,66 +124,69 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           </div>
         )}
 
-        {/* Section taxonomies */}
+        {/* Section taxonomies créatifs */}
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4">
             Taxonomies créatifs (niveaux 5-6)
           </h4>
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="text-blue-600 mr-3 mt-0.5">💡</div>
+              <div className="text-blue-800 text-sm">
+                <p className="font-medium mb-1">À propos des taxonomies créatifs</p>
+                <p>Les créatifs utilisent les <strong>niveaux 5-6</strong> des taxonomies sélectionnées, permettant une granularité plus fine que les placements (niveaux 1-4).</p>
+              </div>
+            </div>
+          </div>
 
           {/* Sélecteurs de taxonomies */}
           {taxonomies.length > 0 ? (
-            <>
+            <div className="space-y-4">
               {/* Taxonomie pour les tags */}
-              <div className="mb-4">
-                <SmartSelect
-                  id="CR_Taxonomy_Tags"
-                  name="CR_Taxonomy_Tags"
-                  value={formData.CR_Taxonomy_Tags || ''}
-                  onChange={onChange}
-                  options={taxonomyOptions}
-                  placeholder="Sélectionner une taxonomie..."
-                  label={createLabelWithHelp(
-                    'Taxonomie à utiliser pour les tags créatifs', 
-                    'Taxonomie qui sera utilisée pour générer les tags du créatif (niveaux 5-6)', 
-                    onTooltipChange
-                  )}
-                />
-              </div>
+              <SmartSelect
+                id="CR_Taxonomy_Tags"
+                name="CR_Taxonomy_Tags"
+                value={formData.CR_Taxonomy_Tags || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie pour les tags créatifs', 
+                  'Taxonomie qui sera utilisée pour générer les tags du créatif (niveaux 5-6)', 
+                  onTooltipChange
+                )}
+              />
 
               {/* Taxonomie pour la plateforme */}
-              <div className="mb-4">
-                <SmartSelect
-                  id="CR_Taxonomy_Platform"
-                  name="CR_Taxonomy_Platform"
-                  value={formData.CR_Taxonomy_Platform || ''}
-                  onChange={onChange}
-                  options={taxonomyOptions}
-                  placeholder="Sélectionner une taxonomie..."
-                  label={createLabelWithHelp(
-                    'Taxonomie à utiliser pour la plateforme créatifs', 
-                    'Taxonomie qui sera utilisée pour la configuration de la plateforme (niveaux 5-6)', 
-                    onTooltipChange
-                  )}
-                />
-              </div>
+              <SmartSelect
+                id="CR_Taxonomy_Platform"
+                name="CR_Taxonomy_Platform"
+                value={formData.CR_Taxonomy_Platform || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie pour la plateforme créatifs', 
+                  'Taxonomie qui sera utilisée pour la configuration de la plateforme (niveaux 5-6)', 
+                  onTooltipChange
+                )}
+              />
 
               {/* Taxonomie pour MediaOcean */}
-              <div className="mb-4">
-                <SmartSelect
-                  id="CR_Taxonomy_MediaOcean"
-                  name="CR_Taxonomy_MediaOcean"
-                  value={formData.CR_Taxonomy_MediaOcean || ''}
-                  onChange={onChange}
-                  options={taxonomyOptions}
-                  placeholder="Sélectionner une taxonomie..."
-                  label={createLabelWithHelp(
-                    'Taxonomie à utiliser pour MediaOcean créatifs', 
-                    'Taxonomie qui sera utilisée pour l\'export vers MediaOcean (niveaux 5-6)', 
-                    onTooltipChange
-                  )}
-                />
-              </div>
-            </>
+              <SmartSelect
+                id="CR_Taxonomy_MediaOcean"
+                name="CR_Taxonomy_MediaOcean"
+                value={formData.CR_Taxonomy_MediaOcean || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie pour MediaOcean créatifs', 
+                  'Taxonomie qui sera utilisée pour l\'export vers MediaOcean (niveaux 5-6)', 
+                  onTooltipChange
+                )}
+              />
+            </div>
           ) : !taxonomiesLoading && !taxonomiesError ? (
             /* Message si aucune taxonomie */
             <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">

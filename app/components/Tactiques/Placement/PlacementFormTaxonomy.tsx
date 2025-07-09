@@ -73,7 +73,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         )}
 
         {hasTaxonomies ? (
-          // 🔥 CORRECTION: On passe formData au lieu de taxonomyValues
           <TaxonomyFieldRenderer
             manualVariables={manualVariables}
             fieldStates={fieldStates}
@@ -114,6 +113,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           onToggleExpansion={togglePreviewExpansion}
           getFormattedValue={getFormattedValue}
           getFormattedPreview={getFormattedPreview}
+          levelsToShow={[1, 2, 3, 4]} // 🔥 NOUVEAU : Niveaux 1-4 pour les placements
         />
       </div>
     </div>

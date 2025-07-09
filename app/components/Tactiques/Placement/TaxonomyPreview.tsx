@@ -34,6 +34,7 @@ interface TaxonomyPreviewProps {
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
   getFormattedValue: (variableName: string, format: string) => string;
   getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string;
+  levelsToShow?: number[]; // 🔥 NOUVEAU : Niveaux à afficher (par défaut [1,2,3,4] pour placements)
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -47,12 +48,13 @@ export default function TaxonomyPreview({
   highlightState,
   onToggleExpansion,
   getFormattedValue,
-  getFormattedPreview
+  getFormattedPreview,
+  levelsToShow = [1, 2, 3, 4] // 🔥 NOUVEAU : Par défaut niveaux 1-4 (placements)
 }: TaxonomyPreviewProps) {
 
   // ==================== FONCTIONS UTILITAIRES ====================
   
-  const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'manual' => {
+  const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'manual' => {
     const variable = parsedVariables.find(v => v.variable === variableName);
     return variable?.source || 'manual';
   };
@@ -66,18 +68,17 @@ export default function TaxonomyPreview({
     if (!taxonomy || !variableName) {
       return false;
     }
-    const fullStructure = [
-      taxonomy.NA_Name_Level_1,
-      taxonomy.NA_Name_Level_2,
-      taxonomy.NA_Name_Level_3,
-      taxonomy.NA_Name_Level_4,
-      taxonomy.NA_Name_Level_5,
-      taxonomy.NA_Name_Level_6,
-    ].join('|');
+    
+    // 🔥 NOUVEAU : Construire la structure selon les niveaux à afficher
+    const levelNames = levelsToShow.map(level => 
+      taxonomy[`NA_Name_Level_${level}` as keyof Taxonomy] as string
+    ).filter(Boolean);
+    
+    const fullStructure = levelNames.join('|');
 
     const variableRegex = new RegExp(`\\[${variableName}:`);
     return variableRegex.test(fullStructure);
-  }, []);
+  }, [levelsToShow]);
 
   const getMemoizedPreview = useMemo(() => {
     return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
@@ -136,30 +137,41 @@ export default function TaxonomyPreview({
     );
   };
   
+  // 🔥 NOUVEAU : Fonction modifiée pour afficher seulement les niveaux demandés
   const renderTaxonomyStructure = (taxonomy: Taxonomy) => {
-      const levels = [
-        { name: taxonomy.NA_Name_Level_1, title: taxonomy.NA_Name_Level_1_Title || 'Niveau 1' },
-        { name: taxonomy.NA_Name_Level_2, title: taxonomy.NA_Name_Level_2_Title || 'Niveau 2' },
-        { name: taxonomy.NA_Name_Level_3, title: taxonomy.NA_Name_Level_3_Title || 'Niveau 3' },
-        { name: taxonomy.NA_Name_Level_4, title: taxonomy.NA_Name_Level_4_Title || 'Niveau 4' },
-        { name: taxonomy.NA_Name_Level_5, title: taxonomy.NA_Name_Level_5_Title || 'Niveau 5' },
-        { name: taxonomy.NA_Name_Level_6, title: taxonomy.NA_Name_Level_6_Title || 'Niveau 6' }
-      ].filter(level => level.name);
+    const levels = levelsToShow.map(levelNum => {
+      const name = taxonomy[`NA_Name_Level_${levelNum}` as keyof Taxonomy] as string;
+      const title = taxonomy[`NA_Name_Level_${levelNum}_Title` as keyof Taxonomy] as string;
+      
+      return {
+        number: levelNum,
+        name,
+        title: title || `Niveau ${levelNum}`
+      };
+    }).filter(level => level.name);
 
+    if (levels.length === 0) {
       return (
-          <div className="space-y-3">
-              {levels.map((level, index) => (
-                  <div key={index} className="border-l-2 border-gray-300 pl-3">
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                          {level.title}
-                      </div>
-                      <div className="text-sm text-gray-900 font-mono bg-white p-2 rounded border">
-                          {renderLevelWithVariables(level.name)}
-                      </div>
-                  </div>
-              ))}
-          </div>
+        <div className="text-sm text-gray-500 italic">
+          Aucun niveau {levelsToShow.join(', ')} configuré pour cette taxonomie
+        </div>
       );
+    }
+
+    return (
+      <div className="space-y-3">
+        {levels.map((level) => (
+          <div key={level.number} className="border-l-2 border-gray-300 pl-3">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+              {level.title}
+            </div>
+            <div className="text-sm text-gray-900 font-mono bg-white p-2 rounded border">
+              {renderLevelWithVariables(level.name)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
   
   const renderTaxonomyCard = (
@@ -176,10 +188,13 @@ export default function TaxonomyPreview({
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleExpansion(type); }}
           className={`w-full px-4 py-3 ${colorClass} border-b border-gray-200 text-left flex items-center justify-between hover:opacity-80 transition-colors`}
         >
-          {/* CORRECTION: Étoile déplacée après le titre */}
           <div className="flex items-center space-x-2">
             <span className="font-medium">{label}</span>
             {showStar && <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />}
+            {/* 🔥 NOUVEAU : Indicateur des niveaux affichés */}
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+              Niveaux {levelsToShow.join(', ')}
+            </span>
           </div>
           <span>{expandedPreviews[type] ? '−' : '+'}</span>
         </button>
@@ -201,7 +216,9 @@ export default function TaxonomyPreview({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-md font-medium text-gray-900">Aperçu des taxonomies</h4>
+        <h4 className="text-md font-medium text-gray-900">
+          Aperçu des taxonomies (niveaux {levelsToShow.join(', ')})
+        </h4>
         {hasLoadingFields && (
           <div className="flex items-center text-sm text-blue-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
@@ -217,7 +234,8 @@ export default function TaxonomyPreview({
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Campagne</span>
               <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Tactique</span>
-              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">Placement</span>
+              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Placement</span>
+              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">Créatif</span>
               <span className="px-2 py-1 bg-white text-black border-2 border-red-400 rounded">Valeur manquante</span>
             </div>
           </div>
