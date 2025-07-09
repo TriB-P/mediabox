@@ -85,83 +85,14 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
         )}
 
         {hasTaxonomies ? (
-          <>
-            <TaxonomyFieldRenderer
-              manualVariables={manualVariables}
-              fieldStates={fieldStates}
-              formData={formData}
-              highlightState={highlightState}
-              onFieldChange={handleFieldChange}
-              onFieldHighlight={handleFieldHighlight}
-            />
-            
-            {/* Section des champs créatifs spécifiques */}
-            <div className="border-t border-gray-200 pt-6 mt-6">
-              <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Champs créatifs utilisés dans les taxonomies
-              </h4>
-              
-              {(() => {
-                // Filtrer les champs créatifs qui sont réellement utilisés dans les taxonomies
-                const usedCreatifFields = [
-                  { name: 'CR_Start_Date', label: 'Date de début créatif', type: 'date', placeholder: '' },
-                  { name: 'CR_End_Date', label: 'Date de fin créatif', type: 'date', placeholder: '' },
-                  { name: 'CR_Rotation_Weight', label: 'Poids de rotation', type: 'text', placeholder: 'Ex: 50%, 33%, 25%' },
-                  { name: 'CR_CTA', label: 'Call-to-Action', type: 'text', placeholder: 'Ex: Achetez maintenant, En savoir plus, Découvrir' },
-                  { name: 'CR_Format_Details', label: 'Détails du format', type: 'text', placeholder: 'Ex: 300x250, 728x90, 16:9 Full HD' },
-                  { name: 'CR_Offer', label: 'Offre', type: 'text', placeholder: 'Ex: -20%, Livraison gratuite, Offre limitée' },
-                  { name: 'CR_Plateform_Name', label: 'Nom de plateforme', type: 'text', placeholder: 'Ex: Facebook, Google Ads, YouTube' },
-                  { name: 'CR_Primary_Product', label: 'Produit principal', type: 'text', placeholder: 'Ex: iPhone 15, MacBook Pro, AirPods' },
-                  { name: 'CR_URL', label: 'URL du créatif', type: 'url', placeholder: 'https://example.com/landing-page' },
-                  { name: 'CR_Version', label: 'Version du créatif', type: 'text', placeholder: 'Ex: v1.0, A, B, Test-1' }
-                ].filter(field => {
-                  // Vérifier si ce champ est utilisé dans au moins une des variables parsées
-                  return parsedVariables.some(variable => variable.variable === field.name);
-                });
-
-                if (usedCreatifFields.length === 0) {
-                  return (
-                    <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
-                      <p className="text-sm">
-                        Aucun champ créatif n'est utilisé dans les taxonomies sélectionnées.
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 Ajoutez des variables créatifs (CR_*) dans vos taxonomies pour les configurer ici.
-                      </p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-4">
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>{usedCreatifFields.length}</strong> champ{usedCreatifFields.length > 1 ? 's' : ''} créatif{usedCreatifFields.length > 1 ? 's' : ''} utilisé{usedCreatifFields.length > 1 ? 's' : ''} dans les taxonomies
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                      {usedCreatifFields.map((field) => (
-                        <div key={field.name} className="p-2 rounded-lg border-2 border-transparent hover:border-gray-300">
-                          <label className="block text-sm font-medium text-gray-900 mb-1">
-                            {field.label}
-                          </label>
-                          <input
-                            type={field.type}
-                            name={field.name}
-                            value={(formData as any)[field.name] || ''}
-                            onChange={onChange}
-                            placeholder={field.placeholder}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </>
+          <TaxonomyFieldRenderer
+            manualVariables={manualVariables}
+            fieldStates={fieldStates}
+            formData={formData}
+            highlightState={highlightState}
+            onFieldChange={handleFieldChange}
+            onFieldHighlight={handleFieldHighlight}
+          />
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
             <h4 className="text-md font-medium text-gray-900 mb-2">

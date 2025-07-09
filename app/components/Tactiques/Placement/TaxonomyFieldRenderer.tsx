@@ -139,7 +139,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   return (
     <div className="space-y-0">
       <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
-        Champs de placement à configurer ({manualVariables.length})
+        Champs à configurer ({manualVariables.length})
       </h4>
       {manualVariables.map((variable) => renderVariableCard(variable))}
     </div>
