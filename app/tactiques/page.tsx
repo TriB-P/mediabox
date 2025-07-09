@@ -215,20 +215,6 @@ export default function TactiquesPage() {
       {/* En-tête */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
-
-        {selectedCampaign && (
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Budget total: <span className="font-medium">{formatCurrency(totalBudget)}</span></div>
-            <div className={`text-sm ${budgetRestant >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              Budget restant: <span className="font-medium">{formatCurrency(budgetRestant)}</span>
-            </div>
-            {selectedCampaign && selectedVersion && (
-              <div className="text-xs text-gray-400 mt-1">
-                {selectedCampaign.CA_Name} • {selectedVersion.name}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Sélecteurs de campagne et version */}
@@ -317,15 +303,7 @@ export default function TactiquesPage() {
                   <PlusIcon className="h-5 w-5 mr-1.5" />
                   Nouvelle section
                 </button>
-                {sections.length > 0 && (
-                  <button
-                    onClick={() => handleCreateTactique(sections[0].id)}
-                    className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-1.5" />
-                    Nouvelle tactique
-                  </button>
-                )}
+           
               </div>
 
               {/* 🔥 NOUVEAU : Statistiques créatifs dans la barre d'outils */}
