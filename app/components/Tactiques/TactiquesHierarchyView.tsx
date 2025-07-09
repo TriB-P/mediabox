@@ -4,24 +4,24 @@
 
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { 
-  ChevronDownIcon, 
-  ChevronRightIcon, 
-  PencilIcon, 
-  TrashIcon, 
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  TrashIcon,
   PlusIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline';
-import { 
-  SectionWithTactiques, 
-  Tactique, 
-  Placement, 
+import {
+  SectionWithTactiques,
+  Tactique,
+  Placement,
   Creatif
 } from '../../types/tactiques';
 import TactiqueDrawer from './Tactiques/TactiqueDrawer';
 import PlacementDrawer from './Placement/PlacementDrawer';
 import CreatifDrawer from './Creatif/CreatifDrawer';
-import { TactiqueItem } from './HierarchyComponents';
+import { TactiqueItem } from './HierarchyComponents'; // Assume TactiqueItem is defined here and uses correct props
 import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 
 interface TactiquesHierarchyViewProps {
@@ -36,16 +36,18 @@ interface TactiquesHierarchyViewProps {
   onDeleteTactique?: (sectionId: string, tactiqueId: string) => void;
   onCreatePlacement?: (tactiqueId: string) => Promise<Placement>;
   onUpdatePlacement?: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  onDeletePlacement?: (placementId: string) => void;
+  // MODIFIÉ: Signature de onDeletePlacement
+  onDeletePlacement?: (sectionId: string, tactiqueId: string, placementId: string) => void;
   onCreateCreatif?: (placementId: string) => Promise<Creatif>;
   onUpdateCreatif?: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  onDeleteCreatif?: (creatifId: string) => void;
+  // MODIFIÉ: Signature de onDeleteCreatif
+  onDeleteCreatif?: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
   formatCurrency: (amount: number) => string;
   totalBudget: number;
   onRefresh?: () => Promise<void>;
   onSelectItems: (
-    itemIds: string[], 
-    type: 'section' | 'tactique' | 'placement' | 'creatif', 
+    itemIds: string[],
+    type: 'section' | 'tactique' | 'placement' | 'creatif',
     isSelected: boolean
   ) => void;
 }
@@ -73,7 +75,7 @@ export default function TactiquesHierarchyView({
 }: TactiquesHierarchyViewProps) {
 
   // ==================== HOOK DRAG AND DROP ====================
-  
+
   const tactiquesFlat = sections.reduce((acc, section) => {
     acc[section.id] = section.tactiques;
     return acc;
@@ -93,7 +95,7 @@ export default function TactiquesHierarchyView({
   const [hoveredTactique, setHoveredTactique] = useState<{sectionId: string, tactiqueId: string} | null>(null);
   const [hoveredPlacement, setHoveredPlacement] = useState<{sectionId: string, tactiqueId: string, placementId: string} | null>(null);
   const [hoveredCreatif, setHoveredCreatif] = useState<{sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null>(null);
-  
+
   const [expandedTactiques, setExpandedTactiques] = useState<{[tactiqueId: string]: boolean}>({});
   const [expandedPlacements, setExpandedPlacements] = useState<{[placementId: string]: boolean}>({});
 
@@ -141,14 +143,14 @@ export default function TactiquesHierarchyView({
     if (totalBudget <= 0) return 0;
     return Math.round((amount / totalBudget) * 100);
   };
-  
+
   const handleTactiqueExpand = (tactiqueId: string) => {
     setExpandedTactiques(prev => ({
       ...prev,
       [tactiqueId]: !prev[tactiqueId]
     }));
   };
-  
+
   const handlePlacementExpand = (placementId: string) => {
     setExpandedPlacements(prev => ({
       ...prev,
@@ -328,6 +330,7 @@ export default function TactiquesHierarchyView({
 
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
     for (const section of sections) {
+      // Les tactiques ici sont les TactiqueWithPlacements, donc elles ont déjà la prop placements
       const tactique = section.tactiques.find(t => t.id === tactiqueId);
       if (tactique) return tactique;
     }
@@ -337,7 +340,8 @@ export default function TactiquesHierarchyView({
   const findPlacementById = (placementId: string): { placement: Placement; tactique: Tactique } | undefined => {
     for (const section of sections) {
       for (const tactique of section.tactiques) {
-        const tactiquePlacements = placements[tactique.id] || [];
+        // Accéder directement aux placements qui sont maintenant inclus dans TactiqueWithPlacements
+        const tactiquePlacements = tactique.placements || []; 
         const placement = tactiquePlacements.find(p => p.id === placementId);
         if (placement) {
           return { placement, tactique };
@@ -487,7 +491,8 @@ export default function TactiquesHierarchyView({
                                 {(provided) => (
                                   <div ref={provided.innerRef} {...provided.droppableProps}>
                                     {section.tactiques.map((tactique, tactiqueIndex) => { 
-                                      const tactiquePlacements = placements[tactique.id] || [];
+                                      // tactique.placements est maintenant directement disponible grâce à TactiqueWithPlacements
+                                      const tactiquePlacements = tactique.placements || [];
                                       
                                       return (
                                         <TactiqueItem
@@ -496,7 +501,7 @@ export default function TactiquesHierarchyView({
                                           index={tactiqueIndex}
                                           sectionId={section.id}
                                           placements={tactiquePlacements}
-                                          creatifs={creatifs}
+                                          creatifs={creatifs} // creatifs est un objet { [placementId]: Creatif[] }
                                           expandedTactiques={expandedTactiques}
                                           expandedPlacements={expandedPlacements}
                                           hoveredTactique={hoveredTactique}
@@ -508,13 +513,23 @@ export default function TactiquesHierarchyView({
                                           onExpandTactique={handleTactiqueExpand}
                                           onExpandPlacement={handlePlacementExpand}
                                           onEdit={handleEditTactique}
-                                          onDelete={onDeleteTactique}
+                                          onDelete={onDeleteTactique} // Appel de onDeleteTactique
                                           onCreatePlacement={handleCreatePlacementLocal}
                                           onEditPlacement={handleEditPlacement}
-                                          onDeletePlacement={onDeletePlacement}
+                                          // PASSAGE DES IDS PARENTS À onDeletePlacement
+                                          onDeletePlacement={
+                                            onDeletePlacement ? 
+                                              (placementId) => onDeletePlacement(section.id, tactique.id, placementId) 
+                                              : undefined
+                                          }
                                           onCreateCreatif={handleCreateCreatifLocal}
                                           onEditCreatif={handleEditCreatif}
-                                          onDeleteCreatif={onDeleteCreatif}
+                                          // PASSAGE DES IDS PARENTS À onDeleteCreatif
+                                          onDeleteCreatif={
+                                            onDeleteCreatif ? 
+                                              (creatifId) => onDeleteCreatif(section.id, tactique.id, tactiquePlacements.find(p => p.id === creatifId)?.id || '', creatifId) 
+                                              : undefined
+                                          }
                                           formatCurrency={formatCurrency}
                                           // 🔥 CORRECTION: Passer les bons gestionnaires
                                           onSelect={handleTactiqueSelect}

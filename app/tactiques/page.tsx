@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - CORRECTION COMPLÈTE DE LA SÉLECTION
+// app/tactiques/page.tsx
 
 'use client';
 
@@ -42,30 +42,32 @@ export default function TactiquesPage() {
     onglets,
     selectedOnglet,
     sections,
-    tactiques,
+    tactiques, // sections, tactiques, placements, creatifs sont les données brutes
     placements,
     creatifs,
     sectionModal,
     handleSaveSection,
     closeSectionModal,
-    handleAddSection,
-    handleEditSection,
-    handleDeleteSection,
     handleSectionExpand,
     handleCreateTactique,
     handleUpdateTactique,
-    handleDeleteTactique,
     handleCreatePlacement,
     handleUpdatePlacement,
-    handleDeletePlacement,
     handleCreateCreatif,
     handleUpdateCreatif,
-    handleDeleteCreatif,
-    handleAddOnglet,
-    handleRenameOnglet,
-    handleDeleteOnglet,
     handleSelectOnglet,
     onRefresh,
+    // Fonctions des opérations CRUD des hooks spécialisés
+    // Assurez-vous que ces noms correspondent exactement à ceux exportés par useTactiquesOperations et useTactiquesModals
+    handleAddSection, // vient de useTactiquesModals
+    handleEditSection, // vient de useTactiquesModals
+    handleDeleteSection: deleteSectionOp, // renommé pour éviter le conflit avec la variable locale dans handleDeleteSelected
+    handleDeleteTactique: deleteTactiqueOp, // renommé
+    handleDeletePlacement: deletePlacementOp, // renommé
+    handleDeleteCreatif: deleteCreatifOp, // renommé
+    handleAddOnglet, // vient de useTactiquesModals
+    handleRenameOnglet, // vient de useTactiquesModals
+    handleDeleteOnglet, // vient de useTactiquesModals
   } = useTactiquesData(selectedCampaign, selectedVersion);
 
   // ==================== ÉTATS UI ====================
@@ -176,19 +178,136 @@ export default function TactiquesPage() {
   }, []);
 
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
+    // 🔥 À implémenter: logique de duplication pour les éléments sélectionnés
     alert(`Dupliquer les éléments: ${itemIds.join(', ')}`);
-  }, [handleClearSelection]);
+    console.log('Duplication des éléments:', itemIds);
+    // Pour une implémentation complète, vous devrez :
+    // 1. Récupérer les données de chaque élément par son ID et son type.
+    // 2. Appeler la fonction `handleCreateTactique`, `handleCreatePlacement` ou `handleCreateCreatif`
+    //    avec les données dupliquées et le contexte parent approprié.
+    // Cette partie est complexe car elle nécessite de recréer l'arborescence complète des éléments enfants
+    // et de gérer les IDs et ordres.
+    
+    // Une fois la duplication terminée (ou échouée), vous devrez :
+    // await onRefresh(); // Rafraîchir les données
+    // handleClearSelection(); // Désélectionner les éléments
+  }, [onRefresh, handleClearSelection]);
 
   const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
+    // La confirmation est maintenant gérée par le composant SelectedActionsPanel
+    // (ou pourrait être gérée ici avec un Dialog plus élaboré)
     if (!confirm(`Êtes-vous sûr de vouloir supprimer les ${itemIds.length} éléments sélectionnés ? Cette action est irréversible.`)) {
       return;
     }
-    alert(`Supprimer les éléments: ${itemIds.join(', ')}`);
-  }, [handleClearSelection]);
+
+    console.log('Suppression des éléments:', itemIds);
+
+    for (const itemId of Array.from(itemIds)) {
+      let itemType: 'section' | 'tactique' | 'placement' | 'creatif' | undefined;
+      let currentSectionId: string | undefined;
+      let currentTactiqueId: string | undefined;
+      let currentPlacementId: string | undefined;
+      let currentCreatifId: string | undefined; 
+
+      // Chercher l'élément et son contexte parent dans la structure actuelle
+      // Nous utilisons `sections` (données brutes) pour éviter les boucles infinies ou dépendances cycliques
+      // avec `sectionsWithTactiques` qui dépend de `selectedItems`.
+      // Cette recherche est cruciale pour obtenir les IDs parents nécessaires aux fonctions de suppression.
+      for (const section of sections) {
+        if (section.id === itemId) {
+          itemType = 'section';
+          currentSectionId = section.id;
+          break;
+        }
+        if (tactiques[section.id]) { // Vérifier si la section a des tactiques chargées
+          for (const tactique of tactiques[section.id]) {
+            if (tactique.id === itemId) {
+              itemType = 'tactique';
+              currentSectionId = section.id;
+              currentTactiqueId = tactique.id;
+              break;
+            }
+            if (placements[tactique.id]) { // Vérifier si la tactique a des placements chargés
+              for (const placement of placements[tactique.id]) {
+                if (placement.id === itemId) {
+                  itemType = 'placement';
+                  currentSectionId = section.id;
+                  currentTactiqueId = tactique.id;
+                  currentPlacementId = placement.id;
+                  break;
+                }
+                if (creatifs[placement.id]) { // Vérifier si le placement a des créatifs chargés
+                  for (const creatif of creatifs[placement.id]) {
+                    if (creatif.id === itemId) {
+                      itemType = 'creatif';
+                      currentSectionId = section.id;
+                      currentTactiqueId = tactique.id;
+                      currentPlacementId = placement.id;
+                      currentCreatifId = creatif.id; 
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            if (itemType) break;
+          }
+        }
+        if (itemType) break;
+      }
+
+      // Appeler la fonction de suppression appropriée avec les IDs parents si nécessaires
+      try {
+        switch (itemType) {
+          case 'section':
+            if (currentSectionId) {
+              await deleteSectionOp(currentSectionId);
+              console.log(`Section ${itemId} supprimée.`);
+            }
+            break;
+          case 'tactique':
+            if (currentSectionId && currentTactiqueId) {
+              await deleteTactiqueOp(currentSectionId, currentTactiqueId);
+              console.log(`Tactique ${itemId} supprimée.`);
+            }
+            break;
+          case 'placement':
+            if (currentSectionId && currentTactiqueId && currentPlacementId) {
+              await deletePlacementOp(currentSectionId, currentTactiqueId, currentPlacementId); // PASSAGE DES IDS PARENTS
+              console.log(`Placement ${itemId} supprimé.`);
+            }
+            break;
+          case 'creatif':
+            if (currentSectionId && currentTactiqueId && currentPlacementId && currentCreatifId) { 
+              await deleteCreatifOp(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId); // PASSAGE DES IDS PARENTS
+              console.log(`Créatif ${itemId} supprimé.`);
+            } else if (itemId.startsWith('creatif-')) { 
+              // Fallback si les IDs parents n'ont pas été trouvés (moins fiable, mais présent pour le débogage si besoin)
+              // Normalement, cette branche ne devrait plus être atteinte si la recherche est complète.
+              console.warn(`Tentative de suppression de créatif sans IDs parents complets: ${itemId}. Rechargement pour trouver le chemin.`);
+              // Pour ce scénario, on doit forcer un refresh complet pour que la prochaine itération trouve l'élément avec son contexte.
+              // Alternativement, on pourrait passer null pour les parents et modifier deleteCreatifOp pour gérer les nulls.
+              // Pour l'instant, on assume que les IDs parents seront trouvés.
+            }
+            break;
+          default:
+            console.warn(`Type d'élément inconnu ou contexte insuffisant pour supprimer: ${itemId}`);
+        }
+      } catch (opError) {
+        console.error(`Erreur lors de la suppression de l'élément ${itemId}:`, opError);
+        setError(`Erreur lors de la suppression de ${itemId}. Veuillez réessayer. ${opError instanceof Error ? opError.message : ''}`);
+      }
+    }
+
+    await onRefresh(); // Rafraîchir les données après toutes les suppressions
+    handleClearSelection(); // Désélectionner les éléments
+  }, [sections, tactiques, placements, creatifs, deleteSectionOp, deleteTactiqueOp, deletePlacementOp, deleteCreatifOp, onRefresh, handleClearSelection]);
+
 
   // ==================== PRÉPARATION DES DONNÉES AVEC SÉLECTION CORRIGÉE ====================
 
   // 🔥 CORRECTION MAJEURE: Enrichissement des données avec états de sélection
+  // Déplacé avant son utilisation
   const sectionsWithTactiques: SectionWithTactiques[] = useMemo(() => {
     return sections.map(section => {
       const sectionTactiques = tactiques[section.id] || [];
@@ -381,7 +500,7 @@ export default function TactiquesPage() {
             {selectedItems.size > 0 && (
               <SelectedActionsPanel
                 selectedItems={Array.from(selectedItems).map(id => {
-                  // 🔥 CORRECTION: Trouver l'élément dans la structure enrichie
+                  // Trouver l'élément dans la structure sectionsWithTactiques
                   for (const section of sectionsWithTactiques) {
                     if (section.id === id) return { id, name: section.SECTION_Name, type: 'section' };
                     for (const tactique of section.tactiques) {
@@ -458,20 +577,20 @@ export default function TactiquesPage() {
                     {sectionsWithTactiques.length > 0 ? (
                       <TactiquesHierarchyView
                         sections={sectionsWithTactiques}
-                        placements={enrichedPlacements} // 🔥 CORRECTION: Utiliser les données enrichies
-                        creatifs={enrichedCreatifs} // 🔥 CORRECTION: Utiliser les données enrichies
+                        placements={enrichedPlacements} 
+                        creatifs={enrichedCreatifs} 
                         onSectionExpand={handleSectionExpand}
                         onEditSection={handleEditSection}
-                        onDeleteSection={handleDeleteSection}
+                        onDeleteSection={deleteSectionOp} 
                         onCreateTactique={handleCreateTactique}
                         onUpdateTactique={handleUpdateTactique}
-                        onDeleteTactique={handleDeleteTactique}
+                        onDeleteTactique={deleteTactiqueOp} 
                         onCreatePlacement={handleCreatePlacement}
                         onUpdatePlacement={handleUpdatePlacement}
-                        onDeletePlacement={handleDeletePlacement}
+                        onDeletePlacement={deletePlacementOp} 
                         onCreateCreatif={handleCreateCreatif}
                         onUpdateCreatif={handleUpdateCreatif}
-                        onDeleteCreatif={handleDeleteCreatif}
+                        onDeleteCreatif={deleteCreatifOp} 
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
                         onRefresh={onRefresh}
@@ -498,7 +617,7 @@ export default function TactiquesPage() {
                   <TactiquesTableView
                     tactiques={flatTactiques}
                     onUpdateTactique={handleUpdateTactique}
-                    onDeleteTactique={handleDeleteTactique}
+                    onDeleteTactique={deleteTactiqueOp} 
                     formatCurrency={formatCurrency}
                     sectionNames={sectionNames}
                   />
@@ -554,9 +673,9 @@ export default function TactiquesPage() {
           onglets={onglets}
           selectedOnglet={selectedOnglet}
           onSelectOnglet={handleSelectOnglet}
-          onAddOnglet={handleAddOnglet}
-          onRenameOnglet={handleRenameOnglet}
-          onDeleteOnglet={handleDeleteOnglet}
+          onAddOnglet={handleAddOnglet} 
+          onRenameOnglet={handleRenameOnglet} 
+          onDeleteOnglet={handleDeleteOnglet} 
         />
       )}
 

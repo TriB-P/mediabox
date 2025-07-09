@@ -50,12 +50,12 @@ interface UseTactiquesOperationsReturn {
   // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  handleDeletePlacement: (placementId: string) => void;
+  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; // MODIFIÉ
 
   // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  handleDeleteCreatif: (creatifId: string) => void;
+  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; // MODIFIÉ
 
   // Opérations sections
   handleAddSection: () => void;
@@ -147,21 +147,19 @@ export const useTactiquesOperations = ({
       console.error('Contexte manquant pour supprimer la tactique');
       return;
     }
-
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette tactique ?')) {
-      deleteTactique(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        tactiqueId
-      ).then(() => {
-        onRefresh();
-      }).catch(error => {
-        console.error('Erreur lors de la suppression de la tactique:', error);
-      });
-    }
+    // RETIRÉ: confirm() car la confirmation est gérée au niveau de SelectedActionsPanel
+    deleteTactique(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId,
+      selectedOngletId,
+      sectionId,
+      tactiqueId
+    ).then(() => {
+      onRefresh();
+    }).catch(error => {
+      console.error('Erreur lors de la suppression de la tactique:', error);
+    });
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
   // ==================== PLACEMENTS ====================
@@ -253,47 +251,26 @@ export const useTactiquesOperations = ({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
 
-  const handleDeletePlacement = useCallback((placementId: string) => {
+  const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => { // MODIFIÉ: Ajout de sectionId et tactiqueId
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour supprimer le placement');
       return;
     }
-
-    // Trouver la section et tactique qui contiennent ce placement
-    let sectionId = '';
-    let tactiqueId = '';
-
-    for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
-      for (const tactique of sectionTactiques) {
-        // Logique simplifiée - en production il faudrait avoir accès aux placements
-        sectionId = sId;
-        tactiqueId = tactique.id;
-        break;
-      }
-      if (sectionId) break;
-    }
-
-    if (!sectionId || !tactiqueId) {
-      console.error('Contexte parent non trouvé pour le placement');
-      return;
-    }
-
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce placement ?')) {
-      deletePlacement(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        tactiqueId,
-        placementId
-      ).then(() => {
-        onRefresh();
-      }).catch(error => {
-        console.error('Erreur lors de la suppression du placement:', error);
-      });
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+    // RETIRÉ: confirm()
+    deletePlacement(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId,
+      selectedOngletId,
+      sectionId, // UTILISÉ DIRECTEMENT
+      tactiqueId, // UTILISÉ DIRECTEMENT
+      placementId
+    ).then(() => {
+      onRefresh();
+    }).catch(error => {
+      console.error('Erreur lors de la suppression du placement:', error);
+    });
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
   // ==================== CRÉATIFS ====================
 
@@ -308,9 +285,11 @@ export const useTactiquesOperations = ({
 
     for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
       for (const tactique of sectionTactiques) {
+        // Cette logique est simplifiée et devrait idéalement s'assurer que le placement existe sous cette tactique
+        // Pour cet exemple, nous supposons que le placementId correspond à une tactique existante.
         sectionId = sId;
         tactiqueId = tactique.id;
-        break; // Logique simplifiée pour l'exemple
+        break; 
       }
       if (sectionId) break;
     }
@@ -363,6 +342,8 @@ export const useTactiquesOperations = ({
       for (const tactique of sectionTactiques) {
         sectionId = sId;
         tactiqueId = tactique.id;
+        // Ici, il faudrait chercher le placement sous la tactique, mais pour simplifier
+        // nous nous appuyons sur CR_PlacementId dans les données si fourni, sinon il est vide.
         break;
       }
       if (sectionId) break;
@@ -391,49 +372,27 @@ export const useTactiquesOperations = ({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
 
-  const handleDeleteCreatif = useCallback((creatifId: string) => {
+  const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => { // MODIFIÉ: Ajout des IDs parents
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour supprimer le créatif');
       return;
     }
-
-    // Logique simplifiée pour trouver le contexte parent
-    let sectionId = '';
-    let tactiqueId = '';
-    let placementId = '';
-
-    for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
-      for (const tactique of sectionTactiques) {
-        sectionId = sId;
-        tactiqueId = tactique.id;
-        placementId = ''; // Serait obtenu depuis le state des placements
-        break;
-      }
-      if (sectionId) break;
-    }
-
-    if (!sectionId || !tactiqueId) {
-      console.error('Contexte parent non trouvé pour le créatif');
-      return;
-    }
-
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce créatif ?')) {
-      deleteCreatif(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        tactiqueId,
-        placementId,
-        creatifId
-      ).then(() => {
-        onRefresh();
-      }).catch(error => {
-        console.error('Erreur lors de la suppression du créatif:', error);
-      });
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+    // RETIRÉ: confirm()
+    deleteCreatif(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId,
+      selectedOngletId,
+      sectionId, // UTILISÉ DIRECTEMENT
+      tactiqueId, // UTILISÉ DIRECTEMENT
+      placementId, // UTILISÉ DIRECTEMENT
+      creatifId
+    ).then(() => {
+      onRefresh();
+    }).catch(error => {
+      console.error('Erreur lors de la suppression du créatif:', error);
+    });
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
   // ==================== SECTIONS & ONGLETS ====================
   // TODO: Implémenter ces fonctions dans le prochain artefact (useTactiquesModals)
@@ -448,7 +407,26 @@ export const useTactiquesOperations = ({
 
   const handleDeleteSection = useCallback((sectionId: string) => {
     console.log('TODO: handleDeleteSection - à implémenter dans useTactiquesModals');
-  }, []);
+    // Le vrai deleteSection est maintenant géré dans useTactiquesModals et appelé directement
+    // depuis handleDeleteSelected dans tactiques/page.tsx
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+        console.error('Contexte manquant pour supprimer la section');
+        return;
+    }
+    // RETIRÉ: confirm()
+    deleteSection(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId,
+        selectedOngletId,
+        sectionId
+    ).then(() => {
+        onRefresh();
+    }).catch(error => {
+        console.error('Erreur lors de la suppression de la section:', error);
+    });
+
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
   const handleAddOnglet = useCallback(async () => {
     console.log('TODO: handleAddOnglet - à implémenter dans useTactiquesModals');

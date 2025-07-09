@@ -3,7 +3,7 @@
 // ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
 import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
-export type { TaxonomyFormat, FieldSource }; 
+export type { TaxonomyFormat, FieldSource };
 
 // ==================== INTERFACE SECTION CORRIGÉE ====================
 
@@ -26,10 +26,10 @@ export interface Tactique {
   TC_Order: number;
   TC_SectionId: string; // Référence à la section parente
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
-  
+
   // Champs Info
   TC_Bucket?: string; // Référence à l'enveloppe budgétaire
-  
+
   // Champs Stratégie - Section principale
   TC_LoB?: string; // Ligne d'affaire
   TC_Media_Type?: string; // Type média
@@ -43,20 +43,20 @@ export interface Tactique {
   TC_Market?: string; // Marché (liste dynamique)
   TC_Language?: string; // Langue
   TC_Format_Open?: string; // Description du format
-  
+
   // Champs Stratégie - Champs personnalisés
   TC_Buying_Method?: string; // Méthode d'achat
   TC_Custom_Dim_1?: string; // Dimension personnalisée 1
   TC_Custom_Dim_2?: string; // Dimension personnalisée 2
   TC_Custom_Dim_3?: string; // Dimension personnalisée 3
-  
+
   // Champs Stratégie - Production
   TC_NumberCreatives?: string; // Nombre de créatifs suggérés
   TC_AssetDate?: string; // Date de livraison des créatifs
-  
+
   // Champs KPI
   TC_Media_Objective?: string; // Objectif média
-  
+
   // KPIs multiples (jusqu'à 5)
   TC_Kpi?: string; // KPI principal
   TC_Kpi_CostPer?: number; // Coût par principal
@@ -73,11 +73,11 @@ export interface Tactique {
   TC_Kpi_5?: string; // KPI 5
   TC_Kpi_CostPer_5?: number; // Coût par 5
   TC_Kpi_Volume_5?: number; // Volume 5
-  
+
   // Champs Admin
   TC_Billing_ID?: string; // Numéro de facturation
   TC_PO?: string; // PO
-  
+
   // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string; // Placement média
   TC_Format?: string; // Format utilisé
@@ -143,11 +143,11 @@ export interface Placement {
   PL_Label: string;
   PL_Order: number;
   PL_TactiqueId: string;
-  
+
   PL_Taxonomy_Tags?: string;
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
-  
+
   // Champs de placement
   TAX_Product?: string;
   TAX_Audience_Demographics?: string;
@@ -157,7 +157,7 @@ export interface Placement {
 
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
-  
+
   createdAt?: string;
   updatedAt?: string;
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
@@ -170,12 +170,12 @@ export interface Creatif {
   CR_Label: string;
   CR_Order: number;
   CR_PlacementId: string;
-  
+
   // Taxonomies créatifs (niveaux 5-6)
   CR_Taxonomy_Tags?: string;
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
-  
+
   // 10 champs spécifiques aux créatifs
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
@@ -187,11 +187,11 @@ export interface Creatif {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
-  
+
   // Stockage des valeurs taxonomie et générations
   CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
-  
+
   createdAt?: string;
   updatedAt?: string;
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
@@ -211,19 +211,22 @@ export interface Version {
   createdBy: string;
 }
 
-// ==================== SECTION AVEC TACTIQUES CORRIGÉE ====================
+// ==================== STRUCTURES HIÉRARCHIQUES POUR L'AFFICHAGE ====================
 
-export interface SectionWithTactiques extends Section {
-  tactiques: Tactique[];
-  // isExpanded héritée de Section - plus besoin de la redéfinir
+// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
+export interface PlacementWithCreatifs extends Placement {
+  creatifs: Creatif[];
 }
 
+// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
 export interface TactiqueWithPlacements extends Tactique {
   placements: PlacementWithCreatifs[];
 }
 
-export interface PlacementWithCreatifs extends Placement {
-  creatifs: Creatif[];
+// 🔥 CORRECTION : Utilisation de TactiqueWithPlacements pour le tableau imbriqué
+export interface SectionWithTactiques extends Section {
+  tactiques: TactiqueWithPlacements[];
+  // isExpanded héritée de Section - plus besoin de la redéfinir
 }
 
 // ==================== TYPES DE FORMULAIRES ====================
@@ -281,11 +284,11 @@ export interface PlacementFormData {
   PL_Label: string;
   PL_Order: number;
   PL_TactiqueId: string;
-  
+
   PL_Taxonomy_Tags?: string;
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
-  
+
   // Champs de placement
   TAX_Product?: string;
   TAX_Location?: string;
@@ -303,12 +306,12 @@ export interface CreatifFormData {
   CR_Label: string;
   CR_Order: number;
   CR_PlacementId: string;
-  
+
   // Sélection des taxonomies (niveaux 5-6)
   CR_Taxonomy_Tags?: string;
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
-  
+
   // 10 champs spécifiques aux créatifs
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
@@ -320,7 +323,7 @@ export interface CreatifFormData {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
-  
+
   // Stockage des valeurs taxonomie
   CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;

@@ -59,12 +59,12 @@ interface UseTactiquesDataReturn {
   // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  handleDeletePlacement: (placementId: string) => void;
+  handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; // MODIFIÉ
 
   // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  handleDeleteCreatif: (creatifId: string) => void;
+  handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; // MODIFIÉ
 
   // Opérations sections
   handleAddSection: () => void;
@@ -242,7 +242,7 @@ export const useTactiquesData = (
       console.error(`❌ Erreur lors du chargement de l'onglet ${ongletId}:`, err);
       throw err;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, expandedSections]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, sections, tactiques, placements, expandedSections]);
 
   /**
    * Chargement initial des onglets
@@ -293,7 +293,7 @@ export const useTactiquesData = (
         loadOngletData(selectedOngletId);
       }
     }
-  }, [selectedOngletId, onglets.length]);
+  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]); // Ajout de loadOngletData aux dépendances
 
   /**
    * Gestionnaire pour la sélection d'onglet
@@ -375,12 +375,12 @@ export const useTactiquesData = (
     // Opérations placements
     handleCreatePlacement: operations.handleCreatePlacement,
     handleUpdatePlacement: operations.handleUpdatePlacement,
-    handleDeletePlacement: operations.handleDeletePlacement,
+    handleDeletePlacement: operations.handleDeletePlacement, // CONFORME À LA NOUVELLE SIGNATURE
 
     // Opérations créatifs
     handleCreateCreatif: operations.handleCreateCreatif,
     handleUpdateCreatif: operations.handleUpdateCreatif,
-    handleDeleteCreatif: operations.handleDeleteCreatif,
+    handleDeleteCreatif: operations.handleDeleteCreatif, // CONFORME À LA NOUVELLE SIGNATURE
 
     // Opérations sections
     handleAddSection: modals.handleAddSection,
