@@ -1,4 +1,4 @@
-// app/components/Tactiques/HierarchyComponents.tsx - Composants de rendu pour la hiérarchie
+// app/components/Tactiques/HierarchyComponents.tsx - CORRECTION SÉLECTION COMPLÈTE
 
 'use client';
 
@@ -18,7 +18,6 @@ import { Tactique, Placement, Creatif } from '../../types/tactiques';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
-  onSelect: (id: string, type: 'section' | 'tactique' | 'placement' | 'creatif', isSelected: boolean) => void;
 }
 
 // ==================== COMPOSANT CRÉATIF ====================
@@ -33,6 +32,8 @@ interface CreatifItemProps extends BaseItemProps {
   onHover: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onEdit: (placementId: string, creatif: Creatif) => void;
   onDelete?: (creatifId: string) => void;
+  // 🔥 CORRECTION: Gestionnaire spécifique pour les créatifs
+  onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
 }
 
 export const CreatifItem: React.FC<CreatifItemProps> = ({
@@ -45,7 +46,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   onHover,
   onEdit,
   onDelete,
-  onSelect
+  onSelectCreatif
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
@@ -66,19 +67,19 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
           onMouseLeave={() => onHover(null)}
         >
           <div className="flex items-center">
-            {/* Checkbox pour le créatif */}
+            {/* 🔥 CORRECTION: Checkbox pour le créatif avec le bon gestionnaire */}
             <input
               type="checkbox"
               className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
               checked={creatif.isSelected || false}
-              onChange={(e) => onSelect(creatif.id, 'creatif', e.target.checked)}
-              onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic à l'élément parent
+              onChange={(e) => onSelectCreatif(creatif.id, e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
             />
             <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
               <Bars3Icon className="h-3 w-3 text-gray-300" />
             </span>
             <div className="text-xs text-gray-600">
-              🎨 {creatif.CR_Label}
+              {creatif.CR_Label}
             </div>
             {creatif.CR_Version && (
               <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
@@ -139,6 +140,9 @@ interface PlacementItemProps extends BaseItemProps {
   onCreateCreatif?: (placementId: string) => void;
   onEditCreatif: (placementId: string, creatif: Creatif) => void;
   onDeleteCreatif?: (creatifId: string) => void;
+  // 🔥 CORRECTION: Gestionnaires spécifiques
+  onSelectPlacement: (placementId: string, isSelected: boolean) => void;
+  onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
 }
 
 export const PlacementItem: React.FC<PlacementItemProps> = ({
@@ -158,13 +162,11 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   onCreateCreatif,
   onEditCreatif,
   onDeleteCreatif,
-  onSelect
+  onSelectPlacement,
+  onSelectCreatif
 }) => {
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
-
-  // Déterminer si tous les créatifs sont sélectionnés
-  const allCreatifsSelected = creatifs.length > 0 && creatifs.every(c => c.isSelected);
 
   return (
     <Draggable
@@ -187,15 +189,13 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
             onClick={() => onExpand(placement.id)}
           >
             <div className="flex items-center">
-              {/* Checkbox pour le placement */}
+              {/* 🔥 CORRECTION: Checkbox pour le placement avec le bon gestionnaire */}
               <input
                 type="checkbox"
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
                 checked={placement.isSelected || false}
-                // Si tous les créatifs sont sélectionnés, la checkbox du parent doit l'être aussi
-                // Sinon, si le parent est sélectionné mais pas tous les enfants, c'est un état intermédiaire
-                onChange={(e) => onSelect(placement.id, 'placement', e.target.checked)}
-                onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic
+                onChange={(e) => onSelectPlacement(placement.id, e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
               />
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-3 w-3 text-gray-400" />
@@ -208,7 +208,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
               )}
               
               <div className="text-xs text-gray-700">
-                📋 {placement.PL_Label}
+                 {placement.PL_Label}
               </div>
               
               {creatifs.length > 0 && (
@@ -284,7 +284,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                           onEdit={onEditCreatif}
                           onDelete={onDeleteCreatif}
                           formatCurrency={() => ''}
-                          onSelect={onSelect}
+                          // 🔥 CORRECTION: Passer le bon gestionnaire
+                          onSelectCreatif={onSelectCreatif}
                         />
                       ))}
                       {provided.placeholder}
@@ -326,6 +327,10 @@ interface TactiqueItemProps extends BaseItemProps {
   onCreateCreatif?: (placementId: string) => void;
   onEditCreatif: (placementId: string, creatif: Creatif) => void;
   onDeleteCreatif?: (creatifId: string) => void;
+  // 🔥 CORRECTION: Gestionnaires spécifiques pour chaque type
+  onSelect: (tactiqueId: string, isSelected: boolean) => void;
+  onSelectPlacement: (placementId: string, isSelected: boolean) => void;
+  onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
 }
 
 export const TactiqueItem: React.FC<TactiqueItemProps> = ({
@@ -353,13 +358,12 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   onEditCreatif,
   onDeleteCreatif,
   formatCurrency,
-  onSelect
+  onSelect,
+  onSelectPlacement,
+  onSelectCreatif
 }) => {
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
-
-  // Déterminer si tous les placements sont sélectionnés
-  const allPlacementsSelected = placements.length > 0 && placements.every(p => p.isSelected);
 
   return (
     <Draggable
@@ -382,15 +386,13 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
             onClick={() => onExpandTactique(tactique.id)}
           >
             <div className="flex items-center">
-              {/* Checkbox pour la tactique */}
+              {/* 🔥 CORRECTION: Checkbox pour la tactique avec le bon gestionnaire */}
               <input
                 type="checkbox"
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
                 checked={tactique.isSelected || false}
-                // Si tous les placements sont sélectionnés, la checkbox du parent doit l'être aussi
-                // Sinon, si le parent est sélectionné mais pas tous les enfants, c'est un état intermédiaire
-                onChange={(e) => onSelect(tactique.id, 'tactique', e.target.checked)}
-                onClick={(e) => e.stopPropagation()} // Empêcher la propagation du clic
+                onChange={(e) => onSelect(tactique.id, e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
               />
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-4 w-4 text-gray-400" />
@@ -481,7 +483,9 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                           onEditCreatif={onEditCreatif}
                           onDeleteCreatif={onDeleteCreatif}
                           formatCurrency={formatCurrency}
-                          onSelect={onSelect}
+                          // 🔥 CORRECTION: Passer les bons gestionnaires
+                          onSelectPlacement={onSelectPlacement}
+                          onSelectCreatif={onSelectCreatif}
                         />
                       ))}
                       {provided.placeholder}

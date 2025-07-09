@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiquesHierarchyView.tsx - VERSION SIMPLIFIÉE AVEC DRAG AND DROP
+// app/components/Tactiques/TactiquesHierarchyView.tsx - CORRECTION SÉLECTION COMPLÈTE
 
 'use client';
 
@@ -47,7 +47,7 @@ interface TactiquesHierarchyViewProps {
     itemIds: string[], 
     type: 'section' | 'tactique' | 'placement' | 'creatif', 
     isSelected: boolean
-  ) => void; // 🔥 NOUVEAU: Gestionnaire de sélection au niveau de la page
+  ) => void;
 }
 
 export default function TactiquesHierarchyView({
@@ -69,7 +69,7 @@ export default function TactiquesHierarchyView({
   formatCurrency,
   totalBudget,
   onRefresh,
-  onSelectItems // 🔥 NOUVEAU: onSelectItems
+  onSelectItems
 }: TactiquesHierarchyViewProps) {
 
   // ==================== HOOK DRAG AND DROP ====================
@@ -156,7 +156,7 @@ export default function TactiquesHierarchyView({
     }));
   };
 
-  // 🔥 NOUVEAU: Gestionnaire de sélection pour les sections
+  // 🔥 CORRECTION: Gestionnaires de sélection pour chaque type d'élément
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
     // Collecter les IDs de la section et de tous ses enfants
     const itemIds: string[] = [sectionId];
@@ -177,7 +177,6 @@ export default function TactiquesHierarchyView({
     onSelectItems(itemIds, 'section', isSelected);
   };
 
-  // 🔥 NOUVEAU: Gestionnaire de sélection pour les tactiques
   const handleTactiqueSelect = (tactiqueId: string, isSelected: boolean) => {
     // Collecter les IDs de la tactique et de tous ses enfants
     const itemIds: string[] = [tactiqueId];
@@ -194,7 +193,6 @@ export default function TactiquesHierarchyView({
     onSelectItems(itemIds, 'tactique', isSelected);
   };
 
-  // 🔥 NOUVEAU: Gestionnaire de sélection pour les placements
   const handlePlacementSelect = (placementId: string, isSelected: boolean) => {
     // Collecter les IDs du placement et de tous ses enfants
     const itemIds: string[] = [placementId];
@@ -207,11 +205,10 @@ export default function TactiquesHierarchyView({
     onSelectItems(itemIds, 'placement', isSelected);
   };
 
-  // 🔥 NOUVEAU: Gestionnaire de sélection pour les créatifs
+  // 🔥 CORRECTION: Gestionnaire spécifique pour les créatifs
   const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
     onSelectItems([creatifId], 'creatif', isSelected);
   };
-
 
   // ==================== GESTIONNAIRES DE CRÉATION ====================
 
@@ -399,7 +396,6 @@ export default function TactiquesHierarchyView({
                           onMouseEnter={() => setHoveredSection(section.id)}
                           onMouseLeave={() => setHoveredSection(null)}
                         >
-                          {/* 🔥 CORRECTION: Le onClick pour l'expansion est sur un div séparé */}
                           <div
                             className={`flex justify-between items-center px-4 py-3 cursor-pointer ${
                               section.isExpanded ? 'bg-gray-50' : ''
@@ -408,7 +404,7 @@ export default function TactiquesHierarchyView({
                             onClick={() => onSectionExpand(section.id)} 
                           >
                             <div className="flex items-center">
-                              {/* Checkbox pour la section */}
+                              {/* 🔥 CORRECTION: Checkbox pour la section avec le bon gestionnaire */}
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
@@ -490,9 +486,8 @@ export default function TactiquesHierarchyView({
                               <Droppable droppableId={`tactiques-${section.id}`} type="TACTIQUE">
                                 {(provided) => (
                                   <div ref={provided.innerRef} {...provided.droppableProps}>
-                                    {/* 🔥 CORRECTION: Typage des éléments dans la map */}
-                                    {section.tactiques.map((tactique: TactiqueWithPlacements, tactiqueIndex) => { 
-                                      const tactiquePlacements = tactique.placements || []; // Utilisez tactique.placements ici
+                                    {section.tactiques.map((tactique, tactiqueIndex) => { 
+                                      const tactiquePlacements = placements[tactique.id] || [];
                                       
                                       return (
                                         <TactiqueItem
@@ -521,7 +516,10 @@ export default function TactiquesHierarchyView({
                                           onEditCreatif={handleEditCreatif}
                                           onDeleteCreatif={onDeleteCreatif}
                                           formatCurrency={formatCurrency}
+                                          // 🔥 CORRECTION: Passer les bons gestionnaires
                                           onSelect={handleTactiqueSelect}
+                                          onSelectPlacement={handlePlacementSelect}
+                                          onSelectCreatif={handleCreatifSelect}
                                         />
                                       );
                                     })}
