@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiquesHierarchyView.tsx - CORRECTION SÉLECTION COMPLÈTE
+// app/components/Tactiques/TactiquesHierarchyView.tsx - VERSION HARMONISÉE VISUELLEMENT
 
 'use client';
 
@@ -8,7 +8,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   PencilIcon,
-  TrashIcon,
   PlusIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline';
@@ -21,7 +20,7 @@ import {
 import TactiqueDrawer from './Tactiques/TactiqueDrawer';
 import PlacementDrawer from './Placement/PlacementDrawer';
 import CreatifDrawer from './Creatif/CreatifDrawer';
-import { TactiqueItem } from './HierarchyComponents'; // Assume TactiqueItem is defined here and uses correct props
+import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 
 interface TactiquesHierarchyViewProps {
@@ -36,11 +35,9 @@ interface TactiquesHierarchyViewProps {
   onDeleteTactique?: (sectionId: string, tactiqueId: string) => void;
   onCreatePlacement?: (tactiqueId: string) => Promise<Placement>;
   onUpdatePlacement?: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  // MODIFIÉ: Signature de onDeletePlacement
   onDeletePlacement?: (sectionId: string, tactiqueId: string, placementId: string) => void;
   onCreateCreatif?: (placementId: string) => Promise<Creatif>;
   onUpdateCreatif?: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
-  // MODIFIÉ: Signature de onDeleteCreatif
   onDeleteCreatif?: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
   formatCurrency: (amount: number) => string;
   totalBudget: number;
@@ -158,9 +155,9 @@ export default function TactiquesHierarchyView({
     }));
   };
 
-  // 🔥 CORRECTION: Gestionnaires de sélection pour chaque type d'élément
+  // ==================== GESTIONNAIRES DE SÉLECTION ====================
+
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
-    // Collecter les IDs de la section et de tous ses enfants
     const itemIds: string[] = [sectionId];
     const sectionTactiques = sections.find(s => s.id === sectionId)?.tactiques || [];
     
@@ -180,7 +177,6 @@ export default function TactiquesHierarchyView({
   };
 
   const handleTactiqueSelect = (tactiqueId: string, isSelected: boolean) => {
-    // Collecter les IDs de la tactique et de tous ses enfants
     const itemIds: string[] = [tactiqueId];
     const tactiquePlacements = placements[tactiqueId] || [];
 
@@ -196,7 +192,6 @@ export default function TactiquesHierarchyView({
   };
 
   const handlePlacementSelect = (placementId: string, isSelected: boolean) => {
-    // Collecter les IDs du placement et de tous ses enfants
     const itemIds: string[] = [placementId];
     const placementCreatifs = creatifs[placementId] || [];
     
@@ -207,7 +202,6 @@ export default function TactiquesHierarchyView({
     onSelectItems(itemIds, 'placement', isSelected);
   };
 
-  // 🔥 CORRECTION: Gestionnaire spécifique pour les créatifs
   const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
     onSelectItems([creatifId], 'creatif', isSelected);
   };
@@ -330,7 +324,6 @@ export default function TactiquesHierarchyView({
 
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
     for (const section of sections) {
-      // Les tactiques ici sont les TactiqueWithPlacements, donc elles ont déjà la prop placements
       const tactique = section.tactiques.find(t => t.id === tactiqueId);
       if (tactique) return tactique;
     }
@@ -340,8 +333,7 @@ export default function TactiquesHierarchyView({
   const findPlacementById = (placementId: string): { placement: Placement; tactique: Tactique } | undefined => {
     for (const section of sections) {
       for (const tactique of section.tactiques) {
-        // Accéder directement aux placements qui sont maintenant inclus dans TactiqueWithPlacements
-        const tactiquePlacements = tactique.placements || []; 
+        const tactiquePlacements = tactique.placements || [];
         const placement = tactiquePlacements.find(p => p.id === placementId);
         if (placement) {
           return { placement, tactique };
@@ -392,23 +384,22 @@ export default function TactiquesHierarchyView({
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        className={`${snapshot.isDragging ? 'bg-gray-50 shadow-lg' : ''}`}
+                        className={`${snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''}`}
                       >
-                        {/* Section header */}
+                        {/* Section header harmonisé */}
                         <div 
                           className="relative"
                           onMouseEnter={() => setHoveredSection(section.id)}
                           onMouseLeave={() => setHoveredSection(null)}
                         >
                           <div
-                            className={`flex justify-between items-center px-4 py-3 cursor-pointer ${
+                            className={`flex justify-between items-center px-4 py-3 cursor-pointer bg-white hover:bg-gray-50 transition-colors ${
                               section.isExpanded ? 'bg-gray-50' : ''
                             } ${section.isSelected ? 'bg-indigo-50' : ''}`}
                             style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
                             onClick={() => onSectionExpand(section.id)} 
                           >
                             <div className="flex items-center">
-                              {/* 🔥 CORRECTION: Checkbox pour la section avec le bon gestionnaire */}
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
@@ -425,14 +416,22 @@ export default function TactiquesHierarchyView({
                               ) : (
                                 <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
                               )}
+                              
                               <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
+                              
+                              {/* Badge tactiques discret - niveau en dessous */}
+                              {section.tactiques.length > 0 && (
+                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                  {section.tactiques.length}
+                                </span>
+                              )}
                               
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCreateTactiqueLocal(section.id);
                                 }} 
-                                className={`ml-2 p-1 rounded hover:bg-gray-200 ${
+                                className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
                                   hoveredSection === section.id ? 'text-indigo-600' : 'text-indigo-400'
                                 }`}
                                 title="Ajouter une tactique"
@@ -440,33 +439,28 @@ export default function TactiquesHierarchyView({
                                 <PlusIcon className="h-4 w-4" />
                               </button>
                             </div>
+                            
                             <div className="flex items-center space-x-4">
-                              {hoveredSection === section.id && (
-                                <div className="flex space-x-1">
-                                  {onEditSection && (
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEditSection(section.id);
-                                      }} 
-                                      className="p-1 rounded hover:bg-gray-200"
-                                    >
-                                      <PencilIcon className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                  {onDeleteSection && (
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDeleteSection(section.id);
-                                      }} 
-                                      className="p-1 rounded hover:bg-gray-200"
-                                    >
-                                      <TrashIcon className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
+                              {/* Actions fixes pour éviter le décalage */}
+                              <div className="relative min-w-[24px] h-6">
+                                {hoveredSection === section.id && (
+                                  <div className="absolute right-0 top-0 flex items-center">
+                                    {onEditSection && (
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onEditSection(section.id);
+                                        }} 
+                                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                        title="Modifier la section"
+                                      >
+                                        <PencilIcon className="h-4 w-4 text-gray-500" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              
                               <div className="text-right">
                                 <div className="text-sm font-medium">
                                   {formatCurrency(section.SECTION_Budget || 0)}
@@ -479,9 +473,9 @@ export default function TactiquesHierarchyView({
                           </div>
                         </div>
 
-                        {/* Rendu des tactiques */}
+                        {/* Rendu des tactiques - fond blanc uniforme */}
                         {section.isExpanded && (
-                          <div className="bg-gray-50">
+                          <div className="bg-white">
                             {section.tactiques.length === 0 ? (
                               <div className="pl-12 py-3 text-sm text-gray-500 italic">
                                 Aucune tactique dans cette section
@@ -491,7 +485,6 @@ export default function TactiquesHierarchyView({
                                 {(provided) => (
                                   <div ref={provided.innerRef} {...provided.droppableProps}>
                                     {section.tactiques.map((tactique, tactiqueIndex) => { 
-                                      // tactique.placements est maintenant directement disponible grâce à TactiqueWithPlacements
                                       const tactiquePlacements = tactique.placements || [];
                                       
                                       return (
@@ -501,7 +494,7 @@ export default function TactiquesHierarchyView({
                                           index={tactiqueIndex}
                                           sectionId={section.id}
                                           placements={tactiquePlacements}
-                                          creatifs={creatifs} // creatifs est un objet { [placementId]: Creatif[] }
+                                          creatifs={creatifs}
                                           expandedTactiques={expandedTactiques}
                                           expandedPlacements={expandedPlacements}
                                           hoveredTactique={hoveredTactique}
@@ -513,25 +506,11 @@ export default function TactiquesHierarchyView({
                                           onExpandTactique={handleTactiqueExpand}
                                           onExpandPlacement={handlePlacementExpand}
                                           onEdit={handleEditTactique}
-                                          onDelete={onDeleteTactique} // Appel de onDeleteTactique
                                           onCreatePlacement={handleCreatePlacementLocal}
                                           onEditPlacement={handleEditPlacement}
-                                          // PASSAGE DES IDS PARENTS À onDeletePlacement
-                                          onDeletePlacement={
-                                            onDeletePlacement ? 
-                                              (placementId) => onDeletePlacement(section.id, tactique.id, placementId) 
-                                              : undefined
-                                          }
                                           onCreateCreatif={handleCreateCreatifLocal}
                                           onEditCreatif={handleEditCreatif}
-                                          // PASSAGE DES IDS PARENTS À onDeleteCreatif
-                                          onDeleteCreatif={
-                                            onDeleteCreatif ? 
-                                              (creatifId) => onDeleteCreatif(section.id, tactique.id, tactiquePlacements.find(p => p.id === creatifId)?.id || '', creatifId) 
-                                              : undefined
-                                          }
                                           formatCurrency={formatCurrency}
-                                          // 🔥 CORRECTION: Passer les bons gestionnaires
                                           onSelect={handleTactiqueSelect}
                                           onSelectPlacement={handlePlacementSelect}
                                           onSelectCreatif={handleCreatifSelect}
