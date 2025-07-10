@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - Version simplifiée avec nouvelle architecture
+// app/tactiques/page.tsx - INTÉGRATION SERVICE DUPLICATION
 
 'use client';
 
@@ -16,6 +16,9 @@ import LoadingSpinner from '../components/Others/LoadingSpinner';
 import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
 import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { useClient } from '../contexts/ClientContext';
+import { useSelection } from '../contexts/SelectionContext';
+import { duplicateSelectedItems, DuplicationContext } from '../lib/duplicationService';
 
 // ==================== TYPES ====================
 
@@ -26,6 +29,10 @@ type ViewMode = 'hierarchy' | 'table' | 'timeline';
 export default function TactiquesPage() {
   
   // ==================== HOOKS PRINCIPAUX ====================
+
+  // Contexte pour les opérations
+  const { selectedClient } = useClient();
+  const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
   // Hook de sélection campagne/version (simplifié)
   const {
@@ -84,6 +91,7 @@ export default function TactiquesPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [duplicationLoading, setDuplicationLoading] = useState(false);
 
   // ==================== GESTION DU BUDGET ====================
 
@@ -123,12 +131,94 @@ export default function TactiquesPage() {
     setSelectedItems(new Set());
   }, []);
 
+  // ==================== DUPLICATION INTÉGRÉE ====================
+
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
-    alert(`🚧 Duplication à implémenter pour: ${itemIds.join(', ')}`);
-    console.log('🔄 Duplication des éléments:', itemIds);
-    await onRefresh();
-    handleClearSelection();
-  }, [onRefresh, handleClearSelection]);
+    // Vérification du contexte
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      setError('Contexte manquant pour la duplication');
+      return;
+    }
+
+    if (itemIds.length === 0) {
+      return;
+    }
+
+    console.log('🔄 Début duplication de', itemIds.length, 'éléments:', itemIds);
+
+    try {
+      setDuplicationLoading(true);
+
+      // Construire le contexte de duplication
+      const context: DuplicationContext = {
+        clientId: selectedClient.clientId,
+        campaignId: selectedCampaignId,
+        versionId: selectedVersionId,
+        ongletId: selectedOngletId
+      };
+
+      // Préparer la hiérarchie des données pour le service
+      const itemHierarchy = {
+        sections,
+        tactiques,
+        placements,
+        creatifs
+      };
+
+      // Appeler le service de duplication
+      const result = await duplicateSelectedItems(context, itemIds, itemHierarchy);
+
+      // Gérer le résultat
+      if (result.success && result.duplicatedIds.length > 0) {
+        console.log('✅ Duplication réussie:', result.duplicatedIds);
+        
+        // Message de succès
+        const successMessage = `${result.duplicatedIds.length} élément${result.duplicatedIds.length > 1 ? 's dupliqués' : ' dupliqué'} avec succès`;
+        
+        // Créer un toast de succès temporaire
+        const successToast = document.createElement('div');
+        successToast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+        successToast.textContent = successMessage;
+        document.body.appendChild(successToast);
+        
+        setTimeout(() => {
+          document.body.removeChild(successToast);
+        }, 3000);
+
+        // Rafraîchir les données
+        await onRefresh();
+
+        // Nettoyer la sélection
+        handleClearSelection();
+
+      } else {
+        // Gérer les erreurs
+        const errorMessages = result.errors.length > 0 ? result.errors : ['Erreur inconnue lors de la duplication'];
+        console.error('❌ Erreurs duplication:', errorMessages);
+        
+        setError(`Erreur lors de la duplication: ${errorMessages.join(', ')}`);
+      }
+
+    } catch (error) {
+      console.error('💥 Erreur critique duplication:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      setError(`Erreur critique lors de la duplication: ${errorMessage}`);
+    } finally {
+      setDuplicationLoading(false);
+    }
+  }, [
+    selectedClient?.clientId, 
+    selectedCampaignId, 
+    selectedVersionId, 
+    selectedOngletId,
+    sections, 
+    tactiques, 
+    placements, 
+    creatifs,
+    onRefresh, 
+    handleClearSelection, 
+    setError
+  ]);
 
   const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer les ${itemIds.length} éléments sélectionnés ? Cette action est irréversible.`)) {
@@ -331,7 +421,7 @@ export default function TactiquesPage() {
   // ==================== GESTION D'ERREUR ====================
 
   const hasError = campaignError || tactiquesError;
-  const isLoading = campaignLoading || tactiquesLoading;
+  const isLoading = campaignLoading || tactiquesLoading || duplicationLoading;
 
   // ==================== RENDU ====================
 
@@ -362,6 +452,16 @@ export default function TactiquesPage() {
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
             <span className="text-sm text-indigo-700">Actualisation en cours...</span>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== INDICATEUR DE DUPLICATION ==================== */}
+      {duplicationLoading && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+            <span className="text-sm text-green-700">Duplication en cours...</span>
           </div>
         </div>
       )}
