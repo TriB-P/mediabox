@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesData.ts
+// app/hooks/useTactiquesData.ts - Version avec useDataFlow intégré
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -24,6 +24,9 @@ import {
 } from '../lib/creatifService';
 import { useTactiquesOperations } from './useTactiquesOperations';
 import { useTactiquesModals } from './useTactiquesModals';
+import { useDataFlow, type SectionExpansionState } from './useDataFlow';
+
+// ==================== TYPES ====================
 
 interface SectionModalState {
   isOpen: boolean;
@@ -31,11 +34,18 @@ interface SectionModalState {
   mode: 'create' | 'edit';
 }
 
+interface UseTactiquesDataProps {
+  selectedCampaign: Campaign | null;
+  selectedVersion: any;
+}
+
 interface UseTactiquesDataReturn {
-  // États de chargement et erreur
+  // États de chargement centralisés
   loading: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  shouldShowFullLoader: boolean;
+  shouldShowTopIndicator: boolean;
 
   // Données principales
   onglets: Onglet[];
@@ -45,52 +55,53 @@ interface UseTactiquesDataReturn {
   placements: { [tactiqueId: string]: Placement[] };
   creatifs: { [placementId: string]: Creatif[] };
 
-  // Modal de section
+  // Modal de section (délégué au hook modals)
   sectionModal: SectionModalState;
   handleSaveSection: (sectionData: any) => Promise<void>;
   closeSectionModal: () => void;
+  
+  // Gestion d'expansion avec useDataFlow
   handleSectionExpand: (sectionId: string) => void;
+  sectionExpansions: SectionExpansionState;
 
-  // Opérations tactiques
+  // Opérations CRUD (délégué au hook operations)
   handleCreateTactique: (sectionId: string) => Promise<Tactique>;
   handleUpdateTactique: (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => Promise<void>;
   handleDeleteTactique: (sectionId: string, tactiqueId: string) => void;
-
-  // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
   handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; 
-
-  // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
   handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 
-  // Opérations sections
+  // Opérations sections/onglets (délégué au hook modals)
   handleAddSection: () => void;
   handleEditSection: (sectionId: string) => void;
   handleDeleteSection: (sectionId: string) => void;
-
-  // Opérations onglets
   handleAddOnglet: () => Promise<void>;
   handleRenameOnglet: (ongletId: string, newName?: string) => Promise<void>;
   handleDeleteOnglet: (ongletId: string) => Promise<void>;
   handleSelectOnglet: (onglet: Onglet) => void;
 
-  // Fonction de rafraîchissement pour le drag and drop
+  // Refresh principal
   onRefresh: () => Promise<void>;
 
-  // NOUVEAU: Fonctions pour la suppression locale (mise à jour optimiste)
+  // Fonctions de suppression locale (optimiste)
   removeSectionLocally: (sectionId: string) => void;
   removeTactiqueAndChildrenLocally: (sectionId: string, tactiqueId: string) => void;
   removePlacementAndChildrenLocally: (sectionId: string, tactiqueId: string, placementId: string) => void;
   removeCreatifLocally: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
 }
 
+// ==================== HOOK PRINCIPAL ====================
+
 export const useTactiquesData = (
   selectedCampaign: Campaign | null,
   selectedVersion: any
 ): UseTactiquesDataReturn => {
+  
+  // ==================== DÉPENDANCES ====================
   
   const { selectedClient } = useClient();
   const { 
@@ -100,9 +111,13 @@ export const useTactiquesData = (
     setSelectedOngletId 
   } = useSelection();
 
-  // États principaux
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Hook central de gestion des chargements et expansion
+  const dataFlow = useDataFlow({ 
+    enableDebug: process.env.NODE_ENV === 'development',
+    minimumLoadingTime: 1500 
+  });
+  
+  // ==================== ÉTATS LOCAUX ====================
   
   // Données
   const [onglets, setOnglets] = useState<Onglet[]>([]);
@@ -112,54 +127,21 @@ export const useTactiquesData = (
   const [placements, setPlacements] = useState<{ [tactiqueId: string]: Placement[] }>({});
   const [creatifs, setCreatifs] = useState<{ [placementId: string]: Creatif[] }>({});
 
-  // États d'expansion des sections
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-
+  // États de chargement de données
+  const [hasInitialData, setHasInitialData] = useState(false);
+  
+  // ==================== FONCTIONS DE CHARGEMENT ====================
+  
   /**
-   * Fonction principale de rafraîchissement des données
-   */
-  const onRefresh = useCallback(async () => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      console.log('🔄 onRefresh: Contexte incomplet, arrêt du rafraîchissement');
-      return;
-    }
-
-    console.log('🔄 onRefresh: Début du rafraîchissement des données');
-    setLoading(true);
-    setError(null);
-
-    try {
-      // 1. Recharger les onglets
-      const newOnglets = await getOnglets(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId
-      );
-      setOnglets(newOnglets);
-
-      // 2. Si on a un onglet sélectionné, recharger ses données EN PRÉSERVANT les expansions
-      if (selectedOngletId) {
-        await loadOngletData(selectedOngletId, newOnglets);
-      }
-
-      console.log('✅ onRefresh: Rafraîchissement terminé avec succès');
-    } catch (err) {
-      console.error('❌ onRefresh: Erreur lors du rafraîchissement:', err);
-      setError(err instanceof Error ? err.message : 'Erreur lors du rafraîchissement');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
-
-  /**
-   * Charger les données d'un onglet spécifique
+   * Chargement complet d'un onglet avec tous ses éléments enfants
    */
   const loadOngletData = useCallback(async (ongletId: string, availableOnglets?: Onglet[]) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      console.log('🔄 loadOngletData: Contexte incomplet');
       return;
     }
 
-    console.log(`🔄 Chargement des données pour l'onglet ${ongletId}`);
+    console.log(`🔄 Chargement complet onglet ${ongletId}`);
 
     try {
       // 1. Définir l'onglet sélectionné
@@ -169,7 +151,7 @@ export const useTactiquesData = (
         setSelectedOnglet(onglet);
       }
 
-      // 2. Charger les sections et PRÉSERVER les états d'expansion
+      // 2. Charger sections en préservant les expansions
       const newSections = await getSections(
         selectedClient.clientId,
         selectedCampaignId,
@@ -179,15 +161,12 @@ export const useTactiquesData = (
       
       // 🔥 IMPORTANT : Préserver les états d'expansion existants
       const sectionsWithExpansion = newSections.map(section => {
-        const existingSection = sections.find(s => s.id === section.id);
-        return {
-          ...section,
-          isExpanded: existingSection?.isExpanded || expandedSections.has(section.id) || false
-        };
+        const isExpanded = dataFlow.state.sectionExpansions[section.id] || false;
+        return { ...section, isExpanded };
       });
       setSections(sectionsWithExpansion);
 
-      // 3. Charger les tactiques pour chaque section
+      // 3. Charger tactiques pour chaque section
       const newTactiques: { [sectionId: string]: Tactique[] } = {};
       for (const section of newSections) {
         const sectionTactiques = await getTactiques(
@@ -201,7 +180,7 @@ export const useTactiquesData = (
       }
       setTactiques(newTactiques);
 
-      // 4. Charger les placements pour chaque tactique
+      // 4. Charger placements pour chaque tactique
       const newPlacements: { [tactiqueId: string]: Placement[] } = {};
       for (const [sectionId, sectionTactiques] of Object.entries(newTactiques)) {
         for (const tactique of sectionTactiques) {
@@ -218,11 +197,10 @@ export const useTactiquesData = (
       }
       setPlacements(newPlacements);
 
-      // 5. Charger les créatifs pour chaque placement
+      // 5. Charger créatifs pour chaque placement
       const newCreatifs: { [placementId: string]: Creatif[] } = {};
       for (const [tactiqueId, tactiquePlacements] of Object.entries(newPlacements)) {
         for (const placement of tactiquePlacements) {
-          // Trouver la section pour ce placement
           const sectionId = Object.keys(newTactiques).find(sId => 
             newTactiques[sId].some(t => t.id === tactiqueId)
           );
@@ -243,97 +221,124 @@ export const useTactiquesData = (
       }
       setCreatifs(newCreatifs);
 
-      console.log(`✅ Données chargées pour l'onglet ${ongletId}`);
+      console.log(`✅ Onglet ${ongletId} chargé complètement`);
+      setHasInitialData(true);
+      
     } catch (err) {
-      console.error(`❌ Erreur lors du chargement de l'onglet ${ongletId}:`, err);
+      console.error(`❌ Erreur chargement onglet ${ongletId}:`, err);
       throw err;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, sections, tactiques, placements, expandedSections]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, dataFlow.state.sectionExpansions]);
 
   /**
-   * Chargement initial des onglets
+   * Fonction principale de rafraîchissement
    */
+  const onRefresh = useCallback(async () => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      console.log('🔄 onRefresh: Contexte incomplet');
+      return;
+    }
+
+    console.log('🔄 Début refresh des données tactiques');
+    
+    try {
+      // Type de chargement selon si on a déjà des données
+      if (hasInitialData) {
+        dataFlow.startRefreshLoading('Actualisation des données...');
+      } else {
+        dataFlow.startInitialLoading('Chargement des tactiques...');
+      }
+
+      // 1. Recharger les onglets
+      const newOnglets = await getOnglets(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId
+      );
+      setOnglets(newOnglets);
+
+      // 2. Si on a un onglet sélectionné, recharger ses données
+      if (selectedOngletId) {
+        await loadOngletData(selectedOngletId, newOnglets);
+      }
+
+      console.log('✅ Refresh terminé avec succès');
+      
+    } catch (err) {
+      console.error('❌ Erreur lors du refresh:', err);
+      dataFlow.setError(err instanceof Error ? err.message : 'Erreur lors du rafraîchissement');
+    } finally {
+      dataFlow.stopLoading();
+    }
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, hasInitialData, dataFlow, loadOngletData]);
+
+  // ==================== EFFETS DE CHARGEMENT ====================
+  
+  // Chargement initial quand le contexte change
   useEffect(() => {
     const loadInitialData = async () => {
       if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+        // Reset data si contexte incomplet
+        setOnglets([]);
+        setSelectedOnglet(null);
+        setSections([]);
+        setTactiques({});
+        setPlacements({});
+        setCreatifs({});
+        setHasInitialData(false);
+        dataFlow.clearExpansions();
         return;
       }
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        const newOnglets = await getOnglets(
-          selectedClient.clientId,
-          selectedCampaignId,
-          selectedVersionId
-        );
-        setOnglets(newOnglets);
-
-        // Sélectionner le premier onglet par défaut
-        if (newOnglets.length > 0 && !selectedOngletId) {
-          const firstOnglet = newOnglets[0];
-          setSelectedOngletId(firstOnglet.id);
-          await loadOngletData(firstOnglet.id, newOnglets);
-        } else if (selectedOngletId) {
-          await loadOngletData(selectedOngletId, newOnglets);
-        }
-      } catch (err) {
-        console.error('❌ Erreur lors du chargement initial:', err);
-        setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
-      } finally {
-        setLoading(false);
-      }
+      console.log('🔄 Chargement initial des données tactiques');
+      await onRefresh();
     };
 
     loadInitialData();
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId]);
 
-  /**
-   * Réagir aux changements d'onglet sélectionné
-   */
+  // Chargement de l'onglet sélectionné
   useEffect(() => {
     if (selectedOngletId && onglets.length > 0) {
       const onglet = onglets.find(o => o.id === selectedOngletId);
       if (onglet && onglet.id !== selectedOnglet?.id) {
+        console.log('🔄 Changement d\'onglet détecté');
         loadOngletData(selectedOngletId);
       }
     }
-  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]); 
+  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]);
 
-  /**
-   * Gestionnaire pour la sélection d'onglet
-   */
-  const handleSelectOnglet = useCallback((onglet: Onglet) => {
-    if (onglet.id !== selectedOngletId) {
-      setSelectedOngletId(onglet.id);
+  // Auto-sélection du premier onglet
+  useEffect(() => {
+    if (onglets.length > 0 && !selectedOngletId) {
+      const firstOnglet = onglets[0];
+      console.log('🎯 Auto-sélection du premier onglet:', firstOnglet.ONGLET_Name);
+      setSelectedOngletId(firstOnglet.id);
     }
-  }, [selectedOngletId, setSelectedOngletId]);
+  }, [onglets.length, selectedOngletId, setSelectedOngletId]);
 
-  /**
-   * Gestionnaire pour l'expansion des sections - MET À JOUR LES DEUX ÉTATS
-   */
+  // ==================== GESTION D'EXPANSION ====================
+  
   const handleSectionExpand = useCallback((sectionId: string) => {
-    // 1. Mettre à jour l'état d'expansion dans expandedSections
-    setExpandedSections(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(sectionId)) {
-        newSet.delete(sectionId);
-      } else {
-        newSet.add(sectionId);
-      }
-      return newSet;
-    });
-
-    // 2. Mettre à jour l'état d'expansion dans les sections elles-mêmes
+    dataFlow.toggleSectionExpansion(sectionId);
+    
+    // 🔥 SYNCHRONISATION : Mettre à jour aussi les sections locales
     setSections(prev => prev.map(section => 
       section.id === sectionId 
         ? { ...section, isExpanded: !section.isExpanded }
         : section
     ));
-  }, []);
+  }, [dataFlow]);
 
-  // NOUVEAU: Fonctions pour la suppression locale (mise à jour optimiste)
+  const handleSelectOnglet = useCallback((onglet: Onglet) => {
+    if (onglet.id !== selectedOngletId) {
+      console.log('🎯 Sélection onglet:', onglet.ONGLET_Name);
+      setSelectedOngletId(onglet.id);
+    }
+  }, [selectedOngletId, setSelectedOngletId]);
+
+  // ==================== FONCTIONS DE SUPPRESSION LOCALE ====================
+  
   const filterAndReorder = useCallback(<T extends { id: string; TC_Order?: number; PL_Order?: number; CR_Order?: number; SECTION_Order?: number }>(
     items: T[], 
     itemIdToRemove: string,
@@ -347,6 +352,7 @@ export const useTactiquesData = (
   }, []);
 
   const removeCreatifLocally = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
+    console.log(`🗑️ Suppression locale créatif ${creatifId}`);
     setCreatifs(prevCreatifs => {
       const newCreatifs = { ...prevCreatifs };
       if (newCreatifs[placementId]) {
@@ -357,6 +363,7 @@ export const useTactiquesData = (
   }, [filterAndReorder]);
 
   const removePlacementAndChildrenLocally = useCallback((sectionId: string, tactiqueId: string, placementId: string) => {
+    console.log(`🗑️ Suppression locale placement ${placementId} et enfants`);
     setPlacements(prevPlacements => {
       const newPlacements = { ...prevPlacements };
       if (newPlacements[tactiqueId]) {
@@ -364,7 +371,6 @@ export const useTactiquesData = (
       }
       return newPlacements;
     });
-    // Remove all children creatifs associated with this placement
     setCreatifs(prevCreatifs => {
       const newCreatifs = { ...prevCreatifs };
       delete newCreatifs[placementId];
@@ -373,6 +379,7 @@ export const useTactiquesData = (
   }, [filterAndReorder]);
 
   const removeTactiqueAndChildrenLocally = useCallback((sectionId: string, tactiqueId: string) => {
+    console.log(`🗑️ Suppression locale tactique ${tactiqueId} et enfants`);
     setTactiques(prevTactiques => {
       const newTactiques = { ...prevTactiques };
       if (newTactiques[sectionId]) {
@@ -380,51 +387,55 @@ export const useTactiquesData = (
       }
       return newTactiques;
     });
-    // Remove all children placements and their creatifs associated with this tactique
+    
+    const placementsToRemove = placements[tactiqueId] || [];
+    placementsToRemove.forEach(placement => {
+      setCreatifs(prevCreatifs => {
+        const newCreatifs = { ...prevCreatifs };
+        delete newCreatifs[placement.id];
+        return newCreatifs;
+      });
+    });
+    
     setPlacements(prevPlacements => {
       const newPlacements = { ...prevPlacements };
-      const placementsToRemove = newPlacements[tactiqueId] || [];
-      placementsToRemove.forEach(p => {
-        delete newPlacements[p.id]; 
-        setCreatifs(prevCreatifs => {
-          const newCreatifs = { ...prevCreatifs };
-          delete newCreatifs[p.id];
-          return newCreatifs;
-        });
-      });
-      delete newPlacements[tactiqueId]; 
+      delete newPlacements[tactiqueId];
       return newPlacements;
     });
-  }, [filterAndReorder]);
+  }, [filterAndReorder, placements]);
 
   const removeSectionLocally = useCallback((sectionId: string) => {
+    console.log(`🗑️ Suppression locale section ${sectionId} et enfants`);
     setSections(prevSections => {
       return filterAndReorder(prevSections, sectionId, 'SECTION_Order');
     });
-    // Remove all children tactiques, placements, and creatifs associated with this section
+    
+    const sectTactiques = tactiques[sectionId] || [];
+    sectTactiques.forEach(tactique => {
+      removeTactiqueAndChildrenLocally(sectionId, tactique.id);
+    });
+    
     setTactiques(prevTactiques => {
       const newTactiques = { ...prevTactiques };
-      const tactiquesToRemove = newTactiques[sectionId] || [];
-      tactiquesToRemove.forEach(t => {
-        removeTactiqueAndChildrenLocally(sectionId, t.id); 
-      });
       delete newTactiques[sectionId];
       return newTactiques;
     });
-  }, [filterAndReorder, removeTactiqueAndChildrenLocally]); 
+  }, [filterAndReorder, tactiques, removeTactiqueAndChildrenLocally]);
 
-  // ==================== INTÉGRATION DES HOOKS SPÉCIALISÉS ====================
+  // ==================== INTÉGRATION HOOKS SPÉCIALISÉS ====================
 
-  // Hook des opérations CRUD
   const operations = useTactiquesOperations({
     selectedCampaign,
     selectedOnglet,
     sections,
     tactiques,
-    onRefresh // onRefresh is still provided for fallback/full sync
+    onRefresh,
+    removeSectionLocally,
+    removeTactiqueAndChildrenLocally,
+    removePlacementAndChildrenLocally,
+    removeCreatifLocally,
   });
 
-  // Hook des modals
   const modals = useTactiquesModals({
     selectedCampaign,
     onglets,
@@ -433,11 +444,15 @@ export const useTactiquesData = (
     onRefresh
   });
 
+  // ==================== RETURN ====================
+
   return {
-    // États
-    loading,
-    error,
-    setError,
+    // États centralisés avec useDataFlow
+    loading: dataFlow.isLoading,
+    error: dataFlow.state.error,
+    setError: dataFlow.setError,
+    shouldShowFullLoader: dataFlow.shouldShowFullLoader,
+    shouldShowTopIndicator: dataFlow.shouldShowTopIndicator,
 
     // Données
     onglets,
@@ -447,42 +462,39 @@ export const useTactiquesData = (
     placements,
     creatifs,
 
-    // Modal de section
+    // Expansion avec useDataFlow
+    handleSectionExpand,
+    sectionExpansions: dataFlow.state.sectionExpansions,
+
+    // Modal de section (délégué)
     sectionModal: modals.sectionModal,
     handleSaveSection: modals.handleSaveSection,
     closeSectionModal: modals.closeSectionModal,
-    handleSectionExpand,
 
-    // Opérations tactiques
+    // Opérations CRUD (délégué)
     handleCreateTactique: operations.handleCreateTactique,
     handleUpdateTactique: operations.handleUpdateTactique,
-    handleDeleteTactique: operations.handleDeleteTactique, 
-
-    // Opérations placements
+    handleDeleteTactique: operations.handleDeleteTactique,
     handleCreatePlacement: operations.handleCreatePlacement,
     handleUpdatePlacement: operations.handleUpdatePlacement,
-    handleDeletePlacement: operations.handleDeletePlacement, 
-
-    // Opérations créatifs
+    handleDeletePlacement: operations.handleDeletePlacement,
     handleCreateCreatif: operations.handleCreateCreatif,
     handleUpdateCreatif: operations.handleUpdateCreatif,
-    handleDeleteCreatif: operations.handleDeleteCreatif, 
+    handleDeleteCreatif: operations.handleDeleteCreatif,
 
-    // Opérations sections
+    // Opérations sections/onglets (délégué)
     handleAddSection: modals.handleAddSection,
     handleEditSection: modals.handleEditSection,
     handleDeleteSection: modals.handleDeleteSection,
-
-    // Opérations onglets
     handleAddOnglet: modals.handleAddOnglet,
     handleRenameOnglet: modals.handleRenameOnglet,
     handleDeleteOnglet: modals.handleDeleteOnglet,
     handleSelectOnglet,
 
-    // Fonction de rafraîchissement
+    // Refresh principal
     onRefresh,
 
-    // NOUVEAU: Fonctions de suppression locale (optimiste)
+    // Fonctions de suppression locale
     removeSectionLocally,
     removeTactiqueAndChildrenLocally,
     removePlacementAndChildrenLocally,

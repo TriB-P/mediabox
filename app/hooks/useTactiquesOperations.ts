@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesOperations.ts
+// app/hooks/useTactiquesOperations.ts - Version finale avec suppression optimiste intégrée
 
 import { useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -18,9 +18,6 @@ import {
   addTactique,
   updateTactique,
   deleteTactique,
-  addSection,
-  updateSection,
-  deleteSection
 } from '../lib/tactiqueService';
 import {
   createPlacement,
@@ -33,8 +30,7 @@ import {
   deleteCreatif
 } from '../lib/creatifService';
 
-// NOUVEAU: Les fonctions de suppression locale ne sont plus importées directement du hook
-// useTactiquesData, mais reçues via les props du hook useTactiquesOperations.
+// ==================== TYPES ====================
 
 interface UseTactiquesOperationsProps {
   selectedCampaign: Campaign | null;
@@ -43,7 +39,7 @@ interface UseTactiquesOperationsProps {
   tactiques: { [sectionId: string]: Tactique[] };
   onRefresh: () => Promise<void>;
 
-  // NOUVEAU: Ajout des fonctions de suppression locale dans les props du hook
+  // Fonctions de suppression locale pour mises à jour optimistes
   removeSectionLocally: (sectionId: string) => void;
   removeTactiqueAndChildrenLocally: (sectionId: string, tactiqueId: string) => void;
   removePlacementAndChildrenLocally: (sectionId: string, tactiqueId: string, placementId: string) => void;
@@ -65,17 +61,9 @@ interface UseTactiquesOperationsReturn {
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
   handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
-
-  // Opérations sections
-  handleAddSection: () => void;
-  handleEditSection: (sectionId: string) => void;
-  handleDeleteSection: (sectionId: string) => void;
-
-  // Opérations onglets
-  handleAddOnglet: () => Promise<void>;
-  handleRenameOnglet: (ongletId: string, newName?: string) => Promise<void>;
-  handleDeleteOnglet: (ongletId: string) => Promise<void>;
 }
+
+// ==================== HOOK PRINCIPAL ====================
 
 export const useTactiquesOperations = ({
   selectedCampaign,
@@ -83,108 +71,135 @@ export const useTactiquesOperations = ({
   sections,
   tactiques,
   onRefresh,
-  // NOUVEAU: Récupération des fonctions de suppression locale depuis les props
-  removeSectionLocally, 
-  removeTactiqueAndChildrenLocally, 
-  removePlacementAndChildrenLocally, 
-  removeCreatifLocally 
+  removeSectionLocally,
+  removeTactiqueAndChildrenLocally,
+  removePlacementAndChildrenLocally,
+  removeCreatifLocally
 }: UseTactiquesOperationsProps): UseTactiquesOperationsReturn => {
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   
-  // ==================== TACTIQUES ====================
+  // ==================== UTILITAIRES ====================
+  
+  /**
+   * Vérifie que le contexte est complet pour les opérations
+   */
+  const ensureContext = () => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      throw new Error('Contexte incomplet pour l\'opération');
+    }
+    return {
+      clientId: selectedClient.clientId,
+      campaignId: selectedCampaignId,
+      versionId: selectedVersionId,
+      ongletId: selectedOngletId
+    };
+  };
+
+  /**
+   * Exécute une opération avec gestion d'erreur et refresh conditionnel
+   */
+  const executeOperation = useCallback(async <T>(
+    operationName: string,
+    operation: () => Promise<T>,
+    skipRefresh = false
+  ): Promise<T> => {
+    try {
+      console.log(`🔄 ${operationName}...`);
+      const result = await operation();
+      console.log(`✅ ${operationName} réussi`);
+      
+      if (!skipRefresh) {
+        await onRefresh();
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`❌ Erreur ${operationName}:`, error);
+      // En cas d'erreur, toujours refresh pour resynchroniser
+      await onRefresh();
+      throw error;
+    }
+  }, [onRefresh]);
+  
+  // ==================== OPÉRATIONS TACTIQUES ====================
 
   const handleCreateTactique = useCallback(async (sectionId: string): Promise<Tactique> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer une tactique');
-    }
-
+    const context = ensureContext();
     const sectionTactiques = tactiques[sectionId] || [];
-    const newOrder = sectionTactiques.length;
 
     const newTactiqueData: Omit<Tactique, 'id'> = {
       TC_Label: 'Nouvelle tactique',
       TC_Budget: 0,
-      TC_Order: newOrder,
+      TC_Order: sectionTactiques.length,
       TC_SectionId: sectionId,
       TC_Status: 'Planned'
     };
 
-    try {
-      const tactiqueId = await addTactique(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        newTactiqueData
-      );
-
-      const newTactique = { id: tactiqueId, ...newTactiqueData };
-      await onRefresh();
-      return newTactique;
-    } catch (error) {
-      console.error('Erreur lors de la création de la tactique:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+    return executeOperation(
+      'Création tactique',
+      async () => {
+        const tactiqueId = await addTactique(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          newTactiqueData
+        );
+        return { id: tactiqueId, ...newTactiqueData };
+      }
+    );
+  }, [tactiques, executeOperation]);
 
   const handleUpdateTactique = useCallback(async (
     sectionId: string, 
     tactiqueId: string, 
     data: Partial<Tactique>
   ): Promise<void> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour mettre à jour la tactique');
-    }
+    const context = ensureContext();
 
-    try {
-      await updateTactique(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
+    return executeOperation(
+      'Mise à jour tactique',
+      () => updateTactique(
+        context.clientId,
+        context.campaignId,
+        context.versionId,
+        context.ongletId,
         sectionId,
         tactiqueId,
         data
-      );
-      await onRefresh();
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la tactique:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+      )
+    );
+  }, [executeOperation]);
 
   const handleDeleteTactique = useCallback((sectionId: string, tactiqueId: string) => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      console.error('Contexte manquant pour supprimer la tactique');
-      return;
-    }
-    // Mise à jour optimiste: retirer l'élément de l'interface
-    removeTactiqueAndChildrenLocally(sectionId, tactiqueId); 
+    const context = ensureContext();
+
+    // Mise à jour optimiste immédiate
+    removeTactiqueAndChildrenLocally(sectionId, tactiqueId);
+    console.log(`🗑️ Suppression optimiste tactique ${tactiqueId}`);
     
-    // Suppression en base de données
+    // Suppression en arrière-plan
     deleteTactique(
-      selectedClient.clientId,
-      selectedCampaignId,
-      selectedVersionId,
-      selectedOngletId,
+      context.clientId,
+      context.campaignId,
+      context.versionId,
+      context.ongletId,
       sectionId,
       tactiqueId
     ).catch(error => {
-      console.error('Erreur lors de la suppression de la tactique Firestore:', error);
-      // En cas d'échec, rafraîchir pour resynchroniser l'interface avec la base de données
-      onRefresh(); 
+      console.error('❌ Erreur suppression tactique Firestore:', error);
+      // En cas d'échec, resynchroniser avec la base
+      onRefresh();
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removeTactiqueAndChildrenLocally, onRefresh]);
+  }, [removeTactiqueAndChildrenLocally, onRefresh]);
 
-  // ==================== PLACEMENTS ====================
+  // ==================== OPÉRATIONS PLACEMENTS ====================
 
   const handleCreatePlacement = useCallback(async (tactiqueId: string): Promise<Placement> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer un placement');
-    }
+    const context = ensureContext();
 
     // Trouver la section qui contient cette tactique
     const sectionId = Object.keys(tactiques).find(sId =>
@@ -201,45 +216,39 @@ export const useTactiquesOperations = ({
       PL_TactiqueId: tactiqueId
     };
 
-    try {
-      const placementId = await createPlacement(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        tactiqueId,
-        newPlacementData
-      );
-
-      const newPlacement = { id: placementId, ...newPlacementData };
-      await onRefresh();
-      return newPlacement;
-    } catch (error) {
-      console.error('Erreur lors de la création du placement:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+    return executeOperation(
+      'Création placement',
+      async () => {
+        const placementId = await createPlacement(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          tactiqueId,
+          newPlacementData
+        );
+        return { id: placementId, ...newPlacementData };
+      }
+    );
+  }, [tactiques, executeOperation]);
 
   const handleUpdatePlacement = useCallback(async (
     placementId: string, 
     data: Partial<Placement>
   ): Promise<void> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour mettre à jour le placement');
-    }
+    const context = ensureContext();
 
-    // Trouver la section et tactique qui contiennent ce placement
+    // Trouver le contexte parent (section et tactique)
     let sectionId = '';
     let tactiqueId = '';
 
     for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
       for (const tactique of sectionTactiques) {
-        // Cette logique nécessiterait d'avoir accès aux placements ici
-        // On va simplifier en supposant que cette info est dans data
-        if (data.PL_TactiqueId) {
-          tactiqueId = data.PL_TactiqueId;
+        // Utiliser l'ID de tactique directement si disponible dans les données
+        if (data.PL_TactiqueId && tactique.id === data.PL_TactiqueId) {
           sectionId = sId;
+          tactiqueId = tactique.id;
           break;
         }
       }
@@ -250,54 +259,47 @@ export const useTactiquesOperations = ({
       throw new Error('Contexte parent non trouvé pour le placement');
     }
 
-    try {
-      await updatePlacement(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
+    return executeOperation(
+      'Mise à jour placement',
+      () => updatePlacement(
+        context.clientId,
+        context.campaignId,
+        context.versionId,
+        context.ongletId,
         sectionId,
         tactiqueId,
         placementId,
         data
-      );
-      await onRefresh();
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du placement:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+      )
+    );
+  }, [tactiques, executeOperation]);
 
-  const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => { 
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      console.error('Contexte manquant pour supprimer le placement');
-      return;
-    }
-    // Mise à jour optimiste: retirer l'élément de l'interface
-    removePlacementAndChildrenLocally(sectionId, tactiqueId, placementId); 
+  const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => {
+    const context = ensureContext();
 
-    // Suppression en base de données
+    // Mise à jour optimiste immédiate
+    removePlacementAndChildrenLocally(sectionId, tactiqueId, placementId);
+    console.log(`🗑️ Suppression optimiste placement ${placementId}`);
+
+    // Suppression en arrière-plan
     deletePlacement(
-      selectedClient.clientId,
-      selectedCampaignId,
-      selectedVersionId,
-      selectedOngletId,
-      sectionId, 
-      tactiqueId, 
+      context.clientId,
+      context.campaignId,
+      context.versionId,
+      context.ongletId,
+      sectionId,
+      tactiqueId,
       placementId
     ).catch(error => {
-      console.error('Erreur lors de la suppression du placement Firestore:', error);
-      // En cas d'échec, rafraîchir pour resynchroniser l'interface
-      onRefresh(); 
+      console.error('❌ Erreur suppression placement Firestore:', error);
+      onRefresh();
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removePlacementAndChildrenLocally, onRefresh]);
+  }, [removePlacementAndChildrenLocally, onRefresh]);
 
-  // ==================== CRÉATIFS ====================
+  // ==================== OPÉRATIONS CRÉATIFS ====================
 
   const handleCreateCreatif = useCallback(async (placementId: string): Promise<Creatif> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer un créatif');
-    }
+    const context = ensureContext();
 
     // Trouver le contexte parent (section, tactique)
     let sectionId = '';
@@ -322,36 +324,31 @@ export const useTactiquesOperations = ({
       CR_PlacementId: placementId
     };
 
-    try {
-      const creatifId = await createCreatif(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        sectionId,
-        tactiqueId,
-        placementId,
-        newCreatifData
-      );
-
-      const newCreatif = { id: creatifId, ...newCreatifData };
-      await onRefresh();
-      return newCreatif;
-    } catch (error) {
-      console.error('Erreur lors de la création du créatif:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+    return executeOperation(
+      'Création créatif',
+      async () => {
+        const creatifId = await createCreatif(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          tactiqueId,
+          placementId,
+          newCreatifData
+        );
+        return { id: creatifId, ...newCreatifData };
+      }
+    );
+  }, [tactiques, executeOperation]);
 
   const handleUpdateCreatif = useCallback(async (
     creatifId: string, 
     data: Partial<Creatif>
   ): Promise<void> => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour mettre à jour le créatif');
-    }
+    const context = ensureContext();
 
-    // Trouver le contexte parent (logique simplifiée)
+    // Trouver le contexte parent (simplification - utiliser le premier trouvé)
     let sectionId = '';
     let tactiqueId = '';
     let placementId = data.CR_PlacementId || '';
@@ -369,106 +366,46 @@ export const useTactiquesOperations = ({
       throw new Error('Contexte parent non trouvé pour le créatif');
     }
 
-    try {
-      await updateCreatif(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
+    return executeOperation(
+      'Mise à jour créatif',
+      () => updateCreatif(
+        context.clientId,
+        context.campaignId,
+        context.versionId,
+        context.ongletId,
         sectionId,
         tactiqueId,
         placementId,
         creatifId,
         data
-      );
-      await onRefresh();
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du créatif:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, onRefresh]);
+      )
+    );
+  }, [tactiques, executeOperation]);
 
-  const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => { 
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      console.error('Contexte manquant pour supprimer le créatif');
-      return;
-    }
-    // Mise à jour optimiste: retirer l'élément de l'interface
-    removeCreatifLocally(sectionId, tactiqueId, placementId, creatifId); 
+  const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
+    const context = ensureContext();
+
+    // Mise à jour optimiste immédiate
+    removeCreatifLocally(sectionId, tactiqueId, placementId, creatifId);
+    console.log(`🗑️ Suppression optimiste créatif ${creatifId}`);
     
-    // Suppression en base de données
+    // Suppression en arrière-plan
     deleteCreatif(
-      selectedClient.clientId,
-      selectedCampaignId,
-      selectedVersionId,
-      selectedOngletId,
-      sectionId, 
-      tactiqueId, 
-      placementId, 
+      context.clientId,
+      context.campaignId,
+      context.versionId,
+      context.ongletId,
+      sectionId,
+      tactiqueId,
+      placementId,
       creatifId
     ).catch(error => {
-      console.error('Erreur lors de la suppression du créatif Firestore:', error);
-      // En cas d'échec, rafraîchir pour resynchroniser l'interface
-      onRefresh(); 
+      console.error('❌ Erreur suppression créatif Firestore:', error);
+      onRefresh();
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, removeCreatifLocally, onRefresh]);
+  }, [removeCreatifLocally, onRefresh]);
 
-  // ==================== SECTIONS & ONGLETS ====================
-  // TODO: Implémenter ces fonctions dans le prochain artefact (useTactiquesModals)
-
-  const handleAddSection = useCallback(() => {
-    console.log('TODO: handleAddSection - à implémenter dans useTactiquesModals');
-  }, []);
-
-  const handleEditSection = useCallback((sectionId: string) => {
-    console.log('TODO: handleEditSection - à implémenter dans useTactiquesModals');
-  }, []);
-
-  const handleDeleteSection = useCallback((sectionId: string) => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-        console.error('Contexte manquant pour supprimer la section');
-        return;
-    }
-
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) {
-      console.error('Section non trouvée');
-      return;
-    }
-
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer la section "${section.SECTION_Name}" et toutes ses tactiques ?`;
-    
-    if (confirm(confirmMessage)) {
-      // Mise à jour optimiste: retirer l'élément de l'interface
-      removeSectionLocally(sectionId); 
-
-      // Suppression en base de données
-      deleteSection(
-          selectedClient.clientId,
-          selectedCampaignId,
-          selectedVersionId,
-          selectedOngletId,
-          sectionId
-      ).catch(error => {
-          console.error('Erreur lors de la suppression de la section Firestore:', error);
-          // En cas d'échec, rafraîchir pour resynchroniser l'interface
-          onRefresh(); 
-      });
-    }
-
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, removeSectionLocally, onRefresh]);
-
-  const handleAddOnglet = useCallback(async () => {
-    console.log('TODO: handleAddOnglet - à implémenter dans useTactiquesModals');
-  }, []);
-
-  const handleRenameOnglet = useCallback(async (ongletId: string, newName?: string) => {
-    console.log('TODO: handleRenameOnglet - à implémenter dans useTactiquesModals');
-  }, []);
-
-  const handleDeleteOnglet = useCallback(async (ongletId: string) => {
-    console.log('TODO: handleDeleteOnglet - à implémenter dans useTactiquesModals');
-  }, []);
+  // ==================== RETURN ====================
 
   return {
     // Opérations tactiques
@@ -485,15 +422,41 @@ export const useTactiquesOperations = ({
     handleCreateCreatif,
     handleUpdateCreatif,
     handleDeleteCreatif,
-
-    // Opérations sections
-    handleAddSection,
-    handleEditSection,
-    handleDeleteSection,
-
-    // Opérations onglets
-    handleAddOnglet,
-    handleRenameOnglet,
-    handleDeleteOnglet,
   };
 };
+
+// ==================== HOOK UTILITAIRE POUR LES OPÉRATIONS CRUD ====================
+
+/**
+ * Hook simplifié pour les opérations basiques sans contexte complexe
+ */
+export function useBasicCrudOperations() {
+  const { selectedClient } = useClient();
+  const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
+
+  const executeWithContext = useCallback(async <T>(
+    operation: (context: {
+      clientId: string;
+      campaignId: string; 
+      versionId: string;
+      ongletId: string;
+    }) => Promise<T>
+  ): Promise<T> => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      throw new Error('Contexte incomplet');
+    }
+
+    return operation({
+      clientId: selectedClient.clientId,
+      campaignId: selectedCampaignId,
+      versionId: selectedVersionId,
+      ongletId: selectedOngletId
+    });
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+
+  return { executeWithContext };
+}
+
+// ==================== TYPES EXPORT ====================
+
+export type { UseTactiquesOperationsProps, UseTactiquesOperationsReturn };

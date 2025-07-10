@@ -1,11 +1,12 @@
-// app/tactiques/page.tsx
+// app/tactiques/page.tsx - Version simplifiée avec nouvelle architecture
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { useTactiquesData } from '../hooks/useTactiquesData';
 import { SectionWithTactiques, Section, Tactique, Placement, Creatif } from '../types/tactiques';
+import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
 import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
@@ -14,16 +15,19 @@ import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import LoadingSpinner from '../components/Others/LoadingSpinner';
 import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
 import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
-import {
-  ChevronDownIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
+
+// ==================== TYPES ====================
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
+// ==================== COMPOSANT PRINCIPAL ====================
+
 export default function TactiquesPage() {
+  
   // ==================== HOOKS PRINCIPAUX ====================
 
+  // Hook de sélection campagne/version (simplifié)
   const {
     campaigns,
     versions,
@@ -35,10 +39,13 @@ export default function TactiquesPage() {
     handleVersionChange,
   } = useCampaignSelection();
 
+  // Hook de données tactiques (avec useDataFlow intégré)
   const {
-    loading,
-    error,
+    loading: tactiquesLoading,
+    error: tactiquesError,
     setError,
+    shouldShowFullLoader,
+    shouldShowTopIndicator,
     onglets,
     selectedOnglet,
     sections,
@@ -49,105 +56,39 @@ export default function TactiquesPage() {
     handleSaveSection,
     closeSectionModal,
     handleSectionExpand,
+    sectionExpansions,
     handleCreateTactique,
     handleUpdateTactique,
+    handleDeleteTactique,
     handleCreatePlacement,
     handleUpdatePlacement,
+    handleDeletePlacement,
     handleCreateCreatif,
     handleUpdateCreatif,
+    handleDeleteCreatif,
     handleSelectOnglet,
     onRefresh,
-    // Fonctions des opérations CRUD des hooks spécialisés
     handleAddSection,
     handleEditSection,
-    // MODIFIÉ: Renommage pour éviter le conflit avec la fonction locale
-    handleDeleteSection: deleteSectionOp, 
-    handleDeleteTactique: deleteTactiqueOp,
-    handleDeletePlacement: deletePlacementOp,
-    handleDeleteCreatif: deleteCreatifOp,
+    handleDeleteSection,
     handleAddOnglet,
     handleRenameOnglet,
     handleDeleteOnglet,
-    // NOUVEAU: Fonctions de suppression locale pour les mises à jour optimistes
     removeSectionLocally,
     removeTactiqueAndChildrenLocally,
     removePlacementAndChildrenLocally,
     removeCreatifLocally,
-  } = useTactiquesData(selectedCampaign, selectedVersion); // Assurez-vous que selectedVersion est passé ici.
+  } = useTactiquesData(selectedCampaign, selectedVersion);
 
   // ==================== ÉTATS UI ====================
 
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
-  const [totalBudget, setTotalBudget] = useState<number>(0);
-  const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
-  const [showVersionDropdown, setShowVersionDropdown] = useState(false);
-  const [showLoader, setShowLoader] = useState(false);
-  const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);
-
-  // 🔥 NOUVEAU: État pour les éléments sélectionnés
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
-  // Refs pour les dropdowns
-  const campaignDropdownRef = useRef<HTMLDivElement>(null);
-  const versionDropdownRef = useRef<HTMLDivElement>(null);
-
-  // ==================== LOGIQUE DE CHARGEMENT ====================
-
-  const isLoading = campaignLoading || loading;
-  const hasError = campaignError || error;
-
-  // Gérer le loader
-  useEffect(() => {
-    if (isLoading) {
-      console.log('🔄 Début chargement');
-      setShowLoader(true);
-      setMinimumTimeElapsed(false);
-    } else {
-      console.log('🏁 Chargement terminé - masquer loader immédiatement');
-      setShowLoader(false);
-      setMinimumTimeElapsed(true);
-    }
-  }, [isLoading]);
-
-  // Timeout de sécurité
-  useEffect(() => {
-    if (showLoader) {
-      const safetyTimer = setTimeout(() => {
-        console.log('🚨 Timeout de sécurité (6s) - forcer l\'arrêt');
-        setShowLoader(false);
-        setMinimumTimeElapsed(true);
-      }, 6000);
-
-      return () => clearTimeout(safetyTimer);
-    }
-  }, [showLoader]);
-
-  // ==================== GESTION DES DROPDOWNS ====================
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(event.target as Node)) {
-        setShowCampaignDropdown(false);
-      }
-      if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
-        setShowVersionDropdown(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   // ==================== GESTION DU BUDGET ====================
 
-  useEffect(() => {
-    if (selectedCampaign) {
-      setTotalBudget(selectedCampaign.CA_Budget || 0);
-    } else {
-      setTotalBudget(0);
-    }
+  const totalBudget = useMemo(() => {
+    return selectedCampaign?.CA_Budget || 0;
   }, [selectedCampaign]);
 
   const formatCurrency = useCallback((amount: number) => {
@@ -183,20 +124,18 @@ export default function TactiquesPage() {
   }, []);
 
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
-    alert(`Dupliquer les éléments: ${itemIds.join(', ')}`);
-    console.log('Duplication des éléments:', itemIds);
-    await onRefresh(); // Rafraîchir les données après la duplication
+    alert(`🚧 Duplication à implémenter pour: ${itemIds.join(', ')}`);
+    console.log('🔄 Duplication des éléments:', itemIds);
+    await onRefresh();
     handleClearSelection();
   }, [onRefresh, handleClearSelection]);
 
   const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
-    // La confirmation est maintenant gérée par le composant SelectedActionsPanel
-    // (ou pourrait être gérée ici avec un Dialog plus élaboré)
     if (!confirm(`Êtes-vous sûr de vouloir supprimer les ${itemIds.length} éléments sélectionnés ? Cette action est irréversible.`)) {
       return;
     }
 
-    console.log('Suppression des éléments:', itemIds);
+    console.log('🗑️ Suppression des éléments:', itemIds);
 
     for (const itemId of Array.from(itemIds)) {
       let itemType: 'section' | 'tactique' | 'placement' | 'creatif' | undefined;
@@ -205,17 +144,14 @@ export default function TactiquesPage() {
       let currentPlacementId: string | undefined;
       let currentCreatifId: string | undefined; 
 
-      // Chercher l'élément et son contexte parent dans la structure actuelle
-      // Nous utilisons `sections` (données brutes) pour éviter les boucles infinies ou dépendances cycliques
-      // avec `sectionsWithTactiques` qui dépend de `selectedItems`.
-      // Cette recherche est cruciale pour obtenir les IDs parents nécessaires aux fonctions de suppression.
+      // Recherche du type et contexte de l'élément
       for (const section of sections) {
         if (section.id === itemId) {
           itemType = 'section';
           currentSectionId = section.id;
           break;
         }
-        if (tactiques[section.id]) { // Vérifier si la section a des tactiques chargées
+        if (tactiques[section.id]) {
           for (const tactique of tactiques[section.id]) {
             if (tactique.id === itemId) {
               itemType = 'tactique';
@@ -223,7 +159,7 @@ export default function TactiquesPage() {
               currentTactiqueId = tactique.id;
               break;
             }
-            if (placements[tactique.id]) { // Vérifier si la tactique a des placements chargés
+            if (placements[tactique.id]) {
               for (const placement of placements[tactique.id]) {
                 if (placement.id === itemId) {
                   itemType = 'placement';
@@ -232,7 +168,7 @@ export default function TactiquesPage() {
                   currentPlacementId = placement.id;
                   break;
                 }
-                if (creatifs[placement.id]) { // Vérifier si le placement a des créatifs chargés
+                if (creatifs[placement.id]) {
                   for (const creatif of creatifs[placement.id]) {
                     if (creatif.id === itemId) {
                       itemType = 'creatif';
@@ -252,71 +188,57 @@ export default function TactiquesPage() {
         if (itemType) break;
       }
 
-      // Appeler la fonction de suppression appropriée avec les IDs parents si nécessaires
+      // Suppression avec mise à jour optimiste
       try {
         switch (itemType) {
           case 'section':
             if (currentSectionId) {
-              // NOUVEAU: Utilisation de la suppression locale avant l'appel à la BDD
               removeSectionLocally(currentSectionId);
-              deleteSectionOp(currentSectionId); // Appelle la fonction Firestore
-              console.log(`Section ${itemId} supprimée localement.`);
+              handleDeleteSection(currentSectionId);
+              console.log(`✅ Section ${itemId} supprimée`);
             }
             break;
           case 'tactique':
             if (currentSectionId && currentTactiqueId) {
-              // NOUVEAU: Utilisation de la suppression locale
               removeTactiqueAndChildrenLocally(currentSectionId, currentTactiqueId);
-              deleteTactiqueOp(currentSectionId, currentTactiqueId); // Appelle la fonction Firestore
-              console.log(`Tactique ${itemId} supprimée localement.`);
+              handleDeleteTactique(currentSectionId, currentTactiqueId);
+              console.log(`✅ Tactique ${itemId} supprimée`);
             }
             break;
           case 'placement':
             if (currentSectionId && currentTactiqueId && currentPlacementId) {
-              // NOUVEAU: Utilisation de la suppression locale
               removePlacementAndChildrenLocally(currentSectionId, currentTactiqueId, currentPlacementId);
-              deletePlacementOp(currentSectionId, currentTactiqueId, currentPlacementId); // Appelle la fonction Firestore
-              console.log(`Placement ${itemId} supprimé localement.`);
+              handleDeletePlacement(currentSectionId, currentTactiqueId, currentPlacementId);
+              console.log(`✅ Placement ${itemId} supprimé`);
             }
             break;
           case 'creatif':
-            if (currentSectionId && currentTactiqueId && currentPlacementId && currentCreatifId) { 
-              // NOUVEAU: Utilisation de la suppression locale
+            if (currentSectionId && currentTactiqueId && currentPlacementId && currentCreatifId) {
               removeCreatifLocally(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId);
-              deleteCreatifOp(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId); // Appelle la fonction Firestore
-              console.log(`Créatif ${itemId} supprimé localement.`);
-            } else if (itemId.startsWith('creatif-')) { 
-              console.warn(`Tentative de suppression de créatif sans IDs parents complets: ${itemId}.`);
-              // Ici, on pourrait envisager un rafraîchissement complet en dernier recours si l'optimiste n'est pas possible.
-              onRefresh(); // Fallback au refresh complet pour assurer la cohérence
+              handleDeleteCreatif(currentSectionId, currentTactiqueId, currentPlacementId, currentCreatifId);
+              console.log(`✅ Créatif ${itemId} supprimé`);
             }
             break;
           default:
-            console.warn(`Type d'élément inconnu ou contexte insuffisant pour supprimer: ${itemId}`);
+            console.warn(`⚠️ Type d'élément inconnu pour ${itemId}`);
         }
       } catch (opError) {
-        console.error(`Erreur lors de la suppression de l'élément ${itemId}:`, opError);
-        setError(`Erreur lors de la suppression de ${itemId}. Veuillez réessayer. ${opError instanceof Error ? opError.message : ''}`);
-        onRefresh(); // Forcer un rafraîchissement en cas d'erreur de la logique optimiste
+        console.error(`❌ Erreur suppression ${itemId}:`, opError);
+        setError(`Erreur lors de la suppression de ${itemId}`);
+        onRefresh(); // Fallback en cas d'erreur
       }
     }
 
-    // NOUVEAU: On ne fait pas de refresh global ici, car les suppressions sont optimistes.
-    // Le refresh global est géré par les hooks eux-mêmes en cas d'erreur Firestore.
-    // On efface juste la sélection.
-    handleClearSelection(); 
+    handleClearSelection();
   }, [
     sections, tactiques, placements, creatifs, 
-    deleteSectionOp, deleteTactiqueOp, deletePlacementOp, deleteCreatifOp, 
+    handleDeleteSection, handleDeleteTactique, handleDeletePlacement, handleDeleteCreatif,
     removeSectionLocally, removeTactiqueAndChildrenLocally, removePlacementAndChildrenLocally, removeCreatifLocally,
     onRefresh, handleClearSelection, setError
   ]);
 
+  // ==================== PRÉPARATION DES DONNÉES AVEC SÉLECTION ====================
 
-  // ==================== PRÉPARATION DES DONNÉES AVEC SÉLECTION CORRIGÉE ====================
-
-  // 🔥 CORRECTION MAJEURE: Enrichissement des données avec états de sélection
-  // Déplacé avant son utilisation
   const sectionsWithTactiques: SectionWithTactiques[] = useMemo(() => {
     return sections.map(section => {
       const sectionTactiques = tactiques[section.id] || [];
@@ -327,47 +249,45 @@ export default function TactiquesPage() {
         const mappedPlacements = tactiquePlacements.map(placement => {
           const placementCreatifs = creatifs[placement.id] || [];
           
-          // 🔥 Mapper les créatifs avec leur état de sélection
           const mappedCreatifs = placementCreatifs.map(creatif => ({
             ...creatif,
             isSelected: selectedItems.has(creatif.id)
           }));
 
-          // 🔥 État de sélection du placement : soit explicitement sélectionné, soit tous ses créatifs sont sélectionnés
           const isPlacementSelected = selectedItems.has(placement.id) || 
                                       (mappedCreatifs.length > 0 && mappedCreatifs.every(c => c.isSelected));
 
           return {
             ...placement,
-            creatifs: mappedCreatifs, // 🔥 IMPORTANT: Utiliser les créatifs mappés
+            creatifs: mappedCreatifs,
             isSelected: isPlacementSelected
           };
         });
 
-        // 🔥 État de sélection de la tactique
         const isTactiqueSelected = selectedItems.has(tactique.id) || 
                                    (mappedPlacements.length > 0 && mappedPlacements.every(p => p.isSelected));
 
         return {
           ...tactique,
-          placements: mappedPlacements, // 🔥 IMPORTANT: Utiliser les placements mappés
+          placements: mappedPlacements,
           isSelected: isTactiqueSelected
         };
       });
 
-      // 🔥 État de sélection de la section
       const isSectionSelected = selectedItems.has(section.id) ||
                                 (mappedTactiques.length > 0 && mappedTactiques.every(t => t.isSelected));
 
       return {
         ...section,
         tactiques: mappedTactiques,
-        isSelected: isSectionSelected
+        isSelected: isSectionSelected,
+        // 🔥 SYNCHRONISATION: Utiliser l'état d'expansion de useDataFlow
+        isExpanded: sectionExpansions[section.id] || false
       };
     });
-  }, [sections, tactiques, placements, creatifs, selectedItems]);
+  }, [sections, tactiques, placements, creatifs, selectedItems, sectionExpansions]);
 
-  // 🔥 CORRECTION: Créer des objets de placements et créatifs basés sur la structure enrichie
+  // Données enrichies pour les composants
   const enrichedPlacements = useMemo(() => {
     const result: { [tactiqueId: string]: Placement[] } = {};
     sectionsWithTactiques.forEach(section => {
@@ -396,120 +316,76 @@ export default function TactiquesPage() {
     return result;
   }, [sectionsWithTactiques]);
 
-  const budgetUtilisé = sections.reduce((total, section) => total + (section.SECTION_Budget || 0), 0);
-  const budgetRestant = totalBudget - budgetUtilisé;
+  // Données pour les autres vues
+  const sectionNames = useMemo(() => {
+    return sections.reduce((names, section) => {
+      names[section.id] = section.SECTION_Name;
+      return names;
+    }, {} as Record<string, string>);
+  }, [sections]);
 
-  const sectionNames = sections.reduce((names, section) => {
-    names[section.id] = section.SECTION_Name;
-    return names;
-  }, {} as Record<string, string>);
+  const flatTactiques = useMemo(() => {
+    return Object.values(tactiques).flat();
+  }, [tactiques]);
 
-  const flatTactiques = Object.values(tactiques).flat();
+  // ==================== GESTION D'ERREUR ====================
 
-  // ==================== LOGS ET STATISTIQUES ====================
-
-  useEffect(() => {
-    console.log('📋 Placements actuels:', placements);
-    console.log('🎨 Créatifs actuels:', creatifs);
-    console.log('🎯 Éléments sélectionnés:', Array.from(selectedItems));
-    
-    const totalPlacements = Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0);
-    const totalCreatifs = Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0);
-    
-    console.log(`📊 Total placements: ${totalPlacements}`);
-    console.log(`🎯 Total créatifs: ${totalCreatifs}`);
-  }, [placements, creatifs, selectedItems]);
+  const hasError = campaignError || tactiquesError;
+  const isLoading = campaignLoading || tactiquesLoading;
 
   // ==================== RENDU ====================
 
   return (
     <div className="space-y-6 pb-16">
-      {/* En-tête */}
+      
+      {/* ==================== EN-TÊTE ==================== */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
       </div>
 
-      {/* Sélecteurs de campagne et version */}
-      <div className="flex gap-4 mb-6">
-        {/* Sélecteur de campagne */}
-        <div className="w-1/2 relative" ref={campaignDropdownRef}>
-          <button
-            type="button"
-            className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
-          >
-            <span>{selectedCampaign?.CA_Name || 'Sélectionner une campagne'}</span>
-            <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
-          </button>
+      {/* ==================== SÉLECTEUR CAMPAGNE/VERSION ==================== */}
+      <CampaignVersionSelector
+        campaigns={campaigns}
+        versions={versions}
+        selectedCampaign={selectedCampaign}
+        selectedVersion={selectedVersion}
+        loading={campaignLoading}
+        error={campaignError}
+        onCampaignChange={handleCampaignChange}
+        onVersionChange={handleVersionChange}
+        className="mb-6"
+      />
 
-          {showCampaignDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-              <ul className="py-1">
-                {campaigns.map(campaign => (
-                  <li
-                    key={campaign.id}
-                    className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-                      selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
-                    }`}
-                    onClick={() => handleCampaignChange(campaign)}
-                  >
-                    {campaign.CA_Name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      {/* ==================== INDICATEUR DE REFRESH ==================== */}
+      {shouldShowTopIndicator && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            <span className="text-sm text-indigo-700">Actualisation en cours...</span>
+          </div>
         </div>
+      )}
 
-        {/* Sélecteur de version */}
-        <div className="w-1/2 relative" ref={versionDropdownRef}>
-          <button
-            type="button"
-            className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onClick={() => setShowVersionDropdown(!showVersionDropdown)}
-            disabled={!selectedCampaign || versions.length === 0}
-          >
-            <span>{selectedVersion?.name || 'Sélectionner une version'}</span>
-            <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
-          </button>
+      {/* ==================== CHARGEMENT COMPLET ==================== */}
+      {shouldShowFullLoader && (
+        <LoadingSpinner 
+          message="Chargement des tactiques..." 
+          minimumDuration={1500}
+        />
+      )}
 
-          {showVersionDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-              <ul className="py-1">
-                {versions.map(version => (
-                  <li
-                    key={version.id}
-                    className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-                      selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
-                    }`}
-                    onClick={() => handleVersionChange(version)}
-                  >
-                    {version.name}
-                    {version.isOfficial && (
-                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Officielle
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* LoadingSpinner */}
-      {showLoader && <LoadingSpinner message="Chargement des tactiques..." />}
-
-      {selectedVersion && !showLoader && (
+      {/* ==================== CONTENU PRINCIPAL ==================== */}
+      {selectedVersion && !shouldShowFullLoader && (
         <div className="w-full flex">
+          
           {/* Zone de contenu principal */}
           <div className="flex-1 mr-4">
-            {/* 🔥 Panneau d'actions groupées */}
+            
+            {/* Panneau d'actions groupées */}
             {selectedItems.size > 0 && (
               <SelectedActionsPanel
                 selectedItems={Array.from(selectedItems).map(id => {
-                  // Trouver l'élément dans la structure sectionsWithTactiques
+                  // Trouver l'élément dans la structure
                   for (const section of sectionsWithTactiques) {
                     if (section.id === id) return { id, name: section.SECTION_Name, type: 'section' };
                     for (const tactique of section.tactiques) {
@@ -547,7 +423,7 @@ export default function TactiquesPage() {
                 </button>
               </div>
 
-              {/* Statistiques dans la barre d'outils */}
+              {/* Statistiques */}
               {sectionsWithTactiques.length > 0 && (
                 <div className="flex items-center space-x-4 text-sm text-gray-500">
                   <span>
@@ -590,16 +466,16 @@ export default function TactiquesPage() {
                         creatifs={enrichedCreatifs} 
                         onSectionExpand={handleSectionExpand}
                         onEditSection={handleEditSection}
-                        onDeleteSection={deleteSectionOp} 
+                        onDeleteSection={handleDeleteSection}
                         onCreateTactique={handleCreateTactique}
                         onUpdateTactique={handleUpdateTactique}
-                        onDeleteTactique={deleteTactiqueOp} 
+                        onDeleteTactique={handleDeleteTactique}
                         onCreatePlacement={handleCreatePlacement}
                         onUpdatePlacement={handleUpdatePlacement}
-                        onDeletePlacement={deletePlacementOp} 
+                        onDeletePlacement={handleDeletePlacement}
                         onCreateCreatif={handleCreateCreatif}
                         onUpdateCreatif={handleUpdateCreatif}
-                        onDeleteCreatif={deleteCreatifOp} 
+                        onDeleteCreatif={handleDeleteCreatif}
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
                         onRefresh={onRefresh}
@@ -626,7 +502,7 @@ export default function TactiquesPage() {
                   <TactiquesTableView
                     tactiques={flatTactiques}
                     onUpdateTactique={handleUpdateTactique}
-                    onDeleteTactique={deleteTactiqueOp} 
+                    onDeleteTactique={handleDeleteTactique}
                     formatCurrency={formatCurrency}
                     sectionNames={sectionNames}
                   />
@@ -666,7 +542,7 @@ export default function TactiquesPage() {
       )}
 
       {/* Message si aucune version sélectionnée */}
-      {!showLoader && !hasError && !selectedVersion && (
+      {!shouldShowFullLoader && !hasError && !selectedVersion && (
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500">
             Veuillez sélectionner une campagne et une version pour voir les tactiques.
@@ -675,7 +551,7 @@ export default function TactiquesPage() {
       )}
 
       {/* Footer avec onglets et boutons de vue */}
-      {selectedOnglet && !showLoader && (
+      {selectedOnglet && !shouldShowFullLoader && (
         <TactiquesFooter
           viewMode={viewMode}
           setViewMode={setViewMode}
