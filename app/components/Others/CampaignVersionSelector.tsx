@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDownIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Campaign } from '../../types/campaign';
 
@@ -85,7 +85,7 @@ export default function CampaignVersionSelector({
     }
     
     const searchLower = campaignSearchTerm.toLowerCase();
-    return campaigns.filter(campaign => 
+    return campaigns.filter((campaign: Campaign) => 
       campaign.CA_Name.toLowerCase().includes(searchLower)
     );
   }, [campaigns, campaignSearchTerm]);
@@ -265,7 +265,7 @@ export default function CampaignVersionSelector({
             <div className="max-h-64 overflow-y-auto">
               {filteredCampaigns.length > 0 ? (
                 <ul className="py-1">
-                  {filteredCampaigns.map(campaign => (
+                  {filteredCampaigns.map((campaign: Campaign) => (
                     <li key={campaign.id}>
                       <button
                         className={`
@@ -326,7 +326,7 @@ export default function CampaignVersionSelector({
         {showVersionDropdown && versions.length > 0 && (
           <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
             <ul className="py-1">
-              {versions.map(version => (
+              {versions.map((version: Version) => (
                 <li key={version.id}>
                   <button
                     className={`

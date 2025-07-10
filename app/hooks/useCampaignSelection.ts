@@ -1,4 +1,4 @@
-// app/hooks/useCampaignSelection.ts - Version simplifiée focalisée sur le data fetching
+// app/hooks/useCampaignSelection.ts - Version corrigée avec debug
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -72,12 +72,24 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   // Retrouver les objets complets depuis les IDs stockés dans SelectionContext
   const selectedCampaign = useMemo(() => {
     if (!selectedCampaignId || campaigns.length === 0) return null;
-    return campaigns.find(c => c.id === selectedCampaignId) || null;
+    const found = campaigns.find(c => c.id === selectedCampaignId);
+    console.log('🔍 selectedCampaign calculé:', {
+      selectedCampaignId,
+      campaignsCount: campaigns.length,
+      found: found?.CA_Name || 'Non trouvé'
+    });
+    return found || null;
   }, [selectedCampaignId, campaigns]);
   
   const selectedVersion = useMemo(() => {
     if (!selectedVersionId || versions.length === 0) return null;
-    return versions.find(v => v.id === selectedVersionId) || null;
+    const found = versions.find(v => v.id === selectedVersionId);
+    console.log('🔍 selectedVersion calculé:', {
+      selectedVersionId,
+      versionsCount: versions.length,
+      found: found?.name || 'Non trouvé'
+    });
+    return found || null;
   }, [selectedVersionId, versions]);
   
   // ==================== CHARGEMENT DES CAMPAGNES ====================
@@ -176,9 +188,9 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   // ==================== GESTIONNAIRES POUR LE COMPOSANT ====================
   
   const handleCampaignChange = useCallback((campaign: Campaign) => {
-    console.log('🎯 Changement de campagne:', campaign.CA_Name);
+    console.log('🎯 handleCampaignChange appelé avec campagne:', campaign.CA_Name, 'ID:', campaign.id);
     
-    // Mettre à jour la sélection
+    // 🔥 CORRECTION : Appeler setSelectedCampaignId avec l'ID de la campagne !
     setSelectedCampaignId(campaign.id);
     
     // Reset la version automatiquement
@@ -186,11 +198,13 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     setVersions([]);
     setVersionsLoaded(false);
     
+    console.log('✅ handleCampaignChange terminé');
   }, [setSelectedCampaignId, setSelectedVersionId]);
   
   const handleVersionChange = useCallback((version: Version) => {
-    console.log('🎯 Changement de version:', version.name);
+    console.log('🎯 handleVersionChange appelé avec version:', version.name, 'ID:', version.id);
     setSelectedVersionId(version.id);
+    console.log('✅ handleVersionChange terminé');
   }, [setSelectedVersionId]);
   
   // ==================== ACTIONS UTILITAIRES ====================
@@ -231,6 +245,8 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
         client: selectedClient?.CL_Name || 'Aucun',
         campaigns: campaigns.length,
         versions: versions.length,
+        selectedCampaignId,
+        selectedVersionId,
         selectedCampaign: selectedCampaign?.CA_Name || 'Aucune',
         selectedVersion: selectedVersion?.name || 'Aucune',
         campaignsLoaded,
@@ -241,6 +257,7 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     }
   }, [
     selectedClient, campaigns.length, versions.length, 
+    selectedCampaignId, selectedVersionId,
     selectedCampaign, selectedVersion, campaignsLoaded, 
     versionsLoaded, isLoading, dataFlow.state.error
   ]);
