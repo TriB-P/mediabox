@@ -1,4 +1,4 @@
-// app/hooks/useCampaignSelection.ts - Version corrigée avec debug
+// app/hooks/useCampaignSelection.ts - Version simplifiée pour éviter les boucles infinies
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -10,10 +10,11 @@ import { useDataFlow } from './useDataFlow';
 
 // ==================== TYPES ====================
 
+// 🔥 CORRECTION: Utiliser le type Version cohérent
 interface Version {
   id: string;
   name: string;
-  isOfficial?: boolean;
+  isOfficial: boolean; // 🔥 Obligatoire, pas optionnel
   createdAt: string;
   createdBy: string;
 }
@@ -57,210 +58,218 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   } = useSelection();
   
   const dataFlow = useDataFlow({ 
-    enableDebug: process.env.NODE_ENV === 'development' 
+    enableDebug: false // Désactiver le debug verbeux
   });
   
   // ==================== ÉTATS LOCAUX ====================
   
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [versions, setVersions] = useState<Version[]>([]);
-  const [campaignsLoaded, setCampaignsLoaded] = useState(false);
-  const [versionsLoaded, setVersionsLoaded] = useState(false);
+  const [loadedClientId, setLoadedClientId] = useState<string | null>(null);
+  const [loadedCampaignId, setLoadedCampaignId] = useState<string | null>(null);
   
   // ==================== OBJETS DÉRIVÉS ====================
   
-  // Retrouver les objets complets depuis les IDs stockés dans SelectionContext
   const selectedCampaign = useMemo(() => {
     if (!selectedCampaignId || campaigns.length === 0) return null;
-    const found = campaigns.find(c => c.id === selectedCampaignId);
-    console.log('🔍 selectedCampaign calculé:', {
-      selectedCampaignId,
-      campaignsCount: campaigns.length,
-      found: found?.CA_Name || 'Non trouvé'
-    });
-    return found || null;
+    return campaigns.find(c => c.id === selectedCampaignId) || null;
   }, [selectedCampaignId, campaigns]);
   
   const selectedVersion = useMemo(() => {
     if (!selectedVersionId || versions.length === 0) return null;
-    const found = versions.find(v => v.id === selectedVersionId);
-    console.log('🔍 selectedVersion calculé:', {
-      selectedVersionId,
-      versionsCount: versions.length,
-      found: found?.name || 'Non trouvé'
-    });
-    return found || null;
+    return versions.find(v => v.id === selectedVersionId) || null;
   }, [selectedVersionId, versions]);
   
   // ==================== CHARGEMENT DES CAMPAGNES ====================
   
-  const loadCampaigns = useCallback(async () => {
-    if (!selectedClient?.clientId) {
-      setCampaigns([]);
-      setCampaignsLoaded(true);
-      return;
-    }
+  const loadCampaigns = useCallback(async (clientId: string) => {
+    console.log('📋 Chargement campagnes pour:', clientId);
     
     try {
-      console.log('📋 Chargement des campagnes pour le client:', selectedClient.CL_Name);
       dataFlow.startRefreshLoading('Chargement des campagnes...');
       
-      const campaignsData = await getCampaigns(selectedClient.clientId);
+      const campaignsData = await getCampaigns(clientId);
       setCampaigns(campaignsData);
-      setCampaignsLoaded(true);
+      setLoadedClientId(clientId);
       
       console.log(`✅ ${campaignsData.length} campagnes chargées`);
       
-      // Validation de la campagne sélectionnée
-      if (selectedCampaignId) {
-        const campaignExists = campaignsData.find(c => c.id === selectedCampaignId);
-        if (!campaignExists) {
-          console.log('⚠️ Campagne sélectionnée introuvable, reset sélection');
-          setSelectedCampaignId(null);
-        }
-      }
+      // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
       
     } catch (err) {
       console.error('❌ Erreur chargement campagnes:', err);
       dataFlow.setError('Erreur lors du chargement des campagnes');
       setCampaigns([]);
-      setCampaignsLoaded(true);
     } finally {
       dataFlow.stopLoading();
     }
-  }, [selectedClient?.clientId, selectedCampaignId, setSelectedCampaignId, dataFlow]);
+  }, [selectedCampaignId, setSelectedCampaignId, dataFlow]);
   
   // ==================== CHARGEMENT DES VERSIONS ====================
   
-  const loadVersions = useCallback(async () => {
-    if (!selectedClient?.clientId || !selectedCampaignId) {
-      setVersions([]);
-      setVersionsLoaded(true);
-      return;
-    }
+  const loadVersions = useCallback(async (clientId: string, campaignId: string) => {
+    console.log('📝 Chargement versions pour:', campaignId);
     
     try {
-      console.log('📝 Chargement des versions pour la campagne:', selectedCampaignId);
       dataFlow.startRefreshLoading('Chargement des versions...');
       
-      const versionsData = await getVersions(selectedClient.clientId, selectedCampaignId);
+      const versionsData = await getVersions(clientId, campaignId);
       setVersions(versionsData);
-      setVersionsLoaded(true);
+      setLoadedCampaignId(campaignId);
       
       console.log(`✅ ${versionsData.length} versions chargées`);
       
-      // Validation de la version sélectionnée
-      if (selectedVersionId) {
-        const versionExists = versionsData.find(v => v.id === selectedVersionId);
-        if (!versionExists) {
-          console.log('⚠️ Version sélectionnée introuvable, reset sélection');
-          setSelectedVersionId(null);
-        }
-      }
+      // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
       
     } catch (err) {
       console.error('❌ Erreur chargement versions:', err);
       dataFlow.setError('Erreur lors du chargement des versions');
       setVersions([]);
-      setVersionsLoaded(true);
     } finally {
       dataFlow.stopLoading();
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, setSelectedVersionId, dataFlow]);
+  }, [selectedVersionId, setSelectedVersionId, dataFlow]);
   
-  // ==================== EFFETS DE CHARGEMENT ====================
+  // ==================== EFFET SIMPLE POUR LE CLIENT ====================
   
-  // Chargement initial des campagnes quand le client change
   useEffect(() => {
-    setCampaignsLoaded(false);
-    setVersionsLoaded(false);
-    loadCampaigns();
-  }, [selectedClient?.clientId]);
-  
-  // Chargement des versions quand la campagne change
-  useEffect(() => {
-    if (campaignsLoaded) {
-      setVersionsLoaded(false);
-      loadVersions();
+    console.log('🔄 [useEffect-client] Déclenché avec:', {
+      clientId: selectedClient?.clientId,
+      loadedClientId
+    });
+    
+    if (!selectedClient?.clientId) {
+      console.log('🔄 [useEffect-client] Pas de client - reset tout');
+      // Pas de client = reset tout
+      setCampaigns([]);
+      setVersions([]);
+      setLoadedClientId(null);
+      setLoadedCampaignId(null);
+      return;
     }
-  }, [selectedCampaignId, campaignsLoaded]);
+    
+    // Charger uniquement si ce n'est pas déjà le bon client
+    if (selectedClient.clientId !== loadedClientId) {
+      console.log('🔄 [useEffect-client] Nouveau client détecté:', selectedClient.CL_Name);
+      setVersions([]);
+      setLoadedCampaignId(null);
+      loadCampaigns(selectedClient.clientId);
+    } else {
+      console.log('🔄 [useEffect-client] Client déjà chargé, skip');
+    }
+  }, [selectedClient?.clientId, loadedClientId, loadCampaigns]);
+  
+  // ==================== EFFET SIMPLE POUR LA CAMPAGNE ====================
+  
+  useEffect(() => {
+    console.log('🔄 [useEffect-campaign] Déclenché avec:', {
+      clientId: selectedClient?.clientId,
+      selectedCampaignId,
+      loadedCampaignId
+    });
+    
+    if (!selectedClient?.clientId || !selectedCampaignId) {
+      console.log('🔄 [useEffect-campaign] Pas de client/campagne - reset versions si nécessaire');
+      // Pas de campagne = reset versions
+      if (loadedCampaignId) {
+        setVersions([]);
+        setLoadedCampaignId(null);
+      }
+      return;
+    }
+    
+    // Charger uniquement si ce n'est pas déjà la bonne campagne
+    if (selectedCampaignId !== loadedCampaignId) {
+      console.log('🔄 [useEffect-campaign] Nouvelle campagne détectée:', selectedCampaignId);
+      loadVersions(selectedClient.clientId, selectedCampaignId);
+    } else {
+      console.log('🔄 [useEffect-campaign] Campagne déjà chargée, skip');
+    }
+  }, [selectedClient?.clientId, selectedCampaignId, loadedCampaignId, loadVersions]);
   
   // ==================== GESTIONNAIRES POUR LE COMPOSANT ====================
   
   const handleCampaignChange = useCallback((campaign: Campaign) => {
-    console.log('🎯 handleCampaignChange appelé avec campagne:', campaign.CA_Name, 'ID:', campaign.id);
+    console.log('🎯 [handleCampaignChange] DÉBUT - Sélection campagne:', campaign.CA_Name, 'ID:', campaign.id);
     
-    // 🔥 CORRECTION : Appeler setSelectedCampaignId avec l'ID de la campagne !
-    setSelectedCampaignId(campaign.id);
+    // Vérifier que la campagne existe dans la liste
+    const campaignExists = campaigns.find(c => c.id === campaign.id);
+    if (!campaignExists) {
+      console.error('❌ [handleCampaignChange] Campagne introuvable dans la liste!');
+      return;
+    }
     
-    // Reset la version automatiquement
-    setSelectedVersionId(null);
-    setVersions([]);
-    setVersionsLoaded(false);
+    // 🔥 TEST: Changer l'ordre - d'abord reset version, puis sélectionner campagne
+    console.log('🎯 [handleCampaignChange] Appel setSelectedVersionId(null) EN PREMIER');
+    setSelectedVersionId(null); // Reset version EN PREMIER
     
-    console.log('✅ handleCampaignChange terminé');
-  }, [setSelectedCampaignId, setSelectedVersionId]);
+    // Attendre le prochain tick pour éviter les conflits
+    setTimeout(() => {
+      console.log('🎯 [handleCampaignChange] Appel setSelectedCampaignId avec:', campaign.id);
+      setSelectedCampaignId(campaign.id);
+    }, 0);
+    
+    console.log('🎯 [handleCampaignChange] FIN');
+  }, [campaigns, setSelectedCampaignId, setSelectedVersionId]);
   
   const handleVersionChange = useCallback((version: Version) => {
-    console.log('🎯 handleVersionChange appelé avec version:', version.name, 'ID:', version.id);
+    console.log('🎯 Sélection version:', version.name);
+    
+    // Vérifier que la version existe dans la liste
+    const versionExists = versions.find(v => v.id === version.id);
+    if (!versionExists) {
+      console.error('❌ Version introuvable dans la liste!');
+      return;
+    }
+    
     setSelectedVersionId(version.id);
-    console.log('✅ handleVersionChange terminé');
-  }, [setSelectedVersionId]);
+  }, [versions, setSelectedVersionId]);
   
   // ==================== ACTIONS UTILITAIRES ====================
   
   const refreshCampaigns = useCallback(async () => {
-    console.log('🔄 Refresh manuel des campagnes');
-    setCampaignsLoaded(false);
-    await loadCampaigns();
-  }, [loadCampaigns]);
+    if (selectedClient?.clientId) {
+      setLoadedClientId(null); // Force le rechargement
+      await loadCampaigns(selectedClient.clientId);
+    }
+  }, [selectedClient?.clientId, loadCampaigns]);
   
   const refreshVersions = useCallback(async () => {
-    console.log('🔄 Refresh manuel des versions');
-    setVersionsLoaded(false);
-    await loadVersions();
-  }, [loadVersions]);
+    if (selectedClient?.clientId && selectedCampaignId) {
+      setLoadedCampaignId(null); // Force le rechargement
+      await loadVersions(selectedClient.clientId, selectedCampaignId);
+    }
+  }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
   
   const clearSelection = useCallback(() => {
-    console.log('🧹 Nettoyage de la sélection');
+    console.log('🧹 Nettoyage complet');
     clearCampaignSelection();
     setCampaigns([]);
     setVersions([]);
-    setCampaignsLoaded(false);
-    setVersionsLoaded(false);
+    setLoadedClientId(null);
+    setLoadedCampaignId(null);
     dataFlow.setError(null);
   }, [clearCampaignSelection, dataFlow]);
   
-  // ==================== GESTION D'ERREUR SIMPLIFIÉE ====================
+  // ==================== GESTION D'ERREUR ====================
   
-  // Si pas de client, pas d'erreur - c'est normal
   const hasError = !selectedClient ? false : !!dataFlow.state.error;
   const isLoading = dataFlow.isLoading;
   
-  // ==================== LOGS DE DEBUG ====================
+  // ==================== DEBUG MINIMAL ====================
   
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 État useCampaignSelection:', {
-        client: selectedClient?.CL_Name || 'Aucun',
-        campaigns: campaigns.length,
-        versions: versions.length,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedCampaign: selectedCampaign?.CA_Name || 'Aucune',
-        selectedVersion: selectedVersion?.name || 'Aucune',
-        campaignsLoaded,
-        versionsLoaded,
-        loading: isLoading,
-        error: dataFlow.state.error
-      });
-    }
-  }, [
-    selectedClient, campaigns.length, versions.length, 
-    selectedCampaignId, selectedVersionId,
-    selectedCampaign, selectedVersion, campaignsLoaded, 
-    versionsLoaded, isLoading, dataFlow.state.error
-  ]);
+    console.log('📊 [État] Changement détecté:', {
+      client: selectedClient?.CL_Name,
+      campaigns: campaigns.length,
+      versions: versions.length,
+      selectedCampaignId,
+      selectedVersionId,
+      selectedCampaign: selectedCampaign?.CA_Name,
+      selectedVersion: selectedVersion?.name,
+      loading: isLoading
+    });
+  });
   
   // ==================== RETURN ====================
   

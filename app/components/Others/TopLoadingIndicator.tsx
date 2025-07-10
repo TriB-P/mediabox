@@ -1,4 +1,4 @@
-// app/components/Others/TopLoadingIndicator.tsx - Indicateur discret pour les refresh
+// app/components/Others/TopLoadingIndicator.tsx - CORRECTION ERREUR TYPESCRIPT
 
 'use client';
 
@@ -220,11 +220,17 @@ export function ErrorLoadingIndicator({
  * Hook pour simplifier l'utilisation des indicateurs
  */
 export function useTopLoadingIndicator() {
-  const [state, setState] = useState({
+  // 🔥 CORRECTION: Type explicite pour éviter l'erreur TypeScript
+  const [state, setState] = useState<{
+    isVisible: boolean;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    progress: number | undefined;
+  }>({
     isVisible: false,
     message: '',
-    type: 'info' as const,
-    progress: undefined as number | undefined
+    type: 'info', // Plus de "as const" qui restreint le type
+    progress: undefined
   });
   
   const show = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {

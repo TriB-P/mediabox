@@ -1,29 +1,29 @@
+// app/strategy/page.tsx - Avec CampaignVersionSelector intégré
+
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
-import { ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import BudgetBucket from '../components/Others/BudgetBucket';
+import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
-import { useSelection } from '../contexts/SelectionContext';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
-import { Campaign } from '../types/campaign';
 import { 
   collection, 
   getDocs, 
   query, 
   doc, 
-  getDoc, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  orderBy, 
-  where 
+  orderBy 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-// Types
+// ==================== TYPES ====================
+
 interface Bucket {
   id: string;
   name: string;
@@ -35,14 +35,10 @@ interface Bucket {
   publishers: string[];
 }
 
-interface Version {
-  id: string;
-  name: string;
-}
+// ==================== COMPOSANT PRINCIPAL ====================
 
 export default function StrategiePage() {
   const { selectedClient } = useClient();
-  const { selectedVersionId, setSelectedVersionId } = useSelection();
   const {
     campaigns,
     versions,
@@ -54,32 +50,15 @@ export default function StrategiePage() {
     handleVersionChange,
   } = useCampaignSelection();
 
+  // ==================== ÉTATS LOCAUX ====================
+
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [totalBudget, setTotalBudget] = useState<number>(0);
   const [remainingBudget, setRemainingBudget] = useState<number>(0);
-  const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
-  const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const campaignDropdownRef = useRef<HTMLDivElement>(null);
-  const versionDropdownRef = useRef<HTMLDivElement>(null);
   
-  // Fermer les dropdowns quand on clique en dehors
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(event.target as Node)) {
-        setShowCampaignDropdown(false);
-      }
-      if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
-        setShowVersionDropdown(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // ==================== CONFIGURATION ====================
 
   // Exemple de couleurs disponibles pour les buckets
   const availableColors = [
@@ -102,6 +81,8 @@ export default function StrategiePage() {
     { id: 'snapchat', name: 'Snapchat', logo: '👻' },
   ];
 
+  // ==================== EFFETS ====================
+
   // Mettre à jour le budget total quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
@@ -113,13 +94,23 @@ export default function StrategiePage() {
 
   // Charger les buckets quand une version est sélectionnée
   useEffect(() => {
-    if (selectedVersion) {
+    if (selectedVersion && selectedClient && selectedCampaign) {
       loadBuckets(selectedVersion.id);
     } else {
       setBuckets([]);
     }
   }, [selectedVersion, selectedClient, selectedCampaign]);
+
+  // Calculer le budget restant à chaque changement de buckets ou de budget total
+  useEffect(() => {
+    if (selectedCampaign) {
+      const allocated = buckets.reduce((sum, bucket) => sum + bucket.target, 0);
+      setRemainingBudget(selectedCampaign.CA_Budget - allocated);
+    }
+  }, [buckets, selectedCampaign]);
   
+  // ==================== FONCTIONS DE CHARGEMENT ====================
+
   // Charger les buckets pour une version spécifique
   const loadBuckets = async (versionId: string) => {
     if (!selectedClient || !selectedCampaign) return;
@@ -166,65 +157,21 @@ export default function StrategiePage() {
     }
   };
 
-  // Créer une version initiale si nécessaire
-  const createInitialVersion = async () => {
-    if (!selectedClient || !selectedCampaign) return;
-    
-    try {
-      const versionsRef = collection(
-        db, 
-        'clients', 
-        selectedClient.clientId, 
-        'campaigns', 
-        selectedCampaign.id, 
-        'versions'
-      );
-      
-      const initialVersion = {
-        name: 'Version originale',
-        createdAt: new Date().toISOString(),
-        createdBy: 'système',
-        isOfficial: true,
-      };
-      
-      const versionDocRef = await addDoc(versionsRef, initialVersion);
-      
-      // Mettre à jour la campagne avec l'ID de la version officielle
-      await updateDoc(
-        doc(db, 'clients', selectedClient.clientId, 'campaigns', selectedCampaign.id),
-        { officialversionId: versionDocRef.id }
-      );
-      
-      return versionDocRef.id;
-    } catch (err) {
-      console.error('Erreur lors de la création de la version initiale:', err);
-      setError('Erreur lors de la création de la version initiale');
-      return null;
-    }
-  };
-  
-  // Changer de version
-  const handleVersionChangeLocal = async (version: Version) => {
-    handleVersionChange(version);
-    await loadBuckets(version.id);
-    setShowVersionDropdown(false);
-  };
-  
-  // Changer de campagne
-  const handleCampaignChangeLocal = (campaign: Campaign) => {
+  // ==================== GESTIONNAIRES DE CHANGEMENT ====================
+
+  // 🔥 NOUVEAU: Gestionnaires simplifiés grâce au CampaignVersionSelector
+  const handleCampaignChangeLocal = (campaign: any) => {
     handleCampaignChange(campaign);
-    setBuckets([]); // Vider les buckets
-    setShowCampaignDropdown(false);
-    setShowVersionDropdown(false); // Fermer aussi le dropdown de version
+    setBuckets([]); // Vider les buckets quand on change de campagne
+    setError(null); // Reset erreur
   };
 
-  // Calculer le budget restant à chaque changement de buckets ou de budget total
-  useEffect(() => {
-    if (selectedCampaign) {
-      const allocated = buckets.reduce((sum, bucket) => sum + bucket.target, 0);
-      setRemainingBudget(selectedCampaign.CA_Budget - allocated);
-    }
-  }, [buckets, selectedCampaign]);
+  const handleVersionChangeLocal = (version: any) => {
+    handleVersionChange(version);
+    setError(null); // Reset erreur
+  };
+
+  // ==================== FONCTIONS CRUD BUCKETS ====================
 
   // Fonction pour ajouter un nouveau bucket
   const handleAddBucket = async () => {
@@ -334,12 +281,6 @@ export default function StrategiePage() {
     }
   };
 
-  // Ces fonctions sont maintenant des stubs qui seront passées au composant
-  // mais ne seront pas réellement utilisées puisque le composant gère les valeurs
-  // en local et ne les soumet que lors de la sauvegarde
-  const handleSliderChange = () => {};
-  const handleAmountChange = () => {};
-
   // Fonction pour changer la couleur d'un bucket
   const handleColorChange = async (id: string, newColor: string) => {
     // Mettre à jour l'état local
@@ -362,6 +303,14 @@ export default function StrategiePage() {
     }
   };
 
+  // ==================== FONCTIONS UTILITAIRES ====================
+
+  // Ces fonctions sont maintenant des stubs qui seront passées au composant
+  // mais ne seront pas réellement utilisées puisque le composant gère les valeurs
+  // en local et ne les soumet que lors de la sauvegarde
+  const handleSliderChange = () => {};
+  const handleAmountChange = () => {};
+
   // Formater les montants en CAD
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
@@ -371,13 +320,19 @@ export default function StrategiePage() {
     }).format(amount);
   };
 
+  // ==================== CALCULS ====================
+
   const isLoading = campaignLoading || loading;
   const hasError = campaignError || error;
+
+  // ==================== RENDU ====================
 
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div className="space-y-6">
+          
+          {/* ==================== EN-TÊTE ==================== */}
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Stratégie</h1>
             {selectedCampaign && selectedVersion && (
@@ -388,108 +343,29 @@ export default function StrategiePage() {
             )}
           </div>
           
-          {/* Sélecteurs de campagne et version */}
-          <div className="flex gap-4 mb-6">
-            <div className="w-1/3 relative" ref={campaignDropdownRef}>
-              <button 
-                type="button" 
-                className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
-              >
-                <div className="flex items-center">
-                  {/* Logo de campagne (placeholder) */}
-                  <div className="w-6 h-6 mr-2 flex items-center justify-center bg-indigo-100 rounded-md text-indigo-600">
-                    <span className="text-xs">📊</span>
-                  </div>
-                  <span>{selectedCampaign?.CA_Name || 'Sélectionner une campagne'}</span>
-                </div>
-                <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" aria-hidden="true" />
-              </button>
-              
-              {/* Dropdown pour les campagnes */}
-              {showCampaignDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-                  <ul className="py-1">
-                    {campaigns.map(campaign => (
-                      <li 
-                        key={campaign.id}
-                        className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center ${
-                          selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''
-                        }`}
-                        onClick={() => handleCampaignChangeLocal(campaign)}
-                      >
-                        <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 rounded text-indigo-600 mr-2">
-                          <span className="text-xs">📊</span>
-                        </div>
-                        {campaign.CA_Name}
-                      </li>
-                    ))}
-                    {campaigns.length === 0 && (
-                      <li className="px-4 py-2 text-sm text-gray-500">
-                        Aucune campagne disponible
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
+          {/* ==================== SÉLECTEUR CAMPAGNE/VERSION ==================== */}
+          <div className="flex justify-between items-center">
+            <div className="flex-1 max-w-4xl">
+              <CampaignVersionSelector
+                campaigns={campaigns}
+                versions={versions}
+                selectedCampaign={selectedCampaign}
+                selectedVersion={selectedVersion}
+                loading={campaignLoading}
+                error={campaignError}
+                onCampaignChange={handleCampaignChangeLocal}
+                onVersionChange={handleVersionChangeLocal}
+                className="mb-0"
+              />
             </div>
             
-            <div className="w-1/3 relative" ref={versionDropdownRef}>
-              <button 
-                type="button" 
-                className="flex items-center justify-between w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                onClick={() => setShowVersionDropdown(!showVersionDropdown)}
-                disabled={!selectedCampaign}
-              >
-                <div className="flex items-center">
-                  {/* Logo de version (placeholder) */}
-                  <div className="w-6 h-6 mr-2 flex items-center justify-center bg-indigo-100 rounded-md text-indigo-600">
-                    <span className="text-xs">📝</span>
-                  </div>
-                  <span>{selectedVersion?.name || 'Sélectionner une version'}</span>
-                </div>
-                <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" aria-hidden="true" />
-              </button>
-              
-              {/* Dropdown pour les versions */}
-              {showVersionDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-                  <ul className="py-1">
-                    {versions.map(version => (
-                      <li 
-                        key={version.id}
-                        className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center ${
-                          selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''
-                        }`}
-                        onClick={() => handleVersionChangeLocal(version)}
-                      >
-                        <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 rounded text-indigo-600 mr-2">
-                          <span className="text-xs">📝</span>
-                        </div>
-                        {version.name}
-                        {version.isOfficial && (
-                          <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Officielle
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                    {versions.length === 0 && (
-                      <li className="px-4 py-2 text-sm text-gray-500">
-                        Aucune version disponible
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
-            
-            <div className="ml-auto">
+            {/* Bouton nouvelle enveloppe */}
+            <div className="ml-4">
               <button
                 onClick={handleAddBucket}
-                disabled={!selectedCampaign || !selectedVersion}
+                disabled={!selectedCampaign || !selectedVersion || isLoading}
                 className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${
-                  !selectedCampaign || !selectedVersion
+                  !selectedCampaign || !selectedVersion || isLoading
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 }`}
@@ -500,7 +376,7 @@ export default function StrategiePage() {
             </div>
           </div>
           
-          {/* Description */}
+          {/* ==================== DESCRIPTION ==================== */}
           <div className="bg-white p-4 rounded-lg shadow mb-6 text-sm text-gray-600">
             <p>
               Les enveloppes budgétaires sont un outil pour les équipes de planification qui permet d'utiliser MediaBox pour faire de la planification à très
@@ -509,19 +385,29 @@ export default function StrategiePage() {
             </p>
           </div>
           
-          {/* Messages d'erreur et de chargement */}
+          {/* ==================== MESSAGES D'ÉTAT ==================== */}
           {isLoading && (
             <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
-              <div className="text-sm text-gray-500">Chargement en cours...</div>
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                <div className="text-sm text-gray-500">Chargement en cours...</div>
+              </div>
             </div>
           )}
           
           {hasError && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {hasError}
+              <button
+                onClick={() => setError(null)}
+                className="ml-2 text-red-500 hover:text-red-700"
+              >
+                ✕
+              </button>
             </div>
           )}
           
+          {/* ==================== CONTENU PRINCIPAL ==================== */}
           {!isLoading && !hasError && (
             <>
               {/* Budget Info */}
@@ -553,17 +439,18 @@ export default function StrategiePage() {
                 </div>
               )}
               
+              {/* Messages d'aide */}
               {!selectedCampaign && (
-                <div className="bg-yellow-50 p-6 rounded-lg shadow text-center">
-                  <p className="text-yellow-700">
-                    Veuillez sélectionner une campagne pour voir les enveloppes budgétaires.
+                <div className="bg-white p-8 rounded-lg shadow text-center">
+                  <p className="text-gray-500">
+                    Veuillez sélectionner une campagne et une version pour voir les enveloppes budgétaires.
                   </p>
                 </div>
               )}
               
               {selectedCampaign && !selectedVersion && (
-                <div className="bg-yellow-50 p-6 rounded-lg shadow text-center">
-                  <p className="text-yellow-700">
+                <div className="bg-white p-8 rounded-lg shadow text-center">
+                  <p className="text-gray-500">
                     Veuillez sélectionner une version pour voir les enveloppes budgétaires.
                   </p>
                 </div>
