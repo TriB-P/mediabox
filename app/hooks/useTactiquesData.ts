@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesData.ts - Version avec useDataFlow intégré
+// app/hooks/useTactiquesData.ts
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -429,6 +429,11 @@ export const useTactiquesData = (
     selectedOnglet,
     sections,
     tactiques,
+    // 🔥 AJOUT DE DONNÉES DE CONTEXTE
+    campaignData: selectedCampaign, // Passer l'objet campagne complet
+    allTactiques: tactiques, // Passer toutes les tactiques
+    allPlacements: placements, // Passer tous les placements
+    allCreatifs: creatifs, // 🔥 AJOUT: Passer tous les créatifs
     onRefresh,
     removeSectionLocally,
     removeTactiqueAndChildrenLocally,

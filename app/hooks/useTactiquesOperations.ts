@@ -37,6 +37,11 @@ interface UseTactiquesOperationsProps {
   selectedOnglet: Onglet | null;
   sections: Section[];
   tactiques: { [sectionId: string]: Tactique[] };
+  // 🔥 AJOUT: Données de contexte pour la résolution des taxonomies
+  campaignData?: any;
+  allTactiques: { [sectionId: string]: Tactique[] }; // Toutes les tactiques, utile pour trouver le parent d'un placement
+  allPlacements: { [tactiqueId: string]: Placement[] }; // Tous les placements, utile pour trouver le parent d'un créatif
+  allCreatifs: { [placementId: string]: Creatif[] }; // 🔥 AJOUT: Tous les créatifs
   onRefresh: () => Promise<void>;
 
   // Fonctions de suppression locale pour mises à jour optimistes
@@ -70,6 +75,11 @@ export const useTactiquesOperations = ({
   selectedOnglet,
   sections,
   tactiques,
+  // 🔥 DÉSTRUCTURATION DES NOUVELLES PROPS
+  campaignData,
+  allTactiques,
+  allPlacements,
+  allCreatifs, // 🔥 DÉSTRUCTURATION: Récupérer allCreatifs
   onRefresh,
   removeSectionLocally,
   removeTactiqueAndChildrenLocally,
@@ -162,6 +172,7 @@ export const useTactiquesOperations = ({
 
     return executeOperation(
       'Mise à jour tactique',
+      // 🔥 AJOUT: Passer campaignData à updateTactique (même si non utilisé par le service actuellement, bonne pratique)
       () => updateTactique(
         context.clientId,
         context.campaignId,
@@ -169,10 +180,11 @@ export const useTactiquesOperations = ({
         context.ongletId,
         sectionId,
         tactiqueId,
-        data
+        data,
+        campaignData // Pass campaignData
       )
     );
-  }, [executeOperation]);
+  }, [executeOperation, campaignData]);
 
   const handleDeleteTactique = useCallback((sectionId: string, tactiqueId: string) => {
     const context = ensureContext();
@@ -202,12 +214,14 @@ export const useTactiquesOperations = ({
     const context = ensureContext();
 
     // Trouver la section qui contient cette tactique
-    const sectionId = Object.keys(tactiques).find(sId =>
-      tactiques[sId].some(t => t.id === tactiqueId)
+    const sectionId = Object.keys(allTactiques).find(sId =>
+      allTactiques[sId].some(t => t.id === tactiqueId)
     );
+    const currentTactique = allTactiques[sectionId || '']?.find(t => t.id === tactiqueId);
 
-    if (!sectionId) {
-      throw new Error('Section non trouvée pour la tactique');
+
+    if (!sectionId || !currentTactique) {
+      throw new Error('Section ou tactique parente non trouvée pour le placement');
     }
 
     const newPlacementData: PlacementFormData = {
@@ -226,12 +240,14 @@ export const useTactiquesOperations = ({
           context.ongletId,
           sectionId,
           tactiqueId,
-          newPlacementData
+          newPlacementData,
+          campaignData, // Pass campaignData
+          currentTactique // Pass tactiqueData
         );
         return { id: placementId, ...newPlacementData };
       }
     );
-  }, [tactiques, executeOperation]);
+  }, [allTactiques, executeOperation, campaignData]);
 
   const handleUpdatePlacement = useCallback(async (
     placementId: string, 
@@ -242,20 +258,23 @@ export const useTactiquesOperations = ({
     // Trouver le contexte parent (section et tactique)
     let sectionId = '';
     let tactiqueId = '';
+    let currentTactique: Tactique | undefined;
 
-    for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
+    for (const [sId, sectionTactiques] of Object.entries(allTactiques)) {
       for (const tactique of sectionTactiques) {
-        // Utiliser l'ID de tactique directement si disponible dans les données
-        if (data.PL_TactiqueId && tactique.id === data.PL_TactiqueId) {
+        // Rechercher le placement pour trouver sa tactique parente
+        const placement = allPlacements[tactique.id]?.find(p => p.id === placementId);
+        if (placement) {
           sectionId = sId;
           tactiqueId = tactique.id;
+          currentTactique = tactique;
           break;
         }
       }
       if (sectionId) break;
     }
 
-    if (!sectionId || !tactiqueId) {
+    if (!sectionId || !tactiqueId || !currentTactique) {
       throw new Error('Contexte parent non trouvé pour le placement');
     }
 
@@ -269,10 +288,12 @@ export const useTactiquesOperations = ({
         sectionId,
         tactiqueId,
         placementId,
-        data
+        data,
+        campaignData, // Pass campaignData
+        currentTactique // Pass tactiqueData
       )
     );
-  }, [tactiques, executeOperation]);
+  }, [allTactiques, allPlacements, executeOperation, campaignData]);
 
   const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => {
     const context = ensureContext();
@@ -301,20 +322,27 @@ export const useTactiquesOperations = ({
   const handleCreateCreatif = useCallback(async (placementId: string): Promise<Creatif> => {
     const context = ensureContext();
 
-    // Trouver le contexte parent (section, tactique)
+    // Trouver le contexte parent (section, tactique, placement)
     let sectionId = '';
     let tactiqueId = '';
+    let currentTactique: Tactique | undefined;
+    let currentPlacement: Placement | undefined;
 
-    for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
+    for (const [sId, sectionTactiques] of Object.entries(allTactiques)) {
       for (const tactique of sectionTactiques) {
-        sectionId = sId;
-        tactiqueId = tactique.id;
-        break; 
+        currentTactique = tactique;
+        const tactiquePlacements = allPlacements[tactique.id] || [];
+        currentPlacement = tactiquePlacements.find(p => p.id === placementId);
+        if (currentPlacement) {
+          sectionId = sId;
+          tactiqueId = tactique.id;
+          break;
+        }
       }
       if (sectionId) break;
     }
 
-    if (!sectionId || !tactiqueId) {
+    if (!sectionId || !tactiqueId || !currentPlacement || !currentTactique) {
       throw new Error('Contexte parent non trouvé pour le créatif');
     }
 
@@ -335,12 +363,15 @@ export const useTactiquesOperations = ({
           sectionId,
           tactiqueId,
           placementId,
-          newCreatifData
+          newCreatifData,
+          campaignData, // Pass campaignData
+          currentTactique, // Pass tactiqueData
+          currentPlacement // Pass placementData
         );
         return { id: creatifId, ...newCreatifData };
       }
     );
-  }, [tactiques, executeOperation]);
+  }, [allTactiques, allPlacements, executeOperation, campaignData]);
 
   const handleUpdateCreatif = useCallback(async (
     creatifId: string, 
@@ -348,22 +379,51 @@ export const useTactiquesOperations = ({
   ): Promise<void> => {
     const context = ensureContext();
 
-    // Trouver le contexte parent (simplification - utiliser le premier trouvé)
     let sectionId = '';
     let tactiqueId = '';
-    let placementId = data.CR_PlacementId || '';
+    let placementId = '';
+    let currentTactique: Tactique | undefined;
+    let currentPlacement: Placement | undefined;
 
-    for (const [sId, sectionTactiques] of Object.entries(tactiques)) {
-      for (const tactique of sectionTactiques) {
-        sectionId = sId;
-        tactiqueId = tactique.id;
+    // 🔥 CORRECTION: Trouver le placement et la tactique en recherchant le creatif
+    // 1. Trouver le placement parent du créatif
+    for (const [pId, creatifsInPlacement] of Object.entries(allCreatifs)) {
+      if (creatifsInPlacement.some(c => c.id === creatifId)) {
+        placementId = pId;
         break;
       }
-      if (sectionId) break;
     }
 
-    if (!sectionId || !tactiqueId || !placementId) {
-      throw new Error('Contexte parent non trouvé pour le créatif');
+    if (!placementId) {
+      throw new Error('Placement parent non trouvé pour le créatif');
+    }
+
+    // 2. Trouver l'objet currentPlacement correspondant au placementId
+    for (const tactiqueIdIter in allPlacements) {
+        const placementsInTactique = allPlacements[tactiqueIdIter];
+        currentPlacement = placementsInTactique.find(p => p.id === placementId);
+        if (currentPlacement) {
+            tactiqueId = tactiqueIdIter;
+            break;
+        }
+    }
+
+    if (!tactiqueId || !currentPlacement) {
+      throw new Error('Tactique parent non trouvée pour le placement du créatif');
+    }
+
+    // 3. Trouver l'objet currentTactique correspondant au tactiqueId
+    for (const sectionIdIter in allTactiques) {
+      const tactiquesInSection = allTactiques[sectionIdIter];
+      currentTactique = tactiquesInSection.find(t => t.id === tactiqueId);
+      if (currentTactique) {
+        sectionId = sectionIdIter;
+        break;
+      }
+    }
+    
+    if (!sectionId || !currentTactique) {
+      throw new Error('Section parente non trouvée pour le créatif');
     }
 
     return executeOperation(
@@ -377,10 +437,13 @@ export const useTactiquesOperations = ({
         tactiqueId,
         placementId,
         creatifId,
-        data
+        data,
+        campaignData, // Pass campaignData
+        currentTactique, // Pass tactiqueData
+        currentPlacement // Pass placementData
       )
     );
-  }, [tactiques, executeOperation]);
+  }, [allTactiques, allPlacements, allCreatifs, executeOperation, campaignData]); // 🔥 AJOUT: Dépendance allCreatifs
 
   const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
     const context = ensureContext();

@@ -119,10 +119,10 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
       rawValue = context.tactiqueData[variableName];
       console.log(`🎯 [PlacementService] Valeur tactique:`, rawValue);
   } else if (source === 'placement' && context.placementData) {
-      // Pour les variables placement, d'abord chercher dans PL_Taxonomy_Values
+      // For placement variables, first look in PL_Taxonomy_Values
       if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
           const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-          console.log(`🏢 [PlacementService] Variable placement dans PL_Taxonomy_Values:`, taxonomyValue);
+          console.log(`🏢 [PlacementService] Variable placement in PL_Taxonomy_Values:`, taxonomyValue);
           
           if (format === 'open' && taxonomyValue.openValue) {
               rawValue = taxonomyValue.openValue;
@@ -131,16 +131,16 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
               if (shortcodeData) {
                   const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
                   const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                  console.log(`🔧 [PlacementService] Variable placement formatée:`, formattedValue);
+                  console.log(`🔧 [PlacementService] Variable placement formatted:`, formattedValue);
                   return formattedValue;
               }
           } else {
               rawValue = taxonomyValue.value;
           }
       } else {
-          // Fallback: chercher directement
+          // Fallback: look directly
           rawValue = context.placementData[variableName];
-          console.log(`🏢 [PlacementService] Variable placement directe:`, rawValue);
+          console.log(`🏢 [PlacementService] Direct placement value[${variableName}]:`, rawValue);
       }
   }
 
@@ -149,26 +149,26 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
       return '';
   }
 
-  // Formatage final si pas déjà fait
+  // Final formatting if not already done
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
       const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
       if (!shortcodeData) return rawValue;
 
       const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
       const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      console.log(`🔧 [PlacementService] Formatage final:`, formattedValue);
+      console.log(`🔧 [PlacementService] Final formatting:`, formattedValue);
       return formattedValue;
   }
   
   const finalValue = String(rawValue);
-  console.log(`✅ [PlacementService] Valeur finale pour ${variableName}:`, finalValue);
+  console.log(`✅ [PlacementService] Final value for ${variableName}:`, finalValue);
   return finalValue;
 }
 
 async function generateLevelString(structure: string, context: ResolutionContext): Promise<string> {
   if (!structure) return '';
   
-  console.log(`🔄 [PlacementService] Génération niveau: "${structure}"`);
+  console.log(`🔄 [PlacementService] Generating level: "${structure}"`);
   
   const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
   const segments = structure.split(MASTER_REGEX).filter(Boolean);
@@ -181,7 +181,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
               const [, variableName, format] = variableMatch;
               const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
               finalString += resolvedValue;
-              console.log(`🔧 [PlacementService] ${variableName}:${format} → "${resolvedValue}"`);
+              console.log(`🔧 [PlacementService] ${variableName}:${format} -> "${resolvedValue}"`);
           }
       } else if (segment.startsWith('<') && segment.endsWith('>')) {
           const groupContent = segment.slice(1, -1);
@@ -214,7 +214,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
       }
   }
   
-  console.log(`✅ [PlacementService] Niveau généré: "${finalString}"`);
+  console.log(`✅ [PlacementService] Level generated: "${finalString}"`);
   return finalString;
 }
 
@@ -226,24 +226,24 @@ tactiqueData: any,
 isUpdate: boolean = false
 ): Promise<any> {
   
-  console.log(`🔄 [PlacementService] === DÉBUT PRÉPARATION DONNÉES ===`);
-  console.log(`📊 PlacementData reçu:`, placementData);
-  console.log(`🏛️ CampaignData reçu:`, campaignData);
-  console.log(`🎯 TactiqueData reçu:`, tactiqueData);
+  console.log(`🔄 [PlacementService] === START DATA PREPARATION ===`);
+  console.log(`📊 PlacementData received:`, placementData);
+  console.log(`🏛️ CampaignData received:`, campaignData);
+  console.log(`🎯 TactiqueData received:`, tactiqueData);
   
-  // 🔥 DEBUG: Vérifications spécifiques
-  console.log(`🔍 [PlacementService] VÉRIFICATIONS:`);
-  console.log(`  - PlacementData défini: ${!!placementData}`);
-  console.log(`  - CampaignData défini: ${!!campaignData}`);
-  console.log(`  - TactiqueData défini: ${!!tactiqueData}`);
+  // 🔥 DEBUG: Specific checks
+  console.log(`🔍 [PlacementService] CHECKS:`);
+  console.log(`  - PlacementData defined: ${!!placementData}`);
+  console.log(`  - CampaignData defined: ${!!campaignData}`);
+  console.log(`  - TactiqueData defined: ${!!tactiqueData}`);
   
   if (campaignData) {
-      console.log(`  - Clés CampaignData: ${Object.keys(campaignData).join(', ')}`);
+      console.log(`  - CampaignData keys: ${Object.keys(campaignData).join(', ')}`);
       console.log(`  - CA_Name: ${campaignData.CA_Name || 'undefined'}`);
   }
   
   if (tactiqueData) {
-      console.log(`  - Clés TactiqueData: ${Object.keys(tactiqueData).join(', ')}`);
+      console.log(`  - TactiqueData keys: ${Object.keys(tactiqueData).join(', ')}`);
       console.log(`  - TC_Label: ${tactiqueData.TC_Label || 'undefined'}`);
   }
   
@@ -252,7 +252,7 @@ isUpdate: boolean = false
 
   const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
       if (!taxonomyId) return ['', '', '', ''];
-      console.log(`📋 [PlacementService] Traitement taxonomie: ${taxonomyId}`);
+      console.log(`📋 [PlacementService] Processing taxonomy: ${taxonomyId}`);
       
       const taxonomy = await getTaxonomyById(clientId, taxonomyId);
       if (!taxonomy) return ['', '', '', ''];
@@ -262,7 +262,7 @@ isUpdate: boolean = false
           taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4
       ];
       
-      console.log(`📐 [PlacementService] Structures niveaux:`, levels);
+      console.log(`📐 [PlacementService] Level structures:`, levels);
       
       return Promise.all(levels.map(level => generateLevelString(level, context)));
   };
@@ -273,7 +273,7 @@ isUpdate: boolean = false
     processTaxonomyType(placementData.PL_Taxonomy_MediaOcean)
   ]);
   
-  console.log(`🏷️ [PlacementService] Chaînes générées:`);
+  console.log(`🏷️ [PlacementService] Generated chains:`);
   console.log(`  Tags:`, tagChains);
   console.log(`  Platform:`, platformChains);
   console.log(`  MediaOcean:`, moChains);
@@ -317,8 +317,8 @@ isUpdate: boolean = false
       }
   });
 
-  console.log(`✅ [PlacementService] Données finales pour Firestore:`, firestoreData);
-  console.log(`🔄 [PlacementService] === FIN PRÉPARATION DONNÉES ===`);
+  console.log(`✅ [PlacementService] Final data for Firestore:`, firestoreData);
+  console.log(`🔄 [PlacementService] === END DATA PREPARATION ===`);
   return firestoreData;
 }
 
@@ -327,18 +327,18 @@ clientId: string, campaignId: string, versionId: string, ongletId: string, secti
 placementData: PlacementFormData, campaignData?: any, tactiqueData?: any
 ): Promise<string> {
 
-// 🔥 DEBUG: Log des paramètres d'entrée
-console.log(`🚀 [PlacementService] === CRÉATION PLACEMENT ===`);
-console.log(`📍 Paramètres:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId });
-console.log(`📊 PlacementData passé:`, placementData);
-console.log(`🏛️ CampaignData passé:`, campaignData || 'undefined');
-console.log(`🎯 TactiqueData passé:`, tactiqueData || 'undefined');
+// 🔥 DEBUG: Log input parameters
+console.log(`🚀 [PlacementService] === CREATING PLACEMENT ===`);
+console.log(`📍 Parameters:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId });
+console.log(`📊 PlacementData passed:`, placementData);
+console.log(`🏛️ CampaignData passed:`, campaignData || 'undefined');
+console.log(`🎯 TactiqueData passed:`, tactiqueData || 'undefined');
 
 const placementsCollection = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
 const firestoreData = await prepareDataForFirestore(placementData, clientId, campaignData, tactiqueData, false);
 const docRef = await addDoc(placementsCollection, firestoreData);
 
-console.log(`✅ [PlacementService] Placement créé avec ID: ${docRef.id}`);
+console.log(`✅ [PlacementService] Placement created with ID: ${docRef.id}`);
 return docRef.id;
 }
 
@@ -347,12 +347,12 @@ clientId: string, campaignId: string, versionId: string, ongletId: string, secti
 placementData: Partial<PlacementFormData>, campaignData?: any, tactiqueData?: any
 ): Promise<void> {
 
-// 🔥 DEBUG: Log des paramètres d'entrée
-console.log(`🔄 [PlacementService] === MISE À JOUR PLACEMENT ===`);
-console.log(`📍 Paramètres:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placementId });
-console.log(`📊 PlacementData passé:`, placementData);
-console.log(`🏛️ CampaignData passé:`, campaignData || 'undefined');
-console.log(`🎯 TactiqueData passé:`, tactiqueData || 'undefined');
+// 🔥 DEBUG: Log input parameters
+console.log(`🔄 [PlacementService] === UPDATING PLACEMENT ===`);
+console.log(`📍 Parameters:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placementId });
+console.log(`📊 PlacementData passed:`, placementData);
+console.log(`🏛️ CampaignData passed:`, campaignData || 'undefined');
+console.log(`🎯 TactiqueData passed:`, tactiqueData || 'undefined');
 
 const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
 const existingDoc = await getDoc(placementRef);
@@ -361,7 +361,7 @@ const mergedData = { ...existingDoc.data(), ...placementData } as PlacementFormD
 const firestoreData = await prepareDataForFirestore(mergedData, clientId, campaignData, tactiqueData, true);
 await updateDoc(placementRef, firestoreData);
 
-console.log(`✅ [PlacementService] Placement mis à jour: ${placementId}`);
+console.log(`✅ [PlacementService] Placement updated: ${placementId}`);
 }
 
 export async function getPlacementsForTactique(
