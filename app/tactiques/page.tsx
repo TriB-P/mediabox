@@ -546,8 +546,8 @@ export default function TactiquesPage() {
           {/* Zone de contenu principal */}
           <div className={getMainContentClasses()}>
             
-            {/* Panneau d'actions groupées */}
-            {selectedItems.size > 0 && (
+            {/* Panneau d'actions groupées - affiché uniquement en mode hiérarchie */}
+            {selectedItems.size > 0 && viewMode === 'hierarchy' && (
               <SelectedActionsPanel
                 selectedItems={Array.from(selectedItems).map(id => {
                   // Trouver l'élément dans la structure
@@ -576,46 +576,35 @@ export default function TactiquesPage() {
               />
             )}
             
-            {/* Barre d'outils */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleAddSection}
-                  className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                >
-                  <PlusIcon className="h-5 w-5 mr-1.5" />
-                  Nouvelle section
-                </button>
-              </div>
-
-              {/* Statistiques */}
-              {sectionsWithTactiques.length > 0 && (
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <span>
-                    {Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0)} placement{Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0) !== 1 ? 's' : ''}
-                  </span>
-                  <span>
-                    {Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0)} créatif{Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0) !== 1 ? 's' : ''}
-                  </span>
-                  {selectedItems.size > 0 && (
-                    <span className="text-indigo-600 font-medium">
-                      {selectedItems.size} sélectionné{selectedItems.size > 1 ? 's' : ''}
-                    </span>
-                  )}
+            {/* 🔥 NOUVEAU: Barre d'outils affichée seulement en mode hiérarchie et timeline */}
+            {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleAddSection}
+                    className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-1.5" />
+                    Nouvelle section
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Message d'erreur */}
-            {hasError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                {hasError}
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-2 text-red-500 hover:text-red-700"
-                >
-                  ✕
-                </button>
+                {/* Statistiques */}
+                {sectionsWithTactiques.length > 0 && (
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <span>
+                      {Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0)} placement{Object.values(placements).reduce((total, tacticPlacements) => total + tacticPlacements.length, 0) !== 1 ? 's' : ''}
+                    </span>
+                    <span>
+                      {Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0)} créatif{Object.values(creatifs).reduce((total, placementCreatifs) => total + placementCreatifs.length, 0) !== 1 ? 's' : ''}
+                    </span>
+                    {selectedItems.size > 0 && (
+                      <span className="text-indigo-600 font-medium">
+                        {selectedItems.size} sélectionné{selectedItems.size > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

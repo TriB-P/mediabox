@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import { getColumnsWithHierarchy, formatColumnValue } from './tableColumns.config';
 
@@ -31,6 +31,14 @@ interface DynamicTableStructureProps {
   onStartEdit: (cellKey: string) => void;
   onEndEdit: (cellKey: string) => void;
   onToggleSection: (sectionId: string) => void;
+  // 🔥 NOUVEAU: Props pour la barre d'outils intégrée
+  onLevelChange: (level: TableLevel) => void;
+  entityCounts: {
+    sections: number;
+    tactiques: number;
+    placements: number;
+    creatifs: number;
+  };
 }
 
 // ==================== COMPOSANT PRINCIPAL ====================
@@ -44,7 +52,9 @@ export default function DynamicTableStructure({
   onCellChange,
   onStartEdit,
   onEndEdit,
-  onToggleSection
+  onToggleSection,
+  onLevelChange,
+  entityCounts
 }: DynamicTableStructureProps) {
 
   // ==================== ÉTATS ====================
@@ -57,6 +67,9 @@ export default function DynamicTableStructure({
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [copyMode, setCopyMode] = useState<{ active: boolean; sourceCell?: string; sourceValue?: any }>({ active: false });
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+
+  // État pour le tooltip d'aide
+  const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
   // ==================== COLONNES DYNAMIQUES ====================
 
@@ -371,7 +384,7 @@ export default function DynamicTableStructure({
     // Cellule éditable
     return (
       <div 
-        className="min-h-[32px] flex items-center relative group"
+        className="min-h-[24px] flex items-center relative group"
         onMouseEnter={() => setHoveredCell(cellKey)}
         onMouseLeave={() => setHoveredCell(null)}
       >
@@ -396,7 +409,7 @@ export default function DynamicTableStructure({
           <>
             <button
               onClick={() => onStartEdit(cellKey)}
-              className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded min-h-[28px] flex items-center transition-colors ${
+              className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded min-h-[20px] flex items-center transition-colors ${
                 isCopySource ? 'bg-green-100 border border-green-300' : ''
               }`}
             >
@@ -442,18 +455,79 @@ export default function DynamicTableStructure({
   // ==================== RENDU ====================
 
   return (
-    <div className="space-y-4">
-      {/* Barre de contrôles - FIXE */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+    <div className="space-y-3">
+      {/* 🔥 NOUVELLE BARRE D'OUTILS COMPACTE - TOUT SUR UNE LIGNE */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Sélecteur de niveau */}
+        <div className="flex space-x-1">
+          {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
+            <button
+              key={level}
+              onClick={() => onLevelChange(level)}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedLevel === level
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span className="capitalize">{level}s</span>
+              <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
+                {entityCounts[level + 's' as keyof typeof entityCounts]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Barre de recherche */}
+        <div className="flex-1 max-w-sm">
           <input
             type="text"
             placeholder={`Rechercher dans les ${selectedLevel}s...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           />
-          <span className="text-sm text-gray-500">
+        </div>
+
+        {/* Contrôles à droite */}
+        <div className="flex items-center space-x-3">
+          {/* Toggle masquer niveaux inférieurs - icône seule */}
+          <button
+            onClick={() => setHideChildrenLevels(!hideChildrenLevels)}
+            className={`p-1.5 rounded transition-colors ${
+              hideChildrenLevels 
+                ? 'bg-indigo-100 text-indigo-700' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title="Masquer les niveaux inférieurs"
+          >
+            <EyeSlashIcon className="h-4 w-4" />
+          </button>
+
+          {/* Icône d'aide avec tooltip */}
+          <div className="relative">
+            <button
+              onMouseEnter={() => setShowHelpTooltip(true)}
+              onMouseLeave={() => setShowHelpTooltip(false)}
+              className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <QuestionMarkCircleIcon className="h-4 w-4" />
+            </button>
+            
+            {showHelpTooltip && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
+                <div className="space-y-2">
+                  <div><strong>Sélection :</strong> Clic = sélection • Ctrl+Clic = ajout • Shift+Clic = plage</div>
+                  <div><strong>Copie :</strong> Survolez cellule → 📋 copier → survolez autre cellule → 📥 coller</div>
+                  <div><strong>Édition :</strong> Clic sur cellule pour éditer • Enter/Tab = sauver • Esc = annuler</div>
+                </div>
+                <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+              </div>
+            )}
+          </div>
+
+          {/* Compteur de résultats */}
+          <span className="text-sm text-gray-500 whitespace-nowrap">
             {processedRows.length} ligne{processedRows.length > 1 ? 's' : ''}
             {searchTerm && ` (filtré${processedRows.length > 1 ? 's' : ''})`}
             {selectedRows.size > 0 && (
@@ -462,51 +536,34 @@ export default function DynamicTableStructure({
               </span>
             )}
           </span>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {/* Option pour masquer les niveaux inférieurs */}
-          <label className="flex items-center space-x-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              checked={hideChildrenLevels}
-              onChange={(e) => setHideChildrenLevels(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span>Masquer les niveaux inférieurs</span>
-          </label>
-          
+
+          {/* Effacer le tri si actif */}
           {sortConfig && (
             <button
               onClick={() => setSortConfig(null)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
             >
-              Effacer le tri
+              Effacer tri
             </button>
           )}
         </div>
       </div>
 
-      {/* Barre d'actions de copie - FIXE */}
+      {/* Barre d'actions de copie - COMPACTE */}
       {(selectedRows.size > 0 || copyMode.active) && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+        <div className="bg-indigo-50 border border-indigo-200 rounded p-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3 text-sm">
               {selectedRows.size > 0 && (
-                <span className="text-sm text-indigo-700">
-                  <strong>{selectedRows.size}</strong> ligne{selectedRows.size > 1 ? 's' : ''} sélectionnée{selectedRows.size > 1 ? 's' : ''}
+                <span className="text-indigo-700">
+                  <strong>{selectedRows.size}</strong> sélectionnée{selectedRows.size > 1 ? 's' : ''}
                 </span>
               )}
               
               {copyMode.active && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-green-700">
-                    📋 Mode copie actif • Valeur: <strong>"{copyMode.sourceValue}"</strong>
-                  </span>
-                  <span className="text-xs text-gray-600">
-                    Survolez une cellule du même champ pour coller
-                  </span>
-                </div>
+                <span className="text-green-700">
+                  📋 Mode copie • <strong>"{copyMode.sourceValue}"</strong>
+                </span>
               )}
             </div>
             
@@ -514,7 +571,7 @@ export default function DynamicTableStructure({
               {selectedRows.size > 0 && (
                 <button
                   onClick={clearSelection}
-                  className="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-white"
+                  className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-white"
                 >
                   Désélectionner
                 </button>
@@ -523,7 +580,7 @@ export default function DynamicTableStructure({
               {copyMode.active && (
                 <button
                   onClick={cancelCopy}
-                  className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-white"
+                  className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-white"
                 >
                   Annuler copie
                 </button>
@@ -539,9 +596,9 @@ export default function DynamicTableStructure({
         <div 
           className="overflow-auto"
           style={{ 
-            maxHeight: '70vh',
-            width: '100%', // Prend exactement la largeur du parent
-            maxWidth: 'calc(100vw - 220px)', // Largeur viewport moins sidebar
+            maxHeight: '75vh', // 🔥 AUGMENTÉ : Plus de place pour le tableau
+            width: '100%',
+            maxWidth: 'calc(100vw - 220px)',
           }}
         >
           {/* Tableau avec largeur interne libre */}
@@ -552,7 +609,7 @@ export default function DynamicTableStructure({
                 {columns.map(column => (
                   <th
                     key={column.key}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
                     style={{ width: column.width || 150, minWidth: column.width || 150 }}
                     onClick={() => handleSort(column.key)}
                   >
@@ -569,11 +626,11 @@ export default function DynamicTableStructure({
               </tr>
             </thead>
 
-            {/* Corps du tableau */}
+            {/* Corps du tableau - PADDING RÉDUIT */}
             <tbody className="bg-white divide-y divide-gray-200">
               {processedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={columns.length} className="px-3 py-6 text-center text-gray-500">
                     {searchTerm ? 'Aucun résultat trouvé' : 'Aucune donnée à afficher'}
                   </td>
                 </tr>
@@ -587,7 +644,7 @@ export default function DynamicTableStructure({
                     {columns.map(column => (
                       <td 
                         key={column.key} 
-                        className="px-4 py-3 text-sm whitespace-nowrap"
+                        className="px-3 py-2 text-sm whitespace-nowrap" // 🔥 RÉDUIT : py-2 au lieu de py-3
                         style={{ width: column.width || 150, minWidth: column.width || 150 }}
                       >
                         {column.key === '_hierarchy' 
@@ -601,14 +658,6 @@ export default function DynamicTableStructure({
               )}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Instructions d'utilisation - FIXE */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-        <div className="text-xs text-gray-600 space-y-1">
-          <div><strong>Sélection :</strong> Clic simple = sélection unique • Ctrl/Cmd+Clic = ajout/retrait • Shift+Clic = sélection en plage</div>
-          <div><strong>Copie :</strong> Survolez une cellule avec une valeur → Clic sur 📋 pour copier → Survolez une cellule du même champ → Clic sur 📥 pour coller</div>
         </div>
       </div>
     </div>

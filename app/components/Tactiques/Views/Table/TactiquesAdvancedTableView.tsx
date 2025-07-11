@@ -143,60 +143,22 @@ export default function TactiquesAdvancedTableView({
   // ==================== RENDU ====================
 
   return (
-    <div className="space-y-4">
-      {/* Sélecteur de niveau d'édition */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-1">
-            {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
-              <button
-                key={level}
-                onClick={() => handleLevelChange(level)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLevel === level
-                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <span className="capitalize">{level}s</span>
-                <span className="ml-2 text-xs bg-white px-2 py-0.5 rounded-full">
-                  {entityCounts[level + 's' as keyof EntityCounts]}
-                </span>
-              </button>
-            ))}
-          </div>
+    <div className="space-y-3">
+      {/* 🔥 SUPPRIMÉ: Ancien sélecteur de niveau - maintenant intégré dans DynamicTableStructure */}
 
-          {/* Actions d'expansion rapide */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={expandAllSections}
-              className="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-gray-100"
-            >
-              Tout étendre
-            </button>
-            <button
-              onClick={collapseAllSections}
-              className="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-gray-100"
-            >
-              Tout replier
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Barre de sauvegarde */}
+      {/* Barre de sauvegarde - COMPACTE */}
       {hasUnsavedChanges && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
               <span className="font-medium text-orange-600">{pendingChanges.size}</span> modification{pendingChanges.size > 1 ? 's' : ''} en attente
             </span>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={handleCancelAllChanges}
                 disabled={isSaving}
-                className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
                 Annuler
               </button>
@@ -204,16 +166,16 @@ export default function TactiquesAdvancedTableView({
               <button
                 onClick={handleSaveAllChanges}
                 disabled={isSaving}
-                className="flex items-center px-4 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
               >
-                {isSaving ? 'Sauvegarde...' : 'Sauvegarder tout'}
+                {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Structure du tableau principal */}
+      {/* Structure du tableau principal avec barre d'outils intégrée */}
       <DynamicTableStructure
         tableRows={tableRows}
         selectedLevel={selectedLevel}
@@ -224,12 +186,30 @@ export default function TactiquesAdvancedTableView({
         onStartEdit={startEdit}
         onEndEdit={endEdit}
         onToggleSection={toggleSectionExpansion}
+        onLevelChange={handleLevelChange}
+        entityCounts={entityCounts}
       />
 
-      {/* Informations de statut */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      {/* Informations de statut - COMPACTE */}
+      <div className="flex items-center justify-between text-sm text-gray-500 py-2">
         <div className="flex items-center space-x-4">
           <span>{tableRows.length} ligne{tableRows.length > 1 ? 's' : ''} affichée{tableRows.length > 1 ? 's' : ''}</span>
+          
+          {/* Actions d'expansion rapide */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={expandAllSections}
+              className="text-xs text-gray-600 hover:text-gray-800 px-1 py-1 rounded hover:bg-gray-100"
+            >
+              Tout étendre
+            </button>
+            <button
+              onClick={collapseAllSections}
+              className="text-xs text-gray-600 hover:text-gray-800 px-1 py-1 rounded hover:bg-gray-100"
+            >
+              Tout replier
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -244,7 +224,7 @@ export default function TactiquesAdvancedTableView({
 
       {/* Debug info (développement seulement) */}
       {process.env.NODE_ENV === 'development' && (
-        <details className="bg-gray-50 p-4 rounded text-xs text-gray-600">
+        <details className="bg-gray-50 p-3 rounded text-xs text-gray-600">
           <summary className="cursor-pointer font-medium">Debug Info</summary>
           <div className="mt-2 space-y-1">
             <p><strong>Selected Level:</strong> {selectedLevel}</p>
