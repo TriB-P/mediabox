@@ -1,10 +1,10 @@
-// app/components/Tactiques/EditableTableCell.tsx
+// app/components/Tactiques/Views/Table/EditableTableCell.tsx
 
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { validateColumnValue, formatColumnValue } from '../tableColumns.config';
+import { validateColumnValue, formatColumnValue } from './tableColumns.config';
 
 // ==================== TYPES ====================
 

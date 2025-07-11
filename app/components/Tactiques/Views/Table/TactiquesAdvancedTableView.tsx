@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiquesAdvancedTableView.tsx
+// app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx
 
 'use client';
 
@@ -6,7 +6,6 @@ import React from 'react';
 import { Section, Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useAdvancedTableData } from '../../../../hooks/useAdvancedTableData';
 import DynamicTableStructure from './DynamicTableStructure';
-import BulkEditToolbar from './BulkEditToolbar';
 import { useTableNavigation } from './EditableTableCell';
 import { getColumnsForLevel } from './tableColumns.config';
 
@@ -34,17 +33,6 @@ export interface DynamicColumn {
   options?: Array<{ id: string; label: string }>;
   validation?: (value: any) => boolean;
   format?: (value: any) => string;
-}
-
-export interface BulkUpdateOperation {
-  entityId: string;
-  entityType: TableLevel;
-  field: string;
-  oldValue: any;
-  newValue: any;
-  sectionId: string;
-  tactiqueId?: string;
-  placementId?: string;
 }
 
 export interface EntityCounts {
@@ -89,11 +77,10 @@ export default function TactiquesAdvancedTableView({
     tableRows,
     entityCounts,
     
-    // États de sélection et d'édition
+    // États d'édition
     selectedLevel,
     pendingChanges,
     editingCells,
-    selectedRows,
     expandedSections,
     
     // Actions de modification
@@ -102,20 +89,10 @@ export default function TactiquesAdvancedTableView({
     startEdit,
     endEdit,
     
-    // Actions de sélection
-    selectRow,
-    selectMultipleRows,
-    clearSelection,
-    
     // Actions d'expansion
     toggleSectionExpansion,
     expandAllSections,
     collapseAllSections,
-    
-    // Actions d'édition en masse
-    bulkEdit,
-    fillDown,
-    copyValues,
     
     // Actions de sauvegarde
     saveAllChanges,
@@ -144,18 +121,6 @@ export default function TactiquesAdvancedTableView({
 
   const handleLevelChange = (level: TableLevel) => {
     setSelectedLevel(level);
-  };
-
-  const handleBulkEdit = (fieldKey: string, value: any, entityIds: string[]) => {
-    bulkEdit(fieldKey, value, entityIds);
-  };
-
-  const handleFillDown = (fromRowId: string, fieldKey: string, toRowIds: string[]) => {
-    fillDown(fromRowId, fieldKey, toRowIds);
-  };
-
-  const handleCopyValues = (fromRowId: string, toRowIds: string[]) => {
-    copyValues(fromRowId, toRowIds);
   };
 
   const handleSaveAllChanges = async () => {
@@ -219,18 +184,34 @@ export default function TactiquesAdvancedTableView({
         </div>
       </div>
 
-      {/* Barre d'outils d'édition en masse */}
-      <BulkEditToolbar
-        selectedLevel={selectedLevel}
-        selectedRows={selectedRows}
-        pendingChangesCount={pendingChanges.size}
-        onSaveAll={handleSaveAllChanges}
-        onCancelAll={handleCancelAllChanges}
-        onBulkEdit={handleBulkEdit}
-        onFillDown={handleFillDown}
-        onCopyValues={handleCopyValues}
-        isSaving={isSaving}
-      />
+      {/* Barre de sauvegarde */}
+      {hasUnsavedChanges && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              <span className="font-medium text-orange-600">{pendingChanges.size}</span> modification{pendingChanges.size > 1 ? 's' : ''} en attente
+            </span>
+            
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleCancelAllChanges}
+                disabled={isSaving}
+                className="flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              
+              <button
+                onClick={handleSaveAllChanges}
+                disabled={isSaving}
+                className="flex items-center px-4 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isSaving ? 'Sauvegarde...' : 'Sauvegarder tout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Structure du tableau principal */}
       <DynamicTableStructure
@@ -238,12 +219,10 @@ export default function TactiquesAdvancedTableView({
         selectedLevel={selectedLevel}
         pendingChanges={pendingChanges}
         editingCells={editingCells}
-        selectedRows={selectedRows}
         expandedSections={expandedSections}
         onCellChange={updateCell}
         onStartEdit={startEdit}
         onEndEdit={endEdit}
-        onRowSelection={selectRow}
         onToggleSection={toggleSectionExpansion}
       />
 
@@ -251,11 +230,6 @@ export default function TactiquesAdvancedTableView({
       <div className="flex items-center justify-between text-sm text-gray-500">
         <div className="flex items-center space-x-4">
           <span>{tableRows.length} ligne{tableRows.length > 1 ? 's' : ''} affichée{tableRows.length > 1 ? 's' : ''}</span>
-          {selectedRows.size > 0 && (
-            <span className="text-indigo-600 font-medium">
-              {selectedRows.size} sélectionnée{selectedRows.size > 1 ? 's' : ''}
-            </span>
-          )}
         </div>
         
         <div className="flex items-center space-x-4">
@@ -276,7 +250,6 @@ export default function TactiquesAdvancedTableView({
             <p><strong>Selected Level:</strong> {selectedLevel}</p>
             <p><strong>Entity Counts:</strong> {JSON.stringify(entityCounts)}</p>
             <p><strong>Expanded Sections:</strong> {Array.from(expandedSections).join(', ') || 'Aucune'}</p>
-            <p><strong>Selected Rows:</strong> {Array.from(selectedRows).join(', ') || 'Aucune'}</p>
             <p><strong>Editing Cells:</strong> {Array.from(editingCells).join(', ') || 'Aucune'}</p>
             <p><strong>Pending Changes:</strong> {pendingChanges.size}</p>
             <p><strong>Is Saving:</strong> {isSaving ? 'Oui' : 'Non'}</p>
