@@ -1,4 +1,4 @@
-// app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx
+// app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx - CORRECTION LISTES DYNAMIQUES
 
 'use client';
 
@@ -112,12 +112,12 @@ export default function TactiquesAdvancedTableView({
   const [customDimensions, setCustomDimensions] = useState<ClientCustomDimensions>({});
   const [visibleFields, setVisibleFields] = useState<VisibleFields>({});
   const [listsLoading, setListsLoading] = useState(false);
-  const [listsLoaded, setListsLoaded] = useState(false);
 
-  // ==================== CHARGEMENT DES LISTES DYNAMIQUES ====================
+  // ==================== CHARGEMENT DES LISTES DYNAMIQUES CORRIGÉ ====================
 
   const loadAllDynamicData = useCallback(async () => {
-    if (!selectedClient || !selectedCampaign || !selectedVersion || listsLoaded) {
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      console.log('🔄 loadAllDynamicData: Contexte incomplet');
       return;
     }
 
@@ -152,30 +152,36 @@ export default function TactiquesAdvancedTableView({
           continue;
         }
         
-        const hasListResult = await hasDynamicList(field, selectedClient.clientId);
-        newVisibleFields[field] = hasListResult;
-        
-        if (hasListResult) {
-          const list = await getDynamicList(field, selectedClient.clientId);
-          newDynamicLists[field] = list;
-          console.log(`✅ Liste ${field}: ${list.length} éléments chargés`);
+        try {
+          const hasListResult = await hasDynamicList(field, selectedClient.clientId);
+          newVisibleFields[field] = hasListResult;
+          
+          if (hasListResult) {
+            const list = await getDynamicList(field, selectedClient.clientId);
+            newDynamicLists[field] = list;
+            console.log(`✅ Liste ${field}: ${list.length} éléments chargés`);
+          }
+        } catch (fieldError) {
+          console.warn(`⚠️ Erreur chargement ${field}:`, fieldError);
+          newVisibleFields[field] = false;
         }
       }
 
-      // 5. TC_Publisher et TC_Inventory sont toujours visibles si les partenaires sont disponibles
+      // 5. TC_Publisher et TC_Inventory depuis les partenaires
       const publishersOptions = getPublishersForSelect();
-      newVisibleFields.TC_Publisher = !isPublishersLoading && publishersOptions.length > 0;
-      newVisibleFields.TC_Inventory = !isPublishersLoading && publishersOptions.length > 0;
+      if (!isPublishersLoading && publishersOptions.length > 0) {
+        newVisibleFields.TC_Publisher = true;
+        newVisibleFields.TC_Inventory = true;
 
-      if (newVisibleFields.TC_Publisher) {
         // Convertir les options partenaires au format ListItem
-        newDynamicLists.TC_Publisher = publishersOptions.map(p => ({
+        const publishersAsListItems = publishersOptions.map(p => ({
           id: p.id,
           SH_Code: p.id,
           SH_Display_Name_FR: p.label,
         } as ListItem));
 
-        newDynamicLists.TC_Inventory = newDynamicLists.TC_Publisher; // Même liste pour l'inventaire
+        newDynamicLists.TC_Publisher = publishersAsListItems;
+        newDynamicLists.TC_Inventory = publishersAsListItems; // Même liste pour l'inventaire
       }
 
       setDynamicLists(newDynamicLists);
@@ -195,7 +201,6 @@ export default function TactiquesAdvancedTableView({
         setBuckets([]);
       }
 
-      setListsLoaded(true);
       console.log('✅ Toutes les listes dynamiques chargées avec succès');
 
     } catch (error) {
@@ -203,21 +208,18 @@ export default function TactiquesAdvancedTableView({
     } finally {
       setListsLoading(false);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, isPublishersLoading, getPublishersForSelect, listsLoaded]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, getPublishersForSelect]);
 
-  // ==================== EFFECTS ====================
+  // ==================== EFFECTS CORRIGÉS ====================
 
-  // Charger les listes quand le contexte change
+  // 🔥 CORRECTION: Effect principal pour charger les listes dynamiques
   useEffect(() => {
-    if (selectedClient && selectedCampaign && selectedVersion && !isPublishersLoading) {
-      setListsLoaded(false); // Reset pour forcer le rechargement
-      loadAllDynamicData();
-    }
-  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, loadAllDynamicData]);
+    loadAllDynamicData();
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading]);
 
-  // Reset quand on change de contexte
+  // 🔥 CORRECTION: Effect séparé pour reset les données quand le contexte change
   useEffect(() => {
-    setListsLoaded(false);
+    // Reset immédiat des données
     setDynamicLists({});
     setBuckets([]);
     setCustomDimensions({});
@@ -400,8 +402,6 @@ export default function TactiquesAdvancedTableView({
         onToggleSection={toggleSectionExpansion}
         onLevelChange={handleLevelChange}
         entityCounts={entityCounts}
-        // 🔥 NOUVEAU: Passer les colonnes enrichies
-        enrichedColumns={enrichedColumns}
       />
 
       {/* Informations de statut - COMPACTE */}
@@ -434,7 +434,7 @@ export default function TactiquesAdvancedTableView({
           )}
           
           {/* Indicateur des listes chargées */}
-          {listsLoaded && (
+          {!listsLoading && Object.keys(dynamicLists).length > 0 && (
             <span className="text-green-600 text-xs">
               ✓ Listes chargées ({Object.keys(dynamicLists).length})
             </span>
@@ -454,7 +454,7 @@ export default function TactiquesAdvancedTableView({
             <p><strong>Expanded Sections:</strong> {Array.from(expandedSections).join(', ') || 'Aucune'}</p>
             <p><strong>Editing Cells:</strong> {Array.from(editingCells).join(', ') || 'Aucune'}</p>
             <p><strong>Pending Changes:</strong> {pendingChanges.size}</p>
-            <p><strong>Lists Loaded:</strong> {listsLoaded ? 'Oui' : 'Non'}</p>
+            <p><strong>Lists Loading:</strong> {listsLoading ? 'Oui' : 'Non'}</p>
             <p><strong>Dynamic Lists:</strong> {Object.keys(dynamicLists).join(', ') || 'Aucune'}</p>
             <p><strong>Buckets:</strong> {buckets.length}</p>
             <p><strong>Is Saving:</strong> {isSaving ? 'Oui' : 'Non'}</p>
