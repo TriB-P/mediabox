@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - INTÉGRATION ADVANCED TABLE VIEW
+// app/tactiques/page.tsx - VERSION AVEC MAXIMISATION DE L'ESPACE HORIZONTAL
 
 'use client';
 
@@ -465,10 +465,33 @@ export default function TactiquesPage() {
   const hasError = campaignError || tactiquesError;
   const isLoading = campaignLoading || tactiquesLoading || duplicationLoading;
 
+  // ==================== CLASSES CSS POUR MARGES RÉDUITES ====================
+
+  // 🔥 NOUVEAU: Marges réduites de moitié pour toutes les vues
+  const getContainerClasses = () => {
+    return "space-y-6 pb-16 px-3"; // px-3 au lieu de px-6 (moitié moins)
+  };
+
+  const getContentClasses = () => {
+    if (viewMode === 'table') {
+      return "w-full";
+    } else {
+      return "w-full flex";
+    }
+  };
+
+  const getMainContentClasses = () => {
+    if (viewMode === 'table') {
+      return "w-full";
+    } else {
+      return "flex-1 mr-4";
+    }
+  };
+
   // ==================== RENDU ====================
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className={getContainerClasses()}>
       
       {/* ==================== EN-TÊTE ==================== */}
       <div className="flex justify-between items-center">
@@ -518,10 +541,10 @@ export default function TactiquesPage() {
 
       {/* ==================== CONTENU PRINCIPAL ==================== */}
       {selectedVersion && !shouldShowFullLoader && (
-        <div className="w-full flex">
+        <div className={getContentClasses()}>
           
           {/* Zone de contenu principal */}
-          <div className="flex-1 mr-4">
+          <div className={getMainContentClasses()}>
             
             {/* Panneau d'actions groupées */}
             {selectedItems.size > 0 && (
@@ -641,17 +664,19 @@ export default function TactiquesPage() {
                 )}
 
                 {viewMode === 'table' && (
-                  <TactiquesAdvancedTableView
-                    sections={sections}
-                    tactiques={tactiques}
-                    placements={placements}
-                    creatifs={creatifs}
-                    onUpdateTactique={handleAdvancedUpdateTactique}
-                    onUpdateSection={handleAdvancedUpdateSection}
-                    onUpdatePlacement={handleAdvancedUpdatePlacement}
-                    onUpdateCreatif={handleAdvancedUpdateCreatif}
-                    formatCurrency={formatCurrency}
-                  />
+                  <div className="w-full">
+                    <TactiquesAdvancedTableView
+                      sections={sections}
+                      tactiques={tactiques}
+                      placements={placements}
+                      creatifs={creatifs}
+                      onUpdateTactique={handleAdvancedUpdateTactique}
+                      onUpdateSection={handleAdvancedUpdateSection}
+                      onUpdatePlacement={handleAdvancedUpdatePlacement}
+                      onUpdateCreatif={handleAdvancedUpdateCreatif}
+                      formatCurrency={formatCurrency}
+                    />
+                  </div>
                 )}
 
                 {viewMode === 'timeline' && selectedCampaign && (
@@ -673,8 +698,8 @@ export default function TactiquesPage() {
             )}
           </div>
 
-          {/* Budget Panel - seulement en mode hiérarchie */}
-          {viewMode === 'hierarchy' && (
+          {/* Budget Panel - seulement en mode hiérarchie et timeline */}
+          {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
               sections={sections}

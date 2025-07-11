@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
-import { TableRow, TableLevel, EntityCounts, BulkUpdateOperation } from '../components/Tactiques/Views/Table/TactiquesAdvancedTableView';
+import { TableRow, TableLevel, EntityCounts } from '../components/Tactiques/Views/Table/TactiquesAdvancedTableView';
 
 // ==================== TYPES ====================
 
