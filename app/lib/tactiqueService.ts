@@ -578,6 +578,318 @@ export async function deleteTactique(
   }
 }
 
+// ==================== NOUVELLES FONCTIONS ONGLETS ====================
+
+// Ajouter un nouvel onglet
+export async function addOnglet(
+  clientId: string,
+  campaignId: string,
+  versionId: string,
+  ongletData: Omit<Onglet, 'id'>
+): Promise<string> {
+  try {
+    const ongletsRef = collection(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets'
+    );
+    
+    const docRef = await addDoc(ongletsRef, {
+      ...ongletData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ Onglet créé avec ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'ajout de l\'onglet:', error);
+    throw error;
+  }
+}
+
+// Mettre à jour un onglet (renommage)
+export async function updateOnglet(
+  clientId: string,
+  campaignId: string,
+  versionId: string,
+  ongletId: string,
+  ongletData: Partial<Onglet>
+): Promise<void> {
+  try {
+    const ongletRef = doc(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      ongletId
+    );
+    
+    await updateDoc(ongletRef, {
+      ...ongletData,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ Onglet mis à jour:', ongletId);
+  } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour de l\'onglet:', error);
+    throw error;
+  }
+}
+
+// Supprimer un onglet et toutes ses données
+export async function deleteOnglet(
+  clientId: string,
+  campaignId: string,
+  versionId: string,
+  ongletId: string
+): Promise<void> {
+  try {
+    console.log('🗑️ Début suppression onglet:', ongletId);
+    
+    // 1. Récupérer toutes les sections de l'onglet
+    const sectionsRef = collection(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      ongletId,
+      'sections'
+    );
+    
+    const sectionsSnapshot = await getDocs(sectionsRef);
+    
+    // 2. Pour chaque section, supprimer toutes les tactiques
+    const batch = writeBatch(db);
+    
+    for (const sectionDoc of sectionsSnapshot.docs) {
+      const sectionId = sectionDoc.id;
+      
+      // Récupérer toutes les tactiques de cette section
+      const tactiquesRef = collection(
+        db,
+        'clients',
+        clientId,
+        'campaigns',
+        campaignId,
+        'versions',
+        versionId,
+        'onglets',
+        ongletId,
+        'sections',
+        sectionId,
+        'tactiques'
+      );
+      
+      const tactiquesSnapshot = await getDocs(tactiquesRef);
+      
+      // Supprimer toutes les tactiques
+      tactiquesSnapshot.docs.forEach(tactiqueDoc => {
+        batch.delete(tactiqueDoc.ref);
+      });
+      
+      // Supprimer la section
+      batch.delete(sectionDoc.ref);
+    }
+    
+    // 3. Supprimer l'onglet lui-même
+    const ongletRef = doc(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      ongletId
+    );
+    
+    batch.delete(ongletRef);
+    
+    // 4. Exécuter toutes les suppressions
+    await batch.commit();
+    
+    console.log('✅ Onglet et toutes ses données supprimés:', ongletId);
+  } catch (error) {
+    console.error('❌ Erreur lors de la suppression de l\'onglet:', error);
+    throw error;
+  }
+}
+
+// Réordonner les onglets
+export async function reorderOnglets(
+  clientId: string,
+  campaignId: string,
+  versionId: string,
+  ongletOrders: { id: string; order: number }[]
+): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    
+    ongletOrders.forEach(({ id, order }) => {
+      const ongletRef = doc(
+        db,
+        'clients',
+        clientId,
+        'campaigns',
+        campaignId,
+        'versions',
+        versionId,
+        'onglets',
+        id
+      );
+      
+      batch.update(ongletRef, { 
+        ONGLET_Order: order,
+        updatedAt: new Date().toISOString()
+      });
+    });
+    
+    await batch.commit();
+    console.log('✅ Onglets réordonnés');
+  } catch (error) {
+    console.error('❌ Erreur lors de la réorganisation des onglets:', error);
+    throw error;
+  }
+}
+
+// Dupliquer un onglet avec toutes ses données
+export async function duplicateOnglet(
+  clientId: string,
+  campaignId: string,
+  versionId: string,
+  sourceOngletId: string,
+  newOngletName: string
+): Promise<string> {
+  try {
+    console.log('📋 Début duplication onglet:', sourceOngletId, '→', newOngletName);
+    
+    // 1. Récupérer l'onglet source
+    const sourceOngletRef = doc(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      sourceOngletId
+    );
+    
+    const sourceOngletSnap = await getDoc(sourceOngletRef);
+    
+    if (!sourceOngletSnap.exists()) {
+      throw new Error('Onglet source introuvable');
+    }
+    
+    const sourceOngletData = sourceOngletSnap.data() as Onglet;
+    
+    // 2. Déterminer le nouvel ordre
+    const ongletsSnapshot = await getDocs(
+      collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets')
+    );
+    const newOrder = ongletsSnapshot.size;
+    
+    // 3. Créer le nouvel onglet
+    const newOngletData = {
+      ONGLET_Name: newOngletName,
+      ONGLET_Order: newOrder,
+    };
+    
+    const newOngletId = await addOnglet(clientId, campaignId, versionId, newOngletData);
+    
+    // 4. Copier toutes les sections et leurs tactiques
+    const sectionsRef = collection(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      sourceOngletId,
+      'sections'
+    );
+    
+    const sectionsSnapshot = await getDocs(query(sectionsRef, orderBy('SECTION_Order', 'asc')));
+    
+    for (const sectionDoc of sectionsSnapshot.docs) {
+      const sectionData = sectionDoc.data() as Section;
+      
+      // Créer la nouvelle section
+      const newSectionId = await addSection(
+        clientId, campaignId, versionId, newOngletId,
+        {
+          SECTION_Name: sectionData.SECTION_Name,
+          SECTION_Order: sectionData.SECTION_Order,
+          SECTION_Color: sectionData.SECTION_Color,
+          SECTION_Budget: sectionData.SECTION_Budget
+        }
+      );
+      
+      // Copier les tactiques de cette section
+      const tactiquesRef = collection(
+        db,
+        'clients',
+        clientId,
+        'campaigns',
+        campaignId,
+        'versions',
+        versionId,
+        'onglets',
+        sourceOngletId,
+        'sections',
+        sectionDoc.id,
+        'tactiques'
+      );
+      
+      const tactiquesSnapshot = await getDocs(query(tactiquesRef, orderBy('TC_Order', 'asc')));
+      
+      for (const tactiqueDoc of tactiquesSnapshot.docs) {
+        const tactiqueData = tactiqueDoc.data() as Tactique;
+        
+        await addTactique(
+          clientId, campaignId, versionId, newOngletId, newSectionId,
+          {
+            TC_Label: tactiqueData.TC_Label,
+            TC_Order: tactiqueData.TC_Order,
+            TC_Budget: tactiqueData.TC_Budget,
+            TC_Unit_Type: tactiqueData.TC_Unit_Type,
+            TC_Unit_Count: tactiqueData.TC_Unit_Count,
+            TC_Unit_Cost: tactiqueData.TC_Unit_Cost,
+            TC_Start_Date: tactiqueData.TC_Start_Date,
+            TC_End_Date: tactiqueData.TC_End_Date,
+            TC_SectionId: newSectionId
+          }
+        );
+      }
+    }
+    
+    console.log('✅ Onglet dupliqué avec succès:', newOngletId);
+    return newOngletId;
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la duplication de l\'onglet:', error);
+    throw error;
+  }
+}
+
 // ==================== NOUVELLES FONCTIONS BUDGET ====================
 
 // Récupérer les frais configurés pour un client

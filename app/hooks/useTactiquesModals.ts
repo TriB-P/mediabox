@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesModals.ts - Version nettoyée avec nouvelle architecture
+// app/hooks/useTactiquesModals.ts - Version avec fonctions onglets implémentées
 
 import { useState, useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -11,7 +11,10 @@ import { Campaign } from '../types/campaign';
 import {
   addSection,
   updateSection,
-  deleteSection
+  deleteSection,
+  addOnglet,
+  updateOnglet,
+  deleteOnglet
 } from '../lib/tactiqueService';
 import { useDataFlow } from './useDataFlow';
 
@@ -61,7 +64,7 @@ export const useTactiquesModals = ({
 }: UseTactiquesModalsProps): UseTactiquesModalsReturn => {
 
   const { selectedClient } = useClient();
-  const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
+  const { selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId } = useSelection();
 
   // Utilisation de useDataFlow pour les opérations qui nécessitent du feedback
   const dataFlow = useDataFlow({ 
@@ -214,27 +217,52 @@ export const useTactiquesModals = ({
   // ==================== GESTION DES ONGLETS ====================
 
   const handleAddOnglet = useCallback(async () => {
-    const context = ensureContext();
+    // Vérifier le contexte (sans ongletId car on va en créer un)
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      throw new Error('Contexte manquant pour la création d\'onglet');
+    }
 
     const newOngletName = prompt('Nom du nouvel onglet:');
     if (!newOngletName?.trim()) {
       return;
     }
 
+    const trimmedName = newOngletName.trim();
+
+    // Vérifier si un onglet avec ce nom existe déjà
+    const nameExists = onglets.some(onglet => 
+      onglet.ONGLET_Name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (nameExists) {
+      alert(`Un onglet avec le nom "${trimmedName}" existe déjà. Veuillez choisir un nom différent.`);
+      return;
+    }
+
     try {
       dataFlow.startOperationLoading('Création onglet');
-      console.log('📝 Création nouvel onglet:', newOngletName);
+      console.log('📝 Création nouvel onglet:', trimmedName);
       
-      // TODO: Implémenter addOnglet dans tactiqueService
-      // await addOnglet(context.clientId, context.campaignId, context.versionId, {
-      //   ONGLET_Name: newOngletName,
-      //   ONGLET_Order: onglets.length
-      // });
+      const newOngletData = {
+        ONGLET_Name: trimmedName,
+        ONGLET_Order: onglets.length,
+        ONGLET_Color: '#6366f1'
+      };
       
-      console.log('🚧 addOnglet pas encore implémenté dans tactiqueService');
-      alert('Fonctionnalité en cours de développement - addOnglet manquant');
+      const newOngletId = await addOnglet(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId,
+        newOngletData
+      );
       
+      console.log('✅ Onglet créé avec succès:', newOngletId);
+      
+      // Rafraîchir les données
       await onRefresh();
+      
+      // Sélectionner automatiquement le nouvel onglet
+      setSelectedOngletId(newOngletId);
       
     } catch (error) {
       console.error('❌ Erreur création onglet:', error);
@@ -242,10 +270,23 @@ export const useTactiquesModals = ({
     } finally {
       dataFlow.stopLoading();
     }
-  }, [onglets.length, onRefresh, dataFlow]);
+  }, [
+    selectedClient?.clientId, 
+    selectedCampaignId, 
+    selectedVersionId,
+    onglets.length, 
+    onglets,
+    onRefresh, 
+    setSelectedOngletId,
+    dataFlow
+  ]);
 
   const handleRenameOnglet = useCallback(async (ongletId: string, newName?: string) => {
-    const context = ensureContext();
+    // Vérifier le contexte (sans ongletId dans ensureContext car on manipule un onglet spécifique)
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      throw new Error('Contexte manquant pour le renommage d\'onglet');
+    }
+
     const onglet = onglets.find(o => o.id === ongletId);
     
     if (!onglet) {
@@ -254,22 +295,36 @@ export const useTactiquesModals = ({
     }
 
     const finalNewName = newName || prompt('Nouveau nom pour l\'onglet:', onglet.ONGLET_Name);
-    if (!finalNewName?.trim() || finalNewName === onglet.ONGLET_Name) {
+    if (!finalNewName?.trim() || finalNewName.trim() === onglet.ONGLET_Name) {
+      return;
+    }
+
+    const trimmedName = finalNewName.trim();
+
+    // Vérifier si un autre onglet avec ce nom existe déjà
+    const nameExists = onglets.some(otherOnglet => 
+      otherOnglet.id !== ongletId && 
+      otherOnglet.ONGLET_Name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (nameExists) {
+      alert(`Un onglet avec le nom "${trimmedName}" existe déjà. Veuillez choisir un nom différent.`);
       return;
     }
 
     try {
       dataFlow.startOperationLoading('Renommage onglet');
-      console.log('✏️ Renommage onglet:', onglet.ONGLET_Name, '→', finalNewName);
+      console.log('✏️ Renommage onglet:', onglet.ONGLET_Name, '→', trimmedName);
       
-      // TODO: Implémenter updateOnglet dans tactiqueService
-      // await updateOnglet(context.clientId, context.campaignId, context.versionId, ongletId, {
-      //   ONGLET_Name: finalNewName
-      // });
+      await updateOnglet(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId,
+        ongletId,
+        { ONGLET_Name: trimmedName }
+      );
       
-      console.log('🚧 updateOnglet pas encore implémenté dans tactiqueService');
-      alert('Fonctionnalité en cours de développement - updateOnglet manquant');
-      
+      console.log('✅ Onglet renommé avec succès');
       await onRefresh();
       
     } catch (error) {
@@ -278,10 +333,21 @@ export const useTactiquesModals = ({
     } finally {
       dataFlow.stopLoading();
     }
-  }, [onglets, onRefresh, dataFlow]);
+  }, [
+    selectedClient?.clientId,
+    selectedCampaignId, 
+    selectedVersionId,
+    onglets, 
+    onRefresh, 
+    dataFlow
+  ]);
 
   const handleDeleteOnglet = useCallback(async (ongletId: string) => {
-    const context = ensureContext();
+    // Vérifier le contexte
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      throw new Error('Contexte manquant pour la suppression d\'onglet');
+    }
+
     const onglet = onglets.find(o => o.id === ongletId);
     
     if (!onglet) {
@@ -302,11 +368,22 @@ export const useTactiquesModals = ({
         dataFlow.startOperationLoading('Suppression onglet');
         console.log('🗑️ Suppression onglet:', onglet.ONGLET_Name);
         
-        // TODO: Implémenter deleteOnglet dans tactiqueService
-        // await deleteOnglet(context.clientId, context.campaignId, context.versionId, ongletId);
+        await deleteOnglet(
+          selectedClient.clientId,
+          selectedCampaignId,
+          selectedVersionId,
+          ongletId
+        );
         
-        console.log('🚧 deleteOnglet pas encore implémenté dans tactiqueService');
-        alert('Fonctionnalité en cours de développement - deleteOnglet manquant');
+        console.log('✅ Onglet supprimé avec succès');
+        
+        // Si l'onglet supprimé était sélectionné, sélectionner le premier restant
+        if (selectedOngletId === ongletId) {
+          const remainingOnglets = onglets.filter(o => o.id !== ongletId);
+          if (remainingOnglets.length > 0) {
+            setSelectedOngletId(remainingOnglets[0].id);
+          }
+        }
         
         await onRefresh();
         
@@ -317,7 +394,16 @@ export const useTactiquesModals = ({
         dataFlow.stopLoading();
       }
     }
-  }, [onglets, onRefresh, dataFlow]);
+  }, [
+    selectedClient?.clientId,
+    selectedCampaignId,
+    selectedVersionId,
+    onglets, 
+    selectedOngletId,
+    setSelectedOngletId,
+    onRefresh, 
+    dataFlow
+  ]);
 
   // ==================== RETURN ====================
 
