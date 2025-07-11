@@ -11,8 +11,8 @@ import {
   PlusIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline';
-import { Tactique, Placement, Creatif } from '../../types/tactiques';
-import { usePartners } from '../../contexts/PartnerContext';
+import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
+import { usePartners } from '../../../../contexts/PartnerContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 // ==================== INTERFACE COMMUNE ====================

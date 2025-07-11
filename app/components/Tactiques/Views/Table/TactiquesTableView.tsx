@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Tactique } from '../../types/tactiques';
+import { Tactique } from '../../../../types/tactiques';
 import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface TactiquesTableViewProps {

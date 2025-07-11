@@ -5,7 +5,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { getColumnsWithHierarchy, formatColumnValue } from './tableColumns.config';
+import { getColumnsWithHierarchy, formatColumnValue } from '../tableColumns.config';
 
 // ==================== TYPES ====================
 

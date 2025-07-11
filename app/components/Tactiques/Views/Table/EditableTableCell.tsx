@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { validateColumnValue, formatColumnValue } from './tableColumns.config';
+import { validateColumnValue, formatColumnValue } from '../tableColumns.config';
 
 // ==================== TYPES ====================
 

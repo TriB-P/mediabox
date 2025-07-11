@@ -16,12 +16,12 @@ import {
   Tactique,
   Placement,
   Creatif
-} from '../../types/tactiques';
-import TactiqueDrawer from './Tactiques/TactiqueDrawer';
-import PlacementDrawer from './Placement/PlacementDrawer';
-import CreatifDrawer from './Creatif/CreatifDrawer';
+} from '../../../../types/tactiques';
+import TactiqueDrawer from '../../Tactiques/TactiqueDrawer';
+import PlacementDrawer from '../../Placement/PlacementDrawer';
+import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import { TactiqueItem } from './HierarchyComponents';
-import { useDragAndDrop } from '../../hooks/useDragAndDrop';
+import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];

@@ -3,8 +3,8 @@
 'use client';
 
 import React from 'react';
-import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
-import { useAdvancedTableData } from '../../hooks/useAdvancedTableData';
+import { Section, Tactique, Placement, Creatif } from '../../../../types/tactiques';
+import { useAdvancedTableData } from '../../../../hooks/useAdvancedTableData';
 import DynamicTableStructure from './DynamicTableStructure';
 import BulkEditToolbar from './BulkEditToolbar';
 import { useTableNavigation } from './EditableTableCell';
