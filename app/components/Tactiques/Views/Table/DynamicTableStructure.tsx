@@ -2,10 +2,15 @@
 
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { getColumnsWithHierarchy, formatColumnValue } from './tableColumns.config';
+import { 
+  getColumnsWithHierarchy, 
+  formatColumnValue, 
+  getTactiqueSubCategories,
+  TactiqueSubCategory 
+} from './tableColumns.config';
 
 // ==================== TYPES ====================
 
@@ -63,6 +68,9 @@ export default function DynamicTableStructure({
   const [searchTerm, setSearchTerm] = useState('');
   const [hideChildrenLevels, setHideChildrenLevels] = useState(false);
   
+  // 🔥 NOUVEAU: État pour la sous-catégorie des tactiques
+  const [selectedTactiqueSubCategory, setSelectedTactiqueSubCategory] = useState<TactiqueSubCategory>('info');
+  
   // États pour la sélection et copie
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [copyMode, setCopyMode] = useState<{ active: boolean; sourceCell?: string; sourceValue?: any }>({ active: false });
@@ -74,8 +82,8 @@ export default function DynamicTableStructure({
   // ==================== COLONNES DYNAMIQUES ====================
 
   const columns = useMemo(() => {
-    return getColumnsWithHierarchy(selectedLevel);
-  }, [selectedLevel]);
+    return getColumnsWithHierarchy(selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
+  }, [selectedLevel, selectedTactiqueSubCategory]);
 
   // ==================== DONNÉES FILTRÉES ET TRIÉES ====================
 
@@ -310,6 +318,24 @@ export default function DynamicTableStructure({
     });
   };
 
+  // ==================== GESTION DU CHANGEMENT DE NIVEAU ====================
+
+  const handleLevelChange = useCallback((level: TableLevel) => {
+    onLevelChange(level);
+    // Reset de la sous-catégorie tactique quand on change de niveau
+    if (level !== 'tactique') {
+      setSelectedTactiqueSubCategory('info');
+    }
+  }, [onLevelChange]);
+
+  // ==================== GESTION DU CHANGEMENT DE SOUS-CATÉGORIE TACTIQUE ====================
+
+  const handleTactiqueSubCategoryChange = useCallback((subCategory: TactiqueSubCategory) => {
+    setSelectedTactiqueSubCategory(subCategory);
+  }, []);
+
+  // ==================== RENDU DES COMPOSANTS ====================
+
   const renderHierarchyCell = (row: TableRow) => {
     const label = getHierarchyLabel(row);
     const hasChanges = pendingChanges.has(row.id);
@@ -373,7 +399,12 @@ export default function DynamicTableStructure({
     
     // Cellule readonly ou non-éditable
     if (column.type === 'readonly' || !row.isEditable) {
-      const formattedValue = formatColumnValue(selectedLevel, column.key, value);
+      const formattedValue = formatColumnValue(
+        selectedLevel, 
+        column.key, 
+        value, 
+        selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
+      );
       return (
         <span className={!row.isEditable ? 'text-gray-400' : 'text-gray-900'}>
           {formattedValue || '-'}
@@ -389,22 +420,51 @@ export default function DynamicTableStructure({
         onMouseLeave={() => setHoveredCell(null)}
       >
         {isEditing ? (
-          <input
-            type={column.type === 'number' || column.type === 'currency' ? 'number' : 'text'}
-            value={value || ''}
-            onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
-            onBlur={() => onEndEdit(cellKey)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'Tab') {
-                onEndEdit(cellKey);
-              }
-              if (e.key === 'Escape') {
-                onEndEdit(cellKey);
-              }
-            }}
-            className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            autoFocus
-          />
+          // Mode édition - champ selon le type
+          <>
+            {column.type === 'select' ? (
+              <select
+                value={value || ''}
+                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
+                onBlur={() => onEndEdit(cellKey)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    onEndEdit(cellKey);
+                  }
+                  if (e.key === 'Escape') {
+                    onEndEdit(cellKey);
+                  }
+                }}
+                className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                autoFocus
+              >
+                <option value="">-- Sélectionner --</option>
+                {column.options?.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={column.type === 'number' || column.type === 'currency' ? 'number' : 
+                      column.type === 'date' ? 'date' : 'text'}
+                value={value || ''}
+                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
+                onBlur={() => onEndEdit(cellKey)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    onEndEdit(cellKey);
+                  }
+                  if (e.key === 'Escape') {
+                    onEndEdit(cellKey);
+                  }
+                }}
+                className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                autoFocus
+              />
+            )}
+          </>
         ) : (
           <>
             <button
@@ -413,7 +473,12 @@ export default function DynamicTableStructure({
                 isCopySource ? 'bg-green-100 border border-green-300' : ''
               }`}
             >
-              {formatColumnValue(selectedLevel, column.key, value) || (
+              {formatColumnValue(
+                selectedLevel, 
+                column.key, 
+                value, 
+                selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
+              ) || (
                 <span className="text-gray-400 italic">Cliquer pour modifier</span>
               )}
             </button>
@@ -452,31 +517,51 @@ export default function DynamicTableStructure({
     );
   };
 
-  // ==================== RENDU ====================
+  // ==================== RENDU PRINCIPAL ====================
 
   return (
     <div className="space-y-3">
-      {/* 🔥 NOUVELLE BARRE D'OUTILS COMPACTE - TOUT SUR UNE LIGNE */}
+      {/* 🔥 BARRE D'OUTILS AVEC SOUS-MENU TACTIQUES */}
       <div className="flex items-center justify-between gap-4">
         {/* Sélecteur de niveau */}
         <div className="flex space-x-1">
           {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
-            <button
-              key={level}
-              onClick={() => onLevelChange(level)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedLevel === level
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              <span className="capitalize">{level}s</span>
-              <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
-                {entityCounts[level + 's' as keyof typeof entityCounts]}
-              </span>
-            </button>
+            <div key={level} className="relative">
+              <button
+                onClick={() => handleLevelChange(level)}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  selectedLevel === level
+                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <span className="capitalize">{level}s</span>
+                <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
+                  {entityCounts[level + 's' as keyof typeof entityCounts]}
+                </span>
+              </button>
+            </div>
           ))}
         </div>
+
+        {/* 🔥 NOUVEAU: Sous-menu pour les tactiques */}
+        {selectedLevel === 'tactique' && (
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded">
+            {getTactiqueSubCategories().map(subCategory => (
+              <button
+                key={subCategory.id}
+                onClick={() => handleTactiqueSubCategoryChange(subCategory.id)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  selectedTactiqueSubCategory === subCategory.id
+                    ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                }`}
+              >
+                {subCategory.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Barre de recherche */}
         <div className="flex-1 max-w-sm">
@@ -520,6 +605,9 @@ export default function DynamicTableStructure({
                   <div><strong>Sélection :</strong> Clic = sélection • Ctrl+Clic = ajout • Shift+Clic = plage</div>
                   <div><strong>Copie :</strong> Survolez cellule → 📋 copier → survolez autre cellule → 📥 coller</div>
                   <div><strong>Édition :</strong> Clic sur cellule pour éditer • Enter/Tab = sauver • Esc = annuler</div>
+                  {selectedLevel === 'tactique' && (
+                    <div><strong>Tactiques :</strong> Utilisez les onglets Info/Stratégie/Budget/Admin pour voir les colonnes</div>
+                  )}
                 </div>
                 <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -596,7 +684,7 @@ export default function DynamicTableStructure({
         <div 
           className="overflow-auto"
           style={{ 
-            maxHeight: '75vh', // 🔥 AUGMENTÉ : Plus de place pour le tableau
+            maxHeight: '75vh',
             width: '100%',
             maxWidth: 'calc(100vw - 220px)',
           }}
@@ -644,7 +732,7 @@ export default function DynamicTableStructure({
                     {columns.map(column => (
                       <td 
                         key={column.key} 
-                        className="px-3 py-2 text-sm whitespace-nowrap" // 🔥 RÉDUIT : py-2 au lieu de py-3
+                        className="px-3 py-2 text-sm whitespace-nowrap"
                         style={{ width: column.width || 150, minWidth: column.width || 150 }}
                       >
                         {column.key === '_hierarchy' 
