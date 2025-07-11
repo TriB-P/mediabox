@@ -129,15 +129,7 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           <h4 className="text-lg font-medium text-gray-900 mb-4">
             Taxonomies créatifs (niveaux 5-6)
           </h4>
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start">
-              <div className="text-blue-600 mr-3 mt-0.5">💡</div>
-              <div className="text-blue-800 text-sm">
-                <p className="font-medium mb-1">À propos des taxonomies créatifs</p>
-                <p>Les créatifs utilisent les <strong>niveaux 5-6</strong> des taxonomies sélectionnées, permettant une granularité plus fine que les placements (niveaux 1-4).</p>
-              </div>
-            </div>
-          </div>
+
 
           {/* Sélecteurs de taxonomies */}
           {taxonomies.length > 0 ? (

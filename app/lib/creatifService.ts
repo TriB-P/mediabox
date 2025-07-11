@@ -1,4 +1,4 @@
-// app/lib/creatifService.ts
+// app/lib/creatifService.ts - DEBUG DONNÉES REÇUES
 
 import {
     collection,
@@ -22,10 +22,12 @@ import {
     getCreatifVariableNames, 
     getFieldSource,
     formatRequiresShortcode,
+    isPlacementVariable,
+    isCreatifVariable,
     TaxonomyFormat 
 } from '../config/taxonomyFields';
 
-// ==================== LOGIQUE DE RÉSOLUTION DE TAXONOMIE NIVEAUX 5-6 ====================
+// ==================== LOGIQUE DE RÉSOLUTION DE TAXONOMIE NIVEAUX 5-6 CORRIGÉE ====================
 
 interface ResolutionContext {
     clientId: string;
@@ -86,41 +88,89 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
     const source = getFieldSource(variableName);
     let rawValue: any = null;
 
-    if (source === 'manual') {
-        // 🆕 Variables créatifs manuelles
-        const manualValues = context.creatifData.CR_Taxonomy_Values || {};
-        const manualEntry = manualValues[variableName];
-        if (manualEntry) {
-            rawValue = manualEntry.format === 'open' ? manualEntry.openValue : manualEntry.shortcodeId;
+    console.log(`🔍 [CreatifService] Résolution ${variableName} (source: ${source}, format: ${format})`);
+
+    // 1. Vérifier d'abord les valeurs manuelles dans CR_Taxonomy_Values
+    if (context.creatifData.CR_Taxonomy_Values && context.creatifData.CR_Taxonomy_Values[variableName]) {
+        const taxonomyValue = context.creatifData.CR_Taxonomy_Values[variableName];
+        console.log(`✅ [CreatifService] Valeur manuelle trouvée dans CR_Taxonomy_Values:`, taxonomyValue);
+        
+        // Extraire selon le format
+        if (format === 'open' && taxonomyValue.openValue) {
+            rawValue = taxonomyValue.openValue;
+        } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+            const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
+            if (shortcodeData) {
+                const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
+                const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+                console.log(`🔧 [CreatifService] Valeur formatée depuis shortcode:`, formattedValue);
+                return formattedValue;
+            }
         } else {
-            rawValue = context.creatifData[variableName];
+            rawValue = taxonomyValue.value;
         }
+        console.log(`📋 [CreatifService] Valeur extraite:`, rawValue);
+    } else if (source === 'manual' && isCreatifVariable(variableName)) {
+        // Variables créatifs manuelles directement sur l'objet
+        rawValue = context.creatifData[variableName];
+        console.log(`🎨 [CreatifService] Variable créatif directe:`, rawValue);
     } else if (source === 'placement' && context.placementData) {
-        // 🆕 Variables héritées du placement
-        rawValue = context.placementData[variableName];
+        // Variables de placement - chercher dans PL_Taxonomy_Values
+        if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
+            const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
+            console.log(`🏢 [CreatifService] Variable placement dans PL_Taxonomy_Values:`, taxonomyValue);
+            
+            if (format === 'open' && taxonomyValue.openValue) {
+                rawValue = taxonomyValue.openValue;
+            } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+                const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
+                if (shortcodeData) {
+                    const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
+                    const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+                    console.log(`🔧 [CreatifService] Variable placement formatée:`, formattedValue);
+                    return formattedValue;
+                }
+            } else {
+                rawValue = taxonomyValue.value;
+            }
+        } else {
+            // Fallback: chercher directement dans placement
+            rawValue = context.placementData[variableName];
+            console.log(`🏢 [CreatifService] Variable placement directe:`, rawValue);
+        }
     } else if (source === 'campaign' && context.campaignData) {
-        // Variables héritées de la campagne
         rawValue = context.campaignData[variableName];
+        console.log(`🏛️ [CreatifService] Valeur campagne:`, rawValue);
     } else if (source === 'tactique' && context.tactiqueData) {
-        // Variables héritées de la tactique
         rawValue = context.tactiqueData[variableName];
+        console.log(`🎯 [CreatifService] Valeur tactique:`, rawValue);
     }
 
-    if (rawValue === null || rawValue === undefined || rawValue === '') return '';
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+        console.log(`❌ [CreatifService] Aucune valeur pour ${variableName}`);
+        return '';
+    }
 
+    // Formatage final si pas déjà fait
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
         const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
         if (!shortcodeData) return rawValue;
 
         const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-        return formatShortcodeValue(shortcodeData, customCode, format);
+        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+        console.log(`🔧 [CreatifService] Formatage final:`, formattedValue);
+        return formattedValue;
     }
     
-    return String(rawValue);
+    const finalValue = String(rawValue);
+    console.log(`✅ [CreatifService] Valeur finale pour ${variableName}:`, finalValue);
+    return finalValue;
 }
 
 async function generateLevelString(structure: string, context: ResolutionContext): Promise<string> {
     if (!structure) return '';
+    
+    console.log(`🔄 [CreatifService] Génération niveau: "${structure}"`);
     
     const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
     const segments = structure.split(MASTER_REGEX).filter(Boolean);
@@ -131,7 +181,9 @@ async function generateLevelString(structure: string, context: ResolutionContext
             const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
             if (variableMatch) {
                 const [, variableName, format] = variableMatch;
-                finalString += await resolveVariable(variableName, format as TaxonomyFormat, context);
+                const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
+                finalString += resolvedValue;
+                console.log(`🔧 [CreatifService] ${variableName}:${format} → "${resolvedValue}"`);
             }
         } else if (segment.startsWith('<') && segment.endsWith('>')) {
             const groupContent = segment.slice(1, -1);
@@ -163,6 +215,8 @@ async function generateLevelString(structure: string, context: ResolutionContext
             finalString += segment;
         }
     }
+    
+    console.log(`✅ [CreatifService] Niveau généré: "${finalString}"`);
     return finalString;
 }
 
@@ -175,20 +229,57 @@ async function prepareDataForFirestore(
   isUpdate: boolean = false
 ): Promise<any> {
     
+    console.log(`🔄 [CreatifService] === DÉBUT PRÉPARATION DONNÉES CRÉATIF ===`);
+    console.log(`🎨 CreatifData reçu:`, creatifData);
+    console.log(`🏛️ CampaignData reçu:`, campaignData);
+    console.log(`🎯 TactiqueData reçu:`, tactiqueData);
+    console.log(`🏢 PlacementData reçu:`, placementData);
+    
+    // 🔥 DEBUG: Vérifications spécifiques
+    console.log(`🔍 [CreatifService] VÉRIFICATIONS:`);
+    console.log(`  - CreatifData défini: ${!!creatifData}`);
+    console.log(`  - CampaignData défini: ${!!campaignData}`);
+    console.log(`  - TactiqueData défini: ${!!tactiqueData}`);
+    console.log(`  - PlacementData défini: ${!!placementData}`);
+    
+    if (campaignData) {
+        console.log(`  - Clés CampaignData: ${Object.keys(campaignData).join(', ')}`);
+        console.log(`  - CA_Name: ${campaignData.CA_Name || 'undefined'}`);
+    }
+    
+    if (tactiqueData) {
+        console.log(`  - Clés TactiqueData: ${Object.keys(tactiqueData).join(', ')}`);
+        console.log(`  - TC_Label: ${tactiqueData.TC_Label || 'undefined'}`);
+    }
+    
+    if (placementData) {
+        console.log(`  - Clés PlacementData: ${Object.keys(placementData).join(', ')}`);
+        console.log(`  - PL_Label: ${placementData.PL_Label || 'undefined'}`);
+        console.log(`  - PL_Taxonomy_Values défini: ${!!placementData.PL_Taxonomy_Values}`);
+        if (placementData.PL_Taxonomy_Values) {
+            console.log(`  - Variables TAX_ dans PL_Taxonomy_Values: ${Object.keys(placementData.PL_Taxonomy_Values).filter(k => k.startsWith('TAX_')).join(', ')}`);
+        }
+    }
+    
     const caches = { shortcodes: new Map(), customCodes: new Map() };
     const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData, creatifData, caches };
 
-    // 🆕 Traitement des taxonomies NIVEAUX 5-6 (au lieu de 1-4)
+    // Traitement des taxonomies NIVEAUX 5-6 (au lieu de 1-4)
     const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
         if (!taxonomyId) return ['', ''];
+        console.log(`📋 [CreatifService] Traitement taxonomie créatif: ${taxonomyId}`);
+        
         const taxonomy = await getTaxonomyById(clientId, taxonomyId);
         if (!taxonomy) return ['', ''];
         
-        // 🔥 NIVEAUX 5-6 pour les créatifs
+        // NIVEAUX 5-6 pour les créatifs
         const levels = [
             taxonomy.NA_Name_Level_5 || '', 
             taxonomy.NA_Name_Level_6 || ''
         ];
+        
+        console.log(`📐 [CreatifService] Structures niveaux 5-6:`, levels);
+        
         return Promise.all(levels.map(level => generateLevelString(level, context)));
     };
 
@@ -198,7 +289,12 @@ async function prepareDataForFirestore(
       processTaxonomyType(creatifData.CR_Taxonomy_MediaOcean)
     ]);
     
-    // 🆕 Chaînes taxonomie créatifs (niveaux 5-6)
+    console.log(`🏷️ [CreatifService] Chaînes créatif générées:`);
+    console.log(`  Tags (5-6):`, tagChains);
+    console.log(`  Platform (5-6):`, platformChains);
+    console.log(`  MediaOcean (5-6):`, moChains);
+    
+    // Chaînes taxonomie créatifs (niveaux 5-6)
     const taxonomyChains = {
       CR_Tag_5: tagChains[0], 
       CR_Tag_6: tagChains[1],
@@ -243,6 +339,8 @@ async function prepareDataForFirestore(
         }
     });
 
+    console.log(`✅ [CreatifService] Données finales pour Firestore:`, firestoreData);
+    console.log(`🔄 [CreatifService] === FIN PRÉPARATION DONNÉES CRÉATIF ===`);
     return firestoreData;
 }
 
@@ -254,6 +352,15 @@ export async function createCreatif(
   creatifData: CreatifFormData, 
   campaignData?: any, tactiqueData?: any, placementData?: any
 ): Promise<string> {
+  
+  // 🔥 DEBUG: Log des paramètres d'entrée
+  console.log(`🚀 [CreatifService] === CRÉATION CRÉATIF ===`);
+  console.log(`📍 Paramètres:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placementId });
+  console.log(`🎨 CreatifData passé:`, creatifData);
+  console.log(`🏛️ CampaignData passé:`, campaignData || 'undefined');
+  console.log(`🎯 TactiqueData passé:`, tactiqueData || 'undefined');
+  console.log(`🏢 PlacementData passé:`, placementData || 'undefined');
+  
   const creatifsCollection = collection(
     db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 
     'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 
@@ -265,6 +372,8 @@ export async function createCreatif(
   );
   
   const docRef = await addDoc(creatifsCollection, firestoreData);
+  
+  console.log(`✅ [CreatifService] Créatif créé avec ID: ${docRef.id}`);
   return docRef.id;
 }
 
@@ -274,6 +383,15 @@ export async function updateCreatif(
   creatifData: Partial<CreatifFormData>, 
   campaignData?: any, tactiqueData?: any, placementData?: any
 ): Promise<void> {
+  
+  // 🔥 DEBUG: Log des paramètres d'entrée
+  console.log(`🔄 [CreatifService] === MISE À JOUR CRÉATIF ===`);
+  console.log(`📍 Paramètres:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placementId, creatifId });
+  console.log(`🎨 CreatifData passé:`, creatifData);
+  console.log(`🏛️ CampaignData passé:`, campaignData || 'undefined');
+  console.log(`🎯 TactiqueData passé:`, tactiqueData || 'undefined');
+  console.log(`🏢 PlacementData passé:`, placementData || 'undefined');
+  
   const creatifRef = doc(
     db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 
     'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 
@@ -289,6 +407,8 @@ export async function updateCreatif(
   );
   
   await updateDoc(creatifRef, firestoreData);
+  
+  console.log(`✅ [CreatifService] Créatif mis à jour: ${creatifId}`);
 }
 
 export async function getCreatifsForPlacement(
@@ -324,6 +444,8 @@ export async function deleteCreatif(
         );
         
         await deleteDoc(creatifRef);
+        
+        console.log(`✅ [CreatifService] Créatif supprimé: ${creatifId}`);
     } catch (error) {
         console.error("Erreur lors de la suppression du créatif:", error);
         throw error;

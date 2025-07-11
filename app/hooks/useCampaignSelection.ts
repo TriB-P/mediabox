@@ -83,7 +83,6 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   // ==================== CHARGEMENT DES CAMPAGNES ====================
   
   const loadCampaigns = useCallback(async (clientId: string) => {
-    console.log('📋 Chargement campagnes pour:', clientId);
     
     try {
       dataFlow.startRefreshLoading('Chargement des campagnes...');
@@ -92,7 +91,6 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       setCampaigns(campaignsData);
       setLoadedClientId(clientId);
       
-      console.log(`✅ ${campaignsData.length} campagnes chargées`);
       
       // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
       
@@ -108,7 +106,6 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   // ==================== CHARGEMENT DES VERSIONS ====================
   
   const loadVersions = useCallback(async (clientId: string, campaignId: string) => {
-    console.log('📝 Chargement versions pour:', campaignId);
     
     try {
       dataFlow.startRefreshLoading('Chargement des versions...');
@@ -117,7 +114,6 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       setVersions(versionsData);
       setLoadedCampaignId(campaignId);
       
-      console.log(`✅ ${versionsData.length} versions chargées`);
       
       // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
       
@@ -133,13 +129,9 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   // ==================== EFFET SIMPLE POUR LE CLIENT ====================
   
   useEffect(() => {
-    console.log('🔄 [useEffect-client] Déclenché avec:', {
-      clientId: selectedClient?.clientId,
-      loadedClientId
-    });
+ 
     
     if (!selectedClient?.clientId) {
-      console.log('🔄 [useEffect-client] Pas de client - reset tout');
       // Pas de client = reset tout
       setCampaigns([]);
       setVersions([]);
@@ -150,26 +142,19 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     
     // Charger uniquement si ce n'est pas déjà le bon client
     if (selectedClient.clientId !== loadedClientId) {
-      console.log('🔄 [useEffect-client] Nouveau client détecté:', selectedClient.CL_Name);
       setVersions([]);
       setLoadedCampaignId(null);
       loadCampaigns(selectedClient.clientId);
     } else {
-      console.log('🔄 [useEffect-client] Client déjà chargé, skip');
     }
   }, [selectedClient?.clientId, loadedClientId, loadCampaigns]);
   
   // ==================== EFFET SIMPLE POUR LA CAMPAGNE ====================
   
   useEffect(() => {
-    console.log('🔄 [useEffect-campaign] Déclenché avec:', {
-      clientId: selectedClient?.clientId,
-      selectedCampaignId,
-      loadedCampaignId
-    });
+
     
     if (!selectedClient?.clientId || !selectedCampaignId) {
-      console.log('🔄 [useEffect-campaign] Pas de client/campagne - reset versions si nécessaire');
       // Pas de campagne = reset versions
       if (loadedCampaignId) {
         setVersions([]);
@@ -180,17 +165,14 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     
     // Charger uniquement si ce n'est pas déjà la bonne campagne
     if (selectedCampaignId !== loadedCampaignId) {
-      console.log('🔄 [useEffect-campaign] Nouvelle campagne détectée:', selectedCampaignId);
       loadVersions(selectedClient.clientId, selectedCampaignId);
     } else {
-      console.log('🔄 [useEffect-campaign] Campagne déjà chargée, skip');
     }
   }, [selectedClient?.clientId, selectedCampaignId, loadedCampaignId, loadVersions]);
   
   // ==================== GESTIONNAIRES POUR LE COMPOSANT ====================
   
   const handleCampaignChange = useCallback((campaign: Campaign) => {
-    console.log('🎯 [handleCampaignChange] DÉBUT - Sélection campagne:', campaign.CA_Name, 'ID:', campaign.id);
     
     // Vérifier que la campagne existe dans la liste
     const campaignExists = campaigns.find(c => c.id === campaign.id);
@@ -200,20 +182,16 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     }
     
     // 🔥 TEST: Changer l'ordre - d'abord reset version, puis sélectionner campagne
-    console.log('🎯 [handleCampaignChange] Appel setSelectedVersionId(null) EN PREMIER');
     setSelectedVersionId(null); // Reset version EN PREMIER
     
     // Attendre le prochain tick pour éviter les conflits
     setTimeout(() => {
-      console.log('🎯 [handleCampaignChange] Appel setSelectedCampaignId avec:', campaign.id);
       setSelectedCampaignId(campaign.id);
     }, 0);
     
-    console.log('🎯 [handleCampaignChange] FIN');
   }, [campaigns, setSelectedCampaignId, setSelectedVersionId]);
   
   const handleVersionChange = useCallback((version: Version) => {
-    console.log('🎯 Sélection version:', version.name);
     
     // Vérifier que la version existe dans la liste
     const versionExists = versions.find(v => v.id === version.id);
@@ -242,7 +220,6 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
   
   const clearSelection = useCallback(() => {
-    console.log('🧹 Nettoyage complet');
     clearCampaignSelection();
     setCampaigns([]);
     setVersions([]);
@@ -256,21 +233,7 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
   const hasError = !selectedClient ? false : !!dataFlow.state.error;
   const isLoading = dataFlow.isLoading;
   
-  // ==================== DEBUG MINIMAL ====================
-  
-  useEffect(() => {
-    console.log('📊 [État] Changement détecté:', {
-      client: selectedClient?.CL_Name,
-      campaigns: campaigns.length,
-      versions: versions.length,
-      selectedCampaignId,
-      selectedVersionId,
-      selectedCampaign: selectedCampaign?.CA_Name,
-      selectedVersion: selectedVersion?.name,
-      loading: isLoading
-    });
-  });
-  
+
   // ==================== RETURN ====================
   
   return {

@@ -191,10 +191,7 @@ export default function TaxonomyPreview({
           <div className="flex items-center space-x-2">
             <span className="font-medium">{label}</span>
             {showStar && <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />}
-            {/* 🔥 NOUVEAU : Indicateur des niveaux affichés */}
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              Niveaux {levelsToShow.join(', ')}
-            </span>
+
           </div>
           <span>{expandedPreviews[type] ? '−' : '+'}</span>
         </button>
@@ -217,7 +214,7 @@ export default function TaxonomyPreview({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-md font-medium text-gray-900">
-          Aperçu des taxonomies (niveaux {levelsToShow.join(', ')})
+          Aperçu des taxonomies
         </h4>
         {hasLoadingFields && (
           <div className="flex items-center text-sm text-blue-600">

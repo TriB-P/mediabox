@@ -26,7 +26,6 @@ export interface VersionFormData {
 // Fonctions
 export const getVersions = async (clientId: string, campaignId: string): Promise<Version[]> => {
   try {
-    console.log('getVersions appelé avec:', { clientId, campaignId })
     const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions')
     const q = query(versionsRef, orderBy('createdAt', 'asc'))
     const snapshot = await getDocs(q)

@@ -52,7 +52,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     onChange,
     clientId,
     campaignData,
-    tactiqueData
+    tactiqueData,
+    formType: 'placement' // 🔥 CORRECTION: Spécifier explicitement le type placement
   });
 
   return (
@@ -113,7 +114,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
           onToggleExpansion={togglePreviewExpansion}
           getFormattedValue={getFormattedValue}
           getFormattedPreview={getFormattedPreview}
-          levelsToShow={[1, 2, 3, 4]} // 🔥 NOUVEAU : Niveaux 1-4 pour les placements
+          levelsToShow={[1, 2, 3, 4]}
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-// app/hooks/useTaxonomyForm.ts - ADAPTÉ POUR CRÉATIFS
+// app/hooks/useTaxonomyForm.ts - CORRECTION RÉSOLUTION PLACEMENT
 
 'use client';
 
@@ -17,7 +17,8 @@ import {
   formatRequiresShortcode, 
   isManualVariable,
   isCreatifVariable,
-  isPlacementVariable
+  isPlacementVariable,
+  getFieldSource
 } from '../config/taxonomyFields';
 import type {
   PlacementFormData,
@@ -51,15 +52,14 @@ interface CustomCode {
   customCode: string;
 }
 
-// 🆕 Props adaptées pour supporter les créatifs
 interface UseTaxonomyFormProps {
   formData: PlacementFormData | CreatifFormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   clientId: string;
   campaignData?: any;
   tactiqueData?: any;
-  placementData?: any; // 🆕 Nouveau contexte placement
-  formType?: 'placement' | 'creatif'; // 🆕 Type de formulaire
+  placementData?: any;
+  formType?: 'placement' | 'creatif';
 }
 
 // ==================== HOOK PRINCIPAL ====================
@@ -85,7 +85,6 @@ export function useTaxonomyForm({
   const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
   const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(() => {
-    // 🆕 Support des deux types de formulaires
     if (formType === 'creatif') {
       return (formData as CreatifFormData).CR_Taxonomy_Values || {};
     }
@@ -99,7 +98,6 @@ export function useTaxonomyForm({
   const [highlightState, setHighlightState] = useState<HighlightState>({ mode: 'none' });
   const [expandedPreviews, setExpandedPreviews] = useState({ tags: false, platform: false, mediaocean: false });
 
-  // 🆕 Sélection taxonomique adaptée au type de formulaire
   const selectedTaxonomyIds = useMemo(() => {
     if (formType === 'creatif') {
       const creatifData = formData as CreatifFormData;
@@ -120,12 +118,16 @@ export function useTaxonomyForm({
 
   const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
   
-  // 🆕 Variables manuelles adaptées au type
   const manualVariables = useMemo(() => {
     if (formType === 'creatif') {
       return parsedVariables.filter(variable => isCreatifVariable(variable.variable));
     } else {
-      return parsedVariables.filter(variable => isManualVariable(variable.variable) && !isCreatifVariable(variable.variable));
+      return parsedVariables.filter(variable => {
+        const isCreatif = isCreatifVariable(variable.variable);
+        const isPlacement = isPlacementVariable(variable.variable);
+        const isManual = isManualVariable(variable.variable);
+        return isPlacement || (isManual && !isCreatif);
+      });
     }
   }, [parsedVariables, formType]);
   
@@ -218,15 +220,12 @@ export function useTaxonomyForm({
       
       setSelectedTaxonomyData(newTaxonomyData);
 
-      // 🆕 Extraction différente selon le type de formulaire
       const extractFullStructure = (taxonomy?: Taxonomy) => {
         if (!taxonomy) return '';
         
         if (formType === 'creatif') {
-          // Niveaux 5-6 pour les créatifs
           return [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
         } else {
-          // Niveaux 1-4 pour les placements
           return [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
         }
       };
@@ -275,7 +274,6 @@ export function useTaxonomyForm({
   useEffect(() => { if (parsedVariables.length > 0) loadFieldOptions(); }, [parsedVariables, loadFieldOptions]);
   useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
 
-  // 🆕 Gestion des champs adaptée au type de formulaire
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
     const newTaxonomyValue: TaxonomyVariableValue = {
       value, source: 'manual', format,
@@ -286,16 +284,14 @@ export function useTaxonomyForm({
     const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
     setTaxonomyValues(newTaxonomyValues);
     
-    // Mise à jour selon le type de formulaire
     const taxonomyValuesFieldName = formType === 'creatif' ? 'CR_Taxonomy_Values' : 'PL_Taxonomy_Values';
     const taxonomyValuesEvent = {
       target: { name: taxonomyValuesFieldName, value: newTaxonomyValues }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
     onChange(taxonomyValuesEvent);
 
-    // Mise à jour du champ spécifique
     if ((formType === 'creatif' && isCreatifVariable(variableName)) || 
-        (formType === 'placement' && isManualVariable(variableName) && !isCreatifVariable(variableName))) {
+        (formType === 'placement' && (isManualVariable(variableName) || isPlacementVariable(variableName)) && !isCreatifVariable(variableName))) {
       const eventValue = shortcodeId ?? value;
       const fieldChangeEvent = {
         target: { name: variableName, value: eventValue }
@@ -316,10 +312,18 @@ export function useTaxonomyForm({
 
   const retryLoadTaxonomies = useCallback(() => { loadAndParseTaxonomies(); }, [loadAndParseTaxonomies]);
 
-  // 🆕 Résolution enrichie avec support placement
+  // 🔥 CORRECTION: Fonction de résolution corrigée pour les variables de placement
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
-    const manualValue = taxonomyValues[variable.variable];
+    const variableName = variable.variable;
+    const variableSource = getFieldSource(variableName);
+    
+    console.log(`🔍 === RÉSOLUTION VARIABLE ${variableName} ===`);
+    console.log(`🎯 Source détectée: ${variableSource}, Format: ${format}`);
+    
+    // 1. Vérifier les valeurs manuelles en priorité
+    const manualValue = taxonomyValues[variableName];
     if (manualValue) {
+      console.log(`✅ Valeur manuelle trouvée:`, manualValue);
       if (manualValue.format === 'open') return manualValue.openValue || '';
       if (manualValue.shortcodeId) return formatShortcode(manualValue.shortcodeId, format);
       return manualValue.value || '';
@@ -327,24 +331,54 @@ export function useTaxonomyForm({
     
     let rawValue: any = null;
     
-    // 🆕 Résolution selon la source avec support placement
-    if (variable.source === 'campaign' && campaignData) {
-      rawValue = (campaignData as any)[variable.variable];
-    } else if (variable.source === 'tactique' && tactiqueData) {
-      rawValue = tactiqueData[variable.variable];
-    } else if (variable.source === 'placement' && placementData) {
-      rawValue = placementData[variable.variable];
-    }
-    
-    if (rawValue) {
-      const rawValueStr = String(rawValue);
-      if (formatRequiresShortcode(format)) {
-        return formatShortcode(rawValueStr, format);
+    // 2. Résolution selon la source avec correction pour les placements
+    if (variableSource === 'campaign' && campaignData) {
+      rawValue = campaignData[variableName];
+      console.log(`🏛️ Valeur campagne[${variableName}]:`, rawValue);
+    } else if (variableSource === 'tactique' && tactiqueData) {
+      rawValue = tactiqueData[variableName];
+      console.log(`🎯 Valeur tactique[${variableName}]:`, rawValue);
+    } else if (variableSource === 'placement' && placementData) {
+      // 🔥 CORRECTION: Pour les variables de placement, chercher dans PL_Taxonomy_Values
+      if (isPlacementVariable(variableName) && placementData.PL_Taxonomy_Values && placementData.PL_Taxonomy_Values[variableName]) {
+        const taxonomyValue = placementData.PL_Taxonomy_Values[variableName];
+        console.log(`🏢 Valeur placement PL_Taxonomy_Values[${variableName}]:`, taxonomyValue);
+        
+        // Extraire la valeur selon le format demandé
+        if (format === 'open' && taxonomyValue.openValue) {
+          rawValue = taxonomyValue.openValue;
+        } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+          rawValue = formatShortcode(taxonomyValue.shortcodeId, format);
+          console.log(`🔧 Valeur formatée depuis shortcode:`, rawValue);
+          return rawValue; // Retour direct car déjà formaté
+        } else {
+          rawValue = taxonomyValue.value;
+        }
+        console.log(`✅ Valeur extraite:`, rawValue);
+      } else {
+        // Fallback: chercher directement dans l'objet placement
+        rawValue = placementData[variableName];
+        console.log(`🏢 Valeur placement directe[${variableName}]:`, rawValue);
       }
-      return rawValueStr;
     }
     
-    return `[${variable.variable}]`;
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      console.log(`❌ Aucune valeur trouvée pour ${variableName}`);
+      return `[${variableName}]`;
+    }
+
+    // 3. Formatage de la valeur (seulement si pas déjà formaté)
+    if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+      const formattedValue = formatShortcode(rawValue, format);
+      console.log(`🔧 Valeur formatée (shortcode):`, formattedValue);
+      return formattedValue;
+    }
+    
+    const finalValue = String(rawValue);
+    console.log(`✅ Valeur finale:`, finalValue);
+    console.log(`🔍 === FIN RÉSOLUTION ${variableName} ===`);
+    
+    return finalValue;
   }, [taxonomyValues, campaignData, tactiqueData, placementData, formatShortcode]);
 
   const getFormattedValue = useCallback((variableName: string, format: string): string => {
@@ -357,13 +391,10 @@ export function useTaxonomyForm({
     const taxonomy = selectedTaxonomyData[taxonomyType];
     if (!taxonomy) return '';
     
-    // 🆕 Structure différente selon le type de formulaire
     let structure = '';
     if (formType === 'creatif') {
-      // Niveaux 5-6 pour les créatifs
       structure = [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
     } else {
-      // Niveaux 1-4 pour les placements
       structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
     }
     

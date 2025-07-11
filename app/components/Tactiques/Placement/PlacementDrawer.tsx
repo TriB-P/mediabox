@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - DEBUG
 
 'use client';
 
@@ -55,8 +55,49 @@ export default function PlacementDrawer({
   useEffect(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
     if (placement) {
+      console.log('🔍 === DEBUG PLACEMENT DRAWER ===');
+      console.log('📦 Placement reçu:', placement);
+      console.log('📋 Clés du placement:', Object.keys(placement));
+      
+      // Vérifier les champs TAX_ directement sur l'objet placement
+      const directTaxFields = {
+        TAX_Product: placement.TAX_Product,
+        TAX_Audience_Demographics: placement.TAX_Audience_Demographics,
+        TAX_Location: placement.TAX_Location,
+        TAX_Device: placement.TAX_Device,
+        TAX_Targeting: placement.TAX_Targeting
+      };
+      console.log('🏷️ Champs TAX_ directs:', directTaxFields);
+      
+      // Vérifier PL_Taxonomy_Values
+      console.log('📊 PL_Taxonomy_Values:', placement.PL_Taxonomy_Values);
+      
+      // Extraire depuis PL_Taxonomy_Values si les champs directs sont vides
+      const taxFromTaxonomyValues: any = {};
+      if (placement.PL_Taxonomy_Values) {
+        Object.keys(placement.PL_Taxonomy_Values).forEach(key => {
+          if (key.startsWith('TAX_')) {
+            const taxonomyValue = placement.PL_Taxonomy_Values![key];
+            taxFromTaxonomyValues[key] = taxonomyValue.openValue || taxonomyValue.value || '';
+            console.log(`🔄 Récupération ${key} depuis PL_Taxonomy_Values:`, taxFromTaxonomyValues[key]);
+          }
+        });
+      }
+      
+      // Extraire les champs manuels
       const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
-      setFormData({
+      console.log('📋 Champs manuels extraits:', manualFieldsFromPlacement);
+      
+      // Priorité: champs directs > taxonomy values > vide
+      const finalTaxFields: any = {};
+      ['TAX_Product', 'TAX_Audience_Demographics', 'TAX_Location', 'TAX_Device', 'TAX_Targeting'].forEach(field => {
+        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || 
+                               taxFromTaxonomyValues[field] || 
+                               '';
+        console.log(`✅ ${field} final:`, finalTaxFields[field]);
+      });
+      
+      const newFormData = {
         PL_Label: placement.PL_Label || '',
         PL_Order: placement.PL_Order || 0,
         PL_TactiqueId: placement.PL_TactiqueId,
@@ -67,8 +108,22 @@ export default function PlacementDrawer({
         PL_Generated_Taxonomies: placement.PL_Generated_Taxonomies || {},
         ...emptyManualFields,
         ...manualFieldsFromPlacement,
+        ...finalTaxFields,
+      };
+      
+      console.log('✅ FormData final après restauration:', newFormData);
+      console.log('🎯 Champs TAX_ dans formData final:', {
+        TAX_Product: newFormData.TAX_Product,
+        TAX_Audience_Demographics: newFormData.TAX_Audience_Demographics,
+        TAX_Location: newFormData.TAX_Location,
+        TAX_Device: newFormData.TAX_Device,
+        TAX_Targeting: newFormData.TAX_Targeting
       });
+      console.log('🔍 === FIN DEBUG PLACEMENT DRAWER ===');
+      
+      setFormData(newFormData);
     } else {
+      console.log('📝 Nouveau placement - formData vide');
       setFormData({
         PL_Label: '', 
         PL_Order: 0,
@@ -88,10 +143,14 @@ export default function PlacementDrawer({
     { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon }
   ];
   
-  // 🔥 CORRECTION : Type de l'événement élargi pour inclure HTMLTextAreaElement
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    console.log(`🔄 Changement de champ PlacementDrawer: ${name} =`, value);
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      console.log('📋 Nouveau formData après changement:', newData);
+      return newData;
+    });
   }, []);
 
   const handleTooltipChange = useCallback((tooltip: string | null) => {
@@ -101,6 +160,17 @@ export default function PlacementDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log('💾 === SAUVEGARDE PLACEMENT ===');
+      console.log('📤 FormData envoyé:', formData);
+      console.log('🎯 Champs TAX_ envoyés:', {
+        TAX_Product: formData.TAX_Product,
+        TAX_Audience_Demographics: formData.TAX_Audience_Demographics,
+        TAX_Location: formData.TAX_Location,
+        TAX_Device: formData.TAX_Device,
+        TAX_Targeting: formData.TAX_Targeting
+      });
+      console.log('💾 === FIN SAUVEGARDE PLACEMENT ===');
+      
       await onSave(formData);
       onClose();
     } catch (error) {
@@ -145,6 +215,8 @@ export default function PlacementDrawer({
       onClose={onClose}
       title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
     >
+
+      
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
         <FormTabs
           tabs={tabs}
