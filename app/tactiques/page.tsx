@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - INTÉGRATION SERVICE DUPLICATION
+// app/tactiques/page.tsx - INTÉGRATION ADVANCED TABLE VIEW
 
 'use client';
 
@@ -8,7 +8,7 @@ import { useTactiquesData } from '../hooks/useTactiquesData';
 import { SectionWithTactiques, Section, Tactique, Placement, Creatif } from '../types/tactiques';
 import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import TactiquesHierarchyView from '../components/Tactiques/TactiquesHierarchyView';
-import TactiquesTableView from '../components/Tactiques/TactiquesTableView';
+import TactiquesAdvancedTableView from '../components/Tactiques/TactiquesAdvancedTableView';
 import TactiquesTimelineView from '../components/Tactiques/TactiquesTimelineView';
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { default as SectionModal } from '../components/Tactiques/SectionModal';
@@ -106,6 +106,48 @@ export default function TactiquesPage() {
       maximumFractionDigits: 0
     }).format(amount);
   }, []);
+
+  // ==================== ADAPTATEURS POUR ADVANCED TABLE ====================
+
+  // Adapter les fonctions de mise à jour pour correspondre aux signatures attendues par TactiquesAdvancedTableView
+  const handleAdvancedUpdateSection = useCallback(async (sectionId: string, data: Partial<Section>) => {
+    try {
+      // handleEditSection attend seulement l'ID, les données sont gérées différemment
+      await handleEditSection(sectionId);
+    } catch (error) {
+      console.error('Erreur mise à jour section:', error);
+      throw error;
+    }
+  }, [handleEditSection]);
+
+  const handleAdvancedUpdateTactique = useCallback(async (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => {
+    try {
+      await handleUpdateTactique(sectionId, tactiqueId, data);
+    } catch (error) {
+      console.error('Erreur mise à jour tactique:', error);
+      throw error;
+    }
+  }, [handleUpdateTactique]);
+
+  const handleAdvancedUpdatePlacement = useCallback(async (placementId: string, data: Partial<Placement>) => {
+    try {
+      // handleUpdatePlacement attend seulement placementId et data
+      await handleUpdatePlacement(placementId, data);
+    } catch (error) {
+      console.error('Erreur mise à jour placement:', error);
+      throw error;
+    }
+  }, [handleUpdatePlacement]);
+
+  const handleAdvancedUpdateCreatif = useCallback(async (creatifId: string, data: Partial<Creatif>) => {
+    try {
+      // handleUpdateCreatif attend seulement creatifId et data
+      await handleUpdateCreatif(creatifId, data);
+    } catch (error) {
+      console.error('Erreur mise à jour créatif:', error);
+      throw error;
+    }
+  }, [handleUpdateCreatif]);
 
   // ==================== GESTION DES SÉLECTIONS ====================
 
@@ -599,12 +641,16 @@ export default function TactiquesPage() {
                 )}
 
                 {viewMode === 'table' && (
-                  <TactiquesTableView
-                    tactiques={flatTactiques}
-                    onUpdateTactique={handleUpdateTactique}
-                    onDeleteTactique={handleDeleteTactique}
+                  <TactiquesAdvancedTableView
+                    sections={sections}
+                    tactiques={tactiques}
+                    placements={placements}
+                    creatifs={creatifs}
+                    onUpdateTactique={handleAdvancedUpdateTactique}
+                    onUpdateSection={handleAdvancedUpdateSection}
+                    onUpdatePlacement={handleAdvancedUpdatePlacement}
+                    onUpdateCreatif={handleAdvancedUpdateCreatif}
                     formatCurrency={formatCurrency}
-                    sectionNames={sectionNames}
                   />
                 )}
 
