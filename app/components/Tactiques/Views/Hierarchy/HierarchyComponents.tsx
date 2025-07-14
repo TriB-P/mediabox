@@ -13,12 +13,22 @@ import {
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { usePartners } from '../../../../contexts/PartnerContext';
+import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import TaxonomyContextMenu from './TaxonomyContextMenu';
 
 // ==================== INTERFACE COMMUNE ====================
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
+}
+
+// État pour le menu contextuel des taxonomies
+interface TaxonomyMenuState {
+  isOpen: boolean;
+  item: Placement | Creatif | null;
+  itemType: 'placement' | 'creatif' | null;
+  position: { x: number; y: number };
 }
 
 // ==================== COMPOSANT CRÉATIF ====================
@@ -33,6 +43,7 @@ interface CreatifItemProps extends BaseItemProps {
   onHover: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onEdit: (placementId: string, creatif: Creatif) => void;
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
+  onOpenTaxonomyMenu: (item: Creatif, itemType: 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
 export const CreatifItem: React.FC<CreatifItemProps> = ({
@@ -44,7 +55,8 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   hoveredCreatif,
   onHover,
   onEdit,
-  onSelectCreatif
+  onSelectCreatif,
+  onOpenTaxonomyMenu
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
@@ -52,6 +64,43 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   const hasTagsTaxonomy = !!creatif.CR_Taxonomy_Tags;
   const hasPlatformTaxonomy = !!creatif.CR_Taxonomy_Platform;
   const hasMediaOceanTaxonomy = !!creatif.CR_Taxonomy_MediaOcean;
+
+  // Vérifier s'il y a au moins une taxonomie configurée
+  const hasAnyTaxonomy = hasTagsTaxonomy || hasPlatformTaxonomy || hasMediaOceanTaxonomy;
+
+  // Gestionnaires séparés pour chaque type de taxonomie
+  const handleTagsClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasTagsTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(creatif, 'creatif', 'tags', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
+
+  const handlePlatformClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasPlatformTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(creatif, 'creatif', 'platform', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
+
+  const handleMediaOceanClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasMediaOceanTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(creatif, 'creatif', 'mediaocean', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
 
   return (
     <Draggable
@@ -109,19 +158,34 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
               )}
             </div>
 
-            {/* Indicateurs de taxonomie - Aligné avec placements */}
+            {/* Indicateurs de taxonomie - Cliquables individuellement */}
             <div className="flex items-center space-x-2 -ml-8">
               <span 
-                className={`w-3 h-3 rounded-full ${hasTagsTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                title="Tags"
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  hasTagsTaxonomy 
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    : 'bg-gray-300'
+                }`} 
+                title={hasTagsTaxonomy ? "Tags" : "Tags"}
+                onClick={handleTagsClick}
               ></span>
               <span 
-                className={`w-3 h-3 rounded-full ${hasPlatformTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                title="Plateforme"
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  hasPlatformTaxonomy 
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    : 'bg-gray-300'
+                }`} 
+                title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
+                onClick={handlePlatformClick}
               ></span>
               <span 
-                className={`w-3 h-3 rounded-full ${hasMediaOceanTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                title="MediaOcean"
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  hasMediaOceanTaxonomy 
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    : 'bg-gray-300'
+                }`} 
+                title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
+                onClick={handleMediaOceanClick}
               ></span>
             </div>
           </div>
@@ -150,6 +214,7 @@ interface PlacementItemProps extends BaseItemProps {
   onEditCreatif: (placementId: string, creatif: Creatif) => void;
   onSelectPlacement: (placementId: string, isSelected: boolean) => void;
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
+  onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
 export const PlacementItem: React.FC<PlacementItemProps> = ({
@@ -168,7 +233,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   onCreateCreatif,
   onEditCreatif,
   onSelectPlacement,
-  onSelectCreatif
+  onSelectCreatif,
+  onOpenTaxonomyMenu
 }) => {
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
@@ -177,6 +243,43 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   const hasTagsTaxonomy = !!placement.PL_Taxonomy_Tags;
   const hasPlatformTaxonomy = !!placement.PL_Taxonomy_Platform;
   const hasMediaOceanTaxonomy = !!placement.PL_Taxonomy_MediaOcean;
+
+  // Vérifier s'il y a au moins une taxonomie configurée
+  const hasAnyTaxonomy = hasTagsTaxonomy || hasPlatformTaxonomy || hasMediaOceanTaxonomy;
+
+  // Gestionnaires séparés pour chaque type de taxonomie
+  const handleTagsClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasTagsTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(placement, 'placement', 'tags', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
+
+  const handlePlatformClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasPlatformTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(placement, 'placement', 'platform', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
+
+  const handleMediaOceanClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (hasMediaOceanTaxonomy) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      onOpenTaxonomyMenu(placement, 'placement', 'mediaocean', {
+        x: rect.right + 8,
+        y: rect.top
+      });
+    }
+  };
 
   return (
     <Draggable
@@ -260,19 +363,34 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                 )}
               </div>
 
-              {/* Indicateurs de taxonomie */}
+              {/* Indicateurs de taxonomie - Cliquables individuellement */}
               <div className="flex items-center space-x-2">
                 <span 
-                  className={`w-3 h-3 rounded-full ${hasTagsTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                  title="Tags"
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    hasTagsTaxonomy 
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                      : 'bg-gray-300'
+                  }`} 
+                  title={hasTagsTaxonomy ? "Tags" : "Tags"}
+                  onClick={handleTagsClick}
                 ></span>
                 <span 
-                  className={`w-3 h-3 rounded-full ${hasPlatformTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                  title="Plateforme"
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    hasPlatformTaxonomy 
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                      : 'bg-gray-300'
+                  }`} 
+                  title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
+                  onClick={handlePlatformClick}
                 ></span>
                 <span 
-                  className={`w-3 h-3 rounded-full ${hasMediaOceanTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
-                  title="MediaOcean"
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    hasMediaOceanTaxonomy 
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                      : 'bg-gray-300'
+                  }`} 
+                  title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
+                  onClick={handleMediaOceanClick}
                 ></span>
               </div>
             </div>
@@ -302,6 +420,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                           onEdit={onEditCreatif}
                           formatCurrency={() => ''}
                           onSelectCreatif={onSelectCreatif}
+                          onOpenTaxonomyMenu={onOpenTaxonomyMenu}
                         />
                       ))}
                       {provided.placeholder}
@@ -343,6 +462,7 @@ interface TactiqueItemProps extends BaseItemProps {
   onSelect: (tactiqueId: string, isSelected: boolean) => void;
   onSelectPlacement: (placementId: string, isSelected: boolean) => void;
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
+  onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
 export const TactiqueItem: React.FC<TactiqueItemProps> = ({
@@ -369,7 +489,8 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   formatCurrency,
   onSelect,
   onSelectPlacement,
-  onSelectCreatif
+  onSelectCreatif,
+  onOpenTaxonomyMenu
 }) => {
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
@@ -557,6 +678,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                           formatCurrency={formatCurrency}
                           onSelectPlacement={onSelectPlacement}
                           onSelectCreatif={onSelectCreatif}
+                          onOpenTaxonomyMenu={onOpenTaxonomyMenu}
                         />
                       ))}
                       {provided.placeholder}

@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiquesHierarchyView.tsx - VERSION HARMONISÉE VISUELLEMENT
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - VERSION HARMONISÉE VISUELLEMENT
 
 'use client';
 
@@ -20,8 +20,10 @@ import {
 import TactiqueDrawer from '../../Tactiques/TactiqueDrawer';
 import PlacementDrawer from '../../Placement/PlacementDrawer';
 import CreatifDrawer from '../../Creatif/CreatifDrawer';
+import TaxonomyContextMenu from './TaxonomyContextMenu';
 import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
+import { useClient } from '../../../../contexts/ClientContext';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -70,6 +72,9 @@ export default function TactiquesHierarchyView({
   onRefresh,
   onSelectItems
 }: TactiquesHierarchyViewProps) {
+
+  // Hook pour récupérer le client sélectionné
+  const { selectedClient } = useClient();
 
   // ==================== HOOK DRAG AND DROP ====================
 
@@ -132,6 +137,22 @@ export default function TactiquesHierarchyView({
     creatif: null,
     placementId: '',
     mode: 'create'
+  });
+
+  // ==================== ÉTAT DU MENU CONTEXTUEL TAXONOMIES ====================
+
+  const [taxonomyMenuState, setTaxonomyMenuState] = useState<{
+    isOpen: boolean;
+    item: Placement | Creatif | null;
+    itemType: 'placement' | 'creatif' | null;
+    taxonomyType: 'tags' | 'platform' | 'mediaocean' | null;
+    position: { x: number; y: number };
+  }>({
+    isOpen: false,
+    item: null,
+    itemType: null,
+    taxonomyType: null,
+    position: { x: 0, y: 0 }
   });
 
   // ==================== FONCTIONS UTILITAIRES ====================
@@ -204,6 +225,33 @@ export default function TactiquesHierarchyView({
 
   const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
     onSelectItems([creatifId], 'creatif', isSelected);
+  };
+
+  // ==================== GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ====================
+
+  const handleOpenTaxonomyMenu = (
+    item: Placement | Creatif, 
+    itemType: 'placement' | 'creatif',
+    taxonomyType: 'tags' | 'platform' | 'mediaocean',
+    position: { x: number; y: number }
+  ) => {
+    setTaxonomyMenuState({
+      isOpen: true,
+      item,
+      itemType,
+      taxonomyType,
+      position
+    });
+  };
+
+  const handleCloseTaxonomyMenu = () => {
+    setTaxonomyMenuState({
+      isOpen: false,
+      item: null,
+      itemType: null,
+      taxonomyType: null,
+      position: { x: 0, y: 0 }
+    });
   };
 
   // ==================== GESTIONNAIRES DE CRÉATION ====================
@@ -514,6 +562,7 @@ export default function TactiquesHierarchyView({
                                           onSelect={handleTactiqueSelect}
                                           onSelectPlacement={handlePlacementSelect}
                                           onSelectCreatif={handleCreatifSelect}
+                                          onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
                                         />
                                       );
                                     })}
@@ -562,6 +611,19 @@ export default function TactiquesHierarchyView({
         tactiqueData={currentPlacementContext?.tactique}
         onSave={handleSaveCreatif}
       />
+
+      {/* Menu contextuel pour les taxonomies */}
+      {selectedClient && (
+        <TaxonomyContextMenu
+          isOpen={taxonomyMenuState.isOpen}
+          onClose={handleCloseTaxonomyMenu}
+          position={taxonomyMenuState.position}
+          item={taxonomyMenuState.item!}
+          itemType={taxonomyMenuState.itemType!}
+          taxonomyType={taxonomyMenuState.taxonomyType!}
+          clientId={selectedClient.clientId}
+        />
+      )}
     </>
   );
 }
