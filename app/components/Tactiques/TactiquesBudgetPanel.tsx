@@ -1,7 +1,7 @@
-// app/components/Tactiques/TactiquesBudgetPanel.tsx - AVEC ONGLETS
+// app/components/Tactiques/TactiquesBudgetPanel.tsx - IMPLÉMENTATION COMPLÈTE TOUS ONGLETS
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   CurrencyDollarIcon,
   ChartPieIcon,
@@ -12,6 +12,9 @@ import {
 import { Campaign } from '../../types/campaign';
 import { Section, Tactique, Onglet } from '../../types/tactiques';
 import { ClientFee } from '../../lib/budgetService';
+import { getSections, getTactiques } from '../../lib/tactiqueService';
+import { useClient } from '../../contexts/ClientContext';
+import { useSelection } from '../../contexts/SelectionContext';
 
 interface TactiquesBudgetPanelProps {
   selectedCampaign: Campaign | null;
@@ -107,11 +110,12 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
   );
 };
 
-// ==================== COMPOSANT VUE TOTAUX ====================
+// ==================== COMPOSANT VUE TOTAUX AVEC RÉCUPÉRATION DONNÉES ====================
 interface BudgetTotalsViewProps {
   selectedCampaign: Campaign;
   sections: Section[];
   tactiques: { [sectionId: string]: Tactique[] };
+  onglets: Onglet[];
   formatCurrency: (amount: number) => string;
   clientFees: ClientFee[];
   displayScope: DisplayScope;
@@ -122,6 +126,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   selectedCampaign,
   sections,
   tactiques,
+  onglets,
   formatCurrency,
   clientFees,
   displayScope,
@@ -129,24 +134,130 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 }) => {
   const [showFeeDetails, setShowFeeDetails] = useState(false);
   const [showSectionBreakdown, setShowSectionBreakdown] = useState(true);
+  
+  // 🔥 NOUVEAU: États pour les données de tous les onglets
+  const [allTabsData, setAllTabsData] = useState<{
+    sections: Section[];
+    tactiques: { [sectionId: string]: Tactique[] };
+  } | null>(null);
+  const [isLoadingAllTabs, setIsLoadingAllTabs] = useState(false);
+  const [allTabsError, setAllTabsError] = useState<string | null>(null);
 
+  // Contextes pour récupération des données
+  const { selectedClient } = useClient();
+  const { selectedCampaignId, selectedVersionId } = useSelection();
+
+  // 🔥 NOUVEAU: Fonction pour charger les données de tous les onglets
+  const loadAllTabsData = useCallback(async () => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || onglets.length === 0) {
+      console.warn('⚠️ Contexte manquant pour charger tous les onglets');
+      return;
+    }
+
+    try {
+      setIsLoadingAllTabs(true);
+      setAllTabsError(null);
+      
+      console.log('🔄 Chargement des données de tous les onglets...');
+      
+      const allSections: Section[] = [];
+      const allTactiques: { [sectionId: string]: Tactique[] } = {};
+
+      // Parcourir tous les onglets
+      for (const onglet of onglets) {
+        try {
+          // Récupérer les sections de cet onglet
+          const ongletSections = await getSections(
+            selectedClient.clientId,
+            selectedCampaignId,
+            selectedVersionId,
+            onglet.id
+          );
+
+          // Ajouter les sections avec indication de l'onglet
+          const sectionsWithTab = ongletSections.map(section => ({
+            ...section,
+            ongletName: onglet.ONGLET_Name // Ajouter le nom de l'onglet pour référence
+          }));
+          
+          allSections.push(...sectionsWithTab);
+
+          // Récupérer les tactiques pour chaque section
+          for (const section of ongletSections) {
+            try {
+              const sectionTactiques = await getTactiques(
+                selectedClient.clientId,
+                selectedCampaignId,
+                selectedVersionId,
+                onglet.id,
+                section.id
+              );
+              
+              allTactiques[section.id] = sectionTactiques;
+            } catch (tactiqueError) {
+              console.error(`❌ Erreur tactiques section ${section.id}:`, tactiqueError);
+              allTactiques[section.id] = []; // Fallback vide
+            }
+          }
+          
+        } catch (ongletError) {
+          console.error(`❌ Erreur onglet ${onglet.id}:`, ongletError);
+          // Continuer avec les autres onglets
+        }
+      }
+
+      setAllTabsData({
+        sections: allSections,
+        tactiques: allTactiques
+      });
+      
+      console.log('✅ Données de tous les onglets chargées:', {
+        sections: allSections.length,
+        tactiques: Object.keys(allTactiques).length
+      });
+
+    } catch (error) {
+      console.error('💥 Erreur lors du chargement de tous les onglets:', error);
+      setAllTabsError('Erreur lors du chargement des données');
+    } finally {
+      setIsLoadingAllTabs(false);
+    }
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets]);
+
+  // 🔥 NOUVEAU: Charger les données quand on passe en mode "tous les onglets"
+  useEffect(() => {
+    if (displayScope === 'allTabs' && !allTabsData && !isLoadingAllTabs) {
+      loadAllTabsData();
+    }
+  }, [displayScope, allTabsData, isLoadingAllTabs, loadAllTabsData]);
+
+  // 🔥 NOUVEAU: Données filtrées selon le scope sélectionné
   const filteredSections = useMemo(() => {
     if (displayScope === 'currentTab') {
-      return sections;
+      return sections; // Sections de l'onglet actuel
+    } else {
+      return allTabsData?.sections || []; // Toutes les sections ou vide si pas chargé
     }
-    return sections;
-  }, [sections, displayScope]);
+  }, [sections, displayScope, allTabsData]);
+
+  const filteredTactiques = useMemo(() => {
+    if (displayScope === 'currentTab') {
+      return tactiques; // Tactiques de l'onglet actuel
+    } else {
+      return allTabsData?.tactiques || {}; // Toutes les tactiques ou vide si pas chargé
+    }
+  }, [tactiques, displayScope, allTabsData]);
 
   const allTactiquesInScope = useMemo(() => {
     const relevantTactiqueIds = new Set<string>();
     filteredSections.forEach(section => {
-      (tactiques[section.id] || []).forEach(tactique => {
+      (filteredTactiques[section.id] || []).forEach(tactique => {
         relevantTactiqueIds.add(tactique.id);
       });
     });
 
-    return Object.values(tactiques).flat().filter(t => relevantTactiqueIds.has(t.id));
-  }, [filteredSections, tactiques]);
+    return Object.values(filteredTactiques).flat().filter(t => relevantTactiqueIds.has(t.id));
+  }, [filteredSections, filteredTactiques]);
 
   const calculateTotals = useCallback(() => {
     let totalMediaBudgetInput = 0;
@@ -183,7 +294,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   const totals = useMemo(() => calculateTotals(), [calculateTotals]);
 
   const sectionBudgets = useMemo(() => {
-    const budgets: { name: string; amount: number; percentage: number; color: string }[] = [];
+    const budgets: { name: string; amount: number; percentage: number; color: string; ongletName?: string }[] = [];
     let grandTotalForPercentages = 0;
 
     if (selectedCampaign) {
@@ -191,16 +302,17 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     }
 
     filteredSections.forEach(section => {
-      const sectionAmount = (tactiques[section.id] || []).reduce((sum, t) => sum + t.TC_Budget, 0);
+      const sectionAmount = (filteredTactiques[section.id] || []).reduce((sum, t) => sum + t.TC_Budget, 0);
       budgets.push({
         name: section.SECTION_Name,
         amount: sectionAmount,
         percentage: grandTotalForPercentages > 0 ? (sectionAmount / grandTotalForPercentages) * 100 : 0,
         color: section.SECTION_Color || '#6366f1',
+        ongletName: (section as any).ongletName // Nom de l'onglet si disponible
       });
     });
     return budgets.sort((a, b) => b.amount - a.amount);
-  }, [filteredSections, selectedCampaign, tactiques, totals.totalClientBudget, totals.totalMediaBudgetInput]);
+  }, [filteredSections, selectedCampaign, filteredTactiques, totals.totalClientBudget, totals.totalMediaBudgetInput]);
 
   const getFeeNameByKey = useCallback((feeKey: string) => {
     const match = feeKey.match(/TC_Fee_(\d+)_Value/);
@@ -243,18 +355,43 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           <button
             type="button"
             onClick={() => setDisplayScope('allTabs')}
+            disabled={isLoadingAllTabs}
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border border-gray-300 border-l-0
-              ${displayScope === 'allTabs' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              ${displayScope === 'allTabs' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}
+              ${isLoadingAllTabs ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            Tous les onglets
+            {isLoadingAllTabs ? 'Chargement...' : 'Tous les onglets'}
           </button>
         </div>
+        
+        {/* États de chargement et d'erreur */}
+        {isLoadingAllTabs && (
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+            🔄 Chargement des données de tous les onglets...
+          </div>
+        )}
+        
+        {allTabsError && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            ❌ {allTabsError}
+            <button
+              onClick={loadAllTabsData}
+              className="ml-2 text-red-800 underline hover:no-underline"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+
       </div>
 
       {/* Main Budget Summary */}
       <div className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-800">Totaux</h4>
+          <h4 className="text-sm font-semibold text-gray-800">
+            Totaux {displayScope === 'allTabs' ? '(Tous les onglets)' : '(Onglet actuel)'}
+          </h4>
         </div>
         <div className="p-3 space-y-2">
           <div className="flex justify-between items-center text-sm">
@@ -322,7 +459,9 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           className="flex justify-between items-center w-full p-3 bg-gray-50 border-b border-gray-200 focus:outline-none"
           onClick={() => setShowSectionBreakdown(!showSectionBreakdown)}
         >
-          <h4 className="text-sm font-semibold text-gray-800">Répartition par section</h4>
+          <h4 className="text-sm font-semibold text-gray-800">
+            Répartition par section {displayScope === 'allTabs' ? '(Tous onglets)' : ''}
+          </h4>
           <div className="flex items-center gap-2">
             <ChartPieIcon className="h-4 w-4 text-gray-500" />
             {showSectionBreakdown ? (
@@ -349,13 +488,21 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
                 
                 <div className="space-y-2">
                   {sectionBudgets.map(section => (
-                    <div key={section.name} className="flex justify-between items-center text-sm">
+                    <div key={`${section.name}-${section.ongletName || 'current'}`} className="flex justify-between items-center text-sm">
                       <div className="flex items-center">
                         <span
-                          className="w-3 h-3 rounded-full mr-2"
+                          className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
                           style={{ backgroundColor: section.color }}
                         ></span>
-                        <span className="text-gray-600">{section.name}:</span>
+                        <span className="text-gray-600">
+                          {section.name}
+                          {displayScope === 'allTabs' && section.ongletName && (
+                            <span className="text-xs text-gray-400 ml-1">
+                              ({section.ongletName})
+                            </span>
+                          )}
+                          :
+                        </span>
                       </div>
                       <span className="font-medium">
                         {formatCurrency(section.amount)} ({section.percentage.toFixed(1)}%)
@@ -365,7 +512,9 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic">Aucune section ou budget défini.</p>
+              <p className="text-sm text-gray-500 italic">
+                {isLoadingAllTabs ? 'Chargement des données...' : 'Aucune section ou budget défini.'}
+              </p>
             )}
           </div>
         )}
@@ -374,7 +523,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   );
 };
 
-// ==================== COMPOSANT VUE INDICATEURS ====================
+// ==================== COMPOSANT VUE INDICATEURS (INCHANGÉ) ====================
 interface BudgetIndicatorsViewProps {
   selectedCampaign: Campaign;
   sections: Section[];
@@ -410,7 +559,7 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
   );
 };
 
-// ==================== COMPOSANT PRINCIPAL ====================
+// ==================== COMPOSANT PRINCIPAL MODIFIÉ ====================
 const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   selectedCampaign,
   sections,
@@ -470,6 +619,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
             selectedCampaign={selectedCampaign}
             sections={sections}
             tactiques={tactiques}
+            onglets={onglets}
             formatCurrency={formatCurrency}
             clientFees={clientFees}
             displayScope={displayScope}
