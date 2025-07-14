@@ -1,4 +1,4 @@
-// app/components/Tactiques/HierarchyComponents.tsx - VERSION ALLÉGÉE VISUELLEMENT
+// app/components/Tactiques/Views/Hierarchy/HierarchyComponents.tsx
 
 'use client';
 
@@ -48,6 +48,11 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
+  // Déterminer la présence des taxonomies
+  const hasTagsTaxonomy = !!creatif.CR_Taxonomy_Tags;
+  const hasPlatformTaxonomy = !!creatif.CR_Taxonomy_Platform;
+  const hasMediaOceanTaxonomy = !!creatif.CR_Taxonomy_MediaOcean;
+
   return (
     <Draggable
       key={`creatif-${creatif.id}`}
@@ -58,13 +63,14 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
         <div 
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`flex justify-between items-center px-3 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
+          className={`flex justify-between items-center pl-3 pr-4 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
           } ${creatif.isSelected ? 'bg-indigo-50' : ''}`}
           onMouseEnter={() => onHover({sectionId, tactiqueId, placementId, creatifId: creatif.id})}
           onMouseLeave={() => onHover(null)}
         >
-          <div className="flex items-center">
+          {/* Contenu de gauche */}
+          <div className="flex items-center flex-1 min-w-0">
             <input
               type="checkbox"
               className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
@@ -75,7 +81,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
             <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
               <Bars3Icon className="h-3 w-3 text-gray-300" />
             </span>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-gray-600 truncate">
               {creatif.CR_Label}
             </div>
             {creatif.CR_Version && (
@@ -85,10 +91,11 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
             )}
           </div>
           
-          {/* Actions fixes - positionnement absolu pour éviter le décalage */}
-          <div className="relative min-w-[24px] h-6">
-            {isHovered && (
-              <div className="absolute right-0 top-0 flex items-center">
+          {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
+          <div className="flex items-center space-x-4">
+            {/* Actions (crayon d'édition) - Standardisé */}
+            <div className="w-6 h-6 flex items-center justify-center">
+              {isHovered && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -97,10 +104,26 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
                   title="Modifier le créatif"
                 >
-                  <PencilIcon className="h-3 w-3 text-gray-400" />
+                  <PencilIcon className="h-4 w-4 text-gray-400" />
                 </button>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Indicateurs de taxonomie - Aligné avec placements */}
+            <div className="flex items-center space-x-2 -ml-8">
+              <span 
+                className={`w-3 h-3 rounded-full ${hasTagsTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                title="Tags"
+              ></span>
+              <span 
+                className={`w-3 h-3 rounded-full ${hasPlatformTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                title="Plateforme"
+              ></span>
+              <span 
+                className={`w-3 h-3 rounded-full ${hasMediaOceanTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                title="MediaOcean"
+              ></span>
+            </div>
           </div>
         </div>
       )}
@@ -150,6 +173,11 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
 
+  // Déterminer la présence des taxonomies
+  const hasTagsTaxonomy = !!placement.PL_Taxonomy_Tags;
+  const hasPlatformTaxonomy = !!placement.PL_Taxonomy_Platform;
+  const hasMediaOceanTaxonomy = !!placement.PL_Taxonomy_MediaOcean;
+
   return (
     <Draggable
       key={`placement-${placement.id}`}
@@ -170,7 +198,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
             className="flex justify-between items-center px-4 py-2 cursor-pointer bg-white"
             onClick={() => onExpand(placement.id)}
           >
-            <div className="flex items-center">
+            {/* Contenu de gauche */}
+            <div className="flex items-center flex-1 min-w-0">
               <input
                 type="checkbox"
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
@@ -188,14 +217,14 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                 <ChevronRightIcon className="h-3 w-3 text-gray-500 mr-2" />
               )}
               
-              <div className="text-xs text-gray-700 font-medium">
+              <div className="text-xs text-gray-700 font-medium truncate">
                  {placement.PL_Label}
               </div>
               
               {/* Badge créatifs plus discret */}
               {creatifs.length > 0 && (
                 <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
-                {creatifs.length}
+                  {creatifs.length}
                 </span>
               )}
               
@@ -213,10 +242,11 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
               </button>
             </div>
             
-            {/* Actions fixes */}
-            <div className="relative min-w-[24px] h-6">
-              {isHovered && (
-                <div className="absolute right-0 top-0 flex items-center">
+            {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
+            <div className="flex items-center space-x-4">
+              {/* Actions (crayon d'édition) - Standardisé */}
+              <div className="w-6 h-6 flex items-center justify-center">
+                {isHovered && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -225,10 +255,26 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                     className="p-1 rounded hover:bg-gray-200 transition-colors"
                     title="Modifier le placement"
                   >
-                    <PencilIcon className="h-3 w-3 text-gray-400" />
+                    <PencilIcon className="h-4 w-4 text-gray-400" />
                   </button>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Indicateurs de taxonomie */}
+              <div className="flex items-center space-x-2">
+                <span 
+                  className={`w-3 h-3 rounded-full ${hasTagsTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                  title="Tags"
+                ></span>
+                <span 
+                  className={`w-3 h-3 rounded-full ${hasPlatformTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                  title="Plateforme"
+                ></span>
+                <span 
+                  className={`w-3 h-3 rounded-full ${hasMediaOceanTaxonomy ? 'bg-green-500' : 'bg-gray-300'}`} 
+                  title="MediaOcean"
+                ></span>
+              </div>
             </div>
           </div>
           
@@ -394,7 +440,8 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
             className="flex justify-between items-center px-4 py-3 cursor-pointer bg-white"
             onClick={() => onExpandTactique(tactique.id)}
           >
-            <div className="flex items-center">
+            {/* Contenu de gauche */}
+            <div className="flex items-center flex-1 min-w-0">
               <input
                 type="checkbox"
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
@@ -430,7 +477,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 ) : null}
               </div>
               
-              <div className="text-sm text-gray-800 font-medium">
+              <div className="text-sm text-gray-800 font-medium truncate">
                 {tactique.TC_Label}
               </div>
               
@@ -455,22 +502,21 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
               </button>
             </div>
             
+            {/* Contenu de droite : Actions et budget */}
             <div className="flex items-center space-x-4">
-              {/* Actions fixes */}
-              <div className="relative min-w-[24px] h-6">
+              {/* Actions fixes - Standardisé */}
+              <div className="w-6 h-6 flex items-center justify-center">
                 {isHovered && (
-                  <div className="absolute right-0 top-0 flex items-center">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(sectionId, tactique);
-                      }} 
-                      className="p-1 rounded hover:bg-gray-200 transition-colors"
-                      title="Modifier la tactique"
-                    >
-                      <PencilIcon className="h-4 w-4 text-gray-500" />
-                    </button>
-                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(sectionId, tactique);
+                    }} 
+                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    title="Modifier la tactique"
+                  >
+                    <PencilIcon className="h-4 w-4 text-gray-500" />
+                  </button>
                 )}
               </div>
               
