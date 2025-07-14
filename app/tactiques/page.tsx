@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - CORRECTION POUR AFFICHAGE DES NOMS DE FRAIS
+// app/tactiques/page.tsx - CORRECTION DU CALCUL DES BUDGETS DE SECTION
 
 'use client';
 
@@ -19,13 +19,32 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { duplicateSelectedItems, DuplicationContext } from '../lib/duplicationService';
-// ✅ NOUVEAU: Import pour charger les frais du client
 import { getClientFees } from '../lib/feeService';
-import { ClientFee } from '../lib/budgetService'; // Type attendu par TactiquesBudgetPanel
+import { ClientFee } from '../lib/budgetService';
 
 // ==================== TYPES ====================
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
+
+// ==================== FONCTION UTILITAIRE POUR CALCULER LE BUDGET DES SECTIONS ====================
+
+/**
+ * Calcule le budget total d'une section en sommant les budgets de toutes ses tactiques
+ */
+const calculateSectionBudget = (sectionId: string, tactiques: { [sectionId: string]: Tactique[] }): number => {
+  const sectionTactiques = tactiques[sectionId] || [];
+  return sectionTactiques.reduce((total, tactique) => {
+    return total + (tactique.TC_Budget || 0);
+  }, 0);
+};
+
+/**
+ * Calcule le pourcentage d'une section par rapport au budget total
+ */
+const calculateSectionPercentage = (sectionBudget: number, totalBudget: number): number => {
+  if (totalBudget <= 0) return 0;
+  return Math.round((sectionBudget / totalBudget) * 100);
+};
 
 // ==================== COMPOSANT PRINCIPAL ====================
 
@@ -33,11 +52,9 @@ export default function TactiquesPage() {
   
   // ==================== HOOKS PRINCIPAUX ====================
 
-  // Contexte pour les opérations
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
-  // Hook de sélection campagne/version (simplifié)
   const {
     campaigns,
     versions,
@@ -49,7 +66,6 @@ export default function TactiquesPage() {
     handleVersionChange,
   } = useCampaignSelection();
 
-  // Hook de données tactiques (avec useDataFlow intégré)
   const {
     loading: tactiquesLoading,
     error: tactiquesError,
@@ -95,8 +111,6 @@ export default function TactiquesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [duplicationLoading, setDuplicationLoading] = useState(false);
-
-  // ✅ NOUVEAU: État pour les frais du client
   const [clientFees, setClientFees] = useState<ClientFee[]>([]);
   const [clientFeesLoading, setClientFeesLoading] = useState(false);
 
@@ -115,10 +129,9 @@ export default function TactiquesPage() {
         
         const fees = await getClientFees(selectedClient.clientId);
         
-        // ✅ Adapter les données Fee[] vers ClientFee[] en ajoutant la propriété options manquante
         const adaptedFees: ClientFee[] = fees.map(fee => ({
           ...fee,
-          options: [] // Propriété options vide pour satisfaire le type ClientFee
+          options: []
         }));
         
         setClientFees(adaptedFees);
@@ -151,10 +164,8 @@ export default function TactiquesPage() {
 
   // ==================== ADAPTATEURS POUR ADVANCED TABLE ====================
 
-  // Adapter les fonctions de mise à jour pour correspondre aux signatures attendues par TactiquesAdvancedTableView
   const handleAdvancedUpdateSection = useCallback(async (sectionId: string, data: Partial<Section>) => {
     try {
-      // handleEditSection attend seulement l'ID, les données sont gérées différemment
       await handleEditSection(sectionId);
     } catch (error) {
       console.error('Erreur mise à jour section:', error);
@@ -173,7 +184,6 @@ export default function TactiquesPage() {
 
   const handleAdvancedUpdatePlacement = useCallback(async (placementId: string, data: Partial<Placement>) => {
     try {
-      // handleUpdatePlacement attend seulement placementId et data
       await handleUpdatePlacement(placementId, data);
     } catch (error) {
       console.error('Erreur mise à jour placement:', error);
@@ -183,7 +193,6 @@ export default function TactiquesPage() {
 
   const handleAdvancedUpdateCreatif = useCallback(async (creatifId: string, data: Partial<Creatif>) => {
     try {
-      // handleUpdateCreatif attend seulement creatifId et data
       await handleUpdateCreatif(creatifId, data);
     } catch (error) {
       console.error('Erreur mise à jour créatif:', error);
@@ -218,7 +227,6 @@ export default function TactiquesPage() {
   // ==================== DUPLICATION INTÉGRÉE ====================
 
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
-    // Vérification du contexte
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       setError('Contexte manquant pour la duplication');
       return;
@@ -233,7 +241,6 @@ export default function TactiquesPage() {
     try {
       setDuplicationLoading(true);
 
-      // Construire le contexte de duplication
       const context: DuplicationContext = {
         clientId: selectedClient.clientId,
         campaignId: selectedCampaignId,
@@ -241,7 +248,6 @@ export default function TactiquesPage() {
         ongletId: selectedOngletId
       };
 
-      // Préparer la hiérarchie des données pour le service
       const itemHierarchy = {
         sections,
         tactiques,
@@ -249,17 +255,13 @@ export default function TactiquesPage() {
         creatifs
       };
 
-      // Appeler le service de duplication
       const result = await duplicateSelectedItems(context, itemIds, itemHierarchy);
 
-      // Gérer le résultat
       if (result.success && result.duplicatedIds.length > 0) {
         console.log('✅ Duplication réussie:', result.duplicatedIds);
         
-        // Message de succès
         const successMessage = `${result.duplicatedIds.length} élément${result.duplicatedIds.length > 1 ? 's dupliqués' : ' dupliqué'} avec succès`;
         
-        // Créer un toast de succès temporaire
         const successToast = document.createElement('div');
         successToast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
         successToast.textContent = successMessage;
@@ -269,14 +271,10 @@ export default function TactiquesPage() {
           document.body.removeChild(successToast);
         }, 3000);
 
-        // Rafraîchir les données
         await onRefresh();
-
-        // Nettoyer la sélection
         handleClearSelection();
 
       } else {
-        // Gérer les erreurs
         const errorMessages = result.errors.length > 0 ? result.errors : ['Erreur inconnue lors de la duplication'];
         console.error('❌ Erreurs duplication:', errorMessages);
         
@@ -318,7 +316,6 @@ export default function TactiquesPage() {
       let currentPlacementId: string | undefined;
       let currentCreatifId: string | undefined; 
 
-      // Recherche du type et contexte de l'élément
       for (const section of sections) {
         if (section.id === itemId) {
           itemType = 'section';
@@ -362,7 +359,6 @@ export default function TactiquesPage() {
         if (itemType) break;
       }
 
-      // Suppression avec mise à jour optimiste
       try {
         switch (itemType) {
           case 'section':
@@ -399,7 +395,7 @@ export default function TactiquesPage() {
       } catch (opError) {
         console.error(`❌ Erreur suppression ${itemId}:`, opError);
         setError(`Erreur lors de la suppression de ${itemId}`);
-        onRefresh(); // Fallback en cas d'erreur
+        onRefresh();
       }
     }
 
@@ -411,11 +407,14 @@ export default function TactiquesPage() {
     onRefresh, handleClearSelection, setError
   ]);
 
-  // ==================== PRÉPARATION DES DONNÉES AVEC SÉLECTION ====================
+  // ==================== 🔥 CORRECTION: PRÉPARATION DES DONNÉES AVEC CALCUL DE BUDGET ====================
 
   const sectionsWithTactiques: SectionWithTactiques[] = useMemo(() => {
     return sections.map(section => {
       const sectionTactiques = tactiques[section.id] || [];
+      
+      // 🔥 NOUVEAU: Calculer le budget de la section
+      const calculatedSectionBudget = calculateSectionBudget(section.id, tactiques);
       
       const mappedTactiques = sectionTactiques.map(tactique => {
         const tactiquePlacements = placements[tactique.id] || [];
@@ -453,15 +452,17 @@ export default function TactiquesPage() {
 
       return {
         ...section,
+        // 🔥 CORRECTION: Utiliser le budget calculé au lieu de SECTION_Budget
+        SECTION_Budget: calculatedSectionBudget,
         tactiques: mappedTactiques,
         isSelected: isSectionSelected,
-        // 🔥 SYNCHRONISATION: Utiliser l'état d'expansion de useDataFlow
         isExpanded: sectionExpansions[section.id] || false
       };
     });
   }, [sections, tactiques, placements, creatifs, selectedItems, sectionExpansions]);
 
-  // Données enrichies pour les composants
+  // ==================== DONNÉES ENRICHIES POUR LES COMPOSANTS ====================
+
   const enrichedPlacements = useMemo(() => {
     const result: { [tactiqueId: string]: Placement[] } = {};
     sectionsWithTactiques.forEach(section => {
@@ -490,7 +491,6 @@ export default function TactiquesPage() {
     return result;
   }, [sectionsWithTactiques]);
 
-  // Données pour les autres vues
   const sectionNames = useMemo(() => {
     return sections.reduce((names, section) => {
       names[section.id] = section.SECTION_Name;
@@ -509,9 +509,8 @@ export default function TactiquesPage() {
 
   // ==================== CLASSES CSS POUR MARGES RÉDUITES ====================
 
-  // 🔥 NOUVEAU: Marges réduites de moitié pour toutes les vues
   const getContainerClasses = () => {
-    return "space-y-6 pb-16 px-3"; // px-3 au lieu de px-6 (moitié moins)
+    return "space-y-6 pb-16 px-3";
   };
 
   const getContentClasses = () => {
@@ -553,7 +552,7 @@ export default function TactiquesPage() {
         className="mb-6"
       />
 
-      {/* ==================== INDICATEUR DE REFRESH ==================== */}
+      {/* ==================== INDICATEURS DE CHARGEMENT ==================== */}
       {shouldShowTopIndicator && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
@@ -563,7 +562,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* ==================== INDICATEUR DE DUPLICATION ==================== */}
       {duplicationLoading && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
@@ -573,7 +571,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* ✅ NOUVEAU: Indicateur de chargement des frais */}
       {clientFeesLoading && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
@@ -598,11 +595,10 @@ export default function TactiquesPage() {
           {/* Zone de contenu principal */}
           <div className={getMainContentClasses()}>
             
-            {/* Panneau d'actions groupées - affiché uniquement en mode hiérarchie */}
+            {/* Panneau d'actions groupées */}
             {selectedItems.size > 0 && viewMode === 'hierarchy' && (
               <SelectedActionsPanel
                 selectedItems={Array.from(selectedItems).map(id => {
-                  // Trouver l'élément dans la structure
                   for (const section of sectionsWithTactiques) {
                     if (section.id === id) return { id, name: section.SECTION_Name, type: 'section' };
                     for (const tactique of section.tactiques) {
@@ -628,7 +624,7 @@ export default function TactiquesPage() {
               />
             )}
             
-            {/* 🔥 NOUVEAU: Barre d'outils affichée seulement en mode hiérarchie et timeline */}
+            {/* Barre d'outils */}
             {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
               <div className="flex justify-between items-center mb-4">
                 <div className="flex space-x-2">
@@ -739,7 +735,7 @@ export default function TactiquesPage() {
             )}
           </div>
 
-          {/* ✅ CORRECTION: Budget Panel avec clientFees */}
+          {/* Budget Panel */}
           {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
@@ -748,7 +744,7 @@ export default function TactiquesPage() {
               selectedOnglet={selectedOnglet}
               onglets={onglets}
               formatCurrency={formatCurrency}
-              clientFees={clientFees} // ✅ NOUVEAU: Passage des frais du client
+              clientFees={clientFees}
             />
           )}
         </div>

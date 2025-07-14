@@ -584,10 +584,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-lg overflow-hidden">
       {/* Header avec onglets */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Budget</h3>
-          <CurrencyDollarIcon className="h-6 w-6 text-green-500" />
-        </div>
+      
         
         {/* Onglets */}
         <div className="flex rounded-md shadow-sm">
