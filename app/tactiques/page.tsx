@@ -1,8 +1,8 @@
-// app/tactiques/page.tsx - VERSION AVEC MAXIMISATION DE L'ESPACE HORIZONTAL
+// app/tactiques/page.tsx - CORRECTION POUR AFFICHAGE DES NOMS DE FRAIS
 
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { useTactiquesData } from '../hooks/useTactiquesData';
 import { SectionWithTactiques, Section, Tactique, Placement, Creatif } from '../types/tactiques';
@@ -19,6 +19,9 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { duplicateSelectedItems, DuplicationContext } from '../lib/duplicationService';
+// ✅ NOUVEAU: Import pour charger les frais du client
+import { getClientFees } from '../lib/feeService';
+import { ClientFee } from '../lib/budgetService'; // Type attendu par TactiquesBudgetPanel
 
 // ==================== TYPES ====================
 
@@ -92,6 +95,45 @@ export default function TactiquesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [duplicationLoading, setDuplicationLoading] = useState(false);
+
+  // ✅ NOUVEAU: État pour les frais du client
+  const [clientFees, setClientFees] = useState<ClientFee[]>([]);
+  const [clientFeesLoading, setClientFeesLoading] = useState(false);
+
+  // ==================== EFFET POUR CHARGER LES FRAIS DU CLIENT ====================
+
+  useEffect(() => {
+    const loadClientFees = async () => {
+      if (!selectedClient?.clientId) {
+        setClientFees([]);
+        return;
+      }
+
+      try {
+        setClientFeesLoading(true);
+        console.log('🔄 Chargement des frais pour le client:', selectedClient.clientId);
+        
+        const fees = await getClientFees(selectedClient.clientId);
+        
+        // ✅ Adapter les données Fee[] vers ClientFee[] en ajoutant la propriété options manquante
+        const adaptedFees: ClientFee[] = fees.map(fee => ({
+          ...fee,
+          options: [] // Propriété options vide pour satisfaire le type ClientFee
+        }));
+        
+        setClientFees(adaptedFees);
+        
+        console.log('✅ Frais du client chargés:', fees.length, 'frais');
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des frais du client:', error);
+        setClientFees([]);
+      } finally {
+        setClientFeesLoading(false);
+      }
+    };
+
+    loadClientFees();
+  }, [selectedClient?.clientId]);
 
   // ==================== GESTION DU BUDGET ====================
 
@@ -463,7 +505,7 @@ export default function TactiquesPage() {
   // ==================== GESTION D'ERREUR ====================
 
   const hasError = campaignError || tactiquesError;
-  const isLoading = campaignLoading || tactiquesLoading || duplicationLoading;
+  const isLoading = campaignLoading || tactiquesLoading || duplicationLoading || clientFeesLoading;
 
   // ==================== CLASSES CSS POUR MARGES RÉDUITES ====================
 
@@ -527,6 +569,16 @@ export default function TactiquesPage() {
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
             <span className="text-sm text-green-700">Duplication en cours...</span>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NOUVEAU: Indicateur de chargement des frais */}
+      {clientFeesLoading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-blue-700">Chargement des frais du client...</span>
           </div>
         </div>
       )}
@@ -687,7 +739,7 @@ export default function TactiquesPage() {
             )}
           </div>
 
-          {/* Budget Panel - seulement en mode hiérarchie et timeline */}
+          {/* ✅ CORRECTION: Budget Panel avec clientFees */}
           {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
@@ -696,6 +748,7 @@ export default function TactiquesPage() {
               selectedOnglet={selectedOnglet}
               onglets={onglets}
               formatCurrency={formatCurrency}
+              clientFees={clientFees} // ✅ NOUVEAU: Passage des frais du client
             />
           )}
         </div>
