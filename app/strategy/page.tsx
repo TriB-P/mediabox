@@ -1,4 +1,4 @@
-// app/strategy/page.tsx - Avec CampaignVersionSelector intégré
+// app/strategy/page.tsx - Avec calcul des budgets assignés aux buckets
 
 'use client';
 
@@ -18,9 +18,14 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  orderBy 
+  orderBy,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { 
+  getBucketAssignmentsWithCurrency,
+  BucketBudgetAssignment 
+} from '../lib/bucketBudgetService';
 
 // ==================== TYPES ====================
 
@@ -58,6 +63,11 @@ export default function StrategiePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // 🔥 NOUVEAU: États pour les budgets assignés
+  const [bucketAssignments, setBucketAssignments] = useState<BucketBudgetAssignment>({});
+  const [campaignCurrency, setCampaignCurrency] = useState<string>('CAD');
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  
   // ==================== CONFIGURATION ====================
 
   // Exemple de couleurs disponibles pour les buckets
@@ -83,12 +93,14 @@ export default function StrategiePage() {
 
   // ==================== EFFETS ====================
 
-  // Mettre à jour le budget total quand la campagne change
+  // Mettre à jour le budget total et la devise quand la campagne change
   useEffect(() => {
     if (selectedCampaign) {
       setTotalBudget(selectedCampaign.CA_Budget);
+      setCampaignCurrency(selectedCampaign.CA_Currency || 'CAD');
     } else {
       setTotalBudget(0);
+      setCampaignCurrency('CAD');
     }
   }, [selectedCampaign]);
 
@@ -98,8 +110,16 @@ export default function StrategiePage() {
       loadBuckets(selectedVersion.id);
     } else {
       setBuckets([]);
+      setBucketAssignments({});
     }
   }, [selectedVersion, selectedClient, selectedCampaign]);
+
+  // 🔥 NOUVEAU: Charger les budgets assignés quand les buckets changent
+  useEffect(() => {
+    if (selectedVersion && selectedClient && selectedCampaign && buckets.length > 0) {
+      loadBucketAssignments();
+    }
+  }, [selectedVersion, selectedClient, selectedCampaign, buckets.length]);
 
   // Calculer le budget restant à chaque changement de buckets ou de budget total
   useEffect(() => {
@@ -157,17 +177,46 @@ export default function StrategiePage() {
     }
   };
 
+  // 🔥 NOUVEAU: Charger les budgets assignés aux buckets
+  const loadBucketAssignments = async () => {
+    if (!selectedClient || !selectedCampaign || !selectedVersion) return;
+    
+    try {
+      setLoadingAssignments(true);
+      console.log('📊 Chargement des budgets assignés...');
+      
+      const assignments = await getBucketAssignmentsWithCurrency(
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id,
+        campaignCurrency
+      );
+      
+      setBucketAssignments(assignments);
+      console.log('✅ Budgets assignés chargés:', assignments);
+      
+    } catch (err) {
+      console.error('❌ Erreur lors du chargement des budgets assignés:', err);
+      // Ne pas afficher d'erreur à l'utilisateur car ce n'est pas critique
+      setBucketAssignments({});
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
   // ==================== GESTIONNAIRES DE CHANGEMENT ====================
 
   // 🔥 NOUVEAU: Gestionnaires simplifiés grâce au CampaignVersionSelector
   const handleCampaignChangeLocal = (campaign: any) => {
     handleCampaignChange(campaign);
     setBuckets([]); // Vider les buckets quand on change de campagne
+    setBucketAssignments({}); // Vider les assignations
     setError(null); // Reset erreur
   };
 
   const handleVersionChangeLocal = (version: any) => {
     handleVersionChange(version);
+    setBucketAssignments({}); // Vider les assignations
     setError(null); // Reset erreur
   };
 
@@ -315,15 +364,24 @@ export default function StrategiePage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
       style: 'currency',
-      currency: 'CAD',
+      currency: campaignCurrency || 'CAD',
       maximumFractionDigits: 0
     }).format(amount);
+  };
+
+  // 🔥 NOUVEAU: Fonction pour enrichir les buckets avec les budgets assignés
+  const getEnrichedBuckets = () => {
+    return buckets.map(bucket => ({
+      ...bucket,
+      actual: bucketAssignments[bucket.id] || 0, // Utiliser le budget assigné calculé
+    }));
   };
 
   // ==================== CALCULS ====================
 
   const isLoading = campaignLoading || loading;
   const hasError = campaignError || error;
+  const enrichedBuckets = getEnrichedBuckets();
 
   // ==================== RENDU ====================
 
@@ -339,6 +397,11 @@ export default function StrategiePage() {
               <div className="text-right text-sm text-gray-500">
                 <div>Campagne: <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
                 <div>Version: <span className="font-medium">{selectedVersion.name}</span></div>
+                {loadingAssignments && (
+                  <div className="text-xs text-blue-500 mt-1">
+                    📊 Calcul des budgets assignés...
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -381,7 +444,7 @@ export default function StrategiePage() {
             <p>
               Les enveloppes budgétaires sont un outil pour les équipes de planification qui permet d'utiliser MediaBox pour faire de la planification à très
               haut niveau. Vous pouvez créer autant d'enveloppe que vous le souhaitez et assigner une portion du budget de la campagne dans ses
-              enveloppes
+              enveloppes. Le montant "Assigné dans MediaBox" reflète automatiquement le budget total (incluant les frais) des tactiques assignées à chaque enveloppe.
             </p>
           </div>
           
@@ -459,7 +522,7 @@ export default function StrategiePage() {
               {/* Grid de buckets */}
               {selectedCampaign && selectedVersion && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {buckets.map(bucket => (
+                  {enrichedBuckets.map(bucket => (
                     <BudgetBucket 
                       key={bucket.id}
                       bucket={bucket}
