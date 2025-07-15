@@ -1,5 +1,3 @@
-// app/components/Campaigns/CampaignDrawer.tsx
-
 'use client';
 
 import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
@@ -27,6 +25,7 @@ import {
   ShortcodeItem,
   getClientInfo,
 } from '../../lib/listService';
+import { useUpdateTaxonomies } from '@/hooks/useUpdateTaxonomies';
 
 interface CampaignDrawerProps {
   isOpen: boolean;
@@ -51,6 +50,7 @@ export default function CampaignDrawer({
   onSave,
 }: CampaignDrawerProps) {
   const { selectedClient } = useClient();
+  const { updateTaxonomies } = useUpdateTaxonomies(); // 2. Initialisation du hook
 
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -182,8 +182,6 @@ export default function CampaignDrawer({
           CL_Custom_Fee_3: clientInfo.CL_Custom_Fee_3 || undefined,
         });
         setLoadingCustomDims(true);
-        // 🔥 CORRECTION : On utilise la clé statique (ex: 'CA_Custom_Dim_1') pour chercher la liste, 
-        // pas le libellé dynamique (ex: clientInfo.Custom_Dim_CA_1)
         const customDimPromises = [
           clientInfo.Custom_Dim_CA_1 ? getClientList('CA_Custom_Dim_1', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_1', 'PlusCo')).then(setCustomDim1List) : Promise.resolve(),
           clientInfo.Custom_Dim_CA_2 ? getClientList('CA_Custom_Dim_2', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_2', 'PlusCo')).then(setCustomDim2List) : Promise.resolve(),
@@ -210,11 +208,29 @@ export default function CampaignDrawer({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 3. Passage de la fonction en async
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData, campaign ? undefined : additionalBreakdowns);
-    onClose();
+    setLoading(true);
+    try {
+      // La fonction onSave est appelée comme avant
+      await onSave(formData, campaign ? undefined : additionalBreakdowns);
+
+      // 4. Si c'est une mise à jour (on a un 'campaign' avec un 'id'), on appelle le hook
+      if (campaign && campaign.id) {
+        console.log(`Déclenchement de la mise à jour des taxonomies pour la campagne: ${campaign.id}`);
+        await updateTaxonomies('campaign', { id: campaign.id, name: formData.CA_Name });
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde ou de la mise à jour des taxonomies:", error);
+      // Ici, on pourrait afficher une notification d'erreur à l'utilisateur
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   const handleBreakdownsChange = (breakdowns: BreakdownFormData[]) => {
     setAdditionalBreakdowns(breakdowns);
@@ -277,6 +293,7 @@ export default function CampaignDrawer({
                         </div>
                       </div>
                     </div>
+                    {/* La fonction handleSubmit est maintenant liée ici */}
                     <form onSubmit={handleSubmit} className="h-full flex flex-col">
                       <FormTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
                       <div className="flex-1 overflow-y-auto">{renderTabContent()}</div>
