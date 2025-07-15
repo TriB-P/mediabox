@@ -26,6 +26,8 @@ import {
   getClientInfo,
 } from '../../lib/listService';
 import { useUpdateTaxonomies } from '@/hooks/useUpdateTaxonomies';
+import { useAsyncTaxonomyUpdate } from '../../hooks/useAsyncTaxonomyUpdate';
+import TaxonomyUpdateBanner from '../Others/TaxonomyUpdateBanner';
 
 interface CampaignDrawerProps {
   isOpen: boolean;
@@ -50,7 +52,7 @@ export default function CampaignDrawer({
   onSave,
 }: CampaignDrawerProps) {
   const { selectedClient } = useClient();
-  const { updateTaxonomies } = useUpdateTaxonomies(); // 2. Initialisation du hook
+  const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
 
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -212,26 +214,30 @@ export default function CampaignDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      // La fonction onSave est appelée comme avant
+      // 1. Sauvegarder rapidement comme avant
       await onSave(formData, campaign ? undefined : additionalBreakdowns);
-  
-      // 4. Si c'est une mise à jour (on a un 'campaign' avec un 'id'), on appelle le hook
+      
+      // 2. Fermer immédiatement le drawer
+      onClose();
+      
+      // 3. Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN (pas d'await!)
       if (campaign && campaign.id && selectedClient) {
-        console.log(`Déclenchement de la mise à jour des taxonomies pour la campagne: ${campaign.id}`);
+        console.log(`🚀 Lancement mise à jour taxonomies en arrière-plan pour: ${campaign.id}`);
         
-        // 🔥 CORRECTION: Passer les bonnes données avec clientId
-        await updateTaxonomies('campaign', { 
+        updateTaxonomiesAsync('campaign', { 
           id: campaign.id, 
           name: formData.CA_Name,
-          clientId: selectedClient.clientId  // 🔥 AJOUTÉ: Obligatoire
+          clientId: selectedClient.clientId
+        }).catch(error => {
+          console.error('Erreur mise à jour taxonomies:', error);
         });
       }
       
-      onClose();
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde ou de la mise à jour des taxonomies:", error);
-      // Ici, on pourrait afficher une notification d'erreur à l'utilisateur
+      console.error("Erreur lors de la sauvegarde:", error);
+      // En cas d'erreur de sauvegarde, on reste dans le drawer
     } finally {
       setLoading(false);
     }
@@ -277,6 +283,12 @@ export default function CampaignDrawer({
   };
   
   return (
+    <>
+      {/* Bandeau de notification */}
+      <TaxonomyUpdateBanner 
+        status={status} 
+        onDismiss={dismissNotification} 
+      />
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child as={Fragment} enter="ease-in-out duration-500" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in-out duration-500" leaveFrom="opacity-100" leaveTo="opacity-0">
@@ -319,5 +331,6 @@ export default function CampaignDrawer({
         <TooltipBanner tooltip={activeTooltip} />
       </Dialog>
     </Transition.Root>
+    </>
   );
 }

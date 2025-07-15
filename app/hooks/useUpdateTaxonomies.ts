@@ -1,4 +1,4 @@
-// app/hooks/useUpdateTaxonomies.ts - CORRIGÉ
+// app/hooks/useUpdateTaxonomies.ts - AVEC VRAIES MISES À JOUR
 
 import { db } from '@/lib/firebase';
 import { 
@@ -6,21 +6,17 @@ import {
   getDocs, 
   getDoc,
   doc,
-  query, 
   writeBatch, 
-  DocumentData 
+  query,
+  where
 } from 'firebase/firestore';
+import { getTaxonomyById } from '../lib/taxonomyService';
 import { 
   TAXONOMY_VARIABLE_REGEX,
-  getManualVariableNames,
-  getCreatifVariableNames,
   getFieldSource,
   formatRequiresShortcode,
-  isPlacementVariable,
-  isCreatifVariable,
   TaxonomyFormat 
 } from '../config/taxonomyFields';
-import { getTaxonomyById } from '../lib/taxonomyService';
 
 // ==================== TYPES ====================
 
@@ -29,8 +25,8 @@ type ParentType = 'campaign' | 'tactic' | 'placement';
 interface ParentData {
   id: string;
   name: string;
-  clientId: string; // 🔥 AJOUTÉ: Obligatoire pour naviguer dans la structure Firestore
-  campaignId?: string; // Pour tactiques et placements
+  clientId: string;
+  campaignId?: string;
   [key: string]: any; 
 }
 
@@ -45,7 +41,7 @@ interface ResolutionContext {
   };
 }
 
-// ==================== FONCTIONS UTILITAIRES TAXONOMIE ====================
+// ==================== FONCTIONS UTILITAIRES ====================
 
 async function getShortcode(id: string, cache: Map<string, any>): Promise<any | null> {
   if (cache.has(id)) return cache.get(id);
@@ -67,19 +63,11 @@ async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<s
   if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
   try {
-    const q = query(collection(db, 'clients', clientId, 'customCodes'));
+    const q = query(collection(db, 'clients', clientId, 'customCodes'), where('shortcodeId', '==', shortcodeId));
     const snapshot = await getDocs(q);
-    
-    for (const customDoc of snapshot.docs) {
-      const customData = customDoc.data();
-      if (customData.shortcodeId === shortcodeId) {
-        cache.set(cacheKey, customData.customCode || null);
-        return customData.customCode || null;
-      }
-    }
-    
-    cache.set(cacheKey, null);
-    return null;
+    const data = snapshot.empty ? null : snapshot.docs[0].data().customCode;
+    cache.set(cacheKey, data);
+    return data;
   } catch (error) {
     console.error(`Erreur récupération custom code ${shortcodeId}:`, error);
     cache.set(cacheKey, null);
@@ -87,28 +75,17 @@ async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<s
   }
 }
 
-function formatShortcodeValue(
-  shortcodeData: any,
-  customCode: string | null,
-  format: TaxonomyFormat
-): string {
+function formatShortcodeValue(shortcodeData: any, customCode: string | null, format: TaxonomyFormat): string {
   if (!shortcodeData) return '';
   
   switch (format) {
-    case 'code':
-      return shortcodeData.SH_Code || '';
-    case 'display_fr':
-      return shortcodeData.SH_Display_Name_FR || '';
-    case 'display_en':
-      return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR || '';
-    case 'utm':
-      return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
-    case 'custom_utm':
-      return customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
-    case 'custom_code':
-      return customCode || shortcodeData.SH_Code || '';
-    default:
-      return shortcodeData.SH_Display_Name_FR || '';
+    case 'code': return shortcodeData.SH_Code || '';
+    case 'display_fr': return shortcodeData.SH_Display_Name_FR || '';
+    case 'display_en': return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR || '';
+    case 'utm': return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
+    case 'custom_utm': return customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
+    case 'custom_code': return customCode || shortcodeData.SH_Code || '';
+    default: return shortcodeData.SH_Display_Name_FR || '';
   }
 }
 
@@ -116,25 +93,13 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  console.log(`🔍 [UpdateTaxonomies] Resolving ${variableName} (source: ${source}, format: ${format}, isCreatif: ${isCreatif})`);
+  // 1. Chercher dans les valeurs manuelles de taxonomie
+  const taxonomyValues = isCreatif ? 
+    context.placementData.CR_Taxonomy_Values : 
+    context.placementData.PL_Taxonomy_Values;
 
-  // 1. Check manual values in taxonomy values first
-  if (isCreatif && context.placementData && context.placementData.CR_Taxonomy_Values && context.placementData.CR_Taxonomy_Values[variableName]) {
-    const taxonomyValue = context.placementData.CR_Taxonomy_Values[variableName];
-    
-    if (format === 'open' && taxonomyValue.openValue) {
-      rawValue = taxonomyValue.openValue;
-    } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-      const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-      if (shortcodeData) {
-        const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-        return formatShortcodeValue(shortcodeData, customCode, format);
-      }
-    } else {
-      rawValue = taxonomyValue.value;
-    }
-  } else if (!isCreatif && context.placementData && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-    const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
+  if (taxonomyValues && taxonomyValues[variableName]) {
+    const taxonomyValue = taxonomyValues[variableName];
     
     if (format === 'open' && taxonomyValue.openValue) {
       rawValue = taxonomyValue.openValue;
@@ -148,7 +113,7 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
       rawValue = taxonomyValue.value;
     }
   } else {
-    // Look in the data sources
+    // 2. Chercher dans les sources de données
     if (source === 'campaign' && context.campaignData) {
       rawValue = context.campaignData[variableName];
     } else if (source === 'tactique' && context.tactiqueData) {
@@ -161,11 +126,10 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
   }
 
   if (rawValue === null || rawValue === undefined || rawValue === '') {
-    console.log(`❌ [UpdateTaxonomies] No value for ${variableName}`);
     return '';
   }
 
-  // Final formatting if shortcode
+  // 3. Formatage final si shortcode
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
     const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
     if (shortcodeData) {
@@ -226,12 +190,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
 
 // ==================== FONCTIONS DE RÉGÉNÉRATION ====================
 
-async function regeneratePlacementTaxonomies(
-  clientId: string,
-  placementData: any,
-  campaignData: any,
-  tactiqueData: any
-): Promise<any> {
+async function regeneratePlacementTaxonomies(clientId: string, placementData: any, campaignData: any, tactiqueData: any): Promise<any> {
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData, caches };
 
@@ -277,13 +236,7 @@ async function regeneratePlacementTaxonomies(
   };
 }
 
-async function regenerateCreatifTaxonomies(
-  clientId: string,
-  creatifData: any,
-  campaignData: any,
-  tactiqueData: any,
-  placementData: any
-): Promise<any> {
+async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, campaignData: any, tactiqueData: any, placementData: any): Promise<any> {
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData: creatifData, caches };
 
@@ -334,197 +287,127 @@ export const useUpdateTaxonomies = () => {
     let updatedCount = 0;
 
     try {
-      // Récupérer le clientId et les campagnes affectées
       const clientId = parentData.clientId;
       if (!clientId) {
-        console.error('❌ ClientId manquant dans parentData:', parentData);
+        console.error('❌ ClientId manquant');
         return;
       }
       
-      console.log(`✅ ClientId trouvé: ${clientId}`);
-      
-      let campaignsToProcess: string[] = [];
-      
+      let campaignId: string;
       if (parentType === 'campaign') {
-        campaignsToProcess = [parentData.id];
-        console.log(`📋 Mode campagne - ID à traiter: ${parentData.id}`);
+        campaignId = parentData.id;
       } else {
-        // Pour tactique et placement, il faut remonter à la campagne
         if (parentData.campaignId) {
-          campaignsToProcess = [parentData.campaignId];
-          console.log(`📋 Mode ${parentType} - CampaignId: ${parentData.campaignId}`);
+          campaignId = parentData.campaignId;
         } else {
-          console.error('❌ CampaignId manquant pour tactique/placement:', parentData);
+          console.error('❌ CampaignId manquant');
           return;
         }
       }
 
-      for (const campaignId of campaignsToProcess) {
-        console.log(`🏛️ [UpdateTaxonomies] === TRAITEMENT CAMPAGNE ${campaignId} ===`);
+      console.log(`🏛️ [UpdateTaxonomies] Traitement campagne: ${campaignId}`);
+      
+      const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
+      const campaignSnap = await getDoc(campaignRef);
+      
+      if (!campaignSnap.exists()) {
+        console.error(`❌ Campagne non trouvée`);
+        return;
+      }
+      
+      const campaignSnapData = campaignSnap.data();
+      if (!campaignSnapData) {
+        console.error(`❌ Données campagne vides`);
+        return;
+      }
+      
+      const campaignData = { ...campaignSnapData, clientId };
+      console.log(`✅ Campagne trouvée: ${(campaignData as any).CA_Name || 'Sans nom'}`);
+
+      // Navigation et mise à jour
+      const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions');
+      const versionsSnap = await getDocs(versionsRef);
+      console.log(`📊 Versions: ${versionsSnap.size}`);
+      
+      for (const versionDoc of versionsSnap.docs) {
+        const versionId = versionDoc.id;
         
-        // Récupérer les données de campagne dans la bonne structure
-        const campaignPath = `clients/${clientId}/campaigns/${campaignId}`;
-        console.log(`📍 Chemin campagne: ${campaignPath}`);
+        const ongletsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets');
+        const ongletsSnap = await getDocs(ongletsRef);
         
-        const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
-        const campaignSnap = await getDoc(campaignRef);
-        
-        if (!campaignSnap.exists()) {
-          console.error(`❌ Campagne non trouvée au chemin: ${campaignPath}`);
+        for (const ongletDoc of ongletsSnap.docs) {
+          const ongletId = ongletDoc.id;
           
-          // Debug: Lister les campagnes disponibles
-          console.log(`🔍 Debug: Listage des campagnes disponibles pour client ${clientId}:`);
-          try {
-            const campaignsRef = collection(db, 'clients', clientId, 'campaigns');
-            const campaignsSnap = await getDocs(campaignsRef);
-            console.log(`📊 Nombre de campagnes trouvées: ${campaignsSnap.size}`);
-            campaignsSnap.forEach(doc => {
-              console.log(`  - ${doc.id}: ${doc.data().CA_Name || 'Nom inconnu'}`);
-            });
-          } catch (debugError) {
-            console.error('❌ Erreur lors du debug des campagnes:', debugError);
-          }
-          continue;
-        }
-        
-        console.log(`✅ Campagne trouvée: ${campaignSnap.data().CA_Name}`);
-        const campaignData = { ...campaignSnap.data(), clientId };
-        
-        // Parcourir toutes les versions
-        console.log(`📋 [UpdateTaxonomies] Recherche des versions...`);
-        const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions');
-        const versionsSnap = await getDocs(versionsRef);
-        console.log(`📊 Nombre de versions trouvées: ${versionsSnap.size}`);
-        
-        if (versionsSnap.size === 0) {
-          console.warn(`⚠️ Aucune version trouvée pour la campagne ${campaignId}`);
-          continue;
-        }
-        
-        for (const versionDoc of versionsSnap.docs) {
-          const versionId = versionDoc.id;
-          console.log(`📋 [UpdateTaxonomies] === VERSION ${versionId} ===`);
+          const sectionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections');
+          const sectionsSnap = await getDocs(sectionsRef);
           
-          // Parcourir tous les onglets
-          const ongletsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets');
-          const ongletsSnap = await getDocs(ongletsRef);
-          console.log(`📊 Onglets trouvés: ${ongletsSnap.size}`);
-          
-          if (ongletsSnap.size === 0) {
-            console.warn(`⚠️ Aucun onglet trouvé pour version ${versionId}`);
-            continue;
-          }
-          
-          for (const ongletDoc of ongletsSnap.docs) {
-            const ongletId = ongletDoc.id;
-            console.log(`📂 [UpdateTaxonomies] Onglet: ${ongletId}`);
+          for (const sectionDoc of sectionsSnap.docs) {
+            const sectionId = sectionDoc.id;
             
-            // Parcourir toutes les sections
-            const sectionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections');
-            const sectionsSnap = await getDocs(sectionsRef);
-            console.log(`📊 Sections trouvées: ${sectionsSnap.size}`);
+            const tactiquesRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques');
+            const tactiquesSnap = await getDocs(tactiquesRef);
             
-            for (const sectionDoc of sectionsSnap.docs) {
-              const sectionId = sectionDoc.id;
-              console.log(`🗂️ [UpdateTaxonomies] Section: ${sectionId}`);
+            for (const tactiqueDoc of tactiquesSnap.docs) {
+              const tactiqueId = tactiqueDoc.id;
+              const tactiqueData = tactiqueDoc.data();
               
-              // Parcourir toutes les tactiques
-              const tactiquesRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques');
-              const tactiquesSnap = await getDocs(tactiquesRef);
-              console.log(`📊 Tactiques trouvées: ${tactiquesSnap.size}`);
+              const placementsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
+              const placementsSnap = await getDocs(placementsRef);
               
-              for (const tactiqueDoc of tactiquesSnap.docs) {
-                const tactiqueId = tactiqueDoc.id;
-                const tactiqueData = tactiqueDoc.data();
-                console.log(`🎯 [UpdateTaxonomies] Tactique: ${tactiqueId} - ${tactiqueData.TC_Label || 'Sans nom'}`);
+              for (const placementDoc of placementsSnap.docs) {
+                const placementId = placementDoc.id;
+                const placementData = placementDoc.data();
                 
-                // Traiter les placements de cette tactique
-                const placementsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
-                const placementsSnap = await getDocs(placementsRef);
-                console.log(`📊 Placements trouvés: ${placementsSnap.size}`);
+                // Déterminer si on doit mettre à jour ce placement
+                let shouldUpdatePlacement = false;
+                if (parentType === 'campaign') {
+                  shouldUpdatePlacement = true;
+                } else if (parentType === 'tactic' && tactiqueId === parentData.id) {
+                  shouldUpdatePlacement = true;
+                } else if (parentType === 'placement' && placementId === parentData.id) {
+                  shouldUpdatePlacement = true;
+                }
                 
-                for (const placementDoc of placementsSnap.docs) {
-                  const placementId = placementDoc.id;
-                  const placementData = placementDoc.data();
-                  console.log(`🏢 [UpdateTaxonomies] Placement: ${placementId} - ${placementData.PL_Label || 'Sans nom'}`);
+                if (shouldUpdatePlacement) {
+                  console.log(`🔄 Mise à jour placement: ${placementData.PL_Label}`);
                   
-                  // Vérifier si on doit mettre à jour ce placement
-                  let shouldUpdatePlacement = false;
+                  try {
+                    const updatedFields = await regeneratePlacementTaxonomies(clientId, placementData, campaignData, tactiqueData);
+                    const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
+                    batch.update(placementRef, updatedFields);
+                    updatedCount++;
+                  } catch (error) {
+                    console.error(`❌ Erreur placement ${placementId}:`, error);
+                  }
+                }
+                
+                // Traiter les créatifs
+                const creatifsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs');
+                const creatifsSnap = await getDocs(creatifsRef);
+                
+                for (const creatifDoc of creatifsSnap.docs) {
+                  const creatifId = creatifDoc.id;
+                  const creatifData = creatifDoc.data();
                   
+                  let shouldUpdateCreatif = false;
                   if (parentType === 'campaign') {
-                    shouldUpdatePlacement = true;
+                    shouldUpdateCreatif = true;
                   } else if (parentType === 'tactic' && tactiqueId === parentData.id) {
-                    shouldUpdatePlacement = true;
+                    shouldUpdateCreatif = true;
                   } else if (parentType === 'placement' && placementId === parentData.id) {
-                    shouldUpdatePlacement = true;
+                    shouldUpdateCreatif = true;
                   }
                   
-                  console.log(`🤔 Doit mettre à jour placement? ${shouldUpdatePlacement}`);
-                  
-                  if (shouldUpdatePlacement) {
-                    console.log(`🔄 [UpdateTaxonomies] MISE À JOUR PLACEMENT: ${placementId}`);
+                  if (shouldUpdateCreatif) {
+                    console.log(`🔄 Mise à jour créatif: ${creatifData.CR_Label}`);
                     
                     try {
-                      const updatedPlacementFields = await regeneratePlacementTaxonomies(
-                        clientId,
-                        placementData,
-                        campaignData,
-                        tactiqueData
-                      );
-                      
-                      const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
-                      batch.update(placementRef, updatedPlacementFields);
+                      const updatedFields = await regenerateCreatifTaxonomies(clientId, creatifData, campaignData, tactiqueData, placementData);
+                      const creatifRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs', creatifId);
+                      batch.update(creatifRef, updatedFields);
                       updatedCount++;
-                      console.log(`✅ Placement ${placementId} ajouté au batch`);
-                      
                     } catch (error) {
-                      console.error(`❌ Erreur placement ${placementId}:`, error);
-                    }
-                  }
-                  
-                  // Traiter les créatifs de ce placement
-                  const creatifsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs');
-                  const creatifsSnap = await getDocs(creatifsRef);
-                  console.log(`📊 Créatifs trouvés: ${creatifsSnap.size}`);
-                  
-                  for (const creatifDoc of creatifsSnap.docs) {
-                    const creatifId = creatifDoc.id;
-                    const creatifData = creatifDoc.data();
-                    console.log(`🎨 [UpdateTaxonomies] Créatif: ${creatifId} - ${creatifData.CR_Label || 'Sans nom'}`);
-                    
-                    // Vérifier si on doit mettre à jour ce créatif
-                    let shouldUpdateCreatif = false;
-                    
-                    if (parentType === 'campaign') {
-                      shouldUpdateCreatif = true;
-                    } else if (parentType === 'tactic' && tactiqueId === parentData.id) {
-                      shouldUpdateCreatif = true;
-                    } else if (parentType === 'placement' && placementId === parentData.id) {
-                      shouldUpdateCreatif = true;
-                    }
-                    
-                    console.log(`🤔 Doit mettre à jour créatif? ${shouldUpdateCreatif}`);
-                    
-                    if (shouldUpdateCreatif) {
-                      console.log(`🔄 [UpdateTaxonomies] MISE À JOUR CRÉATIF: ${creatifId}`);
-                      
-                      try {
-                        const updatedCreatifFields = await regenerateCreatifTaxonomies(
-                          clientId,
-                          creatifData,
-                          campaignData,
-                          tactiqueData,
-                          placementData
-                        );
-                        
-                        const creatifRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs', creatifId);
-                        batch.update(creatifRef, updatedCreatifFields);
-                        updatedCount++;
-                        console.log(`✅ Créatif ${creatifId} ajouté au batch`);
-                        
-                      } catch (error) {
-                        console.error(`❌ Erreur créatif ${creatifId}:`, error);
-                      }
+                      console.error(`❌ Erreur créatif ${creatifId}:`, error);
                     }
                   }
                 }
@@ -543,11 +426,11 @@ export const useUpdateTaxonomies = () => {
       }
       
     } catch (error) {
-      console.error('❌ [UpdateTaxonomies] Erreur lors de la mise à jour:', error);
+      console.error('❌ [UpdateTaxonomies] Erreur:', error);
       throw new Error('La mise à jour des taxonomies a échoué.');
     }
     
-    console.log(`🔄 [UpdateTaxonomies] === FIN MISE À JOUR TAXONOMIES ===`);
+    console.log(`🔄 [UpdateTaxonomies] === FIN MISE À JOUR ===`);
   };
 
   return { updateTaxonomies };
