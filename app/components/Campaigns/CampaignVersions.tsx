@@ -1,29 +1,20 @@
+// app/components/Campaigns/CampaignVersions.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
-import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarOutlineIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  collection,
-  doc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  query,
-  orderBy,
-  where,
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-
-interface Version {
-  id: string;
-  name: string;
-  isOfficial: boolean;
-  createdAt: string;
-  createdBy: string;
-}
+  getVersions,
+  createVersion,
+  setOfficialVersion,
+  deleteVersion,
+  Version,
+  VersionFormData
+} from '../../lib/versionService';
 
 interface CampaignVersionsProps {
   clientId: string;
@@ -43,39 +34,7 @@ export default function CampaignVersions({
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newVersionName, setNewVersionName] = useState('');
-
-  // Fonction inline temporaire
-  const getVersions = async (
-    clientId: string,
-    campaignId: string
-  ): Promise<Version[]> => {
-    try {
-      console.log('getVersions inline appelé avec:', { clientId, campaignId });
-      const versionsRef = collection(
-        db,
-        'clients',
-        clientId,
-        'campaigns',
-        campaignId,
-        'versions'
-      );
-      const q = query(versionsRef, orderBy('createdAt', 'asc'));
-      const snapshot = await getDocs(q);
-
-      console.log('Nombre de versions trouvées:', snapshot.size);
-
-      return snapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          } as Version)
-      );
-    } catch (error) {
-      console.error('Erreur lors de la récupération des versions:', error);
-      return [];
-    }
-  };
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     loadVersions();
@@ -97,72 +56,68 @@ export default function CampaignVersions({
     if (!newVersionName.trim() || !user?.email) return;
 
     try {
-      const versionsRef = collection(
-        db,
-        'clients',
-        clientId,
-        'campaigns',
-        campaignId,
-        'versions'
-      );
-      const newVersion = {
-        name: newVersionName,
-        isOfficial: false,
-        createdAt: new Date().toISOString(),
-        createdBy: user.email,
+      setCreating(true);
+      const formData: VersionFormData = {
+        name: newVersionName
       };
-
-      await addDoc(versionsRef, newVersion);
+      
+      await createVersion(clientId, campaignId, formData, user.email);
       setNewVersionName('');
       setCreating(false);
       await loadVersions();
       onVersionChange?.();
     } catch (error) {
       console.error('Erreur lors de la création de la version:', error);
+      alert('Erreur lors de la création de la version. Veuillez réessayer.');
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleSetOfficial = async (versionId: string) => {
     try {
-      // 1. Retirer le statut officiel de toutes les versions
-      const versionsRef = collection(
-        db,
-        'clients',
-        clientId,
-        'campaigns',
-        campaignId,
-        'versions'
-      );
-      const q = query(versionsRef, where('isOfficial', '==', true));
-      const snapshot = await getDocs(q);
-
-      const updates = snapshot.docs.map((doc) =>
-        updateDoc(doc.ref, { isOfficial: false })
-      );
-      await Promise.all(updates);
-
-      // 2. Marquer la nouvelle version comme officielle
-      const versionRef = doc(
-        db,
-        'clients',
-        clientId,
-        'campaigns',
-        campaignId,
-        'versions',
-        versionId
-      );
-      await updateDoc(versionRef, { isOfficial: true });
-
-      // 3. Mettre à jour la campagne
-      const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
-      await updateDoc(campaignRef, {
-        officialVersionId: versionId,
-      });
-
+      await setOfficialVersion(clientId, campaignId, versionId);
       await loadVersions();
       onVersionChange?.();
     } catch (error) {
       console.error('Erreur lors du changement de version officielle:', error);
+      alert('Erreur lors du changement de version officielle. Veuillez réessayer.');
+    }
+  };
+
+  const handleDeleteVersion = async (version: Version) => {
+    // Empêcher la suppression de la version officielle
+    if (version.isOfficial) {
+      alert('Impossible de supprimer la version officielle.');
+      return;
+    }
+
+    // Message de confirmation avec avertissement
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer la version "${version.name}" ?
+
+⚠️ ATTENTION : Cette action est irréversible et supprimera :
+• Toutes les tactiques de cette version
+• Tous les créatifs associés
+• Tous les placements associés
+• Toutes les autres données liées à cette version
+
+Voulez-vous vraiment continuer ?`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setDeletingVersionId(version.id);
+      await deleteVersion(clientId, campaignId, version.id);
+      await loadVersions();
+      onVersionChange?.();
+      alert('Version supprimée avec succès.');
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression de la version:', error);
+      alert(error.message || 'Erreur lors de la suppression de la version. Veuillez réessayer.');
+    } finally {
+      setDeletingVersionId(null);
     }
   };
 
@@ -180,7 +135,8 @@ export default function CampaignVersions({
         <h3 className="text-sm font-medium text-gray-900">Versions</h3>
         <button
           onClick={() => setCreating(true)}
-          className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+          disabled={creating}
+          className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
         >
           <PlusIcon className="h-4 w-4" />
           Nouvelle version
@@ -210,8 +166,15 @@ export default function CampaignVersions({
                 )}
               </button>
               <div>
-                <div className="text-sm font-medium text-gray-900">
-                  {version.name}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    {version.name}
+                  </span>
+                  {version.isOfficial && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Officielle
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-gray-500">
                   Créée par {version.createdBy} le{' '}
@@ -219,6 +182,24 @@ export default function CampaignVersions({
                 </div>
               </div>
             </div>
+
+            {/* Bouton de suppression */}
+            {!version.isOfficial && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDeleteVersion(version)}
+                  disabled={deletingVersionId === version.id}
+                  className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
+                  title="Supprimer cette version"
+                >
+                  {deletingVersionId === version.id ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                  ) : (
+                    <TrashIcon className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
@@ -231,10 +212,19 @@ export default function CampaignVersions({
               placeholder="Nom de la version"
               className="flex-1 text-sm border-none focus:ring-0"
               autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleCreateVersion();
+                } else if (e.key === 'Escape') {
+                  setCreating(false);
+                  setNewVersionName('');
+                }
+              }}
             />
             <button
               onClick={handleCreateVersion}
-              className="text-sm text-primary-600 hover:text-primary-700"
+              disabled={!newVersionName.trim() || creating}
+              className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
             >
               Créer
             </button>
@@ -243,10 +233,17 @@ export default function CampaignVersions({
                 setCreating(false);
                 setNewVersionName('');
               }}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              disabled={creating}
+              className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
             >
               Annuler
             </button>
+          </div>
+        )}
+
+        {versions.length === 0 && !creating && (
+          <div className="text-center py-4 text-sm text-gray-500">
+            Aucune version créée pour cette campagne.
           </div>
         )}
       </div>

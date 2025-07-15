@@ -1,3 +1,5 @@
+// app/lib/campaignService.ts - MISE À JOUR fonction duplicateCampaign
+
 import {
   collection,
   doc,
@@ -16,9 +18,7 @@ import {
   ensureDefaultBreakdownExists 
 } from './breakdownService';
 import {
-  duplicateBreakdowns,
-  duplicateOnglets,
-  duplicateSectionsAndTactiques
+  duplicateCompleteCampaign // 🔥 NOUVELLE IMPORT
 } from './campaignDuplicationUtils';
 
 // La fonction createOriginalVersion reste inchangée
@@ -49,7 +49,6 @@ async function createOriginalVersion(
 export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
   try {
     const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
-    // 🔥 CORRECTION: Tri par date de début, de la plus récente à la plus ancienne
     const q = query(campaignsCollection, orderBy('CA_Start_Date', 'desc'));
     const querySnapshot = await getDocs(q);
 
@@ -122,7 +121,6 @@ export async function createCampaign(
         await createBreakdown(CA_Client, docRef.id, breakdown, breakdown.isDefault || false);
       }
     } else {
-      // 🔥 CORRECTION : On ne crée le breakdown par défaut que si les dates existent
       if (campaignData.CA_Start_Date && campaignData.CA_End_Date) {
         await createDefaultBreakdown(
           CA_Client,
@@ -203,7 +201,7 @@ export async function updateCampaign(
   }
 }
 
-// deleteCampaign et duplicateCampaign restent inchangées
+// deleteCampaign reste inchangée  
 export async function deleteCampaign(
   CA_Client: string,
   campaignId: string
@@ -225,36 +223,59 @@ export async function deleteCampaign(
     }
 }
 
+// 🔥 NOUVELLE FONCTION: Duplication complète
 export async function duplicateCampaign(
   CA_Client: string,
   sourceCampaignId: string,
   userEmail: string,
   newName?: string
 ): Promise<string> {
+  try {
+    console.log('🚀 Début duplication campagne complète:', sourceCampaignId);
+    
+    // 1. Récupérer la campagne source
     const campaigns = await getCampaigns(CA_Client);
     const sourceCampaign = campaigns.find(c => c.id === sourceCampaignId);
     if (!sourceCampaign) {
       throw new Error('Campagne source non trouvée');
     }
     
+    console.log('📋 Campagne source trouvée:', sourceCampaign.CA_Name);
+    
+    // 2. Préparer les données de la nouvelle campagne
     const newCampaignData: any = { ...sourceCampaign };
     delete newCampaignData.id;
     delete newCampaignData.officialVersionId;
     
-    newCampaignData.CA_Name = newName || `${sourceCampaign.CA_Name} - Copie`;
+    // 🔥 CORRECTION BUG #1: Améliorer la logique de nommage
+    const originalName = sourceCampaign.CA_Name || 'Campagne sans nom';
+    newCampaignData.CA_Name = newName || `${originalName} - Copie`;
     newCampaignData.CA_Status = 'Draft';
     newCampaignData.createdAt = new Date().toISOString();
     newCampaignData.updatedAt = new Date().toISOString();
     newCampaignData.CA_Last_Edit = new Date().toISOString();
 
+    console.log('📝 Nouveau nom de campagne:', newCampaignData.CA_Name);
+
+    // 3. Créer la nouvelle campagne (structure de base)
     const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const docRef = await addDoc(campaignsCollection, newCampaignData);
     const newCampaignId = docRef.id;
+    
+    console.log('✅ Campagne de base créée:', newCampaignId);
 
-    await duplicateBreakdowns(CA_Client, sourceCampaignId, newCampaignId);
-    await duplicateOnglets(CA_Client, sourceCampaignId, newCampaignId);
-    await duplicateSectionsAndTactiques(CA_Client, sourceCampaignId, newCampaignId);
-    await createOriginalVersion(CA_Client, newCampaignId, userEmail);
+    // 4. 🔥 NOUVELLE LOGIQUE: Dupliquer TOUT le contenu avec la fonction complète
+    await duplicateCompleteCampaign(CA_Client, sourceCampaignId, newCampaignId);
+    
+    // 🔥 CORRECTION BUG #2: NE PAS créer de version "original" lors d'une duplication
+    // Les versions sont déjà copiées avec tout leur contenu par duplicateCompleteCampaign()
+    console.log('ℹ️ Versions déjà copiées, pas de création de version "original"');
 
+    console.log('🎉 Duplication complète terminée avec succès!');
     return newCampaignId;
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la duplication complète de campagne:', error);
+    throw error;
+  }
 }

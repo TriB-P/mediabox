@@ -1,4 +1,4 @@
-// app/lib/campaignDuplicationUtils.ts
+// app/lib/campaignDuplicationUtils.ts - CORRECTION COMPLÈTE
 
 import {
   collection,
@@ -10,16 +10,61 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-// Dupliquer les breakdowns
+// ==================== INTERFACES ====================
+
+interface DuplicationMapping {
+  versions: Map<string, string>;
+  onglets: Map<string, string>;
+  sections: Map<string, string>;
+  tactiques: Map<string, string>;
+  placements: Map<string, string>;
+}
+
+// ==================== FONCTION PRINCIPALE ====================
+
+/**
+ * Duplique tout le contenu d'une campagne : breakdowns, versions, onglets, sections, 
+ * tactiques, placements, créatifs et buckets de stratégie
+ */
+export async function duplicateCompleteCampaign(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string
+): Promise<void> {
+  console.log('🚀 Début duplication complète de campagne');
+  
+  try {
+    // 1. Dupliquer les breakdowns (structure simple)
+    await duplicateBreakdowns(clientId, sourceCampaignId, newCampaignId);
+    
+    // 2. Dupliquer toute la hiérarchie des versions avec leur contenu
+    await duplicateVersionsWithFullHierarchy(clientId, sourceCampaignId, newCampaignId);
+    
+    console.log('✅ Duplication complète terminée avec succès');
+  } catch (error) {
+    console.error('❌ Erreur lors de la duplication complète:', error);
+    throw error;
+  }
+}
+
+// ==================== DUPLICATION DES BREAKDOWNS ====================
+
 export async function duplicateBreakdowns(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string
 ): Promise<void> {
   try {
+    console.log('📋 Duplication des breakdowns...');
+    
     const breakdownsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'breakdowns');
     const q = query(breakdownsRef, orderBy('order', 'asc'));
     const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      console.log('Aucun breakdown à dupliquer');
+      return;
+    }
     
     const newBreakdownsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'breakdowns');
     
@@ -34,193 +79,466 @@ export async function duplicateBreakdowns(
       await addDoc(newBreakdownsRef, newBreakdownData);
     }
     
-    console.log('Breakdowns dupliqués avec succès');
+    console.log(`✅ ${snapshot.size} breakdowns dupliqués`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des breakdowns:', error);
+    console.error('❌ Erreur lors de la duplication des breakdowns:', error);
     throw error;
   }
 }
 
-// Dupliquer les onglets
-export async function duplicateOnglets(
+// ==================== DUPLICATION HIÉRARCHIQUE COMPLÈTE ====================
+
+/**
+ * Duplique toutes les versions avec leur hiérarchie complète :
+ * versions → onglets → sections → tactiques → placements → créatifs + buckets
+ */
+async function duplicateVersionsWithFullHierarchy(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string
 ): Promise<void> {
   try {
-    const ongletsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'onglets');
-    const q = query(ongletsRef, orderBy('ONGLET_Order', 'asc'));
-    const snapshot = await getDocs(q);
+    console.log('🔄 Duplication des versions avec hiérarchie complète...');
+    
+    // Récupérer toutes les versions sources
+    const versionsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions');
+    const versionsSnapshot = await getDocs(query(versionsRef, orderBy('createdAt', 'asc')));
+    
+    if (versionsSnapshot.empty) {
+      console.log('Aucune version à dupliquer');
+      return;
+    }
+    
+    // Dupliquer chaque version avec tout son contenu
+    for (const versionDoc of versionsSnapshot.docs) {
+      const versionData = versionDoc.data();
+      const sourceVersionId = versionDoc.id;
+      
+      // Créer la nouvelle version
+      const newVersionsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'versions');
+      const newVersionRef = await addDoc(newVersionsRef, {
+        ...versionData,
+        createdAt: new Date().toISOString(),
+      });
+      const newVersionId = newVersionRef.id;
+      
+      console.log(`📦 Version "${versionData.name}" dupliquée: ${sourceVersionId} → ${newVersionId}`);
+      
+      // Dupliquer tout le contenu de cette version
+      await duplicateVersionContent(
+        clientId, 
+        sourceCampaignId, 
+        newCampaignId, 
+        sourceVersionId, 
+        newVersionId
+      );
+    }
+    
+    console.log('✅ Toutes les versions et leur contenu dupliqués');
+  } catch (error) {
+    console.error('❌ Erreur lors de la duplication des versions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Duplique tout le contenu d'une version : onglets, sections, tactiques, placements, créatifs + buckets
+ */
+async function duplicateVersionContent(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string,
+  sourceVersionId: string,
+  newVersionId: string
+): Promise<void> {
+  try {
+    console.log(`🎯 Duplication du contenu de la version ${sourceVersionId} → ${newVersionId}`);
+    
+    // 1. Dupliquer les buckets de stratégie
+    await duplicateBuckets(clientId, sourceCampaignId, newCampaignId, sourceVersionId, newVersionId);
+    
+    // 2. Dupliquer la hiérarchie onglets → sections → tactiques → placements → créatifs
+    await duplicateOngletsWithHierarchy(
+      clientId, 
+      sourceCampaignId, 
+      newCampaignId, 
+      sourceVersionId, 
+      newVersionId
+    );
+    
+    console.log(`✅ Contenu de la version ${sourceVersionId} dupliqué`);
+  } catch (error) {
+    console.error(`❌ Erreur lors de la duplication du contenu de la version ${sourceVersionId}:`, error);
+    throw error;
+  }
+}
+
+// ==================== DUPLICATION DES BUCKETS ====================
+
+async function duplicateBuckets(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string,
+  sourceVersionId: string,
+  newVersionId: string
+): Promise<void> {
+  try {
+    console.log(`💰 Duplication des buckets de la version ${sourceVersionId}...`);
+    
+    const bucketsRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 'buckets'
+    );
+    const snapshot = await getDocs(bucketsRef);
     
     if (snapshot.empty) {
+      console.log('Aucun bucket à dupliquer');
+      return;
+    }
+    
+    const newBucketsRef = collection(
+      db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 'buckets'
+    );
+    
+    for (const bucketDoc of snapshot.docs) {
+      const bucketData = bucketDoc.data();
+      await addDoc(newBucketsRef, {
+        ...bucketData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
+    console.log(`✅ ${snapshot.size} buckets dupliqués`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la duplication des buckets:', error);
+    // Ne pas faire échouer la duplication si les buckets n'existent pas
+    console.log('⚠️ Poursuite sans les buckets');
+  }
+}
+
+// ==================== DUPLICATION DES ONGLETS AVEC HIÉRARCHIE ====================
+
+async function duplicateOngletsWithHierarchy(
+  clientId: string,
+  sourceCampaignId: string,
+  newCampaignId: string,
+  sourceVersionId: string,
+  newVersionId: string
+): Promise<void> {
+  try {
+    console.log(`📂 Duplication des onglets de la version ${sourceVersionId}...`);
+    
+    const ongletsRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 'onglets'
+    );
+    const ongletsSnapshot = await getDocs(query(ongletsRef, orderBy('ONGLET_Order', 'asc')));
+    
+    if (ongletsSnapshot.empty) {
       console.log('Aucun onglet à dupliquer');
       return;
     }
     
-    const newOngletsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'onglets');
-    
-    for (const ongletDoc of snapshot.docs) {
+    // Dupliquer chaque onglet avec son contenu
+    for (const ongletDoc of ongletsSnapshot.docs) {
       const ongletData = ongletDoc.data();
-      await addDoc(newOngletsRef, ongletData);
+      const sourceOngletId = ongletDoc.id;
+      
+      // Créer le nouvel onglet
+      const newOngletsRef = collection(
+        db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 'onglets'
+      );
+      const newOngletRef = await addDoc(newOngletsRef, {
+        ...ongletData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      const newOngletId = newOngletRef.id;
+      
+      console.log(`📋 Onglet "${ongletData.ONGLET_Name}" dupliqué: ${sourceOngletId} → ${newOngletId}`);
+      
+      // Dupliquer toutes les sections de cet onglet
+      await duplicateSectionsWithHierarchy(
+        clientId, 
+        sourceCampaignId, 
+        newCampaignId, 
+        sourceVersionId, 
+        newVersionId,
+        sourceOngletId, 
+        newOngletId
+      );
     }
     
-    console.log('Onglets dupliqués avec succès');
+    console.log(`✅ ${ongletsSnapshot.size} onglets dupliqués avec leur contenu`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des onglets:', error);
-    // Ne pas faire échouer la duplication si les onglets ne peuvent pas être copiés
-  }
-}
-
-// Dupliquer les sections et tactiques
-export async function duplicateSectionsAndTactiques(
-  clientId: string,
-  sourceCampaignId: string,
-  newCampaignId: string
-): Promise<void> {
-  try {
-    // Dupliquer les sections d'abord
-    const sectionsMap = await duplicateSections(clientId, sourceCampaignId, newCampaignId);
-    
-    // Puis dupliquer les tactiques avec les nouveaux IDs de sections
-    await duplicateTactiques(clientId, sourceCampaignId, newCampaignId, sectionsMap);
-    
-    console.log('Sections et tactiques dupliquées avec succès');
-  } catch (error) {
-    console.error('Erreur lors de la duplication des sections et tactiques:', error);
+    console.error('❌ Erreur lors de la duplication des onglets:', error);
     throw error;
   }
 }
 
-// Dupliquer les sections et retourner un mapping des anciens vers nouveaux IDs
-async function duplicateSections(
+// ==================== DUPLICATION DES SECTIONS AVEC HIÉRARCHIE ====================
+
+async function duplicateSectionsWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
-  newCampaignId: string
-): Promise<Map<string, string>> {
-  const sectionsMap = new Map<string, string>();
-  
+  newCampaignId: string,
+  sourceVersionId: string,
+  newVersionId: string,
+  sourceOngletId: string,
+  newOngletId: string
+): Promise<void> {
   try {
-    const sectionsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'sections');
-    const q = query(sectionsRef, orderBy('SECTION_Order', 'asc'));
-    const snapshot = await getDocs(q);
+    console.log(`📑 Duplication des sections de l'onglet ${sourceOngletId}...`);
     
-    const newSectionsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'sections');
+    const sectionsRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
+      'onglets', sourceOngletId, 'sections'
+    );
+    const sectionsSnapshot = await getDocs(query(sectionsRef, orderBy('SECTION_Order', 'asc')));
     
-    for (const sectionDoc of snapshot.docs) {
+    if (sectionsSnapshot.empty) {
+      console.log('Aucune section à dupliquer');
+      return;
+    }
+    
+    // Dupliquer chaque section avec ses tactiques
+    for (const sectionDoc of sectionsSnapshot.docs) {
       const sectionData = sectionDoc.data();
-      const newSectionRef = await addDoc(newSectionsRef, sectionData);
-      sectionsMap.set(sectionDoc.id, newSectionRef.id);
+      const sourceSectionId = sectionDoc.id;
+      
+      // Créer la nouvelle section
+      const newSectionsRef = collection(
+        db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
+        'onglets', newOngletId, 'sections'
+      );
+      const newSectionRef = await addDoc(newSectionsRef, {
+        ...sectionData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      const newSectionId = newSectionRef.id;
+      
+      console.log(`📄 Section "${sectionData.SECTION_Name}" dupliquée: ${sourceSectionId} → ${newSectionId}`);
+      
+      // Dupliquer toutes les tactiques de cette section
+      await duplicateTactiquesWithHierarchy(
+        clientId, 
+        sourceCampaignId, 
+        newCampaignId, 
+        sourceVersionId, 
+        newVersionId,
+        sourceOngletId, 
+        newOngletId, 
+        sourceSectionId, 
+        newSectionId
+      );
     }
     
-    console.log('Sections dupliquées:', sectionsMap.size);
+    console.log(`✅ ${sectionsSnapshot.size} sections dupliquées avec leur contenu`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des sections:', error);
+    console.error('❌ Erreur lors de la duplication des sections:', error);
     throw error;
   }
-  
-  return sectionsMap;
 }
 
-// Dupliquer les tactiques avec les nouveaux IDs de sections
-async function duplicateTactiques(
+// ==================== DUPLICATION DES TACTIQUES AVEC HIÉRARCHIE ====================
+
+async function duplicateTactiquesWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string,
-  sectionsMap: Map<string, string>
+  sourceVersionId: string,
+  newVersionId: string,
+  sourceOngletId: string,
+  newOngletId: string,
+  sourceSectionId: string,
+  newSectionId: string
 ): Promise<void> {
   try {
-    const tactiquesRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'tactiques');
-    const q = query(tactiquesRef, orderBy('TC_Order', 'asc'));
-    const snapshot = await getDocs(q);
+    console.log(`🎯 Duplication des tactiques de la section ${sourceSectionId}...`);
     
-    const newTactiquesRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'tactiques');
-    const tactiquesMap = new Map<string, string>();
+    const tactiquesRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
+      'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques'
+    );
+    const tactiquesSnapshot = await getDocs(query(tactiquesRef, orderBy('TC_Order', 'asc')));
     
-    for (const tactiqueDoc of snapshot.docs) {
+    if (tactiquesSnapshot.empty) {
+      console.log('Aucune tactique à dupliquer');
+      return;
+    }
+    
+    // Dupliquer chaque tactique avec ses placements
+    for (const tactiqueDoc of tactiquesSnapshot.docs) {
       const tactiqueData = tactiqueDoc.data();
+      const sourceTactiqueId = tactiqueDoc.id;
       
-      // Mettre à jour l'ID de section avec le nouveau
-      if (tactiqueData.TC_SectionId && sectionsMap.has(tactiqueData.TC_SectionId)) {
-        tactiqueData.TC_SectionId = sectionsMap.get(tactiqueData.TC_SectionId);
-      }
+      // Créer la nouvelle tactique avec l'ID de section mis à jour
+      const newTactiquesRef = collection(
+        db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
+        'onglets', newOngletId, 'sections', newSectionId, 'tactiques'
+      );
+      const newTactiqueRef = await addDoc(newTactiquesRef, {
+        ...tactiqueData,
+        TC_SectionId: newSectionId, // Mettre à jour la référence
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      const newTactiqueId = newTactiqueRef.id;
       
-      const newTactiqueRef = await addDoc(newTactiquesRef, tactiqueData);
-      tactiquesMap.set(tactiqueDoc.id, newTactiqueRef.id);
+      console.log(`🏹 Tactique "${tactiqueData.TC_Label}" dupliquée: ${sourceTactiqueId} → ${newTactiqueId}`);
+      
+      // Dupliquer tous les placements de cette tactique
+      await duplicatePlacementsWithHierarchy(
+        clientId, 
+        sourceCampaignId, 
+        newCampaignId, 
+        sourceVersionId, 
+        newVersionId,
+        sourceOngletId, 
+        newOngletId, 
+        sourceSectionId, 
+        newSectionId,
+        sourceTactiqueId, 
+        newTactiqueId
+      );
     }
     
-    // Dupliquer les placements pour chaque tactique
-    await duplicateAllPlacements(clientId, sourceCampaignId, newCampaignId, tactiquesMap);
-    
-    console.log('Tactiques dupliquées:', tactiquesMap.size);
+    console.log(`✅ ${tactiquesSnapshot.size} tactiques dupliquées avec leur contenu`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des tactiques:', error);
+    console.error('❌ Erreur lors de la duplication des tactiques:', error);
     throw error;
   }
 }
 
-// Dupliquer tous les placements
-async function duplicateAllPlacements(
+// ==================== DUPLICATION DES PLACEMENTS AVEC HIÉRARCHIE ====================
+
+async function duplicatePlacementsWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string,
-  tactiquesMap: Map<string, string>
+  sourceVersionId: string,
+  newVersionId: string,
+  sourceOngletId: string,
+  newOngletId: string,
+  sourceSectionId: string,
+  newSectionId: string,
+  sourceTactiqueId: string,
+  newTactiqueId: string
 ): Promise<void> {
   try {
-    const placementsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'placements');
-    const snapshot = await getDocs(placementsRef);
+    console.log(`🏢 Duplication des placements de la tactique ${sourceTactiqueId}...`);
     
-    const newPlacementsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'placements');
-    const placementsMap = new Map<string, string>();
+    const placementsRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
+      'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques', sourceTactiqueId, 'placements'
+    );
+    const placementsSnapshot = await getDocs(query(placementsRef, orderBy('PL_Order', 'asc')));
     
-    for (const placementDoc of snapshot.docs) {
-      const placementData = placementDoc.data();
-      
-      // Mettre à jour l'ID de tactique avec le nouveau
-      if (placementData.PL_TactiqueId && tactiquesMap.has(placementData.PL_TactiqueId)) {
-        placementData.PL_TactiqueId = tactiquesMap.get(placementData.PL_TactiqueId);
-      }
-      
-      const newPlacementRef = await addDoc(newPlacementsRef, placementData);
-      placementsMap.set(placementDoc.id, newPlacementRef.id);
+    if (placementsSnapshot.empty) {
+      console.log('Aucun placement à dupliquer');
+      return;
     }
     
-    // Dupliquer les créatifs pour chaque placement
-    await duplicateAllCreatifs(clientId, sourceCampaignId, newCampaignId, placementsMap);
+    // Dupliquer chaque placement avec ses créatifs
+    for (const placementDoc of placementsSnapshot.docs) {
+      const placementData = placementDoc.data();
+      const sourcePlacementId = placementDoc.id;
+      
+      // Créer le nouveau placement avec l'ID de tactique mis à jour
+      const newPlacementsRef = collection(
+        db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
+        'onglets', newOngletId, 'sections', newSectionId, 'tactiques', newTactiqueId, 'placements'
+      );
+      const newPlacementRef = await addDoc(newPlacementsRef, {
+        ...placementData,
+        PL_TactiqueId: newTactiqueId, // Mettre à jour la référence
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      const newPlacementId = newPlacementRef.id;
+      
+      console.log(`🎪 Placement "${placementData.PL_Label}" dupliqué: ${sourcePlacementId} → ${newPlacementId}`);
+      
+      // Dupliquer tous les créatifs de ce placement
+      await duplicateCreatifs(
+        clientId, 
+        sourceCampaignId, 
+        newCampaignId, 
+        sourceVersionId, 
+        newVersionId,
+        sourceOngletId, 
+        newOngletId, 
+        sourceSectionId, 
+        newSectionId,
+        sourceTactiqueId, 
+        newTactiqueId,
+        sourcePlacementId, 
+        newPlacementId
+      );
+    }
     
-    console.log('Placements dupliqués:', placementsMap.size);
+    console.log(`✅ ${placementsSnapshot.size} placements dupliqués avec leur contenu`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des placements:', error);
+    console.error('❌ Erreur lors de la duplication des placements:', error);
     // Ne pas faire échouer si les placements n'existent pas
+    console.log('⚠️ Poursuite sans les placements');
   }
 }
 
-// Dupliquer tous les créatifs
-async function duplicateAllCreatifs(
+// ==================== DUPLICATION DES CRÉATIFS ====================
+
+async function duplicateCreatifs(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string,
-  placementsMap: Map<string, string>
+  sourceVersionId: string,
+  newVersionId: string,
+  sourceOngletId: string,
+  newOngletId: string,
+  sourceSectionId: string,
+  newSectionId: string,
+  sourceTactiqueId: string,
+  newTactiqueId: string,
+  sourcePlacementId: string,
+  newPlacementId: string
 ): Promise<void> {
   try {
-    const creatifsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'creatifs');
-    const snapshot = await getDocs(creatifsRef);
+    console.log(`🎨 Duplication des créatifs du placement ${sourcePlacementId}...`);
     
-    const newCreatifsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'creatifs');
+    const creatifsRef = collection(
+      db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
+      'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques', sourceTactiqueId, 
+      'placements', sourcePlacementId, 'creatifs'
+    );
+    const creatifsSnapshot = await getDocs(query(creatifsRef, orderBy('CR_Order', 'asc')));
     
-    for (const creatifDoc of snapshot.docs) {
+    if (creatifsSnapshot.empty) {
+      console.log('Aucun créatif à dupliquer');
+      return;
+    }
+    
+    const newCreatifsRef = collection(
+      db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
+      'onglets', newOngletId, 'sections', newSectionId, 'tactiques', newTactiqueId, 
+      'placements', newPlacementId, 'creatifs'
+    );
+    
+    for (const creatifDoc of creatifsSnapshot.docs) {
       const creatifData = creatifDoc.data();
       
-      // Mettre à jour l'ID de placement avec le nouveau
-      if (creatifData.CR_PlacementId && placementsMap.has(creatifData.CR_PlacementId)) {
-        creatifData.CR_PlacementId = placementsMap.get(creatifData.CR_PlacementId);
-      }
-      
-      await addDoc(newCreatifsRef, creatifData);
+      // Créer le nouveau créatif avec l'ID de placement mis à jour
+      await addDoc(newCreatifsRef, {
+        ...creatifData,
+        CR_PlacementId: newPlacementId, // Mettre à jour la référence
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
     
-    console.log('Créatifs dupliqués avec succès');
+    console.log(`✅ ${creatifsSnapshot.size} créatifs dupliqués`);
   } catch (error) {
-    console.error('Erreur lors de la duplication des créatifs:', error);
+    console.error('❌ Erreur lors de la duplication des créatifs:', error);
     // Ne pas faire échouer si les créatifs n'existent pas
+    console.log('⚠️ Poursuite sans les créatifs');
   }
 }

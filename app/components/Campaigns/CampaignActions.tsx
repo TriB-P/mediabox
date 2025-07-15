@@ -38,7 +38,8 @@ export default function CampaignActions({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaign.name}" ?\n\nCette action est irréversible et supprimera également toutes les tactiques, versions et autres données associées.`)) {
+    // 🔥 CORRECTION: Utiliser CA_Name au lieu de name
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaign.CA_Name}" ?\n\nCette action est irréversible et supprimera également toutes les tactiques, versions et autres données associées.`)) {
       return;
     }
 
@@ -61,7 +62,8 @@ export default function CampaignActions({
       return;
     }
 
-    const newName = `${campaign.name} Copy`;
+    // 🔥 CORRECTION: Utiliser CA_Name au lieu de name
+    const newName = `${campaign.CA_Name} - Copie`;
 
     try {
       setIsLoading(true);
