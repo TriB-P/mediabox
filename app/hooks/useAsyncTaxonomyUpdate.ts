@@ -53,7 +53,7 @@ export const useAsyncTaxonomyUpdate = () => {
       // Succès
       setStatus({
         isUpdating: false,
-        message: '✅ Taxonomies mises à jour avec succès !',
+        message: 'Taxonomies mises à jour avec succès !',
         hasError: false
       });
 

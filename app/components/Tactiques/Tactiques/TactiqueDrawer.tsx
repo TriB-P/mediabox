@@ -39,6 +39,8 @@ import {
 } from '../../../lib/tactiqueListService';
 import { getBreakdowns } from '../../../lib/breakdownService';
 import { usePartners } from '../../../contexts/PartnerContext';
+import { useAsyncTaxonomyUpdate } from '../../../hooks/useAsyncTaxonomyUpdate';
+import TaxonomyUpdateBanner from '../../Others/TaxonomyUpdateBanner';
 
 // ==================== TYPES SIMPLIFIÉS ====================
 
@@ -176,6 +178,7 @@ export default function TactiqueDrawer({
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { getPublishersForSelect, isPublishersLoading } = usePartners();
+  const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
 
   // ==================== ÉTATS SIMPLIFIÉS ====================
   
@@ -460,47 +463,65 @@ export default function TactiqueDrawer({
   }, []);
   
   // ✅ GESTIONNAIRE DE SOUMISSION SIMPLIFIÉ
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+// ✅ GESTIONNAIRE DE SOUMISSION AVEC MISE À JOUR ASYNC
+const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  try {
+    setLoading(true);
+    setError(null);
+
+    // Préparer les données avec les KPIs
+    let dataToSave = { ...formData };
     
-    try {
-      setLoading(true);
-      setError(null);
+    // Ajouter les KPIs
+    kpis.forEach((kpi, index) => {
+      const suffix = index === 0 ? '' : `_${index + 1}`;
+      (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
+      (dataToSave as any)[`TC_Kpi_CostPer${suffix}`] = kpi.TC_Kpi_CostPer;
+      (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
+    });
 
-      // Préparer les données avec les KPIs
-      let dataToSave = { ...formData };
-      
-      // Ajouter les KPIs
-      kpis.forEach((kpi, index) => {
-        const suffix = index === 0 ? '' : `_${index + 1}`;
-        (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
-        (dataToSave as any)[`TC_Kpi_CostPer${suffix}`] = kpi.TC_Kpi_CostPer;
-        (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
-      });
-
-      // Gérer les champs admin avec héritage
-      if (useInheritedBilling) {
-        (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
-      }
-      if (useInheritedPO) {
-        (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
-      }
-
-      // ✅ MAPPING SIMPLIFIÉ - Plus de conversion complexe !
-      const mappedData = mapFormToTactique(dataToSave);
-      
-      console.log('📤 Données à sauvegarder:', mappedData);
-
-      await onSave(mappedData);
-      setIsDirty(false);
-      onClose();
-    } catch (err) {
-      console.error('Erreur lors de l\'enregistrement de la tactique:', err);
-      setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
-    } finally {
-      setLoading(false);
+    // Gérer les champs admin avec héritage
+    if (useInheritedBilling) {
+      (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
     }
-  }, [formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose]);
+    if (useInheritedPO) {
+      (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
+    }
+
+    // ✅ MAPPING SIMPLIFIÉ - Plus de conversion complexe !
+    const mappedData = mapFormToTactique(dataToSave);
+    
+    console.log('📤 Données tactique à sauvegarder:', mappedData);
+
+    // 1. ✅ Sauvegarder rapidement la tactique
+    await onSave(mappedData);
+    
+    // 2. ✅ Fermer immédiatement le drawer
+    setIsDirty(false);
+    onClose();
+    
+    // 3. ✅ Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
+    if (tactique && tactique.id && selectedClient && selectedCampaign) {
+      console.log(`🚀 Lancement mise à jour taxonomies pour tactique: ${tactique.id}`);
+      
+      updateTaxonomiesAsync('tactic', { 
+        id: tactique.id, 
+        name: mappedData.TC_Label,
+        clientId: selectedClient.clientId,
+        campaignId: selectedCampaign.id  // ✅ Obligatoire pour tactique
+      }).catch(error => {
+        console.error('Erreur mise à jour taxonomies tactique:', error);
+      });
+    }
+    
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement de la tactique:', err);
+    setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+    setLoading(false); // ✅ Important de remettre loading à false en cas d'erreur
+  }
+}, [formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
 
   // Gérer la fermeture avec vérification
   const handleClose = useCallback(() => {
@@ -607,11 +628,18 @@ export default function TactiqueDrawer({
   // ==================== RENDU PRINCIPAL ====================
   
   return (
-    <FormDrawer
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={tactique ? `Modifier la tactique: ${tactique.TC_Label}` : 'Nouvelle tactique'}
-    >
+    <>
+      {/* ✅ Bandeau de notification taxonomies */}
+      <TaxonomyUpdateBanner 
+        status={status} 
+        onDismiss={dismissNotification} 
+      />
+      
+      <FormDrawer
+        isOpen={isOpen}
+        onClose={handleClose}
+        title={tactique ? `Modifier la tactique: ${tactique.TC_Label}` : 'Nouvelle tactique'}
+      >
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
         {/* Messages d'erreur */}
         {error && (
@@ -656,7 +684,7 @@ export default function TactiqueDrawer({
       
       {/* Bandeau de tooltip */}
       <TooltipBanner tooltip={activeTooltip} />
-    </FormDrawer>
-  );
-}
-//
+      </FormDrawer>
+  </>
+);
+        }

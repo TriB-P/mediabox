@@ -13,6 +13,8 @@ import { Placement, PlacementFormData, Tactique } from '../../../types/tactiques
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import { createEmptyManualFieldsObject, extractManualFieldsFromData } from '../../../config/taxonomyFields';
+import { useAsyncTaxonomyUpdate } from '../../../hooks/useAsyncTaxonomyUpdate';
+import TaxonomyUpdateBanner from '../../Others/TaxonomyUpdateBanner';
 
 interface PlacementDrawerProps {
   isOpen: boolean;
@@ -33,6 +35,8 @@ export default function PlacementDrawer({
 }: PlacementDrawerProps) {
   const { selectedClient } = useClient();
   const { selectedCampaign } = useCampaignSelection();
+  const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
+
   
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -169,10 +173,30 @@ export default function PlacementDrawer({
         TAX_Device: formData.TAX_Device,
         TAX_Targeting: formData.TAX_Targeting
       });
+      
+      // 1. ✅ Sauvegarder rapidement le placement
+      await onSave(formData);
+      
+      // 2. ✅ Fermer immédiatement le drawer
+      onClose();
+      
+      // 3. ✅ Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
+      // Seulement pour les placements existants (pas les nouveaux)
+      if (placement && placement.id && selectedClient && selectedCampaign) {
+        console.log(`🚀 Lancement mise à jour taxonomies pour placement: ${placement.id}`);
+        
+        updateTaxonomiesAsync('placement', { 
+          id: placement.id, 
+          name: formData.PL_Label,
+          clientId: selectedClient.clientId,
+          campaignId: selectedCampaign.id  // ✅ Obligatoire pour placement
+        }).catch(error => {
+          console.error('Erreur mise à jour taxonomies placement:', error);
+        });
+      }
+      
       console.log('💾 === FIN SAUVEGARDE PLACEMENT ===');
       
-      await onSave(formData);
-      onClose();
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde du placement:', error);
     }
@@ -210,11 +234,18 @@ export default function PlacementDrawer({
   };
   
   return (
-    <FormDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
-    >
+    <>
+      {/* ✅ Bandeau de notification taxonomies */}
+      <TaxonomyUpdateBanner 
+        status={status} 
+        onDismiss={dismissNotification} 
+      />
+      
+      <FormDrawer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
+      >
 
       
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
@@ -245,6 +276,7 @@ export default function PlacementDrawer({
         </div>
       </form>
       <TooltipBanner tooltip={activeTooltip} />
-    </FormDrawer>
-  );
-}
+      </FormDrawer>
+  </>
+);
+  }
