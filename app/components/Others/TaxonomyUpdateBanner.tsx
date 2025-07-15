@@ -45,33 +45,38 @@ export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpda
 
   return (
     <div className={`fixed top-0 left-0 right-0 z-50 border-b ${getBannerClasses()} transition-all duration-300`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3">
+      {/* 🔥 NOUVEAU: Conteneur centré avec largeur réduite */}
+      <div className="flex justify-center w-full px-4 sm:px-6 lg:px-8">
+        <div className="relative w-full max-w-2xl mx-auto">
           
-          {/* Contenu principal */}
-          <div className="flex items-center space-x-3">
+          {/* 🔥 NOUVEAU: Contenu centré */}
+          <div className="flex items-center justify-center py-3">
             
-            {/* Icône */}
-            <div className="flex-shrink-0">
-              {status.hasError ? (
-                <ExclamationTriangleIcon className={`h-5 w-5 ${getIconClasses()}`} />
-              ) : status.isUpdating ? (
-                <div className={`animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500`}></div>
-              ) : (
-                <CheckCircleIcon className={`h-5 w-5 ${getIconClasses()}`} />
-              )}
-            </div>
+            {/* Contenu principal centré */}
+            <div className="flex items-center space-x-3">
+              
+              {/* Icône */}
+              <div className="flex-shrink-0">
+                {status.hasError ? (
+                  <ExclamationTriangleIcon className={`h-5 w-5 ${getIconClasses()}`} />
+                ) : status.isUpdating ? (
+                  <div className={`animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500`}></div>
+                ) : (
+                  <CheckCircleIcon className={`h-5 w-5 ${getIconClasses()}`} />
+                )}
+              </div>
 
-            {/* Message */}
-            <span className="text-sm font-medium">
-              {status.message}
-            </span>
+              {/* Message */}
+              <span className="text-sm font-medium text-center">
+                {status.message}
+              </span>
+            </div>
           </div>
 
-          {/* Bouton fermer */}
+          {/* 🔥 NOUVEAU: Bouton fermer repositionné en absolute */}
           <button
             onClick={onDismiss}
-            className={`flex-shrink-0 ml-4 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors ${getIconClasses()}`}
+            className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors ${getIconClasses()}`}
           >
             <span className="sr-only">Fermer</span>
             <XMarkIcon className="h-4 w-4" />

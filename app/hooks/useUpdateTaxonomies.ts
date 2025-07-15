@@ -1,4 +1,4 @@
-// app/hooks/useUpdateTaxonomies.ts - AVEC VRAIES MISES À JOUR
+// app/hooks/useUpdateTaxonomies.ts - CORRECTION RÉSOLUTION VARIABLES PLACEMENT
 
 import { db } from '@/lib/firebase';
 import { 
@@ -15,6 +15,8 @@ import {
   TAXONOMY_VARIABLE_REGEX,
   getFieldSource,
   formatRequiresShortcode,
+  isPlacementVariable,
+  isCreatifVariable,
   TaxonomyFormat 
 } from '../config/taxonomyFields';
 
@@ -30,11 +32,13 @@ interface ParentData {
   [key: string]: any; 
 }
 
+// 🔥 CORRECTION: Contexte enrichi pour les créatifs
 interface ResolutionContext {
   clientId: string;
   campaignData: any;
   tactiqueData: any;
   placementData: any;
+  creatifData?: any; // 🔥 NOUVEAU: Ajout des données créatif séparées
   caches: {
     shortcodes: Map<string, any>;
     customCodes: Map<string, string | null>;
@@ -89,60 +93,124 @@ function formatShortcodeValue(shortcodeData: any, customCode: string | null, for
   }
 }
 
+// 🔥 CORRECTION: Fonction de résolution corrigée et alignée avec creatifService.ts
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  // 1. Chercher dans les valeurs manuelles de taxonomie
-  const taxonomyValues = isCreatif ? 
-    context.placementData.CR_Taxonomy_Values : 
-    context.placementData.PL_Taxonomy_Values;
+  console.log(`🔍 [UpdateTaxonomies] === RÉSOLUTION VARIABLE ${variableName} ===`);
+  console.log(`🎯 Source détectée: ${source}, Format: ${format}, IsCreatif: ${isCreatif}`);
 
-  if (taxonomyValues && taxonomyValues[variableName]) {
-    const taxonomyValue = taxonomyValues[variableName];
-    
-    if (format === 'open' && taxonomyValue.openValue) {
-      rawValue = taxonomyValue.openValue;
-    } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-      const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-      if (shortcodeData) {
-        const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-        return formatShortcodeValue(shortcodeData, customCode, format);
+  // 1. 🔥 CORRECTION: Vérifier d'abord les valeurs manuelles selon le type
+  if (isCreatif) {
+    // Pour les créatifs, chercher dans CR_Taxonomy_Values du créatif
+    const manualValue = context.creatifData?.CR_Taxonomy_Values?.[variableName];
+    if (manualValue) {
+      console.log(`✅ [UpdateTaxonomies] Valeur manuelle créatif trouvée:`, manualValue);
+      if (manualValue.format === 'open') return manualValue.openValue || '';
+      if (manualValue.shortcodeId) {
+        const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
+        if (shortcodeData) {
+          const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
+          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+          console.log(`🔧 [UpdateTaxonomies] Valeur créatif formatée depuis shortcode:`, formattedValue);
+          return formattedValue;
+        }
       }
-    } else {
-      rawValue = taxonomyValue.value;
+      return manualValue.value || '';
     }
   } else {
-    // 2. Chercher dans les sources de données
-    if (source === 'campaign' && context.campaignData) {
-      rawValue = context.campaignData[variableName];
-    } else if (source === 'tactique' && context.tactiqueData) {
-      rawValue = context.tactiqueData[variableName];
-    } else if (source === 'placement' && context.placementData) {
+    // Pour les placements, chercher dans PL_Taxonomy_Values
+    const manualValue = context.placementData.PL_Taxonomy_Values?.[variableName];
+    if (manualValue) {
+      console.log(`✅ [UpdateTaxonomies] Valeur manuelle placement trouvée:`, manualValue);
+      if (manualValue.format === 'open') return manualValue.openValue || '';
+      if (manualValue.shortcodeId) {
+        const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
+        if (shortcodeData) {
+          const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
+          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+          console.log(`🔧 [UpdateTaxonomies] Valeur placement formatée depuis shortcode:`, formattedValue);
+          return formattedValue;
+        }
+      }
+      return manualValue.value || '';
+    }
+  }
+
+  // 2. 🔥 CORRECTION: Résolution selon la source avec logique corrigée pour les placements
+  if (source === 'campaign' && context.campaignData) {
+    rawValue = context.campaignData[variableName];
+    console.log(`🏛️ [UpdateTaxonomies] Valeur campagne[${variableName}]:`, rawValue);
+  } else if (source === 'tactique' && context.tactiqueData) {
+    rawValue = context.tactiqueData[variableName];
+    console.log(`🎯 [UpdateTaxonomies] Valeur tactique[${variableName}]:`, rawValue);
+  } else if (source === 'placement' && context.placementData) {
+    // 🔥 CORRECTION: Pour les variables de placement, chercher dans PL_Taxonomy_Values
+    if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
+      const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
+      console.log(`🏢 [UpdateTaxonomies] Variable placement trouvée dans PL_Taxonomy_Values[${variableName}]:`, taxonomyValue);
+      
+      // Extraire la valeur selon le format demandé
+      if (format === 'open' && taxonomyValue.openValue) {
+        rawValue = taxonomyValue.openValue;
+      } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+        const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
+        if (shortcodeData) {
+          const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
+          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+          console.log(`🔧 [UpdateTaxonomies] Variable placement formatée depuis shortcode:`, formattedValue);
+          return formattedValue; // Retour direct car déjà formaté
+        }
+      } else {
+        rawValue = taxonomyValue.value;
+      }
+      console.log(`✅ [UpdateTaxonomies] Valeur placement extraite:`, rawValue);
+    } else {
+      // Fallback: chercher directement dans l'objet placement
       rawValue = context.placementData[variableName];
-    } else if (source === 'manual') {
+      console.log(`🏢 [UpdateTaxonomies] Valeur placement directe[${variableName}]:`, rawValue);
+    }
+  } else if (source === 'manual') {
+    if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
+      // Variables créatifs manuelles directement sur l'objet créatif
+      rawValue = context.creatifData[variableName];
+      console.log(`🎨 [UpdateTaxonomies] Variable créatif manuelle directe[${variableName}]:`, rawValue);
+    } else {
+      // Variables manuelles générales
       rawValue = context.placementData[variableName];
+      console.log(`📝 [UpdateTaxonomies] Variable manuelle générale[${variableName}]:`, rawValue);
     }
   }
 
   if (rawValue === null || rawValue === undefined || rawValue === '') {
+    console.log(`❌ [UpdateTaxonomies] Aucune valeur trouvée pour ${variableName}`);
+    console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
     return '';
   }
 
-  // 3. Formatage final si shortcode
+  // 3. Formatage final si shortcode (seulement si pas déjà formaté)
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
     const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
     if (shortcodeData) {
       const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-      return formatShortcodeValue(shortcodeData, customCode, format);
+      const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+      console.log(`🔧 [UpdateTaxonomies] Formatage final (shortcode):`, formattedValue);
+      console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
+      return formattedValue;
     }
   }
   
-  return String(rawValue);
+  const finalValue = String(rawValue);
+  console.log(`✅ [UpdateTaxonomies] Valeur finale pour ${variableName}:`, finalValue);
+  console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
+  return finalValue;
 }
 
 async function generateLevelString(structure: string, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
   if (!structure) return '';
+  
+  console.log(`🔄 [UpdateTaxonomies] Generating level (isCreatif: ${isCreatif}): "${structure}"`);
   
   const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
   const segments = structure.split(MASTER_REGEX).filter(Boolean);
@@ -155,6 +223,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
         const [, variableName, format] = variableMatch;
         const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
         finalString += resolvedValue;
+        console.log(`🔧 [UpdateTaxonomies] ${variableName}:${format} -> "${resolvedValue}"`);
       }
     } else if (segment.startsWith('<') && segment.endsWith('>')) {
       const groupContent = segment.slice(1, -1);
@@ -185,12 +254,15 @@ async function generateLevelString(structure: string, context: ResolutionContext
     }
   }
   
+  console.log(`✅ [UpdateTaxonomies] Level generated: "${finalString}"`);
   return finalString;
 }
 
 // ==================== FONCTIONS DE RÉGÉNÉRATION ====================
 
 async function regeneratePlacementTaxonomies(clientId: string, placementData: any, campaignData: any, tactiqueData: any): Promise<any> {
+  console.log(`🔄 [UpdateTaxonomies] Regenerating placement taxonomies for: ${placementData.PL_Label}`);
+  
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData, caches };
 
@@ -214,6 +286,8 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
     processTaxonomyType(placementData.PL_Taxonomy_MediaOcean)
   ]);
 
+  console.log(`🏷️ [UpdateTaxonomies] Placement chains generated:`, { tagChains, platformChains, moChains });
+
   return {
     PL_Tag_1: tagChains[0] || '',
     PL_Tag_2: tagChains[1] || '',
@@ -236,12 +310,27 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
   };
 }
 
+// 🔥 CORRECTION: Fonction corrigée pour les créatifs
 async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, campaignData: any, tactiqueData: any, placementData: any): Promise<any> {
+  console.log(`🔄 [UpdateTaxonomies] Regenerating creative taxonomies for: ${creatifData.CR_Label}`);
+  console.log(`🔍 [UpdateTaxonomies] Creative data:`, creatifData);
+  console.log(`🔍 [UpdateTaxonomies] Placement data:`, placementData);
+  
   const caches = { shortcodes: new Map(), customCodes: new Map() };
-  const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData: creatifData, caches };
+  // 🔥 CORRECTION: Contexte correct avec creatifData séparée
+  const context: ResolutionContext = { 
+    clientId, 
+    campaignData, 
+    tactiqueData, 
+    placementData, // 🔥 GARDER les vraies données placement
+    creatifData,   // 🔥 AJOUTER les données créatif séparément
+    caches 
+  };
 
   const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
     if (!taxonomyId) return ['', ''];
+    
+    console.log(`📋 [UpdateTaxonomies] Processing creative taxonomy: ${taxonomyId}`);
     
     const taxonomy = await getTaxonomyById(clientId, taxonomyId);
     if (!taxonomy) return ['', ''];
@@ -251,6 +340,8 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
       taxonomy.NA_Name_Level_6 || ''
     ];
     
+    console.log(`📐 [UpdateTaxonomies] Creative level 5-6 structures:`, levels);
+    
     return Promise.all(levels.map(level => generateLevelString(level, context, true)));
   };
 
@@ -259,6 +350,8 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
     processTaxonomyType(creatifData.CR_Taxonomy_Platform),
     processTaxonomyType(creatifData.CR_Taxonomy_MediaOcean)
   ]);
+
+  console.log(`🏷️ [UpdateTaxonomies] Creative chains generated:`, { tagChains, platformChains, moChains });
 
   return {
     CR_Tag_5: tagChains[0] || '',
@@ -276,7 +369,7 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
   };
 }
 
-// ==================== HOOK PRINCIPAL ====================
+// ==================== HOOK PRINCIPAL (INCHANGÉ) ====================
 
 export const useUpdateTaxonomies = () => {
   const updateTaxonomies = async (parentType: ParentType, parentData: ParentData) => {

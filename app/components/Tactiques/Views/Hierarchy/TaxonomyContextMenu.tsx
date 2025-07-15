@@ -3,11 +3,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, CheckIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CheckIcon, DocumentDuplicateIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { getTaxonomyById } from '../../../../lib/taxonomyService';
 import { generateFinalTaxonomyString } from '../../../../lib/taxonomyParser';
 import { Taxonomy } from '../../../../types/taxonomy';
 import { Placement, Creatif, TaxonomyValues, TaxonomyFormat } from '../../../../types/tactiques';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../lib/firebase';
 
 // ==================== TYPES ====================
 
@@ -19,6 +21,13 @@ interface TaxonomyContextMenuProps {
   itemType: 'placement' | 'creatif';
   taxonomyType: 'tags' | 'platform' | 'mediaocean';
   clientId: string;
+  // 🔥 NOUVEAU: Props pour les IDs nécessaires au refresh
+  campaignId?: string;
+  versionId?: string;
+  ongletId?: string;
+  sectionId?: string;
+  tactiqueId?: string;
+  placementId?: string; // Pour les créatifs
 }
 
 interface TaxonomyLevel {
@@ -41,19 +50,37 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
   item,
   itemType,
   taxonomyType,
-  clientId
+  clientId,
+  campaignId,
+  versionId,
+  ongletId,
+  sectionId,
+  tactiqueId,
+  placementId
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [loadedTaxonomy, setLoadedTaxonomy] = useState<LoadedTaxonomy>({});
   const [loading, setLoading] = useState(false);
   const [availableLevels, setAvailableLevels] = useState<TaxonomyLevel[]>([]);
   const [copiedLevel, setCopiedLevel] = useState<string | null>(null);
+  // 🔥 NOUVEAU: État pour les données fraîches
+  const [freshItem, setFreshItem] = useState<Placement | Creatif>(item);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // ==================== EFFET DE CHARGEMENT ====================
+  // ==================== EFFET DE CHARGEMENT AVEC REFRESH AUTOMATIQUE ====================
 
   useEffect(() => {
     if (isOpen && item) {
+      setFreshItem(item); // Initialiser avec l'item passé en props
       loadTaxonomy();
+      
+      // 🔥 NOUVEAU: Refresh automatique à l'ouverture
+      // Délai court pour laisser le menu s'afficher d'abord
+      const autoRefreshTimer = setTimeout(() => {
+        refreshItemData();
+      }, 100);
+      
+      return () => clearTimeout(autoRefreshTimer);
     }
   }, [isOpen, item, taxonomyType, clientId]);
 
@@ -71,6 +98,58 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen, onClose]);
+
+  // ==================== 🔥 NOUVEAU: FONCTION DE REFRESH ====================
+
+  const refreshItemData = async () => {
+    if (!campaignId || !versionId || !ongletId || !sectionId || !tactiqueId) {
+      console.warn('IDs manquants pour le refresh');
+      return;
+    }
+
+    setRefreshing(true);
+    try {
+      let freshData: any = null;
+
+      if (itemType === 'placement') {
+        // Récupérer les données fraîches du placement
+        const placementRef = doc(
+          db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId,
+          'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId,
+          'placements', item.id
+        );
+        const placementSnap = await getDoc(placementRef);
+        if (placementSnap.exists()) {
+          freshData = { id: placementSnap.id, ...placementSnap.data() };
+        }
+      } else if (itemType === 'creatif' && placementId) {
+        // Récupérer les données fraîches du créatif
+        const creatifRef = doc(
+          db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId,
+          'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId,
+          'placements', placementId, 'creatifs', item.id
+        );
+        const creatifSnap = await getDoc(creatifRef);
+        if (creatifSnap.exists()) {
+          freshData = { id: creatifSnap.id, ...creatifSnap.data() };
+        }
+      }
+
+      if (freshData) {
+        console.log('🔄 Données rafraîchies:', freshData);
+        setFreshItem(freshData);
+        
+        // Régénérer les niveaux disponibles avec les nouvelles données
+        if (loadedTaxonomy.taxonomy) {
+          generateAvailableLevels(loadedTaxonomy);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ==================== FONCTIONS DE CHARGEMENT ====================
 
@@ -100,7 +179,7 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
 
   const getTaxonomyId = (): string | undefined => {
     if (itemType === 'placement') {
-      const placement = item as Placement;
+      const placement = freshItem as Placement;
       switch (taxonomyType) {
         case 'tags': return placement.PL_Taxonomy_Tags;
         case 'platform': return placement.PL_Taxonomy_Platform;
@@ -108,7 +187,7 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
         default: return undefined;
       }
     } else {
-      const creatif = item as Creatif;
+      const creatif = freshItem as Creatif;
       switch (taxonomyType) {
         case 'tags': return creatif.CR_Taxonomy_Tags;
         case 'platform': return creatif.CR_Taxonomy_Platform;
@@ -156,12 +235,13 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     setAvailableLevels(levels);
   };
 
-  // ==================== GÉNÉRATION DES VALEURS ====================
+  // ==================== GÉNÉRATION DES VALEURS (MODIFIÉE POUR UTILISER freshItem) ====================
 
   const createValueResolver = () => {
     const { fieldPrefix = '' } = loadedTaxonomy;
     
     return (variableName: string, format: TaxonomyFormat): string => {
+      // 🔥 CORRECTION: Utiliser freshItem au lieu de item
       // Essayer de récupérer depuis les champs spécifiques (PL_Tag_1, PL_Plateforme_1, etc.)
       if (fieldPrefix) {
         for (let level = 1; level <= 6; level++) {
@@ -200,15 +280,15 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
 
   const getTaxonomyValues = (): TaxonomyValues | undefined => {
     if (itemType === 'placement') {
-      return (item as Placement).PL_Taxonomy_Values;
+      return (freshItem as Placement).PL_Taxonomy_Values; // 🔥 Utiliser freshItem
     } else {
-      return (item as Creatif).CR_Taxonomy_Values;
+      return (freshItem as Creatif).CR_Taxonomy_Values; // 🔥 Utiliser freshItem
     }
   };
 
   const getDirectFieldValue = (variableName: string): string | undefined => {
-    // Récupérer les valeurs directement depuis l'objet item
-    const value = (item as any)[variableName];
+    // 🔥 CORRECTION: Récupérer les valeurs depuis freshItem
+    const value = (freshItem as any)[variableName];
     return typeof value === 'string' ? value : undefined;
   };
 
@@ -311,13 +391,28 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
         <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-medium text-gray-900">
             {taxonomyType === 'tags' ? 'Tags' : taxonomyType === 'platform' ? 'Plateforme' : 'MediaOcean'}
+            {/* 🔥 NOUVEAU: Indicateur de refresh automatique */}
+            {refreshing && (
+              <span className="ml-2 text-xs text-blue-600">• Auto-refresh</span>
+            )}
           </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon className="h-4 w-4" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* 🔥 MODIFIÉ: Bouton refresh plus discret (manuel optionnel) */}
+            <button
+              onClick={refreshItemData}
+              disabled={refreshing}
+              className="text-gray-300 hover:text-gray-500 disabled:opacity-50 transition-colors"
+              title="Actualiser manuellement"
+            >
+              <ArrowPathIcon className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Contenu */}
@@ -378,6 +473,16 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
           )}
         
         </div>
+
+        {/* 🔥 NOUVEAU: Indicateur de refresh en bas */}
+        {refreshing && (
+          <div className="px-4 py-2 border-t border-gray-100">
+            <div className="flex items-center text-xs text-gray-500">
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
+              Actualisation des données...
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

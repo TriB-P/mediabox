@@ -181,8 +181,8 @@ export const useTactiquesOperations = ({
         sectionId,
         tactiqueId,
         data,
-        campaignData // Pass campaignData
-      )
+
+        )
     );
   }, [executeOperation, campaignData]);
 

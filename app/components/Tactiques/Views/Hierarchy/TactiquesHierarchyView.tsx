@@ -1,4 +1,4 @@
-// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - VERSION HARMONISÉE VISUELLEMENT
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - AVEC PROPS TAXONOMYCONTEXTMENU CORRIGÉES
 
 'use client';
 
@@ -24,6 +24,7 @@ import TaxonomyContextMenu from './TaxonomyContextMenu';
 import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
 import { useClient } from '../../../../contexts/ClientContext';
+import { useSelection } from '../../../../contexts/SelectionContext';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -75,6 +76,9 @@ export default function TactiquesHierarchyView({
 
   // Hook pour récupérer le client sélectionné
   const { selectedClient } = useClient();
+  
+  // 🔥 NOUVEAU: Hook pour récupérer les IDs de sélection
+  const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
   // ==================== HOOK DRAG AND DROP ====================
 
@@ -139,7 +143,7 @@ export default function TactiquesHierarchyView({
     mode: 'create'
   });
 
-  // ==================== ÉTAT DU MENU CONTEXTUEL TAXONOMIES ====================
+  // ==================== 🔥 NOUVEAU: ÉTAT DU MENU CONTEXTUEL TAXONOMIES ENRICHI ====================
 
   const [taxonomyMenuState, setTaxonomyMenuState] = useState<{
     isOpen: boolean;
@@ -147,12 +151,19 @@ export default function TactiquesHierarchyView({
     itemType: 'placement' | 'creatif' | null;
     taxonomyType: 'tags' | 'platform' | 'mediaocean' | null;
     position: { x: number; y: number };
+    // 🔥 NOUVEAU: IDs pour le refresh
+    sectionId: string | null;
+    tactiqueId: string | null;
+    placementId: string | null; // Pour les créatifs
   }>({
     isOpen: false,
     item: null,
     itemType: null,
     taxonomyType: null,
-    position: { x: 0, y: 0 }
+    position: { x: 0, y: 0 },
+    sectionId: null,
+    tactiqueId: null,
+    placementId: null
   });
 
   // ==================== FONCTIONS UTILITAIRES ====================
@@ -227,7 +238,7 @@ export default function TactiquesHierarchyView({
     onSelectItems([creatifId], 'creatif', isSelected);
   };
 
-  // ==================== GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ====================
+  // ==================== 🔥 NOUVEAU: GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ENRICHIS ====================
 
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif, 
@@ -235,12 +246,55 @@ export default function TactiquesHierarchyView({
     taxonomyType: 'tags' | 'platform' | 'mediaocean',
     position: { x: number; y: number }
   ) => {
+    // 🔥 NOUVEAU: Trouver les IDs associés à l'item
+    let contextSectionId: string | null = null;
+    let contextTactiqueId: string | null = null;
+    let contextPlacementId: string | null = null;
+
+    // Parcourir la hiérarchie pour trouver les IDs
+    for (const section of sections) {
+      for (const tactique of section.tactiques) {
+        if (itemType === 'placement' && tactique.placements) {
+          const foundPlacement = tactique.placements.find(p => p.id === item.id);
+          if (foundPlacement) {
+            contextSectionId = section.id;
+            contextTactiqueId = tactique.id;
+            break;
+          }
+        } else if (itemType === 'creatif' && tactique.placements) {
+          for (const placement of tactique.placements) {
+            const placementCreatifs = creatifs[placement.id] || [];
+            const foundCreatif = placementCreatifs.find(c => c.id === item.id);
+            if (foundCreatif) {
+              contextSectionId = section.id;
+              contextTactiqueId = tactique.id;
+              contextPlacementId = placement.id;
+              break;
+            }
+          }
+          if (contextPlacementId) break;
+        }
+      }
+      if (contextTactiqueId) break;
+    }
+
+    console.log('🔍 Context IDs trouvés:', {
+      sectionId: contextSectionId,
+      tactiqueId: contextTactiqueId,
+      placementId: contextPlacementId,
+      itemType,
+      itemId: item.id
+    });
+
     setTaxonomyMenuState({
       isOpen: true,
       item,
       itemType,
       taxonomyType,
-      position
+      position,
+      sectionId: contextSectionId,
+      tactiqueId: contextTactiqueId,
+      placementId: contextPlacementId
     });
   };
 
@@ -250,7 +304,10 @@ export default function TactiquesHierarchyView({
       item: null,
       itemType: null,
       taxonomyType: null,
-      position: { x: 0, y: 0 }
+      position: { x: 0, y: 0 },
+      sectionId: null,
+      tactiqueId: null,
+      placementId: null
     });
   };
 
@@ -612,8 +669,8 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveCreatif}
       />
 
-      {/* Menu contextuel pour les taxonomies */}
-      {selectedClient && (
+      {/* 🔥 NOUVEAU: Menu contextuel pour les taxonomies avec tous les IDs */}
+      {selectedClient && taxonomyMenuState.isOpen && (
         <TaxonomyContextMenu
           isOpen={taxonomyMenuState.isOpen}
           onClose={handleCloseTaxonomyMenu}
@@ -622,6 +679,13 @@ export default function TactiquesHierarchyView({
           itemType={taxonomyMenuState.itemType!}
           taxonomyType={taxonomyMenuState.taxonomyType!}
           clientId={selectedClient.clientId}
+          // 🔥 NOUVEAU: IDs pour le refresh
+          campaignId={selectedCampaignId || undefined}
+          versionId={selectedVersionId || undefined}
+          ongletId={selectedOngletId || undefined}
+          sectionId={taxonomyMenuState.sectionId || undefined}
+          tactiqueId={taxonomyMenuState.tactiqueId || undefined}
+          placementId={taxonomyMenuState.placementId || undefined}
         />
       )}
     </>

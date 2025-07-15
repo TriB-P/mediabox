@@ -1,4 +1,4 @@
-// app/lib/creatifService.ts - DEBUG DONNÉES REÇUES
+// app/lib/creatifService.ts - CORRECTION RÉSOLUTION VARIABLES PLACEMENT
 
 import {
     collection,
@@ -84,42 +84,45 @@ function formatShortcodeValue(
   }
 }
 
+// 🔥 CORRECTION: Fonction de résolution alignée avec useTaxonomyForm.ts
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext): Promise<string> {
     const source = getFieldSource(variableName);
     let rawValue: any = null;
 
-    console.log(`🔍 [CreatifService] Resolving ${variableName} (source: ${source}, format: ${format})`);
+    console.log(`🔍 [CreatifService] === RÉSOLUTION VARIABLE ${variableName} ===`);
+    console.log(`🎯 Source détectée: ${source}, Format: ${format}`);
 
-    // 1. Check for manual values in CR_Taxonomy_Values first
-    if (context.creatifData.CR_Taxonomy_Values && context.creatifData.CR_Taxonomy_Values[variableName]) {
-        const taxonomyValue = context.creatifData.CR_Taxonomy_Values[variableName];
-        console.log(`✅ [CreatifService] Manual value found in CR_Taxonomy_Values:`, taxonomyValue);
-        
-        // Extract according to format
-        if (format === 'open' && taxonomyValue.openValue) {
-            rawValue = taxonomyValue.openValue;
-        } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-            const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
+    // 1. 🔥 CORRECTION: Vérifier d'abord les valeurs manuelles dans CR_Taxonomy_Values
+    const manualValue = context.creatifData.CR_Taxonomy_Values?.[variableName];
+    if (manualValue) {
+        console.log(`✅ [CreatifService] Valeur manuelle trouvée dans CR_Taxonomy_Values:`, manualValue);
+        if (manualValue.format === 'open') return manualValue.openValue || '';
+        if (manualValue.shortcodeId) {
+            const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
             if (shortcodeData) {
-                const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
+                const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
                 const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                console.log(`🔧 [CreatifService] Formatted value from shortcode:`, formattedValue);
+                console.log(`🔧 [CreatifService] Valeur formatée depuis shortcode manuel:`, formattedValue);
                 return formattedValue;
             }
-        } else {
-            rawValue = taxonomyValue.value;
         }
-        console.log(`📋 [CreatifService] Extracted value:`, rawValue);
-    } else if (source === 'manual' && isCreatifVariable(variableName)) {
-        // Direct manual creative variables on the object
-        rawValue = context.creatifData[variableName];
-        console.log(`🎨 [CreatifService] Direct creative variable:`, rawValue);
+        return manualValue.value || '';
+    }
+
+    // 2. 🔥 NOUVEAU: Résolution selon la source avec correction pour les placements
+    if (source === 'campaign' && context.campaignData) {
+        rawValue = context.campaignData[variableName];
+        console.log(`🏛️ [CreatifService] Valeur campagne[${variableName}]:`, rawValue);
+    } else if (source === 'tactique' && context.tactiqueData) {
+        rawValue = context.tactiqueData[variableName];
+        console.log(`🎯 [CreatifService] Valeur tactique[${variableName}]:`, rawValue);
     } else if (source === 'placement' && context.placementData) {
-        // Placement variables - look in PL_Taxonomy_Values
+        // 🔥 CORRECTION PRINCIPALE: Pour les variables de placement, chercher dans PL_Taxonomy_Values
         if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
             const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-            console.log(`🏢 [CreatifService] Placement variable in PL_Taxonomy_Values:`, taxonomyValue);
+            console.log(`🏢 [CreatifService] Variable placement trouvée dans PL_Taxonomy_Values[${variableName}]:`, taxonomyValue);
             
+            // Extraire la valeur selon le format demandé
             if (format === 'open' && taxonomyValue.openValue) {
                 rawValue = taxonomyValue.openValue;
             } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
@@ -127,43 +130,45 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
                 if (shortcodeData) {
                     const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
                     const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                    console.log(`🔧 [CreatifService] Formatted placement variable:`, formattedValue);
-                    return formattedValue;
+                    console.log(`🔧 [CreatifService] Variable placement formatée depuis shortcode:`, formattedValue);
+                    return formattedValue; // Retour direct car déjà formaté
                 }
             } else {
                 rawValue = taxonomyValue.value;
             }
+            console.log(`✅ [CreatifService] Valeur placement extraite:`, rawValue);
         } else {
-            // Fallback: look directly in placement
+            // Fallback: chercher directement dans l'objet placement
             rawValue = context.placementData[variableName];
-            console.log(`🏢 [CreatifService] Direct placement variable[${variableName}]:`, rawValue);
+            console.log(`🏢 [CreatifService] Valeur placement directe[${variableName}]:`, rawValue);
         }
-    } else if (source === 'campaign' && context.campaignData) {
-        rawValue = context.campaignData[variableName];
-        console.log(`🏛️ [CreatifService] Campaign value:`, rawValue);
-    } else if (source === 'tactique' && context.tactiqueData) {
-        rawValue = context.tactiqueData[variableName];
-        console.log(`🎯 [CreatifService] Tactique value:`, rawValue);
+    } else if (source === 'manual' && isCreatifVariable(variableName)) {
+        // Variables créatifs manuelles directement sur l'objet créatif
+        rawValue = context.creatifData[variableName];
+        console.log(`🎨 [CreatifService] Variable créatif manuelle directe[${variableName}]:`, rawValue);
     }
 
     if (rawValue === null || rawValue === undefined || rawValue === '') {
-        console.log(`❌ [CreatifService] No value for ${variableName}`);
+        console.log(`❌ [CreatifService] Aucune valeur trouvée pour ${variableName}`);
+        console.log(`🔍 [CreatifService] === FIN RÉSOLUTION ${variableName} ===`);
         return '';
     }
 
-    // Final formatting if not already done
+    // 3. Formatage de la valeur (seulement si pas déjà formaté)
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
         const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
-        if (!shortcodeData) return rawValue;
-
-        const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-        console.log(`🔧 [CreatifService] Final formatting:`, formattedValue);
-        return formattedValue;
+        if (shortcodeData) {
+            const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+            console.log(`🔧 [CreatifService] Formatage final (shortcode):`, formattedValue);
+            console.log(`🔍 [CreatifService] === FIN RÉSOLUTION ${variableName} ===`);
+            return formattedValue;
+        }
     }
     
     const finalValue = String(rawValue);
-    console.log(`✅ [CreatifService] Final value for ${variableName}:`, finalValue);
+    console.log(`✅ [CreatifService] Valeur finale pour ${variableName}:`, finalValue);
+    console.log(`🔍 [CreatifService] === FIN RÉSOLUTION ${variableName} ===`);
     return finalValue;
 }
 
@@ -235,29 +240,21 @@ async function prepareDataForFirestore(
     console.log(`🎯 TactiqueData received:`, tactiqueData || 'undefined');
     console.log(`🏢 PlacementData received:`, placementData || 'undefined');
     
-    // 🔥 DEBUG: Specific checks
-    console.log(`🔍 [CreatifService] CHECKS:`);
-    console.log(`  - CreatifData defined: ${!!creatifData}`);
-    console.log(`  - CampaignData defined: ${!!campaignData}`);
-    console.log(`  - TactiqueData defined: ${!!tactiqueData}`);
-    console.log(`  - PlacementData defined: ${!!placementData}`);
-    
-    if (campaignData) {
-        console.log(`  - CampaignData keys: ${Object.keys(campaignData).join(', ')}`);
-        console.log(`  - CA_Name: ${campaignData.CA_Name || 'undefined'}`);
-    }
-    
-    if (tactiqueData) {
-        console.log(`  - TactiqueData keys: ${Object.keys(tactiqueData).join(', ')}`);
-        console.log(`  - TC_Label: ${tactiqueData.TC_Label || 'undefined'}`);
-    }
-    
+    // 🔥 DEBUG: Vérifications spécifiques pour les données de placement
+    console.log(`🔍 [CreatifService] VÉRIFICATIONS PLACEMENT:`);
     if (placementData) {
         console.log(`  - PlacementData keys: ${Object.keys(placementData).join(', ')}`);
         console.log(`  - PL_Label: ${placementData.PL_Label || 'undefined'}`);
-        console.log(`  - PL_Taxonomy_Values defined: ${!!placementData.PL_Taxonomy_Values}`);
+        console.log(`  - PL_Taxonomy_Values défini: ${!!placementData.PL_Taxonomy_Values}`);
         if (placementData.PL_Taxonomy_Values) {
-            console.log(`  - TAX_ variables in PL_Taxonomy_Values: ${Object.keys(placementData.PL_Taxonomy_Values).filter(k => k.startsWith('TAX_')).join(', ')}`);
+            console.log(`  - Variables TAX_ dans PL_Taxonomy_Values: ${Object.keys(placementData.PL_Taxonomy_Values).filter(k => k.startsWith('TAX_')).join(', ')}`);
+            
+            // Montrer le contenu des variables TAX_ importantes
+            ['TAX_Product', 'TAX_Audience_Demographics', 'TAX_Location', 'TAX_Device', 'TAX_Targeting'].forEach(varName => {
+                if (placementData.PL_Taxonomy_Values[varName]) {
+                    console.log(`    - ${varName}:`, placementData.PL_Taxonomy_Values[varName]);
+                }
+            });
         }
     }
     
@@ -340,11 +337,18 @@ async function prepareDataForFirestore(
     });
 
     console.log(`✅ [CreatifService] Final data for Firestore:`, firestoreData);
+    console.log(`🏷️ [CreatifService] Chaînes taxonomiques finales sauvegardées:`);
+    console.log(`  CR_Tag_5: "${firestoreData.CR_Tag_5}"`);
+    console.log(`  CR_Tag_6: "${firestoreData.CR_Tag_6}"`);
+    console.log(`  CR_Plateforme_5: "${firestoreData.CR_Plateforme_5}"`);
+    console.log(`  CR_Plateforme_6: "${firestoreData.CR_Plateforme_6}"`);
+    console.log(`  CR_MO_5: "${firestoreData.CR_MO_5}"`);
+    console.log(`  CR_MO_6: "${firestoreData.CR_MO_6}"`);
     console.log(`🔄 [CreatifService] === END CREATIVE DATA PREPARATION ===`);
     return firestoreData;
 }
 
-// ==================== CRUD FUNCTIONS ====================
+// ==================== CRUD FUNCTIONS (INCHANGÉES) ====================
 
 export async function createCreatif(
   clientId: string, campaignId: string, versionId: string, ongletId: string, 
