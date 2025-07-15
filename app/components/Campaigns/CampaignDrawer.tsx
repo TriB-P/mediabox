@@ -215,11 +215,17 @@ export default function CampaignDrawer({
     try {
       // La fonction onSave est appelée comme avant
       await onSave(formData, campaign ? undefined : additionalBreakdowns);
-
+  
       // 4. Si c'est une mise à jour (on a un 'campaign' avec un 'id'), on appelle le hook
-      if (campaign && campaign.id) {
+      if (campaign && campaign.id && selectedClient) {
         console.log(`Déclenchement de la mise à jour des taxonomies pour la campagne: ${campaign.id}`);
-        await updateTaxonomies('campaign', { id: campaign.id, name: formData.CA_Name });
+        
+        // 🔥 CORRECTION: Passer les bonnes données avec clientId
+        await updateTaxonomies('campaign', { 
+          id: campaign.id, 
+          name: formData.CA_Name,
+          clientId: selectedClient.clientId  // 🔥 AJOUTÉ: Obligatoire
+        });
       }
       
       onClose();
