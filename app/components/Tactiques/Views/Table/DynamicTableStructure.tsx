@@ -196,7 +196,7 @@ export default function DynamicTableStructure({
   };
 
   const getRowStyles = (row: TableRow): string => {
-    let classes = 'hover:bg-gray-50 transition-colors cursor-pointer';
+    let classes = 'hover:bg-gray-50 transition-colors';
     
     // Style selon le niveau d'édition
     if (row.isEditable) {
@@ -218,26 +218,23 @@ export default function DynamicTableStructure({
     return classes;
   };
 
-  // ==================== GESTION DE LA SÉLECTION ====================
+  // ==================== GESTION DE LA SÉLECTION AVEC CASES À COCHER ====================
 
-  const handleRowClick = (rowId: string, event: React.MouseEvent) => {
-    // Ignorer si on clique sur un bouton ou input
-    const target = event.target as HTMLElement;
-    if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.closest('button') || target.closest('input')) {
-      return;
-    }
+  const handleCheckboxChange = (rowId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = event.target.checked;
+    const nativeEvent = event.nativeEvent as MouseEvent;
 
     setSelectedRows(prev => {
       const newSelection = new Set(prev);
       
-      if (event.ctrlKey || event.metaKey) {
+      if (nativeEvent.ctrlKey || nativeEvent.metaKey) {
         // Ctrl/Cmd + clic : toggle la sélection
-        if (newSelection.has(rowId)) {
-          newSelection.delete(rowId);
-        } else {
+        if (isChecked) {
           newSelection.add(rowId);
+        } else {
+          newSelection.delete(rowId);
         }
-      } else if (event.shiftKey && prev.size > 0) {
+      } else if (nativeEvent.shiftKey && prev.size > 0) {
         // Shift + clic : sélection en plage
         const lastSelected = Array.from(prev)[prev.size - 1];
         const currentIndex = processedRows.findIndex(row => row.id === rowId);
@@ -254,19 +251,43 @@ export default function DynamicTableStructure({
           }
         }
       } else {
-        // Clic simple : sélection unique
-        newSelection.clear();
-        newSelection.add(rowId);
+        // Clic simple : toggle cette case seulement
+        if (isChecked) {
+          newSelection.add(rowId);
+        } else {
+          newSelection.delete(rowId);
+        }
       }
       
       return newSelection;
     });
   };
 
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = event.target.checked;
+    
+    if (isChecked) {
+      // Sélectionner toutes les lignes éditables
+      const editableRowIds = processedRows
+        .filter(row => row.isEditable)
+        .map(row => row.id);
+      setSelectedRows(new Set(editableRowIds));
+    } else {
+      // Désélectionner tout
+      setSelectedRows(new Set());
+    }
+  };
+
   const clearSelection = () => {
     setSelectedRows(new Set());
     setCopyMode({ active: false });
   };
+
+  // Calculer l'état de la case "Sélectionner tout"
+  const editableRows = processedRows.filter(row => row.isEditable);
+  const selectedEditableRows = editableRows.filter(row => selectedRows.has(row.id));
+  const isSelectAllChecked = editableRows.length > 0 && selectedEditableRows.length === editableRows.length;
+  const isSelectAllIndeterminate = selectedEditableRows.length > 0 && selectedEditableRows.length < editableRows.length;
 
   // ==================== GESTION DE LA COPIE ====================
 
@@ -602,7 +623,7 @@ export default function DynamicTableStructure({
             {showHelpTooltip && (
               <div className="absolute right-0 top-full mt-2 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
                 <div className="space-y-2">
-                  <div><strong>Sélection :</strong> Clic = sélection • Ctrl+Clic = ajout • Shift+Clic = plage</div>
+                  <div><strong>Sélection :</strong> Cases à cocher • Ctrl+Clic = ajout • Shift+Clic = plage</div>
                   <div><strong>Copie :</strong> Survolez cellule → 📋 copier → survolez autre cellule → 📥 coller</div>
                   <div><strong>Édition :</strong> Clic sur cellule pour éditer • Enter/Tab = sauver • Esc = annuler</div>
                   {selectedLevel === 'tactique' && (
@@ -694,6 +715,20 @@ export default function DynamicTableStructure({
             {/* En-têtes collants */}
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
+                {/* 🔥 NOUVELLE COLONNE: Case à cocher */}
+                <th className="px-3 py-2 text-left whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
+                  <input
+                    type="checkbox"
+                    checked={isSelectAllChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSelectAllIndeterminate;
+                    }}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    title="Sélectionner tout"
+                  />
+                </th>
+                
                 {columns.map(column => (
                   <th
                     key={column.key}
@@ -718,7 +753,7 @@ export default function DynamicTableStructure({
             <tbody className="bg-white divide-y divide-gray-200">
               {processedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan={columns.length + 1} className="px-3 py-6 text-center text-gray-500">
                     {searchTerm ? 'Aucun résultat trouvé' : 'Aucune donnée à afficher'}
                   </td>
                 </tr>
@@ -727,8 +762,19 @@ export default function DynamicTableStructure({
                   <tr 
                     key={row.id} 
                     className={getRowStyles(row)}
-                    onClick={(e) => handleRowClick(row.id, e)}
                   >
+                    {/* 🔥 NOUVELLE CELLULE: Case à cocher */}
+                    <td className="px-3 py-2 text-sm whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
+                      {row.isEditable && (
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(row.id)}
+                          onChange={(e) => handleCheckboxChange(row.id, e)}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      )}
+                    </td>
+                    
                     {columns.map(column => (
                       <td 
                         key={column.key} 
