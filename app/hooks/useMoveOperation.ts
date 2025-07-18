@@ -1,6 +1,6 @@
-// app/hooks/useMoveOperation.ts - VERSION CORRIGÉE AVEC ANALYSE DE SÉLECTION FIXÉE
+// app/hooks/useMoveOperation.ts - VERSION CORRIGÉE AVEC RÉCUPÉRATION CONTEXTE HIÉRARCHIQUE
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect, useState } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import {
@@ -20,12 +20,26 @@ import { moveItems, validateMoveDestination } from '../lib/moveService';
 import useMoveModal from './useMoveModal';
 import useMoveData from './useMoveData';
 
+// ==================== 🔥 NOUVEAU: INTERFACE POUR LE CONTEXTE HIÉRARCHIQUE ====================
+
+interface HierarchyContextMap {
+  [itemId: string]: {
+    itemType: MoveItemType;
+    campaignId: string;
+    versionId: string;
+    ongletId: string;
+    sectionId?: string;
+    tactiqueId?: string;
+    placementId?: string;
+  };
+}
+
 // ==================== HELPERS POUR DÉTECTER LES TYPES ====================
 
 function detectItemType(item: any): MoveItemType | null {
   console.log('🔍 Détection de type pour item:', {
     id: item.id,
-    type: item.type, // Propriété type directe
+    type: item.type,
     keys: Object.keys(item),
     sampleProperties: {
       SECTION_Name: item.SECTION_Name,
@@ -35,13 +49,11 @@ function detectItemType(item: any): MoveItemType | null {
     }
   });
 
-  // 🔥 PRIORITÉ 1: Vérifier d'abord s'il y a une propriété type directe
   if (item.type && ['section', 'tactique', 'placement', 'creatif'].includes(item.type)) {
     console.log('✅ Type détecté via propriété directe:', item.type);
     return item.type as MoveItemType;
   }
 
-  // 🔥 PRIORITÉ 2: Fallback sur les propriétés Firestore spécifiques
   if (item.SECTION_Name !== undefined) return 'section';
   if (item.TC_Label !== undefined) return 'tactique';
   if (item.PL_Label !== undefined) return 'placement';
@@ -52,13 +64,11 @@ function detectItemType(item: any): MoveItemType | null {
 }
 
 function getItemDisplayName(item: any, type: MoveItemType): string {
-  // 🔥 PRIORITÉ 1: Utiliser la propriété name si elle existe déjà
   if (item.name) {
     console.log('✅ Nom trouvé via propriété directe:', item.name);
     return item.name;
   }
 
-  // 🔥 PRIORITÉ 2: Fallback sur les propriétés Firestore spécifiques
   switch (type) {
     case 'section': return item.SECTION_Name || 'Section sans nom';
     case 'tactique': return item.TC_Label || 'Tactique sans nom';
@@ -74,9 +84,10 @@ export function useMoveOperation(
   onRefreshCallback?: () => Promise<void>,
   // 🔥 NOUVEAU: Ajouter des informations de contexte hiérarchique
   hierarchyContext?: {
-    currentSectionId?: string;
-    currentTactiqueId?: string;
-    currentPlacementId?: string;
+    sections?: any[];
+    tactiques?: { [sectionId: string]: any[] };
+    placements?: { [tactiqueId: string]: any[] };
+    creatifs?: { [placementId: string]: any[] };
   }
 ): UseMoveOperationReturn {
   const { selectedClient } = useClient();
@@ -96,7 +107,78 @@ export function useMoveOperation(
 
   const moveData = useMoveData(selectedClient?.clientId || '');
 
-  // ==================== ANALYSE DE SÉLECTION CORRIGÉE ====================
+  // ==================== 🔥 NOUVEAU: CARTE DU CONTEXTE HIÉRARCHIQUE ====================
+
+  const [hierarchyContextMap, setHierarchyContextMap] = useState<HierarchyContextMap>({});
+
+  // Construire la carte de contexte hiérarchique depuis les données fournies
+  useEffect(() => {
+    if (!hierarchyContext || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      setHierarchyContextMap({});
+      return;
+    }
+
+    const { sections = [], tactiques = {}, placements = {}, creatifs = {} } = hierarchyContext;
+    const contextMap: HierarchyContextMap = {};
+
+    console.log('🗺️ Construction de la carte de contexte hiérarchique');
+
+    // Parcourir toute la hiérarchie pour construire la carte de contexte
+    sections.forEach(section => {
+      // Contexte pour les sections
+      contextMap[section.id] = {
+        itemType: 'section',
+        campaignId: selectedCampaignId,
+        versionId: selectedVersionId,
+        ongletId: selectedOngletId
+      };
+
+      // Contexte pour les tactiques de cette section
+      const sectionTactiques = tactiques[section.id] || [];
+      sectionTactiques.forEach(tactique => {
+        contextMap[tactique.id] = {
+          itemType: 'tactique',
+          campaignId: selectedCampaignId,
+          versionId: selectedVersionId,
+          ongletId: selectedOngletId,
+          sectionId: section.id
+        };
+
+        // Contexte pour les placements de cette tactique
+        const tactiquePlacements = placements[tactique.id] || [];
+        tactiquePlacements.forEach(placement => {
+          contextMap[placement.id] = {
+            itemType: 'placement',
+            campaignId: selectedCampaignId,
+            versionId: selectedVersionId,
+            ongletId: selectedOngletId,
+            sectionId: section.id,
+            tactiqueId: tactique.id
+          };
+
+          // Contexte pour les créatifs de ce placement
+          const placementCreatifs = creatifs[placement.id] || [];
+          placementCreatifs.forEach(creatif => {
+            contextMap[creatif.id] = {
+              itemType: 'creatif',
+              campaignId: selectedCampaignId,
+              versionId: selectedVersionId,
+              ongletId: selectedOngletId,
+              sectionId: section.id,
+              tactiqueId: tactique.id,
+              placementId: placement.id
+            };
+          });
+        });
+      });
+    });
+
+    console.log('✅ Carte de contexte construite:', Object.keys(contextMap).length, 'éléments');
+    setHierarchyContextMap(contextMap);
+
+  }, [hierarchyContext, selectedCampaignId, selectedVersionId, selectedOngletId]);
+
+  // ==================== 🔥 ANALYSE DE SÉLECTION CORRIGÉE ====================
 
   const analyzeSelection = useCallback((selectedItems: any[]): SelectionAnalysis => {
     console.log('🔍 Analyse de sélection démarrée avec:', selectedItems);
@@ -114,12 +196,12 @@ export function useMoveOperation(
       };
     }
 
-    // Vérifier les IDs de contexte requis
     console.log('🔍 Contexte de sélection:', {
       selectedCampaignId,
       selectedVersionId,
       selectedOngletId,
-      hasClient: !!selectedClient?.clientId
+      hasClient: !!selectedClient?.clientId,
+      hierarchyContextMapSize: Object.keys(hierarchyContextMap).length
     });
 
     if (!selectedCampaignId || !selectedVersionId || !selectedOngletId) {
@@ -136,7 +218,6 @@ export function useMoveOperation(
     }
 
     try {
-      // Conversion des éléments avec construction correcte des parentPath
       const convertedElements: SelectedItemWithSource[] = [];
       const itemTypes = new Set<MoveItemType>();
 
@@ -149,129 +230,104 @@ export function useMoveOperation(
 
         itemTypes.add(itemType);
 
-        // 🔥 NOUVEAU: Construction du parentPath selon le type et les propriétés enrichies
-        let parentPath: string[] = [];
-
-        console.log(`🔧 Construction parentPath pour ${itemType}:`, {
-          item: item,
-          availableIds: {
-            // IDs potentiels selon le type
-            CR_PlacementId: item.CR_PlacementId,
-            CR_TactiqueId: item.CR_TactiqueId,
-            CR_SectionId: item.CR_SectionId,
-            PL_TactiqueId: item.PL_TactiqueId,
-            PL_SectionId: item.PL_SectionId,
-            TC_SectionId: item.TC_SectionId,
-            // 🔥 NOUVEAU: IDs de contexte enrichis (ajoutés par la vue hiérarchique)
-            contextSectionId: item.contextSectionId,
-            contextTactiqueId: item.contextTactiqueId,
-            contextPlacementId: item.contextPlacementId
-          },
-          contextIds: {
-            selectedCampaignId,
-            selectedVersionId,
-            selectedOngletId
-          }
+        // 🔥 NOUVEAU: Récupérer le contexte depuis la carte hiérarchique
+        const itemContext = hierarchyContextMap[item.id];
+        
+        console.log(`🔧 Construction parentPath pour ${itemType} ${item.id}:`, {
+          itemContext,
+          hierarchyContextMapHasItem: !!itemContext
         });
 
-        switch (itemType) {
-          case 'section':
-            // Section: [campaignId, versionId, ongletId]
-            parentPath = buildParentPath('section', {
-              campaignId: selectedCampaignId,
-              versionId: selectedVersionId,
-              ongletId: selectedOngletId
-            });
-            console.log('✅ ParentPath pour section:', parentPath);
-            break;
+        let parentPath: string[] = [];
 
-          case 'tactique':
-            // Tactique: [sectionId, campaignId, versionId, ongletId]
-            const sectionIdForTactique = item.TC_SectionId || 
-              item.contextSectionId || // 🔥 NOUVEAU: Context enrichi
-              item.sectionId;
-            
-            console.log('🔍 Section ID pour tactique:', sectionIdForTactique);
-            
-            if (!sectionIdForTactique) {
-              console.error('❌ Section ID manquant pour tactique:', item);
-              continue;
-            }
+        if (itemContext) {
+          // Utiliser le contexte de la carte hiérarchique
+          console.log('✅ Utilisation du contexte hiérarchique:', itemContext);
+          parentPath = buildParentPath(itemType, {
+            campaignId: itemContext.campaignId,
+            versionId: itemContext.versionId,
+            ongletId: itemContext.ongletId,
+            sectionId: itemContext.sectionId,
+            tactiqueId: itemContext.tactiqueId,
+            placementId: itemContext.placementId
+          });
+        } else {
+          // 🔥 FALLBACK: Essayer de construire depuis les propriétés de l'item
+          console.log('⚠️ Fallback: construction depuis propriétés item');
+          
+          switch (itemType) {
+            case 'section':
+              parentPath = buildParentPath('section', {
+                campaignId: selectedCampaignId,
+                versionId: selectedVersionId,
+                ongletId: selectedOngletId
+              });
+              break;
 
-            parentPath = buildParentPath('tactique', {
-              campaignId: selectedCampaignId,
-              versionId: selectedVersionId,
-              ongletId: selectedOngletId,
-              sectionId: sectionIdForTactique
-            });
-            console.log('✅ ParentPath pour tactique:', parentPath);
-            break;
+            case 'tactique':
+              const sectionIdForTactique = item.TC_SectionId || 
+                item.contextSectionId || 
+                item.sectionId;
+              
+              if (sectionIdForTactique) {
+                parentPath = buildParentPath('tactique', {
+                  campaignId: selectedCampaignId,
+                  versionId: selectedVersionId,
+                  ongletId: selectedOngletId,
+                  sectionId: sectionIdForTactique
+                });
+              }
+              break;
 
-          case 'placement':
-            // Placement: [tactiqueId, sectionId, campaignId, versionId, ongletId]
-            const tactiqueIdForPlacement = item.PL_TactiqueId || 
-              item.contextTactiqueId || // 🔥 NOUVEAU: Context enrichi
-              item.tactiqueId;
-            const sectionIdForPlacement = item.PL_SectionId || 
-              item.contextSectionId || // 🔥 NOUVEAU: Context enrichi
-              item.sectionId;
-            
-            console.log('🔍 IDs pour placement:', { tactiqueIdForPlacement, sectionIdForPlacement });
-            
-            if (!tactiqueIdForPlacement || !sectionIdForPlacement) {
-              console.error('❌ Tactique ID ou Section ID manquant pour placement:', item);
-              continue;
-            }
+            case 'placement':
+              const tactiqueIdForPlacement = item.PL_TactiqueId || 
+                item.contextTactiqueId || 
+                item.tactiqueId;
+              const sectionIdForPlacement = item.PL_SectionId || 
+                item.contextSectionId || 
+                item.sectionId;
+              
+              if (tactiqueIdForPlacement && sectionIdForPlacement) {
+                parentPath = buildParentPath('placement', {
+                  campaignId: selectedCampaignId,
+                  versionId: selectedVersionId,
+                  ongletId: selectedOngletId,
+                  sectionId: sectionIdForPlacement,
+                  tactiqueId: tactiqueIdForPlacement
+                });
+              }
+              break;
 
-            parentPath = buildParentPath('placement', {
-              campaignId: selectedCampaignId,
-              versionId: selectedVersionId,
-              ongletId: selectedOngletId,
-              sectionId: sectionIdForPlacement,
-              tactiqueId: tactiqueIdForPlacement
-            });
-            console.log('✅ ParentPath pour placement:', parentPath);
-            break;
-
-          case 'creatif':
-            // Créatif: [placementId, tactiqueId, sectionId, campaignId, versionId, ongletId]
-            const placementIdForCreatif = item.CR_PlacementId || 
-              item.contextPlacementId || // 🔥 NOUVEAU: Context enrichi
-              item.placementId;
-            const tactiqueIdForCreatif = item.CR_TactiqueId || 
-              item.contextTactiqueId || // 🔥 NOUVEAU: Context enrichi
-              item.tactiqueId;
-            const sectionIdForCreatif = item.CR_SectionId || 
-              item.contextSectionId || // 🔥 NOUVEAU: Context enrichi
-              item.sectionId;
-            
-            console.log('🔍 IDs pour créatif:', { 
-              placementIdForCreatif, 
-              tactiqueIdForCreatif, 
-              sectionIdForCreatif 
-            });
-            
-            if (!placementIdForCreatif || !tactiqueIdForCreatif || !sectionIdForCreatif) {
-              console.error('❌ IDs manquants pour créatif:', item);
-              continue;
-            }
-
-            parentPath = buildParentPath('creatif', {
-              campaignId: selectedCampaignId,
-              versionId: selectedVersionId,
-              ongletId: selectedOngletId,
-              sectionId: sectionIdForCreatif,
-              tactiqueId: tactiqueIdForCreatif,
-              placementId: placementIdForCreatif
-            });
-            console.log('✅ ParentPath pour créatif:', parentPath);
-            break;
+            case 'creatif':
+              const placementIdForCreatif = item.CR_PlacementId || 
+                item.contextPlacementId || 
+                item.placementId;
+              const tactiqueIdForCreatif = item.CR_TactiqueId || 
+                item.contextTactiqueId || 
+                item.tactiqueId;
+              const sectionIdForCreatif = item.CR_SectionId || 
+                item.contextSectionId || 
+                item.sectionId;
+              
+              if (placementIdForCreatif && tactiqueIdForCreatif && sectionIdForCreatif) {
+                parentPath = buildParentPath('creatif', {
+                  campaignId: selectedCampaignId,
+                  versionId: selectedVersionId,
+                  ongletId: selectedOngletId,
+                  sectionId: sectionIdForCreatif,
+                  tactiqueId: tactiqueIdForCreatif,
+                  placementId: placementIdForCreatif
+                });
+              }
+              break;
+          }
         }
 
         if (parentPath.length === 0) {
           console.error('❌ ParentPath vide pour:', {
             itemType,
-            item,
+            itemId: item.id,
+            itemContext,
             selectedCampaignId,
             selectedVersionId,
             selectedOngletId
@@ -336,7 +392,7 @@ export function useMoveOperation(
         isValid: true,
         canMove: true,
         rootElements: convertedElements,
-        allElements: convertedElements, // Pour l'instant, pas d'éléments enfants automatiques
+        allElements: convertedElements,
         moveLevel,
         targetLevel,
         totalItemsToMove: convertedElements.length
@@ -355,7 +411,7 @@ export function useMoveOperation(
         errorMessage: `Erreur d'analyse: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
       };
     }
-  }, [selectedCampaignId, selectedVersionId, selectedOngletId]);
+  }, [selectedCampaignId, selectedVersionId, selectedOngletId, hierarchyContextMap]);
 
   // ==================== FONCTIONS UTILITAIRES ====================
 
@@ -514,7 +570,7 @@ export function useMoveOperation(
         console.log('🔄 Refresh automatique après déplacement réussi');
         setTimeout(() => {
           onRefreshCallback();
-        }, 1500); // Délai pour laisser le temps à Firebase de se synchroniser
+        }, 1500);
       }
 
     } catch (error) {

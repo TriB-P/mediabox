@@ -1,4 +1,4 @@
-// app/tactiques/page.tsx - CORRECTION DU CALCUL DES BUDGETS DE SECTION
+// app/tactiques/page.tsx - CORRECTION INTÉGRATION DÉPLACEMENT
 
 'use client';
 
@@ -28,9 +28,6 @@ type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
 // ==================== FONCTION UTILITAIRE POUR CALCULER LE BUDGET DES SECTIONS ====================
 
-/**
- * Calcule le budget total d'une section en sommant les budgets de toutes ses tactiques
- */
 const calculateSectionBudget = (sectionId: string, tactiques: { [sectionId: string]: Tactique[] }): number => {
   const sectionTactiques = tactiques[sectionId] || [];
   return sectionTactiques.reduce((total, tactique) => {
@@ -38,9 +35,6 @@ const calculateSectionBudget = (sectionId: string, tactiques: { [sectionId: stri
   }, 0);
 };
 
-/**
- * Calcule le pourcentage d'une section par rapport au budget total
- */
 const calculateSectionPercentage = (sectionBudget: number, totalBudget: number): number => {
   if (totalBudget <= 0) return 0;
   return Math.round((sectionBudget / totalBudget) * 100);
@@ -407,13 +401,12 @@ export default function TactiquesPage() {
     onRefresh, handleClearSelection, setError
   ]);
 
-  // ==================== 🔥 CORRECTION: PRÉPARATION DES DONNÉES AVEC CALCUL DE BUDGET ====================
+  // ==================== PRÉPARATION DES DONNÉES AVEC CALCUL DE BUDGET ====================
 
   const sectionsWithTactiques: SectionWithTactiques[] = useMemo(() => {
     return sections.map(section => {
       const sectionTactiques = tactiques[section.id] || [];
       
-      // 🔥 NOUVEAU: Calculer le budget de la section
       const calculatedSectionBudget = calculateSectionBudget(section.id, tactiques);
       
       const mappedTactiques = sectionTactiques.map(tactique => {
@@ -452,7 +445,6 @@ export default function TactiquesPage() {
 
       return {
         ...section,
-        // 🔥 CORRECTION: Utiliser le budget calculé au lieu de SECTION_Budget
         SECTION_Budget: calculatedSectionBudget,
         tactiques: mappedTactiques,
         isSelected: isSectionSelected,
@@ -501,6 +493,85 @@ export default function TactiquesPage() {
   const flatTactiques = useMemo(() => {
     return Object.values(tactiques).flat();
   }, [tactiques]);
+
+  // ==================== 🔥 NOUVEAU: PRÉPARATION DU CONTEXTE HIÉRARCHIQUE POUR LE DÉPLACEMENT ====================
+
+  const hierarchyContextForMove = useMemo(() => {
+    return {
+      sections: sections,
+      tactiques: tactiques,
+      placements: placements,
+      creatifs: creatifs
+    };
+  }, [sections, tactiques, placements, creatifs]);
+
+  // ==================== 🔥 NOUVEAU: DONNÉES ENRICHIES POUR LE PANEL D'ACTIONS ====================
+
+  const selectedItemsWithData = useMemo(() => {
+    const result: Array<{
+      id: string;
+      name: string;
+      type: 'section' | 'tactique' | 'placement' | 'creatif';
+      data?: Section | Tactique | Placement | Creatif;
+    }> = [];
+
+    Array.from(selectedItems).forEach(itemId => {
+      // Chercher l'élément dans la hiérarchie
+      for (const section of sectionsWithTactiques) {
+        if (section.id === itemId) {
+          result.push({
+            id: itemId,
+            name: section.SECTION_Name,
+            type: 'section',
+            data: section
+          });
+          return;
+        }
+        
+        for (const tactique of section.tactiques) {
+          if (tactique.id === itemId) {
+            result.push({
+              id: itemId,
+              name: tactique.TC_Label,
+              type: 'tactique',
+              data: tactique
+            });
+            return;
+          }
+          
+          if (tactique.placements) {
+            for (const placement of tactique.placements) {
+              if (placement.id === itemId) {
+                result.push({
+                  id: itemId,
+                  name: placement.PL_Label,
+                  type: 'placement',
+                  data: placement
+                });
+                return;
+              }
+              
+              if (placement.creatifs) {
+                for (const creatif of placement.creatifs) {
+                  if (creatif.id === itemId) {
+                    result.push({
+                      id: itemId,
+                      name: creatif.CR_Label,
+                      type: 'creatif',
+                      data: creatif
+                    });
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return result;
+  }, [selectedItems, sectionsWithTactiques]);
 
   // ==================== GESTION D'ERREUR ====================
 
@@ -595,32 +666,16 @@ export default function TactiquesPage() {
           {/* Zone de contenu principal */}
           <div className={getMainContentClasses()}>
             
-            {/* Panneau d'actions groupées */}
+            {/* 🔥 NOUVEAU: Panneau d'actions groupées avec contexte hiérarchique */}
             {selectedItems.size > 0 && viewMode === 'hierarchy' && (
               <SelectedActionsPanel
-                selectedItems={Array.from(selectedItems).map(id => {
-                  for (const section of sectionsWithTactiques) {
-                    if (section.id === id) return { id, name: section.SECTION_Name, type: 'section' };
-                    for (const tactique of section.tactiques) {
-                      if (tactique.id === id) return { id, name: tactique.TC_Label, type: 'tactique' };
-                      if (tactique.placements) {
-                        for (const placement of tactique.placements) {
-                          if (placement.id === id) return { id, name: placement.PL_Label, type: 'placement' };
-                          if (placement.creatifs) {
-                            for (const creatif of placement.creatifs) {
-                              if (creatif.id === id) return { id, name: creatif.CR_Label, type: 'creatif' };
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                  return { id, name: 'Unknown', type: 'unknown'} as any;
-                }).filter(Boolean)}
+                selectedItems={selectedItemsWithData}
                 onDuplicateSelected={handleDuplicateSelected}
                 onDeleteSelected={handleDeleteSelected}
                 onClearSelection={handleClearSelection}
+                onRefresh={onRefresh}
                 loading={isLoading}
+                hierarchyContext={hierarchyContextForMove}
               />
             )}
             

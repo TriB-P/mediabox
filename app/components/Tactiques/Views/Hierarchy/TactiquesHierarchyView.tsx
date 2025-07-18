@@ -1,4 +1,4 @@
-// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - AVEC INTÉGRATION DÉPLACEMENT COMPLÈTE
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - CORRECTION ENRICHISSEMENT IDS PARENTS
 
 'use client';
 
@@ -21,7 +21,7 @@ import TactiqueDrawer from '../../Tactiques/TactiqueDrawer';
 import PlacementDrawer from '../../Placement/PlacementDrawer';
 import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
-import SelectedActionsPanel from '../../SelectedActionsPanel'; // 🔥 NOUVEAU: Import du panel d'actions
+import SelectedActionsPanel from '../../SelectedActionsPanel';
 import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -51,11 +51,10 @@ interface TactiquesHierarchyViewProps {
     type: 'section' | 'tactique' | 'placement' | 'creatif',
     isSelected: boolean
   ) => void;
-  // 🔥 NOUVELLES PROPS pour les actions de sélection
   onDuplicateSelected?: (itemIds: string[]) => void;
   onDeleteSelected?: (itemIds: string[]) => void;
   onClearSelection?: () => void;
-  selectedItems?: (SectionWithTactiques | Tactique | Placement | Creatif)[]; // 🔥 NOUVEAU: Éléments sélectionnés
+  selectedItems?: (SectionWithTactiques | Tactique | Placement | Creatif)[];
   loading?: boolean;
 }
 
@@ -79,7 +78,6 @@ export default function TactiquesHierarchyView({
   totalBudget,
   onRefresh,
   onSelectItems,
-  // 🔥 NOUVELLES PROPS déstructurées
   onDuplicateSelected,
   onDeleteSelected,
   onClearSelection,
@@ -87,10 +85,7 @@ export default function TactiquesHierarchyView({
   loading = false
 }: TactiquesHierarchyViewProps) {
 
-  // Hook pour récupérer le client sélectionné
   const { selectedClient } = useClient();
-  
-  // 🔥 Hook pour récupérer les IDs de sélection
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
   // ==================== HOOK DRAG AND DROP ====================
@@ -156,7 +151,7 @@ export default function TactiquesHierarchyView({
     mode: 'create'
   });
 
-  // ==================== 🔥 ÉTAT DU MENU CONTEXTUEL TAXONOMIES ENRICHI ====================
+  // ==================== ÉTAT DU MENU CONTEXTUEL TAXONOMIES ====================
 
   const [taxonomyMenuState, setTaxonomyMenuState] = useState<{
     isOpen: boolean;
@@ -164,10 +159,9 @@ export default function TactiquesHierarchyView({
     itemType: 'placement' | 'creatif' | null;
     taxonomyType: 'tags' | 'platform' | 'mediaocean' | null;
     position: { x: number; y: number };
-    // 🔥 IDs pour le refresh
     sectionId: string | null;
     tactiqueId: string | null;
-    placementId: string | null; // Pour les créatifs
+    placementId: string | null;
   }>({
     isOpen: false,
     item: null,
@@ -200,9 +194,11 @@ export default function TactiquesHierarchyView({
     }));
   };
 
-  // ==================== GESTIONNAIRES DE SÉLECTION ====================
+  // ==================== 🔥 GESTIONNAIRES DE SÉLECTION ENRICHIS ====================
 
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
+    console.log('🎯 Sélection section:', { sectionId, isSelected });
+    
     const itemIds: string[] = [sectionId];
     const sectionTactiques = sections.find(s => s.id === sectionId)?.tactiques || [];
     
@@ -218,10 +214,31 @@ export default function TactiquesHierarchyView({
       });
     });
 
+    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
+    if (isSelected) {
+      enrichItemsForSelection('section', sectionId);
+    }
+
     onSelectItems(itemIds, 'section', isSelected);
   };
 
   const handleTactiqueSelect = (tactiqueId: string, isSelected: boolean) => {
+    console.log('🎯 Sélection tactique:', { tactiqueId, isSelected });
+    
+    // 🔥 NOUVEAU: Trouver le sectionId pour cette tactique
+    let sectionId: string | undefined;
+    for (const section of sections) {
+      if (section.tactiques.some(t => t.id === tactiqueId)) {
+        sectionId = section.id;
+        break;
+      }
+    }
+
+    if (!sectionId) {
+      console.error('❌ Section parent non trouvée pour tactique:', tactiqueId);
+      return;
+    }
+
     const itemIds: string[] = [tactiqueId];
     const tactiquePlacements = placements[tactiqueId] || [];
 
@@ -233,10 +250,38 @@ export default function TactiquesHierarchyView({
       });
     });
 
+    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
+    if (isSelected) {
+      enrichItemsForSelection('tactique', tactiqueId, { sectionId });
+    }
+
     onSelectItems(itemIds, 'tactique', isSelected);
   };
 
   const handlePlacementSelect = (placementId: string, isSelected: boolean) => {
+    console.log('🎯 Sélection placement:', { placementId, isSelected });
+    
+    // 🔥 NOUVEAU: Trouver les IDs parents pour ce placement
+    let sectionId: string | undefined;
+    let tactiqueId: string | undefined;
+    
+    for (const section of sections) {
+      for (const tactique of section.tactiques) {
+        const tactiquesPlacements = placements[tactique.id] || [];
+        if (tactiquesPlacements.some(p => p.id === placementId)) {
+          sectionId = section.id;
+          tactiqueId = tactique.id;
+          break;
+        }
+      }
+      if (sectionId && tactiqueId) break;
+    }
+
+    if (!sectionId || !tactiqueId) {
+      console.error('❌ Parents non trouvés pour placement:', placementId);
+      return;
+    }
+
     const itemIds: string[] = [placementId];
     const placementCreatifs = creatifs[placementId] || [];
     
@@ -244,14 +289,130 @@ export default function TactiquesHierarchyView({
       itemIds.push(creatif.id);
     });
 
+    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
+    if (isSelected) {
+      enrichItemsForSelection('placement', placementId, { sectionId, tactiqueId });
+    }
+
     onSelectItems(itemIds, 'placement', isSelected);
   };
 
   const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
+    console.log('🎯 Sélection créatif:', { creatifId, isSelected });
+    
+    // 🔥 NOUVEAU: Trouver les IDs parents pour ce créatif
+    let sectionId: string | undefined;
+    let tactiqueId: string | undefined;
+    let placementId: string | undefined;
+    
+    for (const section of sections) {
+      for (const tactique of section.tactiques) {
+        const tactiquesPlacements = placements[tactique.id] || [];
+        for (const placement of tactiquesPlacements) {
+          const placementCreatifs = creatifs[placement.id] || [];
+          if (placementCreatifs.some(c => c.id === creatifId)) {
+            sectionId = section.id;
+            tactiqueId = tactique.id;
+            placementId = placement.id;
+            break;
+          }
+        }
+        if (placementId) break;
+      }
+      if (placementId) break;
+    }
+
+    if (!sectionId || !tactiqueId || !placementId) {
+      console.error('❌ Parents non trouvés pour créatif:', creatifId);
+      return;
+    }
+
+    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
+    if (isSelected) {
+      enrichItemsForSelection('creatif', creatifId, { sectionId, tactiqueId, placementId });
+    }
+
     onSelectItems([creatifId], 'creatif', isSelected);
   };
 
-  // ==================== 🔥 GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ENRICHIS ====================
+  // ==================== 🔥 NOUVELLE FONCTION D'ENRICHISSEMENT ====================
+
+  const enrichItemsForSelection = (
+    itemType: 'section' | 'tactique' | 'placement' | 'creatif',
+    itemId: string,
+    parentIds?: {
+      sectionId?: string;
+      tactiqueId?: string;
+      placementId?: string;
+    }
+  ) => {
+    console.log('🔧 Enrichissement élément pour sélection:', {
+      itemType,
+      itemId,
+      parentIds,
+      context: {
+        selectedCampaignId,
+        selectedVersionId,
+        selectedOngletId
+      }
+    });
+
+    // Créer un nouvel objet enrichi avec les IDs de contexte
+    const enrichedContextIds = {
+      // IDs du contexte de navigation
+      contextCampaignId: selectedCampaignId,
+      contextVersionId: selectedVersionId,
+      contextOngletId: selectedOngletId,
+      // IDs des parents hiérarchiques
+      contextSectionId: parentIds?.sectionId,
+      contextTactiqueId: parentIds?.tactiqueId,
+      contextPlacementId: parentIds?.placementId
+    };
+
+    // Selon le type d'élément, enrichir avec les propriétés attendues par useMoveOperation
+    const enrichmentData: any = { ...enrichedContextIds };
+
+    switch (itemType) {
+      case 'section':
+        // Pour les sections, ajouter les propriétés de mapping Firestore
+        // (pas d'enrichissement spécial nécessaire pour les sections)
+        break;
+        
+      case 'tactique':
+        // Pour les tactiques, ajouter TC_SectionId
+        enrichmentData.TC_SectionId = parentIds?.sectionId;
+        break;
+        
+      case 'placement':
+        // Pour les placements, ajouter PL_TactiqueId et PL_SectionId
+        enrichmentData.PL_TactiqueId = parentIds?.tactiqueId;
+        enrichmentData.PL_SectionId = parentIds?.sectionId;
+        break;
+        
+      case 'creatif':
+        // Pour les créatifs, ajouter CR_PlacementId, CR_TactiqueId et CR_SectionId
+        enrichmentData.CR_PlacementId = parentIds?.placementId;
+        enrichmentData.CR_TactiqueId = parentIds?.tactiqueId;
+        enrichmentData.CR_SectionId = parentIds?.sectionId;
+        break;
+    }
+
+    // 🔥 NOUVEAU: Stocker l'enrichissement dans le DOM pour que useMoveOperation puisse l'utiliser
+    // Utiliser un event custom pour transmettre les données enrichies
+    const enrichmentEvent = new CustomEvent('item-selection-enriched', {
+      detail: {
+        itemId,
+        itemType,
+        enrichmentData
+      }
+    });
+    
+    document.dispatchEvent(enrichmentEvent);
+    
+    console.log('✅ Enrichissement terminé:', enrichmentData);
+  };
+
+  // ==================== GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ====================
 
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif, 
@@ -259,12 +420,10 @@ export default function TactiquesHierarchyView({
     taxonomyType: 'tags' | 'platform' | 'mediaocean',
     position: { x: number; y: number }
   ) => {
-    // 🔥 Trouver les IDs associés à l'item
     let contextSectionId: string | null = null;
     let contextTactiqueId: string | null = null;
     let contextPlacementId: string | null = null;
 
-    // Parcourir la hiérarchie pour trouver les IDs
     for (const section of sections) {
       for (const tactique of section.tactiques) {
         if (itemType === 'placement' && tactique.placements) {
@@ -290,14 +449,6 @@ export default function TactiquesHierarchyView({
       }
       if (contextTactiqueId) break;
     }
-
-    console.log('🔍 Context IDs trouvés:', {
-      sectionId: contextSectionId,
-      tactiqueId: contextTactiqueId,
-      placementId: contextPlacementId,
-      itemType,
-      itemId: item.id
-    });
 
     setTaxonomyMenuState({
       isOpen: true,
@@ -483,14 +634,14 @@ export default function TactiquesHierarchyView({
         </div>
       )}
 
-      {/* 🔥 NOUVEAU: Panel d'actions pour les éléments sélectionnés */}
+      {/* Panel d'actions pour les éléments sélectionnés */}
       {selectedItems.length > 0 && (
         <SelectedActionsPanel
           selectedItems={selectedItems}
           onDuplicateSelected={onDuplicateSelected || (() => {})}
           onDeleteSelected={onDeleteSelected || (() => {})}
           onClearSelection={onClearSelection || (() => {})}
-          onRefresh={onRefresh} // 🔥 NOUVEAU: Callback pour refresh après déplacement
+          onRefresh={onRefresh}
           loading={loading}
         />
       )}
@@ -516,7 +667,7 @@ export default function TactiquesHierarchyView({
                         {...provided.draggableProps}
                         className={`${snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''}`}
                       >
-                        {/* Section header harmonisé */}
+                        {/* Section header */}
                         <div 
                           className="relative"
                           onMouseEnter={() => setHoveredSection(section.id)}
@@ -549,7 +700,6 @@ export default function TactiquesHierarchyView({
                               
                               <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
                               
-                              {/* Badge tactiques discret - niveau en dessous */}
                               {section.tactiques.length > 0 && (
                                 <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                                   {section.tactiques.length}
@@ -571,7 +721,6 @@ export default function TactiquesHierarchyView({
                             </div>
                             
                             <div className="flex items-center space-x-4">
-                              {/* Actions fixes pour éviter le décalage */}
                               <div className="relative min-w-[24px] h-6">
                                 {hoveredSection === section.id && (
                                   <div className="absolute right-0 top-0 flex items-center">
@@ -603,7 +752,7 @@ export default function TactiquesHierarchyView({
                           </div>
                         </div>
 
-                        {/* Rendu des tactiques - fond blanc uniforme */}
+                        {/* Rendu des tactiques */}
                         {section.isExpanded && (
                           <div className="bg-white">
                             {section.tactiques.length === 0 ? (
@@ -694,7 +843,7 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveCreatif}
       />
 
-      {/* 🔥 Menu contextuel pour les taxonomies avec tous les IDs */}
+      {/* Menu contextuel pour les taxonomies */}
       {selectedClient && taxonomyMenuState.isOpen && (
         <TaxonomyContextMenu
           isOpen={taxonomyMenuState.isOpen}
@@ -704,7 +853,6 @@ export default function TactiquesHierarchyView({
           itemType={taxonomyMenuState.itemType!}
           taxonomyType={taxonomyMenuState.taxonomyType!}
           clientId={selectedClient.clientId}
-          // 🔥 IDs pour le refresh
           campaignId={selectedCampaignId || undefined}
           versionId={selectedVersionId || undefined}
           ongletId={selectedOngletId || undefined}
