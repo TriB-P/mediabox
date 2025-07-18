@@ -1,4 +1,4 @@
-// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - AVEC PROPS TAXONOMYCONTEXTMENU CORRIGÉES
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - AVEC INTÉGRATION DÉPLACEMENT COMPLÈTE
 
 'use client';
 
@@ -21,6 +21,7 @@ import TactiqueDrawer from '../../Tactiques/TactiqueDrawer';
 import PlacementDrawer from '../../Placement/PlacementDrawer';
 import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
+import SelectedActionsPanel from '../../SelectedActionsPanel'; // 🔥 NOUVEAU: Import du panel d'actions
 import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -50,6 +51,12 @@ interface TactiquesHierarchyViewProps {
     type: 'section' | 'tactique' | 'placement' | 'creatif',
     isSelected: boolean
   ) => void;
+  // 🔥 NOUVELLES PROPS pour les actions de sélection
+  onDuplicateSelected?: (itemIds: string[]) => void;
+  onDeleteSelected?: (itemIds: string[]) => void;
+  onClearSelection?: () => void;
+  selectedItems?: (SectionWithTactiques | Tactique | Placement | Creatif)[]; // 🔥 NOUVEAU: Éléments sélectionnés
+  loading?: boolean;
 }
 
 export default function TactiquesHierarchyView({
@@ -71,13 +78,19 @@ export default function TactiquesHierarchyView({
   formatCurrency,
   totalBudget,
   onRefresh,
-  onSelectItems
+  onSelectItems,
+  // 🔥 NOUVELLES PROPS déstructurées
+  onDuplicateSelected,
+  onDeleteSelected,
+  onClearSelection,
+  selectedItems = [],
+  loading = false
 }: TactiquesHierarchyViewProps) {
 
   // Hook pour récupérer le client sélectionné
   const { selectedClient } = useClient();
   
-  // 🔥 NOUVEAU: Hook pour récupérer les IDs de sélection
+  // 🔥 Hook pour récupérer les IDs de sélection
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
   // ==================== HOOK DRAG AND DROP ====================
@@ -143,7 +156,7 @@ export default function TactiquesHierarchyView({
     mode: 'create'
   });
 
-  // ==================== 🔥 NOUVEAU: ÉTAT DU MENU CONTEXTUEL TAXONOMIES ENRICHI ====================
+  // ==================== 🔥 ÉTAT DU MENU CONTEXTUEL TAXONOMIES ENRICHI ====================
 
   const [taxonomyMenuState, setTaxonomyMenuState] = useState<{
     isOpen: boolean;
@@ -151,7 +164,7 @@ export default function TactiquesHierarchyView({
     itemType: 'placement' | 'creatif' | null;
     taxonomyType: 'tags' | 'platform' | 'mediaocean' | null;
     position: { x: number; y: number };
-    // 🔥 NOUVEAU: IDs pour le refresh
+    // 🔥 IDs pour le refresh
     sectionId: string | null;
     tactiqueId: string | null;
     placementId: string | null; // Pour les créatifs
@@ -238,7 +251,7 @@ export default function TactiquesHierarchyView({
     onSelectItems([creatifId], 'creatif', isSelected);
   };
 
-  // ==================== 🔥 NOUVEAU: GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ENRICHIS ====================
+  // ==================== 🔥 GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ENRICHIS ====================
 
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif, 
@@ -246,7 +259,7 @@ export default function TactiquesHierarchyView({
     taxonomyType: 'tags' | 'platform' | 'mediaocean',
     position: { x: number; y: number }
   ) => {
-    // 🔥 NOUVEAU: Trouver les IDs associés à l'item
+    // 🔥 Trouver les IDs associés à l'item
     let contextSectionId: string | null = null;
     let contextTactiqueId: string | null = null;
     let contextPlacementId: string | null = null;
@@ -470,6 +483,18 @@ export default function TactiquesHierarchyView({
         </div>
       )}
 
+      {/* 🔥 NOUVEAU: Panel d'actions pour les éléments sélectionnés */}
+      {selectedItems.length > 0 && (
+        <SelectedActionsPanel
+          selectedItems={selectedItems}
+          onDuplicateSelected={onDuplicateSelected || (() => {})}
+          onDeleteSelected={onDeleteSelected || (() => {})}
+          onClearSelection={onClearSelection || (() => {})}
+          onRefresh={onRefresh} // 🔥 NOUVEAU: Callback pour refresh après déplacement
+          loading={loading}
+        />
+      )}
+
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <Droppable droppableId="sections" type="SECTION">
@@ -669,7 +694,7 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveCreatif}
       />
 
-      {/* 🔥 NOUVEAU: Menu contextuel pour les taxonomies avec tous les IDs */}
+      {/* 🔥 Menu contextuel pour les taxonomies avec tous les IDs */}
       {selectedClient && taxonomyMenuState.isOpen && (
         <TaxonomyContextMenu
           isOpen={taxonomyMenuState.isOpen}
@@ -679,7 +704,7 @@ export default function TactiquesHierarchyView({
           itemType={taxonomyMenuState.itemType!}
           taxonomyType={taxonomyMenuState.taxonomyType!}
           clientId={selectedClient.clientId}
-          // 🔥 NOUVEAU: IDs pour le refresh
+          // 🔥 IDs pour le refresh
           campaignId={selectedCampaignId || undefined}
           versionId={selectedVersionId || undefined}
           ongletId={selectedOngletId || undefined}
