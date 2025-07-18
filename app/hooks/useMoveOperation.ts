@@ -1,4 +1,4 @@
-// app/hooks/useMoveOperation.ts - VERSION CORRIGÉE AVEC RÉCUPÉRATION CONTEXTE HIÉRARCHIQUE
+// app/hooks/useMoveOperation.ts - VERSION CORRIGÉE AVEC GESTION HIÉRARCHIQUE AUTOMATIQUE
 
 import { useCallback, useMemo, useEffect, useState } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -32,6 +32,19 @@ interface HierarchyContextMap {
     tactiqueId?: string;
     placementId?: string;
   };
+}
+
+// ==================== 🔥 NOUVEAU: INTERFACE POUR LES RELATIONS HIÉRARCHIQUES ====================
+
+interface HierarchyRelations {
+  // Map: parentId -> enfantIds[]
+  children: { [parentId: string]: string[] };
+  // Map: enfantId -> parentId
+  parents: { [childId: string]: string };
+  // Map: itemId -> itemType
+  itemTypes: { [itemId: string]: MoveItemType };
+  // Map: itemId -> item data
+  itemData: { [itemId: string]: Section | Tactique | Placement | Creatif };
 }
 
 // ==================== HELPERS POUR DÉTECTER LES TYPES ====================
@@ -78,11 +91,180 @@ function getItemDisplayName(item: any, type: MoveItemType): string {
   }
 }
 
+// ==================== 🔥 NOUVEAU: HELPERS POUR ANALYSER LA HIÉRARCHIE ====================
+
+function buildHierarchyRelations(
+  hierarchyContext?: {
+    sections?: any[];
+    tactiques?: { [sectionId: string]: any[] };
+    placements?: { [tactiqueId: string]: any[] };
+    creatifs?: { [placementId: string]: any[] };
+  }
+): HierarchyRelations {
+  const relations: HierarchyRelations = {
+    children: {},
+    parents: {},
+    itemTypes: {},
+    itemData: {}
+  };
+
+  if (!hierarchyContext) return relations;
+
+  const { sections = [], tactiques = {}, placements = {}, creatifs = {} } = hierarchyContext;
+
+  // Parcourir toute la hiérarchie pour construire les relations
+  sections.forEach(section => {
+    relations.itemTypes[section.id] = 'section';
+    relations.itemData[section.id] = section;
+    relations.children[section.id] = [];
+
+    // Tactiques de cette section
+    const sectionTactiques = tactiques[section.id] || [];
+    sectionTactiques.forEach(tactique => {
+      relations.itemTypes[tactique.id] = 'tactique';
+      relations.itemData[tactique.id] = tactique;
+      relations.parents[tactique.id] = section.id;
+      relations.children[section.id].push(tactique.id);
+      relations.children[tactique.id] = [];
+
+      // Placements de cette tactique
+      const tactiquePlacements = placements[tactique.id] || [];
+      tactiquePlacements.forEach(placement => {
+        relations.itemTypes[placement.id] = 'placement';
+        relations.itemData[placement.id] = placement;
+        relations.parents[placement.id] = tactique.id;
+        relations.children[tactique.id].push(placement.id);
+        relations.children[placement.id] = [];
+
+        // Créatifs de ce placement
+        const placementCreatifs = creatifs[placement.id] || [];
+        placementCreatifs.forEach(creatif => {
+          relations.itemTypes[creatif.id] = 'creatif';
+          relations.itemData[creatif.id] = creatif;
+          relations.parents[creatif.id] = placement.id;
+          relations.children[placement.id].push(creatif.id);
+        });
+      });
+    });
+  });
+
+  console.log('🏗️ Relations hiérarchiques construites:', {
+    totalItems: Object.keys(relations.itemTypes).length,
+    sampleChildren: Object.fromEntries(
+      Object.entries(relations.children).slice(0, 3).map(([k, v]) => [k, v.length])
+    )
+  });
+
+  return relations;
+}
+
+function findRootElements(selectedItemIds: string[], relations: HierarchyRelations): string[] {
+  const selectedSet = new Set(selectedItemIds);
+  const rootElements: string[] = [];
+
+  console.log('🔍 Recherche des éléments racines dans la sélection:', selectedItemIds);
+
+  for (const itemId of selectedItemIds) {
+    const parentId = relations.parents[itemId];
+    
+    // Si l'élément n'a pas de parent OU si son parent n'est pas sélectionné,
+    // alors c'est un élément racine
+    if (!parentId || !selectedSet.has(parentId)) {
+      rootElements.push(itemId);
+      console.log(`📌 Élément racine trouvé: ${itemId} (parent: ${parentId || 'aucun'})`);
+    } else {
+      console.log(`🔗 Élément enfant: ${itemId} -> parent: ${parentId}`);
+    }
+  }
+
+  console.log('✅ Éléments racines identifiés:', rootElements);
+  return rootElements;
+}
+
+function getAllDescendants(itemId: string, relations: HierarchyRelations): string[] {
+  const descendants: string[] = [];
+  const queue = [itemId];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const children = relations.children[currentId] || [];
+    descendants.push(...children);
+    queue.push(...children);
+  }
+
+  return descendants;
+}
+
+// ==================== 🔥 NOUVEAU: VALIDATION D'INTÉGRITÉ HIÉRARCHIQUE ====================
+
+function validateHierarchicalIntegrity(
+  selectedItemIds: string[], 
+  relations: HierarchyRelations
+): { isValid: boolean; errorMessage?: string } {
+  const selectedSet = new Set(selectedItemIds);
+  
+  console.log('🔍 Validation d\'intégrité hiérarchique pour:', selectedItemIds.length, 'éléments');
+
+  // Pour chaque élément sélectionné, vérifier que :
+  // 1. Si ses enfants directs existent, ils doivent TOUS être sélectionnés
+  // 2. OU aucun de ses enfants directs ne doit être sélectionné
+  
+  for (const itemId of selectedItemIds) {
+    const directChildren = relations.children[itemId] || [];
+    
+    if (directChildren.length === 0) {
+      // Pas d'enfants, pas de problème
+      continue;
+    }
+
+    // Compter combien d'enfants directs sont sélectionnés
+    const selectedChildren = directChildren.filter(childId => selectedSet.has(childId));
+    
+    console.log(`🔍 Élément ${itemId}:`, {
+      totalChildren: directChildren.length,
+      selectedChildren: selectedChildren.length,
+      children: directChildren,
+      selected: selectedChildren
+    });
+
+    // Si quelques enfants sont sélectionnés mais pas tous
+    if (selectedChildren.length > 0 && selectedChildren.length < directChildren.length) {
+      const itemType = relations.itemTypes[itemId];
+      const itemData = relations.itemData[itemId] as any;
+      const itemName = getItemDisplayName(itemData, itemType);
+      
+      const missingChildren = directChildren.filter(childId => !selectedSet.has(childId));
+      const missingChildrenNames = missingChildren.map(childId => {
+        const childType = relations.itemTypes[childId];
+        const childData = relations.itemData[childId];
+        return getItemDisplayName(childData, childType);
+      });
+
+      const errorMessage = `Impossible de déplacer "${itemName}" car ${selectedChildren.length} de ses ${directChildren.length} enfants sont sélectionnés. ` +
+        `Tous les enfants doivent être inclus dans le déplacement. Enfants manquants : ${missingChildrenNames.join(', ')}`;
+      
+      console.log('❌ Intégrité hiérarchique violée:', errorMessage);
+      
+      return {
+        isValid: false,
+        errorMessage
+      };
+    }
+  }
+
+  console.log('✅ Intégrité hiérarchique validée');
+  return { isValid: true };
+}
+
 // ==================== HOOK PRINCIPAL ====================
 
 export function useMoveOperation(
   onRefreshCallback?: () => Promise<void>,
-  // 🔥 NOUVEAU: Ajouter des informations de contexte hiérarchique
   hierarchyContext?: {
     sections?: any[];
     tactiques?: { [sectionId: string]: any[] };
@@ -110,11 +292,23 @@ export function useMoveOperation(
   // ==================== 🔥 NOUVEAU: CARTE DU CONTEXTE HIÉRARCHIQUE ====================
 
   const [hierarchyContextMap, setHierarchyContextMap] = useState<HierarchyContextMap>({});
+  const [hierarchyRelations, setHierarchyRelations] = useState<HierarchyRelations>({
+    children: {},
+    parents: {},
+    itemTypes: {},
+    itemData: {}
+  });
 
   // Construire la carte de contexte hiérarchique depuis les données fournies
   useEffect(() => {
     if (!hierarchyContext || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       setHierarchyContextMap({});
+      setHierarchyRelations({
+        children: {},
+        parents: {},
+        itemTypes: {},
+        itemData: {}
+      });
       return;
     }
 
@@ -176,12 +370,16 @@ export function useMoveOperation(
     console.log('✅ Carte de contexte construite:', Object.keys(contextMap).length, 'éléments');
     setHierarchyContextMap(contextMap);
 
+    // Construire aussi les relations hiérarchiques
+    const relations = buildHierarchyRelations(hierarchyContext);
+    setHierarchyRelations(relations);
+
   }, [hierarchyContext, selectedCampaignId, selectedVersionId, selectedOngletId]);
 
-  // ==================== 🔥 ANALYSE DE SÉLECTION CORRIGÉE ====================
+  // ==================== 🔥 ANALYSE DE SÉLECTION CORRIGÉE AVEC GESTION HIÉRARCHIQUE ====================
 
   const analyzeSelection = useCallback((selectedItems: any[]): SelectionAnalysis => {
-    console.log('🔍 Analyse de sélection démarrée avec:', selectedItems);
+    console.log('🔍 Analyse de sélection hiérarchique démarrée avec:', selectedItems);
 
     if (!selectedItems || selectedItems.length === 0) {
       return {
@@ -201,7 +399,8 @@ export function useMoveOperation(
       selectedVersionId,
       selectedOngletId,
       hasClient: !!selectedClient?.clientId,
-      hierarchyContextMapSize: Object.keys(hierarchyContextMap).length
+      hierarchyContextMapSize: Object.keys(hierarchyContextMap).length,
+      hierarchyRelationsSize: Object.keys(hierarchyRelations.itemTypes).length
     });
 
     if (!selectedCampaignId || !selectedVersionId || !selectedOngletId) {
@@ -218,8 +417,9 @@ export function useMoveOperation(
     }
 
     try {
-      const convertedElements: SelectedItemWithSource[] = [];
-      const itemTypes = new Set<MoveItemType>();
+      // 🔥 ÉTAPE 1: Identifier les éléments sélectionnés et leurs types
+      const selectedItemIds: string[] = [];
+      const itemTypesDetected = new Set<MoveItemType>();
 
       for (const item of selectedItems) {
         const itemType = detectItemType(item);
@@ -228,130 +428,11 @@ export function useMoveOperation(
           continue;
         }
 
-        itemTypes.add(itemType);
-
-        // 🔥 NOUVEAU: Récupérer le contexte depuis la carte hiérarchique
-        const itemContext = hierarchyContextMap[item.id];
-        
-        console.log(`🔧 Construction parentPath pour ${itemType} ${item.id}:`, {
-          itemContext,
-          hierarchyContextMapHasItem: !!itemContext
-        });
-
-        let parentPath: string[] = [];
-
-        if (itemContext) {
-          // Utiliser le contexte de la carte hiérarchique
-          console.log('✅ Utilisation du contexte hiérarchique:', itemContext);
-          parentPath = buildParentPath(itemType, {
-            campaignId: itemContext.campaignId,
-            versionId: itemContext.versionId,
-            ongletId: itemContext.ongletId,
-            sectionId: itemContext.sectionId,
-            tactiqueId: itemContext.tactiqueId,
-            placementId: itemContext.placementId
-          });
-        } else {
-          // 🔥 FALLBACK: Essayer de construire depuis les propriétés de l'item
-          console.log('⚠️ Fallback: construction depuis propriétés item');
-          
-          switch (itemType) {
-            case 'section':
-              parentPath = buildParentPath('section', {
-                campaignId: selectedCampaignId,
-                versionId: selectedVersionId,
-                ongletId: selectedOngletId
-              });
-              break;
-
-            case 'tactique':
-              const sectionIdForTactique = item.TC_SectionId || 
-                item.contextSectionId || 
-                item.sectionId;
-              
-              if (sectionIdForTactique) {
-                parentPath = buildParentPath('tactique', {
-                  campaignId: selectedCampaignId,
-                  versionId: selectedVersionId,
-                  ongletId: selectedOngletId,
-                  sectionId: sectionIdForTactique
-                });
-              }
-              break;
-
-            case 'placement':
-              const tactiqueIdForPlacement = item.PL_TactiqueId || 
-                item.contextTactiqueId || 
-                item.tactiqueId;
-              const sectionIdForPlacement = item.PL_SectionId || 
-                item.contextSectionId || 
-                item.sectionId;
-              
-              if (tactiqueIdForPlacement && sectionIdForPlacement) {
-                parentPath = buildParentPath('placement', {
-                  campaignId: selectedCampaignId,
-                  versionId: selectedVersionId,
-                  ongletId: selectedOngletId,
-                  sectionId: sectionIdForPlacement,
-                  tactiqueId: tactiqueIdForPlacement
-                });
-              }
-              break;
-
-            case 'creatif':
-              const placementIdForCreatif = item.CR_PlacementId || 
-                item.contextPlacementId || 
-                item.placementId;
-              const tactiqueIdForCreatif = item.CR_TactiqueId || 
-                item.contextTactiqueId || 
-                item.tactiqueId;
-              const sectionIdForCreatif = item.CR_SectionId || 
-                item.contextSectionId || 
-                item.sectionId;
-              
-              if (placementIdForCreatif && tactiqueIdForCreatif && sectionIdForCreatif) {
-                parentPath = buildParentPath('creatif', {
-                  campaignId: selectedCampaignId,
-                  versionId: selectedVersionId,
-                  ongletId: selectedOngletId,
-                  sectionId: sectionIdForCreatif,
-                  tactiqueId: tactiqueIdForCreatif,
-                  placementId: placementIdForCreatif
-                });
-              }
-              break;
-          }
-        }
-
-        if (parentPath.length === 0) {
-          console.error('❌ ParentPath vide pour:', {
-            itemType,
-            itemId: item.id,
-            itemContext,
-            selectedCampaignId,
-            selectedVersionId,
-            selectedOngletId
-          });
-          continue;
-        }
-
-        console.log(`✅ Élément ${itemType} converti:`, {
-          id: item.id,
-          name: getItemDisplayName(item, itemType),
-          parentPath
-        });
-
-        convertedElements.push({
-          id: item.id,
-          type: itemType,
-          selectionSource: 'direct',
-          parentPath,
-          item: item as Section | Tactique | Placement | Creatif
-        });
+        selectedItemIds.push(item.id);
+        itemTypesDetected.add(itemType);
       }
 
-      // Validation des éléments convertis
-      if (convertedElements.length === 0) {
+      if (selectedItemIds.length === 0) {
         return {
           isValid: false,
           canMove: false,
@@ -364,26 +445,139 @@ export function useMoveOperation(
         };
       }
 
-      // Vérifier que tous les éléments sont du même type
-      if (itemTypes.size > 1) {
+      console.log('📊 Éléments sélectionnés analysés:', {
+        totalSelected: selectedItemIds.length,
+        typesDetected: Array.from(itemTypesDetected)
+      });
+
+      // 🔥 ÉTAPE 2: Identifier les éléments racines (ceux qui ne sont pas enfants d'autres éléments sélectionnés)
+      const rootElementIds = findRootElements(selectedItemIds, hierarchyRelations);
+
+      if (rootElementIds.length === 0) {
         return {
           isValid: false,
           canMove: false,
-          rootElements: convertedElements,
-          allElements: convertedElements,
+          rootElements: [],
+          allElements: [],
           moveLevel: 'section',
           targetLevel: 'onglet',
-          totalItemsToMove: convertedElements.length,
-          errorMessage: `Impossible de déplacer des éléments de types différents (${Array.from(itemTypes).join(', ')})`
+          totalItemsToMove: 0,
+          errorMessage: 'Aucun élément racine identifié dans la sélection'
         };
       }
 
-      const moveLevel = Array.from(itemTypes)[0];
+      // 🔥 NOUVEAU: ÉTAPE 2.5: Vérifier l'intégrité hiérarchique (pas d'enfants orphelins)
+      const integrityCheck = validateHierarchicalIntegrity(selectedItemIds, hierarchyRelations);
+      if (!integrityCheck.isValid) {
+        return {
+          isValid: false,
+          canMove: false,
+          rootElements: [],
+          allElements: [],
+          moveLevel: 'section',
+          targetLevel: 'onglet',
+          totalItemsToMove: 0,
+          errorMessage: integrityCheck.errorMessage
+        };
+      }
+
+      // 🔥 ÉTAPE 3: Vérifier que tous les éléments racines sont du même type
+      const rootElementTypes = new Set<MoveItemType>();
+      rootElementIds.forEach(id => {
+        const type = hierarchyRelations.itemTypes[id];
+        if (type) rootElementTypes.add(type);
+      });
+
+      if (rootElementTypes.size > 1) {
+        return {
+          isValid: false,
+          canMove: false,
+          rootElements: [],
+          allElements: [],
+          moveLevel: 'section',
+          targetLevel: 'onglet',
+          totalItemsToMove: 0,
+          errorMessage: `Impossible de déplacer des éléments racines de types différents (${Array.from(rootElementTypes).join(', ')})`
+        };
+      }
+
+      const moveLevel = Array.from(rootElementTypes)[0];
       const targetLevel = MOVE_LEVEL_HIERARCHY[moveLevel];
 
+      // 🔥 ÉTAPE 4: Construire la liste complète des éléments à déplacer (racines + enfants)
+      const allElementsToMove = new Set<string>();
+
+      for (const rootId of rootElementIds) {
+        // Ajouter l'élément racine
+        allElementsToMove.add(rootId);
+        
+        // Ajouter tous ses descendants
+        const descendants = getAllDescendants(rootId, hierarchyRelations);
+        descendants.forEach(id => allElementsToMove.add(id));
+      }
+
+      console.log('📦 Analyse complète des éléments à déplacer:', {
+        rootElements: rootElementIds.length,
+        totalElements: allElementsToMove.size,
+        moveLevel,
+        targetLevel
+      });
+
+      // 🔥 ÉTAPE 5: Construire les objets SelectedItemWithSource pour tous les éléments
+      const convertedRootElements: SelectedItemWithSource[] = [];
+      const convertedAllElements: SelectedItemWithSource[] = [];
+
+      for (const itemId of allElementsToMove) {
+        const itemType = hierarchyRelations.itemTypes[itemId];
+        const itemData = hierarchyRelations.itemData[itemId];
+        
+        if (!itemType || !itemData) {
+          console.warn('Données manquantes pour élément:', itemId);
+          continue;
+        }
+
+        // Récupérer le contexte depuis la carte hiérarchique
+        const itemContext = hierarchyContextMap[itemId];
+        let parentPath: string[] = [];
+
+        if (itemContext) {
+          parentPath = buildParentPath(itemType, {
+            campaignId: itemContext.campaignId,
+            versionId: itemContext.versionId,
+            ongletId: itemContext.ongletId,
+            sectionId: itemContext.sectionId,
+            tactiqueId: itemContext.tactiqueId,
+            placementId: itemContext.placementId
+          });
+        }
+
+        if (parentPath.length === 0) {
+          console.error('❌ ParentPath vide pour:', {
+            itemType,
+            itemId,
+            itemContext
+          });
+          continue;
+        }
+
+        const convertedElement: SelectedItemWithSource = {
+          id: itemId,
+          type: itemType,
+          selectionSource: rootElementIds.includes(itemId) ? 'direct' : 'automatic',
+          parentPath,
+          item: itemData as Section | Tactique | Placement | Creatif
+        };
+
+        convertedAllElements.push(convertedElement);
+        
+        if (rootElementIds.includes(itemId)) {
+          convertedRootElements.push(convertedElement);
+        }
+      }
+
       console.log('✅ Analyse terminée avec succès:', {
-        rootElements: convertedElements.length,
-        totalElements: convertedElements.length,
+        rootElements: convertedRootElements.length,
+        totalElements: convertedAllElements.length,
         moveLevel,
         targetLevel
       });
@@ -391,11 +585,11 @@ export function useMoveOperation(
       return {
         isValid: true,
         canMove: true,
-        rootElements: convertedElements,
-        allElements: convertedElements,
+        rootElements: convertedRootElements,
+        allElements: convertedAllElements,
         moveLevel,
         targetLevel,
-        totalItemsToMove: convertedElements.length
+        totalItemsToMove: convertedAllElements.length
       };
 
     } catch (error) {
@@ -411,7 +605,7 @@ export function useMoveOperation(
         errorMessage: `Erreur d'analyse: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
       };
     }
-  }, [selectedCampaignId, selectedVersionId, selectedOngletId, hierarchyContextMap]);
+  }, [selectedCampaignId, selectedVersionId, selectedOngletId, hierarchyContextMap, hierarchyRelations]);
 
   // ==================== FONCTIONS UTILITAIRES ====================
 
@@ -424,14 +618,28 @@ export function useMoveOperation(
     const analysis = analyzeSelection(selectedItems);
     
     if (!analysis.canMove) {
-      return analysis.errorMessage || 'Sélection invalide';
+      // Messages d'erreur plus explicites selon le contexte
+      if (analysis.errorMessage?.includes('enfants sont sélectionnés')) {
+        return 'Sélection incomplète (enfants manquants)';
+      } else if (analysis.errorMessage?.includes('types différents')) {
+        return 'Types d\'éléments incompatibles';
+      } else if (analysis.errorMessage?.includes('Contexte manquant')) {
+        return 'Contexte requis manquant';
+      } else {
+        return analysis.errorMessage || 'Sélection invalide';
+      }
     }
 
     const rootCount = analysis.rootElements.length;
+    const totalCount = analysis.totalItemsToMove;
     const itemLabel = MOVE_LEVEL_LABELS[analysis.moveLevel];
     const targetLabel = TARGET_LEVEL_LABELS[analysis.targetLevel];
     
-    return `Déplacer ${rootCount} ${itemLabel} vers ${targetLabel}`;
+    if (totalCount > rootCount) {
+      return `Déplacer ${rootCount} ${itemLabel} (${totalCount} éléments au total) vers ${targetLabel}`;
+    } else {
+      return `Déplacer ${rootCount} ${itemLabel} vers ${targetLabel}`;
+    }
   }, [analyzeSelection]);
 
   // ==================== GESTION DU MODAL ====================
@@ -545,16 +753,20 @@ export function useMoveOperation(
         throw new Error(validation.errors.join(', '));
       }
 
-      // Construire l'opération de déplacement
+      // 🔥 NOUVEAU: Utiliser TOUS les éléments (racines + enfants) pour l'opération
       const operation: MoveOperation = {
-        sourceItems: modalState.selection.rootElements,
+        sourceItems: modalState.selection.allElements, // CHANGEMENT: utiliser allElements au lieu de rootElements
         destination: modalState.destination as MoveDestination,
         operationType: modalState.selection.moveLevel,
         totalItemsAffected: modalState.selection.totalItemsToMove,
         clientId: selectedClient.clientId
       };
 
-      console.log('📦 Opération de déplacement:', operation);
+      console.log('📦 Opération de déplacement avec hiérarchie complète:', {
+        rootElements: modalState.selection.rootElements.length,
+        totalElements: modalState.selection.allElements.length,
+        operation
+      });
 
       // Exécuter le déplacement
       const result = await moveItems(operation);

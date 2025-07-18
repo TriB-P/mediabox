@@ -203,7 +203,7 @@ export default function SelectedActionsPanel({
               title={canMove ? moveButtonLabel : 'Sélection invalide pour le déplacement'}
             >
               <ArrowRightIcon className="h-4 w-4 mr-1.5" />
-              {canMove ? 'Déplacer' : 'Déplacement non disponible'}
+              {canMove ? 'Déplacer' : 'Déplacer'}
             </button>
 
             {/* Bouton de duplication */}

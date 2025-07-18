@@ -1,4 +1,4 @@
-// app/lib/moveService.ts - VERSION CORRIGÉE AVEC CHEMINS FIXES
+// app/lib/moveService.ts - VERSION CORRIGÉE AVEC GESTION HIÉRARCHIQUE AUTOMATIQUE
 
 import {
     collection,
@@ -17,9 +17,18 @@ import {
     SelectedItemWithSource,
     MoveValidationResult,
     ORDER_FIELDS,
-    extractIdsFromParentPath
+    extractIdsFromParentPath,
+    MoveItemType
   } from '../types/move';
   import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
+  
+  // ==================== 🔥 NOUVEAU: STRUCTURE POUR GÉRER LA HIÉRARCHIE ====================
+  
+  interface HierarchicalMoveItem {
+    element: SelectedItemWithSource;
+    children: HierarchicalMoveItem[];
+    order: number; // Ordre de traitement (enfants d'abord)
+  }
   
   // ==================== VALIDATION DE DESTINATION ====================
   
@@ -132,12 +141,179 @@ import {
     }
   }
   
+  // ==================== 🔥 NOUVEAU: FONCTIONS POUR RÉCUPÉRER LES ENFANTS ====================
+  
+  async function getAllChildrenFromFirestore(
+    clientId: string,
+    element: SelectedItemWithSource
+  ): Promise<SelectedItemWithSource[]> {
+    const children: SelectedItemWithSource[] = [];
+    const sourceIds = extractIdsFromParentPath(element.type, element.parentPath);
+  
+    console.log(`🔍 Récupération des enfants pour ${element.type} ${element.id}`);
+  
+    try {
+      switch (element.type) {
+        case 'section':
+          // Récupérer les tactiques
+          const tactiquesRef = collection(
+            db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+            'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+            'sections', element.id, 'tactiques'
+          );
+          const tactiquesSnap = await getDocs(query(tactiquesRef, orderBy('TC_Order', 'asc')));
+          
+          for (const tactiqueDoc of tactiquesSnap.docs) {
+            const tactiqueData = tactiqueDoc.data() as Tactique;
+            const tactiqueWithId = { ...tactiqueData, id: tactiqueDoc.id };
+            
+            const tactiqueElement: SelectedItemWithSource = {
+              id: tactiqueDoc.id,
+              type: 'tactique',
+              selectionSource: 'automatic',
+              parentPath: [element.id, sourceIds.campaignId, sourceIds.versionId, sourceIds.ongletId],
+              item: tactiqueWithId
+            };
+            
+            children.push(tactiqueElement);
+            
+            // Récupérer récursivement les enfants de cette tactique
+            const tactiqueChildren = await getAllChildrenFromFirestore(clientId, tactiqueElement);
+            children.push(...tactiqueChildren);
+          }
+          break;
+  
+        case 'tactique':
+          // Récupérer les placements
+          const placementsRef = collection(
+            db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+            'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+            'sections', sourceIds.sectionId!, 'tactiques', element.id, 'placements'
+          );
+          const placementsSnap = await getDocs(query(placementsRef, orderBy('PL_Order', 'asc')));
+          
+          for (const placementDoc of placementsSnap.docs) {
+            const placementData = placementDoc.data() as Placement;
+            const placementWithId = { ...placementData, id: placementDoc.id };
+            
+            const placementElement: SelectedItemWithSource = {
+              id: placementDoc.id,
+              type: 'placement',
+              selectionSource: 'automatic',
+              parentPath: [element.id, sourceIds.sectionId!, sourceIds.campaignId, sourceIds.versionId, sourceIds.ongletId],
+              item: placementWithId
+            };
+            
+            children.push(placementElement);
+            
+            // Récupérer récursivement les enfants de ce placement
+            const placementChildren = await getAllChildrenFromFirestore(clientId, placementElement);
+            children.push(...placementChildren);
+          }
+          break;
+  
+        case 'placement':
+          // Récupérer les créatifs
+          const creatifsRef = collection(
+            db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+            'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+            'sections', sourceIds.sectionId!, 'tactiques', sourceIds.tactiqueId!,
+            'placements', element.id, 'creatifs'
+          );
+          const creatifsSnap = await getDocs(query(creatifsRef, orderBy('CR_Order', 'asc')));
+          
+          for (const creatifDoc of creatifsSnap.docs) {
+            const creatifData = creatifDoc.data() as Creatif;
+            const creatifWithId = { ...creatifData, id: creatifDoc.id };
+            
+            const creatifElement: SelectedItemWithSource = {
+              id: creatifDoc.id,
+              type: 'creatif',
+              selectionSource: 'automatic',
+              parentPath: [element.id, sourceIds.tactiqueId!, sourceIds.sectionId!, sourceIds.campaignId, sourceIds.versionId, sourceIds.ongletId],
+              item: creatifWithId
+            };
+            
+            children.push(creatifElement);
+          }
+          break;
+  
+        case 'creatif':
+          // Les créatifs n'ont pas d'enfants
+          break;
+      }
+  
+      console.log(`✅ ${children.length} enfants récupérés pour ${element.type} ${element.id}`);
+      return children;
+  
+    } catch (error) {
+      console.error(`❌ Erreur récupération enfants pour ${element.type} ${element.id}:`, error);
+      return [];
+    }
+  }
+  
+  // ==================== 🔥 NOUVEAU: ORGANISATION HIÉRARCHIQUE POUR LE DÉPLACEMENT ====================
+  
+  function organizeHierarchicalMove(elements: SelectedItemWithSource[]): SelectedItemWithSource[] {
+    console.log('🏗️ Organisation hiérarchique pour déplacement de', elements.length, 'éléments');
+    
+    // Grouper par type et trier par ordre de déplacement (enfants en premier)
+    const byType: { [K in MoveItemType]: SelectedItemWithSource[] } = {
+      creatif: [],
+      placement: [],
+      tactique: [],
+      section: []
+    };
+    
+    elements.forEach(element => {
+      byType[element.type].push(element);
+    });
+    
+    // Trier chaque type par ordre (pour maintenir la cohérence)
+    Object.keys(byType).forEach(type => {
+      byType[type as MoveItemType].sort((a, b) => {
+        const aOrder = getElementOrder(a);
+        const bOrder = getElementOrder(b);
+        return aOrder - bOrder;
+      });
+    });
+    
+    // Retourner dans l'ordre: créatifs, puis placements, puis tactiques, puis sections
+    const orderedElements = [
+      ...byType.creatif,
+      ...byType.placement,
+      ...byType.tactique,
+      ...byType.section
+    ];
+    
+    console.log('✅ Organisation terminée:', {
+      creatifs: byType.creatif.length,
+      placements: byType.placement.length,
+      tactiques: byType.tactique.length,
+      sections: byType.section.length,
+      total: orderedElements.length
+    });
+    
+    return orderedElements;
+  }
+  
+  function getElementOrder(element: SelectedItemWithSource): number {
+    const item = element.item as any;
+    switch (element.type) {
+      case 'section': return item.SECTION_Order || 0;
+      case 'tactique': return item.TC_Order || 0;
+      case 'placement': return item.PL_Order || 0;
+      case 'creatif': return item.CR_Order || 0;
+      default: return 0;
+    }
+  }
+  
   // ==================== UTILITAIRES POUR LES ORDRES ====================
   
   async function getNextOrderInDestination(
     clientId: string,
     destination: MoveDestination,
-    itemType: 'section' | 'tactique' | 'placement' | 'creatif'
+    itemType: MoveItemType
   ): Promise<number> {
     let collectionRef;
     const orderField = ORDER_FIELDS[itemType];
@@ -420,10 +596,10 @@ import {
     transaction.delete(oldCreatifRef);
   }
   
-  // ==================== FONCTION PRINCIPALE DE DÉPLACEMENT ====================
+  // ==================== 🔥 FONCTION PRINCIPALE DE DÉPLACEMENT AVEC GESTION HIÉRARCHIQUE ====================
   
   export async function moveItems(operation: MoveOperation): Promise<MoveResult> {
-    console.log('🚀 Début de l\'opération de déplacement', operation);
+    console.log('🚀 Début de l\'opération de déplacement hiérarchique', operation);
   
     const startTime = Date.now();
     let totalMovedCount = 0;
@@ -443,21 +619,71 @@ import {
         };
       }
   
+      // 🔥 NOUVEAU: Récupérer automatiquement tous les enfants manquants
+      console.log('🔍 Récupération automatique des enfants...');
+      const allItemsToMove = new Map<string, SelectedItemWithSource>();
+      
+      // Ajouter tous les éléments existants à la map
+      operation.sourceItems.forEach(item => {
+        allItemsToMove.set(item.id, item);
+      });
+  
+      // Pour chaque élément direct, récupérer ses enfants s'ils ne sont pas déjà présents
+      for (const sourceItem of operation.sourceItems) {
+        if (sourceItem.selectionSource === 'direct') {
+          console.log(`🔍 Récupération enfants pour ${sourceItem.type} ${sourceItem.id}`);
+          const children = await getAllChildrenFromFirestore(operation.clientId, sourceItem);
+          
+          children.forEach(child => {
+            if (!allItemsToMove.has(child.id)) {
+              allItemsToMove.set(child.id, child);
+              console.log(`➕ Enfant ajouté automatiquement: ${child.type} ${child.id}`);
+            }
+          });
+        }
+      }
+  
+      const finalItemsList = Array.from(allItemsToMove.values());
+      console.log(`📦 Liste finale: ${operation.sourceItems.length} → ${finalItemsList.length} éléments`);
+  
+      // 🔥 NOUVEAU: Organiser les éléments dans l'ordre hiérarchique correct
+      const organizedItems = organizeHierarchicalMove(finalItemsList);
+  
       // Exécuter le déplacement dans une transaction
       await runTransaction(db, async (transaction) => {
-        let orderIncrement = 0;
+        // Compteurs d'ordre par type d'élément
+        const orderCounters: { [K in MoveItemType]: number } = {
+          section: 0,
+          tactique: 0,
+          placement: 0,
+          creatif: 0
+        };
         
-        for (const sourceItem of operation.sourceItems) {
+        // Calculer les ordres de base une seule fois
+        const baseOrders: { [K in MoveItemType]: number } = {
+          section: 0,
+          tactique: 0,
+          placement: 0,
+          creatif: 0
+        };
+        
+        // Calculer les ordres de base pour chaque type présent
+        const typesPresent = new Set(organizedItems.map(item => item.type));
+        for (const itemType of typesPresent) {
+          baseOrders[itemType] = await getNextOrderInDestination(
+            operation.clientId,
+            operation.destination,
+            itemType
+          );
+        }
+        
+        for (const sourceItem of organizedItems) {
           try {
             console.log(`📦 Traitement item ${sourceItem.type}:`, sourceItem.id);
             
             // Calculer le nouvel ordre
-            const baseOrder = await getNextOrderInDestination(
-              operation.clientId,
-              operation.destination,
-              sourceItem.type
-            );
-            const newOrder = baseOrder + orderIncrement;
+            const newOrder = baseOrders[sourceItem.type] + orderCounters[sourceItem.type];
+            orderCounters[sourceItem.type]++;
             
             // Déplacer selon le type
             switch (sourceItem.type) {
@@ -478,7 +704,6 @@ import {
             }
             
             totalMovedCount++;
-            orderIncrement++;
             
           } catch (itemError) {
             console.error(`❌ Erreur déplacement ${sourceItem.type} ${sourceItem.id}:`, itemError);
@@ -488,13 +713,13 @@ import {
       });
   
       const duration = Date.now() - startTime;
-      console.log(`✅ Opération de déplacement terminée en ${duration}ms`);
+      console.log(`✅ Opération de déplacement hiérarchique terminée en ${duration}ms`);
       console.log(`📊 Résultats: ${totalMovedCount} déplacés, ${allErrors.length} erreurs`);
   
       return {
         success: allErrors.length === 0,
         movedItemsCount: totalMovedCount,
-        skippedItemsCount: operation.sourceItems.length - totalMovedCount,
+        skippedItemsCount: finalItemsList.length - totalMovedCount,
         errors: allErrors,
         warnings: allWarnings
       };
