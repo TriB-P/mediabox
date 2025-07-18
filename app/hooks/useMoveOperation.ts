@@ -1,4 +1,4 @@
-// app/hooks/useMoveOperation.ts
+// app/hooks/useMoveOperation.ts - VERSION CORRIGÉE COMPLÈTE
 
 import { useState, useCallback, useMemo } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -64,168 +64,9 @@ export function useMoveOperation(): UseMoveOperationReturn {
   
   const [modalState, setModalState] = useState<MoveModalState>(createInitialModalState());
 
-  // ==================== ANALYSE DE SÉLECTION ====================
+  // ==================== FONCTIONS UTILITAIRES DE VALIDATION ====================
 
-  const analyzeSelection = useCallback((selectedItems: any[]): SelectionAnalysis => {
-    console.log('🔍 Analyse de sélection:', selectedItems);
-
-    if (!selectedItems || selectedItems.length === 0) {
-      return {
-        isValid: false,
-        canMove: false,
-        rootElements: [],
-        allElements: [],
-        moveLevel: 'section',
-        targetLevel: 'onglet',
-        totalItemsToMove: 0,
-        errorMessage: 'Aucun élément sélectionné'
-      };
-    }
-
-    // Convertir les éléments sélectionnés vers le format attendu
-    const convertedElements: SelectedItemWithSource[] = selectedItems.map(item => {
-      let itemType: MoveItemType;
-      let parentPath: string[] = [];
-      let actualItem: Section | Tactique | Placement | Creatif;
-
-      // 🔥 CORRECTION: Vérifier d'abord si l'objet a déjà une propriété 'type'
-      if (item.type) {
-        itemType = item.type as MoveItemType;
-        // Construire un objet minimal pour l'item
-        actualItem = {
-          id: item.id,
-          ...item
-        } as any;
-        
-        // Parent path basé sur le type - on utilisera des valeurs par défaut
-        switch (itemType) {
-          case 'section':
-            parentPath = [];
-            break;
-          case 'tactique':
-            parentPath = [item.TC_SectionId || ''];
-            break;
-          case 'placement':
-            parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
-            break;
-          case 'creatif':
-            parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
-            break;
-        }
-      }
-      // Fallback: détecter le type par les propriétés (logique originale)
-      else if ('SECTION_Name' in item) {
-        itemType = 'section';
-        parentPath = [];
-        actualItem = item as Section;
-      } else if ('TC_Label' in item) {
-        itemType = 'tactique';
-        parentPath = [item.TC_SectionId || ''];
-        actualItem = item as Tactique;
-      } else if ('PL_Label' in item) {
-        itemType = 'placement';
-        parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
-        actualItem = item as Placement;
-      } else if ('CR_Label' in item) {
-        itemType = 'creatif';
-        parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
-        actualItem = item as Creatif;
-      } else {
-        // Si aucune propriété reconnue, essayer de deviner par les clés
-        const keys = Object.keys(item);
-        console.warn('🚨 Type d\'élément non reconnu, tentative de déduction:', item);
-        
-        if (keys.includes('SECTION_Name') || keys.includes('SECTION_Order')) {
-          itemType = 'section';
-          parentPath = [];
-        } else if (keys.includes('TC_Label') || keys.includes('TC_Budget')) {
-          itemType = 'tactique';
-          parentPath = [item.TC_SectionId || ''];
-        } else if (keys.includes('PL_Label') || keys.includes('PL_TactiqueId')) {
-          itemType = 'placement';
-          parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
-        } else if (keys.includes('CR_Label') || keys.includes('CR_PlacementId')) {
-          itemType = 'creatif';
-          parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
-        } else {
-          throw new Error(`Type d'élément non reconnu après déduction: ${JSON.stringify(item)}`);
-        }
-        
-        actualItem = {
-          id: item.id,
-          ...item
-        } as any;
-      }
-
-      return {
-        id: item.id,
-        type: itemType,
-        selectionSource: 'direct', // Par défaut, on considère tout comme direct pour l'instant
-        parentPath,
-        item: actualItem
-      };
-    });
-
-    // Identifier les éléments racines (pas d'enfant d'un autre élément sélectionné)
-    const rootElements = convertedElements.filter(element => {
-      // Un élément est racine s'il n'est pas enfant d'un autre élément sélectionné
-      return !convertedElements.some(otherElement => {
-        if (otherElement.id === element.id) return false;
-        
-        // Vérifier si element est enfant d'otherElement
-        return isChildOf(element, otherElement);
-      });
-    });
-
-    console.log('🌳 Éléments racines identifiés:', rootElements);
-
-    // Validation : tous les éléments racines doivent être du même type
-    const rootTypes = new Set(rootElements.map(el => el.type));
-    if (rootTypes.size > 1) {
-      return {
-        isValid: false,
-        canMove: false,
-        rootElements,
-        allElements: convertedElements,
-        moveLevel: 'section',
-        targetLevel: 'onglet',
-        totalItemsToMove: convertedElements.length,
-        errorMessage: 'Impossible de déplacer des éléments de types différents'
-      };
-    }
-
-    const moveLevel = rootElements[0]?.type || 'section';
-    const targetLevel = MOVE_LEVEL_HIERARCHY[moveLevel];
-
-    // Validation : pas de conflit hiérarchique entre les racines
-    const hasHierarchicalConflict = checkHierarchicalConflict(rootElements);
-    if (hasHierarchicalConflict) {
-      return {
-        isValid: false,
-        canMove: false,
-        rootElements,
-        allElements: convertedElements,
-        moveLevel,
-        targetLevel,
-        totalItemsToMove: convertedElements.length,
-        errorMessage: 'Les éléments sélectionnés ont des relations hiérarchiques conflictuelles'
-      };
-    }
-
-    return {
-      isValid: true,
-      canMove: true,
-      rootElements,
-      allElements: convertedElements,
-      moveLevel,
-      targetLevel,
-      totalItemsToMove: convertedElements.length
-    };
-  }, []);
-
-  // ==================== UTILITAIRES DE VALIDATION ====================
-
-  const isChildOf = (child: SelectedItemWithSource, parent: SelectedItemWithSource): boolean => {
+  const isChildOf = useCallback((child: SelectedItemWithSource, parent: SelectedItemWithSource): boolean => {
     // Une section ne peut pas être enfant d'une autre section
     if (child.type === 'section') return false;
     
@@ -258,19 +99,208 @@ export function useMoveOperation(): UseMoveOperationReturn {
     }
     
     return false;
-  };
+  }, []);
 
-  const checkHierarchicalConflict = (rootElements: SelectedItemWithSource[]): boolean => {
-    // Vérifier qu'aucun élément racine n'est parent ou enfant d'un autre
+  const checkHierarchicalConflictInRoots = useCallback((rootElements: SelectedItemWithSource[]): boolean => {
+    // Vérifier qu'aucun élément racine n'est parent ou enfant d'un autre élément racine
     for (let i = 0; i < rootElements.length; i++) {
       for (let j = i + 1; j < rootElements.length; j++) {
         if (isChildOf(rootElements[i], rootElements[j]) || isChildOf(rootElements[j], rootElements[i])) {
+          console.warn('🚨 Conflit hiérarchique détecté entre:', rootElements[i], rootElements[j]);
           return true;
         }
       }
     }
     return false;
-  };
+  }, [isChildOf]);
+
+  // ==================== ANALYSE DE SÉLECTION CORRIGÉE ====================
+
+  const analyzeSelection = useCallback((selectedItems: any[]): SelectionAnalysis => {
+    console.log('🔍 Analyse de sélection:', selectedItems);
+
+    if (!selectedItems || selectedItems.length === 0) {
+      return {
+        isValid: false,
+        canMove: false,
+        rootElements: [],
+        allElements: [],
+        moveLevel: 'section',
+        targetLevel: 'onglet',
+        totalItemsToMove: 0,
+        errorMessage: 'Aucun élément sélectionné'
+      };
+    }
+
+    // ========== PHASE 1: CONVERSION DES ÉLÉMENTS ==========
+    
+    const convertedElements: SelectedItemWithSource[] = selectedItems.map(item => {
+      let itemType: MoveItemType;
+      let parentPath: string[] = [];
+      let actualItem: Section | Tactique | Placement | Creatif;
+      let selectionSource: 'direct' | 'automatic' = 'direct';
+
+      // Vérifier d'abord si l'objet a déjà une propriété 'type'
+      if (item.type) {
+        itemType = item.type as MoveItemType;
+        actualItem = { id: item.id, ...item } as any;
+        
+        // Parent path basé sur le type
+        switch (itemType) {
+          case 'section':
+            parentPath = [];
+            break;
+          case 'tactique':
+            parentPath = [item.TC_SectionId || ''];
+            break;
+          case 'placement':
+            parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
+            break;
+          case 'creatif':
+            parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
+            break;
+        }
+      }
+      // Fallback: détecter le type par les propriétés
+      else if ('SECTION_Name' in item) {
+        itemType = 'section';
+        parentPath = [];
+        actualItem = item as Section;
+      } else if ('TC_Label' in item) {
+        itemType = 'tactique';
+        parentPath = [item.TC_SectionId || ''];
+        actualItem = item as Tactique;
+      } else if ('PL_Label' in item) {
+        itemType = 'placement';
+        parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
+        actualItem = item as Placement;
+      } else if ('CR_Label' in item) {
+        itemType = 'creatif';
+        parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
+        actualItem = item as Creatif;
+      } else {
+        // Déduction par les clés
+        const keys = Object.keys(item);
+        console.warn('🚨 Type d\'élément non reconnu, tentative de déduction:', item);
+        
+        if (keys.includes('SECTION_Name') || keys.includes('SECTION_Order')) {
+          itemType = 'section';
+          parentPath = [];
+        } else if (keys.includes('TC_Label') || keys.includes('TC_Budget')) {
+          itemType = 'tactique';
+          parentPath = [item.TC_SectionId || ''];
+        } else if (keys.includes('PL_Label') || keys.includes('PL_TactiqueId')) {
+          itemType = 'placement';
+          parentPath = [item.PL_SectionId || '', item.PL_TactiqueId || ''];
+        } else if (keys.includes('CR_Label') || keys.includes('CR_PlacementId')) {
+          itemType = 'creatif';
+          parentPath = [item.CR_SectionId || '', item.CR_TactiqueId || '', item.CR_PlacementId || ''];
+        } else {
+          throw new Error(`Type d'élément non reconnu après déduction: ${JSON.stringify(item)}`);
+        }
+        
+        actualItem = { id: item.id, ...item } as any;
+      }
+
+      return {
+        id: item.id,
+        type: itemType,
+        selectionSource,
+        parentPath,
+        item: actualItem
+      };
+    });
+
+    // ========== PHASE 2: IDENTIFICATION DES ÉLÉMENTS RACINES ==========
+    
+    // 🔥 CORRECTION PRINCIPALE: Un élément est racine s'il n'est pas enfant d'un autre élément sélectionné
+    const rootElements = convertedElements.filter(element => {
+      return !convertedElements.some(otherElement => {
+        if (otherElement.id === element.id) return false;
+        return isChildOf(element, otherElement);
+      });
+    });
+
+    console.log('🌳 Éléments racines identifiés:', rootElements);
+    console.log('📊 Répartition par type:', {
+      total: convertedElements.length,
+      roots: rootElements.length,
+      typeDistribution: rootElements.reduce((acc, el) => {
+        acc[el.type] = (acc[el.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    });
+
+    // ========== PHASE 3: VALIDATION ==========
+    
+    // Vérifier qu'on a au moins un élément racine
+    if (rootElements.length === 0) {
+      return {
+        isValid: false,
+        canMove: false,
+        rootElements,
+        allElements: convertedElements,
+        moveLevel: 'section',
+        targetLevel: 'onglet',
+        totalItemsToMove: convertedElements.length,
+        errorMessage: 'Aucun élément racine identifié'
+      };
+    }
+
+    // 🔥 VALIDATION CORRIGÉE: Seuls les éléments racines doivent être du même type
+    const rootTypes = new Set(rootElements.map(el => el.type));
+    if (rootTypes.size > 1) {
+      return {
+        isValid: false,
+        canMove: false,
+        rootElements,
+        allElements: convertedElements,
+        moveLevel: 'section',
+        targetLevel: 'onglet',
+        totalItemsToMove: convertedElements.length,
+        errorMessage: `Impossible de déplacer des éléments racines de types différents (${Array.from(rootTypes).join(', ')})`
+      };
+    }
+
+    const moveLevel = rootElements[0]?.type || 'section';
+    const targetLevel = MOVE_LEVEL_HIERARCHY[moveLevel];
+
+    // ========== PHASE 4: VALIDATION HIÉRARCHIQUE ==========
+    
+    // 🔥 VALIDATION AMÉLIORÉE: Vérifier les conflits hiérarchiques entre les racines uniquement
+    const hasHierarchicalConflict = checkHierarchicalConflictInRoots(rootElements);
+    if (hasHierarchicalConflict) {
+      return {
+        isValid: false,
+        canMove: false,
+        rootElements,
+        allElements: convertedElements,
+        moveLevel,
+        targetLevel,
+        totalItemsToMove: convertedElements.length,
+        errorMessage: 'Les éléments racines sélectionnés ont des relations hiérarchiques conflictuelles'
+      };
+    }
+
+    // ========== PHASE 5: RÉSULTAT FINAL ==========
+    
+    console.log('✅ Analyse terminée avec succès:', {
+      rootElements: rootElements.length,
+      totalElements: convertedElements.length,
+      moveLevel,
+      targetLevel
+    });
+
+    return {
+      isValid: true,
+      canMove: true,
+      rootElements,
+      allElements: convertedElements,
+      moveLevel,
+      targetLevel,
+      totalItemsToMove: convertedElements.length
+    };
+  }, [isChildOf, checkHierarchicalConflictInRoots]);
 
   // ==================== FONCTIONS UTILITAIRES POUR L'UI ====================
 
@@ -286,15 +316,18 @@ export function useMoveOperation(): UseMoveOperationReturn {
       return analysis.errorMessage || 'Sélection invalide';
     }
 
-    const count = analysis.rootElements.length;
+    const rootCount = analysis.rootElements.length;
+    const totalCount = analysis.totalItemsToMove;
     const itemLabel = MOVE_LEVEL_LABELS[analysis.moveLevel];
     const targetLabel = TARGET_LEVEL_LABELS[analysis.targetLevel];
     
-    if (analysis.totalItemsToMove > count) {
-      return `Déplacer ${count} ${itemLabel} (${analysis.totalItemsToMove} éléments au total)`;
+    // Si on déplace des éléments avec leurs enfants
+    if (totalCount > rootCount) {
+      return `Déplacer ${rootCount} ${itemLabel} (${totalCount} éléments au total) vers ${targetLabel}`;
     }
     
-    return `Déplacer ${count} ${itemLabel} vers ${targetLabel}`;
+    // Si on déplace seulement les éléments racines
+    return `Déplacer ${rootCount} ${itemLabel} vers ${targetLabel}`;
   }, [analyzeSelection]);
 
   // ==================== GESTION DU MODAL ====================
@@ -339,6 +372,8 @@ export function useMoveOperation(): UseMoveOperationReturn {
     console.log('❌ Fermeture du modal de déplacement');
     setModalState(createInitialModalState());
   }, []);
+
+  // app/hooks/useMoveOperation.ts - PARTIE 2: CHARGEMENT DES DONNÉES ET VALIDATION
 
   // ==================== CHARGEMENT DES DONNÉES DE CASCADE ====================
 
@@ -646,7 +681,7 @@ export function useMoveOperation(): UseMoveOperationReturn {
         error: 'Erreur lors du chargement des placements'
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId]);// app/hooks/useMoveOperation.ts - PARTIE 3: SÉLECTION DE DESTINATION ET VALIDATION
 
   // ==================== SÉLECTION DE DESTINATION ====================
 
@@ -897,3 +932,7 @@ export function useMoveOperation(): UseMoveOperationReturn {
     getMoveButtonLabel
   };
 }
+
+// ==================== EXPORT PAR DÉFAUT ====================
+
+export default useMoveOperation;
