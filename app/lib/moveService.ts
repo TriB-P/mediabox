@@ -1,4 +1,4 @@
-// app/lib/moveService.ts - VERSION CORRIGÉE
+// app/lib/moveService.ts - VERSION CORRIGÉE AVEC CHEMINS FIXES
 
 import {
     collection,
@@ -15,7 +15,9 @@ import {
     MoveResult,
     MoveDestination,
     SelectedItemWithSource,
-    MoveValidationResult
+    MoveValidationResult,
+    ORDER_FIELDS,
+    extractIdsFromParentPath
   } from '../types/move';
   import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
   
@@ -29,6 +31,8 @@ import {
     const warnings: string[] = [];
   
     try {
+      console.log('🔍 Validation destination:', destination);
+  
       // Vérifications de base
       if (!destination.campaignId) {
         errors.push('Campagne de destination manquante');
@@ -70,6 +74,46 @@ import {
         errors.push('L\'onglet de destination n\'existe pas');
       }
   
+      // Vérifications conditionnelles selon le niveau de destination
+      if (destination.sectionId) {
+        const sectionRef = doc(
+          db, 'clients', clientId, 'campaigns', destination.campaignId,
+          'versions', destination.versionId, 'onglets', destination.ongletId,
+          'sections', destination.sectionId
+        );
+        const sectionSnap = await getDoc(sectionRef);
+        if (!sectionSnap.exists()) {
+          errors.push('La section de destination n\'existe pas');
+        }
+      }
+  
+      if (destination.tactiqueId && destination.sectionId) {
+        const tactiqueRef = doc(
+          db, 'clients', clientId, 'campaigns', destination.campaignId,
+          'versions', destination.versionId, 'onglets', destination.ongletId,
+          'sections', destination.sectionId, 'tactiques', destination.tactiqueId
+        );
+        const tactiqueSnap = await getDoc(tactiqueRef);
+        if (!tactiqueSnap.exists()) {
+          errors.push('La tactique de destination n\'existe pas');
+        }
+      }
+  
+      if (destination.placementId && destination.tactiqueId && destination.sectionId) {
+        const placementRef = doc(
+          db, 'clients', clientId, 'campaigns', destination.campaignId,
+          'versions', destination.versionId, 'onglets', destination.ongletId,
+          'sections', destination.sectionId, 'tactiques', destination.tactiqueId,
+          'placements', destination.placementId
+        );
+        const placementSnap = await getDoc(placementRef);
+        if (!placementSnap.exists()) {
+          errors.push('Le placement de destination n\'existe pas');
+        }
+      }
+  
+      console.log(`✅ Validation terminée: ${errors.length} erreurs, ${warnings.length} avertissements`);
+  
       return {
         isValid: errors.length === 0,
         canProceed: errors.length === 0,
@@ -78,7 +122,7 @@ import {
       };
   
     } catch (error) {
-      console.error('Erreur lors de la validation:', error);
+      console.error('❌ Erreur lors de la validation:', error);
       return {
         isValid: false,
         canProceed: false,
@@ -96,7 +140,9 @@ import {
     itemType: 'section' | 'tactique' | 'placement' | 'creatif'
   ): Promise<number> {
     let collectionRef;
-    let orderField: string;
+    const orderField = ORDER_FIELDS[itemType];
+  
+    console.log(`🔢 Calcul nouvel ordre pour ${itemType} dans:`, destination);
   
     switch (itemType) {
       case 'section':
@@ -104,7 +150,6 @@ import {
           db, 'clients', clientId, 'campaigns', destination.campaignId,
           'versions', destination.versionId, 'onglets', destination.ongletId, 'sections'
         );
-        orderField = 'SECTION_Order';
         break;
         
       case 'tactique':
@@ -114,7 +159,6 @@ import {
           'versions', destination.versionId, 'onglets', destination.ongletId,
           'sections', destination.sectionId, 'tactiques'
         );
-        orderField = 'TC_Order';
         break;
         
       case 'placement':
@@ -126,7 +170,6 @@ import {
           'versions', destination.versionId, 'onglets', destination.ongletId,
           'sections', destination.sectionId, 'tactiques', destination.tactiqueId, 'placements'
         );
-        orderField = 'PL_Order';
         break;
         
       case 'creatif':
@@ -139,22 +182,19 @@ import {
           'sections', destination.sectionId, 'tactiques', destination.tactiqueId,
           'placements', destination.placementId, 'creatifs'
         );
-        orderField = 'CR_Order';
         break;
     }
   
     const q = query(collectionRef, orderBy(orderField, 'desc'));
     const snapshot = await getDocs(q);
     
-    if (snapshot.empty) {
-      return 0;
-    }
+    const nextOrder = snapshot.empty ? 0 : (snapshot.docs[0].data()[orderField] || 0) + 1;
+    console.log(`📊 Nouvel ordre calculé: ${nextOrder}`);
     
-    const lastItem = snapshot.docs[0].data();
-    return (lastItem[orderField] || 0) + 1;
+    return nextOrder;
   }
   
-  // ==================== FONCTIONS DE DÉPLACEMENT SIMPLIFIÉES ====================
+  // ==================== FONCTIONS DE DÉPLACEMENT AVEC CHEMINS CORRIGÉS ====================
   
   async function moveSection(
     transaction: any,
@@ -165,7 +205,15 @@ import {
   ): Promise<void> {
     const section = sourceItem.item as Section;
     
-    console.log('🔄 Déplacement section:', section.SECTION_Name);
+    console.log('🔄 Déplacement section:', {
+      name: section.SECTION_Name,
+      id: section.id,
+      parentPath: sourceItem.parentPath,
+      destination
+    });
+    
+    // Extraire les IDs source depuis parentPath
+    const sourceIds = extractIdsFromParentPath('section', sourceItem.parentPath);
     
     // Créer la nouvelle section
     const newSectionRef = doc(collection(
@@ -182,16 +230,20 @@ import {
   
     transaction.set(newSectionRef, newSectionData);
     
-    // TODO: Déplacer les tactiques enfants (implémentation future)
-    console.log('⚠️ Déplacement des tactiques enfants non implémenté pour cette version');
-    
-    // Supprimer l'ancienne section
+    // Construire le chemin de l'ancienne section
     const oldSectionRef = doc(
-      db, 'clients', clientId, 'campaigns', sourceItem.parentPath[0] || destination.campaignId,
-      'versions', sourceItem.parentPath[1] || destination.versionId,
-      'onglets', sourceItem.parentPath[2] || destination.ongletId,
+      db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+      'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
       'sections', section.id
     );
+    
+    console.log('🗑️ Suppression ancienne section:', {
+      campaignId: sourceIds.campaignId,
+      versionId: sourceIds.versionId,
+      ongletId: sourceIds.ongletId,
+      sectionId: section.id
+    });
+    
     transaction.delete(oldSectionRef);
   }
   
@@ -204,7 +256,15 @@ import {
   ): Promise<void> {
     const tactique = sourceItem.item as Tactique;
     
-    console.log('🔄 Déplacement tactique:', tactique.TC_Label);
+    console.log('🔄 Déplacement tactique:', {
+      name: tactique.TC_Label,
+      id: tactique.id,
+      parentPath: sourceItem.parentPath,
+      destination
+    });
+    
+    // Extraire les IDs source depuis parentPath
+    const sourceIds = extractIdsFromParentPath('tactique', sourceItem.parentPath);
     
     // Créer la nouvelle tactique
     const newTactiqueRef = doc(collection(
@@ -223,16 +283,21 @@ import {
   
     transaction.set(newTactiqueRef, newTactiqueData);
     
-    // TODO: Déplacer les placements enfants (implémentation future)
-    console.log('⚠️ Déplacement des placements enfants non implémenté pour cette version');
-    
-    // Supprimer l'ancienne tactique
+    // Construire le chemin de l'ancienne tactique
     const oldTactiqueRef = doc(
-      db, 'clients', clientId, 'campaigns', sourceItem.parentPath[0] || destination.campaignId,
-      'versions', sourceItem.parentPath[1] || destination.versionId,
-      'onglets', sourceItem.parentPath[2] || destination.ongletId,
-      'sections', sourceItem.parentPath[0], 'tactiques', tactique.id
+      db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+      'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+      'sections', sourceIds.sectionId!, 'tactiques', tactique.id
     );
+    
+    console.log('🗑️ Suppression ancienne tactique:', {
+      campaignId: sourceIds.campaignId,
+      versionId: sourceIds.versionId,
+      ongletId: sourceIds.ongletId,
+      sectionId: sourceIds.sectionId,
+      tactiqueId: tactique.id
+    });
+    
     transaction.delete(oldTactiqueRef);
   }
   
@@ -245,7 +310,15 @@ import {
   ): Promise<void> {
     const placement = sourceItem.item as Placement;
     
-    console.log('🔄 Déplacement placement:', placement.PL_Label);
+    console.log('🔄 Déplacement placement:', {
+      name: placement.PL_Label,
+      id: placement.id,
+      parentPath: sourceItem.parentPath,
+      destination
+    });
+    
+    // Extraire les IDs source depuis parentPath
+    const sourceIds = extractIdsFromParentPath('placement', sourceItem.parentPath);
     
     // Créer le nouveau placement
     const newPlacementRef = doc(collection(
@@ -265,17 +338,23 @@ import {
   
     transaction.set(newPlacementRef, newPlacementData);
     
-    // TODO: Déplacer les créatifs enfants (implémentation future)
-    console.log('⚠️ Déplacement des créatifs enfants non implémenté pour cette version');
-    
-    // Supprimer l'ancien placement
+    // Construire le chemin de l'ancien placement
     const oldPlacementRef = doc(
-      db, 'clients', clientId, 'campaigns', sourceItem.parentPath[0] || destination.campaignId,
-      'versions', sourceItem.parentPath[1] || destination.versionId,
-      'onglets', sourceItem.parentPath[2] || destination.ongletId,
-      'sections', sourceItem.parentPath[0], 'tactiques', sourceItem.parentPath[1],
+      db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+      'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+      'sections', sourceIds.sectionId!, 'tactiques', sourceIds.tactiqueId!,
       'placements', placement.id
     );
+    
+    console.log('🗑️ Suppression ancien placement:', {
+      campaignId: sourceIds.campaignId,
+      versionId: sourceIds.versionId,
+      ongletId: sourceIds.ongletId,
+      sectionId: sourceIds.sectionId,
+      tactiqueId: sourceIds.tactiqueId,
+      placementId: placement.id
+    });
+    
     transaction.delete(oldPlacementRef);
   }
   
@@ -288,17 +367,15 @@ import {
   ): Promise<void> {
     const creatif = sourceItem.item as Creatif;
     
-    console.log('🔄 Déplacement créatif:', creatif.CR_Label, {
-      source: sourceItem.parentPath,
-      destination: {
-        campaignId: destination.campaignId,
-        versionId: destination.versionId,
-        ongletId: destination.ongletId,
-        sectionId: destination.sectionId,
-        tactiqueId: destination.tactiqueId,
-        placementId: destination.placementId
-      }
+    console.log('🔄 Déplacement créatif:', {
+      name: creatif.CR_Label,
+      id: creatif.id,
+      parentPath: sourceItem.parentPath,
+      destination
     });
+    
+    // Extraire les IDs source depuis parentPath
+    const sourceIds = extractIdsFromParentPath('creatif', sourceItem.parentPath);
     
     // Créer le nouveau créatif
     const newCreatifRef = doc(collection(
@@ -322,31 +399,24 @@ import {
   
     transaction.set(newCreatifRef, newCreatifData);
     
-    // Supprimer l'ancien créatif
-    // 🔥 CORRECTION: Construire le chemin source correctement
-    const sourceCampaignId = sourceItem.parentPath[3] || destination.campaignId;
-    const sourceVersionId = sourceItem.parentPath[4] || destination.versionId;
-    const sourceOngletId = sourceItem.parentPath[5] || destination.ongletId;
-    const sourceSectionId = sourceItem.parentPath[0];
-    const sourceTactiqueId = sourceItem.parentPath[1];
-    const sourcePlacementId = sourceItem.parentPath[2];
+    // Construire le chemin de l'ancien créatif
+    const oldCreatifRef = doc(
+      db, 'clients', clientId, 'campaigns', sourceIds.campaignId,
+      'versions', sourceIds.versionId, 'onglets', sourceIds.ongletId,
+      'sections', sourceIds.sectionId!, 'tactiques', sourceIds.tactiqueId!,
+      'placements', sourceIds.placementId!, 'creatifs', creatif.id
+    );
     
     console.log('🗑️ Suppression ancien créatif:', {
-      campaignId: sourceCampaignId,
-      versionId: sourceVersionId,
-      ongletId: sourceOngletId,
-      sectionId: sourceSectionId,
-      tactiqueId: sourceTactiqueId,
-      placementId: sourcePlacementId,
+      campaignId: sourceIds.campaignId,
+      versionId: sourceIds.versionId,
+      ongletId: sourceIds.ongletId,
+      sectionId: sourceIds.sectionId,
+      tactiqueId: sourceIds.tactiqueId,
+      placementId: sourceIds.placementId,
       creatifId: creatif.id
     });
     
-    const oldCreatifRef = doc(
-      db, 'clients', clientId, 'campaigns', sourceCampaignId,
-      'versions', sourceVersionId, 'onglets', sourceOngletId,
-      'sections', sourceSectionId, 'tactiques', sourceTactiqueId,
-      'placements', sourcePlacementId, 'creatifs', creatif.id
-    );
     transaction.delete(oldCreatifRef);
   }
   
@@ -379,6 +449,8 @@ import {
         
         for (const sourceItem of operation.sourceItems) {
           try {
+            console.log(`📦 Traitement item ${sourceItem.type}:`, sourceItem.id);
+            
             // Calculer le nouvel ordre
             const baseOrder = await getNextOrderInDestination(
               operation.clientId,

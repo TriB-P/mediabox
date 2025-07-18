@@ -1,4 +1,4 @@
-// app/components/Tactiques/MoveModal.tsx
+// app/components/Tactiques/MoveModal.tsx - VERSION CORRIGÉE
 
 'use client';
 
@@ -45,7 +45,8 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
       return level.items;
     }
     return level.items.filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [level.items, searchTerm, searchable]);
 
@@ -73,7 +74,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
             <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher une campagne..."
+              placeholder={`Rechercher une ${levelName.toLowerCase()}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
@@ -92,7 +93,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
         ) : filteredItems.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <div className="text-sm">
-              {searchTerm ? 'Aucun résultat' : `Aucun ${levelName.toLowerCase()} disponible`}
+              {searchTerm ? 'Aucun résultat trouvé' : `Aucun ${levelName.toLowerCase()} disponible`}
             </div>
           </div>
         ) : (
@@ -104,6 +105,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
                 className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
                   level.selectedId === item.id ? 'bg-indigo-50 border-r-2 border-indigo-500' : ''
                 }`}
+                disabled={level.loading}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -215,12 +217,14 @@ export default function MoveModal({
     }
   }, [selection, destination]);
 
-  // Gestionnaire de sélection avec gestion async
+  // Gestionnaire de sélection avec gestion async améliorée
   const handleSelect = async (level: string, itemId: string) => {
     try {
+      console.log(`🎯 Sélection utilisateur: ${level} -> ${itemId}`);
       await onSelectDestination(level, itemId);
     } catch (error) {
-      console.error('Erreur lors de la sélection:', error);
+      console.error('❌ Erreur lors de la sélection:', error);
+      // L'erreur sera gérée par le hook parent
     }
   };
 
@@ -332,15 +336,19 @@ export default function MoveModal({
                 <button
                   onClick={onClose}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  disabled={loading}
                 >
                   Annuler
                 </button>
                 <button
                   onClick={onConfirmMove}
                   disabled={!isDestinationComplete || loading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                 >
-                  {loading ? 'Déplacement...' : 'Confirmer le déplacement'}
+                  {loading && (
+                    <ArrowPathIcon className="h-4 w-4 animate-spin mr-2" />
+                  )}
+                  {loading ? 'Préparation...' : 'Confirmer le déplacement'}
                 </button>
               </div>
             </div>
@@ -357,6 +365,11 @@ export default function MoveModal({
             <p className="text-sm text-gray-600">
               Veuillez patienter pendant que nous déplaçons vos éléments.
             </p>
+            {selection && (
+              <div className="mt-4 text-xs text-gray-500">
+                {selection.totalItemsToMove} élément(s) à traiter
+              </div>
+            )}
           </div>
         );
 
@@ -371,14 +384,18 @@ export default function MoveModal({
               )}
               
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {result?.success ? 'Déplacement réussi' : 'Déplacement échoué'}
+                {result?.success ? 'Déplacement réussi !' : 'Déplacement échoué'}
               </h3>
               
               {result && (
                 <div className="text-sm text-gray-600 space-y-1">
-                  <div>{result.movedItemsCount} élément(s) déplacé(s)</div>
+                  <div>
+                    <span className="font-medium text-green-600">{result.movedItemsCount}</span> élément(s) déplacé(s)
+                  </div>
                   {result.skippedItemsCount > 0 && (
-                    <div>{result.skippedItemsCount} élément(s) ignoré(s)</div>
+                    <div>
+                      <span className="font-medium text-yellow-600">{result.skippedItemsCount}</span> élément(s) ignoré(s)
+                    </div>
                   )}
                 </div>
               )}
@@ -390,7 +407,10 @@ export default function MoveModal({
                 <h4 className="text-sm font-medium text-red-800 mb-2">Erreurs :</h4>
                 <ul className="text-sm text-red-700 space-y-1">
                   {result.errors.map((error, index) => (
-                    <li key={index}>• {error}</li>
+                    <li key={index} className="flex items-start">
+                      <span className="text-red-500 mr-2">•</span>
+                      <span>{error}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -402,7 +422,10 @@ export default function MoveModal({
                 <h4 className="text-sm font-medium text-yellow-800 mb-2">Avertissements :</h4>
                 <ul className="text-sm text-yellow-700 space-y-1">
                   {result.warnings.map((warning, index) => (
-                    <li key={index}>• {warning}</li>
+                    <li key={index} className="flex items-start">
+                      <span className="text-yellow-500 mr-2">•</span>
+                      <span>{warning}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -411,7 +434,7 @@ export default function MoveModal({
             <div className="flex justify-center">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors"
+                className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors"
               >
                 Fermer
               </button>
@@ -420,7 +443,23 @@ export default function MoveModal({
         );
 
       default:
-        return null;
+        return (
+          <div className="px-6 py-8 text-center">
+            <ExclamationTriangleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Étape inconnue
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Une erreur inattendue s'est produite.
+            </p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-600 border border-transparent rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        );
     }
   };
 
@@ -428,8 +467,11 @@ export default function MoveModal({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Overlay */}
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity">
-          <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
+        <div 
+          className="fixed inset-0 transition-opacity"
+          onClick={step === 'destination' ? onClose : undefined} // Empêcher fermeture pendant processing
+        >
+          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
 
         {/* Modal */}
