@@ -1,4 +1,4 @@
-// app/lib/simpleMoveService.ts - Service de déplacement simplifié
+// app/lib/simpleMoveService.ts - Service de déplacement simplifié CORRIGÉ
 
 import {
     collection,
@@ -29,17 +29,34 @@ import {
     placementName?: string;
   }
   
+  // 🔥 NOUVEAU: Structure pour un élément avec son contexte
+  export interface ItemWithContext {
+    itemId: string;
+    itemType: 'section' | 'tactique' | 'placement' | 'creatif';
+    // IDs des parents pour construire le chemin source
+    parentIds: {
+      campaignId: string;
+      versionId: string;
+      ongletId: string;
+      sectionId?: string;
+      tactiqueId?: string;
+      placementId?: string;
+    };
+  }
+  
   export interface MoveOperation {
     clientId: string;
     itemType: 'section' | 'tactique' | 'placement' | 'creatif';
     selectedItemIds: string[];
     destination: MoveDestination;
-    // Context source pour construire les chemins
+    // 🔥 NOUVEAU: Contexte enrichi avec les informations hiérarchiques
     sourceContext: {
       campaignId: string;
       versionId: string;
       ongletId: string;
     };
+    // 🔥 NOUVEAU: Mapping des éléments avec leur contexte hiérarchique
+    itemsWithContext?: ItemWithContext[];
   }
   
   export interface MoveResult {
@@ -249,6 +266,116 @@ import {
     }
   }
   
+  // ==================== 🔥 FONCTION POUR CONSTRUIRE LE CONTEXTE DES ÉLÉMENTS ====================
+  
+  export async function buildItemsContext(
+    clientId: string,
+    selectedItemIds: string[],
+    sourceContext: { campaignId: string; versionId: string; ongletId: string },
+    hierarchyData: {
+      sections: any[];
+      tactiques: { [sectionId: string]: any[] };
+      placements: { [tactiqueId: string]: any[] };
+      creatifs: { [placementId: string]: any[] };
+    }
+  ): Promise<ItemWithContext[]> {
+    const itemsWithContext: ItemWithContext[] = [];
+    
+    console.log('🔍 Construction du contexte pour', selectedItemIds.length, 'éléments');
+    
+    for (const itemId of selectedItemIds) {
+      let found = false;
+      
+      // Rechercher l'élément dans la hiérarchie
+      for (const section of hierarchyData.sections) {
+        // Vérifier si c'est une section
+        if (section.id === itemId) {
+          itemsWithContext.push({
+            itemId,
+            itemType: 'section',
+            parentIds: {
+              campaignId: sourceContext.campaignId,
+              versionId: sourceContext.versionId,
+              ongletId: sourceContext.ongletId
+            }
+          });
+          found = true;
+          break;
+        }
+        
+        // Rechercher dans les tactiques de cette section
+        const sectionTactiques = hierarchyData.tactiques[section.id] || [];
+        for (const tactique of sectionTactiques) {
+          if (tactique.id === itemId) {
+            itemsWithContext.push({
+              itemId,
+              itemType: 'tactique',
+              parentIds: {
+                campaignId: sourceContext.campaignId,
+                versionId: sourceContext.versionId,
+                ongletId: sourceContext.ongletId,
+                sectionId: section.id
+              }
+            });
+            found = true;
+            break;
+          }
+          
+          // Rechercher dans les placements de cette tactique
+          const tactiquePlacements = hierarchyData.placements[tactique.id] || [];
+          for (const placement of tactiquePlacements) {
+            if (placement.id === itemId) {
+              itemsWithContext.push({
+                itemId,
+                itemType: 'placement',
+                parentIds: {
+                  campaignId: sourceContext.campaignId,
+                  versionId: sourceContext.versionId,
+                  ongletId: sourceContext.ongletId,
+                  sectionId: section.id,
+                  tactiqueId: tactique.id
+                }
+              });
+              found = true;
+              break;
+            }
+            
+            // Rechercher dans les créatifs de ce placement
+            const placementCreatifs = hierarchyData.creatifs[placement.id] || [];
+            for (const creatif of placementCreatifs) {
+              if (creatif.id === itemId) {
+                itemsWithContext.push({
+                  itemId,
+                  itemType: 'creatif',
+                  parentIds: {
+                    campaignId: sourceContext.campaignId,
+                    versionId: sourceContext.versionId,
+                    ongletId: sourceContext.ongletId,
+                    sectionId: section.id,
+                    tactiqueId: tactique.id,
+                    placementId: placement.id
+                  }
+                });
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) break;
+        }
+        if (found) break;
+      }
+      
+      if (!found) {
+        console.warn(`⚠️ Élément ${itemId} non trouvé dans la hiérarchie`);
+      }
+    }
+    
+    console.log('✅ Contexte construit pour', itemsWithContext.length, 'éléments');
+    return itemsWithContext;
+  }
+  
   // ==================== CALCUL DU PROCHAIN ORDRE ====================
   
   async function getNextOrder(
@@ -303,13 +430,24 @@ import {
     return snapshot.empty ? 0 : (snapshot.docs[0].data()[orderField] || 0) + 1;
   }
   
-  // ==================== DÉPLACEMENT PRINCIPAL ====================
+  // ==================== 🔥 DÉPLACEMENT PRINCIPAL CORRIGÉ ====================
   
   export async function performMove(operation: MoveOperation): Promise<MoveResult> {
-    console.log('🚀 Début de l\'opération de déplacement simple');
+    console.log('🚀 Début de l\'opération de déplacement simple CORRIGÉE');
     console.log('📦 Opération:', operation);
   
-    const { clientId, itemType, selectedItemIds, destination, sourceContext } = operation;
+    const { clientId, itemType, destination, itemsWithContext } = operation;
+    
+    if (!itemsWithContext || itemsWithContext.length === 0) {
+      return {
+        success: false,
+        movedCount: 0,
+        skippedCount: operation.selectedItemIds.length,
+        errors: ['Contexte des éléments manquant - impossible de construire les chemins source'],
+        warnings: []
+      };
+    }
+  
     let movedCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -320,10 +458,10 @@ import {
       
       // Exécuter dans une transaction
       await runTransaction(db, async (transaction) => {
-        for (const itemId of selectedItemIds) {
+        for (const itemWithContext of itemsWithContext) {
           try {
-            // Construire le chemin source
-            const sourcePath = buildSourcePath(itemType, sourceContext, itemId);
+            // 🔥 CORRECTION: Construire le chemin source avec les vrais IDs
+            const sourcePath = buildCorrectSourcePath(clientId, itemWithContext);
             const sourceRef = doc(db, ...sourcePath);
             
             // Construire le chemin destination  
@@ -331,10 +469,15 @@ import {
             const destCollectionRef = collection(db, ...destPath);
             const destRef = doc(destCollectionRef);
             
+            console.log('📍 Chemins:', {
+              source: sourcePath.join('/'),
+              destination: destPath.join('/') + '/' + destRef.id
+            });
+            
             // Lire l'élément source
             const sourceSnap = await transaction.get(sourceRef);
             if (!sourceSnap.exists()) {
-              errors.push(`Élément ${itemId} non trouvé à la source`);
+              errors.push(`Élément ${itemWithContext.itemId} non trouvé à la source : ${sourcePath.join('/')}`);
               continue;
             }
             
@@ -369,17 +512,17 @@ import {
             nextOrder++;
             movedCount++;
             
-            console.log(`✅ Élément ${itemId} déplacé avec succès`);
+            console.log(`✅ Élément ${itemWithContext.itemId} déplacé avec succès`);
             
           } catch (itemError) {
-            console.error(`❌ Erreur déplacement ${itemId}:`, itemError);
-            errors.push(`Erreur déplacement ${itemId}: ${itemError}`);
+            console.error(`❌ Erreur déplacement ${itemWithContext.itemId}:`, itemError);
+            errors.push(`Erreur déplacement ${itemWithContext.itemId}: ${itemError}`);
           }
         }
       });
   
       const success = errors.length === 0;
-      const skippedCount = selectedItemIds.length - movedCount;
+      const skippedCount = itemsWithContext.length - movedCount;
   
       console.log(`${success ? '✅' : '⚠️'} Opération terminée:`, {
         success,
@@ -401,36 +544,36 @@ import {
       return {
         success: false,
         movedCount,
-        skippedCount: selectedItemIds.length - movedCount,
+        skippedCount: itemsWithContext.length - movedCount,
         errors: [`Erreur fatale: ${error}`],
         warnings
       };
     }
   }
   
-  // ==================== FONCTIONS UTILITAIRES ====================
+  // ==================== 🔥 FONCTIONS UTILITAIRES CORRIGÉES ====================
   
-  function buildSourcePath(
-    itemType: 'section' | 'tactique' | 'placement' | 'creatif',
-    sourceContext: { campaignId: string; versionId: string; ongletId: string },
-    itemId: string
-  ): string[] {
-    // Pour l'instant, on suppose que tous les éléments viennent du même contexte
-    // TODO: Améliorer pour gérer les contextes mixtes
+  function buildCorrectSourcePath(clientId: string, itemWithContext: ItemWithContext): string[] {
+    const { itemId, itemType, parentIds } = itemWithContext;
+    const { campaignId, versionId, ongletId, sectionId, tactiqueId, placementId } = parentIds;
+    
     const basePath = [
-      'clients', 'CLIENT_ID', 'campaigns', sourceContext.campaignId,
-      'versions', sourceContext.versionId, 'onglets', sourceContext.ongletId
+      'clients', clientId, 'campaigns', campaignId,
+      'versions', versionId, 'onglets', ongletId
     ];
     
     switch (itemType) {
       case 'section':
         return [...basePath, 'sections', itemId];
       case 'tactique':
-        return [...basePath, 'sections', 'SECTION_ID', 'tactiques', itemId];
+        if (!sectionId) throw new Error(`Section ID manquant pour tactique ${itemId}`);
+        return [...basePath, 'sections', sectionId, 'tactiques', itemId];
       case 'placement':
-        return [...basePath, 'sections', 'SECTION_ID', 'tactiques', 'TACTIQUE_ID', 'placements', itemId];
+        if (!sectionId || !tactiqueId) throw new Error(`Section ID ou Tactique ID manquant pour placement ${itemId}`);
+        return [...basePath, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', itemId];
       case 'creatif':
-        return [...basePath, 'sections', 'SECTION_ID', 'tactiques', 'TACTIQUE_ID', 'placements', 'PLACEMENT_ID', 'creatifs', itemId];
+        if (!sectionId || !tactiqueId || !placementId) throw new Error(`IDs parents manquants pour créatif ${itemId}`);
+        return [...basePath, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs', itemId];
       default:
         throw new Error(`Type d'élément non supporté: ${itemType}`);
     }

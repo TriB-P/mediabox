@@ -1,4 +1,4 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement
+// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement CORRIGÉ
 
 import { useState, useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -39,6 +39,14 @@ export interface MoveModalState {
   result: MoveService.MoveResult | null;
   processing: boolean;
   error: string | null;
+  
+  // 🔥 NOUVEAU: Contexte hiérarchique pour construire les chemins source
+  hierarchyContext?: {
+    sections: any[];
+    tactiques: { [sectionId: string]: any[] };
+    placements: { [tactiqueId: string]: any[] };
+    creatifs: { [placementId: string]: any[] };
+  };
 }
 
 // ==================== HOOK PRINCIPAL ====================
@@ -69,18 +77,27 @@ export function useSimpleMoveModal() {
     loadingPlacements: false,
     result: null,
     processing: false,
-    error: null
+    error: null,
+    hierarchyContext: undefined
   });
 
   // ==================== OUVERTURE DU MODAL ====================
   
   const openModal = useCallback(async (
     validationResult: SelectionValidationResult,
-    selectedItemIds: string[]
+    selectedItemIds: string[],
+    // 🔥 NOUVEAU: Recevoir le contexte hiérarchique
+    hierarchyContext?: {
+      sections: any[];
+      tactiques: { [sectionId: string]: any[] };
+      placements: { [tactiqueId: string]: any[] };
+      creatifs: { [placementId: string]: any[] };
+    }
   ) => {
     console.log('🚀 Ouverture du modal de déplacement');
     console.log('📊 Validation:', validationResult);
     console.log('📦 Éléments sélectionnés:', selectedItemIds);
+    console.log('🏗️ Contexte hiérarchique:', hierarchyContext ? 'Fourni' : 'Manquant');
     
     if (!selectedClient?.clientId) {
       console.error('❌ Aucun client sélectionné');
@@ -94,6 +111,7 @@ export function useSimpleMoveModal() {
       step: 'destination',
       validationResult,
       selectedItemIds,
+      hierarchyContext, // 🔥 NOUVEAU: Stocker le contexte
       campaigns: [],
       versions: [],
       onglets: [],
@@ -366,11 +384,20 @@ export function useSimpleMoveModal() {
     }
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
-  // ==================== CONFIRMATION DU DÉPLACEMENT ====================
+  // ==================== 🔥 CONFIRMATION DU DÉPLACEMENT CORRIGÉE ====================
   
   const confirmMove = useCallback(async () => {
     if (!selectedClient?.clientId || !modalState.validationResult || !modalState.validationResult.canMove) {
       console.error('❌ Conditions non remplies pour le déplacement');
+      return;
+    }
+    
+    if (!modalState.hierarchyContext) {
+      console.error('❌ Contexte hiérarchique manquant');
+      setModalState(prev => ({
+        ...prev,
+        error: 'Contexte hiérarchique manquant pour construire les chemins source'
+      }));
       return;
     }
     
@@ -379,16 +406,34 @@ export function useSimpleMoveModal() {
     setModalState(prev => ({ ...prev, step: 'progress', processing: true, error: null }));
     
     try {
+      // 🔥 NOUVEAU: Construire le contexte des éléments avec les vrais IDs
+      const sourceContext = {
+        campaignId: selectedCampaignId!,
+        versionId: selectedVersionId!,
+        ongletId: selectedOngletId!
+      };
+      
+      console.log('🔧 Construction du contexte des éléments...');
+      const itemsWithContext = await MoveService.buildItemsContext(
+        selectedClient.clientId,
+        modalState.selectedItemIds,
+        sourceContext,
+        modalState.hierarchyContext
+      );
+      
+      if (itemsWithContext.length === 0) {
+        throw new Error('Aucun élément trouvé dans le contexte - impossible de construire les chemins source');
+      }
+      
+      console.log('📍 Éléments avec contexte:', itemsWithContext);
+      
       const operation: MoveService.MoveOperation = {
         clientId: selectedClient.clientId,
         itemType: modalState.validationResult.moveLevel!,
         selectedItemIds: modalState.selectedItemIds,
         destination: modalState.destination as MoveService.MoveDestination,
-        sourceContext: {
-          campaignId: selectedCampaignId!,
-          versionId: selectedVersionId!,
-          ongletId: selectedOngletId!
-        }
+        sourceContext,
+        itemsWithContext // 🔥 NOUVEAU: Passer le contexte construit
       };
       
       const result = await MoveService.performMove(operation);
@@ -418,7 +463,16 @@ export function useSimpleMoveModal() {
         }
       }));
     }
-  }, [selectedClient?.clientId, modalState.validationResult, modalState.selectedItemIds, modalState.destination, selectedCampaignId, selectedVersionId, selectedOngletId]);
+  }, [
+    selectedClient?.clientId, 
+    modalState.validationResult, 
+    modalState.selectedItemIds, 
+    modalState.destination, 
+    modalState.hierarchyContext,
+    selectedCampaignId, 
+    selectedVersionId, 
+    selectedOngletId
+  ]);
 
   // ==================== UTILITAIRES ====================
   

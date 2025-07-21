@@ -1,8 +1,8 @@
-// app/components/Tactiques/SelectedActionsPanel.tsx - AVEC VALIDATION DE DÉPLACEMENT
+// app/components/Tactiques/SelectedActionsPanel.tsx - VERSION DEBUG POUR IDENTIFIER LE PROBLÈME
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   DocumentDuplicateIcon,
   TrashIcon,
@@ -20,7 +20,6 @@ interface SelectedItem {
   id: string;
   name: string;
   type: 'section' | 'tactique' | 'placement' | 'creatif';
-  // 🔥 NOUVEAU: Données complètes de l'élément pour le déplacement
   data?: Section | Tactique | Placement | Creatif;
 }
 
@@ -31,9 +30,7 @@ interface SelectedActionsPanelProps {
   onClearSelection: () => void;
   onRefresh?: () => Promise<void>;
   loading?: boolean;
-  // 🔥 NOUVEAU: Résultat de validation pour le déplacement
   validationResult?: SelectionValidationResult;
-  // 🔥 NOUVEAU: Contexte hiérarchique pour le déplacement (optionnel pour l'instant)
   hierarchyContext?: {
     sections?: Section[];
     tactiques?: { [sectionId: string]: Tactique[] };
@@ -55,7 +52,21 @@ export default function SelectedActionsPanel({
   hierarchyContext
 }: SelectedActionsPanelProps) {
 
-  // ==================== 🔥 HOOK MODAL DE DÉPLACEMENT ====================
+  // ==================== 🔍 DEBUG DU CONTEXTE HIÉRARCHIQUE ====================
+  
+  useEffect(() => {
+    console.log('🔍 DEBUG - Panel reçoit hierarchyContext:', {
+      isDefined: !!hierarchyContext,
+      sections: hierarchyContext?.sections?.length || 0,
+      tactiques: Object.keys(hierarchyContext?.tactiques || {}).length,
+      placements: Object.keys(hierarchyContext?.placements || {}).length,
+      creatifs: Object.keys(hierarchyContext?.creatifs || {}).length,
+      sampleSectionId: hierarchyContext?.sections?.[0]?.id || 'N/A',
+      fullContext: hierarchyContext
+    });
+  }, [hierarchyContext]);
+
+  // ==================== HOOK MODAL DE DÉPLACEMENT ====================
 
   const {
     modalState: moveModalState,
@@ -65,6 +76,24 @@ export default function SelectedActionsPanel({
     confirmMove,
     isDestinationComplete
   } = useSimpleMoveModal();
+
+  // ==================== DEBUG DE L'ÉTAT DU MODAL ====================
+  
+  useEffect(() => {
+    if (moveModalState.isOpen) {
+      console.log('🔍 DEBUG - État du modal:', {
+        isOpen: moveModalState.isOpen,
+        step: moveModalState.step,
+        hasValidationResult: !!moveModalState.validationResult,
+        selectedItemsCount: moveModalState.selectedItemIds.length,
+        hasHierarchyContext: !!moveModalState.hierarchyContext,
+        hierarchyContextSample: moveModalState.hierarchyContext ? {
+          sectionsCount: moveModalState.hierarchyContext.sections?.length || 0,
+          tactiquesCount: Object.keys(moveModalState.hierarchyContext.tactiques || {}).length
+        } : 'UNDEFINED'
+      });
+    }
+  }, [moveModalState.isOpen, moveModalState.step, moveModalState.hierarchyContext]);
 
   // ==================== CALCULS DÉRIVÉS ====================
 
@@ -109,7 +138,7 @@ export default function SelectedActionsPanel({
     return parts.join(', ');
   }, [itemCountsByType]);
 
-  // ==================== 🔥 LOGIQUE DE BOUTON DÉPLACER ====================
+  // ==================== LOGIQUE DE BOUTON DÉPLACER ====================
 
   const moveButtonState = useMemo(() => {
     if (!validationResult) {
@@ -178,15 +207,55 @@ export default function SelectedActionsPanel({
     onClearSelection();
   };
 
+  // ==================== 🔍 GESTIONNAIRE DE DÉPLACEMENT AVEC DEBUG INTENSIF ====================
+
   const handleMove = async () => {
-    if (loading || !moveButtonState.canMove || !validationResult) return;
+    if (loading || !moveButtonState.canMove || !validationResult) {
+      console.log('🔍 DEBUG - handleMove bloqué:', {
+        loading,
+        canMove: moveButtonState.canMove,
+        hasValidation: !!validationResult
+      });
+      return;
+    }
     
-    console.log('🚀 Ouverture du modal de déplacement');
-    console.log('📊 Validation:', validationResult);
-    console.log('📦 Éléments à déplacer:', selectedItems);
+    console.log('🚀 DEBUT handleMove');
+    console.log('📊 Validation reçue:', validationResult);
+    console.log('📦 Éléments sélectionnés:', selectedItems);
+    console.log('🏗️ Contexte hiérarchique avant passage:', {
+      isDefined: !!hierarchyContext,
+      sections: hierarchyContext?.sections?.length || 0,
+      tactiques: Object.keys(hierarchyContext?.tactiques || {}).length,
+      placements: Object.keys(hierarchyContext?.placements || {}).length,
+      creatifs: Object.keys(hierarchyContext?.creatifs || {}).length,
+      firstSectionId: hierarchyContext?.sections?.[0]?.id || 'N/A'
+    });
     
-    // Ouvrir le modal avec la validation et les IDs sélectionnés
-    await openMoveModal(validationResult, selectedItems.map(item => item.id));
+    // 🔍 VÉRIFICATION AVANT APPEL
+    if (!hierarchyContext) {
+      console.error('❌ hierarchyContext est undefined dans handleMove !');
+      return;
+    }
+    
+    if (!hierarchyContext.sections || hierarchyContext.sections.length === 0) {
+      console.error('❌ hierarchyContext.sections est vide !');
+      return;
+    }
+    
+    console.log('✅ Contexte validé, appel du modal...');
+    
+    try {
+      // Appeler le modal avec tous les paramètres debug
+      await openMoveModal(
+        validationResult, 
+        selectedItems.map(item => item.id),
+        hierarchyContext
+      );
+      
+      console.log('✅ openMoveModal appelé avec succès');
+    } catch (error) {
+      console.error('❌ Erreur dans openMoveModal:', error);
+    }
   };
 
   // ==================== RENDU ====================
@@ -207,11 +276,15 @@ export default function SelectedActionsPanel({
             <div className="text-xs text-indigo-600">
               {selectionDescription}
             </div>
+            {/* 🔍 DEBUG VISUEL */}
+            <div className="text-xs text-gray-500">
+              Context: {hierarchyContext ? '✅' : '❌'}
+            </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
-            {/* 🔥 NOUVEAU: Bouton de déplacement avec validation */}
+            {/* Bouton de déplacement avec validation */}
             <button
               onClick={handleMove}
               disabled={loading || moveButtonState.disabled}
@@ -258,7 +331,19 @@ export default function SelectedActionsPanel({
           </div>
         </div>
 
-        
+        {/* Affichage du statut de validation */}
+        {validationResult && !validationResult.canMove && (
+          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+            <strong>Déplacement impossible :</strong> {validationResult.errorMessage}
+          </div>
+        )}
+
+        {/* 🔍 DEBUG VISUEL CONTEXTE */}
+        {hierarchyContext && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+            <strong>Debug contexte :</strong> {hierarchyContext.sections?.length || 0} sections, {Object.keys(hierarchyContext.tactiques || {}).length} groupes tactiques
+          </div>
+        )}
 
         {/* Indicateur de chargement */}
         {loading && (
@@ -269,7 +354,7 @@ export default function SelectedActionsPanel({
         )}
       </div>
 
-      {/* 🔥 NOUVEAU: Modal de déplacement */}
+      {/* Modal de déplacement */}
       <MoveModal
         modalState={moveModalState}
         onClose={closeMoveModal}
