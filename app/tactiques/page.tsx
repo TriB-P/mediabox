@@ -716,28 +716,34 @@ export default function TactiquesPage() {
               <>
                 {viewMode === 'hierarchy' && (
                   <>
-                    {sectionsWithTactiques.length > 0 ? (
-                      <TactiquesHierarchyView
-                        sections={sectionsWithTactiques}
-                        placements={enrichedPlacements} 
-                        creatifs={enrichedCreatifs} 
-                        onSectionExpand={handleSectionExpand}
-                        onEditSection={handleEditSection}
-                        onDeleteSection={handleDeleteSection}
-                        onCreateTactique={handleCreateTactique}
-                        onUpdateTactique={handleUpdateTactique}
-                        onDeleteTactique={handleDeleteTactique}
-                        onCreatePlacement={handleCreatePlacement}
-                        onUpdatePlacement={handleUpdatePlacement}
-                        onDeletePlacement={handleDeletePlacement}
-                        onCreateCreatif={handleCreateCreatif}
-                        onUpdateCreatif={handleUpdateCreatif}
-                        onDeleteCreatif={handleDeleteCreatif}
-                        formatCurrency={formatCurrency}
-                        totalBudget={totalBudget}
-                        onRefresh={onRefresh}
-                        onSelectItems={handleSelectItems}
-                      />
+                     {sectionsWithTactiques.length > 0 ? (
+                    <TactiquesHierarchyView
+                      sections={sectionsWithTactiques}
+                      placements={enrichedPlacements} 
+                      creatifs={enrichedCreatifs} 
+                      onSectionExpand={handleSectionExpand}
+                      onEditSection={handleEditSection}
+                      onDeleteSection={handleDeleteSection}
+                      onCreateTactique={handleCreateTactique}
+                      onUpdateTactique={handleUpdateTactique}
+                      onDeleteTactique={handleDeleteTactique}
+                      onCreatePlacement={handleCreatePlacement}
+                      onUpdatePlacement={handleUpdatePlacement}
+                      onDeletePlacement={handleDeletePlacement}
+                      onCreateCreatif={handleCreateCreatif}
+                      onUpdateCreatif={handleUpdateCreatif}
+                      onDeleteCreatif={handleDeleteCreatif}
+                      formatCurrency={formatCurrency}
+                      totalBudget={totalBudget}
+                      onRefresh={onRefresh}
+                      onSelectItems={handleSelectItems}
+                      onDuplicateSelected={handleDuplicateSelected}
+                      onDeleteSelected={handleDeleteSelected}
+                      onClearSelection={handleClearSelection}
+                      loading={isLoading}
+                      // 🔥 NOUVEAU: Passer le contexte hiérarchique
+                      hierarchyContext={hierarchyContextForMove}
+                    />
                     ) : (
                       <div className="bg-white p-8 rounded-lg shadow text-center">
                         <p className="text-gray-500">

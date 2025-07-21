@@ -54,6 +54,12 @@ interface TactiquesHierarchyViewProps {
   onClearSelection?: () => void;
   selectedItems?: (SectionWithTactiques | Tactique | Placement | Creatif)[];
   loading?: boolean;
+  hierarchyContext?: {
+    sections: any[];
+    tactiques: { [sectionId: string]: any[] };
+    placements: { [tactiqueId: string]: any[] };
+    creatifs: { [placementId: string]: any[] };
+  };
 }
 
 export default function TactiquesHierarchyView({
@@ -78,7 +84,8 @@ export default function TactiquesHierarchyView({
   onDuplicateSelected,
   onDeleteSelected,
   onClearSelection,
-  loading = false
+  loading = false,
+  hierarchyContext 
 }: TactiquesHierarchyViewProps) {
 
   const { selectedClient } = useClient();
@@ -435,13 +442,70 @@ export default function TactiquesHierarchyView({
 
   const selectedItems = useMemo(() => {
     const selection = selectionLogic.getSelectedItems();
-    return selection.details.map(detail => ({
-      id: detail.id,
-      name: detail.item?.name || 'Nom inconnu',
-      type: detail.item?.type || 'section',
-      data: detail.item
-    }));
-  }, [selectionLogic]);
+    const result: Array<{
+      id: string;
+      name: string;
+      type: 'section' | 'tactique' | 'placement' | 'creatif';
+      data?: Section | Tactique | Placement | Creatif;
+    }> = [];
+  
+    selection.details.forEach(detail => {
+      // Chercher l'élément réel dans la hiérarchie sections
+      for (const section of sections) {
+        if (section.id === detail.id) {
+          result.push({
+            id: detail.id,
+            name: section.SECTION_Name,
+            type: 'section',
+            data: section
+          });
+          return;
+        }
+        
+        for (const tactique of section.tactiques) {
+          if (tactique.id === detail.id) {
+            result.push({
+              id: detail.id,
+              name: tactique.TC_Label,
+              type: 'tactique',
+              data: tactique
+            });
+            return;
+          }
+          
+          if (tactique.placements) {
+            for (const placement of tactique.placements) {
+              if (placement.id === detail.id) {
+                result.push({
+                  id: detail.id,
+                  name: placement.PL_Label,
+                  type: 'placement',
+                  data: placement
+                });
+                return;
+              }
+              
+              if (placement.creatifs) {
+                for (const creatif of placement.creatifs) {
+                  if (creatif.id === detail.id) {
+                    result.push({
+                      id: detail.id,
+                      name: creatif.CR_Label,
+                      type: 'creatif',
+                      data: creatif
+                    });
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  
+    return result;
+  }, [selectionLogic, sections]);
 
   const handleClearSelectionLocal = () => {
     selectionLogic.clearSelection();
@@ -503,9 +567,8 @@ export default function TactiquesHierarchyView({
             onClearSelection={handleClearSelectionLocal}
             onRefresh={onRefresh}
             loading={loading}
-            // 🔥 NOUVEAU: Passer le résultat de validation
             validationResult={validationResult}
-            // 🔥 SUPPRIMÉ TEMPORAIREMENT: hierarchyContext pour simplifier
+            hierarchyContext={hierarchyContext} // 🔥 AJOUTER cette ligne
           />
           
 

@@ -432,7 +432,11 @@ import {
   
   // ==================== 🔥 DÉPLACEMENT PRINCIPAL CORRIGÉ ====================
   
-  export async function performMove(operation: MoveOperation): Promise<MoveResult> {
+// app/lib/simpleMoveService.ts - CORRECTION TRANSACTION FIRESTORE
+
+// Remplacer la fonction performMove existante par cette version corrigée :
+
+export async function performMove(operation: MoveOperation): Promise<MoveResult> {
     console.log('🚀 Début de l\'opération de déplacement simple CORRIGÉE');
     console.log('📦 Opération:', operation);
   
@@ -456,28 +460,48 @@ import {
       // Calculer l'ordre de départ
       let nextOrder = await getNextOrder(clientId, destination, itemType);
       
-      // Exécuter dans une transaction
+      // 🔥 CORRECTION: Séparer les lectures et les écritures dans la transaction
       await runTransaction(db, async (transaction) => {
+        // 🔥 ÉTAPE 1: D'ABORD TOUTES LES LECTURES
+        const itemsData: Array<{
+          itemWithContext: ItemWithContext;
+          sourceRef: any;
+          sourceData: any;
+          destRef: any;
+          newData: any;
+          error?: string;
+        }> = [];
+  
+        console.log('📖 Phase 1: Lecture de tous les éléments...');
+        
         for (const itemWithContext of itemsWithContext) {
           try {
-            // 🔥 CORRECTION: Construire le chemin source avec les vrais IDs
+            // Construire les chemins
             const sourcePath = buildCorrectSourcePath(clientId, itemWithContext);
             const sourceRef = doc(db, ...sourcePath);
             
-            // Construire le chemin destination  
             const destPath = buildDestinationPath(itemType, clientId, destination);
             const destCollectionRef = collection(db, ...destPath);
             const destRef = doc(destCollectionRef);
             
-            console.log('📍 Chemins:', {
+            console.log('📍 Lecture élément:', {
+              itemId: itemWithContext.itemId,
               source: sourcePath.join('/'),
               destination: destPath.join('/') + '/' + destRef.id
             });
             
-            // Lire l'élément source
+            // 🔥 LECTURE: Toutes les lectures en premier
             const sourceSnap = await transaction.get(sourceRef);
+            
             if (!sourceSnap.exists()) {
-              errors.push(`Élément ${itemWithContext.itemId} non trouvé à la source : ${sourcePath.join('/')}`);
+              itemsData.push({
+                itemWithContext,
+                sourceRef,
+                sourceData: null,
+                destRef,
+                newData: null,
+                error: `Élément ${itemWithContext.itemId} non trouvé à la source : ${sourcePath.join('/')}`
+              });
               continue;
             }
             
@@ -505,20 +529,61 @@ import {
                 break;
             }
             
-            // Créer à la destination et supprimer la source
-            transaction.set(destRef, newData);
-            transaction.delete(sourceRef);
+            // Stocker pour la phase d'écriture
+            itemsData.push({
+              itemWithContext,
+              sourceRef,
+              sourceData,
+              destRef,
+              newData
+            });
             
             nextOrder++;
-            movedCount++;
-            
-            console.log(`✅ Élément ${itemWithContext.itemId} déplacé avec succès`);
             
           } catch (itemError) {
-            console.error(`❌ Erreur déplacement ${itemWithContext.itemId}:`, itemError);
-            errors.push(`Erreur déplacement ${itemWithContext.itemId}: ${itemError}`);
+            console.error(`❌ Erreur lecture ${itemWithContext.itemId}:`, itemError);
+            itemsData.push({
+              itemWithContext,
+              sourceRef: null,
+              sourceData: null,
+              destRef: null,
+              newData: null,
+              error: `Erreur lecture ${itemWithContext.itemId}: ${itemError}`
+            });
           }
         }
+        
+        console.log(`📖 Phase 1 terminée: ${itemsData.length} éléments lus`);
+        
+        // 🔥 ÉTAPE 2: PUIS TOUTES LES ÉCRITURES
+        console.log('✍️ Phase 2: Écriture de tous les éléments...');
+        
+        for (const itemData of itemsData) {
+          if (itemData.error) {
+            errors.push(itemData.error);
+            continue;
+          }
+          
+          if (!itemData.sourceData || !itemData.newData) {
+            errors.push(`Données manquantes pour ${itemData.itemWithContext.itemId}`);
+            continue;
+          }
+          
+          try {
+            // 🔥 ÉCRITURES: Toutes les écritures en dernier
+            transaction.set(itemData.destRef, itemData.newData);
+            transaction.delete(itemData.sourceRef);
+            
+            movedCount++;
+            console.log(`✅ Élément ${itemData.itemWithContext.itemId} déplacé avec succès`);
+            
+          } catch (writeError) {
+            console.error(`❌ Erreur écriture ${itemData.itemWithContext.itemId}:`, writeError);
+            errors.push(`Erreur écriture ${itemData.itemWithContext.itemId}: ${writeError}`);
+          }
+        }
+        
+        console.log(`✍️ Phase 2 terminée: ${movedCount} éléments déplacés`);
       });
   
       const success = errors.length === 0;
