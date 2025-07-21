@@ -45,7 +45,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
   const itemsMap = useMemo(() => {
     const map = new Map<string, SelectionItem>();
     
-    console.log('🔄 Construction de la map des éléments');
     
     sections.forEach(section => {
       // Ajouter la section
@@ -93,7 +92,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
       });
     });
     
-    console.log('✅ Map construite avec', map.size, 'éléments');
     return map;
   }, [sections]);
 
@@ -140,7 +138,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
   // ==================== ACTION DE SÉLECTION SIMPLIFIÉE ====================
   
   const toggleSelection = useCallback((itemId: string, forceSelected?: boolean) => {
-    console.log('🎯 Toggle sélection pour:', itemId, forceSelected !== undefined ? `(forcé: ${forceSelected})` : '');
     
     const item = itemsMap.get(itemId);
     if (!item) {
@@ -157,33 +154,27 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
       
       if (shouldSelect) {
         // SÉLECTION : Ajouter l'élément ET tous ses descendants
-        console.log('✅ Sélection de', item.name, 'et ses descendants');
         
         newSelected.add(itemId);
         const descendants = getAllDescendants(itemId);
         descendants.forEach(descendantId => newSelected.add(descendantId));
         
-        console.log('📦 Ajoutés:', 1 + descendants.length, 'éléments');
         
       } else {
         // DÉSÉLECTION : Enlever l'élément ET tous ses descendants (mais PAS les parents)
-        console.log('❌ Désélection de', item.name, 'et ses descendants seulement');
         
         // Enlever l'élément et ses descendants
         newSelected.delete(itemId);
         const descendants = getAllDescendants(itemId);
         descendants.forEach(descendantId => newSelected.delete(descendantId));
         
-        console.log('🗑️ Supprimés:', 1 + descendants.length, 'éléments');
       }
       
-      console.log('📊 Nouvelle sélection:', newSelected.size, 'éléments');
       return newSelected;
     });
   }, [itemsMap, getAllDescendants, getAllAncestors]);
   
   const clearSelection = useCallback(() => {
-    console.log('🔄 Effacement de toute la sélection');
     setSelectedIds(new Set());
   }, []);
 

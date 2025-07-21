@@ -277,10 +277,7 @@ export default function SelectedActionsPanel({
             <div className="text-xs text-indigo-600">
               {selectionDescription}
             </div>
-            {/* 🔍 DEBUG VISUEL */}
-            <div className="text-xs text-gray-500">
-              Context: {hierarchyContext ? '✅' : '❌'}
-            </div>
+            
           </div>
 
           {/* Actions */}
@@ -336,13 +333,6 @@ export default function SelectedActionsPanel({
         {validationResult && !validationResult.canMove && (
           <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
             <strong>Déplacement impossible :</strong> {validationResult.errorMessage}
-          </div>
-        )}
-
-        {/* 🔍 DEBUG VISUEL CONTEXTE */}
-        {hierarchyContext && (
-          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
-            <strong>Debug contexte :</strong> {hierarchyContext.sections?.length || 0} sections, {Object.keys(hierarchyContext.tactiques || {}).length} groupes tactiques
           </div>
         )}
 

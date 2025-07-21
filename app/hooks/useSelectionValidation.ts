@@ -126,7 +126,7 @@ export function useSelectionValidation({
       return {
         isValid: false,
         canMove: false,
-        errorMessage: `Sélection incomplète : "${firstOrphan.parentName}" a ${missingCount} enfant(s) non sélectionné(s). ${totalOrphans} enfant(s) manquant(s) au total.`,
+        errorMessage: `Sélection incomplète : "${firstOrphan.parentName}" a ${missingCount} élément(s) non sélectionné(s). ${totalOrphans} enfant(s) manquant(s) au total.`,
         affectedItemsCount: selectedItems.length,
         details: {
           selectedItems: selectedIds,
