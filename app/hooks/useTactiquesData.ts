@@ -135,146 +135,218 @@ export const useTactiquesData = (
   /**
    * Chargement complet d'un onglet avec tous ses éléments enfants
    */
-  const loadOngletData = useCallback(async (ongletId: string, availableOnglets?: Onglet[]) => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      console.log('🔄 loadOngletData: Contexte incomplet');
-      return;
+
+const loadOngletData = useCallback(async (ongletId: string, availableOnglets?: Onglet[]) => {
+  if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+    console.log('🔄 loadOngletData: Contexte incomplet');
+    return;
+  }
+
+  console.log(`🔄 Chargement complet onglet ${ongletId}`);
+
+  try {
+    // 1. Définir l'onglet sélectionné
+    const ongletsToUse = availableOnglets || onglets;
+    const onglet = ongletsToUse.find(o => o.id === ongletId);
+    if (onglet) {
+      setSelectedOnglet(onglet);
     }
 
-    console.log(`🔄 Chargement complet onglet ${ongletId}`);
+    // 2. Charger sections en préservant les expansions
+    const newSections = await getSections(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId,
+      ongletId
+    );
+    
+    // 🔥 CORRECTION : Simplifier la préservation des expansions
+    setSections(newSections.map(section => ({
+      ...section,
+      isExpanded: dataFlow.state.sectionExpansions[section.id] || false
+    })));
 
-    try {
-      // 1. Définir l'onglet sélectionné
-      const ongletsToUse = availableOnglets || onglets;
-      const onglet = ongletsToUse.find(o => o.id === ongletId);
-      if (onglet) {
-        setSelectedOnglet(onglet);
-      }
-
-      // 2. Charger sections en préservant les expansions
-      const newSections = await getSections(
+    // 3. Charger tactiques pour chaque section
+    const newTactiques: { [sectionId: string]: Tactique[] } = {};
+    for (const section of newSections) {
+      const sectionTactiques = await getTactiques(
         selectedClient.clientId,
         selectedCampaignId,
         selectedVersionId,
-        ongletId
+        ongletId,
+        section.id
       );
-      
-      // 🔥 IMPORTANT : Préserver les états d'expansion existants
-      const sectionsWithExpansion = newSections.map(section => {
-        const isExpanded = dataFlow.state.sectionExpansions[section.id] || false;
-        return { ...section, isExpanded };
-      });
-      setSections(sectionsWithExpansion);
+      newTactiques[section.id] = sectionTactiques;
+    }
+    setTactiques(newTactiques);
 
-      // 3. Charger tactiques pour chaque section
-      const newTactiques: { [sectionId: string]: Tactique[] } = {};
-      for (const section of newSections) {
-        const sectionTactiques = await getTactiques(
+    // 4. Charger placements pour chaque tactique
+    const newPlacements: { [tactiqueId: string]: Placement[] } = {};
+    for (const [sectionId, sectionTactiques] of Object.entries(newTactiques)) {
+      for (const tactique of sectionTactiques) {
+        const tactiquePlacements = await getPlacementsForTactique(
           selectedClient.clientId,
           selectedCampaignId,
           selectedVersionId,
           ongletId,
-          section.id
+          sectionId,
+          tactique.id
         );
-        newTactiques[section.id] = sectionTactiques;
+        newPlacements[tactique.id] = tactiquePlacements;
       }
-      setTactiques(newTactiques);
+    }
+    setPlacements(newPlacements);
 
-      // 4. Charger placements pour chaque tactique
-      const newPlacements: { [tactiqueId: string]: Placement[] } = {};
-      for (const [sectionId, sectionTactiques] of Object.entries(newTactiques)) {
-        for (const tactique of sectionTactiques) {
-          const tactiquePlacements = await getPlacementsForTactique(
+    // 5. Charger créatifs pour chaque placement
+    const newCreatifs: { [placementId: string]: Creatif[] } = {};
+    for (const [tactiqueId, tactiquePlacements] of Object.entries(newPlacements)) {
+      for (const placement of tactiquePlacements) {
+        const sectionId = Object.keys(newTactiques).find(sId => 
+          newTactiques[sId].some(t => t.id === tactiqueId)
+        );
+        
+        if (sectionId) {
+          const placementCreatifs = await getCreatifsForPlacement(
             selectedClient.clientId,
             selectedCampaignId,
             selectedVersionId,
             ongletId,
             sectionId,
-            tactique.id
+            tactiqueId,
+            placement.id
           );
-          newPlacements[tactique.id] = tactiquePlacements;
+          newCreatifs[placement.id] = placementCreatifs;
         }
       }
-      setPlacements(newPlacements);
-
-      // 5. Charger créatifs pour chaque placement
-      const newCreatifs: { [placementId: string]: Creatif[] } = {};
-      for (const [tactiqueId, tactiquePlacements] of Object.entries(newPlacements)) {
-        for (const placement of tactiquePlacements) {
-          const sectionId = Object.keys(newTactiques).find(sId => 
-            newTactiques[sId].some(t => t.id === tactiqueId)
-          );
-          
-          if (sectionId) {
-            const placementCreatifs = await getCreatifsForPlacement(
-              selectedClient.clientId,
-              selectedCampaignId,
-              selectedVersionId,
-              ongletId,
-              sectionId,
-              tactiqueId,
-              placement.id
-            );
-            newCreatifs[placement.id] = placementCreatifs;
-          }
-        }
-      }
-      setCreatifs(newCreatifs);
-
-      console.log(`✅ Onglet ${ongletId} chargé complètement`);
-      setHasInitialData(true);
-      
-    } catch (err) {
-      console.error(`❌ Erreur chargement onglet ${ongletId}:`, err);
-      throw err;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, dataFlow.state.sectionExpansions]);
+    setCreatifs(newCreatifs);
+
+    console.log(`✅ Onglet ${ongletId} chargé complètement`);
+    setHasInitialData(true);
+    
+  } catch (err) {
+    console.error(`❌ Erreur chargement onglet ${ongletId}:`, err);
+    throw err;
+  }
+}, [selectedClient?.clientId, selectedCampaignId, selectedVersionId]);  // 🔥 CORRECTION : Réduire les dépendances
 
   /**
    * Fonction principale de rafraîchissement
    */
-  const onRefresh = useCallback(async () => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      console.log('🔄 onRefresh: Contexte incomplet');
-      return;
+ const onRefresh = useCallback(async () => {
+  if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+    console.log('🔄 onRefresh: Contexte incomplet');
+    return;
+  }
+
+  console.log('🔄 Début refresh des données tactiques');
+  
+  try {
+    // Type de chargement selon si on a déjà des données
+    if (hasInitialData) {
+      dataFlow.startRefreshLoading('Actualisation des données...');
+    } else {
+      dataFlow.startInitialLoading('Chargement des tactiques...');
     }
 
-    console.log('🔄 Début refresh des données tactiques');
+    // 1. Recharger les onglets
+    const newOnglets = await getOnglets(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId
+    );
+    setOnglets(newOnglets);
+
+    // 2. Si on a un onglet sélectionné, recharger ses données
+    if (selectedOngletId) {
+      // 🔥 CORRECTION : Passer directement les nouveaux onglets
+      const onglet = newOnglets.find(o => o.id === selectedOngletId);
+      if (onglet) {
+        setSelectedOnglet(onglet);
+        
+        // Recharger les données sans appeler loadOngletData pour éviter la boucle
+        const newSections = await getSections(
+          selectedClient.clientId,
+          selectedCampaignId,
+          selectedVersionId,
+          selectedOngletId
+        );
+        
+        setSections(newSections.map(section => ({
+          ...section,
+          isExpanded: dataFlow.state.sectionExpansions[section.id] || false
+        })));
+
+        // Charger le reste des données de façon synchrone
+        const newTactiques: { [sectionId: string]: Tactique[] } = {};
+        for (const section of newSections) {
+          const sectionTactiques = await getTactiques(
+            selectedClient.clientId,
+            selectedCampaignId,
+            selectedVersionId,
+            selectedOngletId,
+            section.id
+          );
+          newTactiques[section.id] = sectionTactiques;
+        }
+        setTactiques(newTactiques);
+
+        const newPlacements: { [tactiqueId: string]: Placement[] } = {};
+        for (const [sectionId, sectionTactiques] of Object.entries(newTactiques)) {
+          for (const tactique of sectionTactiques) {
+            const tactiquePlacements = await getPlacementsForTactique(
+              selectedClient.clientId,
+              selectedCampaignId,
+              selectedVersionId,
+              selectedOngletId,
+              sectionId,
+              tactique.id
+            );
+            newPlacements[tactique.id] = tactiquePlacements;
+          }
+        }
+        setPlacements(newPlacements);
+
+        const newCreatifs: { [placementId: string]: Creatif[] } = {};
+        for (const [tactiqueId, tactiquePlacements] of Object.entries(newPlacements)) {
+          for (const placement of tactiquePlacements) {
+            const sectionId = Object.keys(newTactiques).find(sId => 
+              newTactiques[sId].some(t => t.id === tactiqueId)
+            );
+            
+            if (sectionId) {
+              const placementCreatifs = await getCreatifsForPlacement(
+                selectedClient.clientId,
+                selectedCampaignId,
+                selectedVersionId,
+                selectedOngletId,
+                sectionId,
+                tactiqueId,
+                placement.id
+              );
+              newCreatifs[placement.id] = placementCreatifs;
+            }
+          }
+        }
+        setCreatifs(newCreatifs);
+        
+        setHasInitialData(true);
+      }
+    }
+
+    console.log('✅ Refresh terminé avec succès');
     
-    try {
-      // Type de chargement selon si on a déjà des données
-      if (hasInitialData) {
-        dataFlow.startRefreshLoading('Actualisation des données...');
-      } else {
-        dataFlow.startInitialLoading('Chargement des tactiques...');
-      }
-
-      // 1. Recharger les onglets
-      const newOnglets = await getOnglets(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId
-      );
-      setOnglets(newOnglets);
-
-      // 2. Si on a un onglet sélectionné, recharger ses données
-      if (selectedOngletId) {
-        await loadOngletData(selectedOngletId, newOnglets);
-      }
-
-      console.log('✅ Refresh terminé avec succès');
-      
-    } catch (err) {
-      console.error('❌ Erreur lors du refresh:', err);
-      dataFlow.setError(err instanceof Error ? err.message : 'Erreur lors du rafraîchissement');
-    } finally {
-      dataFlow.stopLoading();
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, hasInitialData, dataFlow, loadOngletData]);
+  } catch (err) {
+    console.error('❌ Erreur lors du refresh:', err);
+    dataFlow.setError(err instanceof Error ? err.message : 'Erreur lors du rafraîchissement');
+  } finally {
+    dataFlow.stopLoading();
+  }
+}, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, hasInitialData, dataFlow]);  // 🔥 CORRECTION : Réduire les dépendances
 
   // ==================== EFFETS DE CHARGEMENT ====================
-  
-  // Chargement initial quand le contexte change
+    
+  // 🔥 CORRECTION : Un seul effet pour le chargement initial
   useEffect(() => {
     const loadInitialData = async () => {
       if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
@@ -290,25 +362,32 @@ export const useTactiquesData = (
         return;
       }
 
+      // 🔥 CORRECTION : Éviter les rechargements inutiles
+      if (hasInitialData && onglets.length > 0) {
+        console.log('🔄 Données déjà chargées, skip');
+        return;
+      }
+
       console.log('🔄 Chargement initial des données tactiques');
       await onRefresh();
     };
 
     loadInitialData();
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId]); // 🔥 CORRECTION : Retirer onRefresh des dépendances
 
-  // Chargement de l'onglet sélectionné
+  // 🔥 CORRECTION : Effet séparé et simplifié pour l'onglet sélectionné
   useEffect(() => {
     if (selectedOngletId && onglets.length > 0) {
       const onglet = onglets.find(o => o.id === selectedOngletId);
       if (onglet && onglet.id !== selectedOnglet?.id) {
-        console.log('🔄 Changement d\'onglet détecté');
-        loadOngletData(selectedOngletId);
+        console.log('🔄 Synchronisation onglet sélectionné:', onglet.ONGLET_Name);
+        setSelectedOnglet(onglet);
+        // 🔥 CORRECTION : Pas de rechargement automatique, c'est handleSelectOnglet qui s'en charge
       }
     }
-  }, [selectedOngletId, onglets.length, selectedOnglet?.id, loadOngletData]);
+  }, [selectedOngletId, onglets, selectedOnglet?.id]);
 
-  // Auto-sélection du premier onglet
+  // Auto-sélection du premier onglet (inchangé)
   useEffect(() => {
     if (onglets.length > 0 && !selectedOngletId) {
       const firstOnglet = onglets[0];
@@ -330,12 +409,101 @@ export const useTactiquesData = (
     ));
   }, [dataFlow]);
 
-  const handleSelectOnglet = useCallback((onglet: Onglet) => {
+  const handleSelectOnglet = useCallback(async (onglet: Onglet) => {
     if (onglet.id !== selectedOngletId) {
       console.log('🎯 Sélection onglet:', onglet.ONGLET_Name);
-      setSelectedOngletId(onglet.id);
+      
+      // 🔥 CORRECTION : Charger immédiatement les données du bon onglet
+      if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+        return;
+      }
+
+      try {
+        // 1. Mettre à jour l'onglet sélectionné
+        setSelectedOngletId(onglet.id);
+        setSelectedOnglet(onglet);
+        
+        // 2. Démarrer le chargement
+        dataFlow.startRefreshLoading('Chargement de l\'onglet...');
+
+        // 3. Charger les données directement pour cet onglet
+        const newSections = await getSections(
+          selectedClient.clientId,
+          selectedCampaignId,
+          selectedVersionId,
+          onglet.id  // 🔥 Utiliser directement l'ID du nouvel onglet
+        );
+        
+        setSections(newSections.map(section => ({
+          ...section,
+          isExpanded: dataFlow.state.sectionExpansions[section.id] || false
+        })));
+
+        // Charger tactiques
+        const newTactiques: { [sectionId: string]: Tactique[] } = {};
+        for (const section of newSections) {
+          const sectionTactiques = await getTactiques(
+            selectedClient.clientId,
+            selectedCampaignId,
+            selectedVersionId,
+            onglet.id,  // 🔥 Utiliser directement l'ID du nouvel onglet
+            section.id
+          );
+          newTactiques[section.id] = sectionTactiques;
+        }
+        setTactiques(newTactiques);
+
+        // Charger placements
+        const newPlacements: { [tactiqueId: string]: Placement[] } = {};
+        for (const [sectionId, sectionTactiques] of Object.entries(newTactiques)) {
+          for (const tactique of sectionTactiques) {
+            const tactiquePlacements = await getPlacementsForTactique(
+              selectedClient.clientId,
+              selectedCampaignId,
+              selectedVersionId,
+              onglet.id,  // 🔥 Utiliser directement l'ID du nouvel onglet
+              sectionId,
+              tactique.id
+            );
+            newPlacements[tactique.id] = tactiquePlacements;
+          }
+        }
+        setPlacements(newPlacements);
+
+        // Charger créatifs
+        const newCreatifs: { [placementId: string]: Creatif[] } = {};
+        for (const [tactiqueId, tactiquePlacements] of Object.entries(newPlacements)) {
+          for (const placement of tactiquePlacements) {
+            const sectionId = Object.keys(newTactiques).find(sId => 
+              newTactiques[sId].some(t => t.id === tactiqueId)
+            );
+            
+            if (sectionId) {
+              const placementCreatifs = await getCreatifsForPlacement(
+                selectedClient.clientId,
+                selectedCampaignId,
+                selectedVersionId,
+                onglet.id,  // 🔥 Utiliser directement l'ID du nouvel onglet
+                sectionId,
+                tactiqueId,
+                placement.id
+              );
+              newCreatifs[placement.id] = placementCreatifs;
+            }
+          }
+        }
+        setCreatifs(newCreatifs);
+        
+        console.log('✅ Onglet changé et données chargées:', onglet.ONGLET_Name);
+        
+      } catch (err) {
+        console.error('❌ Erreur changement onglet:', err);
+        dataFlow.setError('Erreur lors du changement d\'onglet');
+      } finally {
+        dataFlow.stopLoading();
+      }
     }
-  }, [selectedOngletId, setSelectedOngletId]);
+  }, [selectedOngletId, setSelectedOngletId, selectedClient?.clientId, selectedCampaignId, selectedVersionId, dataFlow]);
 
   // ==================== FONCTIONS DE SUPPRESSION LOCALE ====================
   

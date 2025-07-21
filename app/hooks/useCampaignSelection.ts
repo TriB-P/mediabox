@@ -1,48 +1,37 @@
-// app/hooks/useCampaignSelection.ts - Version simplifiée pour éviter les boucles infinies
+// app/hooks/useCampaignSelection.ts - Version optimisée sans boucles infinies
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
 import { Campaign } from '../types/campaign';
-import { useDataFlow } from './useDataFlow';
 
 // ==================== TYPES ====================
 
-// 🔥 CORRECTION: Utiliser le type Version cohérent
 interface Version {
   id: string;
   name: string;
-  isOfficial: boolean; // 🔥 Obligatoire, pas optionnel
+  isOfficial: boolean;
   createdAt: string;
   createdBy: string;
 }
 
 interface UseCampaignSelectionReturn {
-  // Données chargées
   campaigns: Campaign[];
   versions: Version[];
-  
-  // États dérivés pour le composant CampaignVersionSelector
   selectedCampaign: Campaign | null;
   selectedVersion: Version | null;
-  
-  // États de chargement (délégués à useDataFlow)
   loading: boolean;
   error: string | null;
-  
-  // Actions pour CampaignVersionSelector
   handleCampaignChange: (campaign: Campaign) => void;
   handleVersionChange: (version: Version) => void;
-  
-  // Actions utilitaires
   refreshCampaigns: () => Promise<void>;
   refreshVersions: () => Promise<void>;
   clearSelection: () => void;
 }
 
-// ==================== HOOK PRINCIPAL ====================
+// ==================== HOOK PRINCIPAL OPTIMISÉ ====================
 
 export function useCampaignSelection(): UseCampaignSelectionReturn {
   
@@ -57,165 +46,166 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     clearCampaignSelection 
   } = useSelection();
   
-  const dataFlow = useDataFlow({ 
-    enableDebug: false // Désactiver le debug verbeux
-  });
-  
   // ==================== ÉTATS LOCAUX ====================
   
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [versions, setVersions] = useState<Version[]>([]);
-  const [loadedClientId, setLoadedClientId] = useState<string | null>(null);
-  const [loadedCampaignId, setLoadedCampaignId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // ==================== OBJETS DÉRIVÉS ====================
+  // ==================== REFS POUR ÉVITER LES BOUCLES ====================
   
-  const selectedCampaign = useMemo(() => {
-    if (!selectedCampaignId || campaigns.length === 0) return null;
-    return campaigns.find(c => c.id === selectedCampaignId) || null;
-  }, [selectedCampaignId, campaigns]);
+  const loadedClientRef = useRef<string | null>(null);
+  const loadedCampaignRef = useRef<string | null>(null);
+  const loadingCampaignsRef = useRef(false);
+  const loadingVersionsRef = useRef(false);
   
-  const selectedVersion = useMemo(() => {
-    if (!selectedVersionId || versions.length === 0) return null;
-    return versions.find(v => v.id === selectedVersionId) || null;
-  }, [selectedVersionId, versions]);
+  // ==================== FONCTIONS DE CHARGEMENT OPTIMISÉES ====================
   
-  // ==================== CHARGEMENT DES CAMPAGNES ====================
-  
-  const loadCampaigns = useCallback(async (clientId: string) => {
-    
-    try {
-      dataFlow.startRefreshLoading('Chargement des campagnes...');
-      
-      const campaignsData = await getCampaigns(clientId);
-      setCampaigns(campaignsData);
-      setLoadedClientId(clientId);
-      
-      
-      // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
-      
-    } catch (err) {
-      console.error('❌ Erreur chargement campagnes:', err);
-      dataFlow.setError('Erreur lors du chargement des campagnes');
-      setCampaigns([]);
-    } finally {
-      dataFlow.stopLoading();
-    }
-  }, [selectedCampaignId, setSelectedCampaignId, dataFlow]);
-  
-  // ==================== CHARGEMENT DES VERSIONS ====================
-  
-  const loadVersions = useCallback(async (clientId: string, campaignId: string) => {
-    
-    try {
-      dataFlow.startRefreshLoading('Chargement des versions...');
-      
-      const versionsData = await getVersions(clientId, campaignId);
-      setVersions(versionsData);
-      setLoadedCampaignId(campaignId);
-      
-      
-      // 🔥 CORRECTION: Enlever la validation automatique qui cause le reset
-      
-    } catch (err) {
-      console.error('❌ Erreur chargement versions:', err);
-      dataFlow.setError('Erreur lors du chargement des versions');
-      setVersions([]);
-    } finally {
-      dataFlow.stopLoading();
-    }
-  }, [selectedVersionId, setSelectedVersionId, dataFlow]);
-  
-  // ==================== EFFET SIMPLE POUR LE CLIENT ====================
-  
-  useEffect(() => {
- 
-    
-    if (!selectedClient?.clientId) {
-      // Pas de client = reset tout
-      setCampaigns([]);
-      setVersions([]);
-      setLoadedClientId(null);
-      setLoadedCampaignId(null);
+  const loadCampaigns = useCallback(async (clientId: string, force = false) => {
+    // 🔥 PROTECTION : Éviter les appels simultanés
+    if (loadingCampaignsRef.current && !force) {
+      console.log('⚠️ Chargement campagnes déjà en cours, ignoré');
       return;
     }
     
-    // Charger uniquement si ce n'est pas déjà le bon client
-    if (selectedClient.clientId !== loadedClientId) {
-      setVersions([]);
-      setLoadedCampaignId(null);
-      loadCampaigns(selectedClient.clientId);
-    } else {
+    // 🔥 PROTECTION : Éviter les rechargements inutiles
+    if (loadedClientRef.current === clientId && !force) {
+      console.log('✅ Campagnes déjà chargées pour ce client');
+      return;
     }
-  }, [selectedClient?.clientId, loadedClientId, loadCampaigns]);
+    
+    loadingCampaignsRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔄 Chargement campagnes pour client:', clientId);
+      
+      const campaignsData = await getCampaigns(clientId);
+      setCampaigns(campaignsData);
+      loadedClientRef.current = clientId;
+      
+      // 🔥 CORRECTION : Reset versions seulement si changement de client
+      if (loadedCampaignRef.current && loadedCampaignRef.current !== selectedCampaignId) {
+        setVersions([]);
+        loadedCampaignRef.current = null;
+      }
+      
+      console.log('✅ Campagnes chargées:', campaignsData.length);
+      
+    } catch (err) {
+      console.error('❌ Erreur chargement campagnes:', err);
+      setError('Erreur lors du chargement des campagnes');
+      setCampaigns([]);
+    } finally {
+      loadingCampaignsRef.current = false;
+      setLoading(false);
+    }
+  }, [selectedCampaignId]);
   
-  // ==================== EFFET SIMPLE POUR LA CAMPAGNE ====================
+  const loadVersions = useCallback(async (clientId: string, campaignId: string, force = false) => {
+    // 🔥 PROTECTION : Éviter les appels simultanés
+    if (loadingVersionsRef.current && !force) {
+      console.log('⚠️ Chargement versions déjà en cours, ignoré');
+      return;
+    }
+    
+    // 🔥 PROTECTION : Éviter les rechargements inutiles
+    if (loadedCampaignRef.current === campaignId && !force) {
+      console.log('✅ Versions déjà chargées pour cette campagne');
+      return;
+    }
+    
+    loadingVersionsRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔄 Chargement versions pour campagne:', campaignId);
+      
+      const versionsData = await getVersions(clientId, campaignId);
+      setVersions(versionsData);
+      loadedCampaignRef.current = campaignId;
+      
+      console.log('✅ Versions chargées:', versionsData.length);
+      
+    } catch (err) {
+      console.error('❌ Erreur chargement versions:', err);
+      setError('Erreur lors du chargement des versions');
+      setVersions([]);
+    } finally {
+      loadingVersionsRef.current = false;
+      setLoading(false);
+    }
+  }, []);
+  
+  // ==================== EFFET SIMPLIFIÉ POUR LE CLIENT ====================
   
   useEffect(() => {
-
+    if (!selectedClient?.clientId) {
+      // Reset complet si pas de client
+      setCampaigns([]);
+      setVersions([]);
+      loadedClientRef.current = null;
+      loadedCampaignRef.current = null;
+      setError(null);
+      return;
+    }
     
+    // Charger uniquement si nécessaire
+    loadCampaigns(selectedClient.clientId);
+  }, [selectedClient?.clientId, loadCampaigns]);
+  
+  // ==================== EFFET SIMPLIFIÉ POUR LA CAMPAGNE ====================
+  
+  useEffect(() => {
     if (!selectedClient?.clientId || !selectedCampaignId) {
-      // Pas de campagne = reset versions
-      if (loadedCampaignId) {
+      // Reset versions si pas de campagne
+      if (loadedCampaignRef.current) {
         setVersions([]);
-        setLoadedCampaignId(null);
+        loadedCampaignRef.current = null;
       }
       return;
     }
     
-    // Charger uniquement si ce n'est pas déjà la bonne campagne
-    if (selectedCampaignId !== loadedCampaignId) {
-      loadVersions(selectedClient.clientId, selectedCampaignId);
-    } else {
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, loadedCampaignId, loadVersions]);
+    // Charger uniquement si nécessaire
+    loadVersions(selectedClient.clientId, selectedCampaignId);
+  }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
   
-  // ==================== GESTIONNAIRES POUR LE COMPOSANT ====================
+  // ==================== OBJETS DÉRIVÉS MÉMORISÉS ====================
+  
+  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId) || null;
+  const selectedVersion = versions.find(v => v.id === selectedVersionId) || null;
+  
+  // ==================== GESTIONNAIRES SIMPLIFIÉS ====================
   
   const handleCampaignChange = useCallback((campaign: Campaign) => {
+    console.log('📋 Changement campagne:', campaign.CA_Name);
     
-    // Vérifier que la campagne existe dans la liste
-    const campaignExists = campaigns.find(c => c.id === campaign.id);
-    if (!campaignExists) {
-      console.error('❌ [handleCampaignChange] Campagne introuvable dans la liste!');
-      return;
-    }
-    
-    // 🔥 TEST: Changer l'ordre - d'abord reset version, puis sélectionner campagne
-    setSelectedVersionId(null); // Reset version EN PREMIER
-    
-    // Attendre le prochain tick pour éviter les conflits
-    setTimeout(() => {
-      setSelectedCampaignId(campaign.id);
-    }, 0);
-    
-  }, [campaigns, setSelectedCampaignId, setSelectedVersionId]);
+    // 🔥 CORRECTION : Changement synchrone sans setTimeout
+    setSelectedVersionId(null); // Reset version d'abord
+    setSelectedCampaignId(campaign.id); // Puis changer campagne
+  }, [setSelectedCampaignId, setSelectedVersionId]);
   
   const handleVersionChange = useCallback((version: Version) => {
-    
-    // Vérifier que la version existe dans la liste
-    const versionExists = versions.find(v => v.id === version.id);
-    if (!versionExists) {
-      console.error('❌ Version introuvable dans la liste!');
-      return;
-    }
-    
+    console.log('📝 Changement version:', version.name);
     setSelectedVersionId(version.id);
-  }, [versions, setSelectedVersionId]);
+  }, [setSelectedVersionId]);
   
   // ==================== ACTIONS UTILITAIRES ====================
   
   const refreshCampaigns = useCallback(async () => {
     if (selectedClient?.clientId) {
-      setLoadedClientId(null); // Force le rechargement
-      await loadCampaigns(selectedClient.clientId);
+      loadedClientRef.current = null; // Force le rechargement
+      await loadCampaigns(selectedClient.clientId, true);
     }
   }, [selectedClient?.clientId, loadCampaigns]);
   
   const refreshVersions = useCallback(async () => {
     if (selectedClient?.clientId && selectedCampaignId) {
-      setLoadedCampaignId(null); // Force le rechargement
-      await loadVersions(selectedClient.clientId, selectedCampaignId);
+      loadedCampaignRef.current = null; // Force le rechargement
+      await loadVersions(selectedClient.clientId, selectedCampaignId, true);
     }
   }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
   
@@ -223,75 +213,24 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     clearCampaignSelection();
     setCampaigns([]);
     setVersions([]);
-    setLoadedClientId(null);
-    setLoadedCampaignId(null);
-    dataFlow.setError(null);
-  }, [clearCampaignSelection, dataFlow]);
+    loadedClientRef.current = null;
+    loadedCampaignRef.current = null;
+    setError(null);
+  }, [clearCampaignSelection]);
   
-  // ==================== GESTION D'ERREUR ====================
-  
-  const hasError = !selectedClient ? false : !!dataFlow.state.error;
-  const isLoading = dataFlow.isLoading;
-  
-
   // ==================== RETURN ====================
   
   return {
-    // Données
     campaigns,
     versions,
-    
-    // États dérivés
     selectedCampaign,
     selectedVersion,
-    
-    // États de chargement
-    loading: isLoading,
-    error: hasError ? dataFlow.state.error : null,
-    
-    // Actions pour CampaignVersionSelector
+    loading,
+    error: selectedClient ? error : null, // Pas d'erreur si pas de client
     handleCampaignChange,
     handleVersionChange,
-    
-    // Actions utilitaires
     refreshCampaigns,
     refreshVersions,
     clearSelection
   };
-}
-
-// ==================== HOOK UTILITAIRE ====================
-
-/**
- * Hook simplifié pour juste récupérer les données sans gestion d'état
- */
-export function useCampaignData(clientId?: string) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const loadCampaigns = useCallback(async () => {
-    if (!clientId) {
-      setCampaigns([]);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getCampaigns(clientId);
-      setCampaigns(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-  
-  useEffect(() => {
-    loadCampaigns();
-  }, [loadCampaigns]);
-  
-  return { campaigns, loading, error, refresh: loadCampaigns };
 }
