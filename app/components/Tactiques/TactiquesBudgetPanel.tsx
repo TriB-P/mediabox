@@ -542,13 +542,13 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
       {/* Placeholder pour les indicateurs */}
       <div className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-800">Indicateurs de performance</h4>
+          <h4 className="text-sm font-semibold text-gray-800">Indicateurs de campagne</h4>
         </div>
         <div className="p-8 text-center">
           <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Indicateurs</h3>
           <p className="text-gray-500 mb-4">
-            Les indicateurs de performance seront bientôt disponibles.
+            Les indicateurs de campagne seront bientôt disponibles. Ils vous permettront de voir le taux de média locaux, de média numérique et le niveau de complexité de votre campagne
           </p>
           <div className="text-sm text-gray-400">
             🚧 En construction
