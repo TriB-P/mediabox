@@ -79,7 +79,6 @@ export function useSelectionValidation({
 }: UseSelectionValidationProps): SelectionValidationResult {
 
   return useMemo(() => {
-    console.log('🔍 Validation de sélection pour déplacement:', selectedIds.length, 'éléments');
 
     // ==================== VÉRIFICATIONS DE BASE ====================
 
@@ -117,7 +116,6 @@ export function useSelectionValidation({
 
     // ==================== 1ère VÉRIFICATION : ABSENCE D'ORPHELINS ====================
 
-    console.log('🔍 Vérification des orphelins...');
     const orphanCheck = checkForOrphans(selectedItems, hierarchyMap);
     
     if (!orphanCheck.isValid) {
@@ -140,7 +138,6 @@ export function useSelectionValidation({
 
     // ==================== 2ème VÉRIFICATION : COHÉRENCE HIÉRARCHIQUE ====================
 
-    console.log('🔍 Vérification de la cohérence hiérarchique...');
     const selectedSet = new Set(selectedItems.map(item => item.id));
     const levelCheck = checkHierarchicalConsistency(selectedItems, hierarchyMap, selectedSet);
     
@@ -165,13 +162,6 @@ export function useSelectionValidation({
     
     // Calculer le nombre total d'éléments qui seront affectés (sélectionnés + leurs enfants)
     const affectedItemsCount = calculateAffectedItemsCount(selectedItems, hierarchyMap);
-
-    console.log('✅ Sélection valide:', {
-      moveLevel,
-      targetLevel,
-      directCount: selectedItems.length,
-      totalAffected: affectedItemsCount
-    });
 
     return {
       isValid: true,
@@ -203,7 +193,6 @@ function checkForOrphans(
     missingChildren: Array<{ id: string; name: string }>;
   }> = [];
 
-  console.log('🔍 Vérification orphelins pour', selectedItems.length, 'éléments sélectionnés');
 
   for (const selectedItem of selectedItems) {
     if (selectedItem.childrenIds.length === 0) {
@@ -227,7 +216,6 @@ function checkForOrphans(
     }
 
     if (missingChildren.length > 0) {
-      console.log(`❌ Orphelins détectés pour "${selectedItem.name}":`, missingChildren.length, 'enfants manquants');
       orphans.push({
         parentId: selectedItem.id,
         parentName: selectedItem.name,
@@ -248,26 +236,22 @@ function checkHierarchicalConsistency(
   selectedSet: Set<string>
 ): SelectionValidationResult['details']['levelCheck'] {
   
-  console.log('🔍 Vérification cohérence hiérarchique...');
 
   // Pour chaque élément, trouver son niveau hiérarchique racine
   const rootLevelCounts = new Map<ItemType, number>();
   
   selectedItems.forEach(item => {
     const rootLevel = findRootLevel(item.id, hierarchyMap, selectedSet);
-    console.log(`📍 Élément "${item.name}" (${item.type}) → niveau racine: ${rootLevel}`);
     
     rootLevelCounts.set(rootLevel, (rootLevelCounts.get(rootLevel) || 0) + 1);
   });
 
   const levels = Array.from(rootLevelCounts.entries()).map(([type, count]) => ({ type, count }));
   
-  console.log('📊 Répartition par niveau racine:', levels);
 
   // Vérifier qu'on a un seul niveau racine
   if (levels.length > 1) {
     const mixedLevels = levels.map(l => ITEM_LABELS[l.type]);
-    console.log('❌ Niveaux racines mélangés détectés:', mixedLevels);
     
     return {
       isValid: false,
@@ -276,7 +260,6 @@ function checkHierarchicalConsistency(
     };
   }
 
-  console.log('✅ Cohérence hiérarchique validée');
   
   return {
     isValid: true,
@@ -294,7 +277,6 @@ function findRootLevel(
   
   const item = hierarchyMap.get(itemId);
   if (!item) {
-    console.warn('Élément non trouvé dans la hiérarchie:', itemId);
     return 'creatif'; // Fallback
   }
   
@@ -364,7 +346,6 @@ export function buildHierarchyMap(sections: Array<{
   
   const map = new Map<string, HierarchyItem>();
   
-  console.log('🏗️ Construction de la map hiérarchique...');
   
   sections.forEach(section => {
     // Ajouter la section
@@ -412,7 +393,6 @@ export function buildHierarchyMap(sections: Array<{
     });
   });
   
-  console.log('✅ Map hiérarchique construite:', map.size, 'éléments');
   return map;
 }
 

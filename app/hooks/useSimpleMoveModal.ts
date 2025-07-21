@@ -1,4 +1,4 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement CORRIGÉ
+// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement CORRIGÉ COMPLET
 
 import { useState, useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -40,7 +40,7 @@ export interface MoveModalState {
   processing: boolean;
   error: string | null;
   
-  // 🔥 NOUVEAU: Contexte hiérarchique pour construire les chemins source
+  // Contexte hiérarchique pour construire les chemins source
   hierarchyContext?: {
     sections: any[];
     tactiques: { [sectionId: string]: any[] };
@@ -54,6 +54,9 @@ export interface MoveModalState {
 export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
+  
+  // 🔥 NOUVEAU: Stocker la fonction de refresh pour l'utiliser après le déplacement
+  const [onRefreshCallback, setOnRefreshCallback] = useState<(() => Promise<void>) | null>(null);
   
   // ==================== ÉTAT DU MODAL ====================
   
@@ -80,63 +83,6 @@ export function useSimpleMoveModal() {
     error: null,
     hierarchyContext: undefined
   });
-
-  // ==================== OUVERTURE DU MODAL ====================
-  
-  const openModal = useCallback(async (
-    validationResult: SelectionValidationResult,
-    selectedItemIds: string[],
-    // 🔥 NOUVEAU: Recevoir le contexte hiérarchique
-    hierarchyContext?: {
-      sections: any[];
-      tactiques: { [sectionId: string]: any[] };
-      placements: { [tactiqueId: string]: any[] };
-      creatifs: { [placementId: string]: any[] };
-    }
-  ) => {
-    console.log('🚀 Ouverture du modal de déplacement');
-    console.log('📊 Validation:', validationResult);
-    console.log('📦 Éléments sélectionnés:', selectedItemIds);
-    console.log('🏗️ Contexte hiérarchique:', hierarchyContext ? 'Fourni' : 'Manquant');
-    
-    if (!selectedClient?.clientId) {
-      console.error('❌ Aucun client sélectionné');
-      return;
-    }
-    
-    // Réinitialiser et ouvrir le modal
-    setModalState(prev => ({
-      ...prev,
-      isOpen: true,
-      step: 'destination',
-      validationResult,
-      selectedItemIds,
-      hierarchyContext, // 🔥 NOUVEAU: Stocker le contexte
-      campaigns: [],
-      versions: [],
-      onglets: [],
-      sections: [],
-      tactiques: [],
-      placements: [],
-      destination: {},
-      result: null,
-      processing: false,
-      error: null
-    }));
-    
-    // Charger les campagnes immédiatement
-    await loadCampaigns();
-  }, [selectedClient?.clientId]);
-
-  // ==================== FERMETURE DU MODAL ====================
-  
-  const closeModal = useCallback(() => {
-    console.log('❌ Fermeture du modal de déplacement');
-    setModalState(prev => ({
-      ...prev,
-      isOpen: false
-    }));
-  }, []);
 
   // ==================== FONCTIONS DE CHARGEMENT ====================
   
@@ -315,6 +261,90 @@ export function useSimpleMoveModal() {
     }
   }, [selectedClient?.clientId]);
 
+  // ==================== OUVERTURE DU MODAL AVEC REFRESH ====================
+  
+  const openModal = useCallback(async (
+    validationResult: SelectionValidationResult,
+    selectedItemIds: string[],
+    hierarchyContext?: {
+      sections: any[];
+      tactiques: { [sectionId: string]: any[] };
+      placements: { [tactiqueId: string]: any[] };
+      creatifs: { [placementId: string]: any[] };
+    },
+    // 🔥 NOUVEAU: Accepter la fonction de refresh en paramètre
+    onRefresh?: () => Promise<void>
+  ) => {
+    console.log('🚀 Ouverture du modal de déplacement');
+    console.log('📊 Validation:', validationResult);
+    console.log('📦 Éléments sélectionnés:', selectedItemIds);
+    console.log('🏗️ Contexte hiérarchique:', hierarchyContext ? 'Fourni' : 'Manquant');
+    console.log('🔄 Callback refresh:', onRefresh ? 'Fourni' : 'Manquant');
+    
+    if (!selectedClient?.clientId) {
+      console.error('❌ Aucun client sélectionné');
+      return;
+    }
+    
+    // 🔥 NOUVEAU: Stocker la fonction de refresh
+    setOnRefreshCallback(onRefresh || null);
+    
+    // Réinitialiser et ouvrir le modal
+    setModalState(prev => ({
+      ...prev,
+      isOpen: true,
+      step: 'destination',
+      validationResult,
+      selectedItemIds,
+      hierarchyContext,
+      campaigns: [],
+      versions: [],
+      onglets: [],
+      sections: [],
+      tactiques: [],
+      placements: [],
+      destination: {},
+      result: null,
+      processing: false,
+      error: null
+    }));
+    
+    // Charger les campagnes immédiatement
+    await loadCampaigns();
+  }, [selectedClient?.clientId, loadCampaigns]);
+
+  // ==================== FERMETURE DU MODAL AVEC REFRESH ====================
+  
+  const closeModal = useCallback(() => {
+    console.log('❌ Fermeture du modal de déplacement');
+    
+    setModalState(prev => {
+      // 🔥 NOUVEAU: Si le déplacement a réussi, déclencher le refresh avant de fermer
+      if (prev.result?.success && onRefreshCallback) {
+        console.log('🔄 Déplacement réussi - Déclenchement du refresh de fermeture...');
+        // Utiliser setTimeout pour éviter les problèmes de timing
+        setTimeout(async () => {
+          try {
+            await onRefreshCallback();
+            console.log('✅ Refresh de fermeture terminé');
+          } catch (error) {
+            console.error('❌ Erreur lors du refresh de fermeture:', error);
+          }
+        }, 100);
+      }
+      
+      return {
+        ...prev,
+        isOpen: false
+      };
+    });
+    
+    // 🔥 NOUVEAU: Nettoyer la référence après un délai
+    setTimeout(() => {
+      setOnRefreshCallback(null);
+    }, 200);
+  }, [onRefreshCallback]);
+
   // ==================== SÉLECTION DE DESTINATION ====================
   
   const selectDestination = useCallback(async (level: string, itemId: string, itemName: string) => {
@@ -384,7 +414,7 @@ export function useSimpleMoveModal() {
     }
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
-  // ==================== 🔥 CONFIRMATION DU DÉPLACEMENT CORRIGÉE ====================
+  // ==================== CONFIRMATION DU DÉPLACEMENT AVEC REFRESH ====================
   
   const confirmMove = useCallback(async () => {
     if (!selectedClient?.clientId || !modalState.validationResult || !modalState.validationResult.canMove) {
@@ -406,7 +436,7 @@ export function useSimpleMoveModal() {
     setModalState(prev => ({ ...prev, step: 'progress', processing: true, error: null }));
     
     try {
-      // 🔥 NOUVEAU: Construire le contexte des éléments avec les vrais IDs
+      // Construire le contexte des éléments avec les vrais IDs
       const sourceContext = {
         campaignId: selectedCampaignId!,
         versionId: selectedVersionId!,
@@ -433,7 +463,7 @@ export function useSimpleMoveModal() {
         selectedItemIds: modalState.selectedItemIds,
         destination: modalState.destination as MoveService.MoveDestination,
         sourceContext,
-        itemsWithContext // 🔥 NOUVEAU: Passer le contexte construit
+        itemsWithContext
       };
       
       const result = await MoveService.performMove(operation);
@@ -446,6 +476,20 @@ export function useSimpleMoveModal() {
         processing: false,
         result
       }));
+      
+      // 🔥 NOUVEAU: Si le déplacement réussit, déclencher un refresh immédiat
+      if (result.success && onRefreshCallback) {
+        console.log('🔄 Déplacement réussi - Refresh immédiat...');
+        // Délai court pour laisser l'animation se terminer
+        setTimeout(async () => {
+          try {
+            await onRefreshCallback();
+            console.log('✅ Refresh immédiat terminé');
+          } catch (refreshError) {
+            console.error('❌ Erreur refresh immédiat:', refreshError);
+          }
+        }, 500);
+      }
       
     } catch (error) {
       console.error('❌ Erreur lors du déplacement:', error);
@@ -471,7 +515,8 @@ export function useSimpleMoveModal() {
     modalState.hierarchyContext,
     selectedCampaignId, 
     selectedVersionId, 
-    selectedOngletId
+    selectedOngletId,
+    onRefreshCallback
   ]);
 
   // ==================== UTILITAIRES ====================

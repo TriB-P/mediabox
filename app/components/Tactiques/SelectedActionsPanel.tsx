@@ -245,11 +245,12 @@ export default function SelectedActionsPanel({
     console.log('✅ Contexte validé, appel du modal...');
     
     try {
-      // Appeler le modal avec tous les paramètres debug
+      // 🔥 CORRECTION: Passer aussi la fonction onRefresh au modal
       await openMoveModal(
         validationResult, 
         selectedItems.map(item => item.id),
-        hierarchyContext
+        hierarchyContext,
+        onRefresh // 🔥 NOUVEAU: Passer la fonction de refresh
       );
       
       console.log('✅ openMoveModal appelé avec succès');
