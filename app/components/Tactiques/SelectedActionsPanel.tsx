@@ -1,4 +1,4 @@
-// app/components/Tactiques/SelectedActionsPanel.tsx - AVEC INTÉGRATION DÉPLACEMENT
+// app/components/Tactiques/SelectedActionsPanel.tsx - AVEC VALIDATION DE DÉPLACEMENT
 
 'use client';
 
@@ -10,8 +10,9 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
-import useMoveOperation from '../../hooks/useMoveOperation';
-import MoveModal from './MoveModal';
+import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
+import { useSimpleMoveModal } from '../../hooks/useSimpleMoveModal';
+import MoveModal from './SimpleMoveModal';
 
 // ==================== TYPES ====================
 
@@ -30,7 +31,9 @@ interface SelectedActionsPanelProps {
   onClearSelection: () => void;
   onRefresh?: () => Promise<void>;
   loading?: boolean;
-  // 🔥 NOUVEAU: Contexte hiérarchique pour le déplacement
+  // 🔥 NOUVEAU: Résultat de validation pour le déplacement
+  validationResult?: SelectionValidationResult;
+  // 🔥 NOUVEAU: Contexte hiérarchique pour le déplacement (optionnel pour l'instant)
   hierarchyContext?: {
     sections?: Section[];
     tactiques?: { [sectionId: string]: Tactique[] };
@@ -48,21 +51,20 @@ export default function SelectedActionsPanel({
   onClearSelection,
   onRefresh,
   loading = false,
+  validationResult,
   hierarchyContext
 }: SelectedActionsPanelProps) {
 
-  // ==================== HOOK DÉPLACEMENT ====================
+  // ==================== 🔥 HOOK MODAL DE DÉPLACEMENT ====================
 
   const {
-    modalState,
-    openMoveModal,
-    closeMoveModal,
+    modalState: moveModalState,
+    openModal: openMoveModal,
+    closeModal: closeMoveModal,
     selectDestination,
     confirmMove,
-    analyzeSelection,
-    canMoveSelection,
-    getMoveButtonLabel
-  } = useMoveOperation(onRefresh, hierarchyContext);
+    isDestinationComplete
+  } = useSimpleMoveModal();
 
   // ==================== CALCULS DÉRIVÉS ====================
 
@@ -107,49 +109,57 @@ export default function SelectedActionsPanel({
     return parts.join(', ');
   }, [itemCountsByType]);
 
-  // ==================== 🔥 GESTION DU DÉPLACEMENT ====================
+  // ==================== 🔥 LOGIQUE DE BOUTON DÉPLACER ====================
 
-  // Préparer les données pour l'analyse de sélection
-  const selectedItemsForMove = useMemo(() => {
-    return selectedItems.map(item => ({
-      id: item.id,
-      type: item.type,
-      // Propriétés pour la détection de type
-      ...(item.type === 'section' && { SECTION_Name: item.name }),
-      ...(item.type === 'tactique' && { TC_Label: item.name }),
-      ...(item.type === 'placement' && { PL_Label: item.name }),
-      ...(item.type === 'creatif' && { CR_Label: item.name }),
-      // Données complètes si disponibles
-      ...(item.data || {})
-    }));
-  }, [selectedItems]);
-
-  // Vérifier si la sélection peut être déplacée
-  const canMove = useMemo(() => {
-    if (selectedItems.length === 0) return false;
-    return canMoveSelection(selectedItemsForMove);
-  }, [selectedItems.length, canMoveSelection, selectedItemsForMove]);
-
-  // Libellé du bouton de déplacement
-  const moveButtonLabel = useMemo(() => {
-    if (!canMove) return 'Déplacement non disponible';
-    return getMoveButtonLabel(selectedItemsForMove);
-  }, [canMove, getMoveButtonLabel, selectedItemsForMove]);
-
-  // Gestionnaire d'ouverture du modal de déplacement
-  const handleOpenMoveModal = () => {
-    console.log('🔄 Ouverture modal déplacement pour:', selectedItems.length, 'éléments');
-    
-    const analysis = analyzeSelection(selectedItemsForMove);
-    console.log('📊 Analyse de sélection:', analysis);
-    
-    if (analysis.canMove) {
-      openMoveModal(analysis);
-    } else {
-      console.error('❌ Impossible de déplacer la sélection:', analysis.errorMessage);
-      alert(analysis.errorMessage || 'Impossible de déplacer cette sélection');
+  const moveButtonState = useMemo(() => {
+    if (!validationResult) {
+      return {
+        canMove: false,
+        label: 'Validation en cours...',
+        disabled: true,
+        reason: 'Aucune validation disponible'
+      };
     }
-  };
+
+    if (!validationResult.canMove) {
+      return {
+        canMove: false,
+        label: 'Sélection invalide',
+        disabled: true,
+        reason: validationResult.errorMessage || 'Sélection invalide pour le déplacement'
+      };
+    }
+
+    const { moveLevel, targetLevel, affectedItemsCount } = validationResult;
+    const directCount = selectedItems.length;
+    
+    const moveLabels: Record<string, string> = {
+      'section': 'sections',
+      'tactique': 'tactiques',
+      'placement': 'placements',
+      'creatif': 'créatifs'
+    };
+    
+    const targetLabels: Record<string, string> = {
+      'onglet': 'un onglet',
+      'section': 'une section', 
+      'tactique': 'une tactique',
+      'placement': 'un placement'
+    };
+
+    let label = `Déplacer ${directCount} ${moveLabels[moveLevel!]}`;
+    if (affectedItemsCount > directCount) {
+      label += ` (${affectedItemsCount} au total)`;
+    }
+    label += ` vers ${targetLabels[targetLevel!]}`;
+
+    return {
+      canMove: true,
+      label,
+      disabled: false,
+      reason: `Prêt à déplacer ${directCount} élément(s)`
+    };
+  }, [validationResult, selectedItems.length]);
 
   // ==================== GESTIONNAIRES D'ACTIONS ====================
 
@@ -168,6 +178,17 @@ export default function SelectedActionsPanel({
     onClearSelection();
   };
 
+  const handleMove = async () => {
+    if (loading || !moveButtonState.canMove || !validationResult) return;
+    
+    console.log('🚀 Ouverture du modal de déplacement');
+    console.log('📊 Validation:', validationResult);
+    console.log('📦 Éléments à déplacer:', selectedItems);
+    
+    // Ouvrir le modal avec la validation et les IDs sélectionnés
+    await openMoveModal(validationResult, selectedItems.map(item => item.id));
+  };
+
   // ==================== RENDU ====================
 
   if (totalCount === 0) {
@@ -176,7 +197,6 @@ export default function SelectedActionsPanel({
 
   return (
     <>
-      {/* Panel d'actions */}
       <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
         <div className="flex items-center justify-between">
           {/* Informations de sélection */}
@@ -191,19 +211,19 @@ export default function SelectedActionsPanel({
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
-            {/* 🔥 NOUVEAU: Bouton de déplacement */}
+            {/* 🔥 NOUVEAU: Bouton de déplacement avec validation */}
             <button
-              onClick={handleOpenMoveModal}
-              disabled={loading || !canMove}
+              onClick={handleMove}
+              disabled={loading || moveButtonState.disabled}
               className={`flex items-center px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                canMove && !loading
+                moveButtonState.canMove && !loading
                   ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
-              title={canMove ? moveButtonLabel : 'Sélection invalide pour le déplacement'}
+              title={moveButtonState.reason}
             >
               <ArrowRightIcon className="h-4 w-4 mr-1.5" />
-              {canMove ? 'Déplacer' : 'Déplacer'}
+              {moveButtonState.canMove ? 'Déplacer' : 'Invalide'}
             </button>
 
             {/* Bouton de duplication */}
@@ -238,12 +258,7 @@ export default function SelectedActionsPanel({
           </div>
         </div>
 
-        {/* 🔥 NOUVEAU: Aperçu du déplacement si disponible */}
-        {canMove && (
-          <div className="mt-2 text-xs text-blue-600">
-            {moveButtonLabel}
-          </div>
-        )}
+        
 
         {/* Indicateur de chargement */}
         {loading && (
@@ -256,12 +271,12 @@ export default function SelectedActionsPanel({
 
       {/* 🔥 NOUVEAU: Modal de déplacement */}
       <MoveModal
-        modalState={modalState}
+        modalState={moveModalState}
         onClose={closeMoveModal}
         onSelectDestination={selectDestination}
         onConfirmMove={confirmMove}
+        isDestinationComplete={isDestinationComplete}
       />
     </>
   );
 }
-

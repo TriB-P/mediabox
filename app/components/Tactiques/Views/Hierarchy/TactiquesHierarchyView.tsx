@@ -1,8 +1,8 @@
-// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - CORRECTION ENRICHISSEMENT IDS PARENTS
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx - VERSION SIMPLIFIÉE AVEC NOUVELLE LOGIQUE
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import {
   ChevronDownIcon,
@@ -26,6 +26,8 @@ import { TactiqueItem } from './HierarchyComponents';
 import { useDragAndDrop } from '../../../../hooks/useDragAndDrop';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useSelection } from '../../../../contexts/SelectionContext';
+import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
+import { useSelectionValidation, useSelectionMessages, buildHierarchyMap, SelectionValidationResult } from '../../../../hooks/useSelectionValidation';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -46,11 +48,7 @@ interface TactiquesHierarchyViewProps {
   formatCurrency: (amount: number) => string;
   totalBudget: number;
   onRefresh?: () => Promise<void>;
-  onSelectItems: (
-    itemIds: string[],
-    type: 'section' | 'tactique' | 'placement' | 'creatif',
-    isSelected: boolean
-  ) => void;
+  // 🔥 SUPPRIMÉ: onSelectItems - remplacé par la nouvelle logique
   onDuplicateSelected?: (itemIds: string[]) => void;
   onDeleteSelected?: (itemIds: string[]) => void;
   onClearSelection?: () => void;
@@ -77,18 +75,58 @@ export default function TactiquesHierarchyView({
   formatCurrency,
   totalBudget,
   onRefresh,
-  onSelectItems,
   onDuplicateSelected,
   onDeleteSelected,
   onClearSelection,
-  selectedItems = [],
   loading = false
 }: TactiquesHierarchyViewProps) {
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
-  // ==================== HOOK DRAG AND DROP ====================
+  // ==================== 🔥 NOUVELLE LOGIQUE DE SÉLECTION ====================
+
+  const selectionLogic = useSelectionLogic({ sections });
+
+  // ==================== 🔥 NOUVELLE LOGIQUE DE VALIDATION ====================
+
+  // Construire la map hiérarchique pour la validation
+  const hierarchyMap = useMemo(() => {
+    return buildHierarchyMap(sections);
+  }, [sections]);
+
+  // Obtenir les IDs sélectionnés (plus de distinction direct/hérité)
+  const selectedIds = useMemo(() => {
+    return Array.from(selectionLogic.rawSelectedIds);
+  }, [selectionLogic]);
+
+  // Valider la sélection pour le déplacement
+  const validationResult = useSelectionValidation({
+    hierarchyMap,
+    selectedIds
+  });
+
+  // Messages pour l'interface utilisateur
+  const selectionMessages = useSelectionMessages(validationResult);
+
+  // ==================== DEBUG LOGS ====================
+
+  // Log des changements de validation pour le debugging  
+  React.useEffect(() => {
+    if (selectedIds.length > 0) {
+      console.log('🔍 État de validation:', {
+        selectedCount: selectedIds.length,
+        canMove: validationResult.canMove,
+        moveLevel: validationResult.moveLevel,
+        targetLevel: validationResult.targetLevel,
+        affectedTotal: validationResult.affectedItemsCount,
+        errorMessage: validationResult.errorMessage,
+        selectedIds: selectedIds.slice(0, 5) // Premiers 5 IDs pour debug
+      });
+    }
+  }, [selectedIds.length, validationResult.canMove, validationResult.errorMessage, selectedIds]);
+
+  // ==================== HOOK DRAG AND DROP (SIMPLIFIÉ) ====================
 
   const tactiquesFlat = sections.reduce((acc, section) => {
     acc[section.id] = section.tactiques;
@@ -194,222 +232,26 @@ export default function TactiquesHierarchyView({
     }));
   };
 
-  // ==================== 🔥 GESTIONNAIRES DE SÉLECTION ENRICHIS ====================
+  // ==================== 🔥 NOUVEAUX GESTIONNAIRES DE SÉLECTION ====================
 
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
     console.log('🎯 Sélection section:', { sectionId, isSelected });
-    
-    const itemIds: string[] = [sectionId];
-    const sectionTactiques = sections.find(s => s.id === sectionId)?.tactiques || [];
-    
-    sectionTactiques.forEach(tactique => {
-      itemIds.push(tactique.id);
-      const tactiquePlacements = placements[tactique.id] || [];
-      tactiquePlacements.forEach(placement => {
-        itemIds.push(placement.id);
-        const placementCreatifs = creatifs[placement.id] || [];
-        placementCreatifs.forEach(creatif => {
-          itemIds.push(creatif.id);
-        });
-      });
-    });
-
-    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
-    if (isSelected) {
-      enrichItemsForSelection('section', sectionId);
-    }
-
-    onSelectItems(itemIds, 'section', isSelected);
+    selectionLogic.toggleSelection(sectionId, isSelected);
   };
 
   const handleTactiqueSelect = (tactiqueId: string, isSelected: boolean) => {
     console.log('🎯 Sélection tactique:', { tactiqueId, isSelected });
-    
-    // 🔥 NOUVEAU: Trouver le sectionId pour cette tactique
-    let sectionId: string | undefined;
-    for (const section of sections) {
-      if (section.tactiques.some(t => t.id === tactiqueId)) {
-        sectionId = section.id;
-        break;
-      }
-    }
-
-    if (!sectionId) {
-      console.error('❌ Section parent non trouvée pour tactique:', tactiqueId);
-      return;
-    }
-
-    const itemIds: string[] = [tactiqueId];
-    const tactiquePlacements = placements[tactiqueId] || [];
-
-    tactiquePlacements.forEach(placement => {
-      itemIds.push(placement.id);
-      const placementCreatifs = creatifs[placement.id] || [];
-      placementCreatifs.forEach(creatif => {
-        itemIds.push(creatif.id);
-      });
-    });
-
-    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
-    if (isSelected) {
-      enrichItemsForSelection('tactique', tactiqueId, { sectionId });
-    }
-
-    onSelectItems(itemIds, 'tactique', isSelected);
+    selectionLogic.toggleSelection(tactiqueId, isSelected);
   };
 
   const handlePlacementSelect = (placementId: string, isSelected: boolean) => {
     console.log('🎯 Sélection placement:', { placementId, isSelected });
-    
-    // 🔥 NOUVEAU: Trouver les IDs parents pour ce placement
-    let sectionId: string | undefined;
-    let tactiqueId: string | undefined;
-    
-    for (const section of sections) {
-      for (const tactique of section.tactiques) {
-        const tactiquesPlacements = placements[tactique.id] || [];
-        if (tactiquesPlacements.some(p => p.id === placementId)) {
-          sectionId = section.id;
-          tactiqueId = tactique.id;
-          break;
-        }
-      }
-      if (sectionId && tactiqueId) break;
-    }
-
-    if (!sectionId || !tactiqueId) {
-      console.error('❌ Parents non trouvés pour placement:', placementId);
-      return;
-    }
-
-    const itemIds: string[] = [placementId];
-    const placementCreatifs = creatifs[placementId] || [];
-    
-    placementCreatifs.forEach(creatif => {
-      itemIds.push(creatif.id);
-    });
-
-    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
-    if (isSelected) {
-      enrichItemsForSelection('placement', placementId, { sectionId, tactiqueId });
-    }
-
-    onSelectItems(itemIds, 'placement', isSelected);
+    selectionLogic.toggleSelection(placementId, isSelected);
   };
 
   const handleCreatifSelect = (creatifId: string, isSelected: boolean) => {
     console.log('🎯 Sélection créatif:', { creatifId, isSelected });
-    
-    // 🔥 NOUVEAU: Trouver les IDs parents pour ce créatif
-    let sectionId: string | undefined;
-    let tactiqueId: string | undefined;
-    let placementId: string | undefined;
-    
-    for (const section of sections) {
-      for (const tactique of section.tactiques) {
-        const tactiquesPlacements = placements[tactique.id] || [];
-        for (const placement of tactiquesPlacements) {
-          const placementCreatifs = creatifs[placement.id] || [];
-          if (placementCreatifs.some(c => c.id === creatifId)) {
-            sectionId = section.id;
-            tactiqueId = tactique.id;
-            placementId = placement.id;
-            break;
-          }
-        }
-        if (placementId) break;
-      }
-      if (placementId) break;
-    }
-
-    if (!sectionId || !tactiqueId || !placementId) {
-      console.error('❌ Parents non trouvés pour créatif:', creatifId);
-      return;
-    }
-
-    // 🔥 NOUVEAU: Enrichir les éléments avec leurs IDs de contexte
-    if (isSelected) {
-      enrichItemsForSelection('creatif', creatifId, { sectionId, tactiqueId, placementId });
-    }
-
-    onSelectItems([creatifId], 'creatif', isSelected);
-  };
-
-  // ==================== 🔥 NOUVELLE FONCTION D'ENRICHISSEMENT ====================
-
-  const enrichItemsForSelection = (
-    itemType: 'section' | 'tactique' | 'placement' | 'creatif',
-    itemId: string,
-    parentIds?: {
-      sectionId?: string;
-      tactiqueId?: string;
-      placementId?: string;
-    }
-  ) => {
-    console.log('🔧 Enrichissement élément pour sélection:', {
-      itemType,
-      itemId,
-      parentIds,
-      context: {
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId
-      }
-    });
-
-    // Créer un nouvel objet enrichi avec les IDs de contexte
-    const enrichedContextIds = {
-      // IDs du contexte de navigation
-      contextCampaignId: selectedCampaignId,
-      contextVersionId: selectedVersionId,
-      contextOngletId: selectedOngletId,
-      // IDs des parents hiérarchiques
-      contextSectionId: parentIds?.sectionId,
-      contextTactiqueId: parentIds?.tactiqueId,
-      contextPlacementId: parentIds?.placementId
-    };
-
-    // Selon le type d'élément, enrichir avec les propriétés attendues par useMoveOperation
-    const enrichmentData: any = { ...enrichedContextIds };
-
-    switch (itemType) {
-      case 'section':
-        // Pour les sections, ajouter les propriétés de mapping Firestore
-        // (pas d'enrichissement spécial nécessaire pour les sections)
-        break;
-        
-      case 'tactique':
-        // Pour les tactiques, ajouter TC_SectionId
-        enrichmentData.TC_SectionId = parentIds?.sectionId;
-        break;
-        
-      case 'placement':
-        // Pour les placements, ajouter PL_TactiqueId et PL_SectionId
-        enrichmentData.PL_TactiqueId = parentIds?.tactiqueId;
-        enrichmentData.PL_SectionId = parentIds?.sectionId;
-        break;
-        
-      case 'creatif':
-        // Pour les créatifs, ajouter CR_PlacementId, CR_TactiqueId et CR_SectionId
-        enrichmentData.CR_PlacementId = parentIds?.placementId;
-        enrichmentData.CR_TactiqueId = parentIds?.tactiqueId;
-        enrichmentData.CR_SectionId = parentIds?.sectionId;
-        break;
-    }
-
-    // 🔥 NOUVEAU: Stocker l'enrichissement dans le DOM pour que useMoveOperation puisse l'utiliser
-    // Utiliser un event custom pour transmettre les données enrichies
-    const enrichmentEvent = new CustomEvent('item-selection-enriched', {
-      detail: {
-        itemId,
-        itemType,
-        enrichmentData
-      }
-    });
-    
-    document.dispatchEvent(enrichmentEvent);
-    
-    console.log('✅ Enrichissement terminé:', enrichmentData);
+    selectionLogic.toggleSelection(creatifId, isSelected);
   };
 
   // ==================== GESTIONNAIRES DU MENU CONTEXTUEL TAXONOMIES ====================
@@ -589,6 +431,23 @@ export default function TactiquesHierarchyView({
     }
   };
 
+  // ==================== 🔥 PANEL D'ACTIONS AVEC NOUVELLE LOGIQUE ====================
+
+  const selectedItems = useMemo(() => {
+    const selection = selectionLogic.getSelectedItems();
+    return selection.details.map(detail => ({
+      id: detail.id,
+      name: detail.item?.name || 'Nom inconnu',
+      type: detail.item?.type || 'section',
+      data: detail.item
+    }));
+  }, [selectionLogic]);
+
+  const handleClearSelectionLocal = () => {
+    selectionLogic.clearSelection();
+    onClearSelection?.();
+  };
+
   // ==================== FONCTIONS UTILITAIRES POUR LES DRAWERS ====================
 
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
@@ -634,16 +493,23 @@ export default function TactiquesHierarchyView({
         </div>
       )}
 
-      {/* Panel d'actions pour les éléments sélectionnés */}
+      {/* 🔥 Panel d'actions pour les éléments sélectionnés avec nouvelle logique */}
       {selectedItems.length > 0 && (
-        <SelectedActionsPanel
-          selectedItems={selectedItems}
-          onDuplicateSelected={onDuplicateSelected || (() => {})}
-          onDeleteSelected={onDeleteSelected || (() => {})}
-          onClearSelection={onClearSelection || (() => {})}
-          onRefresh={onRefresh}
-          loading={loading}
-        />
+        <>
+          <SelectedActionsPanel
+            selectedItems={selectedItems}
+            onDuplicateSelected={onDuplicateSelected || (() => {})}
+            onDeleteSelected={onDeleteSelected || (() => {})}
+            onClearSelection={handleClearSelectionLocal}
+            onRefresh={onRefresh}
+            loading={loading}
+            // 🔥 NOUVEAU: Passer le résultat de validation
+            validationResult={validationResult}
+            // 🔥 SUPPRIMÉ TEMPORAIREMENT: hierarchyContext pour simplifier
+          />
+          
+
+        </>
       )}
 
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -676,7 +542,7 @@ export default function TactiquesHierarchyView({
                           <div
                             className={`flex justify-between items-center px-4 py-3 cursor-pointer bg-white hover:bg-gray-50 transition-colors ${
                               section.isExpanded ? 'bg-gray-50' : ''
-                            } ${section.isSelected ? 'bg-indigo-50' : ''}`}
+                            } ${selectionLogic.isSelected(section.id) ? 'bg-indigo-50' : ''}`}
                             style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
                             onClick={() => onSectionExpand(section.id)} 
                           >
@@ -684,7 +550,7 @@ export default function TactiquesHierarchyView({
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
-                                checked={section.isSelected || false}
+                                checked={selectionLogic.isSelected(section.id)}
                                 onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
                                 onClick={(e) => e.stopPropagation()} 
                               />
@@ -769,11 +635,25 @@ export default function TactiquesHierarchyView({
                                       return (
                                         <TactiqueItem
                                           key={tactique.id}
-                                          tactique={tactique}
+                                          tactique={{
+                                            ...tactique,
+                                            isSelected: selectionLogic.isSelected(tactique.id)
+                                          }}
                                           index={tactiqueIndex}
                                           sectionId={section.id}
-                                          placements={tactiquePlacements}
-                                          creatifs={creatifs}
+                                          placements={tactiquePlacements.map(p => ({
+                                            ...p,
+                                            isSelected: selectionLogic.isSelected(p.id)
+                                          }))}
+                                          creatifs={Object.fromEntries(
+                                            Object.entries(creatifs).map(([placementId, placementCreatifs]) => [
+                                              placementId,
+                                              placementCreatifs.map(c => ({
+                                                ...c,
+                                                isSelected: selectionLogic.isSelected(c.id)
+                                              }))
+                                            ])
+                                          )}
                                           expandedTactiques={expandedTactiques}
                                           expandedPlacements={expandedPlacements}
                                           hoveredTactique={hoveredTactique}
