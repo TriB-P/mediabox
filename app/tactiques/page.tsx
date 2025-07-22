@@ -1,8 +1,8 @@
-// app/tactiques/page.tsx - Version refactorisée avec hooks séparés
+// app/tactiques/page.tsx - Version avec réinitialisation forcée de la sélection
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
@@ -57,6 +57,9 @@ export default function TactiquesPage() {
   // ==================== ÉTATS UI ====================
 
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
+  
+  // 🔥 AJOUT: Ref pour forcer le re-render de TactiquesHierarchyView
+  const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
 
   // ==================== HOOKS SPÉCIALISÉS ====================
 
@@ -71,13 +74,33 @@ export default function TactiquesPage() {
     onRefresh: refresh
   });
 
-  // Hook pour les sélections et duplication
+  // 🔥 CALLBACK DE RESET COMPLET
+  const handleForceSelectionReset = useCallback(() => {
+    console.log('🔄 Force reset complet de la vue hiérarchique');
+    
+    // Forcer le re-render de TactiquesHierarchyView qui va réinitialiser
+    // tous les hooks de sélection internes
+    setHierarchyViewKey(prev => prev + 1);
+    
+    // Petit délai pour s'assurer que le re-render est effectif
+    setTimeout(() => {
+      console.log('✅ Vue hiérarchique réinitialisée');
+    }, 100);
+  }, []);
+
+  // Hook pour les sélections avec fonction de reset
   const selectionState = useTactiquesSelection({
     sections,
     tactiques,
     placements,
     creatifs,
-    onRefresh: refresh
+    onRefresh: refresh,
+    onDeleteSection: crudActions.handleDeleteSection,
+    onDeleteTactique: crudActions.handleDeleteTactique,
+    onDeletePlacement: crudActions.handleDeletePlacement,
+    onDeleteCreatif: crudActions.handleDeleteCreatif,
+    // 🔥 AJOUT: Fonction de reset forcé
+    onForceSelectionReset: handleForceSelectionReset
   });
 
   // Hook pour le refresh et les frais client
@@ -118,7 +141,6 @@ export default function TactiquesPage() {
       await refresh();
     } catch (error) {
       console.error('❌ Erreur sauvegarde section:', error);
-      // Garder le modal ouvert en cas d'erreur
     }
   }, [modalState.sectionModal.mode, modalState.sectionModal.section, crudActions, modalState.closeSectionModal, refresh]);
   
@@ -133,6 +155,23 @@ export default function TactiquesPage() {
     }
   }, [sections, modalState.openSectionModal]);
 
+  // ==================== 🔥 GESTIONNAIRE DE REFRESH AVEC RESET ====================
+  
+  const handleRefreshWithReset = useCallback(async () => {
+    console.log('🔄 Refresh avec réinitialisation complète');
+    
+    // 1. Nettoyer d'abord la sélection
+    selectionState.handleClearSelection();
+    
+    // 2. Puis rafraîchir les données
+    await refresh();
+    
+    // 3. Attendre que le refresh soit terminé puis forcer le reset
+    setTimeout(() => {
+      handleForceSelectionReset();
+    }, 200);
+  }, [selectionState.handleClearSelection, refresh, handleForceSelectionReset]);
+
   // ==================== DONNÉES CALCULÉES ====================
 
   const totalBudget = useMemo(() => {
@@ -143,12 +182,11 @@ export default function TactiquesPage() {
     return formatStatistics(placements, creatifs);
   }, [formatStatistics, placements, creatifs]);
 
-  // États de chargement
   const loadingStates = getLoadingStates(
     loading, 
     selectedOnglet, 
     refreshState.isRefreshing, 
-    selectionState.duplicationLoading, 
+    selectionState.duplicationLoading || selectionState.deletionLoading,
     refreshState.clientFeesLoading
   );
 
@@ -233,6 +271,15 @@ export default function TactiquesPage() {
         </div>
       )}
 
+      {selectionState.deletionLoading && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+            <span className="text-sm text-red-700">Suppression en cours...</span>
+          </div>
+        </div>
+      )}
+
       {refreshState.clientFeesLoading && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
@@ -251,7 +298,7 @@ export default function TactiquesPage() {
               <h3 className="text-sm font-medium text-red-800">Erreur de chargement</h3>
               <p className="text-sm text-red-600 mt-1">{error}</p>
               <button
-                onClick={refresh}
+                onClick={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
                 className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
               >
                 Réessayer
@@ -283,7 +330,7 @@ export default function TactiquesPage() {
                 onDuplicateSelected={selectionState.handleDuplicateSelected}
                 onDeleteSelected={selectionState.handleDeleteSelected}
                 onClearSelection={selectionState.handleClearSelection}
-                onRefresh={refresh}
+                onRefresh={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
                 loading={loadingStates.isLoading}
                 hierarchyContext={enrichedData.hierarchyContextForMove}
               />
@@ -324,6 +371,7 @@ export default function TactiquesPage() {
                   <>
                     {enrichedData.sectionsWithTactiques.length > 0 ? (
                       <TactiquesHierarchyView
+                        key={hierarchyViewKey} // 🔥 FORCER LE RE-RENDER AVEC CLÉ
                         sections={enrichedData.sectionsWithTactiques}
                         placements={enrichedData.enrichedPlacements} 
                         creatifs={enrichedData.enrichedCreatifs} 
@@ -341,8 +389,7 @@ export default function TactiquesPage() {
                         onDeleteCreatif={crudActions.handleDeleteCreatif}
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
-                        onRefresh={refresh}
-                        onSelectItems={selectionState.handleSelectItems}
+                        onRefresh={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
                         onDuplicateSelected={selectionState.handleDuplicateSelected}
                         onDeleteSelected={selectionState.handleDeleteSelected}
                         onClearSelection={selectionState.handleClearSelection}
