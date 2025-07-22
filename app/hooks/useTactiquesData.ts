@@ -85,7 +85,7 @@ interface UseTactiquesDataReturn {
   handleSelectOnglet: (onglet: Onglet) => void;
 
   // Refresh principal
-  onRefresh: () => Promise<void>;
+  onRefresh: (() => Promise<void>) | (() => void);
 
   // Fonctions de suppression locale (optimiste)
   removeSectionLocally: (sectionId: string) => void;
@@ -369,7 +369,7 @@ const loadOngletData = useCallback(async (ongletId: string, availableOnglets?: O
       }
 
       console.log('🔄 Chargement initial des données tactiques');
-      await onRefresh();
+      await Promise.resolve(onRefresh());
     };
 
     loadInitialData();

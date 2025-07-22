@@ -89,7 +89,7 @@ export const useDragAndDrop = ({
       // Rafraîchir les données après le drag and drop
       if (onRefresh) {
         console.log('🔄 Rafraîchissement des données...');
-        await onRefresh();
+        await Promise.resolve(onRefresh());
       }
 
       console.log('✅ Drag and drop terminé avec succès');

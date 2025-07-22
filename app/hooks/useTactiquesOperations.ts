@@ -42,7 +42,7 @@ interface UseTactiquesOperationsProps {
   allTactiques: { [sectionId: string]: Tactique[] }; // Toutes les tactiques, utile pour trouver le parent d'un placement
   allPlacements: { [tactiqueId: string]: Placement[] }; // Tous les placements, utile pour trouver le parent d'un créatif
   allCreatifs: { [placementId: string]: Creatif[] }; // 🔥 AJOUT: Tous les créatifs
-  onRefresh: () => Promise<void>;
+  onRefresh: (() => Promise<void>) | (() => void);
 
   // Fonctions de suppression locale pour mises à jour optimistes
   removeSectionLocally: (sectionId: string) => void;
@@ -121,14 +121,14 @@ export const useTactiquesOperations = ({
       console.log(`✅ ${operationName} réussi`);
       
       if (!skipRefresh) {
-        await onRefresh();
+        await Promise.resolve(onRefresh());
       }
       
       return result;
     } catch (error) {
       console.error(`❌ Erreur ${operationName}:`, error);
       // En cas d'erreur, toujours refresh pour resynchroniser
-      await onRefresh();
+      await Promise.resolve(onRefresh());
       throw error;
     }
   }, [onRefresh]);

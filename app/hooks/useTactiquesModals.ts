@@ -31,7 +31,7 @@ interface UseTactiquesModalsProps {
   onglets: Onglet[];
   selectedOnglet: Onglet | null;
   sections: Section[];
-  onRefresh: () => Promise<void>;
+  onRefresh: (() => Promise<void>) | (() => void);
 }
 
 interface UseTactiquesModalsReturn {
@@ -157,7 +157,7 @@ export const useTactiquesModals = ({
 
       // Fermer le modal et rafraîchir
       setSectionModal(prev => ({ ...prev, isOpen: false }));
-      await onRefresh();
+      await Promise.resolve(onRefresh());
 
     } catch (error) {
       console.error('❌ Erreur sauvegarde section:', error);
@@ -204,7 +204,7 @@ export const useTactiquesModals = ({
         sectionId
       ).then(async () => {
         console.log('✅ Section supprimée avec succès');
-        await onRefresh();
+        await Promise.resolve(onRefresh());
       }).catch(error => {
         console.error('❌ Erreur suppression section:', error);
         dataFlow.setError('Erreur lors de la suppression de la section');
@@ -259,7 +259,7 @@ export const useTactiquesModals = ({
       console.log('✅ Onglet créé avec succès:', newOngletId);
       
       // Rafraîchir les données
-      await onRefresh();
+      await Promise.resolve(onRefresh());
       
       // Sélectionner automatiquement le nouvel onglet
       setSelectedOngletId(newOngletId);
@@ -325,7 +325,7 @@ export const useTactiquesModals = ({
       );
       
       console.log('✅ Onglet renommé avec succès');
-      await onRefresh();
+      await Promise.resolve(onRefresh());
       
     } catch (error) {
       console.error('❌ Erreur renommage onglet:', error);
@@ -385,7 +385,7 @@ export const useTactiquesModals = ({
           }
         }
         
-        await onRefresh();
+        await Promise.resolve(onRefresh());
         
       } catch (error) {
         console.error('❌ Erreur suppression onglet:', error);
