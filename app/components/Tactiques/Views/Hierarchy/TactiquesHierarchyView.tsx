@@ -12,6 +12,7 @@ import {
   Bars3Icon
 } from '@heroicons/react/24/outline';
 import {
+  Section,
   SectionWithTactiques,
   Tactique,
   Placement,
@@ -43,12 +44,11 @@ interface TactiquesHierarchyViewProps {
   onUpdatePlacement?: (placementId: string, data: Partial<Placement>) => Promise<void>;
   onDeletePlacement?: (sectionId: string, tactiqueId: string, placementId: string) => void;
   onCreateCreatif?: (placementId: string) => Promise<Creatif>;
-  onUpdateCreatif?: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
+  onUpdateCreatif?: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string, data: Partial<Creatif>) => Promise<void>; // 👈 CETTE LIGNE
   onDeleteCreatif?: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void;
   formatCurrency: (amount: number) => string;
   totalBudget: number;
   onRefresh?: () => Promise<void>;
-  // 🔥 SUPPRIMÉ: onSelectItems - remplacé par la nouvelle logique
   onDuplicateSelected?: (itemIds: string[]) => void;
   onDeleteSelected?: (itemIds: string[]) => void;
   onClearSelection?: () => void;
@@ -458,7 +458,7 @@ export default function TactiquesHierarchyView({
       console.error('Erreur lors de la sauvegarde du créatif:', error);
     }
   };
-  
+
   // ==================== 🔥 PANEL D'ACTIONS AVEC NOUVELLE LOGIQUE ====================
 
   const selectedItems = useMemo(() => {

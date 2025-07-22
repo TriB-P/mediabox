@@ -113,9 +113,7 @@ export function useTactiquesCrud({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
 
   const handleDeleteSection = useCallback(async (sectionId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette section ? Cette action est irréversible.')) {
-      return;
-    }
+
 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour supprimer une section');
@@ -212,9 +210,7 @@ export function useTactiquesCrud({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
   const handleDeleteTactique = useCallback(async (sectionId: string, tactiqueId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tactique ? Cette action est irréversible.')) {
-      return;
-    }
+ 
 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour supprimer une tactique');
@@ -355,9 +351,7 @@ export function useTactiquesCrud({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh]);
 
   const handleDeletePlacement = useCallback(async (sectionId: string, tactiqueId: string, placementId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce placement ? Cette action est irréversible.')) {
-      return;
-    }
+
 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour supprimer un placement');
@@ -511,9 +505,7 @@ export function useTactiquesCrud({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, placements, selectedCampaign, onRefresh]);
 
   const handleDeleteCreatif = useCallback(async (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce créatif ? Cette action est irréversible.')) {
-      return;
-    }
+
 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour supprimer un créatif');
@@ -597,9 +589,7 @@ export function useTactiquesCrud({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh]);
 
   const handleDeleteOnglet = useCallback(async (ongletId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet onglet ? Toutes ses données seront perdues.')) {
-      return;
-    }
+
 
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
       throw new Error('Contexte manquant pour supprimer un onglet');

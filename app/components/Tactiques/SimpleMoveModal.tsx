@@ -214,6 +214,9 @@ export default function SimpleMoveModal({
     
     const targetLevel = validationResult.targetLevel;
     
+    // Vérification de sécurité pour éviter l'erreur TypeScript
+    if (!targetLevel) return false;
+    
     switch (level) {
       case 'campaign':
       case 'version':

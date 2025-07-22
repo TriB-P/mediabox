@@ -47,6 +47,23 @@ export interface ItemWithContext {
   };
 }
 
+// 🔥 TYPE POUR LES ÉLÉMENTS PRÉPARÉS - NOUVELLE ADDITION
+export interface PreparedItem {
+  itemWithContext: ItemWithContext;
+  sourceRef: DocumentReference<DocumentData>;
+  destRef: DocumentReference<DocumentData>;
+  enhancedDestination: MoveDestination;
+  sourcePath: string[];
+  destPath: string[];
+}
+
+// 🔥 TYPE POUR LES RÉSULTATS DE LECTURE - NOUVELLE ADDITION
+export interface ReadResult {
+  preparedItem: PreparedItem;
+  sourceData: DocumentData | null;
+  error: string | null;
+}
+
 export interface MoveOperation {
   clientId: string;
   itemType: 'section' | 'tactique' | 'placement' | 'creatif';
@@ -423,6 +440,7 @@ export async function buildItemsContext(
   console.log('✅ Contexte construit pour', itemsWithContext.length, 'éléments');
   return itemsWithContext;
 }
+// app/lib/simpleMoveService.ts - SUITE - Fonctions utilitaires et performMove
 
 // ==================== 🔧 CALCUL DU PROCHAIN ORDRE PAR TYPE ====================
 
@@ -605,7 +623,7 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
     const newIdMapping = new Map<string, string>();
     
     // 🔥 ÉTAPE 2: PRÉ-GÉNÉRER TOUS LES IDs ET RÉFÉRENCES
-    const preparedItems = [];
+    const preparedItems: PreparedItem[] = [];
     
     for (const itemWithContext of sortedItems) {
       // Construire la destination enrichie avec les IDs déjà générés
@@ -665,7 +683,7 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
       
       // 📖 PHASE 1: TOUTES LES LECTURES
       console.log('📖 Phase 1: Lectures de tous les éléments...');
-      const readResults = [];
+      const readResults: ReadResult[] = [];
       
       for (const preparedItem of preparedItems) {
         const { itemWithContext, sourceRef } = preparedItem;

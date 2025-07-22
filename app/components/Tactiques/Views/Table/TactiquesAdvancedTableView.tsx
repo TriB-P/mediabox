@@ -81,7 +81,7 @@ interface TactiquesAdvancedTableViewProps {
   onUpdateTactique: (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => Promise<void>;
   onUpdateSection: (sectionId: string, data: Partial<Section>) => Promise<void>;
   onUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  onUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
+  onUpdateCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string, data: Partial<Creatif>) => Promise<void>;
   formatCurrency: (amount: number) => string;
 }
 

@@ -14,7 +14,7 @@ interface UseAdvancedTableDataProps {
   onUpdateSection: (sectionId: string, data: Partial<Section>) => Promise<void>;
   onUpdateTactique: (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => Promise<void>;
   onUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
-  onUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
+  onUpdateCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string, data: Partial<Creatif>) => Promise<void>;
 }
 
 interface UseAdvancedTableDataReturn {
@@ -363,9 +363,11 @@ export function useAdvancedTableData({
           case 'placement':
             updatePromises.push(onUpdatePlacement(entityId, changes));
             break;
-          case 'creatif':
-            updatePromises.push(onUpdateCreatif(entityId, changes));
-            break;
+            case 'creatif':
+              if (row.sectionId && row.tactiqueId && row.placementId) {
+                updatePromises.push(onUpdateCreatif(row.sectionId, row.tactiqueId, row.placementId, entityId, changes));
+              }
+              break;
         }
       }
 
