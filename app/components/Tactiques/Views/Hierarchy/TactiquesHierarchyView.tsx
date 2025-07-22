@@ -116,22 +116,8 @@ export default function TactiquesHierarchyView({
   // Messages pour l'interface utilisateur
   const selectionMessages = useSelectionMessages(validationResult);
 
-  // ==================== DEBUG LOGS ====================
 
-  // Log des changements de validation pour le debugging  
-  React.useEffect(() => {
-    if (selectedIds.length > 0) {
-      console.log('🔍 État de validation:', {
-        selectedCount: selectedIds.length,
-        canMove: validationResult.canMove,
-        moveLevel: validationResult.moveLevel,
-        targetLevel: validationResult.targetLevel,
-        affectedTotal: validationResult.affectedItemsCount,
-        errorMessage: validationResult.errorMessage,
-        selectedIds: selectedIds.slice(0, 5) // Premiers 5 IDs pour debug
-      });
-    }
-  }, [selectedIds.length, validationResult.canMove, validationResult.errorMessage, selectedIds]);
+
 
   // ==================== HOOK DRAG AND DROP (SIMPLIFIÉ) ====================
 

@@ -1,6 +1,6 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement CORRIGÉ COMPLET
+// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement AVEC REFRESH
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { SelectionValidationResult } from './useSelectionValidation';
@@ -55,8 +55,8 @@ export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   
-  // 🔥 NOUVEAU: Stocker la fonction de refresh pour l'utiliser après le déplacement
-  const [onRefreshCallback, setOnRefreshCallback] = useState<(() => Promise<void>) | null>(null);
+  // 🔥 NOUVEAU: Stocker la fonction de refresh
+  const onRefreshRef = useRef<(() => Promise<void>) | null>(null);
   
   // ==================== ÉTAT DU MODAL ====================
   
@@ -84,7 +84,7 @@ export function useSimpleMoveModal() {
     hierarchyContext: undefined
   });
 
-  // ==================== FONCTIONS DE CHARGEMENT ====================
+  // ==================== FONCTIONS DE CHARGEMENT (inchangées) ====================
   
   const loadCampaigns = useCallback(async () => {
     if (!selectedClient?.clientId) return;
@@ -272,14 +272,15 @@ export function useSimpleMoveModal() {
       placements: { [tactiqueId: string]: any[] };
       creatifs: { [placementId: string]: any[] };
     },
-    // 🔥 NOUVEAU: Accepter la fonction de refresh en paramètre
+    // 🔥 NOUVEAU: Paramètre pour la fonction de refresh
     onRefresh?: () => Promise<void>
   ) => {
     console.log('🚀 Ouverture du modal de déplacement');
-    console.log('📊 Validation:', validationResult);
-    console.log('📦 Éléments sélectionnés:', selectedItemIds);
-    console.log('🏗️ Contexte hiérarchique:', hierarchyContext ? 'Fourni' : 'Manquant');
-    console.log('🔄 Callback refresh:', onRefresh ? 'Fourni' : 'Manquant');
+
+    console.log('🔍 DEBUG - openModal reçoit onRefresh:', {
+      hasOnRefresh: !!onRefresh,
+      onRefreshType: typeof onRefresh
+    });
     
     if (!selectedClient?.clientId) {
       console.error('❌ Aucun client sélectionné');
@@ -287,7 +288,7 @@ export function useSimpleMoveModal() {
     }
     
     // 🔥 NOUVEAU: Stocker la fonction de refresh
-    setOnRefreshCallback(onRefresh || null);
+    onRefreshRef.current = onRefresh || null;
     
     // Réinitialiser et ouvrir le modal
     setModalState(prev => ({
@@ -313,39 +314,20 @@ export function useSimpleMoveModal() {
     await loadCampaigns();
   }, [selectedClient?.clientId, loadCampaigns]);
 
-  // ==================== FERMETURE DU MODAL AVEC REFRESH ====================
+  // ==================== FERMETURE DU MODAL ====================
   
   const closeModal = useCallback(() => {
     console.log('❌ Fermeture du modal de déplacement');
     
-    setModalState(prev => {
-      // 🔥 NOUVEAU: Si le déplacement a réussi, déclencher le refresh avant de fermer
-      if (prev.result?.success && onRefreshCallback) {
-        console.log('🔄 Déplacement réussi - Déclenchement du refresh de fermeture...');
-        // Utiliser setTimeout pour éviter les problèmes de timing
-        setTimeout(async () => {
-          try {
-            await onRefreshCallback();
-            console.log('✅ Refresh de fermeture terminé');
-          } catch (error) {
-            console.error('❌ Erreur lors du refresh de fermeture:', error);
-          }
-        }, 100);
-      }
-      
-      return {
-        ...prev,
-        isOpen: false
-      };
-    });
+    setModalState(prev => ({
+      ...prev,
+      isOpen: false
+    }));
     
-    // 🔥 NOUVEAU: Nettoyer la référence après un délai
-    setTimeout(() => {
-      setOnRefreshCallback(null);
-    }, 200);
-  }, [onRefreshCallback]);
+ 
+  }, []);
 
-  // ==================== SÉLECTION DE DESTINATION ====================
+  // ==================== SÉLECTION DE DESTINATION (inchangée) ====================
   
   const selectDestination = useCallback(async (level: string, itemId: string, itemName: string) => {
     console.log(`🎯 Sélection destination ${level}:`, { itemId, itemName });
@@ -469,6 +451,8 @@ export function useSimpleMoveModal() {
       const result = await MoveService.performMove(operation);
       
       console.log('✅ Déplacement terminé:', result);
+
+ 
       
       setModalState(prev => ({
         ...prev,
@@ -477,18 +461,15 @@ export function useSimpleMoveModal() {
         result
       }));
       
-      // 🔥 NOUVEAU: Si le déplacement réussit, déclencher un refresh immédiat
-      if (result.success && onRefreshCallback) {
-        console.log('🔄 Déplacement réussi - Refresh immédiat...');
-        // Délai court pour laisser l'animation se terminer
-        setTimeout(async () => {
-          try {
-            await onRefreshCallback();
-            console.log('✅ Refresh immédiat terminé');
-          } catch (refreshError) {
-            console.error('❌ Erreur refresh immédiat:', refreshError);
-          }
-        }, 500);
+      // 🔥 NOUVEAU: Si le déplacement réussit, appeler la fonction de refresh
+      if (result.success && onRefreshRef.current) {
+        console.log('🔄 Déplacement réussi - Appel du refresh...');
+        try {
+          await onRefreshRef.current();
+          console.log('✅ Refresh terminé avec succès');
+        } catch (refreshError) {
+          console.error('❌ Erreur lors du refresh:', refreshError);
+        }
       }
       
     } catch (error) {
@@ -516,10 +497,10 @@ export function useSimpleMoveModal() {
     selectedCampaignId, 
     selectedVersionId, 
     selectedOngletId,
-    onRefreshCallback
+    onRefreshRef.current // 🔥 NOUVEAU: Dépendance ajoutée
   ]);
 
-  // ==================== UTILITAIRES ====================
+  // ==================== UTILITAIRES (inchangées) ====================
   
   const isDestinationComplete = useCallback((): boolean => {
     if (!modalState.validationResult) return false;

@@ -242,6 +242,11 @@ export default function SelectedActionsPanel({
     }
     
     console.log('✅ Contexte validé, appel du modal...');
+
+    console.log('🔍 DEBUG - handleMove onRefresh:', {
+      hasOnRefresh: !!onRefresh,
+      onRefreshType: typeof onRefresh
+    });
     
     try {
       // 🔥 CORRECTION: Passer aussi la fonction onRefresh au modal

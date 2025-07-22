@@ -1,529 +1,500 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement AVEC REFRESH
+// app/components/Tactiques/SimpleMoveModal.tsx - Modal de déplacement simplifié
 
-import { useState, useCallback } from 'react';
-import { useClient } from '../../contexts/ClientContext';
-import { useSelection } from '../../contexts/SelectionContext';
-import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
-import * as MoveService from '../../lib/simpleMoveService';
+'use client';
 
-// ==================== TYPES ====================
+import React from 'react';
+import {
+  XMarkIcon,
+  ChevronRightIcon,
+  CheckIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  MagnifyingGlassIcon
+} from '@heroicons/react/24/outline';
+import { MoveModalState } from '../../hooks/useSimpleMoveModal';
+import { CascadeItem } from '../../lib/simpleMoveService';
 
-export interface MoveModalState {
-  isOpen: boolean;
-  step: 'destination' | 'progress' | 'result';
-  
-  // Données de validation
-  validationResult: SelectionValidationResult | null;
-  selectedItemIds: string[];
-  
-  // Navigation dans le modal
-  campaigns: MoveService.CascadeItem[];
-  versions: MoveService.CascadeItem[];
-  onglets: MoveService.CascadeItem[];
-  sections: MoveService.CascadeItem[];
-  tactiques: MoveService.CascadeItem[];
-  placements: MoveService.CascadeItem[];
-  
-  // Destination sélectionnée
-  destination: Partial<MoveService.MoveDestination>;
-  
-  // États de chargement
-  loadingCampaigns: boolean;
-  loadingVersions: boolean;
-  loadingOnglets: boolean;
-  loadingSections: boolean;
-  loadingTactiques: boolean;
-  loadingPlacements: boolean;
-  
-  // Résultat final
-  result: MoveService.MoveResult | null;
-  processing: boolean;
-  error: string | null;
-  
-  // Contexte hiérarchique pour construire les chemins source
-  hierarchyContext?: {
-    sections: any[];
-    tactiques: { [sectionId: string]: any[] };
-    placements: { [tactiqueId: string]: any[] };
-    creatifs: { [placementId: string]: any[] };
-  };
+interface SimpleMoveModalProps {
+  modalState: MoveModalState;
+  onClose: () => void;
+  onSelectDestination: (level: string, itemId: string, itemName: string) => Promise<void>;
+  onConfirmMove: () => Promise<void>;
+  isDestinationComplete: boolean;
 }
 
-// ==================== HOOK PRINCIPAL ====================
+// ==================== COMPOSANT NIVEAU DE CASCADE ====================
 
-export default function SimpleMoveModal(){
-  const { selectedClient } = useClient();
-  const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
-  
-  // 🔥 NOUVEAU: Stocker la fonction de refresh
-  const [onRefreshCallback, setOnRefreshCallback] = useState<(() => Promise<void>) | null>(null);
-  
-  // ==================== ÉTAT DU MODAL ====================
-  
-  const [modalState, setModalState] = useState<MoveModalState>({
-    isOpen: false,
-    step: 'destination',
-    validationResult: null,
-    selectedItemIds: [],
-    campaigns: [],
-    versions: [],
-    onglets: [],
-    sections: [],
-    tactiques: [],
-    placements: [],
-    destination: {},
-    loadingCampaigns: false,
-    loadingVersions: false,
-    loadingOnglets: false,
-    loadingSections: false,
-    loadingTactiques: false,
-    loadingPlacements: false,
-    result: null,
-    processing: false,
-    error: null,
-    hierarchyContext: undefined
-  });
+interface CascadeLevelComponentProps {
+  title: string;
+  items: CascadeItem[];
+  selectedId?: string;
+  loading: boolean;
+  onSelect: (itemId: string, itemName: string) => void;
+  isVisible: boolean;
+  isRequired: boolean;
+  searchable?: boolean;
+}
 
-  // ==================== FONCTIONS DE CHARGEMENT (inchangées) ====================
-  
-  const loadCampaigns = useCallback(async () => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingCampaigns: true, error: null }));
-    
-    try {
-      const campaigns = await MoveService.loadCampaigns(selectedClient.clientId);
-      setModalState(prev => ({ 
-        ...prev, 
-        campaigns, 
-        loadingCampaigns: false 
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement campagnes:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingCampaigns: false, 
-        error: 'Erreur lors du chargement des campagnes' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadVersions = useCallback(async (campaignId: string) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingVersions: true, error: null }));
-    
-    try {
-      const versions = await MoveService.loadVersions(selectedClient.clientId, campaignId);
-      setModalState(prev => ({ 
-        ...prev, 
-        versions, 
-        loadingVersions: false,
-        // Reset les niveaux suivants
-        onglets: [],
-        sections: [],
-        tactiques: [],
-        placements: []
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement versions:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingVersions: false, 
-        error: 'Erreur lors du chargement des versions' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadOnglets = useCallback(async (campaignId: string, versionId: string) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingOnglets: true, error: null }));
-    
-    try {
-      const onglets = await MoveService.loadOnglets(selectedClient.clientId, campaignId, versionId);
-      setModalState(prev => ({ 
-        ...prev, 
-        onglets, 
-        loadingOnglets: false,
-        // Reset les niveaux suivants
-        sections: [],
-        tactiques: [],
-        placements: []
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement onglets:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingOnglets: false, 
-        error: 'Erreur lors du chargement des onglets' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadSections = useCallback(async (campaignId: string, versionId: string, ongletId: string) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingSections: true, error: null }));
-    
-    try {
-      const sections = await MoveService.loadSections(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
-        ongletId
-      );
-      setModalState(prev => ({ 
-        ...prev, 
-        sections, 
-        loadingSections: false,
-        // Reset les niveaux suivants
-        tactiques: [],
-        placements: []
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement sections:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingSections: false, 
-        error: 'Erreur lors du chargement des sections' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadTactiques = useCallback(async (
-    campaignId: string, 
-    versionId: string, 
-    ongletId: string, 
-    sectionId: string
-  ) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingTactiques: true, error: null }));
-    
-    try {
-      const tactiques = await MoveService.loadTactiques(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
-        ongletId, 
-        sectionId
-      );
-      setModalState(prev => ({ 
-        ...prev, 
-        tactiques, 
-        loadingTactiques: false,
-        // Reset les niveaux suivants
-        placements: []
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement tactiques:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingTactiques: false, 
-        error: 'Erreur lors du chargement des tactiques' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadPlacements = useCallback(async (
-    campaignId: string, 
-    versionId: string, 
-    ongletId: string, 
-    sectionId: string, 
-    tactiqueId: string
-  ) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingPlacements: true, error: null }));
-    
-    try {
-      const placements = await MoveService.loadPlacements(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
-        ongletId, 
-        sectionId, 
-        tactiqueId
-      );
-      setModalState(prev => ({ 
-        ...prev, 
-        placements, 
-        loadingPlacements: false
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement placements:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingPlacements: false, 
-        error: 'Erreur lors du chargement des placements' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
+const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
+  title,
+  items,
+  selectedId,
+  loading,
+  onSelect,
+  isVisible,
+  isRequired,
+  searchable = false
+}) => {
+  const [searchTerm, setSearchTerm] = React.useState('');
 
-  // ==================== OUVERTURE DU MODAL AVEC REFRESH ====================
-  
-  const openModal = useCallback(async (
-    validationResult: SelectionValidationResult,
-    selectedItemIds: string[],
-    hierarchyContext?: {
-      sections: any[];
-      tactiques: { [sectionId: string]: any[] };
-      placements: { [tactiqueId: string]: any[] };
-      creatifs: { [placementId: string]: any[] };
-    },
-    // 🔥 NOUVEAU: Paramètre pour la fonction de refresh
-    onRefresh?: () => Promise<void>
-  ) => {
-    console.log('🚀 Ouverture du modal de déplacement');
-    
-    if (!selectedClient?.clientId) {
-      console.error('❌ Aucun client sélectionné');
-      return;
+  const filteredItems = React.useMemo(() => {
+    if (!searchable || !searchTerm.trim()) {
+      return items;
     }
-    
-    // 🔥 NOUVEAU: Stocker la fonction de refresh
-    setOnRefreshCallback(onRefresh || null);
-    
-    // Réinitialiser et ouvrir le modal
-    setModalState(prev => ({
-      ...prev,
-      isOpen: true,
-      step: 'destination',
-      validationResult,
-      selectedItemIds,
-      hierarchyContext,
-      campaigns: [],
-      versions: [],
-      onglets: [],
-      sections: [],
-      tactiques: [],
-      placements: [],
-      destination: {},
-      result: null,
-      processing: false,
-      error: null
-    }));
-    
-    // Charger les campagnes immédiatement
-    await loadCampaigns();
-  }, [selectedClient?.clientId, loadCampaigns]);
+    return items.filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [items, searchTerm, searchable]);
 
-  // ==================== FERMETURE DU MODAL ====================
-  
-  const closeModal = useCallback(() => {
-    console.log('❌ Fermeture du modal de déplacement');
-    
-    setModalState(prev => ({
-      ...prev,
-      isOpen: false
-    }));
-    
-    // Nettoyer la référence
-    setOnRefreshCallback(null);
-  }, []);
+  if (!isVisible) {
+    return null;
+  }
 
-  // ==================== SÉLECTION DE DESTINATION (inchangée) ====================
+  return (
+    <div className="border-b border-gray-200 last:border-b-0">
+      {/* En-tête du niveau */}
+      <div className="bg-gray-50 px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-gray-900 capitalize">
+            {title}
+            {isRequired && <span className="text-red-500 ml-1">*</span>}
+          </h4>
+          {loading && (
+            <ArrowPathIcon className="h-4 w-4 text-gray-400 animate-spin" />
+          )}
+        </div>
+        
+        {/* Barre de recherche pour les campagnes */}
+        {searchable && items.length > 0 && (
+          <div className="mt-2 relative">
+            <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder={`Rechercher ${title.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Contenu du niveau */}
+      <div className="max-h-48 overflow-y-auto">
+        {loading ? (
+          <div className="p-4 text-center text-gray-500">
+            <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto mb-2" />
+            <div className="text-sm">Chargement...</div>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-4 text-center text-gray-500">
+            <div className="text-sm">
+              {searchTerm ? 'Aucun résultat trouvé' : `Aucun ${title.toLowerCase()} disponible`}
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {filteredItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onSelect(item.id, item.name)}
+                className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
+                  selectedId === item.id ? 'bg-indigo-50 border-r-2 border-indigo-500' : ''
+                }`}
+                disabled={loading}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {item.name}
+                    </div>
+                    {item.description && (
+                      <div className="text-xs text-gray-500 truncate mt-1">
+                        {item.description}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {selectedId === item.id && (
+                      <>
+                        <CheckIcon className="h-4 w-4 text-indigo-600" />
+                        <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ==================== COMPOSANT RÉSUMÉ DE DESTINATION ====================
+
+interface DestinationSummaryProps {
+  destination: any;
+  targetLevel?: string;
+}
+
+const DestinationSummary: React.FC<DestinationSummaryProps> = ({ destination, targetLevel }) => {
+  const pathElements = [];
   
-  const selectDestination = useCallback(async (level: string, itemId: string, itemName: string) => {
-    console.log(`🎯 Sélection destination ${level}:`, { itemId, itemName });
+  if (destination.campaignName) {
+    pathElements.push({ label: 'Campagne', value: destination.campaignName });
+  }
+  if (destination.versionName) {
+    pathElements.push({ label: 'Version', value: destination.versionName });
+  }
+  if (destination.ongletName) {
+    pathElements.push({ label: 'Onglet', value: destination.ongletName });
+  }
+  if (destination.sectionName) {
+    pathElements.push({ label: 'Section', value: destination.sectionName });
+  }
+  if (destination.tactiqueName) {
+    pathElements.push({ label: 'Tactique', value: destination.tactiqueName });
+  }
+  if (destination.placementName) {
+    pathElements.push({ label: 'Placement', value: destination.placementName });
+  }
+
+  if (pathElements.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <h4 className="text-sm font-medium text-blue-900 mb-3">Destination sélectionnée</h4>
+      <div className="space-y-1">
+        {pathElements.map((element, index) => (
+          <div key={index} className="flex items-center text-sm">
+            <span className="text-blue-600 font-medium w-20">{element.label}:</span>
+            <span className="text-blue-800">{element.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ==================== COMPOSANT PRINCIPAL ====================
+
+export default function SimpleMoveModal({
+  modalState,
+  onClose,
+  onSelectDestination,
+  onConfirmMove,
+  isDestinationComplete
+}: SimpleMoveModalProps) {
+  
+  if (!modalState.isOpen) {
+    return null;
+  }
+
+  const { step, validationResult, destination, error, result, processing } = modalState;
+
+  // ==================== DÉTERMINER LES NIVEAUX VISIBLES ====================
+  
+  const shouldShowLevel = (level: string): boolean => {
+    if (!validationResult) return false;
     
-    // Mettre à jour la destination
-    setModalState(prev => {
-      const newDestination = { ...prev.destination };
-      
-      switch (level) {
-        case 'campaign':
-          newDestination.campaignId = itemId;
-          newDestination.campaignName = itemName;
-          break;
-        case 'version':
-          newDestination.versionId = itemId;
-          newDestination.versionName = itemName;
-          break;
-        case 'onglet':
-          newDestination.ongletId = itemId;
-          newDestination.ongletName = itemName;
-          break;
-        case 'section':
-          newDestination.sectionId = itemId;
-          newDestination.sectionName = itemName;
-          break;
-        case 'tactique':
-          newDestination.tactiqueId = itemId;
-          newDestination.tactiqueName = itemName;
-          break;
-        case 'placement':
-          newDestination.placementId = itemId;
-          newDestination.placementName = itemName;
-          break;
-      }
-      
-      return { ...prev, destination: newDestination };
-    });
-    
-    // Charger le niveau suivant
-    const dest = modalState.destination;
+    const targetLevel = validationResult.targetLevel;
     
     switch (level) {
       case 'campaign':
-        await loadVersions(itemId);
-        break;
       case 'version':
-        if (dest.campaignId) {
-          await loadOnglets(dest.campaignId, itemId);
-        }
-        break;
       case 'onglet':
-        if (dest.campaignId && dest.versionId) {
-          await loadSections(dest.campaignId, dest.versionId, itemId);
-        }
-        break;
+        return true; // Toujours visibles
       case 'section':
-        if (dest.campaignId && dest.versionId && dest.ongletId) {
-          await loadTactiques(dest.campaignId, dest.versionId, dest.ongletId, itemId);
-        }
-        break;
+        return ['section', 'tactique', 'placement'].includes(targetLevel);
       case 'tactique':
-        if (dest.campaignId && dest.versionId && dest.ongletId && dest.sectionId) {
-          await loadPlacements(dest.campaignId, dest.versionId, dest.ongletId, dest.sectionId, itemId);
-        }
-        break;
-    }
-  }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
-
-  // ==================== CONFIRMATION DU DÉPLACEMENT AVEC REFRESH ====================
-  
-  const confirmMove = useCallback(async () => {
-    if (!selectedClient?.clientId || !modalState.validationResult || !modalState.validationResult.canMove) {
-      console.error('❌ Conditions non remplies pour le déplacement');
-      return;
-    }
-    
-    if (!modalState.hierarchyContext) {
-      console.error('❌ Contexte hiérarchique manquant');
-      setModalState(prev => ({
-        ...prev,
-        error: 'Contexte hiérarchique manquant pour construire les chemins source'
-      }));
-      return;
-    }
-    
-    console.log('🚀 Confirmation du déplacement');
-    
-    setModalState(prev => ({ ...prev, step: 'progress', processing: true, error: null }));
-    
-    try {
-      // Construire le contexte des éléments avec les vrais IDs
-      const sourceContext = {
-        campaignId: selectedCampaignId!,
-        versionId: selectedVersionId!,
-        ongletId: selectedOngletId!
-      };
-      
-      console.log('🔧 Construction du contexte des éléments...');
-      const itemsWithContext = await MoveService.buildItemsContext(
-        selectedClient.clientId,
-        modalState.selectedItemIds,
-        sourceContext,
-        modalState.hierarchyContext
-      );
-      
-      if (itemsWithContext.length === 0) {
-        throw new Error('Aucun élément trouvé dans le contexte - impossible de construire les chemins source');
-      }
-      
-      console.log('📍 Éléments avec contexte:', itemsWithContext);
-      
-      const operation: MoveService.MoveOperation = {
-        clientId: selectedClient.clientId,
-        itemType: modalState.validationResult.moveLevel!,
-        selectedItemIds: modalState.selectedItemIds,
-        destination: modalState.destination as MoveService.MoveDestination,
-        sourceContext,
-        itemsWithContext
-      };
-      
-      const result = await MoveService.performMove(operation);
-      
-      console.log('✅ Déplacement terminé:', result);
-      
-      setModalState(prev => ({
-        ...prev,
-        step: 'result',
-        processing: false,
-        result
-      }));
-      
-      // 🔥 NOUVEAU: Si le déplacement réussit, appeler la fonction de refresh
-      if (result.success && onRefreshCallback) {
-        console.log('🔄 Déplacement réussi - Appel du refresh...');
-        try {
-          await onRefreshCallback();
-          console.log('✅ Refresh terminé avec succès');
-        } catch (refreshError) {
-          console.error('❌ Erreur lors du refresh:', refreshError);
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur lors du déplacement:', error);
-      setModalState(prev => ({
-        ...prev,
-        step: 'result',
-        processing: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
-        result: {
-          success: false,
-          movedCount: 0,
-          skippedCount: modalState.selectedItemIds.length,
-          errors: [error instanceof Error ? error.message : 'Erreur inconnue'],
-          warnings: []
-        }
-      }));
-    }
-  }, [
-    selectedClient?.clientId, 
-    modalState.validationResult, 
-    modalState.selectedItemIds, 
-    modalState.destination, 
-    modalState.hierarchyContext,
-    selectedCampaignId, 
-    selectedVersionId, 
-    selectedOngletId,
-    onRefreshCallback // 🔥 NOUVEAU: Dépendance ajoutée
-  ]);
-
-  // ==================== UTILITAIRES (inchangées) ====================
-  
-  const isDestinationComplete = useCallback((): boolean => {
-    if (!modalState.validationResult) return false;
-    
-    const targetLevel = modalState.validationResult.targetLevel;
-    const dest = modalState.destination;
-    
-    switch (targetLevel) {
-      case 'onglet':
-        return !!(dest.campaignId && dest.versionId && dest.ongletId);
-      case 'section':
-        return !!(dest.campaignId && dest.versionId && dest.ongletId && dest.sectionId);
-      case 'tactique':
-        return !!(dest.campaignId && dest.versionId && dest.ongletId && dest.sectionId && dest.tactiqueId);
+        return ['tactique', 'placement'].includes(targetLevel);
       case 'placement':
-        return !!(dest.campaignId && dest.versionId && dest.ongletId && dest.sectionId && dest.tactiqueId && dest.placementId);
+        return targetLevel === 'placement';
       default:
         return false;
     }
-  }, [modalState.validationResult, modalState.destination]);
-
-  // ==================== RETURN ====================
-  
-  return {
-    modalState,
-    openModal,
-    closeModal,
-    selectDestination,
-    confirmMove,
-    isDestinationComplete: isDestinationComplete()
   };
+
+  // ==================== RENDU SELON L'ÉTAPE ====================
+
+  const renderContent = () => {
+    switch (step) {
+      case 'destination':
+        return (
+          <>
+            {/* En-tête */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Déplacer les éléments sélectionnés
+                  </h3>
+                  {validationResult && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {validationResult.details.selectedItems.length} élément{validationResult.details.selectedItems.length > 1 ? 's' : ''} vers{' '}
+                      {validationResult.targetLevel === 'onglet' && 'un onglet'}
+                      {validationResult.targetLevel === 'section' && 'une section'}
+                      {validationResult.targetLevel === 'tactique' && 'une tactique'}
+                      {validationResult.targetLevel === 'placement' && 'un placement'}
+                      {validationResult.affectedItemsCount > validationResult.details.selectedItems.length && (
+                        <span className="text-gray-500">
+                          {' '}({validationResult.affectedItemsCount} éléments au total)
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Sélection en cascade */}
+            <div className="flex-1 overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 h-full">
+                
+                {/* Campagnes */}
+                <CascadeLevelComponent
+                  title="Campagne"
+                  items={modalState.campaigns}
+                  selectedId={destination.campaignId}
+                  loading={modalState.loadingCampaigns}
+                  onSelect={(itemId, itemName) => onSelectDestination('campaign', itemId, itemName)}
+                  isVisible={shouldShowLevel('campaign')}
+                  isRequired={true}
+                  searchable={true}
+                />
+
+                {/* Versions */}
+                <CascadeLevelComponent
+                  title="Version"
+                  items={modalState.versions}
+                  selectedId={destination.versionId}
+                  loading={modalState.loadingVersions}
+                  onSelect={(itemId, itemName) => onSelectDestination('version', itemId, itemName)}
+                  isVisible={shouldShowLevel('version')}
+                  isRequired={true}
+                />
+
+                {/* Onglets */}
+                <CascadeLevelComponent
+                  title="Onglet"
+                  items={modalState.onglets}
+                  selectedId={destination.ongletId}
+                  loading={modalState.loadingOnglets}
+                  onSelect={(itemId, itemName) => onSelectDestination('onglet', itemId, itemName)}
+                  isVisible={shouldShowLevel('onglet')}
+                  isRequired={true}
+                />
+
+                {/* Sections */}
+                <CascadeLevelComponent
+                  title="Section"
+                  items={modalState.sections}
+                  selectedId={destination.sectionId}
+                  loading={modalState.loadingSections}
+                  onSelect={(itemId, itemName) => onSelectDestination('section', itemId, itemName)}
+                  isVisible={shouldShowLevel('section')}
+                  isRequired={shouldShowLevel('section')}
+                />
+
+                {/* Tactiques */}
+                <CascadeLevelComponent
+                  title="Tactique"
+                  items={modalState.tactiques}
+                  selectedId={destination.tactiqueId}
+                  loading={modalState.loadingTactiques}
+                  onSelect={(itemId, itemName) => onSelectDestination('tactique', itemId, itemName)}
+                  isVisible={shouldShowLevel('tactique')}
+                  isRequired={shouldShowLevel('tactique')}
+                />
+
+                {/* Placements */}
+                <CascadeLevelComponent
+                  title="Placement"
+                  items={modalState.placements}
+                  selectedId={destination.placementId}
+                  loading={modalState.loadingPlacements}
+                  onSelect={(itemId, itemName) => onSelectDestination('placement', itemId, itemName)}
+                  isVisible={shouldShowLevel('placement')}
+                  isRequired={shouldShowLevel('placement')}
+                />
+
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              {isDestinationComplete && (
+                <div className="mb-4">
+                  <DestinationSummary 
+                    destination={destination} 
+                    targetLevel={validationResult?.targetLevel}
+                  />
+                </div>
+              )}
+              
+              {error && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-2" />
+                    <span className="text-sm text-red-800">{error}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  disabled={processing}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={onConfirmMove}
+                  disabled={!isDestinationComplete || processing}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                >
+                  {processing && (
+                    <ArrowPathIcon className="h-4 w-4 animate-spin mr-2" />
+                  )}
+                  {processing ? 'Préparation...' : 'Confirmer le déplacement'}
+                </button>
+              </div>
+            </div>
+          </>
+        );
+
+      case 'progress':
+        return (
+          <div className="px-6 py-8 text-center">
+            <ArrowPathIcon className="h-12 w-12 text-indigo-600 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Déplacement en cours...
+            </h3>
+            <p className="text-sm text-gray-600">
+              Veuillez patienter pendant que nous déplaçons vos éléments.
+            </p>
+            {validationResult && (
+              <div className="mt-4 text-xs text-gray-500">
+                {validationResult.affectedItemsCount} élément(s) à traiter
+              </div>
+            )}
+          </div>
+        );
+
+      case 'result':
+        return (
+          <div className="px-6 py-8">
+            <div className="text-center mb-6">
+              {result?.success ? (
+                <CheckIcon className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              ) : (
+                <ExclamationTriangleIcon className="h-12 w-12 text-red-600 mx-auto mb-4" />
+              )}
+              
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {result?.success ? 'Déplacement réussi !' : 'Déplacement échoué'}
+              </h3>
+              
+              {result && (
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>
+                    <span className="font-medium text-green-600">{result.movedCount}</span> élément(s) déplacé(s)
+                  </div>
+                  {result.skippedCount > 0 && (
+                    <div>
+                      <span className="font-medium text-yellow-600">{result.skippedCount}</span> élément(s) ignoré(s)
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Erreurs */}
+            {result?.errors && result.errors.length > 0 && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-red-800 mb-2">Erreurs :</h4>
+                <ul className="text-sm text-red-700 space-y-1">
+                  {result.errors.map((error, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-red-500 mr-2">•</span>
+                      <span>{error}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Avertissements */}
+            {result?.warnings && result.warnings.length > 0 && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">Avertissements :</h4>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  {result.warnings.map((warning, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-yellow-500 mr-2">•</span>
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Overlay */}
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div 
+          className="fixed inset-0 transition-opacity"
+          onClick={step === 'destination' ? onClose : undefined}
+        >
+          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+
+        {/* Modal */}
+        <div className="inline-block w-full max-w-6xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+          <div className="flex flex-col h-[80vh]">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
