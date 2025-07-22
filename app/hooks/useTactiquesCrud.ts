@@ -133,7 +133,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Section supprimée');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur suppression section:', error);
       throw error;
@@ -204,7 +204,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Tactique modifiée');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur modification tactique:', error);
       throw error;
@@ -233,7 +233,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Tactique supprimée');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur suppression tactique:', error);
       throw error;
@@ -349,7 +349,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Placement modifié');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur modification placement:', error);
       throw error;
@@ -379,7 +379,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Placement supprimé');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur suppression placement:', error);
       throw error;
@@ -515,7 +515,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Créatif modifié');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur modification créatif:', error);
       throw error;
@@ -546,7 +546,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Créatif supprimé');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur suppression créatif:', error);
       throw error;
@@ -574,7 +574,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Onglet créé:', newOngletId);
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur création onglet:', error);
       throw error;
@@ -601,7 +601,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Onglet renommé');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur renommage onglet:', error);
       throw error;
@@ -628,7 +628,7 @@ export function useTactiquesCrud({
       );
       
       console.log('✅ Onglet supprimé');
-      await Promise.resolve(onRefresh());
+      await onRefresh();
     } catch (error) {
       console.error('❌ Erreur suppression onglet:', error);
       throw error;
