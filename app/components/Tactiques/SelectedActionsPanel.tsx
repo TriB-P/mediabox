@@ -12,8 +12,7 @@ import {
 import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
 import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
 import { useSimpleMoveModal } from '../../hooks/useSimpleMoveModal';
-import MoveModal from './SimpleMoveModal';
-
+import SimpleMoveModal from './SimpleMoveModal';
 // ==================== TYPES ====================
 
 interface SelectedItem {
@@ -340,13 +339,13 @@ export default function SelectedActionsPanel({
         {loading && (
           <div className="mt-2 flex items-center text-xs text-indigo-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
-            Opération en cours...
+            Opération en cours...za
           </div>
         )}
       </div>
 
       {/* Modal de déplacement */}
-      <MoveModal
+      <SimpleMoveModal
         modalState={moveModalState}
         onClose={closeMoveModal}
         onSelectDestination={selectDestination}
