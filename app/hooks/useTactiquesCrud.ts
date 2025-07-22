@@ -1,4 +1,4 @@
-// app/hooks/useTactiquesCrud.ts - Hook pour toutes les fonctions CRUD des tactiques
+// app/hooks/useTactiquesCrud.ts - Version corrigée
 
 import { useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -6,9 +6,9 @@ import { useSelection } from '../contexts/SelectionContext';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
 
 // 🔥 IMPORTS DE VOS VRAIES FONCTIONS
-import { 
-  addSection, 
-  updateSection, 
+import {
+  addSection,
+  updateSection,
   deleteSection,
   addTactique,
   updateTactique,
@@ -18,16 +18,16 @@ import {
   deleteOnglet
 } from '../lib/tactiqueService';
 
-import { 
-  createPlacement, 
-  updatePlacement, 
-  deletePlacement 
+import {
+  createPlacement,
+  updatePlacement,
+  deletePlacement
 } from '../lib/placementService';
 
-import { 
-  createCreatif, 
-  updateCreatif, 
-  deleteCreatif 
+import {
+  createCreatif,
+  updateCreatif,
+  deleteCreatif
 } from '../lib/creatifService';
 
 // ==================== TYPES ====================
@@ -57,7 +57,7 @@ export function useTactiquesCrud({
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
-  // ==================== FONCTIONS SECTION ====================
+  // ==================== FONCTIONS SECTION (INCHANGÉES) ====================
   
   const handleCreateSection = useCallback(async (sectionData: any) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
@@ -140,7 +140,7 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
-  // ==================== FONCTIONS TACTIQUE ====================
+  // ==================== FONCTIONS TACTIQUE (INCHANGÉES) ====================
   
   const handleCreateTactique = useCallback(async (sectionId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
@@ -240,14 +240,13 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
-  // ==================== FONCTIONS PLACEMENT ====================
+  // ==================== FONCTIONS PLACEMENT (INCHANGÉES) ====================
   
   const handleCreatePlacement = useCallback(async (tactiqueId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour créer un placement');
     }
 
-    // Trouver la section qui contient cette tactique
     let sectionId = '';
     for (const section of sections) {
       if (tactiques[section.id]?.some(t => t.id === tactiqueId)) {
@@ -311,7 +310,6 @@ export function useTactiquesCrud({
       throw new Error('Contexte manquant pour modifier un placement');
     }
 
-    // Trouver la hiérarchie du placement
     let sectionId = '';
     let tactiqueId = '';
     
@@ -386,14 +384,13 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
-  // ==================== FONCTIONS CRÉATIF ====================
+  // ==================== FONCTIONS CRÉATIF (CORRIGÉES) ====================
   
   const handleCreateCreatif = useCallback(async (placementId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour créer un créatif');
     }
 
-    // Trouver la hiérarchie du créatif
     let sectionId = '';
     let tactiqueId = '';
     let currentPlacement: Placement | undefined;
@@ -463,41 +460,32 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign]);
 
-  const handleUpdateCreatif = useCallback(async (creatifId: string, data: Partial<Creatif>) => {
+  const handleUpdateCreatif = useCallback(async (
+    sectionId: string, 
+    tactiqueId: string, 
+    placementId: string, 
+    creatifId: string, 
+    data: Partial<Creatif>
+  ) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour modifier un créatif');
     }
 
-    // Trouver la hiérarchie du créatif
-    let sectionId = '';
-    let tactiqueId = '';
-    let placementId = '';
-    let currentPlacement: Placement | undefined;
-    
-    for (const section of sections) {
-      for (const tactique of (tactiques[section.id] || [])) {
-        for (const placement of (placements[tactique.id] || [])) {
-          if (creatifs[placement.id]?.some(c => c.id === creatifId)) {
-            sectionId = section.id;
-            tactiqueId = tactique.id;
-            placementId = placement.id;
-            currentPlacement = placement;
-            break;
-          }
-        }
-        if (placementId) break;
-      }
-      if (placementId) break;
-    }
-
-    if (!sectionId || !tactiqueId || !placementId || !currentPlacement) {
-      throw new Error('Hiérarchie parent non trouvée pour le créatif');
+    // La recherche de hiérarchie est supprimée, on utilise directement les arguments
+    if (!sectionId || !tactiqueId || !placementId) {
+      throw new Error('Hiérarchie parent (section, tactique, placement) manquante pour le créatif');
     }
 
     try {
       console.log('🔄 Modification créatif...');
       
+      // On récupère les données du parent directement depuis les props du hook
       const currentTactique = tactiques[sectionId]?.find(t => t.id === tactiqueId);
+      const currentPlacement = placements[tactiqueId]?.find(p => p.id === placementId);
+
+      if (!currentPlacement) {
+        throw new Error('Le placement parent n\'a pas été trouvé dans les données locales.');
+      }
       
       await updateCreatif(
         selectedClient.clientId,
@@ -520,7 +508,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur modification créatif:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, placements, selectedCampaign, onRefresh]);
 
   const handleDeleteCreatif = useCallback(async (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce créatif ? Cette action est irréversible.')) {
@@ -553,7 +541,7 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
 
-  // ==================== FONCTIONS ONGLET ====================
+  // ==================== FONCTIONS ONGLET (INCHANGÉES) ====================
   
   const handleAddOnglet = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {

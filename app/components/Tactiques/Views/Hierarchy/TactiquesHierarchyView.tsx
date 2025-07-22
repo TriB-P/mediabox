@@ -413,17 +413,52 @@ export default function TactiquesHierarchyView({
     }
   };
 
-  const handleSaveCreatif = async (creatifData: any) => {
-    if (!creatifDrawer.creatif || !onUpdateCreatif) return;
+ const handleSaveCreatif = async (creatifData: any) => {
+    if (!creatifDrawer.creatif || !onUpdateCreatif || !creatifDrawer.placementId) return;
+
+    // 1. Trouver la hiérarchie parente (sectionId, tactiqueId) du créatif
+    let sectionId: string | null = null;
+    let tactiqueId: string | null = null;
+
+    for (const section of sections) {
+        for (const tactique of section.tactiques) {
+            // Utiliser les placements directement associés à la tactique dans la boucle
+            const placementExists = (tactique.placements || []).some(p => p.id === creatifDrawer.placementId);
+            if (placementExists) {
+                sectionId = section.id;
+                tactiqueId = tactique.id;
+                break; 
+            }
+        }
+        if (tactiqueId) break;
+    }
+
+    // 2. Vérifier si la hiérarchie a été trouvée
+    if (!sectionId || !tactiqueId) {
+        // Lancer une erreur claire si la hiérarchie n'est pas trouvée
+        // Ceci est la cause racine de votre bug initial.
+        console.error("Erreur critique : Impossible de trouver la hiérarchie (Section, Tactique) pour le placement ID:", creatifDrawer.placementId);
+        // Afficher une erreur à l'utilisateur pourrait être une bonne idée ici
+        return;
+    }
     
+    // 3. Appeler onUpdateCreatif avec la hiérarchie complète
     try {
-      await onUpdateCreatif(creatifDrawer.creatif.id, creatifData);
+      await onUpdateCreatif(
+        sectionId,
+        tactiqueId,
+        creatifDrawer.placementId,
+        creatifDrawer.creatif.id,
+        creatifData
+      );
       setCreatifDrawer(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
+      // L'erreur est maintenant plus susceptible de provenir de la logique métier (Firebase) 
+      // plutôt que d'une "hiérarchie non trouvée".
       console.error('Erreur lors de la sauvegarde du créatif:', error);
     }
   };
-
+  
   // ==================== 🔥 PANEL D'ACTIONS AVEC NOUVELLE LOGIQUE ====================
 
   const selectedItems = useMemo(() => {
