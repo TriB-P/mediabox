@@ -1,4 +1,4 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement AVEC REFRESH
+// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement AVEC REFRESH CORRIGÉ
 
 import { useState, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -55,7 +55,7 @@ export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   
-  // 🔥 NOUVEAU: Stocker la fonction de refresh
+  // 🔥 CORRECTION: Références pour la fonction de callback
   const onRefreshRef = useRef<(() => Promise<void>) | null>(null);
   
   // ==================== ÉTAT DU MODAL ====================
@@ -119,7 +119,6 @@ export function useSimpleMoveModal() {
         ...prev, 
         versions, 
         loadingVersions: false,
-        // Reset les niveaux suivants
         onglets: [],
         sections: [],
         tactiques: [],
@@ -146,7 +145,6 @@ export function useSimpleMoveModal() {
         ...prev, 
         onglets, 
         loadingOnglets: false,
-        // Reset les niveaux suivants
         sections: [],
         tactiques: [],
         placements: []
@@ -177,7 +175,6 @@ export function useSimpleMoveModal() {
         ...prev, 
         sections, 
         loadingSections: false,
-        // Reset les niveaux suivants
         tactiques: [],
         placements: []
       }));
@@ -213,7 +210,6 @@ export function useSimpleMoveModal() {
         ...prev, 
         tactiques, 
         loadingTactiques: false,
-        // Reset les niveaux suivants
         placements: []
       }));
     } catch (error) {
@@ -261,7 +257,7 @@ export function useSimpleMoveModal() {
     }
   }, [selectedClient?.clientId]);
 
-  // ==================== OUVERTURE DU MODAL AVEC REFRESH ====================
+  // ==================== OUVERTURE DU MODAL AVEC CALLBACKS ====================
   
   const openModal = useCallback(async (
     validationResult: SelectionValidationResult,
@@ -272,14 +268,12 @@ export function useSimpleMoveModal() {
       placements: { [tactiqueId: string]: any[] };
       creatifs: { [placementId: string]: any[] };
     },
-    // 🔥 NOUVEAU: Paramètre pour la fonction de refresh
     onRefresh?: () => Promise<void>
   ) => {
     console.log('🚀 Ouverture du modal de déplacement');
 
-    console.log('🔍 DEBUG - openModal reçoit onRefresh:', {
-      hasOnRefresh: !!onRefresh,
-      onRefreshType: typeof onRefresh
+    console.log('🔍 DEBUG - openModal reçoit callbacks:', {
+      hasOnRefresh: !!onRefresh
     });
     
     if (!selectedClient?.clientId) {
@@ -287,7 +281,7 @@ export function useSimpleMoveModal() {
       return;
     }
     
-    // 🔥 NOUVEAU: Stocker la fonction de refresh
+    // 🔥 CORRECTION: Stocker la fonction de callback
     onRefreshRef.current = onRefresh || null;
     
     // Réinitialiser et ouvrir le modal
@@ -314,9 +308,9 @@ export function useSimpleMoveModal() {
     await loadCampaigns();
   }, [selectedClient?.clientId, loadCampaigns]);
 
-  // ==================== FERMETURE DU MODAL ====================
+  // ==================== 🔥 FERMETURE DU MODAL SIMPLE ====================
   
-  const closeModal = useCallback(() => {
+  const closeModal = useCallback(async () => {
     console.log('❌ Fermeture du modal de déplacement');
     
     setModalState(prev => ({
@@ -324,7 +318,8 @@ export function useSimpleMoveModal() {
       isOpen: false
     }));
     
- 
+    // Nettoyer la référence
+    onRefreshRef.current = null;
   }, []);
 
   // ==================== SÉLECTION DE DESTINATION (inchangée) ====================
@@ -396,7 +391,7 @@ export function useSimpleMoveModal() {
     }
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
-  // ==================== CONFIRMATION DU DÉPLACEMENT AVEC REFRESH ====================
+  // ==================== 🔥 CONFIRMATION DU DÉPLACEMENT AVEC REFRESH SÉQUENTIEL ====================
   
   const confirmMove = useCallback(async () => {
     if (!selectedClient?.clientId || !modalState.validationResult || !modalState.validationResult.canMove) {
@@ -451,26 +446,38 @@ export function useSimpleMoveModal() {
       const result = await MoveService.performMove(operation);
       
       console.log('✅ Déplacement terminé:', result);
-
- 
       
+      // 🔥 CORRECTION: Refresh AVANT de passer au résultat
+      if (result.success && onRefreshRef.current) {
+        console.log('🔄 Déplacement réussi - Refresh en cours...');
+        
+        // Mettre à jour l'état pour indiquer le refresh
+        setModalState(prev => ({
+          ...prev,
+          processing: true,
+          error: null
+        }));
+        
+        try {
+          await onRefreshRef.current();
+          console.log('✅ Refresh terminé avec succès - Hiérarchie mise à jour');
+          
+          // Attendre un petit délai pour s'assurer que tous les états sont synchronisés
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (refreshError) {
+          console.error('❌ Erreur lors du refresh:', refreshError);
+          // Même en cas d'erreur de refresh, on continue pour afficher le résultat
+        }
+      }
+      
+      // Passer à l'étape de résultat APRÈS le refresh
       setModalState(prev => ({
         ...prev,
         step: 'result',
         processing: false,
         result
       }));
-      
-      // 🔥 NOUVEAU: Si le déplacement réussit, appeler la fonction de refresh
-      if (result.success && onRefreshRef.current) {
-        console.log('🔄 Déplacement réussi - Appel du refresh...');
-        try {
-          await onRefreshRef.current();
-          console.log('✅ Refresh terminé avec succès');
-        } catch (refreshError) {
-          console.error('❌ Erreur lors du refresh:', refreshError);
-        }
-      }
       
     } catch (error) {
       console.error('❌ Erreur lors du déplacement:', error);
@@ -496,8 +503,7 @@ export function useSimpleMoveModal() {
     modalState.hierarchyContext,
     selectedCampaignId, 
     selectedVersionId, 
-    selectedOngletId,
-    onRefreshRef.current // 🔥 NOUVEAU: Dépendance ajoutée
+    selectedOngletId
   ]);
 
   // ==================== UTILITAIRES (inchangées) ====================

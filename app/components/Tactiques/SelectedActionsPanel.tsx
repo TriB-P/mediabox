@@ -1,8 +1,8 @@
-// app/components/Tactiques/SelectedActionsPanel.tsx - VERSION DEBUG POUR IDENTIFIER LE PROBLÈME
+// app/components/Tactiques/SelectedActionsPanel.tsx - VERSION CORRIGÉE AVEC REFRESH HIÉRARCHIQUE COMPLET
 
 'use client';
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
 import {
   DocumentDuplicateIcon,
   TrashIcon,
@@ -13,6 +13,7 @@ import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
 import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
 import { useSimpleMoveModal } from '../../hooks/useSimpleMoveModal';
 import SimpleMoveModal from './SimpleMoveModal';
+
 // ==================== TYPES ====================
 
 interface SelectedItem {
@@ -61,7 +62,7 @@ export default function SelectedActionsPanel({
       placements: Object.keys(hierarchyContext?.placements || {}).length,
       creatifs: Object.keys(hierarchyContext?.creatifs || {}).length,
       sampleSectionId: hierarchyContext?.sections?.[0]?.id || 'N/A',
-      fullContext: hierarchyContext
+      timestamp: Date.now() // Pour traquer les changements
     });
   }, [hierarchyContext]);
 
@@ -76,23 +77,35 @@ export default function SelectedActionsPanel({
     isDestinationComplete
   } = useSimpleMoveModal();
 
-  // ==================== DEBUG DE L'ÉTAT DU MODAL ====================
+  // ==================== 🔥 CALLBACK DE REFRESH COMPLET ====================
   
-  useEffect(() => {
-    if (moveModalState.isOpen) {
-      console.log('🔍 DEBUG - État du modal:', {
-        isOpen: moveModalState.isOpen,
-        step: moveModalState.step,
-        hasValidationResult: !!moveModalState.validationResult,
-        selectedItemsCount: moveModalState.selectedItemIds.length,
-        hasHierarchyContext: !!moveModalState.hierarchyContext,
-        hierarchyContextSample: moveModalState.hierarchyContext ? {
-          sectionsCount: moveModalState.hierarchyContext.sections?.length || 0,
-          tactiquesCount: Object.keys(moveModalState.hierarchyContext.tactiques || {}).length
-        } : 'UNDEFINED'
-      });
+  const handleRefreshComplete = useCallback(async () => {
+    console.log('🔄 Début du refresh complet après déplacement...');
+    
+    if (!onRefresh) {
+      console.warn('⚠️ Pas de fonction onRefresh disponible');
+      return;
     }
-  }, [moveModalState.isOpen, moveModalState.step, moveModalState.hierarchyContext]);
+    
+    try {
+      // Attendre que le refresh soit complètement terminé
+      await onRefresh();
+      console.log('✅ Refresh des données terminé');
+      
+      // Attendre un délai pour s'assurer que tous les états sont propagés
+      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('✅ Délai de synchronisation terminé');
+      
+      // 🔥 OPTION 1: Clear la sélection après un déplacement réussi
+      // (puisque les éléments ont changé de position)
+      onClearSelection();
+      console.log('✅ Sélection effacée après déplacement');
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du refresh complet:', error);
+      throw error; // Remonter l'erreur pour que le modal puisse la gérer
+    }
+  }, [onRefresh, onClearSelection]);
 
   // ==================== CALCULS DÉRIVÉS ====================
 
@@ -206,7 +219,7 @@ export default function SelectedActionsPanel({
     onClearSelection();
   };
 
-  // ==================== 🔍 GESTIONNAIRE DE DÉPLACEMENT AVEC DEBUG INTENSIF ====================
+  // ==================== 🔥 GESTIONNAIRE DE DÉPLACEMENT AVEC REFRESH COMPLET ====================
 
   const handleMove = async () => {
     if (loading || !moveButtonState.canMove || !validationResult) {
@@ -218,19 +231,9 @@ export default function SelectedActionsPanel({
       return;
     }
     
-    console.log('🚀 DEBUT handleMove');
-    console.log('📊 Validation reçue:', validationResult);
-    console.log('📦 Éléments sélectionnés:', selectedItems);
-    console.log('🏗️ Contexte hiérarchique avant passage:', {
-      isDefined: !!hierarchyContext,
-      sections: hierarchyContext?.sections?.length || 0,
-      tactiques: Object.keys(hierarchyContext?.tactiques || {}).length,
-      placements: Object.keys(hierarchyContext?.placements || {}).length,
-      creatifs: Object.keys(hierarchyContext?.creatifs || {}).length,
-      firstSectionId: hierarchyContext?.sections?.[0]?.id || 'N/A'
-    });
+    console.log('🚀 DEBUT handleMove avec refresh complet');
     
-    // 🔍 VÉRIFICATION AVANT APPEL
+    // Vérifications de contexte
     if (!hierarchyContext) {
       console.error('❌ hierarchyContext est undefined dans handleMove !');
       return;
@@ -241,20 +244,20 @@ export default function SelectedActionsPanel({
       return;
     }
     
-    console.log('✅ Contexte validé, appel du modal...');
-
-    console.log('🔍 DEBUG - handleMove onRefresh:', {
-      hasOnRefresh: !!onRefresh,
-      onRefreshType: typeof onRefresh
-    });
+    console.log('✅ Contexte validé, ouverture du modal...');
     
     try {
-      // 🔥 CORRECTION: Passer aussi la fonction onRefresh au modal
+      // 🔥 CORRECTION: Passer la fonction de refresh complète
       await openMoveModal(
         validationResult, 
         selectedItems.map(item => item.id),
-        hierarchyContext,
-        onRefresh // 🔥 NOUVEAU: Passer la fonction de refresh
+        {
+          sections: hierarchyContext?.sections || [],
+          tactiques: hierarchyContext?.tactiques || {},
+          placements: hierarchyContext?.placements || {},
+          creatifs: hierarchyContext?.creatifs || {}
+        },
+        handleRefreshComplete // 🔥 NOUVEAU: Fonction de refresh complète
       );
       
       console.log('✅ openMoveModal appelé avec succès');
@@ -344,7 +347,7 @@ export default function SelectedActionsPanel({
         {loading && (
           <div className="mt-2 flex items-center text-xs text-indigo-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
-            Opération en cours...za
+            Opération en cours...
           </div>
         )}
       </div>
