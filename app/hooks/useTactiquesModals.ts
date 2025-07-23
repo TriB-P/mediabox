@@ -1,5 +1,10 @@
-// app/hooks/useTactiquesModals.ts - Version avec fonctions onglets implémentées
-
+/**
+ * Ce hook gère la logique et les états des modales et des opérations CRUD
+ * pour les sections et les onglets dans la gestion des tactiques.
+ * Il centralise les fonctions d'ajout, d'édition, de suppression et de renommage,
+ * en interagissant avec les services Firebase et en gérant les retours utilisateur via useDataFlow.
+ * Il assure également la gestion du contexte nécessaire (client, campagne, version, onglet).
+ */
 import { useState, useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
 import { useClient } from '../contexts/ClientContext';
@@ -18,8 +23,6 @@ import {
 } from '../lib/tactiqueService';
 import { useDataFlow } from './useDataFlow';
 
-// ==================== TYPES ====================
-
 interface SectionModalState {
   isOpen: boolean;
   section: Section | null;
@@ -35,26 +38,23 @@ interface UseTactiquesModalsProps {
 }
 
 interface UseTactiquesModalsReturn {
-  // États des modals
   sectionModal: SectionModalState;
-  
-  // Fonctions de gestion des modals
   handleSaveSection: (sectionData: any) => Promise<void>;
   closeSectionModal: () => void;
-  
-  // Opérations sections
   handleAddSection: () => void;
   handleEditSection: (sectionId: string) => void;
   handleDeleteSection: (sectionId: string) => void;
-  
-  // Opérations onglets  
   handleAddOnglet: () => Promise<void>;
   handleRenameOnglet: (ongletId: string, newName?: string) => Promise<void>;
   handleDeleteOnglet: (ongletId: string) => Promise<void>;
 }
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour la gestion des modales et des opérations sur les tactiques (sections et onglets).
+ *
+ * @param {UseTactiquesModalsProps} props - Les propriétés incluent la campagne sélectionnée, les onglets, l'onglet sélectionné, les sections et une fonction de rafraîchissement.
+ * @returns {UseTactiquesModalsReturn} Un objet contenant les états des modales et les fonctions de gestion.
+ */
 export const useTactiquesModals = ({
   selectedCampaign,
   onglets,
@@ -66,12 +66,9 @@ export const useTactiquesModals = ({
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId } = useSelection();
 
-  // Utilisation de useDataFlow pour les opérations qui nécessitent du feedback
-  const dataFlow = useDataFlow({ 
-    enableDebug: process.env.NODE_ENV === 'development' 
+  const dataFlow = useDataFlow({
+    enableDebug: process.env.NODE_ENV === 'development'
   });
-
-  // ==================== ÉTATS DES MODALS ====================
 
   const [sectionModal, setSectionModal] = useState<SectionModalState>({
     isOpen: false,
@@ -79,8 +76,12 @@ export const useTactiquesModals = ({
     mode: 'create'
   });
 
-  // ==================== UTILITAIRES ====================
-
+  /**
+   * Vérifie que le contexte nécessaire (clientId, campaignId, versionId, ongletId) est disponible.
+   *
+   * @returns {{clientId: string, campaignId: string, versionId: string, ongletId: string}} L'objet contexte si toutes les IDs sont présentes.
+   * @throws {Error} Si le contexte est manquant.
+   */
   const ensureContext = () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour l\'opération sur les modals');
@@ -93,10 +94,12 @@ export const useTactiquesModals = ({
     };
   };
 
-  // ==================== GESTION DES SECTIONS ====================
-
+  /**
+   * Ouvre la modale pour créer une nouvelle section.
+   * Ne prend aucun paramètre.
+   * Ne retourne rien.
+   */
   const handleAddSection = useCallback(() => {
-    console.log('📋 Ouverture modal nouvelle section');
     setSectionModal({
       isOpen: true,
       section: null,
@@ -104,8 +107,13 @@ export const useTactiquesModals = ({
     });
   }, []);
 
+  /**
+   * Ouvre la modale pour éditer une section existante.
+   *
+   * @param {string} sectionId - L'identifiant de la section à éditer.
+   * Ne retourne rien.
+   */
   const handleEditSection = useCallback((sectionId: string) => {
-    console.log('✏️ Ouverture modal édition section:', sectionId);
     const section = sections.find(s => s.id === sectionId);
     if (section) {
       setSectionModal({
@@ -118,6 +126,13 @@ export const useTactiquesModals = ({
     }
   }, [sections]);
 
+  /**
+   * Sauvegarde une section, soit en la créant, soit en la mettant à jour.
+   *
+   * @param {any} sectionData - Les données de la section à sauvegarder.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la section sauvegardée et rafraîchie.
+   * @throws {Error} Si une erreur survient lors de la sauvegarde.
+   */
   const handleSaveSection = useCallback(async (sectionData: any) => {
     const context = ensureContext();
 
@@ -125,7 +140,6 @@ export const useTactiquesModals = ({
       dataFlow.startOperationLoading('Sauvegarde section');
 
       if (sectionModal.mode === 'create') {
-        console.log('➕ Création nouvelle section');
         const newSectionData = {
           SECTION_Name: sectionData.SECTION_Name,
           SECTION_Order: sections.length,
@@ -133,6 +147,7 @@ export const useTactiquesModals = ({
           SECTION_Budget: 0
         };
 
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleSaveSection - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections");
         await addSection(
           context.clientId,
           context.campaignId,
@@ -140,10 +155,9 @@ export const useTactiquesModals = ({
           context.ongletId,
           newSectionData
         );
-        console.log('✅ Section créée avec succès');
 
       } else if (sectionModal.section) {
-        console.log('💾 Mise à jour section existante');
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleSaveSection - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionModal.section.id}");
         await updateSection(
           context.clientId,
           context.campaignId,
@@ -152,10 +166,8 @@ export const useTactiquesModals = ({
           sectionModal.section.id,
           sectionData
         );
-        console.log('✅ Section mise à jour avec succès');
       }
 
-      // Fermer le modal et rafraîchir
       setSectionModal(prev => ({ ...prev, isOpen: false }));
       await Promise.resolve(onRefresh());
 
@@ -174,28 +186,36 @@ export const useTactiquesModals = ({
     dataFlow
   ]);
 
+  /**
+   * Ferme la modale de la section.
+   * Ne prend aucun paramètre.
+   * Ne retourne rien.
+   */
   const closeSectionModal = useCallback(() => {
-    console.log('❌ Fermeture modal section');
     setSectionModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  /**
+   * Gère la suppression d'une section après confirmation.
+   *
+   * @param {string} sectionId - L'identifiant de la section à supprimer.
+   * Ne retourne rien.
+   */
   const handleDeleteSection = useCallback((sectionId: string) => {
     const context = ensureContext();
     const section = sections.find(s => s.id === sectionId);
-    
+
     if (!section) {
       console.error('⚠️ Section non trouvée pour suppression:', sectionId);
       return;
     }
 
     const confirmMessage = `Êtes-vous sûr de vouloir supprimer la section "${section.SECTION_Name}" et toutes ses tactiques ?`;
-    
+
     if (confirm(confirmMessage)) {
-      console.log('🗑️ Suppression section confirmée:', section.SECTION_Name);
-      
-      // Démarrer l'opération avec feedback
       dataFlow.startOperationLoading('Suppression section');
-      
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleDeleteSection - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}");
       deleteSection(
         context.clientId,
         context.campaignId,
@@ -203,7 +223,6 @@ export const useTactiquesModals = ({
         context.ongletId,
         sectionId
       ).then(async () => {
-        console.log('✅ Section supprimée avec succès');
         await Promise.resolve(onRefresh());
       }).catch(error => {
         console.error('❌ Erreur suppression section:', error);
@@ -214,10 +233,13 @@ export const useTactiquesModals = ({
     }
   }, [sections, onRefresh, dataFlow]);
 
-  // ==================== GESTION DES ONGLETS ====================
-
+  /**
+   * Gère l'ajout d'un nouvel onglet après avoir demandé un nom à l'utilisateur.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'onglet ajouté et le rafraîchissement effectué.
+   * @throws {Error} Si le contexte est manquant ou si une erreur survient lors de la création.
+   */
   const handleAddOnglet = useCallback(async () => {
-    // Vérifier le contexte (sans ongletId car on va en créer un)
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
       throw new Error('Contexte manquant pour la création d\'onglet');
     }
@@ -229,8 +251,7 @@ export const useTactiquesModals = ({
 
     const trimmedName = newOngletName.trim();
 
-    // Vérifier si un onglet avec ce nom existe déjà
-    const nameExists = onglets.some(onglet => 
+    const nameExists = onglets.some(onglet =>
       onglet.ONGLET_Name.toLowerCase() === trimmedName.toLowerCase()
     );
 
@@ -241,29 +262,25 @@ export const useTactiquesModals = ({
 
     try {
       dataFlow.startOperationLoading('Création onglet');
-      console.log('📝 Création nouvel onglet:', trimmedName);
-      
+
       const newOngletData = {
         ONGLET_Name: trimmedName,
         ONGLET_Order: onglets.length,
         ONGLET_Color: '#6366f1'
       };
-      
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleAddOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets");
       const newOngletId = await addOnglet(
         selectedClient.clientId,
         selectedCampaignId,
         selectedVersionId,
         newOngletData
       );
-      
-      console.log('✅ Onglet créé avec succès:', newOngletId);
-      
-      // Rafraîchir les données
+
       await Promise.resolve(onRefresh());
-      
-      // Sélectionner automatiquement le nouvel onglet
+
       setSelectedOngletId(newOngletId);
-      
+
     } catch (error) {
       console.error('❌ Erreur création onglet:', error);
       dataFlow.setError('Erreur lors de la création de l\'onglet');
@@ -271,24 +288,31 @@ export const useTactiquesModals = ({
       dataFlow.stopLoading();
     }
   }, [
-    selectedClient?.clientId, 
-    selectedCampaignId, 
+    selectedClient?.clientId,
+    selectedCampaignId,
     selectedVersionId,
-    onglets.length, 
+    onglets.length,
     onglets,
-    onRefresh, 
+    onRefresh,
     setSelectedOngletId,
     dataFlow
   ]);
 
+  /**
+   * Gère le renommage d'un onglet.
+   *
+   * @param {string} ongletId - L'identifiant de l'onglet à renommer.
+   * @param {string} [newName] - Le nouveau nom pour l'onglet (optionnel, une invite sera affichée si non fourni).
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'onglet renommé et le rafraîchissement effectué.
+   * @throws {Error} Si le contexte est manquant ou si une erreur survient lors du renommage.
+   */
   const handleRenameOnglet = useCallback(async (ongletId: string, newName?: string) => {
-    // Vérifier le contexte (sans ongletId dans ensureContext car on manipule un onglet spécifique)
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
       throw new Error('Contexte manquant pour le renommage d\'onglet');
     }
 
     const onglet = onglets.find(o => o.id === ongletId);
-    
+
     if (!onglet) {
       console.error('⚠️ Onglet non trouvé pour renommage:', ongletId);
       return;
@@ -301,9 +325,8 @@ export const useTactiquesModals = ({
 
     const trimmedName = finalNewName.trim();
 
-    // Vérifier si un autre onglet avec ce nom existe déjà
-    const nameExists = onglets.some(otherOnglet => 
-      otherOnglet.id !== ongletId && 
+    const nameExists = onglets.some(otherOnglet =>
+      otherOnglet.id !== ongletId &&
       otherOnglet.ONGLET_Name.toLowerCase() === trimmedName.toLowerCase()
     );
 
@@ -314,8 +337,8 @@ export const useTactiquesModals = ({
 
     try {
       dataFlow.startOperationLoading('Renommage onglet');
-      console.log('✏️ Renommage onglet:', onglet.ONGLET_Name, '→', trimmedName);
-      
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleRenameOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
       await updateOnglet(
         selectedClient.clientId,
         selectedCampaignId,
@@ -323,10 +346,9 @@ export const useTactiquesModals = ({
         ongletId,
         { ONGLET_Name: trimmedName }
       );
-      
-      console.log('✅ Onglet renommé avec succès');
+
       await Promise.resolve(onRefresh());
-      
+
     } catch (error) {
       console.error('❌ Erreur renommage onglet:', error);
       dataFlow.setError('Erreur lors du renommage de l\'onglet');
@@ -335,58 +357,60 @@ export const useTactiquesModals = ({
     }
   }, [
     selectedClient?.clientId,
-    selectedCampaignId, 
+    selectedCampaignId,
     selectedVersionId,
-    onglets, 
-    onRefresh, 
+    onglets,
+    onRefresh,
     dataFlow
   ]);
 
+  /**
+   * Gère la suppression d'un onglet après confirmation, en empêchant la suppression du dernier onglet.
+   *
+   * @param {string} ongletId - L'identifiant de l'onglet à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'onglet supprimé et le rafraîchissement effectué.
+   * @throws {Error} Si le contexte est manquant ou si une erreur survient lors de la suppression.
+   */
   const handleDeleteOnglet = useCallback(async (ongletId: string) => {
-    // Vérifier le contexte
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
       throw new Error('Contexte manquant pour la suppression d\'onglet');
     }
 
     const onglet = onglets.find(o => o.id === ongletId);
-    
+
     if (!onglet) {
       console.error('⚠️ Onglet non trouvé pour suppression:', ongletId);
       return;
     }
 
-    // Empêcher la suppression du dernier onglet
     if (onglets.length <= 1) {
       alert('Impossible de supprimer le dernier onglet');
       return;
     }
 
     const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'onglet "${onglet.ONGLET_Name}" et toutes ses données ?`;
-    
+
     if (confirm(confirmMessage)) {
       try {
         dataFlow.startOperationLoading('Suppression onglet');
-        console.log('🗑️ Suppression onglet:', onglet.ONGLET_Name);
-        
+
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleDeleteOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
         await deleteOnglet(
           selectedClient.clientId,
           selectedCampaignId,
           selectedVersionId,
           ongletId
         );
-        
-        console.log('✅ Onglet supprimé avec succès');
-        
-        // Si l'onglet supprimé était sélectionné, sélectionner le premier restant
+
         if (selectedOngletId === ongletId) {
           const remainingOnglets = onglets.filter(o => o.id !== ongletId);
           if (remainingOnglets.length > 0) {
             setSelectedOngletId(remainingOnglets[0].id);
           }
         }
-        
+
         await Promise.resolve(onRefresh());
-        
+
       } catch (error) {
         console.error('❌ Erreur suppression onglet:', error);
         dataFlow.setError('Erreur lors de la suppression de l\'onglet');
@@ -398,35 +422,24 @@ export const useTactiquesModals = ({
     selectedClient?.clientId,
     selectedCampaignId,
     selectedVersionId,
-    onglets, 
+    onglets,
     selectedOngletId,
     setSelectedOngletId,
-    onRefresh, 
+    onRefresh,
     dataFlow
   ]);
 
-  // ==================== RETURN ====================
-
   return {
-    // États des modals
     sectionModal,
-    
-    // Fonctions de gestion des modals
     handleSaveSection,
     closeSectionModal,
-    
-    // Opérations sections
     handleAddSection,
     handleEditSection,
     handleDeleteSection,
-    
-    // Opérations onglets
     handleAddOnglet,
     handleRenameOnglet,
     handleDeleteOnglet,
   };
 };
-
-// ==================== TYPES EXPORT ====================
 
 export type { UseTactiquesModalsProps, UseTactiquesModalsReturn, SectionModalState };

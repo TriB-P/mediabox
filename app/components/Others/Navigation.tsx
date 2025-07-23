@@ -1,3 +1,8 @@
+/**
+ * @file Ce fichier contient le composant de la barre de navigation latérale de l'application.
+ * @summary Ce composant affiche les liens de navigation principaux. Il s'adapte en fonction de l'utilisateur connecté et de ses permissions (par exemple, en affichant un lien "Admin" uniquement pour les administrateurs). Il gère également la mise en surbrillance du lien correspondant à la page actuellement consultée.
+ */
+
 'use client';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,21 +12,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 
-// Import d'icônes
 import { 
   LayoutDashboard, 
   LineChart, 
   Layers, 
   FileText, 
-  FileCode, 
   DollarSign,
   Users,
   HelpCircle,
   Settings,
   ShieldPlus
-
 } from 'lucide-react';
 
+/**
+ * @function Navigation
+ * @summary Le composant principal pour la barre de navigation latérale.
+ * @description Ce composant utilise les contextes d'authentification et de permissions pour récupérer les informations sur l'utilisateur et son rôle. Il construit ensuite une liste d'éléments de navigation et les affiche. Un lien "Admin" est ajouté dynamiquement si l'utilisateur est un administrateur. Le composant gère également l'état actif des liens pour la mise en style.
+ * @returns {JSX.Element | null} Un élément JSX représentant la barre de navigation, ou `null` si aucun utilisateur n'est connecté.
+ */
 export default function Navigation() {
   const { user } = useAuth();
   const { userRole } = usePermissions();
@@ -39,10 +47,17 @@ export default function Navigation() {
     { name: 'Guide de coût', href: '/guide-de-cout', icon: DollarSign },
     { name: 'Partenaires', href: '/partenaires', icon: Users },
     { name: 'Client', href: '/client-config', icon: Settings },
-    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon:   ShieldPlus }] : []),
+    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: ShieldPlus }] : []),
     { name: 'Aide', href: '/aide', icon: HelpCircle }
   ];
 
+  /**
+   * @function isActive
+   * @summary Détermine si un chemin de navigation doit être considéré comme actif.
+   * @description Compare le chemin fourni avec le chemin actuel de l'URL. Un chemin est considéré comme actif si c'est une correspondance exacte, ou si le chemin actuel de l'URL commence par le chemin du lien (sauf pour la racine "/").
+   * @param {string} path - Le chemin du lien de navigation à vérifier.
+   * @returns {boolean} `true` si le lien est actif, sinon `false`.
+   */
   const isActive = (path: string) => {
     return pathname === path || 
            (path !== '/' && pathname.startsWith(path));
@@ -50,7 +65,6 @@ export default function Navigation() {
 
   return (
     <div className="w-[210px] bg-white border-r border-gray-200 flex flex-col h-full">
-      {/* Logo */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center mb-4">
           <div className="w-10 h-10 flex items-center justify-center rounded overflow-hidden mr-2">
@@ -65,13 +79,11 @@ export default function Navigation() {
           <span className="font-medium text-gray-900">MediaBox</span>
         </div>
         
-        {/* Client selector */}
         <div className="mb-2">
           <ClientDropdown />
         </div>
       </div>
       
-      {/* Navigation links */}
       <nav className="flex-1 overflow-y-auto pt-2">
         <ul className="space-y-1">
           {navigationItems.map((item) => {

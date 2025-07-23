@@ -1,8 +1,15 @@
-// app/hooks/useSelectionValidation.ts - Validation de sélection pour déplacement
+/**
+ * Ce fichier contient un hook personnalisé (useSelectionValidation) et des fonctions utilitaires
+ * pour valider la sélection d'éléments hiérarchiques (sections, tactiques, placements, créatifs)
+ * en vue d'opérations de déplacement. Il s'assure que la sélection est cohérente, qu'il n'y a pas
+ * d'éléments "orphelins" (enfants sélectionnés sans leur parent), et détermine le type d'éléments
+ * qui seront déplacés ainsi que leur destination possible.
+ *
+ * Il fournit également un utilitaire (buildHierarchyMap) pour transformer des données brutes en une carte hiérarchique
+ * et un autre hook (useSelectionMessages) pour générer des messages d'interface utilisateur basés sur le résultat de la validation.
+ */
 
 import { useMemo } from 'react';
-
-// ==================== TYPES ====================
 
 export type ItemType = 'section' | 'tactique' | 'placement' | 'creatif';
 
@@ -17,13 +24,13 @@ export interface HierarchyItem {
 export interface SelectionValidationResult {
   isValid: boolean;
   canMove: boolean;
-  moveLevel?: ItemType;                    // Type d'élément qui sera déplacé
-  targetLevel?: 'onglet' | 'section' | 'tactique' | 'placement'; // Où ils iront
+  moveLevel?: ItemType;
+  targetLevel?: 'onglet' | 'section' | 'tactique' | 'placement';
   errorMessage?: string;
   warningMessage?: string;
-  affectedItemsCount: number;              // Nombre total d'éléments qui seront déplacés
+  affectedItemsCount: number;
   details: {
-    selectedItems: string[];               // IDs directement sélectionnés
+    selectedItems: string[];
     orphanCheck: {
       isValid: boolean;
       orphans: Array<{
@@ -41,25 +48,20 @@ export interface SelectionValidationResult {
 }
 
 export interface UseSelectionValidationProps {
-  // Structure hiérarchique complète
   hierarchyMap: Map<string, HierarchyItem>;
-  
-  // Sélection actuelle (IDs directement sélectionnés par l'utilisateur)
   selectedIds: string[];
 }
 
-// ==================== CONSTANTES ====================
-
 const MOVE_TARGET_MAP: Record<ItemType, 'onglet' | 'section' | 'tactique' | 'placement'> = {
-  'section': 'onglet',      // Les sections vont vers un onglet
-  'tactique': 'section',    // Les tactiques vont vers une section
-  'placement': 'tactique',  // Les placements vont vers une tactique
-  'creatif': 'placement'    // Les créatifs vont vers un placement
+  'section': 'onglet',
+  'tactique': 'section',
+  'placement': 'tactique',
+  'creatif': 'placement'
 };
 
 const ITEM_LABELS: Record<ItemType, string> = {
   'section': 'sections',
-  'tactique': 'tactiques', 
+  'tactique': 'tactiques',
   'placement': 'placements',
   'creatif': 'créatifs'
 };
@@ -71,16 +73,20 @@ const TARGET_LABELS: Record<string, string> = {
   'placement': 'un placement'
 };
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour valider une sélection d'éléments hiérarchiques en vue d'un déplacement.
+ * Il effectue plusieurs vérifications pour s'assurer de la cohérence de la sélection.
+ *
+ * @param {UseSelectionValidationProps} props - Les propriétés incluant la carte hiérarchique complète et les IDs sélectionnés.
+ * @returns {SelectionValidationResult} Le résultat de la validation, indiquant si la sélection est valide, déplaçable,
+ * le type d'éléments à déplacer, la cible de déplacement, et des messages d'erreur/avertissement si nécessaire.
+ */
 export function useSelectionValidation({
   hierarchyMap,
   selectedIds
 }: UseSelectionValidationProps): SelectionValidationResult {
 
   return useMemo(() => {
-
-    // ==================== VÉRIFICATIONS DE BASE ====================
 
     if (selectedIds.length === 0) {
       return {
@@ -96,9 +102,8 @@ export function useSelectionValidation({
       };
     }
 
-    // Vérifier que tous les éléments sélectionnés existent
     const selectedItems = selectedIds.map(id => hierarchyMap.get(id)).filter(Boolean) as HierarchyItem[];
-    
+
     if (selectedItems.length !== selectedIds.length) {
       const missingIds = selectedIds.filter(id => !hierarchyMap.has(id));
       return {
@@ -114,15 +119,21 @@ export function useSelectionValidation({
       };
     }
 
-    // ==================== 1ère VÉRIFICATION : ABSENCE D'ORPHELINS ====================
-
+    /**
+     * Vérifie si la sélection contient des éléments "orphelins", c'est-à-dire
+     * des enfants sélectionnés dont le parent direct n'est pas sélectionné.
+     *
+     * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés par l'utilisateur.
+     * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+     * @returns {SelectionValidationResult['details']['orphanCheck']} Un objet indiquant la validité de l'absence d'orphelins et la liste des orphelins trouvés.
+     */
     const orphanCheck = checkForOrphans(selectedItems, hierarchyMap);
-    
+
     if (!orphanCheck.isValid) {
       const firstOrphan = orphanCheck.orphans[0];
       const missingCount = firstOrphan.missingChildren.length;
       const totalOrphans = orphanCheck.orphans.reduce((sum, o) => sum + o.missingChildren.length, 0);
-      
+
       return {
         isValid: false,
         canMove: false,
@@ -136,11 +147,18 @@ export function useSelectionValidation({
       };
     }
 
-    // ==================== 2ème VÉRIFICATION : COHÉRENCE HIÉRARCHIQUE ====================
+    /**
+     * Vérifie la cohérence hiérarchique des éléments sélectionnés.
+     * Une sélection est cohérente si tous les éléments racines (les plus hauts niveaux sélectionnés qui n'ont pas de parent sélectionné)
+     * sont du même type (par exemple, toutes des sections, ou toutes des tactiques).
+     *
+     * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés par l'utilisateur.
+     * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+     * @param {Set<string>} selectedSet - Un ensemble des IDs des éléments sélectionnés pour une recherche rapide.
+     * @returns {SelectionValidationResult['details']['levelCheck']} Un objet indiquant la validité de la cohérence des niveaux et les niveaux trouvés.
+     */
+    const levelCheck = checkHierarchicalConsistency(selectedItems, hierarchyMap, new Set(selectedItems.map(item => item.id)));
 
-    const selectedSet = new Set(selectedItems.map(item => item.id));
-    const levelCheck = checkHierarchicalConsistency(selectedItems, hierarchyMap, selectedSet);
-    
     if (!levelCheck.isValid) {
       return {
         isValid: false,
@@ -155,12 +173,16 @@ export function useSelectionValidation({
       };
     }
 
-    // ==================== VALIDATION RÉUSSIE ====================
-
     const moveLevel = levelCheck.levels[0].type;
     const targetLevel = MOVE_TARGET_MAP[moveLevel];
-    
-    // Calculer le nombre total d'éléments qui seront affectés (sélectionnés + leurs enfants)
+
+    /**
+     * Calcule le nombre total d'éléments qui seront affectés par une opération (sélectionnés + leurs enfants et descendants).
+     *
+     * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés.
+     * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+     * @returns {number} Le nombre total d'éléments affectés.
+     */
     const affectedItemsCount = calculateAffectedItemsCount(selectedItems, hierarchyMap);
 
     return {
@@ -179,13 +201,19 @@ export function useSelectionValidation({
   }, [hierarchyMap, selectedIds]);
 }
 
-// ==================== FONCTIONS UTILITAIRES ====================
-
+/**
+ * Vérifie si la sélection contient des éléments "orphelins", c'est-à-dire
+ * des enfants sélectionnés dont le parent direct n'est pas sélectionné.
+ *
+ * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés par l'utilisateur.
+ * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+ * @returns {SelectionValidationResult['details']['orphanCheck']} Un objet indiquant la validité de l'absence d'orphelins et la liste des orphelins trouvés.
+ */
 function checkForOrphans(
   selectedItems: HierarchyItem[],
   hierarchyMap: Map<string, HierarchyItem>
 ): SelectionValidationResult['details']['orphanCheck'] {
-  
+
   const selectedSet = new Set(selectedItems.map(item => item.id));
   const orphans: Array<{
     parentId: string;
@@ -196,13 +224,11 @@ function checkForOrphans(
 
   for (const selectedItem of selectedItems) {
     if (selectedItem.childrenIds.length === 0) {
-      // Pas d'enfants, pas de problème
       continue;
     }
 
-    // Vérifier si TOUS les enfants directs sont sélectionnés
     const missingChildren: Array<{ id: string; name: string }> = [];
-    
+
     for (const childId of selectedItem.childrenIds) {
       if (!selectedSet.has(childId)) {
         const childItem = hierarchyMap.get(childId);
@@ -230,29 +256,37 @@ function checkForOrphans(
   };
 }
 
+/**
+ * Vérifie la cohérence hiérarchique des éléments sélectionnés.
+ * Une sélection est cohérente si tous les éléments racines (les plus hauts niveaux sélectionnés qui n'ont pas de parent sélectionné)
+ * sont du même type (par exemple, toutes des sections, ou toutes des tactiques).
+ *
+ * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés par l'utilisateur.
+ * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+ * @param {Set<string>} selectedSet - Un ensemble des IDs des éléments sélectionnés pour une recherche rapide.
+ * @returns {SelectionValidationResult['details']['levelCheck']} Un objet indiquant la validité de la cohérence des niveaux et les niveaux trouvés.
+ */
 function checkHierarchicalConsistency(
   selectedItems: HierarchyItem[],
   hierarchyMap: Map<string, HierarchyItem>,
   selectedSet: Set<string>
 ): SelectionValidationResult['details']['levelCheck'] {
-  
 
-  // Pour chaque élément, trouver son niveau hiérarchique racine
+
   const rootLevelCounts = new Map<ItemType, number>();
-  
+
   selectedItems.forEach(item => {
     const rootLevel = findRootLevel(item.id, hierarchyMap, selectedSet);
-    
+
     rootLevelCounts.set(rootLevel, (rootLevelCounts.get(rootLevel) || 0) + 1);
   });
 
   const levels = Array.from(rootLevelCounts.entries()).map(([type, count]) => ({ type, count }));
-  
 
-  // Vérifier qu'on a un seul niveau racine
+
   if (levels.length > 1) {
     const mixedLevels = levels.map(l => ITEM_LABELS[l.type]);
-    
+
     return {
       isValid: false,
       levels,
@@ -260,73 +294,87 @@ function checkHierarchicalConsistency(
     };
   }
 
-  
+
   return {
     isValid: true,
     levels
   };
 }
 
-// ==================== NOUVELLE FONCTION : TROUVER LE NIVEAU RACINE ====================
-
+/**
+ * Remonte la hiérarchie à partir d'un élément donné pour trouver son "niveau racine" au sein de la sélection.
+ * Le niveau racine est l'élément le plus haut dans la hiérarchie sélectionnée qui est un ancêtre de l'élément donné.
+ *
+ * @param {string} itemId - L'ID de l'élément pour lequel trouver le niveau racine.
+ * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+ * @param {Set<string>} selectedSet - Un ensemble des IDs des éléments actuellement sélectionnés.
+ * @returns {ItemType} Le type de l'élément racine trouvé.
+ */
 function findRootLevel(
-  itemId: string, 
-  hierarchyMap: Map<string, HierarchyItem>, 
+  itemId: string,
+  hierarchyMap: Map<string, HierarchyItem>,
   selectedSet: Set<string>
 ): ItemType {
-  
+
   const item = hierarchyMap.get(itemId);
   if (!item) {
-    return 'creatif'; // Fallback
+    return 'creatif';
   }
-  
-  // Remonter la hiérarchie jusqu'à trouver le plus haut niveau sélectionné
+
   let current = item;
   let rootLevel = current.type;
-  
+
   while (current.parentId) {
     const parent = hierarchyMap.get(current.parentId);
     if (!parent) break;
-    
-    // Si le parent est sélectionné, il devient notre nouveau niveau racine
+
     if (selectedSet.has(parent.id)) {
       rootLevel = parent.type;
       current = parent;
     } else {
-      // Le parent n'est pas sélectionné, on s'arrête ici
       break;
     }
   }
-  
+
   return rootLevel;
 }
 
+/**
+ * Calcule le nombre total d'éléments qui seront affectés par une opération (sélectionnés + leurs enfants et descendants).
+ *
+ * @param {HierarchyItem[]} selectedItems - Les éléments directement sélectionnés.
+ * @param {Map<string, HierarchyItem>} hierarchyMap - La carte complète de la hiérarchie.
+ * @returns {number} Le nombre total d'éléments affectés.
+ */
 function calculateAffectedItemsCount(
   selectedItems: HierarchyItem[],
   hierarchyMap: Map<string, HierarchyItem>
 ): number {
   const affectedIds = new Set<string>();
-  
-  // Fonction récursive pour ajouter tous les descendants
+
   function addAllDescendants(itemId: string) {
     if (affectedIds.has(itemId)) return;
-    
+
     affectedIds.add(itemId);
-    
+
     const item = hierarchyMap.get(itemId);
     if (item) {
       item.childrenIds.forEach(childId => addAllDescendants(childId));
     }
   }
-  
-  // Ajouter chaque élément sélectionné et tous ses descendants
+
   selectedItems.forEach(item => addAllDescendants(item.id));
-  
+
   return affectedIds.size;
 }
 
-// ==================== UTILITAIRE POUR CONSTRUIRE LA HIÉRARCHIE ====================
-
+/**
+ * Construit une carte (Map) de la hiérarchie des éléments à partir d'un tableau de sections.
+ * Cette carte est utilisée pour naviguer facilement entre les éléments parent-enfant.
+ *
+ * @param {Array<Object>} sections - Un tableau d'objets représentant les sections, tactiques, placements et créatifs.
+ * @returns {Map<string, HierarchyItem>} Une carte où les clés sont les IDs des éléments et les valeurs sont leurs objets HierarchyItem.
+ */
 export function buildHierarchyMap(sections: Array<{
   id: string;
   SECTION_Name: string;
@@ -343,12 +391,11 @@ export function buildHierarchyMap(sections: Array<{
     }>;
   }>;
 }>): Map<string, HierarchyItem> {
-  
+
   const map = new Map<string, HierarchyItem>();
-  
-  
+
+
   sections.forEach(section => {
-    // Ajouter la section
     const sectionChildrenIds = section.tactiques.map(t => t.id);
     map.set(section.id, {
       id: section.id,
@@ -356,9 +403,8 @@ export function buildHierarchyMap(sections: Array<{
       name: section.SECTION_Name,
       childrenIds: sectionChildrenIds
     });
-    
+
     section.tactiques.forEach(tactique => {
-      // Ajouter la tactique
       const tactiqueChildrenIds = tactique.placements?.map(p => p.id) || [];
       map.set(tactique.id, {
         id: tactique.id,
@@ -367,9 +413,8 @@ export function buildHierarchyMap(sections: Array<{
         parentId: section.id,
         childrenIds: tactiqueChildrenIds
       });
-      
+
       tactique.placements?.forEach(placement => {
-        // Ajouter le placement
         const placementChildrenIds = placement.creatifs?.map(c => c.id) || [];
         map.set(placement.id, {
           id: placement.id,
@@ -378,9 +423,8 @@ export function buildHierarchyMap(sections: Array<{
           parentId: tactique.id,
           childrenIds: placementChildrenIds
         });
-        
+
         placement.creatifs?.forEach(creatif => {
-          // Ajouter le créatif
           map.set(creatif.id, {
             id: creatif.id,
             type: 'creatif',
@@ -392,12 +436,17 @@ export function buildHierarchyMap(sections: Array<{
       });
     });
   });
-  
+
   return map;
 }
 
-// ==================== HOOK UTILITAIRE POUR MESSAGES D'INTERFACE ====================
-
+/**
+ * Hook utilitaire pour générer des messages et des états pour les boutons d'interface utilisateur
+ * en fonction du résultat de la validation de la sélection.
+ *
+ * @param {SelectionValidationResult} validationResult - Le résultat de la validation de la sélection.
+ * @returns {Object} Un objet contenant le label du bouton, son état désactivé, le message de statut et sa couleur.
+ */
 export function useSelectionMessages(validationResult: SelectionValidationResult) {
   return useMemo(() => {
     if (!validationResult.canMove) {
@@ -408,16 +457,16 @@ export function useSelectionMessages(validationResult: SelectionValidationResult
         statusColor: 'red'
       };
     }
-    
+
     const { moveLevel, targetLevel, affectedItemsCount } = validationResult;
     const directCount = validationResult.details.selectedItems.length;
-    
+
     let buttonLabel = `Déplacer ${directCount} ${ITEM_LABELS[moveLevel!]}`;
     if (affectedItemsCount > directCount) {
       buttonLabel += ` (${affectedItemsCount} éléments au total)`;
     }
     buttonLabel += ` vers ${TARGET_LABELS[targetLevel!]}`;
-    
+
     return {
       buttonLabel,
       buttonDisabled: false,

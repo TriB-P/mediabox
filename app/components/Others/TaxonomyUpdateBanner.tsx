@@ -1,5 +1,9 @@
-// app/components/Others/TaxonomyUpdateBanner.tsx
-
+/**
+ * Ce fichier définit le composant TaxonomyUpdateBanner.
+ * Ce composant est une bannière qui s'affiche en haut de l'écran pour informer l'utilisateur de l'état
+ * d'une mise à jour de la taxonomie. Elle peut indiquer si la mise à jour est en cours,
+ * si elle a réussi, ou si une erreur s'est produite.
+ */
 'use client';
 
 import React from 'react';
@@ -16,13 +20,22 @@ interface TaxonomyUpdateBannerProps {
   onDismiss: () => void;
 }
 
+/**
+ * Affiche une bannière en haut de la page pour montrer l'état de la mise à jour de la taxonomie.
+ * @param {TaxonomyUpdateBannerProps} props - Les propriétés du composant.
+ * @param {TaxonomyUpdateStatus} props.status - L'objet contenant l'état de la mise à jour (en cours, erreur, message).
+ * @param {() => void} props.onDismiss - La fonction à appeler lorsque l'utilisateur ferme la bannière.
+ * @returns {React.ReactElement | null} Le composant de la bannière ou null si aucun message n'est à afficher.
+ */
 export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpdateBannerProps) {
-  // Ne rien afficher si pas de message
   if (!status.message && !status.isUpdating) {
     return null;
   }
 
-  // Couleurs selon l'état
+  /**
+   * Détermine les classes CSS pour le fond et le texte de la bannière en fonction de l'état.
+   * @returns {string} Une chaîne de caractères contenant les classes Tailwind CSS.
+   */
   const getBannerClasses = () => {
     if (status.hasError) {
       return 'bg-red-50 border-red-200 text-red-800';
@@ -33,6 +46,10 @@ export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpda
     }
   };
 
+  /**
+   * Détermine la classe CSS pour la couleur de l'icône en fonction de l'état.
+   * @returns {string} Une chaîne de caractères contenant la classe de couleur Tailwind CSS.
+   */
   const getIconClasses = () => {
     if (status.hasError) {
       return 'text-red-500';
@@ -45,17 +62,10 @@ export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpda
 
   return (
     <div className={`fixed top-0 left-0 right-0 z-50 border-b ${getBannerClasses()} transition-all duration-300`}>
-      {/* 🔥 NOUVEAU: Conteneur centré avec largeur réduite */}
       <div className="flex justify-center w-full px-4 sm:px-6 lg:px-8">
         <div className="relative w-full max-w-2xl mx-auto">
-          
-          {/* 🔥 NOUVEAU: Contenu centré */}
           <div className="flex items-center justify-center py-3">
-            
-            {/* Contenu principal centré */}
             <div className="flex items-center space-x-3">
-              
-              {/* Icône */}
               <div className="flex-shrink-0">
                 {status.hasError ? (
                   <ExclamationTriangleIcon className={`h-5 w-5 ${getIconClasses()}`} />
@@ -66,14 +76,12 @@ export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpda
                 )}
               </div>
 
-              {/* Message */}
               <span className="text-sm font-medium text-center">
                 {status.message}
               </span>
             </div>
           </div>
 
-          {/* 🔥 NOUVEAU: Bouton fermer repositionné en absolute */}
           <button
             onClick={onDismiss}
             className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors ${getIconClasses()}`}

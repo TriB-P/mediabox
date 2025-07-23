@@ -1,5 +1,9 @@
-// app/hooks/documents/useCleanDocData.ts
-
+/**
+ * Ce hook gère l'extraction, la transformation et le nettoyage des données
+ * de la hiérarchie d'une campagne Firebase (onglets, sections, tactiques, placements, créatifs).
+ * Il agrège les données de différentes collections Firebase et les formate
+ * en un tableau 2D prêt à être utilisé, par exemple, pour un export.
+ */
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -35,6 +39,11 @@ interface HierarchyData {
   creatifs: { [placementId: string]: Creatif[] };
 }
 
+/**
+ * Hook pour nettoyer et structurer les données d'une campagne.
+ * @returns {UseCleanDocDataReturn} Un objet contenant la fonction cleanData pour lancer le processus,
+ * les états de chargement et d'erreur, et les données nettoyées.
+ */
 export function useCleanDocData(): UseCleanDocDataReturn {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -42,15 +51,17 @@ export function useCleanDocData(): UseCleanDocDataReturn {
   const [data, setData] = useState<string[][] | null>(null);
 
   /**
-   * Récupère toutes les données de la hiérarchie de façon optimisée
+   * Récupère toutes les données de la hiérarchie Firebase de manière optimisée.
+   * @param {string} clientId L'ID du client.
+   * @param {string} campaignId L'ID de la campagne.
+   * @param {string} versionId L'ID de la version.
+   * @returns {Promise<HierarchyData>} Un objet contenant toutes les données de la hiérarchie.
    */
   const fetchHierarchyData = useCallback(async (
     clientId: string, 
     campaignId: string, 
     versionId: string
   ): Promise<HierarchyData> => {
-    console.log('🔍 [CleanDocData] === DÉBUT EXTRACTION HIÉRARCHIE ===');
-    console.log('📍 Paramètres:', { clientId, campaignId, versionId });
 
     const hierarchyData: HierarchyData = {
       campaign: null,
@@ -63,7 +74,7 @@ export function useCleanDocData(): UseCleanDocDataReturn {
 
     try {
       // 1. Récupérer les données de campagne
-      console.log('🏛️ [CleanDocData] Récupération campagne...');
+      console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: campaigns");
       const campaigns = await getCampaigns(clientId);
       hierarchyData.campaign = campaigns.find(c => c.id === campaignId);
       
@@ -71,57 +82,47 @@ export function useCleanDocData(): UseCleanDocDataReturn {
         throw new Error(`Campagne ${campaignId} non trouvée`);
       }
       
-      console.log('✅ [CleanDocData] Campagne récupérée:', hierarchyData.campaign?.CA_Name || 'Sans nom');
-
       // 2. Récupérer tous les onglets
-      console.log('📂 [CleanDocData] Récupération onglets...');
+      console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
       hierarchyData.onglets = await getOnglets(clientId, campaignId, versionId);
-      console.log('✅ [CleanDocData] Onglets récupérés:', hierarchyData.onglets.length);
 
       // 3. Récupérer toutes les sections pour chaque onglet
-      console.log('📄 [CleanDocData] Récupération sections...');
       for (const onglet of hierarchyData.onglets) {
+        console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${onglet.id}/sections");
         hierarchyData.sections[onglet.id] = await getSections(
           clientId, campaignId, versionId, onglet.id
         );
-        console.log(`  - Onglet "${onglet.ONGLET_Name}": ${hierarchyData.sections[onglet.id].length} sections`);
       }
 
       // 4. Récupérer toutes les tactiques pour chaque section
-      console.log('🎯 [CleanDocData] Récupération tactiques...');
       for (const ongletId in hierarchyData.sections) {
         for (const section of hierarchyData.sections[ongletId]) {
+          console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${section.id}/tactiques");
           hierarchyData.tactiques[section.id] = await getTactiques(
             clientId, campaignId, versionId, ongletId, section.id
           );
-          console.log(`  - Section "${section.SECTION_Name}": ${hierarchyData.tactiques[section.id].length} tactiques`);
         }
       }
 
       // 5. Récupérer tous les placements pour chaque tactique
-      console.log('🏢 [CleanDocData] Récupération placements...');
       for (const sectionId in hierarchyData.tactiques) {
         for (const tactique of hierarchyData.tactiques[sectionId]) {
-          // Trouver l'ongletId parent pour cette tactique
           const ongletId = Object.keys(hierarchyData.sections).find(oId => 
             hierarchyData.sections[oId].some(s => s.id === sectionId)
           );
           
           if (ongletId) {
+            console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactique.id}/placements");
             hierarchyData.placements[tactique.id] = await getPlacementsForTactique(
               clientId, campaignId, versionId, ongletId, sectionId, tactique.id
             );
-            console.log(`  - Tactique "${tactique.TC_Label}": ${hierarchyData.placements[tactique.id].length} placements`);
           }
         }
       }
 
       // 6. Récupérer tous les créatifs pour chaque placement
-      console.log('🎨 [CleanDocData] Récupération créatifs...');
-      let totalCreatifs = 0;
       for (const tactiqueId in hierarchyData.placements) {
         for (const placement of hierarchyData.placements[tactiqueId]) {
-          // Trouver les IDs parents pour ce placement
           const sectionId = Object.keys(hierarchyData.tactiques).find(sId => 
             hierarchyData.tactiques[sId].some(t => t.id === tactiqueId)
           );
@@ -130,40 +131,32 @@ export function useCleanDocData(): UseCleanDocDataReturn {
           );
           
           if (sectionId && ongletId) {
+            console.log("FIREBASE: LECTURE - Fichier: useCleanDocData.ts - Fonction: fetchHierarchyData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placement.id}/creatifs");
             hierarchyData.creatifs[placement.id] = await getCreatifsForPlacement(
               clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placement.id
             );
-            totalCreatifs += hierarchyData.creatifs[placement.id].length;
-            console.log(`  - Placement "${placement.PL_Label}": ${hierarchyData.creatifs[placement.id].length} créatifs`);
           }
         }
       }
 
-      console.log('🎯 [CleanDocData] RÉSUMÉ EXTRACTION:');
-      console.log(`  - ${hierarchyData.onglets.length} onglets`);
-      console.log(`  - ${Object.values(hierarchyData.sections).flat().length} sections`);
-      console.log(`  - ${Object.values(hierarchyData.tactiques).flat().length} tactiques`);
-      console.log(`  - ${Object.values(hierarchyData.placements).flat().length} placements`);
-      console.log(`  - ${totalCreatifs} créatifs`);
-      console.log('✅ [CleanDocData] === FIN EXTRACTION HIÉRARCHIE ===');
-
       return hierarchyData;
 
     } catch (err) {
-      console.error('❌ [CleanDocData] Erreur extraction hiérarchie:', err);
+      console.error('❌ Erreur extraction hiérarchie:', err);
       throw err;
     }
   }, []);
 
   /**
-   * Applique le mapping de configuration et transforme en tableau 2D
+   * Applique le mapping de configuration des documents et transforme les données hiérarchiques en un tableau 2D.
+   * @param {HierarchyData} hierarchyData L'objet contenant toutes les données de la hiérarchie.
+   * @returns {string[][]} Un tableau de chaînes de caractères représentant les données nettoyées et structurées.
    */
   const transformToTable = useCallback((hierarchyData: HierarchyData): string[][] => {
-    console.log('🔄 [CleanDocData] === DÉBUT TRANSFORMATION TABLEAU ===');
 
     const table: string[][] = [];
     
-    // 1. Extraire toutes les colonnes uniques de façon simple
+    // 1. Extraire toutes les colonnes uniques de la configuration de mapping
     const allColumns: string[] = [];
     const fieldMappings: Array<{column: string, source: SourceLevel, field: string}> = [];
     
@@ -179,12 +172,9 @@ export function useCleanDocData(): UseCleanDocDataReturn {
     sections.forEach(section => {
       if (section && section.fields) {
         section.fields.forEach(field => {
-          // Ajouter la colonne si pas déjà présente
           if (!allColumns.includes(field.column)) {
             allColumns.push(field.column);
           }
-          
-          // Ajouter le mapping
           fieldMappings.push({
             column: field.column,
             source: section.source,
@@ -194,15 +184,20 @@ export function useCleanDocData(): UseCleanDocDataReturn {
       }
     });
     
-    // 2. Créer les headers avec les colonnes ID parents fixes
+    // 2. Créer les en-têtes du tableau avec les colonnes d'ID parents fixes
     const fixedHeaders = ['Niveau', 'Onglet', 'Section', 'Tactique', 'Placement'];
     const finalHeaders = [...fixedHeaders, ...allColumns.filter(col => col !== 'Niveau')];
     table.push(finalHeaders);
-    console.log('📊 [CleanDocData] Headers créés:', finalHeaders.join(', '));
 
-    // 3. Fonction pour obtenir la valeur d'une colonne pour un élément
+    /**
+     * Récupère la valeur d'une colonne spécifique pour un élément donné, en se basant sur la configuration de mapping.
+     * @param {string} columnName Le nom de la colonne.
+     * @param {string} elementType Le type de l'élément (ex: 'Onglet', 'Section').
+     * @param {any} element L'objet de données de l'élément.
+     * @param {SourceLevel} sourceLevel Le niveau de source de l'élément (ex: 'onglet', 'section').
+     * @returns {string} La valeur de la colonne pour l'élément.
+     */
     const getValueForColumn = (columnName: string, elementType: string, element: any, sourceLevel: SourceLevel): string => {
-      // Chercher tous les mappings pour cette colonne
       const columnMappings = fieldMappings.filter(m => m.column === columnName);
       
       for (const mapping of columnMappings) {
@@ -213,15 +208,20 @@ export function useCleanDocData(): UseCleanDocDataReturn {
             return element[mapping.field] != null ? String(element[mapping.field]) : 'XXX';
           }
         } else if (mapping.source === 'parent_id' && mapping.field === 'level_indicator') {
-          // Cas spécial pour la colonne Niveau
           return elementType;
         }
       }
-      
-      return ''; // Colonne vide si pas de mapping pour ce niveau
+      return '';
     };
 
-    // 4. Fonction pour créer une ligne avec les IDs parents
+    /**
+     * Crée une ligne de tableau pour un élément donné, incluant les IDs de ses parents.
+     * @param {string} elementType Le type de l'élément (ex: 'Onglet', 'Section').
+     * @param {any} element L'objet de données de l'élément.
+     * @param {SourceLevel} sourceLevel Le niveau de source de l'élément.
+     * @param {{ongletId?: string, sectionId?: string, tactiqueId?: string, placementId?: string}} parentIds Les IDs des éléments parents.
+     * @returns {string[]} La ligne de tableau générée.
+     */
     const createRow = (
       elementType: string, 
       element: any, 
@@ -233,7 +233,6 @@ export function useCleanDocData(): UseCleanDocDataReturn {
       for (const columnName of finalHeaders) {
         let value = '';
         
-        // Gestion des colonnes ID parents fixes
         if (columnName === 'Niveau') {
           value = elementType;
         } else if (columnName === 'Onglet') {
@@ -261,7 +260,6 @@ export function useCleanDocData(): UseCleanDocDataReturn {
             value = parentIds.placementId;
           }
         } else {
-          // Colonnes configurées normalement
           value = getValueForColumn(columnName, elementType, element, sourceLevel);
         }
         
@@ -271,69 +269,60 @@ export function useCleanDocData(): UseCleanDocDataReturn {
       return row;
     };
 
-    // 5. Parcourir TOUTE la hiérarchie avec les IDs parents
-    let rowCount = 0;
-    
+    // 5. Parcourir toute la hiérarchie et générer les lignes du tableau
     for (const onglet of hierarchyData.onglets) {
-      // Ligne pour l'onglet
       table.push(createRow('Onglet', onglet, 'onglet', {}));
-      rowCount++;
       
       const sections = hierarchyData.sections[onglet.id] || [];
       
       for (const section of sections) {
-        // Ligne pour la section
         table.push(createRow('Section', section, 'section', {
           ongletId: onglet.id
         }));
-        rowCount++;
         
         const tactiques = hierarchyData.tactiques[section.id] || [];
         
         for (const tactique of tactiques) {
-          // Ligne pour la tactique
           table.push(createRow('Tactique', tactique, 'tactique', {
             ongletId: onglet.id,
             sectionId: section.id
           }));
-          rowCount++;
           
           const placements = hierarchyData.placements[tactique.id] || [];
           
           for (const placement of placements) {
-            // Ligne pour le placement
             table.push(createRow('Placement', placement, 'placement', {
               ongletId: onglet.id,
               sectionId: section.id,
               tactiqueId: tactique.id
             }));
-            rowCount++;
             
             const creatifs = hierarchyData.creatifs[placement.id] || [];
             
             for (const creatif of creatifs) {
-              // Ligne pour le créatif
               table.push(createRow('Créatif', creatif, 'creatif', {
                 ongletId: onglet.id,
                 sectionId: section.id,
                 tactiqueId: tactique.id,
                 placementId: placement.id
               }));
-              rowCount++;
             }
           }
         }
       }
     }
-
-    console.log(`✅ [CleanDocData] Tableau créé: ${rowCount} lignes de données + 1 header`);
-    console.log('🔄 [CleanDocData] === FIN TRANSFORMATION TABLEAU ===');
     
     return table;
   }, []);
 
   /**
-   * Fonction principale de nettoyage des données
+   * Fonction principale pour lancer le processus de nettoyage et de transformation des données.
+   * Elle orchestre la récupération des données de Firebase et leur mise en forme.
+   * @param {string} clientId L'ID du client.
+   * @param {string} campaignId L'ID de la campagne.
+   * @param {string} versionId L'ID de la version.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le nettoyage terminé.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si une erreur survient pendant le processus.
    */
   const cleanData = useCallback(async (
     clientId: string, 
@@ -349,9 +338,6 @@ export function useCleanDocData(): UseCleanDocDataReturn {
       setError(null);
       setData(null);
 
-      console.log('🧹 [CleanDocData] === DÉBUT NETTOYAGE DONNÉES ===');
-      console.log('📍 Paramètres:', { clientId, campaignId, versionId });
-
       // 1. Extraire toutes les données de la hiérarchie
       const hierarchyData = await fetchHierarchyData(clientId, campaignId, versionId);
 
@@ -361,12 +347,9 @@ export function useCleanDocData(): UseCleanDocDataReturn {
       // 3. Sauvegarder le résultat
       setData(cleanedTable);
 
-      console.log('✅ [CleanDocData] === NETTOYAGE TERMINÉ AVEC SUCCÈS ===');
-      console.log(`📊 Résultat: ${cleanedTable.length - 1} lignes de données`);
-
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors du nettoyage';
-      console.error('❌ [CleanDocData] Erreur:', errorMessage);
+      console.error('❌ Erreur:', errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);

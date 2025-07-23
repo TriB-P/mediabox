@@ -1,5 +1,9 @@
-// app/components/Taxonomy/TaxonomyForm.tsx
-
+/**
+ * Ce fichier définit le composant `TaxonomyForm`, un formulaire utilisé pour créer ou modifier une taxonomie.
+ * Il permet de gérer les informations générales, la description et les niveaux de taxonomie,
+ * y compris l'insertion de variables dynamiques formatées dans les structures de niveau.
+ * Le formulaire interagit avec un service pour charger des taxonomies standard par défaut et soumettre les données.
+ */
 'use client';
 
 import React, { useState, useEffect, useRef, KeyboardEvent, Fragment } from 'react';
@@ -7,7 +11,6 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { Taxonomy, TaxonomyFormData } from '../../types/taxonomy';
 import defaultTaxonomyService from '../../lib/defaultTaxonomyService';
-// 🔥 MODIFICATION: Import des nouvelles configurations et fonctions
 import {
     TAXONOMY_VARIABLE_CONFIG,
     TAXONOMY_FORMATS,
@@ -22,13 +25,17 @@ interface TaxonomyFormProps {
   onCancel: () => void;
 }
 
-// 🔥 SUPPRESSION: Les listes codées en dur sont maintenant importées
-// const DYNAMIC_VARIABLES = [ ... ];
-// const VARIABLE_FORMATS = [ ... ];
-
-// 🔥 NOUVEAU: Utiliser les clés de l'objet de configuration pour obtenir les variables
 const DYNAMIC_VARIABLES = Object.keys(TAXONOMY_VARIABLE_CONFIG);
 
+/**
+ * Composant fonctionnel représentant le formulaire de création ou de modification d'une taxonomie.
+ *
+ * @param {TaxonomyFormProps} props - Les propriétés du composant.
+ * @param {Taxonomy} [props.taxonomy] - La taxonomie existante à modifier (optionnel).
+ * @param {(data: TaxonomyFormData) => void} props.onSubmit - Fonction de rappel appelée lors de la soumission du formulaire.
+ * @param {() => void} props.onCancel - Fonction de rappel appelée lors de l'annulation du formulaire.
+ * @returns {React.FC<TaxonomyFormProps>} Le composant React du formulaire de taxonomie.
+ */
 const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<TaxonomyFormData>({
     NA_Display_Name: '',
@@ -75,9 +82,16 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
   
   const variableMenuRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Effet de chargement initial des taxonomies standard au montage du composant.
+   * Récupère la liste des taxonomies standard depuis le service et met à jour l'état.
+   * Ne prend aucun paramètre.
+   * Ne retourne rien.
+   */
   useEffect(() => {
     const loadDefaultTaxonomies = async () => {
       try {
+        console.log("FIREBASE: LECTURE - Fichier: TaxonomyForm.tsx - Fonction: loadDefaultTaxonomies - Path: defaultTaxonomies");
         const taxonomies = await defaultTaxonomyService.getDefaultTaxonomies();
         setDefaultTaxonomies(taxonomies);
       } catch (error) {
@@ -89,6 +103,14 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     loadDefaultTaxonomies();
   }, []);
 
+  /**
+   * Effet de mise à jour du formulaire lorsque la taxonomie passée en props ou les taxonomies par défaut changent.
+   * Initialise les données du formulaire avec les valeurs de la taxonomie si elle est fournie.
+   * Gère également la sélection d'une taxonomie standard si applicable.
+   * @param {Taxonomy} taxonomy - La taxonomie à éditer.
+   * @param {Array} defaultTaxonomies - La liste des taxonomies par défaut.
+   * Ne retourne rien.
+   */
   useEffect(() => {
     if (taxonomy) {
       setFormData({
@@ -119,6 +141,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }
   }, [taxonomy, defaultTaxonomies]);
 
+  /**
+   * Effet pour gérer le clic en dehors du menu des variables et des formats.
+   * Ferme les menus si un clic se produit en dehors de ceux-ci.
+   * Ne prend aucun paramètre.
+   * Ne retourne rien.
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (variableMenuRef.current && !variableMenuRef.current.contains(event.target as Node)) {
@@ -133,11 +161,23 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     };
   }, []);
 
+  /**
+   * Gère la soumission du formulaire.
+   * Appelle la fonction `onSubmit` passée en props avec les données actuelles du formulaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   * Ne retourne rien.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
+  /**
+   * Gère les changements des champs du formulaire.
+   * Met à jour l'état `formData` en fonction du nom et de la valeur du champ modifié.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   * Ne retourne rien.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -156,8 +196,15 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }
   };
 
+  /**
+   * Charge les données d'une taxonomie standard spécifique à partir de son ID.
+   * Met à jour l'état `selectedTaxonomyData` avec les données récupérées.
+   * @param {string} taxoId - L'ID de la taxonomie standard à charger.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   */
   const loadDefaultTaxonomyData = async (taxoId: string) => {
     try {
+      console.log("FIREBASE: LECTURE - Fichier: TaxonomyForm.tsx - Fonction: loadDefaultTaxonomyData - Path: defaultTaxonomies/${taxoId}");
       const defaultTaxo = await defaultTaxonomyService.getDefaultTaxonomyById(taxoId);
       if (defaultTaxo) {
         setSelectedTaxonomyData(defaultTaxo);
@@ -167,6 +214,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }
   };
 
+  /**
+   * Gère le changement de sélection d'une taxonomie standard dans le sélecteur.
+   * Charge les données de la taxonomie sélectionnée et met à jour les champs du formulaire en conséquence.
+   * @param {React.ChangeEvent<HTMLSelectElement>} e - L'événement de changement du sélecteur.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le chargement et la mise à jour terminés.
+   */
   const handleDefaultTaxoChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const taxoId = e.target.value;
     setSelectedDefaultTaxo(taxoId);
@@ -175,6 +228,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
       setLoading(true);
       
       try {
+        console.log("FIREBASE: LECTURE - Fichier: TaxonomyForm.tsx - Fonction: handleDefaultTaxoChange - Path: defaultTaxonomies/${taxoId}");
         const defaultTaxo = await defaultTaxonomyService.getDefaultTaxonomyById(taxoId);
         
         if (defaultTaxo) {
@@ -212,6 +266,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }
   };
 
+  /**
+   * Réinitialise les champs de structure et de titre d'un niveau donné à leurs valeurs par défaut.
+   * Cette fonction utilise les données de `selectedTaxonomyData` pour la réinitialisation.
+   * @param {number} level - Le niveau de taxonomie à réinitialiser (1 à 6).
+   * Ne retourne rien.
+   */
   const resetLevel = (level: number) => {
     if (!selectedTaxonomyData) return;
     
@@ -222,6 +282,11 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     });
   };
 
+  /**
+   * Bascule l'état d'expansion/réduction d'un niveau de taxonomie.
+   * @param {number} level - Le niveau de taxonomie dont l'état doit être basculé (1 à 6).
+   * Ne retourne rien.
+   */
   const toggleLevelExpand = (level: number) => {
     setExpandedLevels(prev => ({
       ...prev,
@@ -229,11 +294,23 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }));
   };
 
+  /**
+   * Récupère la valeur d'une clé spécifique de `formData` en tant que chaîne de caractères.
+   * @param {keyof TaxonomyFormData} key - La clé dont la valeur doit être récupérée.
+   * @returns {string} La valeur de la clé, ou une chaîne vide si ce n'est pas une chaîne.
+   */
   const getStringValue = (key: keyof TaxonomyFormData): string => {
     const value = formData[key];
     return typeof value === 'string' ? value : '';
   };
   
+  /**
+   * Ouvre le menu de sélection des variables dynamiques.
+   * Positionne le menu à côté du bouton qui l'a déclenché.
+   * @param {number} level - Le niveau de taxonomie pour lequel le menu est ouvert.
+   * @param {HTMLButtonElement} buttonElement - L'élément bouton qui a déclenché l'ouverture du menu.
+   * Ne retourne rien.
+   */
   const openVariableMenu = (level: number, buttonElement: HTMLButtonElement) => {
     const buttonRect = buttonElement.getBoundingClientRect();
     const menuLeft = buttonRect.right;
@@ -247,6 +324,11 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     setFormatMenuOpen(false);
   };
   
+  /**
+   * Filtre la liste des variables dynamiques en fonction du texte de recherche.
+   * @returns {string[]} Un tableau de variables filtrées.
+   * Ne prend aucun paramètre.
+   */
   const getFilteredVariables = () => {
     if (!filterText) return DYNAMIC_VARIABLES;
     return DYNAMIC_VARIABLES.filter(variable => 
@@ -254,11 +336,22 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     );
   };
   
+  /**
+   * Sélectionne une variable à partir du menu et ouvre le menu de sélection de format.
+   * @param {string} variable - La variable sélectionnée.
+   * Ne retourne rien.
+   */
   const selectVariable = (variable: string) => {
     setSelectedVariable(variable);
     setFormatMenuOpen(true);
   };
   
+  /**
+   * Insère une variable formatée dans le champ de texte du niveau actif.
+   * Positionne le curseur après la variable insérée.
+   * @param {string} format - Le format à appliquer à la variable.
+   * Ne retourne rien.
+   */
   const insertFormattedVariable = (format: string) => {
     if (activeLevel === null || selectedVariable === null) return;
     
@@ -292,7 +385,11 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }, 0);
   };
   
-  // 🔥 MODIFICATION: Utilise les fonctions importées
+  /**
+   * Vérifie si une variable avec son format est valide en utilisant les fonctions de validation prédéfinies.
+   * @param {string} variableWithFormat - La chaîne de caractères représentant la variable et son format (ex: "variable:format").
+   * @returns {boolean} Vrai si la variable et le format sont valides, faux sinon.
+   */
   const isValidVariable = (variableWithFormat: string): boolean => {
     const parts = variableWithFormat.split(':');
     if (parts.length !== 2) return false;
@@ -302,6 +399,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     return isKnownVariable(variableName) && isFormatAllowed(variableName, format as TaxonomyFormat);
   };
   
+  /**
+   * Formate le contenu d'un champ de structure en mettant en évidence les variables.
+   * Valide les variables et leurs formats et affiche des titres descriptifs.
+   * @param {string} content - Le contenu du champ de structure à formater.
+   * @returns {JSX.Element | null} Un élément JSX affichant le contenu formaté, ou null si le contenu est vide.
+   */
   const formatContent = (content: string) => {
     if (!content) return null;
     const regex = /\[(.*?)\]/g;
@@ -530,7 +633,6 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
             <div className="bg-white shadow-lg rounded-md border border-gray-200 w-48 ml-1">
               <div className="px-3 py-2 text-xs font-semibold border-b border-gray-200">Format pour {selectedVariable}</div>
               <div className="max-h-60 overflow-y-auto py-1">
-                {/* 🔥 MODIFICATION: Utilise la liste des formats importée */}
                 {TAXONOMY_FORMATS.filter(format => isFormatAllowed(selectedVariable, format.id)).map((format) => (
                   <button
                     key={format.id}

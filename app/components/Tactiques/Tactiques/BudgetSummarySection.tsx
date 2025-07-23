@@ -1,16 +1,17 @@
-
-// Dans app/components/Tactiques/BudgetSummarySection.tsx
-// Correction des imports et suppression du type dupliqué
+// app/components/Tactiques/BudgetSummarySection.tsx
+/**
+ * Ce fichier définit le composant `BudgetSummarySection` et ses sous-composants.
+ * Le rôle principal de ce composant est d'afficher un récapitulatif détaillé et formaté
+ * du budget d'une tactique marketing. Il présente le budget média, les frais applicables,
+ * le total client, et gère la conversion de devises si nécessaire. Il est conçu pour
+ * être clair et informatif pour l'utilisateur, même avec des calculs de frais complexes.
+ */
 
 'use client';
 
 import React, { memo, useMemo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
-
-// 🔥 CORRECTION: Importer ConvergenceInfo depuis budgetCalculations au lieu de le redéfinir
 import type { ConvergenceInfo } from '../../../lib/budgetCalculations';
-
-// ==================== TYPES ====================
 
 interface Fee {
   id: string;
@@ -26,16 +27,6 @@ interface AppliedFee {
   calculatedAmount: number;
 }
 
-// 🔥 SUPPRESSION: ConvergenceInfo est maintenant importé depuis budgetCalculations
-// interface ConvergenceInfo {
-//   hasConverged: boolean;
-//   finalDifference: number;
-//   iterations: number;
-//   tolerance: number;  // <- Cette propriété n'existe pas dans budgetCalculations
-//   targetBudget: number;
-//   actualCalculatedTotal: number;
-// }
-
 interface BudgetSummary {
   mediaBudget: number;
   totalFees: number;
@@ -50,9 +41,7 @@ interface BudgetSummary {
     currency: string;
     exchangeRate: number;
   };
-  convergenceInfo?: ConvergenceInfo; // 🔥 Utilise maintenant le type importé
-  
-  // 🔥 NOUVEAU: Détail des frais calculés par le hook
+  convergenceInfo?: ConvergenceInfo;
   feeDetails?: Array<{
     feeId: string;
     name: string;
@@ -60,7 +49,6 @@ interface BudgetSummary {
     order: number;
   }>;
 }
-
 
 interface BudgetSummarySectionProps {
   budgetSummary: BudgetSummary;
@@ -71,8 +59,11 @@ interface BudgetSummarySectionProps {
   onTooltipChange: (tooltip: string | null) => void;
 }
 
-// ==================== UTILITAIRES ====================
-
+/**
+ * Retourne une icône emoji en fonction du type de calcul du frais.
+ * @param {Fee['FE_Calculation_Type']} calculationType - Le type de calcul du frais.
+ * @returns {string} L'icône emoji correspondante.
+ */
 const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   switch (calculationType) {
     case 'Pourcentage budget': return '💰';
@@ -83,7 +74,13 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
-// Calculer sur quoi chaque frais s'applique (simplifié)
+/**
+ * Calcule la base d'application pour chaque frais (ex: "Budget média" ou "Budget média + Frais de plateforme").
+ * Cette fonction génère une chaîne de caractères descriptive pour chaque frais actif.
+ * @param {any[]} activeFees - La liste des frais actifs et triés.
+ * @param {Fee[]} clientFees - La liste complète des frais du client pour retrouver les détails.
+ * @returns {{ [feeId: string]: string }} Un objet où les clés sont les ID des frais et les valeurs des chaînes décrivant la base de calcul.
+ */
 const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
   const applications: { [feeId: string]: string } = {};
   
@@ -120,8 +117,21 @@ const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
   return applications;
 };
 
-// ==================== COMPOSANTS ====================
-
+/**
+ * Affiche une seule ligne dans le récapitulatif budgétaire (libellé, montant, devise).
+ * Ce composant est mémoïsé pour optimiser les performances.
+ * Il peut adopter différents styles pour les totaux, sous-totaux ou bonifications.
+ * @param {object} props - Les propriétés du composant.
+ * @param {string} props.label - Le libellé de la ligne.
+ * @param {number} props.amount - Le montant à afficher.
+ * @param {string} props.currency - Le symbole de la devise.
+ * @param {boolean} [props.isSubtotal=false] - Si la ligne est un sous-total.
+ * @param {boolean} [props.isTotal=false] - Si la ligne est le total final.
+ * @param {boolean} [props.isBonus=false] - Si la ligne représente une bonification.
+ * @param {string} [props.description] - Une description optionnelle affichée sous le libellé.
+ * @param {string} [props.icon] - Une icône optionnelle pour la ligne.
+ * @returns {React.ReactElement} L'élément JSX de la ligne de résumé.
+ */
 const SummaryLine = memo<{
   label: string;
   amount: number;
@@ -180,6 +190,14 @@ const SummaryLine = memo<{
 
 SummaryLine.displayName = 'SummaryLine';
 
+/**
+ * Affiche un message d'avertissement lorsque le calcul budgétaire est approximatif (non convergé).
+ * Il indique l'écart entre le budget cible et le total calculé.
+ * @param {object} props - Les propriétés du composant.
+ * @param {ConvergenceInfo} props.convergenceInfo - L'objet contenant les informations de convergence du calcul.
+ * @param {string} props.currency - La devise à utiliser pour afficher l'écart.
+ * @returns {React.ReactElement} L'élément JSX du message d'avertissement.
+ */
 const ConvergenceMessage = memo<{
   convergenceInfo: ConvergenceInfo;
   currency: string;
@@ -219,6 +237,14 @@ const ConvergenceMessage = memo<{
 
 ConvergenceMessage.displayName = 'ConvergenceMessage';
 
+/**
+ * Affiche les détails d'une conversion de devise automatique, y compris le taux de change utilisé.
+ * @param {object} props - Les propriétés du composant.
+ * @param {string} props.originalCurrency - La devise d'origine.
+ * @param {BudgetSummary['convertedValues']} props.convertedValues - Les valeurs budgétaires après conversion.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Fonction pour gérer l'affichage des infobulles.
+ * @returns {React.ReactElement | null} L'élément JSX du bloc de conversion, ou `null` si aucune conversion n'est effectuée.
+ */
 const CurrencyConversion = memo<{
   originalCurrency: string;
   convertedValues: BudgetSummary['convertedValues'];
@@ -256,8 +282,19 @@ const CurrencyConversion = memo<{
 
 CurrencyConversion.displayName = 'CurrencyConversion';
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal qui affiche l'ensemble du récapitulatif budgétaire.
+ * Il traite les détails des frais, gère la logique de conversion de devises et assemble la vue
+ * finale à l'aide de sous-composants comme `SummaryLine` et `CurrencyConversion`.
+ * @param {BudgetSummarySectionProps} props - Les propriétés du composant.
+ * @param {BudgetSummary} props.budgetSummary - L'objet contenant les données budgétaires calculées.
+ * @param {AppliedFee[]} props.appliedFees - L'état des frais appliqués (utilisé en fallback).
+ * @param {Fee[]} props.clientFees - La liste de tous les frais disponibles pour le client.
+ * @param {string} props.campaignCurrency - La devise de la campagne.
+ * @param {{ [key: string]: number }} props.exchangeRates - Les taux de change disponibles.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Fonction pour gérer l'affichage des infobulles.
+ * @returns {React.ReactElement} L'élément JSX de la section de résumé budgétaire.
+ */
 const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   budgetSummary,
   appliedFees,
@@ -267,11 +304,8 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   onTooltipChange
 }) => {
   
-  // 🔥 CORRECTION: Créer les frais actifs à partir des données corrigées du hook
   const activeFees = useMemo(() => {
-    // Si on a des détails de frais du hook, les utiliser (données corrigées)
     if (budgetSummary?.feeDetails && budgetSummary.feeDetails.length > 0) {
-      console.log('✅ Utilisation des feeDetails du hook:', budgetSummary.feeDetails);
       return budgetSummary.feeDetails
         .filter(detail => detail.amount > 0)
         .map(detail => ({
@@ -280,12 +314,10 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           calculatedAmount: detail.amount,
           order: detail.order
         }))
-        .filter(item => item.fee) // S'assurer que le frais existe
+        .filter(item => item.fee)
         .sort((a, b) => a.order - b.order);
     }
     
-    // Fallback vers l'ancienne méthode si pas de feeDetails
-    console.log('⚠️ Fallback vers appliedFees car pas de feeDetails');
     const fees = appliedFees
       .filter(af => af.isActive && af.calculatedAmount > 0)
       .map(af => {
@@ -303,12 +335,10 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
     return fees;
   }, [budgetSummary?.feeDetails, appliedFees, clientFees]);
 
-  // Calculer les applications des frais
   const feeApplications = useMemo(() => {
     return calculateFeeApplications(activeFees, clientFees);
   }, [activeFees, clientFees]);
 
-  // Déterminer si une conversion est nécessaire et possible
   const conversionInfo = useMemo(() => {
     const needsConversion = budgetSummary.currency !== campaignCurrency;
     const hasConvertedValues = !!budgetSummary.convertedValues;
@@ -320,16 +350,13 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
     };
   }, [budgetSummary.currency, budgetSummary.convertedValues, campaignCurrency]);
 
-  // Utiliser les valeurs converties pour l'affichage principal si disponibles
   const displayValues = conversionInfo.showConvertedValues ? budgetSummary.convertedValues! : budgetSummary;
   const displayCurrency = conversionInfo.showConvertedValues ? campaignCurrency : budgetSummary.currency;
 
-  // 🔥 NOUVEAU: Calculer les montants réels des frais affichés (avec conversion si nécessaire)
   const displayedFeeAmounts = useMemo(() => {
     return activeFees.map(activeFee => {
       let feeAmount = activeFee.calculatedAmount;
       
-      // Appliquer la conversion si nécessaire
       if (conversionInfo.showConvertedValues && budgetSummary.convertedValues) {
         feeAmount = feeAmount * budgetSummary.convertedValues.exchangeRate;
       }
@@ -342,12 +369,10 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
     });
   }, [activeFees, conversionInfo.showConvertedValues, budgetSummary.convertedValues]);
 
-  // 🔥 CORRECTION: Calculer le total des frais à partir des montants réellement affichés
   const displayedTotalFees = useMemo(() => {
     return displayedFeeAmounts.reduce((sum, feeAmount) => sum + feeAmount.amount, 0);
   }, [displayedFeeAmounts]);
 
-  // Vérifier si le budget est défini
   const hasValidBudget = budgetSummary.mediaBudget > 0;
 
   if (!hasValidBudget) {
@@ -366,7 +391,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   return (
     <div className="space-y-6">
 
-      {/* En-tête du récapitulatif */}
       {conversionInfo.needsConversion && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
@@ -380,7 +404,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         </div>
       )}
 
-      {/* Récapitulatif principal - Format facture */}
       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
           <h3 className="font-semibold text-gray-900">
@@ -394,7 +417,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         </div>
         
         <div className="divide-y divide-gray-200">
-          {/* Budget média */}
           <SummaryLine
             label="Budget média"
             amount={displayValues.mediaBudget}
@@ -403,7 +425,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             icon="💻"
           />
           
-          {/* Bonification si applicable */}
           {displayValues.bonusValue > 0 && (
             <SummaryLine
               label="Bonification négociée"
@@ -415,17 +436,14 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             />
           )}
           
-          {/* 🔥 CORRECTION: Frais détaillés avec montants corrigés */}
           {activeFees.length > 0 && (
             <>
               <div className="px-3 py-2 bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
               </div>
               {activeFees.map((activeFee, index) => {
-                // 🔥 UTILISER LES MONTANTS PRÉ-CALCULÉS
                 const displayedAmount = displayedFeeAmounts.find(fa => fa.feeId === activeFee.feeId)?.amount || 0;
                 
-                // Utiliser l'information d'application calculée
                 const appliedOn = feeApplications[activeFee.feeId] || 'Non défini';
                 
                 return (
@@ -440,7 +458,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
                 );
               })}
               
-              {/* 🔥 CORRECTION: Sous-total frais utilise le total calculé */}
               <SummaryLine
                 label="Sous-total frais"
                 amount={displayedTotalFees}
@@ -450,7 +467,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
             </>
           )}
           
-          {/* 🔥 CORRECTION: Total client recalculé avec les vrais montants */}
           <SummaryLine
             label="TOTAL BUDGET CLIENT"
             amount={displayValues.mediaBudget + displayedTotalFees}
@@ -460,7 +476,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           />
         </div>
 
-        {/* Message de convergence discret sous le total */}
         {budgetSummary.convergenceInfo && !budgetSummary.convergenceInfo.hasConverged && (
           <ConvergenceMessage
             convergenceInfo={budgetSummary.convergenceInfo}
@@ -469,7 +484,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         )}
       </div>
 
-      {/* Conversion de devise si nécessaire */}
       {conversionInfo.needsConversion && !conversionInfo.hasConvertedValues && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-red-800 mb-2">
@@ -483,7 +497,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         </div>
       )}
 
-      {/* Détails de conversion si disponible */}
       {conversionInfo.showConvertedValues && (
         <CurrencyConversion
           originalCurrency={budgetSummary.currency}
@@ -492,7 +505,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
         />
       )}
 
-      {/* Message si aucun frais */}
       {activeFees.length === 0 && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -501,8 +513,6 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           </p>
         </div>
       )}
-
-      
     </div>
   );
 });

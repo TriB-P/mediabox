@@ -1,5 +1,11 @@
-// app/components/Client/ShortcodeTable.tsx - Version avec pagination serveur
-
+/**
+ * Ce composant a pour rôle d'afficher une table de "shortcodes".
+ * Il gère l'affichage des données, les états de chargement, et les interactions de l'utilisateur
+ * comme la copie d'ID, la modification et la suppression de shortcodes.
+ * Il intègre une pagination (déclenchée via un bouton "Charger plus") et un filtrage local
+ * sur les données déjà chargées. Les permissions d'édition et de suppression sont gérées
+ * en fonction des props reçues.
+ */
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -22,12 +28,29 @@ interface ShortcodeTableProps {
   hasMore: boolean;
   totalCount: number;
   searchQuery: string;
-  userRole: string | null; // Ajout du rôle utilisateur
+  userRole: string | null;
   onRemoveShortcode: (shortcodeId: string) => Promise<void>;
   onUpdateShortcode: () => Promise<void>;
   onLoadMore: () => Promise<void>;
 }
 
+/**
+ * Affiche un tableau paginé et filtrable de shortcodes.
+ * @param {ShortcodeTableProps} props - Les propriétés du composant.
+ * @param {Shortcode[]} props.shortcodes - La liste des shortcodes actuellement chargés.
+ * @param {boolean} props.hasPermission - Indique si l'utilisateur a la permission de supprimer des éléments.
+ * @param {boolean} props.isCustomList - Indique s'il s'agit d'une liste personnalisée (pour les messages de confirmation).
+ * @param {boolean} props.loading - État de chargement initial.
+ * @param {boolean} props.loadingMore - État de chargement lors du clic sur "Charger plus".
+ * @param {boolean} props.hasMore - Indique s'il y a d'autres shortcodes à charger.
+ * @param {number} props.totalCount - Le nombre total de shortcodes disponibles sur le serveur.
+ * @param {string} props.searchQuery - La chaîne de recherche pour filtrer les shortcodes localement.
+ * @param {string | null} props.userRole - Le rôle de l'utilisateur ('admin' ou autre) pour déterminer les droits d'édition.
+ * @param {(shortcodeId: string) => Promise<void>} props.onRemoveShortcode - Fonction de rappel pour supprimer un shortcode.
+ * @param {() => Promise<void>} props.onUpdateShortcode - Fonction de rappel pour rafraîchir les données après une mise à jour.
+ * @param {() => Promise<void>} props.onLoadMore - Fonction de rappel pour charger la page suivante de shortcodes.
+ * @returns {React.ReactElement} Le composant JSX représentant la table de shortcodes.
+ */
 const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
   shortcodes,
   hasPermission,
@@ -42,13 +65,11 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
   onUpdateShortcode,
   onLoadMore
 }) => {
-  // Vérifier si l'utilisateur peut éditer (admin seulement)
   const canEditShortcode = userRole === 'admin';
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedShortcode, setSelectedShortcode] = useState<Shortcode | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Filtrage côté client pour les éléments déjà chargés
   const filteredShortcodes = useMemo(() => {
     if (!searchQuery) return shortcodes;
     
@@ -61,6 +82,10 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
     );
   }, [shortcodes, searchQuery]);
 
+  /**
+   * Copie l'ID d'un shortcode dans le presse-papiers et affiche une confirmation visuelle.
+   * @param {string} id - L'ID du shortcode à copier.
+   */
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id)
       .then(() => {
@@ -72,6 +97,10 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
       });
   };
 
+  /**
+   * Gère la suppression d'un shortcode après une confirmation de l'utilisateur.
+   * @param {string} shortcodeId - L'ID du shortcode à supprimer.
+   */
   const handleRemove = async (shortcodeId: string) => {
     const confirmMessage = isCustomList 
       ? "Êtes-vous sûr de vouloir retirer ce shortcode de cette liste ?"
@@ -136,7 +165,6 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
-      {/* En-tête avec informations */}
       <div className="px-6 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
         <div className="text-sm text-gray-500">
           {searchQuery ? (
@@ -158,7 +186,6 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
         )}
       </div>
       
-      {/* Tableau */}
       <div className="overflow-x-auto">
         <table className="min-w-full table-auto">
           <thead className="bg-gray-50">
@@ -267,7 +294,6 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
         </table>
       </div>
 
-      {/* Bouton "Charger plus" */}
       {hasMore && !searchQuery && (
         <div className="flex justify-center py-4 border-t border-gray-200 bg-gray-50">
           <button
@@ -292,14 +318,12 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
         </div>
       )}
 
-      {/* Message de fin */}
       {!hasMore && shortcodes.length > 0 && (
         <div className="text-center py-4 text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
           Tous les shortcodes ont été chargés ({totalCount} au total)
         </div>
       )}
 
-      {/* Modal de détail du shortcode */}
       {selectedShortcode && (
         <ShortcodeDetail
           shortcode={selectedShortcode}

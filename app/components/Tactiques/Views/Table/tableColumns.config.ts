@@ -1,9 +1,16 @@
-// app/components/Tactiques/Views/Table/tableColumns.config.ts
-
+/**
+ * Ce fichier de configuration définit les options, les règles de validation,
+ * les fonctions de formatage et la structure des colonnes pour les tableaux dynamiques
+ * de l'application. Il organise les colonnes par niveau (section, tactique, placement, créatif)
+ * et par sous-catégorie pour les tactiques, permettant une gestion flexible de
+ * l'affichage et de la validation des données dans les tables.
+ */
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 
-// ==================== OPTIONS POUR LES CHAMPS SELECT ====================
-
+/**
+ * Options pour la sélection des couleurs utilisées dans l'interface.
+ * Chaque option a un identifiant unique (id) et un libellé affichable (label).
+ */
 export const COLOR_OPTIONS = [
   { id: '#ef4444', label: 'Rouge' },
   { id: '#f97316', label: 'Orange' },
@@ -16,6 +23,10 @@ export const COLOR_OPTIONS = [
   { id: '#6b7280', label: 'Gris' }
 ];
 
+/**
+ * Options pour la sélection du statut d'une entité.
+ * Définit les différents états possibles comme Planifiée, Active, Terminée, Annulée.
+ */
 export const STATUS_OPTIONS = [
   { id: 'Planned', label: 'Planifiée' },
   { id: 'Active', label: 'Active' },
@@ -23,6 +34,10 @@ export const STATUS_OPTIONS = [
   { id: 'Cancelled', label: 'Annulée' }
 ];
 
+/**
+ * Options pour la sélection du type de média.
+ * Liste les catégories de médias comme Display, Vidéo, Social, etc.
+ */
 export const MEDIA_TYPE_OPTIONS = [
   { id: 'Display', label: 'Display' },
   { id: 'Video', label: 'Vidéo' },
@@ -34,6 +49,10 @@ export const MEDIA_TYPE_OPTIONS = [
   { id: 'OOH', label: 'Affichage extérieur' }
 ];
 
+/**
+ * Options pour la sélection de la méthode d'achat.
+ * Inclut les méthodes comme Programmatique, Direct, Garanti, Enchères.
+ */
 export const BUYING_METHOD_OPTIONS = [
   { id: 'Programmatic', label: 'Programmatique' },
   { id: 'Direct', label: 'Direct' },
@@ -41,6 +60,10 @@ export const BUYING_METHOD_OPTIONS = [
   { id: 'Auction', label: 'Enchères' }
 ];
 
+/**
+ * Options pour la sélection de la langue.
+ * Représente les langues disponibles comme Français, Anglais, Espagnol et Bilingue.
+ */
 export const LANGUAGE_OPTIONS = [
   { id: 'FR', label: 'Français' },
   { id: 'EN', label: 'Anglais' },
@@ -48,6 +71,10 @@ export const LANGUAGE_OPTIONS = [
   { id: 'BILINGUAL', label: 'Bilingue' }
 ];
 
+/**
+ * Options pour la sélection du marché géographique.
+ * Liste les provinces canadiennes et une option Nationale.
+ */
 export const MARKET_OPTIONS = [
   { id: 'QC', label: 'Québec' },
   { id: 'ON', label: 'Ontario' },
@@ -65,6 +92,10 @@ export const MARKET_OPTIONS = [
   { id: 'NATIONAL', label: 'National' }
 ];
 
+/**
+ * Options pour la sélection de la devise.
+ * Inclut les devises courantes comme CAD, USD, EUR, GBP.
+ */
 export const CURRENCY_OPTIONS = [
   { id: 'CAD', label: 'CAD' },
   { id: 'USD', label: 'USD' },
@@ -72,44 +103,75 @@ export const CURRENCY_OPTIONS = [
   { id: 'GBP', label: 'GBP' }
 ];
 
+/**
+ * Options pour le choix du type de budget.
+ * Permet de distinguer entre le budget client et le budget média.
+ */
 export const BUDGET_CHOICE_OPTIONS = [
   { id: 'client', label: 'Budget client' },
   { id: 'media', label: 'Budget média' }
 ];
 
-// ==================== FONCTIONS DE VALIDATION ====================
-
+/**
+ * Valide si une valeur est présente (non nulle, non indéfinie, non vide).
+ * @param value La valeur à valider.
+ * @returns Vrai si la valeur est requise et non vide, faux sinon.
+ */
 export const validateRequired = (value: any): boolean => {
   return value !== null && value !== undefined && value !== '';
 };
 
+/**
+ * Valide si une valeur est un nombre valide et non négatif.
+ * @param value La valeur à valider.
+ * @returns Vrai si la valeur est un nombre non négatif, faux sinon.
+ */
 export const validateNumber = (value: any): boolean => {
   return !isNaN(Number(value)) && Number(value) >= 0;
 };
 
+/**
+ * Valide si une valeur est un budget valide (nombre non négatif).
+ * C'est une fonction utilitaire similaire à validateNumber mais spécifique au contexte budgétaire.
+ * @param value La valeur du budget à valider.
+ * @returns Vrai si la valeur est un nombre non négatif, faux sinon.
+ */
 export const validateBudget = (value: any): boolean => {
   return !isNaN(Number(value)) && Number(value) >= 0;
 };
 
+/**
+ * Valide si une valeur représente une date valide.
+ * @param value La valeur de la date à valider.
+ * @returns Vrai si la valeur est une date valide ou vide, faux sinon.
+ */
 export const validateDate = (value: any): boolean => {
-  if (!value) return true; // Dates optionnelles
+  if (!value) return true;
   const date = new Date(value);
   return !isNaN(date.getTime());
 };
 
+/**
+ * Valide si une valeur est une adresse e-mail valide.
+ * @param value L'adresse e-mail à valider.
+ * @returns Vrai si la valeur est une adresse e-mail valide ou vide, faux sinon.
+ */
 export const validateEmail = (value: any): boolean => {
-  if (!value) return true; // Email optionnel
+  if (!value) return true;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(value);
 };
 
-// ==================== FONCTIONS DE FORMATAGE ====================
-
+/**
+ * Formate une valeur numérique en format monétaire canadien (CAD) sans décimales.
+ * @param value La valeur à formater.
+ * @returns La chaîne de caractères formatée en devise.
+ */
 export const formatCurrency = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
   if (isNaN(num)) return value;
-  
+
   return new Intl.NumberFormat('fr-CA', {
     style: 'currency',
     currency: 'CAD',
@@ -117,43 +179,64 @@ export const formatCurrency = (value: any): string => {
   }).format(num);
 };
 
+/**
+ * Formate une valeur numérique selon les conventions locales canadiennes.
+ * @param value La valeur à formater.
+ * @returns La chaîne de caractères formatée en nombre.
+ */
 export const formatNumber = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
   if (isNaN(num)) return value;
-  
+
   return new Intl.NumberFormat('fr-CA').format(num);
 };
 
+/**
+ * Formate une valeur de date en chaîne de caractères selon le format local canadien.
+ * @param value La valeur de la date à formater.
+ * @returns La chaîne de caractères formatée en date.
+ */
 export const formatDate = (value: any): string => {
   if (!value) return '';
   const date = new Date(value);
   if (isNaN(date.getTime())) return value;
-  
+
   return date.toLocaleDateString('fr-CA');
 };
 
+/**
+ * Formate une valeur numérique en pourcentage.
+ * @param value La valeur à formater.
+ * @returns La chaîne de caractères formatée en pourcentage.
+ */
 export const formatPercentage = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
   if (isNaN(num)) return value;
-  
+
   return `${num}%`;
 };
 
-// ==================== NOUVEAUX TYPES POUR LES SOUS-CATÉGORIES ====================
-
+/**
+ * Définit les identifiants des sous-catégories pour les tactiques.
+ */
 export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin';
 
+/**
+ * Interface pour la configuration d'une sous-catégorie de tactique.
+ * Comprend un identifiant, un libellé et la liste des colonnes associées.
+ */
 export interface TactiqueSubCategoryConfig {
   id: TactiqueSubCategory;
   label: string;
   columns: DynamicColumn[];
 }
 
-// ==================== CONFIGURATION DES COLONNES TACTIQUES PAR SOUS-CATÉGORIE ====================
-
-// Colonnes Info (comme dans TactiqueFormInfo.tsx)
+/**
+ * Définition des colonnes pour la sous-catégorie 'Info' des tactiques.
+ * Ces colonnes sont utilisées pour les informations générales d'une tactique.
+ */
 const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
   {
     key: 'TC_Label',
@@ -167,19 +250,21 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
     label: 'Enveloppe',
     type: 'select',
     width: 180,
-    options: [] // Sera rempli dynamiquement avec les buckets
+    options: []
   }
 ];
 
-// Colonnes Stratégie (comme dans TactiqueFormStrategie.tsx)
+/**
+ * Définition des colonnes pour la sous-catégorie 'Stratégie' des tactiques.
+ * Ces colonnes couvrent les aspects stratégiques et créatifs d'une tactique.
+ */
 const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
-  // Section principale
   {
     key: 'TC_LoB',
     label: 'Ligne d\'affaire',
     type: 'select',
     width: 150,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Media_Type',
@@ -193,14 +278,14 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
     label: 'Partenaire',
     type: 'select',
     width: 180,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Inventory',
     label: 'Inventaire',
     type: 'select',
     width: 150,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Market_Open',
@@ -252,7 +337,6 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
     width: 120,
     options: LANGUAGE_OPTIONS
   },
-  // Champs personnalisés
   {
     key: 'TC_Buying_Method',
     label: 'Méthode d\'achat',
@@ -265,23 +349,22 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
     label: 'Dimension personnalisée 1',
     type: 'select',
     width: 180,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Custom_Dim_2',
     label: 'Dimension personnalisée 2',
     type: 'select',
     width: 180,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Custom_Dim_3',
     label: 'Dimension personnalisée 3',
     type: 'select',
     width: 180,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
-  // Production
   {
     key: 'TC_NumberCreatives',
     label: 'Nombre de créatifs suggérés',
@@ -298,7 +381,10 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-// Colonnes Budget (basées sur TactiqueFormBudget.tsx)
+/**
+ * Définition des colonnes pour la sous-catégorie 'Budget' des tactiques.
+ * Ces colonnes gèrent les informations financières et budgétaires d'une tactique.
+ */
 const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   {
     key: 'TC_BudgetChoice',
@@ -327,7 +413,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
     label: 'Type d\'unité',
     type: 'select',
     width: 120,
-    options: [] // Sera rempli dynamiquement
+    options: []
   },
   {
     key: 'TC_Unit_Price',
@@ -387,7 +473,10 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-// Colonnes Admin (comme dans TactiqueFormAdmin.tsx)
+/**
+ * Définition des colonnes pour la sous-catégorie 'Admin' des tactiques.
+ * Ces colonnes contiennent les informations administratives et de facturation.
+ */
 const TACTIQUE_ADMIN_COLUMNS: DynamicColumn[] = [
   {
     key: 'TC_Billing_ID',
@@ -403,8 +492,10 @@ const TACTIQUE_ADMIN_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-// ==================== CONFIGURATION DES SOUS-CATÉGORIES ====================
-
+/**
+ * Configuration complète des sous-catégories de tactiques, associant chaque sous-catégorie
+ * à son libellé et à l'ensemble des colonnes qui la composent.
+ */
 export const TACTIQUE_SUBCATEGORIES: TactiqueSubCategoryConfig[] = [
   {
     id: 'info',
@@ -428,10 +519,11 @@ export const TACTIQUE_SUBCATEGORIES: TactiqueSubCategoryConfig[] = [
   }
 ];
 
-// ==================== CONFIGURATION DES COLONNES PAR NIVEAU (MISE À JOUR) ====================
-
+/**
+ * Configuration globale des colonnes pour chaque niveau de la table (section, tactique, placement, créatif).
+ * Cela permet de définir les colonnes par défaut pour chaque type d'entité.
+ */
 export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
-  // ==================== COLONNES SECTIONS ====================
   section: [
     {
       key: 'SECTION_Name',
@@ -464,11 +556,7 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
       format: formatNumber
     }
   ],
-
-  // ==================== COLONNES TACTIQUES (PAR DÉFAUT - INFO) ====================
   tactique: TACTIQUE_INFO_COLUMNS,
-
-  // ==================== COLONNES PLACEMENTS ====================
   placement: [
     {
       key: 'PL_Label',
@@ -513,11 +601,10 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
       key: 'TAX_Targeting',
       label: 'Ciblage',
       type: 'text',
+    
       width: 140
     }
   ],
-
-  // ==================== COLONNES CRÉATIFS ====================
   creatif: [
     {
       key: 'CR_Label',
@@ -601,10 +688,13 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
   ]
 };
 
-// ==================== FONCTIONS UTILITAIRES MISES À JOUR ====================
-
 /**
- * Récupère les colonnes pour un niveau donné
+ * Récupère la configuration des colonnes pour un niveau de tableau donné.
+ * Si le niveau est 'tactique' et qu'une sous-catégorie est spécifiée, elle retourne les colonnes de cette sous-catégorie.
+ * Sinon, elle retourne les colonnes par défaut pour le niveau spécifié.
+ * @param level Le niveau du tableau (e.g., 'section', 'tactique').
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns Un tableau d'objets DynamicColumn correspondant à la configuration des colonnes.
  */
 export function getColumnsForLevel(level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory): DynamicColumn[] {
   if (level === 'tactique' && tactiqueSubCategory) {
@@ -615,14 +705,19 @@ export function getColumnsForLevel(level: TableLevel, tactiqueSubCategory?: Tact
 }
 
 /**
- * Récupère les sous-catégories disponibles pour les tactiques
+ * Récupère toutes les configurations de sous-catégories disponibles pour les tactiques.
+ * @returns Un tableau d'objets TactiqueSubCategoryConfig.
  */
 export function getTactiqueSubCategories(): TactiqueSubCategoryConfig[] {
   return TACTIQUE_SUBCATEGORIES;
 }
 
 /**
- * Récupère une colonne spécifique par clé et niveau
+ * Récupère une colonne spécifique par sa clé et son niveau, potentiellement filtrée par sous-catégorie de tactique.
+ * @param level Le niveau du tableau.
+ * @param key La clé unique de la colonne à rechercher.
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns L'objet DynamicColumn correspondant ou undefined si non trouvé.
  */
 export function getColumnByKey(level: TableLevel, key: string, tactiqueSubCategory?: TactiqueSubCategory): DynamicColumn | undefined {
   const columns = getColumnsForLevel(level, tactiqueSubCategory);
@@ -630,27 +725,40 @@ export function getColumnByKey(level: TableLevel, key: string, tactiqueSubCatego
 }
 
 /**
- * Valide une valeur selon la configuration de la colonne
+ * Valide une valeur donnée en fonction des règles de validation définies pour une colonne spécifique.
+ * @param level Le niveau du tableau.
+ * @param key La clé de la colonne.
+ * @param value La valeur à valider.
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns Vrai si la valeur est valide selon la colonne, faux sinon.
  */
 export function validateColumnValue(level: TableLevel, key: string, value: any, tactiqueSubCategory?: TactiqueSubCategory): boolean {
   const column = getColumnByKey(level, key, tactiqueSubCategory);
   if (!column || !column.validation) return true;
-  
+
   return column.validation(value);
 }
 
 /**
- * Formate une valeur selon la configuration de la colonne
+ * Formate une valeur donnée en utilisant la fonction de formatage spécifiée pour une colonne.
+ * @param level Le niveau du tableau.
+ * @param key La clé de la colonne.
+ * @param value La valeur à formater.
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns La valeur formatée sous forme de chaîne de caractères.
  */
 export function formatColumnValue(level: TableLevel, key: string, value: any, tactiqueSubCategory?: TactiqueSubCategory): string {
   const column = getColumnByKey(level, key, tactiqueSubCategory);
   if (!column || !column.format) return String(value || '');
-  
+
   return column.format(value);
 }
 
 /**
- * Récupère les largeurs totales des colonnes pour un niveau
+ * Calcule la largeur totale combinée de toutes les colonnes pour un niveau de tableau donné.
+ * @param level Le niveau du tableau.
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns La somme des largeurs des colonnes.
  */
 export function getTotalColumnsWidth(level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory): number {
   const columns = getColumnsForLevel(level, tactiqueSubCategory);
@@ -658,7 +766,11 @@ export function getTotalColumnsWidth(level: TableLevel, tactiqueSubCategory?: Ta
 }
 
 /**
- * Ajoute une colonne hiérarchie (nom avec indentation) en première position
+ * Ajoute une colonne spéciale de hiérarchie (indentation visuelle) au début de la liste des colonnes pour un niveau donné.
+ * Cette colonne est utilisée pour représenter la structure imbriquée des éléments dans le tableau.
+ * @param level Le niveau du tableau.
+ * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
+ * @returns Un tableau de colonnes incluant la colonne de hiérarchie.
  */
 export function getColumnsWithHierarchy(level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory): DynamicColumn[] {
   const hierarchyColumn: DynamicColumn = {

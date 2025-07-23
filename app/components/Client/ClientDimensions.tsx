@@ -1,5 +1,11 @@
-// app/components/Client/ClientDimensions.tsx
-
+/**
+ * Ce composant React, 'ClientDimensions', est une interface utilisateur sous forme de formulaire
+ * qui permet de visualiser et de modifier les dimensions personnalisées associées à un client sélectionné.
+ * Il récupère les informations du client via un contexte (`useClient`), vérifie les permissions
+ * de l'utilisateur (`usePermissions`) pour autoriser ou non la modification, et gère l'état
+ * de chargement, de sauvegarde et les erreurs. Les modifications sont enregistrées dans Firebase
+ * via un service dédié (`clientService`).
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -22,6 +28,11 @@ interface DimensionsData {
   Custom_Dim_CR_3: string;
 }
 
+/**
+ * Composant principal pour afficher et gérer le formulaire des dimensions personnalisées du client.
+ * Il gère son propre état pour les données du formulaire, le chargement, la sauvegarde et les erreurs.
+ * @returns {React.ReactElement} Le JSX du composant de formulaire.
+ */
 const ClientDimensions: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
@@ -31,16 +42,20 @@ const ClientDimensions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Vérifier si l'utilisateur a la permission de gérer les dimensions
   const hasDimensionsPermission = canPerformAction('Dimensions');
 
-  // Charger les données du client quand le client sélectionné change
   useEffect(() => {
     if (selectedClient) {
       loadClientDimensions();
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les dimensions personnalisées pour le client actuellement sélectionné depuis Firebase.
+   * La fonction met à jour l'état local du composant avec les données récupérées
+   * et gère les états de chargement et d'erreur.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   */
   const loadClientDimensions = async () => {
     if (!selectedClient) return;
     
@@ -48,6 +63,7 @@ const ClientDimensions: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log(`FIREBASE: [LECTURE] - Fichier: ClientDimensions.tsx - Fonction: loadClientDimensions - Path: clients/${selectedClient.clientId}`);
       const clientInfo = await getClientInfo(selectedClient.clientId);
       
       setDimensions({
@@ -72,6 +88,13 @@ const ClientDimensions: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire pour enregistrer les dimensions modifiées dans Firebase.
+   * Empêche la soumission si l'utilisateur n'a pas les permissions nécessaires.
+   * Affiche des messages de succès ou d'erreur en conséquence.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la mise à jour terminée.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient || !dimensions || !hasDimensionsPermission) return;
@@ -80,6 +103,7 @@ const ClientDimensions: React.FC = () => {
       setSaving(true);
       setError(null);
       
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientDimensions.tsx - Fonction: handleSubmit - Path: clients/${selectedClient.clientId}`);
       await updateClientInfo(selectedClient.clientId, dimensions);
       
       setSuccess('Les dimensions du client ont été mises à jour avec succès.');
@@ -92,6 +116,11 @@ const ClientDimensions: React.FC = () => {
     }
   };
 
+  /**
+   * Gère les changements de valeur dans les champs de saisie du formulaire.
+   * Met à jour l'état local 'dimensions' à chaque modification d'un champ.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement du champ de saisie.
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!dimensions || !hasDimensionsPermission) return;
     
@@ -142,7 +171,6 @@ const ClientDimensions: React.FC = () => {
         )}
         
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
-          {/* Section Campagne */}
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
               Campagne
@@ -187,7 +215,6 @@ const ClientDimensions: React.FC = () => {
             </div>
           </div>
           
-          {/* Section Tactique */}
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
               Tactique
@@ -232,7 +259,6 @@ const ClientDimensions: React.FC = () => {
             </div>
           </div>
           
-          {/* Section Placement */}
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
               Placement
@@ -277,7 +303,6 @@ const ClientDimensions: React.FC = () => {
             </div>
           </div>
           
-          {/* Section Créatif */}
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
               Créatif
@@ -322,7 +347,6 @@ const ClientDimensions: React.FC = () => {
             </div>
           </div>
           
-          {/* Boutons d'action */}
           <div className="pt-5 border-t border-gray-200 mt-8">
             <div className="flex justify-end">
               <button
@@ -351,4 +375,4 @@ const ClientDimensions: React.FC = () => {
   );
 };
 
-export default ClientDimensions
+export default ClientDimensions;

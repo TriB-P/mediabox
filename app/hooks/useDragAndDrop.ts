@@ -1,5 +1,10 @@
-// app/hooks/useDragAndDrop.ts - Hook pour la gestion complète du drag and drop
-
+/**
+ * Ce fichier contient un hook React personnalisé, `useDragAndDrop`,
+ * qui gère toute la logique de glisser-déposer (drag and drop) pour les différents éléments
+ * de l'application (sections, tactiques, placements, créatifs).
+ * Il interagit avec les services de réorganisation pour mettre à jour l'ordre des éléments dans Firebase
+ * et assure une gestion cohérente de l'état du chargement et des rafraîchissements.
+ */
 import { useState } from 'react';
 import { DropResult } from 'react-beautiful-dnd';
 import { useClient } from '../contexts/ClientContext';
@@ -29,6 +34,12 @@ interface UseDragAndDropReturn {
   handleDragEnd: (result: DropResult) => Promise<void>;
 }
 
+/**
+ * Hook personnalisé pour gérer les opérations de glisser-déposer.
+ *
+ * @param {UseDragAndDropProps} props - Les propriétés du hook, incluant les données des sections, tactiques, placements, créatifs et une fonction de rafraîchissement.
+ * @returns {UseDragAndDropReturn} Un objet contenant l'état de chargement du drag et la fonction de gestion du drag.
+ */
 export const useDragAndDrop = ({
   sections,
   tactiques,
@@ -36,26 +47,26 @@ export const useDragAndDrop = ({
   creatifs,
   onRefresh
 }: UseDragAndDropProps): UseDragAndDropReturn => {
-  
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   const [isDragLoading, setIsDragLoading] = useState(false);
 
   /**
-   * Fonction principale de gestion du drag and drop
+   * Fonction principale de gestion de la fin d'une opération de glisser-déposer.
+   * Détermine le type d'élément déplacé et appelle la fonction de gestion appropriée.
+   *
+   * @param {DropResult} result - L'objet résultat fourni par `react-beautiful-dnd` après un drag.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
    */
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId, type } = result;
 
-    // Pas de destination = annulation
     if (!destination) return;
     
-    // Même position = pas de changement
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
       return;
     }
 
-    // Vérifier les prérequis
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('❌ Contexte manquant pour le drag and drop');
       return;
@@ -71,9 +82,6 @@ export const useDragAndDrop = ({
     setIsDragLoading(true);
 
     try {
-      console.log('🔄 Début drag and drop:', { draggableId, source, destination, type });
-
-      // Déterminer le type de drag basé sur le draggableId
       if (draggableId.startsWith('section-')) {
         await handleSectionDrag(result, context);
       } else if (draggableId.startsWith('tactique-')) {
@@ -86,23 +94,23 @@ export const useDragAndDrop = ({
         console.warn('⚠️ Type de drag non reconnu:', draggableId);
       }
 
-      // Rafraîchir les données après le drag and drop
       if (onRefresh) {
-        console.log('🔄 Rafraîchissement des données...');
         await Promise.resolve(onRefresh());
       }
-
-      console.log('✅ Drag and drop terminé avec succès');
     } catch (error) {
       console.error('❌ Erreur lors du drag and drop:', error);
-      // TODO: Afficher un toast d'erreur à l'utilisateur
     } finally {
       setIsDragLoading(false);
     }
   };
 
   /**
-   * Gestion du drag des sections
+   * Gère le glisser-déposer des sections.
+   * Réorganise les sections et met à jour leur ordre dans Firebase.
+   *
+   * @param {DropResult} result - L'objet résultat du drag.
+   * @param {ReorderContext} context - Le contexte nécessaire pour les opérations Firebase.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les sections réorganisées.
    */
   const handleSectionDrag = async (result: DropResult, context: ReorderContext) => {
     const { destination, source, draggableId } = result;
@@ -110,7 +118,6 @@ export const useDragAndDrop = ({
 
     const sectionId = draggableId.replace('section-', '');
     
-    // Réorganisation des sections
     const newSections = Array.from(sections);
     const [removed] = newSections.splice(source.index, 1);
     newSections.splice(destination.index, 0, removed);
@@ -120,12 +127,17 @@ export const useDragAndDrop = ({
       order: index
     }));
 
+    console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleSectionDrag - Path: sections");
     await reorderSections(context, sectionOrders);
-    console.log('✅ Sections réorganisées');
   };
 
   /**
-   * Gestion du drag des tactiques
+   * Gère le glisser-déposer des tactiques.
+   * Peut réorganiser les tactiques au sein d'une même section ou les déplacer vers une autre section.
+   *
+   * @param {DropResult} result - L'objet résultat du drag.
+   * @param {ReorderContext} context - Le contexte nécessaire pour les opérations Firebase.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les tactiques réorganisées ou déplacées.
    */
   const handleTactiqueDrag = async (result: DropResult, context: ReorderContext) => {
     const { destination, source, draggableId } = result;
@@ -136,7 +148,6 @@ export const useDragAndDrop = ({
     const destSectionId = destination.droppableId.replace('tactiques-', '');
 
     if (sourceSectionId === destSectionId) {
-      // Réorganisation dans la même section
       const sectionTactiques = tactiques[sourceSectionId] || [];
       const newTactiques = Array.from(sectionTactiques);
       const [removed] = newTactiques.splice(source.index, 1);
@@ -147,10 +158,10 @@ export const useDragAndDrop = ({
         order: index
       }));
 
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleTactiqueDrag - Path: sections/${sourceSectionId}/tactiques");
       await reorderTactiques(context, sourceSectionId, tactiqueOrders);
-      console.log('✅ Tactiques réorganisées dans la même section');
     } else {
-      // Déplacement vers une autre section
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleTactiqueDrag - Path: tactiques");
       await moveTactiqueToSection(
         context,
         tactiqueId,
@@ -159,12 +170,9 @@ export const useDragAndDrop = ({
         destination.index
       );
 
-      // Réorganiser les tactiques dans la section de destination
       const destSectionTactiques = tactiques[destSectionId] || [];
       const updatedTactiques = Array.from(destSectionTactiques);
       
-      // Simuler l'insertion pour calculer les nouveaux ordres
-      // Note: la tactique sera déjà ajoutée par moveTactiqueToSection
       const tactiqueOrders = updatedTactiques.map((tactique, index) => {
         if (index >= destination.index) {
           return { id: tactique.id, order: index + 1 };
@@ -172,16 +180,20 @@ export const useDragAndDrop = ({
         return { id: tactique.id, order: index };
       });
 
-      // Ajouter la tactique déplacée à la bonne position
       tactiqueOrders.splice(destination.index, 0, { id: tactiqueId, order: destination.index });
 
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleTactiqueDrag - Path: sections/${destSectionId}/tactiques");
       await reorderTactiques(context, destSectionId, tactiqueOrders);
-      console.log('✅ Tactique déplacée vers une autre section');
     }
   };
 
   /**
-   * Gestion du drag des placements
+   * Gère le glisser-déposer des placements.
+   * Réorganise les placements au sein d'une même tactique ou les déplace vers une autre tactique.
+   *
+   * @param {DropResult} result - L'objet résultat du drag.
+   * @param {ReorderContext} context - Le contexte nécessaire pour les opérations Firebase.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les placements réorganisés ou déplacés.
    */
   const handlePlacementDrag = async (result: DropResult, context: ReorderContext) => {
     const { destination, source, draggableId } = result;
@@ -191,7 +203,6 @@ export const useDragAndDrop = ({
     const sourceTactiqueId = source.droppableId.replace('placements-', '');
     const destTactiqueId = destination.droppableId.replace('placements-', '');
 
-    // Trouver les sections parentes
     const findSectionForTactique = (tactiqueId: string) => {
       return sections.find(section => 
         section.tactiques.some(tactique => tactique.id === tactiqueId)
@@ -207,7 +218,6 @@ export const useDragAndDrop = ({
     }
 
     if (sourceTactiqueId === destTactiqueId) {
-      // Réorganisation dans la même tactique
       const tactiquesPlacements = placements[sourceTactiqueId] || [];
       const newPlacements = Array.from(tactiquesPlacements);
       const [removed] = newPlacements.splice(source.index, 1);
@@ -218,10 +228,10 @@ export const useDragAndDrop = ({
         order: index
       }));
 
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handlePlacementDrag - Path: sections/${sourceSection.id}/tactiques/${sourceTactiqueId}/placements");
       await reorderPlacements(context, sourceSection.id, sourceTactiqueId, placementOrders);
-      console.log('✅ Placements réorganisés dans la même tactique');
     } else {
-      // Déplacement vers une autre tactique
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handlePlacementDrag - Path: placements");
       await movePlacementToTactique(
         context,
         placementId,
@@ -231,12 +241,16 @@ export const useDragAndDrop = ({
         destTactiqueId,
         destination.index
       );
-      console.log('✅ Placement déplacé vers une autre tactique');
     }
   };
 
   /**
-   * Gestion du drag des créatifs
+   * Gère le glisser-déposer des créatifs.
+   * Réorganise les créatifs au sein d'un même placement ou les déplace vers un autre placement.
+   *
+   * @param {DropResult} result - L'objet résultat du drag.
+   * @param {ReorderContext} context - Le contexte nécessaire pour les opérations Firebase.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les créatifs réorganisés ou déplacés.
    */
   const handleCreatifDrag = async (result: DropResult, context: ReorderContext) => {
     const { destination, source, draggableId } = result;
@@ -246,7 +260,6 @@ export const useDragAndDrop = ({
     const sourcePlacementId = source.droppableId.replace('creatifs-', '');
     const destPlacementId = destination.droppableId.replace('creatifs-', '');
 
-    // Fonction pour trouver les parents d'un placement
     const findParentsForPlacement = (placementId: string) => {
       for (const section of sections) {
         for (const tactique of section.tactiques) {
@@ -269,7 +282,6 @@ export const useDragAndDrop = ({
     }
 
     if (sourcePlacementId === destPlacementId) {
-      // Réorganisation dans le même placement
       const placementCreatifs = creatifs[sourcePlacementId] || [];
       const newCreatifs = Array.from(placementCreatifs);
       const [removed] = newCreatifs.splice(source.index, 1);
@@ -280,6 +292,7 @@ export const useDragAndDrop = ({
         order: index
       }));
 
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleCreatifDrag - Path: sections/${sourceParents.sectionId}/tactiques/${sourceParents.tactiqueId}/placements/${sourcePlacementId}/creatifs");
       await reorderCreatifs(
         context,
         sourceParents.sectionId,
@@ -287,9 +300,8 @@ export const useDragAndDrop = ({
         sourcePlacementId,
         creatifOrders
       );
-      console.log('✅ Créatifs réorganisés dans le même placement');
     } else {
-      // Déplacement vers un autre placement
+      console.log("FIREBASE: ÉCRITURE - Fichier: useDragAndDrop.ts - Fonction: handleCreatifDrag - Path: creatifs");
       await moveCreatifToPlacement(
         context,
         creatifId,
@@ -301,7 +313,6 @@ export const useDragAndDrop = ({
         destPlacementId,
         destination.index
       );
-      console.log('✅ Créatif déplacé vers un autre placement');
     }
   };
 

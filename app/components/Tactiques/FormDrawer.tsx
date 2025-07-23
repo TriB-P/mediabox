@@ -1,3 +1,9 @@
+/**
+ * Ce fichier définit un composant de tiroir latéral (ou "drawer") qui s'affiche sur le côté droit de l'écran.
+ * Il est utilisé pour afficher des formulaires ou d'autres contenus interactifs de manière superposée,
+ * permettant à l'utilisateur de rester sur la page principale tout en interagissant avec le contenu du tiroir.
+ * Il utilise les composants Dialog et Transition de Headless UI pour l'accessibilité et les animations.
+ */
 'use client';
 
 import React, { Fragment, ReactNode } from 'react';
@@ -11,6 +17,16 @@ interface FormDrawerProps {
   children: ReactNode;
 }
 
+/**
+ * Composant de tiroir latéral pour afficher des formulaires ou d'autres contenus.
+ *
+ * @param {FormDrawerProps} props - Les propriétés du composant.
+ * @param {boolean} props.isOpen - Indique si le tiroir est ouvert ou fermé.
+ * @param {() => void} props.onClose - Fonction à appeler lorsque le tiroir doit être fermé.
+ * @param {string} props.title - Le titre affiché dans l'en-tête du tiroir.
+ * @param {ReactNode} props.children - Le contenu à afficher à l'intérieur du tiroir.
+ * @returns {JSX.Element} Le composant FormDrawer.
+ */
 export default function FormDrawer({
   isOpen,
   onClose,
@@ -46,7 +62,6 @@ export default function FormDrawer({
               >
                <Dialog.Panel className="pointer-events-auto w-[50vw]">
                   <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
-                    {/* Header */}
                     <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-lg font-medium text-white">
@@ -65,7 +80,6 @@ export default function FormDrawer({
                       </div>
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1">
                       {children}
                     </div>

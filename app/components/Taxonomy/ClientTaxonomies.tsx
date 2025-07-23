@@ -1,3 +1,9 @@
+/**
+ * Ce fichier gère l'affichage, l'ajout, la modification et la suppression des taxonomies associées à un client spécifique.
+ * Il permet aux utilisateurs de visualiser les taxonomies existantes, d'en créer de nouvelles, de mettre à jour celles qui existent
+ * déjà et de les supprimer, en tenant compte des permissions de l'utilisateur.
+ */
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -13,6 +19,12 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 import { Taxonomy, TaxonomyFormData } from '../../types/taxonomy';
 import TaxonomyForm from './TaxonomyForm';
 
+/**
+ * Composant ClientTaxonomies.
+ * Affiche et gère les taxonomies d'un client sélectionné.
+ *
+ * @returns {JSX.Element} Le composant ClientTaxonomies.
+ */
 const ClientTaxonomies: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
@@ -21,23 +33,30 @@ const ClientTaxonomies: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  // Vérifier si l'utilisateur a la permission de gérer les taxonomies
   const hasTaxonomyPermission = canPerformAction('Taxonomy');
   
-  // États pour les formulaires
   const [showTaxonomyForm, setShowTaxonomyForm] = useState(false);
   const [currentTaxonomy, setCurrentTaxonomy] = useState<Taxonomy | null>(null);
   
-  // État pour les accordions
   const [expandedTaxonomies, setExpandedTaxonomies] = useState<{[taxonomyId: string]: boolean}>({});
 
-  // Charger les taxonomies quand le client change
+  /**
+   * Effet de chargement des taxonomies lorsque le client sélectionné change.
+   *
+   * @param {string | null} selectedClient - Le client actuellement sélectionné.
+   */
   useEffect(() => {
     if (selectedClient) {
       loadTaxonomies();
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les taxonomies du client sélectionné depuis Firebase.
+   * Met à jour les états de chargement, d'erreur et des taxonomies.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les taxonomies chargées.
+   */
   const loadTaxonomies = async () => {
     if (!selectedClient) return;
     
@@ -45,10 +64,10 @@ const ClientTaxonomies: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log("FIREBASE: LECTURE - Fichier: ClientTaxonomies.tsx - Fonction: loadTaxonomies - Path: clients/${selectedClient.clientId}/taxonomies");
       const fetchedTaxonomies = await getClientTaxonomies(selectedClient.clientId);
       setTaxonomies(fetchedTaxonomies);
       
-      // Initialiser l'état des accordions
       const expanded: {[taxonomyId: string]: boolean} = {};
       fetchedTaxonomies.forEach(taxonomy => {
         expanded[taxonomy.id] = false;
@@ -63,6 +82,12 @@ const ClientTaxonomies: React.FC = () => {
     }
   };
 
+  /**
+   * Alterne l'état d'expansion/réduction d'une taxonomie spécifique.
+   *
+   * @param {string} taxonomyId - L'identifiant de la taxonomie à basculer.
+   * @returns {void}
+   */
   const toggleTaxonomyExpand = (taxonomyId: string) => {
     setExpandedTaxonomies(prev => ({
       ...prev,
@@ -70,7 +95,13 @@ const ClientTaxonomies: React.FC = () => {
     }));
   };
 
-  // Gestion des taxonomies
+  /**
+   * Gère l'ajout d'une nouvelle taxonomie.
+   * Appelle le service d'ajout de taxonomie et met à jour l'interface utilisateur.
+   *
+   * @param {TaxonomyFormData} formData - Les données du formulaire de la nouvelle taxonomie.
+   * @returns {Promise<void>} Une promesse qui se résout après l'ajout de la taxonomie.
+   */
   const handleAddTaxonomy = async (formData: TaxonomyFormData) => {
     if (!selectedClient || !hasTaxonomyPermission) return;
     
@@ -78,6 +109,7 @@ const ClientTaxonomies: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: ClientTaxonomies.tsx - Fonction: handleAddTaxonomy - Path: clients/${selectedClient.clientId}/taxonomies");
       await addTaxonomy(selectedClient.clientId, formData);
       
       setSuccess('Taxonomie ajoutée avec succès.');
@@ -92,6 +124,13 @@ const ClientTaxonomies: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la mise à jour d'une taxonomie existante.
+   * Appelle le service de mise à jour de taxonomie et met à jour l'interface utilisateur.
+   *
+   * @param {TaxonomyFormData} formData - Les données mises à jour du formulaire de la taxonomie.
+   * @returns {Promise<void>} Une promesse qui se résout après la mise à jour de la taxonomie.
+   */
   const handleUpdateTaxonomy = async (formData: TaxonomyFormData) => {
     if (!selectedClient || !currentTaxonomy || !hasTaxonomyPermission) return;
     
@@ -99,6 +138,7 @@ const ClientTaxonomies: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: ClientTaxonomies.tsx - Fonction: handleUpdateTaxonomy - Path: clients/${selectedClient.clientId}/taxonomies/${currentTaxonomy.id}");
       await updateTaxonomy(selectedClient.clientId, currentTaxonomy.id, formData);
       
       setSuccess('Taxonomie mise à jour avec succès.');
@@ -114,6 +154,13 @@ const ClientTaxonomies: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la suppression d'une taxonomie.
+   * Demande une confirmation à l'utilisateur, puis appelle le service de suppression.
+   *
+   * @param {string} taxonomyId - L'identifiant de la taxonomie à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout après la suppression de la taxonomie.
+   */
   const handleDeleteTaxonomy = async (taxonomyId: string) => {
     if (!selectedClient || !hasTaxonomyPermission) return;
     
@@ -122,6 +169,7 @@ const ClientTaxonomies: React.FC = () => {
         setLoading(true);
         setError(null);
         
+        console.log("FIREBASE: ÉCRITURE - Fichier: ClientTaxonomies.tsx - Fonction: handleDeleteTaxonomy - Path: clients/${selectedClient.clientId}/taxonomies/${taxonomyId}");
         await deleteTaxonomy(selectedClient.clientId, taxonomyId);
         
         setSuccess('Taxonomie supprimée avec succès.');
@@ -197,7 +245,6 @@ const ClientTaxonomies: React.FC = () => {
           <div className="space-y-4">
             {taxonomies.map((taxonomy) => (
               <div key={taxonomy.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* En-tête de la taxonomie */}
                 <div 
                   className="bg-gray-50 p-4 flex justify-between items-center cursor-pointer"
                   onClick={() => toggleTaxonomyExpand(taxonomy.id)}
@@ -254,7 +301,6 @@ const ClientTaxonomies: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Détails de la taxonomie (visible si expanded) */}
                 {expandedTaxonomies[taxonomy.id] && (
                   <div className="p-4 bg-white">
                     <div className="mb-4">
@@ -297,7 +343,6 @@ const ClientTaxonomies: React.FC = () => {
         )}
       </div>
 
-      {/* Modal pour le formulaire de taxonomie */}
       {showTaxonomyForm && hasTaxonomyPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">

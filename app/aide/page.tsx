@@ -1,11 +1,15 @@
-// Chemin du fichier : app/aide/page.tsx
+/**
+ * Ce fichier définit la page d'aide de l'application.
+ * Il récupère une liste de questions-réponses (FAQ) depuis un fichier Google Sheet publié au format CSV.
+ * La page affiche les FAQs triées par catégories dans un système d'onglets et fournit une barre de recherche
+ * pour filtrer les questions. Les utilisateurs peuvent cliquer sur une question pour afficher la réponse.
+ * Un bandeau en bas de page offre un contact par e-mail avec une fonction de copie dans le presse-papiers.
+ */
+
 'use client';
 
-// Importe les hooks et composants nécessaires de React
 import { useState, Fragment, useEffect } from 'react';
-// Importe le composant Tab de Headless UI pour gérer les onglets
 import { Tab } from '@headlessui/react';
-// Importe diverses icônes de la bibliothèque Lucide React
 import {
   HelpCircle,
   ChevronDownIcon,
@@ -20,15 +24,13 @@ import {
   Shield,
   LayoutDashboard,
   LineChart,
-  Mail, // Icône pour l'e-mail
-  Clipboard, // Icône pour copier
-  Check, // Icône pour indiquer que quelque chose est copié
+  Mail,
+  Clipboard,
+  Check,
 } from 'lucide-react';
 
-// URL de votre Google Sheet publié en CSV
 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQo6UwoIgRiWTCyEQuuX4vZU0TqKZn80SUzNQ8tQPFkHxc0P5LvkkAtxlFzQCD-S0ABwEbAf5NMbpP7/pub?gid=623482803&single=true&output=csv';
 
-// --- Définition des types pour vos données FAQ ---
 interface FaqItemData {
   ID: string;
   Catégorie: string;
@@ -36,7 +38,6 @@ interface FaqItemData {
   Réponse: string;
 }
 
-// --- Mappage des noms de catégories aux icônes ---
 const categoryIcons: { [key: string]: React.ElementType } = {
   Campagnes: LayoutDashboard,
   Stratégie: LineChart,
@@ -48,7 +49,6 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   Admin: Shield,
 };
 
-// --- Définition STATIQUE des catégories de navigation ---
 const STATIC_CATEGORIES = [
   { name: 'Campagnes', icon: LayoutDashboard },
   { name: 'Stratégie', icon: LineChart },
@@ -60,7 +60,16 @@ const STATIC_CATEGORIES = [
   { name: 'Admin', icon: Shield },
 ];
 
-// --- Composant FaqItem : Affiche une seule question/réponse de FAQ ---
+/**
+ * Affiche un élément unique de la FAQ (une question et sa réponse).
+ * Gère l'affichage et le repli de la réponse lorsqu'on clique sur la question.
+ * @param {object} props - Les propriétés du composant.
+ * @param {FaqItemData} props.item - L'objet contenant les données de la question (ID, Catégorie, Question, Réponse).
+ * @param {number} props.index - L'index de la question dans la liste, utilisé pour la numérotation.
+ * @param {boolean} props.isOpen - Indique si la réponse doit être affichée (dépliée) ou non.
+ * @param {() => void} props.onToggle - La fonction à appeler lorsque l'utilisateur clique sur la question pour la déplier/replier.
+ * @returns {JSX.Element} Le composant JSX représentant une question/réponse.
+ */
 function FaqItem({
   item,
   index,
@@ -105,7 +114,14 @@ function FaqItem({
   );
 }
 
-// --- Composant Principal de la Page d'Aide ---
+/**
+ * Composant principal de la page d'aide.
+ * Ce composant gère l'état global de la page, y compris la liste des FAQs,
+ * le terme de recherche, et l'état d'ouverture de chaque question.
+ * Il récupère les données depuis un Google Sheet au chargement, les affiche
+ * dans des onglets catégorisés et permet une recherche unifiée sur tout le contenu.
+ * @returns {JSX.Element} La page d'aide complète.
+ */
 export default function AidePage() {
   const [allFaqs, setAllFaqs] = useState<FaqItemData[]>([]);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
@@ -114,6 +130,10 @@ export default function AidePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Effet de bord pour récupérer les données de la FAQ depuis le Google Sheet
+   * au premier chargement du composant. Met à jour l'état de chargement et d'erreur.
+   */
   useEffect(() => {
     const fetchFaqs = async () => {
       try {
@@ -141,10 +161,15 @@ export default function AidePage() {
     fetchFaqs();
   }, []);
 
-  // Corrected parseCsv function
+  /**
+   * Analyse une chaîne de caractères au format CSV et la transforme en un tableau d'objets FaqItemData.
+   * Cette fonction gère correctement les champs contenant des virgules et des guillemets.
+   * @param {string} csvString - La chaîne de caractères CSV brute à analyser.
+   * @returns {FaqItemData[]} Un tableau d'objets représentant les FAQs.
+   */
   const parseCsv = (csvString: string): FaqItemData[] => {
-    const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== ''); // Split by CRLF or LF
-    if (lines.length <= 1) return []; // Return empty if only header or no lines
+    const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length <= 1) return [];
 
     const headers = lines[0].split(',').map(header => header.trim());
     const faqs: FaqItemData[] = [];
@@ -159,37 +184,32 @@ export default function AidePage() {
             const char = currentLine[j];
 
             if (char === '"') {
-                // Handle escaped quotes: "" -> "
                 if (inQuote && currentLine[j + 1] === '"') {
                     charBuffer += '"';
-                    j++; // Skip the next quote
+                    j++;
                 } else {
                     inQuote = !inQuote;
                 }
             } else if (char === ',' && !inQuote) {
-                // End of a field
                 values.push(charBuffer);
                 charBuffer = '';
             } else {
                 charBuffer += char;
             }
         }
-        values.push(charBuffer); // Add the last field
+        values.push(charBuffer);
 
         const faqItem: any = {};
         headers.forEach((header, index) => {
-            // Trim and decode URL components, replace '+' with space
             let value = (values[index] || '').trim();
             try {
                 value = decodeURIComponent(value.replace(/\+/g, ' '));
             } catch (e) {
-                // If decoding fails, use the raw value
                 console.warn(`Could not decode URI component for value: ${value}`, e);
             }
             faqItem[header] = value;
         });
 
-        // Validation simple pour s'assurer que les champs clés existent
         if (faqItem.ID && faqItem.Catégorie && faqItem.Question && faqItem.Réponse) {
             faqs.push(faqItem as FaqItemData);
         } else {
@@ -199,10 +219,19 @@ export default function AidePage() {
     return faqs;
   };
 
+  /**
+   * Gère le basculement de l'affichage d'une réponse de FAQ.
+   * Si la question cliquée est déjà ouverte, elle la ferme. Sinon, elle l'ouvre.
+   * @param {string} id - L'ID unique de la question à ouvrir ou fermer.
+   */
   const handleToggleQuestion = (id: string) => {
     setOpenQuestionId((prevId) => (prevId === id ? null : id));
   };
 
+  /**
+   * Copie l'adresse e-mail de contact dans le presse-papiers de l'utilisateur.
+   * Affiche une confirmation visuelle temporaire après la copie.
+   */
   const copyEmailToClipboard = () => {
     navigator.clipboard.writeText('mediabox@pluscompany.com').then(
       () => {
@@ -270,7 +299,6 @@ export default function AidePage() {
 
   return (
     <div className="p-6 space-y-12 pb-24">
-      {/* SECTION DU HAUT AVEC TITRE ET RECHERCHE */}
       <div className="relative text-center">
         <h1 className="text-4xl font-bold text-gray-900 inline-block">
           Comment pouvons-nous vous aider ?
@@ -297,11 +325,9 @@ export default function AidePage() {
         </div>
       </div>
 
-      {/* --- Le système d'onglets est TOUJOURS visible --- */}
       <div className="w-full">
         <Tab.Group>
           <Tab.List className="flex space-x-1 rounded-xl bg-[#EBF5FF] p-1 overflow-x-auto">
-            {/* Utilise STATIC_CATEGORIES pour le menu des onglets */}
             {STATIC_CATEGORIES.map((staticCategory) => {
               const Icon = staticCategory.icon;
               return (
@@ -325,7 +351,6 @@ export default function AidePage() {
           </Tab.List>
 
           <Tab.Panels className="mt-4">
-            {/* Utilise categorizedFaqsForDisplay pour le contenu des onglets */}
             {categorizedFaqsForDisplay.map((category) => (
               <Tab.Panel
                 key={category.id}
@@ -360,7 +385,6 @@ export default function AidePage() {
         </Tab.Group>
       </div>
 
-      {/* --- La section des résultats unifiés apparaît en dessous --- */}
       {searchTerm.trim() !== '' && (
         <div className="max-w-4xl mx-auto mt-12 border-t pt-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">

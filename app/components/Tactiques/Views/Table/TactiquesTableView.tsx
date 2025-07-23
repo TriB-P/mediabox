@@ -1,3 +1,8 @@
+/**
+ * Ce fichier React affiche un tableau interactif de tactiques.
+ * Il permet aux utilisateurs de visualiser, filtrer, trier, modifier et supprimer des tactiques.
+ * Les données des tactiques incluent des informations comme le libellé, le budget, les dates, le statut et le format.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,9 +14,21 @@ interface TactiquesTableViewProps {
   onUpdateTactique: (tactiqueId: string, sectionId: string, updates: Partial<Tactique>) => void;
   onDeleteTactique: (tactiqueId: string, sectionId: string) => void;
   formatCurrency: (amount: number) => string;
-  sectionNames: { [key: string]: string }; // Objet clé-valeur pour afficher les noms des sections
+  sectionNames: { [key: string]: string };
 }
 
+/**
+ * Composant fonctionnel TactiquesTableView.
+ * Affiche un tableau des tactiques avec des fonctionnalités de filtrage, tri et édition.
+ *
+ * @param {TactiquesTableViewProps} props - Les propriétés du composant.
+ * @param {Tactique[]} props.tactiques - La liste des tactiques à afficher.
+ * @param {(tactiqueId: string, sectionId: string, updates: Partial<Tactique>) => void} props.onUpdateTactique - Fonction de rappel pour mettre à jour une tactique.
+ * @param {(tactiqueId: string, sectionId: string) => void} props.onDeleteTactique - Fonction de rappel pour supprimer une tactique.
+ * @param {(amount: number) => string} props.formatCurrency - Fonction pour formater un montant en devise.
+ * @param {{ [key: string]: string }} props.sectionNames - Objet mappant les IDs de section à leurs noms.
+ * @returns {JSX.Element} Le composant de tableau des tactiques.
+ */
 export default function TactiquesTableView({
   tactiques,
   onUpdateTactique,
@@ -19,11 +36,9 @@ export default function TactiquesTableView({
   formatCurrency,
   sectionNames
 }: TactiquesTableViewProps) {
-  // État pour la gestion des lignes en cours d'édition
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Tactique>>({});
 
-  // État pour le tri
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Tactique | 'sectionName';
     direction: 'asc' | 'desc';
@@ -32,39 +47,40 @@ export default function TactiquesTableView({
     direction: 'asc'
   });
 
-  // État pour le filtrage
   const [filters, setFilters] = useState({
     search: '',
     section: ''
   });
 
-  // Tactiques filtrées et triées
   const [filteredTactiques, setFilteredTactiques] = useState<Tactique[]>([]);
 
-  // Appliquer le filtrage et le tri lorsque les tactiques ou les filtres changent
+  /**
+   * Effet de bord qui s'exécute lorsque les tactiques, les filtres ou la configuration de tri changent.
+   * Applique le filtrage et le tri aux tactiques et met à jour l'état des tactiques filtrées.
+   *
+   * @returns {void}
+   */
   useEffect(() => {
     let result = [...tactiques];
 
-    // Appliquer les filtres
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      result = result.filter(tactique => 
+      result = result.filter(tactique =>
         tactique.TC_Label.toLowerCase().includes(searchLower)
       );
     }
 
     if (filters.section) {
-      result = result.filter(tactique => 
+      result = result.filter(tactique =>
         tactique.TC_SectionId === filters.section
       );
     }
 
-    // Appliquer le tri
     result.sort((a, b) => {
       if (sortConfig.key === 'sectionName') {
         const aValue = sectionNames[a.TC_SectionId] || '';
         const bValue = sectionNames[b.TC_SectionId] || '';
-        
+
         if (sortConfig.direction === 'asc') {
           return aValue.localeCompare(bValue);
         } else {
@@ -73,7 +89,7 @@ export default function TactiquesTableView({
       } else {
         const aValue = a[sortConfig.key] || '';
         const bValue = b[sortConfig.key] || '';
-        
+
         if (sortConfig.direction === 'asc') {
           return aValue > bValue ? 1 : -1;
         } else {
@@ -85,7 +101,13 @@ export default function TactiquesTableView({
     setFilteredTactiques(result);
   }, [tactiques, filters, sortConfig, sectionNames]);
 
-  // Démarrer l'édition d'une ligne
+  /**
+   * Gère le clic sur le bouton d'édition d'une tactique.
+   * Met la ligne en mode édition et initialise les données du formulaire d'édition.
+   *
+   * @param {Tactique} tactique - La tactique à éditer.
+   * @returns {void}
+   */
   const handleEditClick = (tactique: Tactique) => {
     setEditingRow(tactique.id);
     setEditFormData({
@@ -99,24 +121,41 @@ export default function TactiquesTableView({
     });
   };
 
-  // Annuler l'édition
+  /**
+   * Gère le clic sur le bouton d'annulation de l'édition.
+   * Sort du mode édition et réinitialise les données du formulaire d'édition.
+   *
+   * @returns {void}
+   */
   const handleCancelEdit = () => {
     setEditingRow(null);
     setEditFormData({});
   };
 
-  // Sauvegarder les modifications
+  /**
+   * Gère le clic sur le bouton de sauvegarde des modifications.
+   * Appelle la fonction onUpdateTactique avec les données modifiées, puis sort du mode édition.
+   *
+   * @param {string} tactiqueId - L'ID de la tactique à sauvegarder.
+   * @param {string} sectionId - L'ID de la section de la tactique.
+   * @returns {void}
+   */
   const handleSaveEdit = (tactiqueId: string, sectionId: string) => {
     onUpdateTactique(tactiqueId, sectionId, editFormData);
     setEditingRow(null);
     setEditFormData({});
   };
 
-  // Gérer les changements dans le formulaire d'édition
+  /**
+   * Gère les changements dans les champs du formulaire d'édition.
+   * Met à jour l'état des données du formulaire d'édition.
+   *
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
+   * @returns {void}
+   */
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
-    // Convertir les valeurs numériques
+
     if (type === 'number') {
       setEditFormData({
         ...editFormData,
@@ -130,7 +169,13 @@ export default function TactiquesTableView({
     }
   };
 
-  // Gérer le changement de tri
+  /**
+   * Gère le changement de la colonne de tri.
+   * Met à jour la configuration de tri (colonne et direction).
+   *
+   * @param {keyof Tactique | 'sectionName'} key - La clé de la colonne par laquelle trier.
+   * @returns {void}
+   */
   const handleSort = (key: keyof Tactique | 'sectionName') => {
     if (sortConfig.key === key) {
       setSortConfig({
@@ -145,7 +190,13 @@ export default function TactiquesTableView({
     }
   };
 
-  // Gérer le changement de filtre
+  /**
+   * Gère le changement des valeurs de filtre.
+   * Met à jour l'état des filtres.
+   *
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
+   * @returns {void}
+   */
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters({
@@ -154,12 +205,10 @@ export default function TactiquesTableView({
     });
   };
 
-  // Définir les sections disponibles pour le filtre
   const uniqueSections = Array.from(new Set(tactiques.map(t => t.TC_SectionId)));
 
   return (
     <div className="space-y-4">
-      {/* Filtres */}
       <div className="bg-white p-4 rounded-lg shadow flex gap-4">
         <div className="flex-1">
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
@@ -196,14 +245,13 @@ export default function TactiquesTableView({
         </div>
       </div>
 
-      {/* Tableau */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_Label')}
                 >
@@ -216,8 +264,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('sectionName')}
                 >
@@ -230,8 +278,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_Budget')}
                 >
@@ -244,8 +292,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_StartDate')}
                 >
@@ -258,8 +306,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_EndDate')}
                 >
@@ -272,8 +320,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_Status')}
                 >
@@ -286,8 +334,8 @@ export default function TactiquesTableView({
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('TC_Format')}
                 >
@@ -316,7 +364,6 @@ export default function TactiquesTableView({
                 filteredTactiques.map(tactique => (
                   <tr key={tactique.id}>
                     {editingRow === tactique.id ? (
-                      // Mode édition
                       <>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
@@ -398,7 +445,6 @@ export default function TactiquesTableView({
                         </td>
                       </>
                     ) : (
-                      // Mode affichage
                       <>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {tactique.TC_Label}

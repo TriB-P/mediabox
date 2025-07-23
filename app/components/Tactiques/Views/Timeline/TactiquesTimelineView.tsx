@@ -1,3 +1,11 @@
+/**
+ * Ce fichier React affiche une vue chronologique (timeline) des tactiques d'une campagne.
+ * Il permet de visualiser la durée, le statut et le budget de chaque tactique sur une échelle de temps.
+ * Les tactiques peuvent être filtrées par section pour une meilleure lisibilité.
+ *
+ * Il reçoit en props la liste des tactiques, les noms des sections, les dates de début et de fin de campagne,
+ * une fonction pour formater les devises et une fonction de rappel pour l'édition d'une tactique.
+ */
 'use client';
 
 import React, { useState } from 'react';
@@ -12,6 +20,18 @@ interface TactiquesTimelineViewProps {
   onEditTactique: (tactiqueId: string, sectionId: string) => void;
 }
 
+/**
+ * Composant d'affichage des tactiques sur une timeline.
+ *
+ * @param {TactiquesTimelineViewProps} props - Les propriétés du composant.
+ * @param {Tactique[]} props.tactiques - La liste des tactiques à afficher.
+ * @param {{ [key: string]: string }} props.sectionNames - Un objet mappant les IDs de section à leurs noms.
+ * @param {string} props.campaignStartDate - La date de début de la campagne au format chaîne de caractères.
+ * @param {string} props.campaignEndDate - La date de fin de la campagne au format chaîne de caractères.
+ * @param {(amount: number) => string} props.formatCurrency - Fonction pour formater un montant en devise.
+ * @param {(tactiqueId: string, sectionId: string) => void} props.onEditTactique - Fonction de rappel appelée lors de l'édition d'une tactique.
+ * @returns {JSX.Element} Le composant de la timeline des tactiques.
+ */
 export default function TactiquesTimelineView({
   tactiques,
   sectionNames,
@@ -20,88 +40,83 @@ export default function TactiquesTimelineView({
   formatCurrency,
   onEditTactique
 }: TactiquesTimelineViewProps) {
-  // État pour le filtre par section
   const [selectedSection, setSelectedSection] = useState<string>('');
-  
-  // Filtrer les tactiques par section si nécessaire
-  const filteredTactiques = selectedSection 
+
+  const filteredTactiques = selectedSection
     ? tactiques.filter(t => t.TC_SectionId === selectedSection)
     : tactiques;
-  
-  // Déterminer la période totale de la campagne
+
   const startDate = new Date(campaignStartDate);
   const endDate = new Date(campaignEndDate);
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // Fonction pour calculer la position et la largeur d'une tactique sur la timeline
+
+  /**
+   * Calcule la position et la largeur d'une tactique sur la timeline.
+   *
+   * @param {Tactique} tactique - La tactique pour laquelle calculer la position.
+   * @returns {{ left: string | number; width: string | number; color: string }} Un objet contenant la position gauche, la largeur et la couleur de la barre de tactique.
+   */
   const calculateTimelinePosition = (tactique: Tactique) => {
     if (!tactique.TC_StartDate || !tactique.TC_EndDate) {
-      return { left: 0, width: '100%', color: '#f3f4f6' }; // Gris clair pour les tactiques sans dates
+      return { left: 0, width: '100%', color: '#f3f4f6' };
     }
-    
+
     const tactiqueStart = new Date(tactique.TC_StartDate);
     const tactiqueEnd = new Date(tactique.TC_EndDate);
-    
-    // S'assurer que la date de début est valide et pas avant le début de la campagne
+
     const effectiveStart = tactiqueStart < startDate ? startDate : tactiqueStart;
-    
-    // S'assurer que la date de fin est valide et pas après la fin de la campagne
+
     const effectiveEnd = tactiqueEnd > endDate ? endDate : tactiqueEnd;
-    
-    // Calculer la position en pourcentage
+
     const startOffset = Math.max(0, (effectiveStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const duration = Math.max(1, (effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     const left = (startOffset / totalDays) * 100;
     const width = (duration / totalDays) * 100;
-    
-    // Couleur selon le statut
-    let color = '#fef3c7'; // Jaune pour Planned
-    if (tactique.TC_Status === 'Active') color = '#dcfce7'; // Vert pour Active
-    if (tactique.TC_Status === 'Completed') color = '#dbeafe'; // Bleu pour Completed
-    if (tactique.TC_Status === 'Cancelled') color = '#fee2e2'; // Rouge pour Cancelled
-    
+
+    let color = '#fef3c7';
+    if (tactique.TC_Status === 'Active') color = '#dcfce7';
+    if (tactique.TC_Status === 'Completed') color = '#dbeafe';
+    if (tactique.TC_Status === 'Cancelled') color = '#fee2e2';
+
     return { left: `${left}%`, width: `${width}%`, color };
   };
-  
-  // Générer les lignes d'échelle de temps (mois)
+
+  /**
+   * Génère les données pour l'échelle de temps (mois) de la timeline.
+   *
+   * @returns {{ label: string; position: string }[]} Un tableau d'objets représentant chaque mois avec son libellé et sa position.
+   */
   const generateTimeScale = () => {
     const months = [];
     const currentDate = new Date(startDate);
-    
-    // Ajouter chaque mois dans la période
+
     while (currentDate <= endDate) {
       const monthStart = new Date(currentDate);
-      
-      // Calculer la position du mois
+
       const daysFromStart = Math.ceil((monthStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const position = (daysFromStart / totalDays) * 100;
-      
-      // Formater le mois
+
       const monthName = monthStart.toLocaleDateString('fr-FR', { month: 'short' });
       const year = monthStart.getFullYear();
-      
+
       months.push({
         label: `${monthName} ${year}`,
         position: `${position}%`
       });
-      
-      // Passer au mois suivant
+
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-    
+
     return months;
   };
-  
-  // Obtenir les mois pour l'échelle de temps
+
   const timeScale = generateTimeScale();
-  
-  // Obtenir la liste des sections uniques
+
   const uniqueSections = Array.from(new Set(tactiques.map(t => t.TC_SectionId)));
-  
+
   return (
     <div className="space-y-4">
-      {/* Filtres */}
       <div className="bg-white p-4 rounded-lg shadow">
         <label htmlFor="section-filter" className="block text-sm font-medium text-gray-700 mb-1">
           Filtrer par section
@@ -120,16 +135,13 @@ export default function TactiquesTimelineView({
           ))}
         </select>
       </div>
-      
-      {/* Timeline */}
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {/* En-tête avec l'échelle de temps */}
         <div className="border-b border-gray-200 p-4">
           <div className="relative h-8">
-            {/* Lignes de mois */}
             {timeScale.map((month, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="absolute h-full border-l border-gray-300"
                 style={{ left: month.position }}
               >
@@ -138,8 +150,7 @@ export default function TactiquesTimelineView({
             ))}
           </div>
         </div>
-        
-        {/* Corps de la timeline */}
+
         <div className="p-4">
           {filteredTactiques.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -149,16 +160,14 @@ export default function TactiquesTimelineView({
             <div className="space-y-2">
               {filteredTactiques.map(tactique => {
                 const { left, width, color } = calculateTimelinePosition(tactique);
-                
+
                 return (
                   <div key={tactique.id} className="relative h-12">
-                    {/* Étiquette de la tactique */}
                     <div className="absolute top-0 -ml-2 w-24 h-full flex items-center pr-2">
                       <span className="text-sm font-medium truncate">{tactique.TC_Label}</span>
                     </div>
-                    
-                    {/* Barre de la tactique */}
-                    <div 
+
+                    <div
                       className="absolute h-8 rounded-md border border-gray-300 cursor-pointer hover:border-indigo-500 flex items-center px-2 ml-24"
                       style={{ left, width, backgroundColor: color }}
                       onClick={() => onEditTactique(tactique.id, tactique.TC_SectionId)}

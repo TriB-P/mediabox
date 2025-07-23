@@ -1,56 +1,78 @@
+/**
+ * Ce fichier définit le composant PartenairesGrid.
+ * Son rôle est d'afficher une grille de logos de partenaires.
+ * Il récupère la liste des partenaires via le contexte `usePartners`,
+ * charge les logos depuis Firebase Storage, et gère l'affichage d'un
+ * placeholder si un logo est manquant. Au clic sur un partenaire,
+ * il ouvre un panneau latéral (drawer) avec les détails du partenaire.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { usePartners } from '../../contexts/PartnerContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
+/**
+ * Composant principal qui affiche la grille des partenaires.
+ * Il gère l'état de chargement, l'affichage des partenaires ou d'un message si aucun partenaire n'est trouvé.
+ * @returns {JSX.Element} Le composant React représentant la grille des partenaires.
+ */
 export default function PartenairesGrid() {
-  const { 
-    filteredPartners, 
-    setSelectedPartner, 
-    setIsDrawerOpen, 
-    isLoading 
+  const {
+    filteredPartners,
+    setSelectedPartner,
+    setIsDrawerOpen,
+    isLoading
   } = usePartners();
-  
-  // État pour suivre les images chargées
-  const [imageUrls, setImageUrls] = useState<{[key: string]: string}>({});
+
+  const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
   const [loadingImages, setLoadingImages] = useState(false);
 
+  /**
+   * Gère le clic sur la carte d'un partenaire.
+   * Met à jour le partenaire sélectionné dans le contexte et ouvre le panneau de détails.
+   * @param {any} partner - L'objet partenaire sur lequel l'utilisateur a cliqué.
+   */
   const handlePartnerClick = (partner: any) => {
     setSelectedPartner(partner);
     setIsDrawerOpen(true);
   };
 
-  // Rendu du placeholder pour les partenaires sans image valide
+  /**
+   * Affiche un placeholder pour les partenaires qui n'ont pas de logo.
+   * Le placeholder est un cercle gris contenant la première lettre du nom du partenaire.
+   * @param {any} partner - L'objet partenaire pour lequel afficher le placeholder.
+   * @returns {JSX.Element} Le composant React du placeholder.
+   */
   const renderPlaceholder = (partner: any) => (
     <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
       {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
     </div>
   );
 
-  // Cette fonction essaie de récupérer directement l'URL de téléchargement depuis Firebase Storage
+  /**
+   * Effet de bord pour charger les URLs des logos des partenaires depuis Firebase Storage.
+   * S'exécute lorsque la liste des partenaires filtrés change ou que l'état de chargement principal se termine.
+   * Il traite les chemins 'gs://' pour récupérer les URLs de téléchargement et utilise les URLs directes.
+   */
   useEffect(() => {
     if (!isLoading && filteredPartners.length > 0) {
       const storage = getStorage();
       setLoadingImages(true);
 
       const loadImages = async () => {
-        const urls: {[key: string]: string} = {};
+        const urls: { [key: string]: string } = {};
 
-        // Pour chaque partenaire qui a un chemin SH_Logo commençant par "gs://"
         for (const partner of filteredPartners) {
           if (partner.SH_Logo) {
             try {
               if (partner.SH_Logo.startsWith('gs://')) {
-                // Si c'est une référence de stockage Firebase (gs://)
                 const storageRef = ref(storage, partner.SH_Logo);
+                console.log(`FIREBASE: LECTURE - Fichier: PartenairesGrid.tsx - Fonction: loadImages - Path: ${partner.SH_Logo}`);
                 const url = await getDownloadURL(storageRef);
                 urls[partner.id] = url;
-                console.log(`URL pour ${partner.id}:`, url);
               } else {
-                // Si c'est déjà une URL HTTP(S), l'utiliser directement
                 urls[partner.id] = partner.SH_Logo;
-                console.log(`URL directe pour ${partner.id}:`, partner.SH_Logo);
               }
             } catch (error) {
               console.error(`Erreur de chargement d'image pour ${partner.id}:`, error);
@@ -104,9 +126,8 @@ export default function PartenairesGrid() {
                   alt={partner.SH_Display_Name_FR}
                   className="max-h-full max-w-full object-contain"
                   onError={() => {
-                    // En cas d'erreur, supprimer l'URL pour afficher le placeholder à la place
                     setImageUrls(prev => {
-                      const newUrls = {...prev};
+                      const newUrls = { ...prev };
                       delete newUrls[partner.id];
                       return newUrls;
                     });

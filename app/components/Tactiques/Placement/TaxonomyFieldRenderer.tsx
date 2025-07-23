@@ -1,5 +1,10 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - CORRECTION HYBRIDE
-
+/**
+ * Ce composant a pour rôle d'afficher une liste de champs de formulaire pour des variables de taxonomie.
+ * Il est utilisé pour configurer des champs de placement spécifiques.
+ * Sa particularité est de pouvoir afficher soit une liste déroulante (SmartSelect) lorsque des options prédéfinies sont disponibles,
+ * soit un champ de texte libre (FormInput) si l'utilisateur a besoin de saisir une valeur personnalisée.
+ * Ce comportement "hybride" offre plus de flexibilité à l'utilisateur.
+ */
 'use client';
 
 import React from 'react';
@@ -7,8 +12,6 @@ import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode } from '../../../config/taxonomyFields';
 import type { ParsedTaxonomyVariable, TaxonomyValues, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
-
-// ==================== TYPES ====================
 
 interface FieldState {
   options: Array<{ id: string; label: string; code?: string }>;
@@ -20,14 +23,22 @@ interface FieldState {
 interface TaxonomyFieldRendererProps {
   manualVariables: ParsedTaxonomyVariable[];
   fieldStates: { [key: string]: FieldState };
-  formData: any; 
+  formData: any;
   highlightState: HighlightState;
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal pour afficher les champs de taxonomie manuels.
+ * @param {ParsedTaxonomyVariable[]} manualVariables - Liste des variables à afficher manuellement.
+ * @param {Object} fieldStates - L'état de chaque champ (options, chargement, etc.).
+ * @param {Object} formData - Les données actuelles du formulaire.
+ * @param {HighlightState} highlightState - L'état de mise en évidence pour savoir quel champ est survolé.
+ * @param {Function} onFieldChange - Callback appelé lorsqu'une valeur de champ change.
+ * @param {Function} onFieldHighlight - Callback appelé lorsqu'un champ est survolé.
+ * @returns {React.ReactElement} Le composant React rendu.
+ */
 const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   manualVariables,
   fieldStates,
@@ -37,33 +48,30 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   onFieldHighlight,
 }) => {
 
-  // ==================== FONCTIONS DE RENDU ====================
-  
+  /**
+   * Détermine et rend le bon type de champ (sélection ou texte libre) pour une variable donnée.
+   * C'est le coeur de la logique "hybride" du composant.
+   * @param {ParsedTaxonomyVariable} variable - La variable pour laquelle rendre le champ.
+   * @returns {React.ReactElement} Le champ de formulaire (SmartSelect ou FormInput).
+   */
   const renderVariableInput = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const fieldState = fieldStates[fieldKey];
     const currentValue = formData[fieldKey] || '';
-    
+
     const hasShortcodeList = variable.formats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
-    
-    // 🔥 CORRECTION: Vérifier si la valeur actuelle correspond à un ID d'option
+
     let isValueInOptions = false;
     let matchingOption = null;
-    
+
     if (hasShortcodeList && fieldState.options.length > 0) {
       matchingOption = fieldState.options.find(opt => opt.id === currentValue || opt.label === currentValue);
       isValueInOptions = !!matchingOption;
     }
-    
-    console.log(`🔍 ${fieldKey}: hasShortcodeList=${hasShortcodeList}, isValueInOptions=${isValueInOptions}, currentValue="${currentValue}"`);
 
-    // 🔥 NOUVEAU: Mode hybride - SmartSelect SI la valeur est dans les options OU si pas de valeur actuelle
     if (hasShortcodeList && (isValueInOptions || !currentValue)) {
-      console.log(`📋 ${fieldKey}: Rendu SmartSelect (valeur dans options ou vide)`);
-      
-      // Déterminer la valeur à afficher dans le select
       const selectValue = matchingOption ? matchingOption.id : currentValue;
-      
+
       return (
         <div className="relative">
           <SmartSelect
@@ -74,11 +82,10 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
               const selectedId = e.target.value;
               const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
               const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || 'code';
-              console.log(`🔄 SmartSelect ${fieldKey} changé:`, { selectedId, selectedOption, primaryFormat });
               onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
             }}
             options={[
-              { id: '', label: 'Saisie libre...' }, // 🔥 NOUVEAU: Option pour passer en mode libre
+              { id: '', label: 'Saisie libre...' },
               ...fieldState.options
             ]}
             placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner..."}
@@ -92,9 +99,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         </div>
       );
     }
-    
-    // 🔥 CORRECTION: Mode texte libre - quand valeur pas dans options OU pas de liste
-    console.log(`📝 ${fieldKey}: Rendu FormInput (saisie libre)`);
+
     return (
       <div className="space-y-2">
         <FormInput
@@ -102,19 +107,16 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           name={fieldKey}
           value={currentValue}
           onChange={(e) => {
-            console.log(`🔄 FormInput ${fieldKey} changé:`, e.target.value);
             onFieldChange(variable.variable, e.target.value, 'open');
           }}
           type="text"
           placeholder="Saisir la valeur..."
           label=""
         />
-        {/* 🔥 NOUVEAU: Bouton pour passer en mode liste si disponible */}
         {hasShortcodeList && (
           <button
             type="button"
             onClick={() => {
-              // Vider la valeur pour forcer le passage en mode SmartSelect
               onFieldChange(variable.variable, '', 'open');
             }}
             className="text-xs text-indigo-600 hover:text-indigo-800"
@@ -126,11 +128,17 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     );
   };
 
+  /**
+   * Rend une "carte" contenant le libellé de la variable et son champ de formulaire associé.
+   * Gère également l'effet visuel de survol.
+   * @param {ParsedTaxonomyVariable} variable - La variable à afficher dans la carte.
+   * @returns {React.ReactElement} La carte de la variable.
+   */
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const sourceColor = getSourceColor(variable.source);
     const currentValue = formData[fieldKey] || '';
-    
+
     return (
       <div
         key={fieldKey}
@@ -150,7 +158,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
 
           </div>
         </div>
-        
+
         <div className="mt-2">
           {renderVariableInput(variable)}
         </div>
@@ -158,12 +166,8 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     );
   };
 
-  // ==================== RENDU PRINCIPAL ====================
-  
   return (
     <div className="space-y-4">
-
-
       {manualVariables.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <h4 className="text-md font-medium text-gray-900 mb-2">

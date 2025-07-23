@@ -1,4 +1,11 @@
-// app/components/Campaigns/CampaignFormBudget.tsx
+/**
+ * @file Ce fichier contient le composant React `CampaignFormBudget`.
+ * Ce composant est responsable de l'affichage de la section "Budget et coûts"
+ * dans le formulaire de création ou d'édition d'une campagne. Il permet à
+ * l'utilisateur de saisir le budget principal, de choisir une devise et
+ * d'ajouter des frais personnalisés définis au niveau du client. Il affiche
+ * également un récapitulatif du budget total.
+ */
 
 'use client';
 
@@ -9,8 +16,6 @@ import {
   FormSection 
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
-
-// ==================== TYPES ====================
 
 interface CampaignFormBudgetProps {
   formData: CampaignFormData;
@@ -24,8 +29,16 @@ interface CampaignFormBudgetProps {
   loading?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche les champs de formulaire liés au budget d'une campagne.
+ * @param {CampaignFormBudgetProps} props - Les propriétés du composant.
+ * @param {CampaignFormData} props.formData - Les données actuelles du formulaire de la campagne.
+ * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} props.onChange - La fonction de rappel pour gérer les changements dans les champs du formulaire.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - La fonction de rappel pour afficher des infobulles d'aide.
+ * @param {object} props.clientConfig - La configuration du client, contenant les libellés des frais personnalisés.
+ * @param {boolean} [props.loading=false] - Un booléen indiquant si le formulaire est en état de chargement, ce qui désactive les champs.
+ * @returns {React.ReactElement} Le composant de formulaire pour le budget.
+ */
 const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   formData,
   onChange,
@@ -35,14 +48,18 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
 }) => {
   const isDisabled = loading;
 
-  // Options de devise
   const currencyOptions = [
     { value: 'CAD', label: 'CAD - Dollar Canadien' },
     { value: 'USD', label: 'USD - Dollar Américain' },
     { value: 'EUR', label: 'EUR - Euro' },
   ];
 
-  // Calculer le total des frais personnalisés
+  /**
+   * Calcule et retourne la somme totale des frais personnalisés.
+   * Elle lit les valeurs des frais depuis l'état `formData`, les convertit en nombres
+   * et les additionne.
+   * @returns {number} La somme des frais personnalisés.
+   */
   const getTotalCustomFees = (): number => {
     const fees = [
       parseFloat(formData.CA_Custom_Fee_1 || '0'),
@@ -64,7 +81,6 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
         description="Définissez le budget principal et les frais additionnels"
       >
         <div className="space-y-6">
-          {/* Budget principal */}
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
@@ -92,7 +108,6 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
             </div>
           </div>
 
-          {/* Devise */}
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
@@ -123,12 +138,10 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
         description="Ajoutez des frais additionnels spécifiques à votre campagne"
       >
         <div className="space-y-6">
-          {/* 🔥 CORRECTION: Boucle et condition d'affichage */}
           {[1, 2, 3].map((num) => {
             const feeConfigName = `CL_Custom_Fee_${num}` as keyof typeof clientConfig;
             const customLabel = clientConfig[feeConfigName];
 
-            // Ne rend le champ que si le libellé personnalisé existe
             if (customLabel && customLabel.trim() !== '') {
               const feeValueName = `CA_Custom_Fee_${num}` as keyof CampaignFormData;
 
@@ -160,12 +173,11 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 </div>
               );
             }
-            return null; // Ne rien afficher si le libellé est vide
+            return null;
           })}
         </div>
       </FormSection>
 
-      {/* Récapitulatif budgétaire */}
       {(mainBudget > 0 || totalCustomFees > 0) && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h4 className="font-medium text-gray-900 mb-3">Récapitulatif budgétaire</h4>

@@ -1,11 +1,16 @@
-// app/components/Campaigns/CampaignTable.tsx
-
+/**
+ * Ce composant a pour rôle d'afficher une liste de campagnes sous forme de tableau pour les écrans larges
+ * et sous forme de liste de cartes pour les appareils mobiles. Il permet de visualiser les informations
+ * principales de chaque campagne et d'accéder à des actions (modifier, etc.). Il gère également un état
+ * d'expansion pour chaque ligne afin d'afficher des informations détaillées, comme les versions de la campagne,
+ * en chargeant un composant enfant `CampaignVersions`.
+ */
 'use client';
 
 import React, { Fragment, useEffect, useState } from 'react';
 import { Campaign } from '../../types/campaign';
 import CampaignActions from './CampaignActions';
-import CampaignVersions from './CampaignVersions'; // Importer le composant des versions
+import CampaignVersions from './CampaignVersions';
 import { useClient } from '../../contexts/ClientContext';
 import { getClientList, ShortcodeItem } from '../../lib/listService';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
@@ -18,6 +23,15 @@ interface CampaignTableProps {
   loading?: boolean;
 }
 
+/**
+ * Affiche un tableau ou une liste de campagnes avec des options pour les gérer.
+ * @param {Campaign[]} campaigns - La liste des campagnes à afficher.
+ * @param {string} clientId - L'identifiant du client auquel les campagnes appartiennent.
+ * @param {(campaign: Campaign) => void} onEdit - Fonction de rappel pour éditer une campagne.
+ * @param {() => void} onRefresh - Fonction de rappel pour rafraîchir la liste des campagnes.
+ * @param {boolean} [loading=false] - Indique si les données sont en cours de chargement.
+ * @returns {React.ReactElement} Le composant de la table des campagnes.
+ */
 export default function CampaignTable({
   campaigns,
   clientId,
@@ -32,11 +46,15 @@ export default function CampaignTable({
   useEffect(() => {
     const loadDivisions = async () => {
       if (!selectedClient) return;
-      
+
       try {
+        console.log(`FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadDivisions - Path: shortcodes/clients/${selectedClient.clientId}/CA_Division`);
         const divisionsData = await getClientList('CA_Division', selectedClient.clientId)
-          .catch(() => getClientList('CA_Division', 'PlusCo'));
-        
+          .catch(() => {
+            console.log("FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadDivisions - Path: shortcodes/clients/PlusCo/CA_Division");
+            return getClientList('CA_Division', 'PlusCo');
+          });
+
         setDivisions(divisionsData);
       } catch (error) {
         console.warn('Impossible de charger les divisions:', error);
@@ -45,7 +63,13 @@ export default function CampaignTable({
 
     loadDivisions();
   }, [selectedClient]);
-  
+
+  /**
+   * Formate un montant numérique en une chaîne de caractères monétaire.
+   * @param {number} amount - Le montant à formater.
+   * @param {string} [currency='CAD'] - La devise à utiliser pour le formatage.
+   * @returns {string} Le montant formaté en devise (ex: "1 234 $").
+   */
   const formatCurrency = (amount: number, currency: string = 'CAD') => {
     return new Intl.NumberFormat('fr-CA', {
       style: 'currency',
@@ -55,6 +79,11 @@ export default function CampaignTable({
     }).format(amount);
   };
 
+  /**
+   * Formate une chaîne de date en un format localisé court.
+   * @param {string} dateString - La chaîne de date à formater (ex: "2023-10-26").
+   * @returns {string} La date formatée (ex: "26 oct. 2023") ou '-' si la date est invalide.
+   */
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('fr-CA', {
@@ -64,12 +93,22 @@ export default function CampaignTable({
     });
   };
 
+  /**
+   * Récupère le nom affichable d'une division à partir de son identifiant.
+   * @param {string | undefined} divisionId - L'identifiant de la division.
+   * @returns {string} Le nom de la division ou l'identifiant lui-même si non trouvé.
+   */
   const getDivisionName = (divisionId: string | undefined): string => {
     if (!divisionId) return '';
     const division = divisions.find(d => d.id === divisionId);
     return division ? division.SH_Display_Name_FR || division.SH_Code || divisionId : divisionId;
   };
 
+  /**
+   * Gère l'affichage ou le masquage des détails d'une ligne de campagne.
+   * @param {string} campaignId - L'identifiant de la campagne dont la ligne doit être basculée.
+   * @returns {void}
+   */
   const toggleRow = (campaignId: string) => {
     setExpandedRowId(prevId => (prevId === campaignId ? null : campaignId));
   };
@@ -212,7 +251,7 @@ export default function CampaignTable({
                     className="ml-2"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-900 font-medium">
@@ -222,11 +261,11 @@ export default function CampaignTable({
                       {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
                     </span>
                   </div>
-                  
+
                   <div className="text-xs text-gray-500">
                     {formatDate(campaign.CA_Start_Date)} - {formatDate(campaign.CA_End_Date)}
                   </div>
-                  
+
                   <div className="text-xs text-gray-500">
                     ID: {campaign.CA_Campaign_Identifier}
                   </div>

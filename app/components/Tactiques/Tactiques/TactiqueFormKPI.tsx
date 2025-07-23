@@ -1,3 +1,15 @@
+// app/components/forms/TactiqueFormKPI.tsx
+/**
+ * @file app/components/forms/TactiqueFormKPI.tsx
+ * Ce fichier définit les composants React nécessaires pour la section "KPIs et objectifs"
+ * d'un formulaire de tactique. Il est composé de deux éléments principaux :
+ * - KPIItem : Un composant pour afficher et gérer un seul indicateur de performance (KPI).
+ * - TactiqueFormKPI : Le composant principal qui orchestre l'affichage de l'objectif
+ * média et une liste dynamique de composants KPIItem.
+ * Ce fichier est purement présentationnel ("dumb component") ; il reçoit toutes les données
+ * et les fonctions de gestion d'état via ses props depuis un composant parent.
+ */
+
 'use client';
 
 import React, { memo, useCallback } from 'react';
@@ -7,8 +19,6 @@ import {
   createLabelWithHelp 
 } from './TactiqueFormComponents';
 import SearchableSelect from '../SearchableSelect';
-
-// ==================== TYPES ====================
 
 interface ListItem {
   id: string;
@@ -22,32 +32,31 @@ interface KPIData {
 }
 
 interface TactiqueFormKPIProps {
-  // Données du formulaire
   formData: {
     TC_Media_Objective?: string;
   };
-  
-  // KPIs multiples
   kpis: KPIData[];
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   onKpiChange: (index: number, field: keyof KPIData, value: string | number) => void;
   onAddKpi: () => void;
   onRemoveKpi: (index: number) => void;
-  
-  // Données externes
   dynamicLists: { [key: string]: ListItem[] };
-  
-  // État de chargement
   loading?: boolean;
 }
 
-// ==================== COMPOSANTS ====================
-
 /**
- * Composant pour un KPI individuel
+ * Affiche un formulaire pour un seul KPI.
+ * Ce composant est mémoïsé pour optimiser les performances lors de la mise à jour de la liste de KPIs.
+ * @param {object} props - Les propriétés du composant.
+ * @param {KPIData} props.kpi - Les données du KPI à afficher.
+ * @param {number} props.index - L'index du KPI dans la liste, utilisé pour les callbacks et l'affichage.
+ * @param {boolean} props.canRemove - Indique si le bouton de suppression doit être affiché.
+ * @param {ListItem[]} props.kpiOptions - La liste des options de KPIs disponibles pour la sélection.
+ * @param {(index: number, field: keyof KPIData, value: string | number) => void} props.onKpiChange - Callback pour mettre à jour une propriété du KPI.
+ * @param {(index: number) => void} props.onRemove - Callback pour supprimer ce KPI de la liste.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Callback pour afficher une infobulle d'aide.
+ * @returns {React.ReactElement} Le JSX du formulaire pour un KPI.
  */
 const KPIItem = memo<{
   kpi: KPIData;
@@ -67,18 +76,33 @@ const KPIItem = memo<{
   onTooltipChange 
 }) => {
   
+  /**
+   * Gère le changement de la sélection du type de KPI.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
+   */
   const handleKpiTypeChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     onKpiChange(index, 'TC_Kpi', e.target.value);
   }, [index, onKpiChange]);
 
+  /**
+   * Gère le changement de la valeur du champ "Coût par".
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   */
   const handleCostPerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onKpiChange(index, 'TC_Kpi_CostPer', parseFloat(e.target.value) || 0);
   }, [index, onKpiChange]);
 
+  /**
+   * Gère le changement de la valeur du champ "Volume".
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   */
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onKpiChange(index, 'TC_Kpi_Volume', parseFloat(e.target.value) || 0);
   }, [index, onKpiChange]);
 
+  /**
+   * Gère la suppression de l'item KPI.
+   */
   const handleRemove = useCallback(() => {
     onRemove(index);
   }, [index, onRemove]);
@@ -101,7 +125,6 @@ const KPIItem = memo<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* KPI Type */}
         {kpiOptions.length > 0 && (
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -139,7 +162,6 @@ const KPIItem = memo<{
           </div>
         )}
 
-        {/* Cost Per */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -164,7 +186,6 @@ const KPIItem = memo<{
           </div>
         </div>
 
-        {/* Volume */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -189,8 +210,21 @@ const KPIItem = memo<{
 
 KPIItem.displayName = 'KPIItem';
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal pour la section des KPIs et objectifs du formulaire de tactique.
+ * Il gère l'affichage de l'objectif média et la liste des KPIs.
+ * @param {TactiqueFormKPIProps} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données actuelles du formulaire.
+ * @param {KPIData[]} props.kpis - Le tableau des KPIs à afficher.
+ * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} props.onChange - Callback pour les changements sur les champs simples comme l'objectif média.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Callback pour afficher une infobulle d'aide.
+ * @param {(index: number, field: keyof KPIData, value: string | number) => void} props.onKpiChange - Callback pour mettre à jour un KPI spécifique.
+ * @param {() => void} props.onAddKpi - Callback pour ajouter un nouveau KPI à la liste.
+ * @param {(index: number) => void} props.onRemoveKpi - Callback pour supprimer un KPI de la liste.
+ * @param {{ [key: string]: ListItem[] }} props.dynamicLists - Un objet contenant les listes de valeurs dynamiques (ex: pour les menus déroulants).
+ * @param {boolean} [props.loading=false] - Indique si les données sont en cours de chargement, pour désactiver les contrôles.
+ * @returns {React.ReactElement} Le JSX de la section de formulaire pour les KPIs.
+ */
 const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   formData,
   kpis,
@@ -202,13 +236,12 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   dynamicLists,
   loading = false
 }) => {
-  // Options pour les KPIs
   const kpiOptions = dynamicLists.TC_Kpi || [];
-  
-  // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
   
-  // Gestionnaires optimisés
+  /**
+   * Gère l'ajout d'un nouveau KPI, dans la limite de 5.
+   */
   const handleAddKpi = useCallback(() => {
     if (kpis.length < 5) {
       onAddKpi();
@@ -217,7 +250,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
 
   return (
     <div className="p-8 space-y-8">
-      {/* En-tête de section */}
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
           KPIs et objectifs
@@ -227,7 +259,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         </p>
       </div>
       
-      {/* TC_Media_Objective */}
       {(dynamicLists.TC_Media_Objective && dynamicLists.TC_Media_Objective.length > 0) && (
         <SmartSelect
           id="TC_Media_Objective"
@@ -247,7 +278,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         />
       )}
 
-      {/* Section KPIs multiples */}
       <div className="border-t border-gray-200 pt-8">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -269,7 +299,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           )}
         </div>
 
-        {/* Liste des KPIs */}
         <div className="space-y-6">
           {kpis.map((kpi, index) => (
             <KPIItem
@@ -285,7 +314,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           ))}
         </div>
 
-        {/* Message si aucun KPI */}
         {kpis.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">
@@ -302,7 +330,6 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           </div>
         )}
 
-        {/* Limite atteinte */}
         {kpis.length >= 5 && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
@@ -312,14 +339,12 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         )}
       </div>
 
-      {/* Message d'information si en chargement */}
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données...</p>
         </div>
       )}
 
-      {/* Message si aucune liste KPI disponible */}
       {kpiOptions.length === 0 && !loading && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">

@@ -1,378 +1,426 @@
-// app/lib/shortcodeService.ts
-
+/**
+ * Ce fichier contient des fonctions de service pour interagir avec les shortcodes
+ * stockés dans Firebase Firestore. Il permet de gérer les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
+ * pour les shortcodes, ainsi que des fonctionnalités liées aux listes personnalisées
+ * de shortcodes pour différents clients et dimensions.
+ */
 import {
-    collection,
-    doc,
-    getDocs,
-    getDoc,
-    addDoc,
-    setDoc,
-    updateDoc,
-    deleteDoc,
-    query,
-    orderBy,
-    serverTimestamp,
-  } from 'firebase/firestore';
-  import { db } from './firebase';
-  import { limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
 
-  
-  export interface Shortcode {
-    id: string;
-    SH_Code: string;
-    SH_Default_UTM?: string;
-    SH_Display_Name_EN?: string;
-    SH_Display_Name_FR: string;
-    SH_Type?: string;
-    SH_Tags?: string[];
-  }
 
-  export interface PaginatedShortcodeResponse {
-    shortcodes: Shortcode[];
-    lastDoc: DocumentSnapshot | null;
-    hasMore: boolean;
-  }
-  
-  // Récupérer tous les shortcodes
-  export async function getAllShortcodes(): Promise<Shortcode[]> {
-    try {
-      console.log('Récupération de tous les shortcodes');
+export interface Shortcode {
+  id: string;
+  SH_Code: string;
+  SH_Default_UTM?: string;
+  SH_Display_Name_EN?: string;
+  SH_Display_Name_FR: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
+
+export interface PaginatedShortcodeResponse {
+  shortcodes: Shortcode[];
+  lastDoc: DocumentSnapshot | null;
+  hasMore: boolean;
+}
+
+/**
+* Récupère tous les shortcodes de la collection 'shortcodes'.
+* @returns Une promesse qui résout en un tableau de tous les shortcodes.
+*/
+export async function getAllShortcodes(): Promise<Shortcode[]> {
+  try {
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getAllShortcodes - Path: shortcodes");
       const shortcodesCollection = collection(db, 'shortcodes');
       const snapshot = await getDocs(shortcodesCollection);
-  
+
       return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+          id: doc.id,
+          ...doc.data()
       } as Shortcode));
-    } catch (error) {
+  } catch (error) {
       console.error('Erreur lors de la récupération des shortcodes:', error);
       return [];
-    }
   }
-  
-  // Créer un nouveau shortcode
-  export async function createShortcode(shortcodeData: Omit<Shortcode, 'id'>): Promise<string> {
-    try {
-      console.log('Création d\'un nouveau shortcode:', shortcodeData);
+}
+
+/**
+* Crée un nouveau shortcode dans la collection 'shortcodes'.
+* @param shortcodeData Les données du shortcode à créer, sans l'ID.
+* @returns Une promesse qui résout en l'ID du document nouvellement créé.
+*/
+export async function createShortcode(shortcodeData: Omit<Shortcode, 'id'>): Promise<string> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: createShortcode - Path: shortcodes");
       const shortcodesCollection = collection(db, 'shortcodes');
       const docRef = await addDoc(shortcodesCollection, {
-        ...shortcodeData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+          ...shortcodeData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
       });
       return docRef.id;
-    } catch (error) {
+  } catch (error) {
       console.error('Erreur lors de la création du shortcode:', error);
       throw error;
-    }
   }
-  
-  // Mettre à jour un shortcode
-  export async function updateShortcode(shortcodeId: string, shortcodeData: Partial<Shortcode>): Promise<void> {
-    try {
-      console.log(`Mise à jour du shortcode ${shortcodeId}:`, shortcodeData);
+}
+
+/**
+* Met à jour un shortcode existant dans la collection 'shortcodes'.
+* @param shortcodeId L'ID du shortcode à mettre à jour.
+* @param shortcodeData Les données partielles du shortcode à mettre à jour.
+* @returns Une promesse qui résout une fois la mise à jour terminée.
+*/
+export async function updateShortcode(shortcodeId: string, shortcodeData: Partial<Shortcode>): Promise<void> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: updateShortcode - Path: shortcodes/${shortcodeId}");
       const shortcodeRef = doc(db, 'shortcodes', shortcodeId);
       await updateDoc(shortcodeRef, {
-        ...shortcodeData,
-        updatedAt: serverTimestamp()
+          ...shortcodeData,
+          updatedAt: serverTimestamp()
       });
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la mise à jour du shortcode ${shortcodeId}:`, error);
       throw error;
-    }
   }
-  
-  // Supprimer un shortcode
-  export async function deleteShortcode(shortcodeId: string): Promise<void> {
-    try {
-      console.log(`Suppression du shortcode ${shortcodeId}`);
+}
+
+/**
+* Supprime un shortcode de la collection 'shortcodes'.
+* @param shortcodeId L'ID du shortcode à supprimer.
+* @returns Une promesse qui résout une fois la suppression terminée.
+*/
+export async function deleteShortcode(shortcodeId: string): Promise<void> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: deleteShortcode - Path: shortcodes/${shortcodeId}");
       const shortcodeRef = doc(db, 'shortcodes', shortcodeId);
       await deleteDoc(shortcodeRef);
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la suppression du shortcode ${shortcodeId}:`, error);
       throw error;
-    }
   }
-  
-  // Récupérer toutes les dimensions disponibles (listes)
-  export async function getAllDimensions(): Promise<string[]> {
-    try {
-      console.log('Récupération de toutes les dimensions');
+}
+
+/**
+* Récupère toutes les dimensions disponibles (les IDs des documents dans la collection 'lists').
+* @returns Une promesse qui résout en un tableau de chaînes de caractères représentant les IDs des dimensions.
+*/
+export async function getAllDimensions(): Promise<string[]> {
+  try {
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getAllDimensions - Path: lists");
       const listsCollection = collection(db, 'lists');
       const snapshot = await getDocs(listsCollection);
-      
+
       return snapshot.docs.map(doc => doc.id);
-    } catch (error) {
+  } catch (error) {
       console.error('Erreur lors de la récupération des dimensions:', error);
       return [];
-    }
   }
-  
-  // Vérifier si un client a une liste personnalisée pour une dimension
-  export async function hasCustomList(dimension: string, clientId: string): Promise<boolean> {
-    try {
-      console.log(`Vérification si le client ${clientId} a une liste personnalisée pour la dimension ${dimension}`);
+}
+
+/**
+* Vérifie si un client spécifique a une liste personnalisée pour une dimension donnée.
+* @param dimension La dimension à vérifier.
+* @param clientId L'ID du client.
+* @returns Une promesse qui résout en `true` si le client a une liste personnalisée, sinon `false`.
+*/
+export async function hasCustomList(dimension: string, clientId: string): Promise<boolean> {
+  try {
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: hasCustomList - Path: lists/${dimension}/clients/${clientId}");
       const clientListRef = doc(db, 'lists', dimension, 'clients', clientId);
       const snapshot = await getDoc(clientListRef);
       return snapshot.exists();
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la vérification de la liste personnalisée pour le client ${clientId} et la dimension ${dimension}:`, error);
       return false;
-    }
   }
-  
-  // Récupérer les shortcodes pour une dimension et un client spécifiques
-  export async function getClientDimensionShortcodes(dimension: string, clientId: string): Promise<Shortcode[]> {
-    try {
-      console.log(`Récupération des shortcodes pour la dimension ${dimension} et le client ${clientId}`);
-      
-      // Vérifier si le client a une liste personnalisée, sinon utiliser PlusCo
+}
+
+/**
+* Récupère les shortcodes pour une dimension et un client spécifiques.
+* Si le client n'a pas de liste personnalisée pour la dimension, les shortcodes de 'PlusCo' sont utilisés.
+* @param dimension La dimension des shortcodes à récupérer.
+* @param clientId L'ID du client.
+* @returns Une promesse qui résout en un tableau de shortcodes.
+*/
+export async function getClientDimensionShortcodes(dimension: string, clientId: string): Promise<Shortcode[]> {
+  try {
       const hasCustom = await hasCustomList(dimension, clientId);
       const effectiveClientId = hasCustom ? clientId : 'PlusCo';
-      
-      console.log(`Utilisation de l'ID client: ${effectiveClientId} (personnalisé: ${hasCustom})`);
-      
+
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodes - Path: lists/${dimension}/clients/${effectiveClientId}/shortcodes");
       const shortcodesCollection = collection(db, 'lists', dimension, 'clients', effectiveClientId, 'shortcodes');
       const snapshot = await getDocs(shortcodesCollection);
-      
-      // Récupérer tous les IDs de shortcodes
+
       const shortcodeIds = snapshot.docs.map(doc => doc.id);
-      
+
       if (shortcodeIds.length === 0) {
-        return [];
+          return [];
       }
-      
-      // Récupérer les données réelles des shortcodes
+
       const shortcodes: Shortcode[] = [];
       for (const id of shortcodeIds) {
-        const shortcodeRef = doc(db, 'shortcodes', id);
-        const shortcodeSnap = await getDoc(shortcodeRef);
-        
-        if (shortcodeSnap.exists()) {
-          shortcodes.push({
-            id: shortcodeSnap.id,
-            ...shortcodeSnap.data()
-          } as Shortcode);
-        }
+          console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodes - Path: shortcodes/${id}");
+          const shortcodeRef = doc(db, 'shortcodes', id);
+          const shortcodeSnap = await getDoc(shortcodeRef);
+
+          if (shortcodeSnap.exists()) {
+              shortcodes.push({
+                  id: shortcodeSnap.id,
+                  ...shortcodeSnap.data()
+              } as Shortcode);
+          }
       }
-      
+
       return shortcodes;
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la récupération des shortcodes pour la dimension ${dimension} et le client ${clientId}:`, error);
       return [];
-    }
   }
-  
-  // Ajouter un shortcode à une dimension pour un client
-  export async function addShortcodeToDimension(dimension: string, clientId: string, shortcodeId: string): Promise<void> {
-    try {
-      console.log(`Ajout du shortcode ${shortcodeId} à la dimension ${dimension} pour le client ${clientId}`);
-      
-      // S'assurer que le document client existe dans la dimension
+}
+
+/**
+* Ajoute un shortcode à une dimension spécifique pour un client donné.
+* Crée le document client si nécessaire avant d'ajouter le shortcode.
+* @param dimension La dimension à laquelle ajouter le shortcode.
+* @param clientId L'ID du client.
+* @param shortcodeId L'ID du shortcode à ajouter.
+* @returns Une promesse qui résout une fois l'ajout terminé.
+*/
+export async function addShortcodeToDimension(dimension: string, clientId: string, shortcodeId: string): Promise<void> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: addShortcodeToDimension - Path: lists/${dimension}/clients/${clientId}");
       const clientRef = doc(db, 'lists', dimension, 'clients', clientId);
       await setDoc(clientRef, { createdAt: serverTimestamp() }, { merge: true });
-      
-      // Ajouter le shortcode à la liste du client
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: addShortcodeToDimension - Path: lists/${dimension}/clients/${clientId}/shortcodes/${shortcodeId}");
       const shortcodeRef = doc(db, 'lists', dimension, 'clients', clientId, 'shortcodes', shortcodeId);
-      await setDoc(shortcodeRef, { 
-        addedAt: serverTimestamp()
+      await setDoc(shortcodeRef, {
+          addedAt: serverTimestamp()
       });
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de l'ajout du shortcode ${shortcodeId} à la dimension ${dimension} pour le client ${clientId}:`, error);
       throw error;
-    }
   }
-  
-  // Supprimer un shortcode d'une dimension pour un client
-  export async function removeShortcodeFromDimension(dimension: string, clientId: string, shortcodeId: string): Promise<void> {
-    try {
-      console.log(`Suppression du shortcode ${shortcodeId} de la dimension ${dimension} pour le client ${clientId}`);
+}
+
+/**
+* Supprime un shortcode d'une dimension spécifique pour un client donné.
+* @param dimension La dimension de laquelle supprimer le shortcode.
+* @param clientId L'ID du client.
+* @param shortcodeId L'ID du shortcode à supprimer.
+* @returns Une promesse qui résout une fois la suppression terminée.
+*/
+export async function removeShortcodeFromDimension(dimension: string, clientId: string, shortcodeId: string): Promise<void> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: removeShortcodeFromDimension - Path: lists/${dimension}/clients/${clientId}/shortcodes/${shortcodeId}");
       const shortcodeRef = doc(db, 'lists', dimension, 'clients', clientId, 'shortcodes', shortcodeId);
       await deleteDoc(shortcodeRef);
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la suppression du shortcode ${shortcodeId} de la dimension ${dimension} pour le client ${clientId}:`, error);
       throw error;
-    }
   }
-  
-  // Créer une liste personnalisée pour un client basée sur PlusCo
-  export async function createCustomListFromPlusCo(dimension: string, clientId: string): Promise<void> {
-    try {
-      console.log(`Création d'une liste personnalisée pour la dimension ${dimension} et le client ${clientId} basée sur PlusCo`);
-      
-      // Récupérer les shortcodes PlusCo
+}
+
+/**
+* Crée une liste personnalisée pour un client basée sur les shortcodes de 'PlusCo' pour une dimension donnée.
+* @param dimension La dimension pour laquelle créer la liste personnalisée.
+* @param clientId L'ID du client pour lequel créer la liste.
+* @returns Une promesse qui résout une fois la liste personnalisée créée.
+*/
+export async function createCustomListFromPlusCo(dimension: string, clientId: string): Promise<void> {
+  try {
       const plusCoShortcodes = await getClientDimensionShortcodes(dimension, 'PlusCo');
-      
-      // Créer le document client dans la dimension
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: createCustomListFromPlusCo - Path: lists/${dimension}/clients/${clientId}");
       const clientRef = doc(db, 'lists', dimension, 'clients', clientId);
-      await setDoc(clientRef, { 
-        createdAt: serverTimestamp(),
-        copiedFrom: 'PlusCo'
+      await setDoc(clientRef, {
+          createdAt: serverTimestamp(),
+          copiedFrom: 'PlusCo'
       });
-      
-      // Ajouter tous les shortcodes PlusCo à la nouvelle liste client
+
       for (const shortcode of plusCoShortcodes) {
-        const shortcodeRef = doc(db, 'lists', dimension, 'clients', clientId, 'shortcodes', shortcode.id);
-        await setDoc(shortcodeRef, { 
-          addedAt: serverTimestamp()
-        });
+          console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: createCustomListFromPlusCo - Path: lists/${dimension}/clients/${clientId}/shortcodes/${shortcode.id}");
+          const shortcodeRef = doc(db, 'lists', dimension, 'clients', clientId, 'shortcodes', shortcode.id);
+          await setDoc(shortcodeRef, {
+              addedAt: serverTimestamp()
+          });
       }
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la création de la liste personnalisée pour la dimension ${dimension} et le client ${clientId}:`, error);
       throw error;
-    }
   }
+}
 
-  // Fonction à ajouter dans shortcodeService.ts
-
-// Supprimer une liste personnalisée pour un client
+/**
+* Supprime une liste personnalisée pour un client et une dimension donnés.
+* Supprime d'abord tous les shortcodes de la liste, puis le document client.
+* @param dimension La dimension de la liste personnalisée à supprimer.
+* @param clientId L'ID du client dont la liste personnalisée doit être supprimée.
+* @returns Une promesse qui résout une fois la suppression terminée.
+*/
 export async function deleteCustomList(dimension: string, clientId: string): Promise<void> {
-    try {
-      console.log(`Suppression de la liste personnalisée pour la dimension ${dimension} et le client ${clientId}`);
-      
-      // Vérifier d'abord si la liste personnalisée existe
+  try {
       const exists = await hasCustomList(dimension, clientId);
       if (!exists) {
-        throw new Error('La liste personnalisée n\'existe pas.');
+          throw new Error('La liste personnalisée n\'existe pas.');
       }
-      
-      // Récupérer toutes les shortcodes dans la liste
+
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: deleteCustomList - Path: lists/${dimension}/clients/${clientId}/shortcodes");
       const shortcodesCollection = collection(db, 'lists', dimension, 'clients', clientId, 'shortcodes');
       const snapshot = await getDocs(shortcodesCollection);
-      
-      // Supprimer tous les shortcodes de la liste
+
       for (const doc of snapshot.docs) {
-        await deleteDoc(doc.ref);
+          console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: deleteCustomList - Path: lists/${dimension}/clients/${clientId}/shortcodes/${doc.id}");
+          await deleteDoc(doc.ref);
       }
-      
-      // Supprimer le document client de la dimension
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: deleteCustomList - Path: lists/${dimension}/clients/${clientId}");
       const clientRef = doc(db, 'lists', dimension, 'clients', clientId);
       await deleteDoc(clientRef);
-      
-      console.log(`Liste personnalisée supprimée pour la dimension ${dimension} et le client ${clientId}`);
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la suppression de la liste personnalisée pour la dimension ${dimension} et le client ${clientId}:`, error);
       throw error;
-    }
   }
+}
 
-  export async function updatePartner(
-    partnerId: string,
-    partnerData: Partial<Shortcode>
-  ): Promise<void> {
-    try {
-      console.log(`Mise à jour du partenaire ${partnerId}:`, partnerData);
-      
-      // Mettre à jour le document dans la collection shortcodes
+/**
+* Met à jour un partenaire (qui est un shortcode avec un ID de partenaire).
+* @param partnerId L'ID du partenaire à mettre à jour.
+* @param partnerData Les données partielles du partenaire à mettre à jour.
+* @returns Une promesse qui résout une fois la mise à jour terminée.
+*/
+export async function updatePartner(
+  partnerId: string,
+  partnerData: Partial<Shortcode>
+): Promise<void> {
+  try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: shortcodeService.ts - Fonction: updatePartner - Path: shortcodes/${partnerId}");
       const shortcodeRef = doc(db, 'shortcodes', partnerId);
       await updateDoc(shortcodeRef, {
-        ...partnerData,
-        updatedAt: serverTimestamp()
+          ...partnerData,
+          updatedAt: serverTimestamp()
       });
-      
-      console.log(`Partenaire ${partnerId} mis à jour avec succès`);
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors de la mise à jour du partenaire ${partnerId}:`, error);
       throw error;
-    }
   }
+}
 
-  export async function getClientDimensionShortcodesPaginated(
-    dimension: string, 
-    clientId: string,
-    pageSize: number = 50,
-    lastDocument?: DocumentSnapshot | null
-  ): Promise<PaginatedShortcodeResponse> {
-    try {
-      console.log(`Récupération paginée des shortcodes pour la dimension ${dimension} et le client ${clientId}, taille: ${pageSize}`);
-      
-      // Vérifier si le client a une liste personnalisée, sinon utiliser PlusCo
+/**
+* Récupère les shortcodes pour une dimension et un client spécifiques avec pagination.
+* @param dimension La dimension des shortcodes à récupérer.
+* @param clientId L'ID du client.
+* @param pageSize Le nombre de documents à récupérer par page (par défaut 50).
+* @param lastDocument Le dernier document de la page précédente pour la pagination.
+* @returns Une promesse qui résout en un objet `PaginatedShortcodeResponse` contenant les shortcodes, le dernier document et un indicateur s'il y a plus de données.
+*/
+export async function getClientDimensionShortcodesPaginated(
+  dimension: string,
+  clientId: string,
+  pageSize: number = 50,
+  lastDocument?: DocumentSnapshot | null
+): Promise<PaginatedShortcodeResponse> {
+  try {
       const hasCustom = await hasCustomList(dimension, clientId);
       const effectiveClientId = hasCustom ? clientId : 'PlusCo';
-      
-      console.log(`Utilisation de l'ID client: ${effectiveClientId} (personnalisé: ${hasCustom})`);
-      
+
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodesPaginated - Path: lists/${dimension}/clients/${effectiveClientId}/shortcodes");
       const shortcodesCollection = collection(db, 'lists', dimension, 'clients', effectiveClientId, 'shortcodes');
-      
-      // Construire la requête avec pagination
+
       let q = query(shortcodesCollection, limit(pageSize));
-      
-      // Si on a un document de départ, commencer après celui-ci
+
       if (lastDocument) {
-        q = query(shortcodesCollection, startAfter(lastDocument), limit(pageSize));
+          q = query(shortcodesCollection, startAfter(lastDocument), limit(pageSize));
       }
-      
+
       const snapshot = await getDocs(q);
-      
-      // Récupérer tous les IDs de shortcodes de cette page
+
       const shortcodeIds = snapshot.docs.map(doc => doc.id);
       const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-      
+
       if (shortcodeIds.length === 0) {
-        return {
-          shortcodes: [],
-          lastDoc: null,
-          hasMore: false
-        };
+          return {
+              shortcodes: [],
+              lastDoc: null,
+              hasMore: false
+          };
       }
-      
-      // Récupérer les données réelles des shortcodes
+
       const shortcodes: Shortcode[] = [];
       for (const id of shortcodeIds) {
-        const shortcodeRef = doc(db, 'shortcodes', id);
-        const shortcodeSnap = await getDoc(shortcodeRef);
-        
-        if (shortcodeSnap.exists()) {
-          shortcodes.push({
-            id: shortcodeSnap.id,
-            ...shortcodeSnap.data()
-          } as Shortcode);
-        }
+          console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodesPaginated - Path: shortcodes/${id}");
+          const shortcodeRef = doc(db, 'shortcodes', id);
+          const shortcodeSnap = await getDoc(shortcodeRef);
+
+          if (shortcodeSnap.exists()) {
+              shortcodes.push({
+                  id: shortcodeSnap.id,
+                  ...shortcodeSnap.data()
+              } as Shortcode);
+          }
       }
-      
-      // Déterminer s'il y a plus de données
-      // On fait une requête avec limit(1) après le dernier document pour vérifier
+
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodesPaginated - Path: lists/${dimension}/clients/${effectiveClientId}/shortcodes (hasMore check)");
       const hasMoreQuery = query(
-        shortcodesCollection, 
-        startAfter(lastDoc), 
-        limit(1)
+          shortcodesCollection,
+          startAfter(lastDoc),
+          limit(1)
       );
       const hasMoreSnapshot = await getDocs(hasMoreQuery);
       const hasMore = !hasMoreSnapshot.empty;
-      
+
       return {
-        shortcodes,
-        lastDoc,
-        hasMore
+          shortcodes,
+          lastDoc,
+          hasMore
       };
-      
-    } catch (error) {
+
+  } catch (error) {
       console.error(`Erreur lors de la récupération paginée des shortcodes pour la dimension ${dimension} et le client ${clientId}:`, error);
       return {
-        shortcodes: [],
-        lastDoc: null,
-        hasMore: false
+          shortcodes: [],
+          lastDoc: null,
+          hasMore: false
       };
-    }
   }
-  
-  // Compter le nombre total de shortcodes (optionnel, pour affichage)
-  export async function getClientDimensionShortcodesCount(
-    dimension: string, 
-    clientId: string
-  ): Promise<number> {
-    try {
-      console.log(`Comptage des shortcodes pour la dimension ${dimension} et le client ${clientId}`);
-      
+}
+
+/**
+* Compte le nombre total de shortcodes pour une dimension et un client spécifiques.
+* Si le client n'a pas de liste personnalisée, les shortcodes de 'PlusCo' sont comptés.
+* @param dimension La dimension des shortcodes à compter.
+* @param clientId L'ID du client.
+* @returns Une promesse qui résout en le nombre total de shortcodes.
+*/
+export async function getClientDimensionShortcodesCount(
+  dimension: string,
+  clientId: string
+): Promise<number> {
+  try {
       const hasCustom = await hasCustomList(dimension, clientId);
       const effectiveClientId = hasCustom ? clientId : 'PlusCo';
-      
+
+      console.log("FIREBASE: LECTURE - Fichier: shortcodeService.ts - Fonction: getClientDimensionShortcodesCount - Path: lists/${dimension}/clients/${effectiveClientId}/shortcodes");
       const shortcodesCollection = collection(db, 'lists', dimension, 'clients', effectiveClientId, 'shortcodes');
       const snapshot = await getDocs(shortcodesCollection);
-      
+
       return snapshot.size;
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors du comptage des shortcodes:`, error);
       return 0;
-    }
   }
+}

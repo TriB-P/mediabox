@@ -1,14 +1,22 @@
 // app/components/Tactiques/BudgetMainSection.tsx
 
+/**
+ * Ce fichier définit le composant `BudgetMainSection`.
+ * Il s'agit d'une section de formulaire React, côté client ('use client'),
+ * dédiée à la gestion des informations budgétaires principales pour une "tactique".
+ * Ce composant affiche des champs pour le budget (client ou média), le coût par unité,
+ * et calcule dynamiquement le volume d'unités correspondant.
+ * Il est conçu pour être flexible, avec des libellés et des calculs qui s'adaptent
+ * au type d'unité sélectionné (par exemple, il gère le cas spécifique du CPM pour les impressions).
+ * Il ne gère pas son propre état ; toutes les données et les fonctions de rappel (callbacks)
+ * sont passées via ses props, le rendant ainsi un composant de présentation réutilisable.
+ */
 'use client';
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
-// ==================== TYPES ====================
-
 interface BudgetMainSectionProps {
-  // Données du formulaire
   formData: {
     TC_Budget?: number;
     TC_Currency?: string;
@@ -17,35 +25,27 @@ interface BudgetMainSectionProps {
     TC_Budget_Mode?: 'client' | 'media';
     TC_Has_Bonus?: boolean;
     TC_Bonus_Value?: number;
-    TC_Unit_Type?: string; // NOUVEAU: Type d'unité pour les labels dynamiques
+    TC_Unit_Type?: string;
   };
-  
-  // Données externes pour les calculs
-  totalFees: number; // Total des frais calculés
-  
-  // NOUVEAU: Options pour le type d'unité (pour récupérer le display name)
+  totalFees: number;
   unitTypeOptions: Array<{ id: string; label: string }>;
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   onCalculatedChange: (field: string, value: number) => void;
-  
-  // État de chargement
   disabled?: boolean;
 }
 
-// ==================== UTILITAIRES POUR LABELS DYNAMIQUES ====================
-
 /**
- * Génère les labels dynamiques en fonction du type d'unité
+ * Génère des libellés, des infobulles et des formats d'affichage dynamiques en fonction du type d'unité sélectionné.
+ * Gère spécifiquement le cas des "impressions" pour utiliser le terme "CPM".
+ * @param unitType - L'identifiant du type d'unité (ex: 'impressions').
+ * @param unitTypeOptions - La liste des options de types d'unité disponibles pour trouver le libellé correspondant.
+ * @returns Un objet contenant les chaînes de caractères et les fonctions de formatage pour l'interface utilisateur.
  */
 const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Array<{ id: string; label: string }>) => {
-  // Trouver le display name du type d'unité
   const selectedUnitType = unitTypeOptions.find(option => option.id === unitType);
   const unitDisplayName = selectedUnitType?.label || 'unité';
   
-  // Cas spécial pour les impressions → CPM
   const isImpression = unitDisplayName.toLowerCase().includes('impression');
   
   if (isImpression) {
@@ -56,14 +56,12 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
       volumeTooltip: `Nombre d'${unitDisplayName.toLowerCase()} calculé automatiquement selon la formule : (Budget média + Bonification) ÷ CPM × 1000. Ce champ est en lecture seule et calculé par le système.`,
       costPlaceholder: '0.0000',
       formatCostDisplay: (value: number) => {
-        // Pour CPM, afficher avec plus de précision
         return new Intl.NumberFormat('fr-CA', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 4
         }).format(value);
       },
       formatVolumeDisplay: (value: number) => {
-        // Pour les impressions, pas de décimales
         return new Intl.NumberFormat('fr-CA', {
           minimumFractionDigits: 0,
           maximumFractionDigits: 0
@@ -72,7 +70,6 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
     };
   }
   
-  // Cas général pour les autres types d'unité
   const unitLower = unitDisplayName.toLowerCase();
   const unitSingular = unitLower.endsWith('s') ? unitLower.slice(0, -1) : unitLower;
   
@@ -89,7 +86,6 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
       }).format(value);
     },
     formatVolumeDisplay: (value: number) => {
-      // Pour la plupart des unités, afficher sans décimales
       return new Intl.NumberFormat('fr-CA', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
@@ -98,19 +94,28 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
   };
 };
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal pour la section budget du formulaire de tactique.
+ * @param props - Les propriétés du composant.
+ * @param props.formData - Les données actuelles du formulaire.
+ * @param props.totalFees - Le montant total des frais calculés en externe.
+ * @param props.unitTypeOptions - La liste des types d'unités possibles pour les libellés dynamiques.
+ * @param props.onChange - Callback pour gérer les changements sur les champs de saisie contrôlés.
+ * @param props.onTooltipChange - Callback pour afficher une infobulle dans un composant parent.
+ * @param props.onCalculatedChange - Callback pour mettre à jour des champs calculés dans l'état parent.
+ * @param props.disabled - Un booléen pour désactiver les champs, généralement pendant le chargement.
+ * @returns Le JSX de la section du formulaire de budget.
+ */
 const BudgetMainSection = memo<BudgetMainSectionProps>(({
   formData,
   totalFees,
-  unitTypeOptions = [], // NOUVEAU: Valeur par défaut
+  unitTypeOptions = [],
   onChange,
   onTooltipChange,
   onCalculatedChange,
   disabled = false
 }) => {
   
-  // Extraire les valeurs du formulaire
   const budget = formData.TC_Budget || 0;
   const costPerUnit = formData.TC_Cost_Per_Unit || 0;
   const unitVolume = formData.TC_Unit_Volume || 0;
@@ -118,14 +123,12 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   const budgetMode = formData.TC_Budget_Mode || 'media';
   const hasBonus = formData.TC_Has_Bonus || false;
   const bonusValue = formData.TC_Bonus_Value || 0;
-  const unitType = formData.TC_Unit_Type; // NOUVEAU
+  const unitType = formData.TC_Unit_Type;
 
-  // NOUVEAU: Générer les labels dynamiques
   const dynamicLabels = useMemo(() => {
     return generateDynamicLabels(unitType, unitTypeOptions);
   }, [unitType, unitTypeOptions]);
 
-  // Déterminer l'étiquette et la description du budget selon le mode
   const budgetConfig = useMemo(() => {
     if (budgetMode === 'client') {
       return {
@@ -140,7 +143,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budgetMode]);
 
-  // Calcul simple du budget média (pour affichage informatif seulement)
   const displayMediaBudget = useMemo(() => {
     if (budgetMode === 'client') {
       return Math.max(0, budget - totalFees);
@@ -149,14 +151,12 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budget, totalFees, budgetMode]);
 
-  // Calcul du budget effectif pour le volume (média + bonification) - pour affichage
   const effectiveBudgetForVolume = useMemo(() => {
     const baseBudget = displayMediaBudget;
     const bonus = hasBonus ? bonusValue : 0;
     return baseBudget + bonus;
   }, [displayMediaBudget, hasBonus, bonusValue]);
 
-  // Calcul du budget client effectif (pour affichage informatif seulement)
   const displayClientBudget = useMemo(() => {
     if (budgetMode === 'client') {
       return budget;
@@ -165,18 +165,15 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budget, totalFees, budgetMode]);
 
-  // Gestionnaire pour le changement de budget
   const handleBudgetChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e);
   }, [onChange]);
 
-  // Gestionnaire pour le changement de coût par unité
   const handleCostChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newCost = parseFloat(e.target.value) || 0;
     onCalculatedChange('TC_Cost_Per_Unit', newCost);
   }, [onCalculatedChange]);
 
-  // Déterminer les statuts de calcul (pour l'affichage des messages)
   const calculationStatus = useMemo(() => {
     const hasValidBudget = budget > 0;
     const hasValidMediaBudget = displayMediaBudget > 0;
@@ -192,7 +189,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     };
   }, [budget, displayMediaBudget, costPerUnit, effectiveBudgetForVolume]);
 
-  // Formater les nombres pour l'affichage
   const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
@@ -202,7 +198,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Budget principal */}
       <div>
         <div className="flex items-center gap-3 mb-2">
           {createLabelWithHelp(
@@ -230,7 +225,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {/* Affichage informatif du budget média si en mode client */}
       {budgetMode === 'client' && budget > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-blue-800 mb-2">
@@ -260,7 +254,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       )}
 
-      {/* Affichage informatif du budget client si en mode média */}
       {budgetMode === 'media' && budget > 0 && totalFees > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-green-800 mb-2">
@@ -284,7 +277,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* MODIFIÉ: Coût par unité avec label dynamique */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -321,7 +313,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           )}
         </div>
 
-        {/* MODIFIÉ: Volume d'unité avec label dynamique */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -356,9 +347,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
- 
-
-      {/* Message si données incomplètes */}
       {(!budget || !costPerUnit) && !disabled && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <div className="text-sm text-yellow-700">
@@ -371,7 +359,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       )}
 
-      {/* Message si champs désactivés */}
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

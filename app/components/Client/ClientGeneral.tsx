@@ -1,5 +1,9 @@
-// app/components/Client/ClientGeneral.tsx
-
+/**
+ * Ce composant gère l'affichage et la modification des informations générales d'un client.
+ * Il permet aux utilisateurs disposant des permissions adéquates de mettre à jour le nom, le logo,
+ * les bureaux, l'agence et d'autres paramètres spécifiques au client.
+ * Il charge les informations depuis Firebase et gère la soumission des mises à jour.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +22,7 @@ interface ClientDetails {
   CL_Export_Language: 'FR' | 'EN';
   CL_ID: string;
   CL_Default_Drive_Folder: string;
-  CL_Cost_Guide_ID: string; // NOUVEAU
+  CL_Cost_Guide_ID: string;
   CL_Custom_Fee_1: string;
   CL_Custom_Fee_2: string;
   CL_Custom_Fee_3: string;
@@ -27,11 +31,18 @@ interface ClientDetails {
 const OFFICES = ['QC', 'VAN', 'MTL', 'TO'];
 const AGENCIES = ['Jungle Média', 'Mekanism', 'Cossette Media', 'K72', 'Showroom'];
 
+/**
+ * Composant principal pour la gestion des informations générales du client.
+ * Il affiche un formulaire pré-rempli avec les données du client sélectionné
+ * et permet leur modification et enregistrement.
+ * Le composant gère son propre état pour les détails du client, le chargement,
+ * les erreurs et les confirmations de succès.
+ */
 const ClientGeneral: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [clientDetails, setClientDetails] = useState<ClientDetails | null>(null);
-  const [costGuides, setCostGuides] = useState<CostGuide[]>([]); // NOUVEAU
+  const [costGuides, setCostGuides] = useState<CostGuide[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +51,15 @@ const ClientGeneral: React.FC = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-  // Vérifier si l'utilisateur a la permission de gérer les informations générales du client
   const hasClientInfoPermission = canPerformAction('ClientInfo');
 
-  // Charger les guides de coûts disponibles
+  /**
+   * Charge la liste de tous les guides de coûts disponibles depuis Firebase.
+   * Met à jour l'état `costGuides` avec les données récupérées.
+   */
   const loadCostGuides = async () => {
     try {
+      console.log("FIREBASE: [LECTURE] - Fichier: ClientGeneral.tsx - Fonction: loadCostGuides - Path: cost_guides");
       const guides = await getCostGuides();
       setCostGuides(guides);
     } catch (err) {
@@ -53,14 +67,17 @@ const ClientGeneral: React.FC = () => {
     }
   };
 
-  // Charger les données du client quand le client sélectionné change
   useEffect(() => {
     if (selectedClient) {
       loadClientDetails();
     }
-    loadCostGuides(); // Charger les guides de coûts
+    loadCostGuides();
   }, [selectedClient]);
 
+  /**
+   * Récupère les détails du client actuellement sélectionné depuis Firebase.
+   * Met à jour l'état `clientDetails` et gère les états de chargement et d'erreur.
+   */
   const loadClientDetails = async () => {
     if (!selectedClient) return;
     
@@ -68,6 +85,7 @@ const ClientGeneral: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log(`FIREBASE: [LECTURE] - Fichier: ClientGeneral.tsx - Fonction: loadClientDetails - Path: clients/${selectedClient.clientId}`);
       const details = await getClientInfo(selectedClient.clientId);
       
       setClientDetails({
@@ -78,7 +96,7 @@ const ClientGeneral: React.FC = () => {
         CL_Export_Language: details.CL_Export_Language || 'FR',
         CL_ID: selectedClient.clientId,
         CL_Default_Drive_Folder: details.CL_Default_Drive_Folder || '',
-        CL_Cost_Guide_ID: details.CL_Cost_Guide_ID || '', // NOUVEAU
+        CL_Cost_Guide_ID: details.CL_Cost_Guide_ID || '',
         CL_Custom_Fee_1: details.CL_Custom_Fee_1 || '',
         CL_Custom_Fee_2: details.CL_Custom_Fee_2 || '',
         CL_Custom_Fee_3: details.CL_Custom_Fee_3 || '',
@@ -91,6 +109,12 @@ const ClientGeneral: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire de modification des informations du client.
+   * Si un nouveau logo est fourni, il le télécharge d'abord.
+   * Ensuite, il met à jour les informations du client dans Firebase.
+   * @param {React.FormEvent} e L'événement du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient || !clientDetails || !hasClientInfoPermission) return;
@@ -99,9 +123,9 @@ const ClientGeneral: React.FC = () => {
       setSaving(true);
       setError(null);
       
-      // Si un nouveau logo a été sélectionné, le télécharger
       if (logoFile) {
         try {
+          console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientGeneral.tsx - Fonction: handleSubmit - Path: client_logos/${selectedClient.clientId}`);
           const logoUrl = await uploadClientLogo(selectedClient.clientId, logoFile);
           clientDetails.CL_Logo = logoUrl;
         } catch (logoError) {
@@ -110,6 +134,7 @@ const ClientGeneral: React.FC = () => {
         }
       }
       
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientGeneral.tsx - Fonction: handleSubmit - Path: clients/${selectedClient.clientId}`);
       await updateClientInfo(selectedClient.clientId, clientDetails);
       
       setSuccess('Les informations du client ont été mises à jour avec succès.');
@@ -122,6 +147,11 @@ const ClientGeneral: React.FC = () => {
     }
   };
 
+  /**
+   * Met à jour l'état `clientDetails` lorsqu'un utilisateur modifie un champ
+   * du formulaire (input, select, textarea).
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e L'événement de changement.
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     if (!clientDetails || !hasClientInfoPermission) return;
     
@@ -132,6 +162,11 @@ const ClientGeneral: React.FC = () => {
     });
   };
 
+  /**
+   * Gère la sélection/désélection des checkboxes pour les bureaux.
+   * Met à jour la liste des bureaux dans l'état `clientDetails`.
+   * @param {string} office Le nom du bureau (ex: 'QC', 'MTL').
+   */
   const handleCheckboxChange = (office: string) => {
     if (!clientDetails || !hasClientInfoPermission) return;
     
@@ -145,6 +180,12 @@ const ClientGeneral: React.FC = () => {
     });
   };
 
+  /**
+   * Gère le changement de fichier pour le logo du client.
+   * Stocke le fichier sélectionné dans l'état `logoFile` et génère un aperçu
+   * qui est stocké dans l'état `logoPreview`.
+   * @param {React.ChangeEvent<HTMLInputElement>} e L'événement de changement du champ de fichier.
+   */
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!hasClientInfoPermission) return;
     
@@ -152,7 +193,6 @@ const ClientGeneral: React.FC = () => {
       const file = e.target.files[0];
       setLogoFile(file);
       
-      // Créer une URL pour la prévisualisation
       const reader = new FileReader();
       reader.onload = (event) => {
         setLogoPreview(event.target?.result as string);
@@ -161,6 +201,11 @@ const ClientGeneral: React.FC = () => {
     }
   };
 
+  /**
+   * Copie le texte fourni dans le presse-papiers de l'utilisateur.
+   * Affiche une confirmation visuelle temporaire.
+   * @param {string} text Le texte à copier.
+   */
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(
       () => {
@@ -172,8 +217,12 @@ const ClientGeneral: React.FC = () => {
       }
     );
   };
-
-  // Trouver le nom du guide de coûts sélectionné
+  
+  /**
+   * Trouve et retourne le nom du guide de coûts actuellement sélectionné pour le client.
+   * Si aucun guide n'est sélectionné ou si le guide n'est pas trouvé, retourne un message par défaut.
+   * @returns {string} Le nom du guide de coûts ou un message par défaut.
+   */
   const getSelectedCostGuideName = () => {
     if (!clientDetails?.CL_Cost_Guide_ID) return 'Aucun guide sélectionné';
     const selectedGuide = costGuides.find(guide => guide.id === clientDetails.CL_Cost_Guide_ID);
@@ -220,9 +269,7 @@ const ClientGeneral: React.FC = () => {
         )}
         
         <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-          {/* Section du haut : Logo, Nom et ID */}
           <div className="grid grid-cols-12 gap-6 pb-6">
-            {/* Logo du client - aligné à gauche */}
             <div className="col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Logo du client
@@ -260,9 +307,7 @@ const ClientGeneral: React.FC = () => {
               </div>
             </div>
             
-            {/* Nom et ID du client */}
             <div className="col-span-9">
-              {/* Nom du client */}
               <div className="mb-6">
                 <label htmlFor="CL_Name" className="block text-sm font-medium text-gray-700 mb-1">
                   Nom du client
@@ -281,7 +326,6 @@ const ClientGeneral: React.FC = () => {
                 />
               </div>
               
-              {/* ID Client */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   ID Client
@@ -312,14 +356,10 @@ const ClientGeneral: React.FC = () => {
             </div>
           </div>
           
-          {/* Séparateur horizontal avec espace supplémentaire */}
           <div className="border-t border-gray-200 my-4"></div>
           
-          {/* Section du bas : Bureaux, Agence, Langue, Drive, Guide de coûts */}
           <div className="grid grid-cols-12 gap-6 pt-2">
-            {/* Colonne de gauche - réduite */}
             <div className="col-span-3">
-              {/* Bureaux */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Bureaux
@@ -345,7 +385,6 @@ const ClientGeneral: React.FC = () => {
                 </div>
               </div>
               
-              {/* Langue d'exportation */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Langue d'exportation
@@ -389,9 +428,7 @@ const ClientGeneral: React.FC = () => {
               </div>
             </div>
             
-            {/* Colonne de droite - plus large et alignée */}
             <div className="col-span-9">
-              {/* Agence */}
               <div className="mb-6">
                 <label htmlFor="CL_Agency" className="block text-sm font-medium text-gray-700 mb-1">
                   Agence
@@ -415,7 +452,6 @@ const ClientGeneral: React.FC = () => {
                 </select>
               </div>
               
-              {/* Guide de coûts - NOUVEAU */}
               <div className="mb-6">
                 <label htmlFor="CL_Cost_Guide_ID" className="block text-sm font-medium text-gray-700 mb-1">
                   Guide de coûts
@@ -440,7 +476,6 @@ const ClientGeneral: React.FC = () => {
               
               </div>
               
-              {/* Dossier Drive par défaut */}
               <div>
                 <label htmlFor="CL_Default_Drive_Folder" className="block text-sm font-medium text-gray-700 mb-1">
                   Dossier Drive par défaut
@@ -461,14 +496,11 @@ const ClientGeneral: React.FC = () => {
             </div>
           </div>
           
-          {/* Séparateur horizontal avec espace supplémentaire */}
           <div className="border-t border-gray-200 my-4"></div>
           
-          {/* Section des frais généraux */}
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4">Frais généraux</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Frais 1 */}
               <div>
                 <label htmlFor="CL_Custom_Fee_1" className="block text-sm font-medium text-gray-700 mb-1">
                   Frais personnalisé 1
@@ -486,7 +518,6 @@ const ClientGeneral: React.FC = () => {
                 />
               </div>
               
-              {/* Frais 2 */}
               <div>
                 <label htmlFor="CL_Custom_Fee_2" className="block text-sm font-medium text-gray-700 mb-1">
                   Frais personnalisé 2
@@ -504,7 +535,6 @@ const ClientGeneral: React.FC = () => {
                 />
               </div>
               
-              {/* Frais 3 */}
               <div>
                 <label htmlFor="CL_Custom_Fee_3" className="block text-sm font-medium text-gray-700 mb-1">
                   Frais personnalisé 3
@@ -524,7 +554,6 @@ const ClientGeneral: React.FC = () => {
             </div>
           </div>
           
-          {/* Boutons d'action */}
           <div className="pt-5 border-t border-gray-200 mt-8">
             <div className="flex justify-end">
               <button

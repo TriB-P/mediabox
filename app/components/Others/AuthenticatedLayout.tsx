@@ -1,9 +1,22 @@
+/**
+ * Ce fichier définit le composant AuthenticatedLayout, qui sert de structure de base
+ * pour les pages nécessitant une authentification de l'utilisateur. Il inclut une barre
+ * de navigation latérale persistante et une barre supérieure affichant les informations
+ * de l'utilisateur connecté avec un menu pour se déconnecter. Le contenu de chaque
+ * page est injecté via la prop `children`.
+ */
+
 'use client';
 
 import Navigation from './Navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useState, useRef, useEffect } from 'react';
 
+/**
+ * Crée une mise en page protégée pour les utilisateurs authentifiés.
+ * @param {React.ReactNode} children - Les composants enfants à afficher dans la zone de contenu principal.
+ * @returns {JSX.Element} Le composant de mise en page avec navigation et menu utilisateur.
+ */
 export default function AuthenticatedLayout({
   children,
 }: {
@@ -13,7 +26,10 @@ export default function AuthenticatedLayout({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Fermer le menu quand on clique en dehors
+  /**
+   * Effet pour gérer la fermeture du menu utilisateur lorsqu'un clic est détecté
+   * en dehors de celui-ci.
+   */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -53,11 +69,11 @@ export default function AuthenticatedLayout({
                   <span className="text-sm font-medium">{user.displayName || user.email}</span>
                 </button>
 
-                {/* Menu déroulant */}
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
                     <button
                       onClick={() => {
+                        console.log("FIREBASE: ÉCRITURE - Fichier: AuthenticatedLayout.tsx - Fonction: onClick (Déconnexion) - Path: Firebase Authentication");
                         signOut();
                         setIsMenuOpen(false);
                       }}

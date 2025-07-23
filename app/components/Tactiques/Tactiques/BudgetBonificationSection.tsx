@@ -1,60 +1,73 @@
-// app/components/Tactiques/BudgetBonificationSection.tsx - AVEC PROP ONTOGGLE
+// app/components/Tactiques/BudgetBonificationSection.tsx
+
+/**
+ * Ce fichier définit le composant `BudgetBonificationSection`, une section de formulaire React
+ * dédiée à la gestion de la bonification d'une tactique média.
+ *
+ * Le composant permet à l'utilisateur d'activer ou de désactiver la bonification,
+ * de saisir la valeur réelle de la tactique et d'afficher la valeur de la bonification calculée.
+ * Il est conçu pour être intégré dans des formulaires plus larges et interagit avec
+ * un état parent via des props (callbacks). Il ne gère pas d'état interne pour les valeurs
+ * du formulaire, assurant ainsi une source de vérité unique au niveau du composant parent.
+ */
 
 'use client';
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 
-// ==================== TYPES ====================
-
 interface BudgetBonificationSectionProps {
-  // Données du formulaire
   formData: {
     TC_Currency?: string;
     TC_Has_Bonus?: boolean;
     TC_Real_Value?: number;
     TC_Bonus_Value?: number;
   };
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   onCalculatedChange: (field: string, value: number) => void;
-  
-  // 🔥 NOUVEAU: Gestionnaire externe pour le toggle
   onToggle?: (hasBonus: boolean) => void;
-  
-  // Données externes (pour affichage informatif seulement)
   mediaBudget: number;
-  
-  // État de chargement
   disabled?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * @component BudgetBonificationSection
+ * @description Affiche et gère la section du formulaire relative à la bonification budgétaire.
+ * Ce composant est "memoized" pour optimiser les performances en évitant les re-rendus inutiles.
+ * @param {BudgetBonificationSectionProps} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données actuelles du formulaire.
+ * @param {function} props.onChange - Callback pour les changements sur les champs standards.
+ * @param {function} props.onTooltipChange - Callback pour afficher des infobulles d'aide.
+ * @param {function} props.onCalculatedChange - Callback pour mettre à jour des champs calculés dans le formulaire parent.
+ * @param {function} [props.onToggle] - Callback optionnel pour gérer spécifiquement l'activation/désactivation de la bonification.
+ * @param {number} props.mediaBudget - Le budget média de référence pour les calculs.
+ * @param {boolean} [props.disabled=false] - État pour désactiver les interactions sur le composant.
+ * @returns {React.ReactElement} Le JSX de la section de bonification.
+ */
 const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
   formData,
   onChange,
   onTooltipChange,
   onCalculatedChange,
-  onToggle, // 🔥 NOUVEAU: Gestionnaire externe
+  onToggle,
   mediaBudget,
   disabled = false
 }) => {
   
-  // Extraire les valeurs du formulaire
   const hasBonus = formData.TC_Has_Bonus || false;
   const realValue = formData.TC_Real_Value || 0;
   const bonusValue = formData.TC_Bonus_Value || 0;
   const currency = formData.TC_Currency || 'CAD';
 
-  // Validation de la valeur réelle (pour affichage seulement)
+  /**
+   * @description Calcule et mémorise l'état de validation de la valeur réelle saisie.
+   * La validation dépend de la valeur du budget média et de la valeur réelle elle-même.
+   * @returns {{isValid: boolean, message: string | null}} Un objet contenant l'état de validité et un message associé.
+   */
   const validationStatus = useMemo(() => {
-    // Si bonification désactivée, toujours valide
     if (!hasBonus) return { isValid: true, message: null };
     
-    // Si bonification activée mais pas de valeur saisie encore, pas d'erreur
     if (realValue === 0) {
       return { 
         isValid: true, 
@@ -79,27 +92,31 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     return { isValid: true, message: null };
   }, [hasBonus, realValue, mediaBudget]);
 
-  // Pourcentage de bonification (pour affichage informatif)
+  /**
+   * @description Calcule et mémorise le pourcentage de la bonification par rapport au budget média.
+   * @returns {number} Le pourcentage de bonification. Retourne 0 si les conditions ne sont pas remplies.
+   */
   const bonusPercentage = useMemo(() => {
     if (!hasBonus || mediaBudget <= 0 || bonusValue <= 0) return 0;
     return (bonusValue / mediaBudget) * 100;
   }, [hasBonus, mediaBudget, bonusValue]);
 
-  // 🔥 CORRECTION: Gestionnaire pour le toggle bonification
+  /**
+   * @function handleHasBonusChange
+   * @description Gère le changement d'état de la case à cocher pour la bonification.
+   * Utilise le callback `onToggle` s'il est fourni, sinon utilise le `onChange` par défaut
+   * et réinitialise les champs liés si la bonification est désactivée.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   */
   const handleHasBonusChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     
     if (onToggle) {
-      // Utiliser le gestionnaire externe si fourni
-      console.log('🎁 Utilisation gestionnaire externe pour toggle bonification');
       onToggle(checked);
     } else {
-      // Fallback vers l'ancien comportement
-      console.log('🎁 Utilisation gestionnaire interne pour toggle bonification');
       onChange(e);
       
       if (!checked) {
-        // Reset des valeurs si bonification désactivée
         setTimeout(() => {
           onCalculatedChange('TC_Real_Value', 0);
           onCalculatedChange('TC_Bonus_Value', 0);
@@ -108,14 +125,23 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     }
   }, [onToggle, onChange, onCalculatedChange]);
 
-  // Gestionnaire pour la valeur réelle
+  /**
+   * @function handleRealValueChange
+   * @description Gère le changement de la valeur réelle. Met à jour la valeur dans le
+   * formulaire parent via le callback `onCalculatedChange`.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement de l'input.
+   */
   const handleRealValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newRealValue = parseFloat(e.target.value) || 0;
     onCalculatedChange('TC_Real_Value', newRealValue);
-    // Note: La bonification sera recalculée automatiquement par le système parent
   }, [onCalculatedChange]);
 
-  // Formatage des montants
+  /**
+   * @function formatCurrency
+   * @description Formate un nombre en une chaîne de caractères représentant une devise (CAD).
+   * @param {number} value - La valeur numérique à formater.
+   * @returns {string} La valeur formatée en devise.
+   */
   const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
@@ -123,6 +149,12 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     }).format(value);
   }, []);
 
+  /**
+   * @function formatPercentage
+   * @description Formate un nombre en une chaîne de caractères représentant un pourcentage.
+   * @param {number} value - La valeur numérique à formater.
+   * @returns {string} La valeur formatée en pourcentage.
+   */
   const formatPercentage = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 1,
@@ -132,7 +164,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Toggle bonification */}
       <div className="flex items-start">
         <div className="flex items-center h-6">
           <input
@@ -162,7 +193,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       </div>
 
-      {/* Message si budget média nécessaire */}
       {mediaBudget <= 0 && hasBonus && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -171,10 +201,8 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       )}
 
-      {/* Champs de bonification */}
       {hasBonus && (
         <div className="space-y-6 pl-7">
-          {/* Information sur le budget média de référence */}
           {mediaBudget > 0 && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h5 className="text-sm font-medium text-gray-800 mb-2">
@@ -192,7 +220,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
           )}
 
-          {/* 🔥 NOUVEAU: Message informatif si valeur réelle = 0 */}
           {realValue === 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -212,7 +239,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
           )}
 
-          {/* Valeur réelle */}
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
@@ -239,14 +265,12 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
               />
             </div>
             
-            {/* Message de validation */}
             {validationStatus.message && (
               <div className={`mt-1 text-sm ${validationStatus.isValid ? 'text-blue-600' : 'text-red-600'}`}>
                 {validationStatus.message}
               </div>
             )}
             
-            {/* Informations contextuelles */}
             {realValue > 0 && validationStatus.isValid && mediaBudget > 0 && (
               <div className="mt-2 text-sm text-gray-600">
                 {realValue >= mediaBudget 
@@ -257,7 +281,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             )}
           </div>
 
-          {/* Bonification calculée (affichage en lecture seule) */}
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
@@ -302,7 +325,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             )}
           </div>
 
-          {/* Récapitulatif de la bonification */}
           {realValue > 0 && bonusValue > 0 && mediaBudget > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h5 className="text-sm font-medium text-green-800 mb-3">
@@ -330,7 +352,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       )}
 
-      {/* Message d'explication quand la bonification est désactivée */}
       {!hasBonus && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -339,7 +360,6 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         </div>
       )}
 
-      {/* Message si champs désactivés */}
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

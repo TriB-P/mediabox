@@ -1,5 +1,9 @@
-// app/components/Campaigns/CampaignVersions.tsx
-
+/**
+ * Ce composant React gère l'affichage et les interactions avec les versions d'une campagne spécifique.
+ * Il permet aux utilisateurs de voir la liste des versions, d'en créer une nouvelle, de supprimer
+ * une version existante et de désigner une version comme "officielle".
+ * Ce composant est conçu pour être utilisé dans la page de détails d'une campagne.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,6 +27,15 @@ interface CampaignVersionsProps {
   onVersionChange?: () => void;
 }
 
+/**
+ * Affiche et gère les versions d'une campagne.
+ * @param {CampaignVersionsProps} props - Les propriétés du composant.
+ * @param {string} props.clientId - L'ID du client.
+ * @param {string} props.campaignId - L'ID de la campagne.
+ * @param {string} [props.officialVersionId] - L'ID de la version officielle actuelle.
+ * @param {() => void} [props.onVersionChange] - Callback exécuté lorsqu'une version est modifiée (créée, supprimée, définie comme officielle).
+ * @returns {JSX.Element} Le composant de gestion des versions de la campagne.
+ */
 export default function CampaignVersions({
   clientId,
   campaignId,
@@ -40,9 +53,14 @@ export default function CampaignVersions({
     loadVersions();
   }, [clientId, campaignId]);
 
+  /**
+   * Charge les versions de la campagne depuis Firebase.
+   * Met à jour l'état du composant avec les données récupérées.
+   */
   const loadVersions = async () => {
     try {
       setLoading(true);
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignVersions.tsx - Fonction: loadVersions - Path: clients/${clientId}/campaigns/${campaignId}/versions`);
       const data = await getVersions(clientId, campaignId);
       setVersions(data);
     } catch (error) {
@@ -52,6 +70,10 @@ export default function CampaignVersions({
     }
   };
 
+  /**
+   * Gère la création d'une nouvelle version pour la campagne.
+   * La fonction est déclenchée par le formulaire de création.
+   */
   const handleCreateVersion = async () => {
     if (!newVersionName.trim() || !user?.email) return;
 
@@ -61,6 +83,7 @@ export default function CampaignVersions({
         name: newVersionName
       };
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignVersions.tsx - Fonction: handleCreateVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions`);
       await createVersion(clientId, campaignId, formData, user.email);
       setNewVersionName('');
       setCreating(false);
@@ -74,8 +97,13 @@ export default function CampaignVersions({
     }
   };
 
+  /**
+   * Définit une version sélectionnée comme la version officielle de la campagne.
+   * @param {string} versionId - L'ID de la version à définir comme officielle.
+   */
   const handleSetOfficial = async (versionId: string) => {
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignVersions.tsx - Fonction: handleSetOfficial - Path: clients/${clientId}/campaigns/${campaignId}`);
       await setOfficialVersion(clientId, campaignId, versionId);
       await loadVersions();
       onVersionChange?.();
@@ -85,14 +113,17 @@ export default function CampaignVersions({
     }
   };
 
+  /**
+   * Gère la suppression d'une version après confirmation de l'utilisateur.
+   * Empêche la suppression de la version officielle.
+   * @param {Version} version - L'objet de la version à supprimer.
+   */
   const handleDeleteVersion = async (version: Version) => {
-    // Empêcher la suppression de la version officielle
     if (version.isOfficial) {
       alert('Impossible de supprimer la version officielle.');
       return;
     }
 
-    // Message de confirmation avec avertissement
     const confirmMessage = `Êtes-vous sûr de vouloir supprimer la version "${version.name}" ?
 
 ⚠️ ATTENTION : Cette action est irréversible et supprimera :
@@ -109,6 +140,7 @@ Voulez-vous vraiment continuer ?`;
 
     try {
       setDeletingVersionId(version.id);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignVersions.tsx - Fonction: handleDeleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${version.id}`);
       await deleteVersion(clientId, campaignId, version.id);
       await loadVersions();
       onVersionChange?.();
@@ -183,7 +215,6 @@ Voulez-vous vraiment continuer ?`;
               </div>
             </div>
 
-            {/* Bouton de suppression */}
             {!version.isOfficial && (
               <div className="flex items-center gap-2">
                 <button

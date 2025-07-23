@@ -1,14 +1,20 @@
+/**
+ * @file Ce fichier définit le composant CampaignDrawer, qui est une interface utilisateur sous forme de panneau latéral ("drawer").
+ * Ce panneau est utilisé pour créer une nouvelle campagne ou pour modifier une campagne existante.
+ * Il gère l'état du formulaire, charge les données nécessaires depuis Firebase (comme les listes pour les menus déroulants) et gère la soumission des données.
+ */
+
 'use client';
 
-import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { 
-  DocumentTextIcon, 
-  CalendarIcon, 
-  BanknotesIcon, 
+import {
+  DocumentTextIcon,
+  CalendarIcon,
+  BanknotesIcon,
   CogIcon,
-  ClockIcon
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { Campaign, CampaignFormData } from '../../types/campaign';
 import { BreakdownFormData } from '../../types/breakdown';
@@ -25,7 +31,6 @@ import {
   ShortcodeItem,
   getClientInfo,
 } from '../../lib/listService';
-import { useUpdateTaxonomies } from '@/hooks/useUpdateTaxonomies';
 import { useAsyncTaxonomyUpdate } from '../../hooks/useAsyncTaxonomyUpdate';
 import TaxonomyUpdateBanner from '../Others/TaxonomyUpdateBanner';
 
@@ -33,7 +38,10 @@ interface CampaignDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   campaign?: Campaign | null;
-  onSave: (campaign: CampaignFormData, additionalBreakdowns?: BreakdownFormData[]) => void;
+  onSave: (
+    campaign: CampaignFormData,
+    additionalBreakdowns?: BreakdownFormData[]
+  ) => void;
 }
 
 interface ClientConfig {
@@ -45,6 +53,17 @@ interface ClientConfig {
   CL_Custom_Fee_3?: string;
 }
 
+/**
+ * Affiche un panneau latéral (drawer) pour créer ou modifier une campagne.
+ * Le composant gère les onglets de formulaire, la récupération des données de listes,
+ * la validation et la soumission des données de campagne.
+ * @param {CampaignDrawerProps} props - Les propriétés du composant.
+ * @param {boolean} props.isOpen - Indique si le panneau est ouvert ou fermé.
+ * @param {() => void} props.onClose - Fonction à appeler pour fermer le panneau.
+ * @param {Campaign | null} [props.campaign] - Les données de la campagne à modifier. Si null, le formulaire est en mode création.
+ * @param {(campaign: CampaignFormData, additionalBreakdowns?: BreakdownFormData[]) => void} props.onSave - Fonction à appeler lors de la sauvegarde de la campagne.
+ * @returns {JSX.Element} Le composant du panneau latéral de la campagne.
+ */
 export default function CampaignDrawer({
   isOpen,
   onClose,
@@ -52,7 +71,8 @@ export default function CampaignDrawer({
   onSave,
 }: CampaignDrawerProps) {
   const { selectedClient } = useClient();
-  const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
+  const { status, updateTaxonomiesAsync, dismissNotification } =
+    useAsyncTaxonomyUpdate();
 
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -70,7 +90,9 @@ export default function CampaignDrawer({
     CA_Currency: 'CAD',
   });
 
-  const [additionalBreakdowns, setAdditionalBreakdowns] = useState<BreakdownFormData[]>([]);
+  const [additionalBreakdowns, setAdditionalBreakdowns] = useState<
+    BreakdownFormData[]
+  >([]);
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
   const [quarters, setQuarters] = useState<ShortcodeItem[]>([]);
   const [years, setYears] = useState<ShortcodeItem[]>([]);
@@ -84,13 +106,16 @@ export default function CampaignDrawer({
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingCustomDims, setLoadingCustomDims] = useState(false);
 
-  const tabs: FormTab[] = useMemo(() => [
-    { id: 'info', name: 'Informations', icon: DocumentTextIcon },
-    { id: 'dates', name: 'Dates', icon: CalendarIcon },
-    { id: 'budget', name: 'Budget', icon: BanknotesIcon },
-    { id: 'breakdown', name: 'Répartition', icon: ClockIcon },
-    { id: 'admin', name: 'Administration', icon: CogIcon },
-  ], []);
+  const tabs: FormTab[] = useMemo(
+    () => [
+      { id: 'info', name: 'Informations', icon: DocumentTextIcon },
+      { id: 'dates', name: 'Dates', icon: CalendarIcon },
+      { id: 'budget', name: 'Budget', icon: BanknotesIcon },
+      { id: 'breakdown', name: 'Répartition', icon: ClockIcon },
+      { id: 'admin', name: 'Administration', icon: CogIcon },
+    ],
+    []
+  );
 
   useEffect(() => {
     if (campaign) {
@@ -136,7 +161,7 @@ export default function CampaignDrawer({
       setAdditionalBreakdowns([]);
     }
   }, [campaign]);
-  
+
   useEffect(() => {
     const { CA_Start_Date, CA_End_Date } = formData;
 
@@ -144,35 +169,50 @@ export default function CampaignDrawer({
       const startDate = new Date(CA_Start_Date);
       const endDate = new Date(CA_End_Date);
 
-      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate <= endDate) {
+      if (
+        !isNaN(startDate.getTime()) &&
+        !isNaN(endDate.getTime()) &&
+        startDate <= endDate
+      ) {
         const formatSprintDate = (date: Date): string => {
-          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const monthNames = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+          ];
           const month = monthNames[date.getUTCMonth()];
           const year = date.getUTCFullYear();
           return `${month}${year}`;
         };
 
-        const formattedSprintDates = `${formatSprintDate(startDate)}-${formatSprintDate(endDate)}`;
-        
+        const formattedSprintDates = `${formatSprintDate(
+          startDate
+        )}-${formatSprintDate(endDate)}`;
+
         if (formattedSprintDates !== formData.CA_Sprint_Dates) {
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
-            CA_Sprint_Dates: formattedSprintDates
+            CA_Sprint_Dates: formattedSprintDates,
           }));
         }
       }
     }
-  }, [formData.CA_Start_Date, formData.CA_End_Date]);
+  }, [formData.CA_Start_Date, formData.CA_End_Date, formData.CA_Sprint_Dates]);
 
   useEffect(() => {
     if (!selectedClient || !isOpen) return;
     loadAllData();
   }, [selectedClient, isOpen]);
 
+  /**
+   * Charge toutes les données nécessaires pour les listes déroulantes du formulaire de campagne.
+   * Récupère les informations du client, les dimensions personnalisées, les divisions,
+   * les trimestres et les années depuis Firebase.
+   */
   const loadAllData = async () => {
     if (!selectedClient) return;
     setLoading(true);
     try {
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}`);
       const clientInfo = await getClientInfo(selectedClient.clientId);
       if (clientInfo) {
         setClientConfig({
@@ -185,19 +225,46 @@ export default function CampaignDrawer({
         });
         setLoadingCustomDims(true);
         const customDimPromises = [
-          clientInfo.Custom_Dim_CA_1 ? getClientList('CA_Custom_Dim_1', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_1', 'PlusCo')).then(setCustomDim1List) : Promise.resolve(),
-          clientInfo.Custom_Dim_CA_2 ? getClientList('CA_Custom_Dim_2', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_2', 'PlusCo')).then(setCustomDim2List) : Promise.resolve(),
-          clientInfo.Custom_Dim_CA_3 ? getClientList('CA_Custom_Dim_3', selectedClient.clientId).catch(() => getClientList('CA_Custom_Dim_3', 'PlusCo')).then(setCustomDim3List) : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_1
+            ? (console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Custom_Dim_1/${selectedClient.clientId} or list/CA_Custom_Dim_1/PlusCo`),
+              getClientList('CA_Custom_Dim_1', selectedClient.clientId)
+                .catch(() => getClientList('CA_Custom_Dim_1', 'PlusCo'))
+                .then(setCustomDim1List))
+            : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_2
+            ? (console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Custom_Dim_2/${selectedClient.clientId} or list/CA_Custom_Dim_2/PlusCo`),
+              getClientList('CA_Custom_Dim_2', selectedClient.clientId)
+                .catch(() => getClientList('CA_Custom_Dim_2', 'PlusCo'))
+                .then(setCustomDim2List))
+            : Promise.resolve(),
+          clientInfo.Custom_Dim_CA_3
+            ? (console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Custom_Dim_3/${selectedClient.clientId} or list/CA_Custom_Dim_3/PlusCo`),
+              getClientList('CA_Custom_Dim_3', selectedClient.clientId)
+                .catch(() => getClientList('CA_Custom_Dim_3', 'PlusCo'))
+                .then(setCustomDim3List))
+            : Promise.resolve(),
         ];
         await Promise.all(customDimPromises);
         setLoadingCustomDims(false);
       }
       setLoadingDivisions(true);
-      getClientList('CA_Division', selectedClient.clientId).catch(() => getClientList('CA_Division', 'PlusCo')).then(setDivisions).finally(() => setLoadingDivisions(false));
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Division/${selectedClient.clientId} (fallback: PlusCo)`);
+      getClientList('CA_Division', selectedClient.clientId)
+        .catch(() => getClientList('CA_Division', 'PlusCo'))
+        .then(setDivisions)
+        .finally(() => setLoadingDivisions(false));
       setLoadingQuarters(true);
-      getClientList('CA_Quarter', selectedClient.clientId).catch(() => getClientList('CA_Quarter', 'PlusCo')).then(setQuarters).finally(() => setLoadingQuarters(false));
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Quarter/${selectedClient.clientId} (fallback: PlusCo)`);
+      getClientList('CA_Quarter', selectedClient.clientId)
+        .catch(() => getClientList('CA_Quarter', 'PlusCo'))
+        .then(setQuarters)
+        .finally(() => setLoadingQuarters(false));
       setLoadingYears(true);
-      getClientList('CA_Year', selectedClient.clientId).catch(() => getClientList('CA_Year', 'PlusCo')).then(setYears).finally(() => setLoadingYears(false));
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: list/CA_Year/${selectedClient.clientId} (fallback: PlusCo)`);
+      getClientList('CA_Year', selectedClient.clientId)
+        .catch(() => getClientList('CA_Year', 'PlusCo'))
+        .then(setYears)
+        .finally(() => setLoadingYears(false));
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -205,65 +272,101 @@ export default function CampaignDrawer({
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  /**
+   * Gère les changements de valeur des champs du formulaire et met à jour l'état `formData`.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'événement de changement.
+   */
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 3. Passage de la fonction en async
+  /**
+   * Gère la soumission du formulaire. Appelle la fonction `onSave` passée en props,
+   * ferme le panneau, et déclenche une mise à jour des taxonomies en arrière-plan si nécessaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
-      // 1. Sauvegarder rapidement comme avant
       await onSave(formData, campaign ? undefined : additionalBreakdowns);
-      
-      // 2. Fermer immédiatement le drawer
       onClose();
-      
-      // 3. Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN (pas d'await!)
+
       if (campaign && campaign.id && selectedClient) {
-        console.log(`🚀 Lancement mise à jour taxonomies en arrière-plan pour: ${campaign.id}`);
-        
-        updateTaxonomiesAsync('campaign', { 
-          id: campaign.id, 
+        console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignDrawer.tsx - Fonction: handleSubmit - Path: taxonomies/campaigns/${campaign.id}`);
+        updateTaxonomiesAsync('campaign', {
+          id: campaign.id,
           name: formData.CA_Name,
-          clientId: selectedClient.clientId
-        }).catch(error => {
+          clientId: selectedClient.clientId,
+        }).catch((error) => {
           console.error('Erreur mise à jour taxonomies:', error);
         });
       }
-      
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      // En cas d'erreur de sauvegarde, on reste dans le drawer
+      console.error('Erreur lors de la sauvegarde:', error);
     } finally {
       setLoading(false);
     }
   };
 
-
+  /**
+   * Met à jour l'état des répartitions budgétaires supplémentaires (breakdowns)
+   * qui sont créées en même temps qu'une nouvelle campagne.
+   * @param {BreakdownFormData[]} breakdowns - Le tableau des nouvelles répartitions.
+   */
   const handleBreakdownsChange = (breakdowns: BreakdownFormData[]) => {
     setAdditionalBreakdowns(breakdowns);
   };
-  
+
+  /**
+   * Affiche le contenu de l'onglet actif dans le formulaire.
+   * @returns {JSX.Element | null} Le composant de formulaire pour l'onglet actuellement sélectionné.
+   */
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
         return (
           <CampaignFormInfo
-            formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip}
-            divisions={divisions} quarters={quarters} years={years}
-            customDim1List={customDim1List} customDim2List={customDim2List} customDim3List={customDim3List}
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            divisions={divisions}
+            quarters={quarters}
+            years={years}
+            customDim1List={customDim1List}
+            customDim2List={customDim2List}
+            customDim3List={customDim3List}
             clientConfig={clientConfig}
-            loadingDivisions={loadingDivisions} loadingQuarters={loadingQuarters}
-            loadingYears={loadingYears} loadingCustomDims={loadingCustomDims} loading={loading}
-          />);
+            loadingDivisions={loadingDivisions}
+            loadingQuarters={loadingQuarters}
+            loadingYears={loadingYears}
+            loadingCustomDims={loadingCustomDims}
+            loading={loading}
+          />
+        );
       case 'dates':
-        return <CampaignFormDates formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} loading={loading} />;
+        return (
+          <CampaignFormDates
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            loading={loading}
+          />
+        );
       case 'budget':
-        return <CampaignFormBudget formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} clientConfig={clientConfig} loading={loading} />;
+        return (
+          <CampaignFormBudget
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            clientConfig={clientConfig}
+            loading={loading}
+          />
+        );
       case 'breakdown':
         return (
           <CampaignFormBreakdown
@@ -274,63 +377,117 @@ export default function CampaignDrawer({
             onTooltipChange={setActiveTooltip}
             onBreakdownsChange={handleBreakdownsChange}
             loading={loading}
-          />);
+          />
+        );
       case 'admin':
-        return <CampaignFormAdmin formData={formData} onChange={handleChange} onTooltipChange={setActiveTooltip} loading={loading} />;
+        return (
+          <CampaignFormAdmin
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            loading={loading}
+          />
+        );
       default:
         return null;
     }
   };
-  
+
   return (
     <>
-      {/* Bandeau de notification */}
-      <TaxonomyUpdateBanner 
-        status={status} 
-        onDismiss={dismissNotification} 
+      <TaxonomyUpdateBanner
+        status={status}
+        onDismiss={dismissNotification}
       />
-    <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child as={Fragment} enter="ease-in-out duration-500" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in-out duration-500" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
-        <div className="fixed inset-0 overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="fixed inset-y-0 right-0 flex max-w-full">
-              <Transition.Child as={Fragment} enter="transform transition ease-in-out duration-500 sm:duration-700" enterFrom="translate-x-full" enterTo="translate-x-0" leave="transform transition ease-in-out duration-500 sm:duration-700" leaveFrom="translate-x-0" leaveTo="translate-x-full">
-                <Dialog.Panel className="pointer-events-auto w-[50vw]">
-                  <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
-                    <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <Dialog.Title className="text-lg font-medium text-white">{campaign ? 'Modifier la campagne' : 'Nouvelle campagne'}</Dialog.Title>
-                        <div className="ml-3 flex h-7 items-center">
-                          <button type="button" className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white" onClick={onClose}>
-                            <span className="sr-only">Fermer</span>
-                            <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                          </button>
+      <Transition.Root show={isOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={onClose}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-in-out duration-500"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in-out duration-500"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="fixed inset-y-0 right-0 flex max-w-full">
+                <Transition.Child
+                  as={Fragment}
+                  enter="transform transition ease-in-out duration-500 sm:duration-700"
+                  enterFrom="translate-x-full"
+                  enterTo="translate-x-0"
+                  leave="transform transition ease-in-out duration-500 sm:duration-700"
+                  leaveFrom="translate-x-0"
+                  leaveTo="translate-x-full"
+                >
+                  <Dialog.Panel className="pointer-events-auto w-[50vw]">
+                    <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
+                      <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
+                        <div className="flex items-center justify-between">
+                          <Dialog.Title className="text-lg font-medium text-white">
+                            {campaign ? 'Modifier la campagne' : 'Nouvelle campagne'}
+                          </Dialog.Title>
+                          <div className="ml-3 flex h-7 items-center">
+                            <button
+                              type="button"
+                              className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white"
+                              onClick={onClose}
+                            >
+                              <span className="sr-only">Fermer</span>
+                              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
                       </div>
+                      <form
+                        onSubmit={handleSubmit}
+                        className="h-full flex flex-col"
+                      >
+                        <FormTabs
+                          tabs={tabs}
+                          activeTab={activeTab}
+                          onTabChange={setActiveTab}
+                        />
+                        <div className="flex-1 overflow-y-auto">
+                          {renderTabContent()}
+                        </div>
+                        <div className="sticky bottom-0 bg-gray-50 px-6 py-4 sm:px-8 border-t border-gray-200">
+                          <div className="flex justify-end space-x-4">
+                            <button
+                              type="button"
+                              onClick={onClose}
+                              disabled={loading}
+                              className="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={loading}
+                              className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                            >
+                              {loading
+                                ? 'Enregistrement...'
+                                : campaign
+                                ? 'Mettre à jour'
+                                : 'Créer'}
+                            </button>
+                          </div>
+                        </div>
+                      </form>
                     </div>
-                    {/* La fonction handleSubmit est maintenant liée ici */}
-                    <form onSubmit={handleSubmit} className="h-full flex flex-col">
-                      <FormTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-                      <div className="flex-1 overflow-y-auto">{renderTabContent()}</div>
-                      <div className="sticky bottom-0 bg-gray-50 px-6 py-4 sm:px-8 border-t border-gray-200">
-                        <div className="flex justify-end space-x-4">
-                          <button type="button" onClick={onClose} disabled={loading} className="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors">Annuler</button>
-                          <button type="submit" disabled={loading} className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors">{loading ? 'Enregistrement...' : (campaign ? 'Mettre à jour' : 'Créer')}</button>
-                        </div>
-                      </div>
-                    </form>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
             </div>
           </div>
-        </div>
-        <TooltipBanner tooltip={activeTooltip} />
-      </Dialog>
-    </Transition.Root>
+          <TooltipBanner tooltip={activeTooltip} />
+        </Dialog>
+      </Transition.Root>
     </>
   );
 }

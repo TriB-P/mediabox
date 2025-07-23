@@ -1,24 +1,34 @@
-// app/components/Others/TopLoadingIndicator.tsx - CORRECTION ERREUR TYPESCRIPT
-
+/**
+ * Ce fichier définit un composant d'indicateur de chargement qui s'affiche en haut de la page.
+ * Il inclut le composant principal `TopLoadingIndicator`, plusieurs variantes prédéfinies pour des cas d'usage courants
+ * (Quick, Save, Error), et un hook personnalisé `useTopLoadingIndicator` pour gérer facilement son état (afficher/masquer/mettre à jour).
+ */
 'use client';
 
 import { useEffect, useState } from 'react';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
-// ==================== TYPES ====================
-
 interface TopLoadingIndicatorProps {
   isVisible: boolean;
   message?: string;
-  progress?: number; // 0-100
+  progress?: number;
   type?: 'info' | 'success' | 'warning' | 'error';
-  autoHide?: boolean; // Auto-masquer après succès (défaut: true)
-  autoHideDelay?: number; // Délai avant masquage (défaut: 2000ms)
+  autoHide?: boolean;
+  autoHideDelay?: number;
   className?: string;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche une barre de chargement en haut de l'écran.
+ * @param {boolean} isVisible - Détermine si l'indicateur est visible.
+ * @param {string} [message='Chargement...'] - Le message à afficher.
+ * @param {number} [progress] - Le pourcentage de progression (0-100) à afficher.
+ * @param {'info' | 'success' | 'warning' | 'error'} [type='info'] - Le type d'indicateur, qui change la couleur.
+ * @param {boolean} [autoHide=true] - Si vrai, se masque automatiquement après un succès.
+ * @param {number} [autoHideDelay=2000] - Le délai en ms avant le masquage automatique.
+ * @param {string} [className=''] - Classes CSS additionnelles à appliquer au conteneur principal.
+ * @returns {JSX.Element | null} Le composant de l'indicateur de chargement ou null s'il n'est pas visible.
+ */
 export default function TopLoadingIndicator({
   isVisible,
   message = 'Chargement...',
@@ -28,36 +38,32 @@ export default function TopLoadingIndicator({
   autoHideDelay = 2000,
   className = ''
 }: TopLoadingIndicatorProps) {
-  
-  // ==================== ÉTATS LOCAUX ====================
-  
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
-  // ==================== GESTION DES ANIMATIONS ====================
-  
+
   useEffect(() => {
     if (isVisible) {
       setIsAnimating(true);
       setShowSuccess(false);
     } else if (isAnimating) {
-      // Quand on arrête le chargement, montrer brièvement le succès
       if (autoHide && type === 'info') {
         setShowSuccess(true);
         const timer = setTimeout(() => {
           setShowSuccess(false);
           setIsAnimating(false);
         }, autoHideDelay);
-        
+
         return () => clearTimeout(timer);
       } else {
         setIsAnimating(false);
       }
     }
   }, [isVisible, isAnimating, autoHide, type, autoHideDelay]);
-  
-  // ==================== STYLES SELON LE TYPE ====================
-  
+
+  /**
+   * Retourne les classes CSS pour le conteneur principal en fonction du type de l'indicateur.
+   * @returns {string} Une chaîne de caractères contenant les classes Tailwind CSS appropriées.
+   */
   const getTypeClasses = () => {
     switch (type) {
       case 'success':
@@ -66,11 +72,15 @@ export default function TopLoadingIndicator({
         return 'bg-yellow-50 border-yellow-200 text-yellow-700';
       case 'error':
         return 'bg-red-50 border-red-200 text-red-700';
-      default: // info
+      default:
         return 'bg-indigo-50 border-indigo-200 text-indigo-700';
     }
   };
-  
+
+  /**
+   * Retourne les classes CSS pour la barre de progression en fonction du type de l'indicateur.
+   * @returns {string} Une chaîne de caractères contenant la classe de couleur Tailwind CSS pour la progression.
+   */
   const getProgressBarClasses = () => {
     switch (type) {
       case 'success':
@@ -79,19 +89,17 @@ export default function TopLoadingIndicator({
         return 'bg-yellow-500';
       case 'error':
         return 'bg-red-500';
-      default: // info
+      default:
         return 'bg-indigo-500';
     }
   };
-  
-  // ==================== RENDU ====================
-  
+
   if (!isAnimating && !showSuccess) {
     return null;
   }
-  
+
   return (
-    <div 
+    <div
       className={`
         fixed top-0 left-0 right-0 z-50 transform transition-transform duration-300 ease-out
         ${isAnimating ? 'translate-y-0' : '-translate-y-full'}
@@ -103,11 +111,7 @@ export default function TopLoadingIndicator({
         ${getTypeClasses()}
       `}>
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          
-          {/* Contenu principal */}
           <div className="flex items-center space-x-3">
-            
-            {/* Icône/Spinner */}
             {showSuccess ? (
               <div className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
                 <CheckIcon className="w-3 h-3 text-white" />
@@ -115,23 +119,19 @@ export default function TopLoadingIndicator({
             ) : (
               <div className={`
                 animate-spin rounded-full h-4 w-4 border-b-2
-                ${type === 'error' ? 'border-red-600' : 
-                  type === 'warning' ? 'border-yellow-600' : 
+                ${type === 'error' ? 'border-red-600' :
+                  type === 'warning' ? 'border-yellow-600' :
                   type === 'success' ? 'border-green-600' : 'border-indigo-600'}
               `} />
             )}
-            
-            {/* Message */}
             <span className="text-sm font-medium">
               {showSuccess ? 'Actualisation terminée' : message}
             </span>
           </div>
-          
-          {/* Indicateur de progression (optionnel) */}
           {progress !== undefined && !showSuccess && (
             <div className="flex items-center space-x-2">
               <div className="w-24 bg-white bg-opacity-50 rounded-full h-2">
-                <div 
+                <div
                   className={`h-2 rounded-full transition-all duration-300 ${getProgressBarClasses()}`}
                   style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                 />
@@ -142,12 +142,10 @@ export default function TopLoadingIndicator({
             </div>
           )}
         </div>
-        
-        {/* Barre de progression pleine largeur (si pas de progress spécifique) */}
         {progress === undefined && !showSuccess && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white bg-opacity-30">
             <div className={`
-              h-full ${getProgressBarClasses()} 
+              h-full ${getProgressBarClasses()}
               animate-pulse
             `} style={{ width: '60%' }} />
           </div>
@@ -157,19 +155,20 @@ export default function TopLoadingIndicator({
   );
 }
 
-// ==================== VARIANTES PRÉDÉFINIES ====================
-
 interface QuickLoadingIndicatorProps {
   isVisible: boolean;
   message?: string;
 }
 
 /**
- * Indicateur rapide pour les opérations courtes
+ * Variante de l'indicateur pour les opérations courtes, avec un délai de masquage rapide.
+ * @param {boolean} isVisible - Détermine si l'indicateur est visible.
+ * @param {string} [message='Traitement...'] - Le message à afficher.
+ * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré.
  */
-export function QuickLoadingIndicator({ 
-  isVisible, 
-  message = 'Traitement...' 
+export function QuickLoadingIndicator({
+  isVisible,
+  message = 'Traitement...'
 }: QuickLoadingIndicatorProps) {
   return (
     <TopLoadingIndicator
@@ -181,11 +180,14 @@ export function QuickLoadingIndicator({
 }
 
 /**
- * Indicateur pour les sauvegardes
+ * Variante de l'indicateur pour les opérations de sauvegarde, affichant un style "succès".
+ * @param {boolean} isVisible - Détermine si l'indicateur est visible.
+ * @param {string} [message='Sauvegarde...'] - Le message à afficher.
+ * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré pour la sauvegarde.
  */
-export function SaveLoadingIndicator({ 
-  isVisible, 
-  message = 'Sauvegarde...' 
+export function SaveLoadingIndicator({
+  isVisible,
+  message = 'Sauvegarde...'
 }: QuickLoadingIndicatorProps) {
   return (
     <TopLoadingIndicator
@@ -198,11 +200,14 @@ export function SaveLoadingIndicator({
 }
 
 /**
- * Indicateur pour les erreurs
+ * Variante de l'indicateur pour afficher une erreur. Ne se masque pas automatiquement.
+ * @param {boolean} isVisible - Détermine si l'indicateur est visible.
+ * @param {string} [message='Une erreur est survenue'] - Le message à afficher.
+ * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré pour les erreurs.
  */
-export function ErrorLoadingIndicator({ 
-  isVisible, 
-  message = 'Une erreur est survenue' 
+export function ErrorLoadingIndicator({
+  isVisible,
+  message = 'Une erreur est survenue'
 }: QuickLoadingIndicatorProps) {
   return (
     <TopLoadingIndicator
@@ -214,13 +219,23 @@ export function ErrorLoadingIndicator({
   );
 }
 
-// ==================== HOOK UTILITAIRE ====================
-
 /**
- * Hook pour simplifier l'utilisation des indicateurs
+ * Hook personnalisé pour simplifier la gestion de l'état du TopLoadingIndicator.
+ * Fournit des fonctions pour afficher, masquer et mettre à jour l'indicateur,
+ * ainsi que le composant lui-même prêt à être rendu.
+ * @returns {{
+ * isVisible: boolean,
+ * message: string,
+ * type: 'info' | 'success' | 'warning' | 'error',
+ * progress: number | undefined,
+ * show: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void,
+ * showWithProgress: (message: string, progress: number) => void,
+ * hide: () => void,
+ * showQuick: (message: string) => void,
+ * component: JSX.Element
+ * }} Un objet contenant l'état de l'indicateur et les fonctions pour le contrôler.
  */
 export function useTopLoadingIndicator() {
-  // 🔥 CORRECTION: Type explicite pour éviter l'erreur TypeScript
   const [state, setState] = useState<{
     isVisible: boolean;
     message: string;
@@ -229,27 +244,27 @@ export function useTopLoadingIndicator() {
   }>({
     isVisible: false,
     message: '',
-    type: 'info', // Plus de "as const" qui restreint le type
+    type: 'info',
     progress: undefined
   });
-  
+
   const show = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     setState({ isVisible: true, message, type, progress: undefined });
   };
-  
+
   const showWithProgress = (message: string, progress: number) => {
     setState({ isVisible: true, message, type: 'info', progress });
   };
-  
+
   const hide = () => {
     setState(prev => ({ ...prev, isVisible: false }));
   };
-  
+
   const showQuick = (message: string) => {
     show(message);
     setTimeout(hide, 1500);
   };
-  
+
   return {
     ...state,
     show,

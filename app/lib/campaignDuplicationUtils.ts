@@ -1,5 +1,11 @@
-// app/lib/campaignDuplicationUtils.ts - CORRECTION COMPLÈTE
-
+/**
+ * Ce fichier contient les utilitaires pour dupliquer une campagne Firebase existante.
+ * Il gère la duplication de l'intégralité de la structure d'une campagne, y compris
+ * les breakdowns, les versions, les onglets, les sections, les tactiques, les placements,
+ * les créatifs et les buckets de stratégie.
+ * L'objectif est de créer une copie complète et indépendante d'une campagne pour faciliter
+ * la gestion et la réutilisation des structures de données.
+ */
 import {
   collection,
   doc,
@@ -10,8 +16,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-// ==================== INTERFACES ====================
-
 interface DuplicationMapping {
   versions: Map<string, string>;
   onglets: Map<string, string>;
@@ -20,19 +24,18 @@ interface DuplicationMapping {
   placements: Map<string, string>;
 }
 
-// ==================== FONCTION PRINCIPALE ====================
-
 /**
- * Duplique tout le contenu d'une campagne : breakdowns, versions, onglets, sections, 
- * tactiques, placements, créatifs et buckets de stratégie
+ * Duplique l'intégralité du contenu d'une campagne, incluant les breakdowns et toute la hiérarchie des versions.
+ * @param clientId L'ID du client auquel la campagne appartient.
+ * @param sourceCampaignId L'ID de la campagne source à dupliquer.
+ * @param newCampaignId L'ID de la nouvelle campagne qui sera créée.
+ * @returns Une promesse qui se résout une fois la duplication complète terminée.
  */
 export async function duplicateCompleteCampaign(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string
 ): Promise<void> {
-  console.log('🚀 Début duplication complète de campagne');
-  
   try {
     // 1. Dupliquer les breakdowns (structure simple)
     await duplicateBreakdowns(clientId, sourceCampaignId, newCampaignId);
@@ -40,29 +43,32 @@ export async function duplicateCompleteCampaign(
     // 2. Dupliquer toute la hiérarchie des versions avec leur contenu
     await duplicateVersionsWithFullHierarchy(clientId, sourceCampaignId, newCampaignId);
     
-    console.log('✅ Duplication complète terminée avec succès');
   } catch (error) {
     console.error('❌ Erreur lors de la duplication complète:', error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION DES BREAKDOWNS ====================
-
+/**
+ * Duplique les breakdowns d'une campagne source vers une nouvelle campagne.
+ * Les breakdowns sont des éléments de structure simples de la campagne.
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @returns Une promesse qui se résout une fois les breakdowns dupliqués.
+ */
 export async function duplicateBreakdowns(
   clientId: string,
   sourceCampaignId: string,
   newCampaignId: string
 ): Promise<void> {
   try {
-    console.log('📋 Duplication des breakdowns...');
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateBreakdowns - Path: clients/${clientId}/campaigns/${sourceCampaignId}/breakdowns");
     const breakdownsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'breakdowns');
     const q = query(breakdownsRef, orderBy('order', 'asc'));
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
-      console.log('Aucun breakdown à dupliquer');
       return;
     }
     
@@ -76,21 +82,22 @@ export async function duplicateBreakdowns(
         updatedAt: new Date().toISOString(),
       };
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateBreakdowns - Path: clients/${clientId}/campaigns/${newCampaignId}/breakdowns");
       await addDoc(newBreakdownsRef, newBreakdownData);
     }
     
-    console.log(`✅ ${snapshot.size} breakdowns dupliqués`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des breakdowns:', error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION HIÉRARCHIQUE COMPLÈTE ====================
-
 /**
- * Duplique toutes les versions avec leur hiérarchie complète :
- * versions → onglets → sections → tactiques → placements → créatifs + buckets
+ * Duplique toutes les versions d'une campagne avec leur hiérarchie complète (onglets, sections, tactiques, placements, créatifs et buckets).
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @returns Une promesse qui se résout une fois toutes les versions et leur contenu dupliqués.
  */
 async function duplicateVersionsWithFullHierarchy(
   clientId: string,
@@ -98,33 +105,26 @@ async function duplicateVersionsWithFullHierarchy(
   newCampaignId: string
 ): Promise<void> {
   try {
-    console.log('🔄 Duplication des versions avec hiérarchie complète...');
-    
-    // Récupérer toutes les versions sources
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateVersionsWithFullHierarchy - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions");
     const versionsRef = collection(db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions');
     const versionsSnapshot = await getDocs(query(versionsRef, orderBy('createdAt', 'asc')));
     
     if (versionsSnapshot.empty) {
-      console.log('Aucune version à dupliquer');
       return;
     }
     
-    // Dupliquer chaque version avec tout son contenu
     for (const versionDoc of versionsSnapshot.docs) {
       const versionData = versionDoc.data();
       const sourceVersionId = versionDoc.id;
       
-      // Créer la nouvelle version
       const newVersionsRef = collection(db, 'clients', clientId, 'campaigns', newCampaignId, 'versions');
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateVersionsWithFullHierarchy - Path: clients/${clientId}/campaigns/${newCampaignId}/versions");
       const newVersionRef = await addDoc(newVersionsRef, {
         ...versionData,
         createdAt: new Date().toISOString(),
       });
       const newVersionId = newVersionRef.id;
       
-      console.log(`📦 Version "${versionData.name}" dupliquée: ${sourceVersionId} → ${newVersionId}`);
-      
-      // Dupliquer tout le contenu de cette version
       await duplicateVersionContent(
         clientId, 
         sourceCampaignId, 
@@ -134,7 +134,6 @@ async function duplicateVersionsWithFullHierarchy(
       );
     }
     
-    console.log('✅ Toutes les versions et leur contenu dupliqués');
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des versions:', error);
     throw error;
@@ -142,7 +141,13 @@ async function duplicateVersionsWithFullHierarchy(
 }
 
 /**
- * Duplique tout le contenu d'une version : onglets, sections, tactiques, placements, créatifs + buckets
+ * Duplique tout le contenu d'une version spécifique : les buckets de stratégie et la hiérarchie des onglets (sections, tactiques, placements, créatifs).
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source à dupliquer.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @returns Une promesse qui se résout une fois le contenu de la version dupliqué.
  */
 async function duplicateVersionContent(
   clientId: string,
@@ -152,8 +157,6 @@ async function duplicateVersionContent(
   newVersionId: string
 ): Promise<void> {
   try {
-    console.log(`🎯 Duplication du contenu de la version ${sourceVersionId} → ${newVersionId}`);
-    
     // 1. Dupliquer les buckets de stratégie
     await duplicateBuckets(clientId, sourceCampaignId, newCampaignId, sourceVersionId, newVersionId);
     
@@ -166,15 +169,21 @@ async function duplicateVersionContent(
       newVersionId
     );
     
-    console.log(`✅ Contenu de la version ${sourceVersionId} dupliqué`);
   } catch (error) {
     console.error(`❌ Erreur lors de la duplication du contenu de la version ${sourceVersionId}:`, error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION DES BUCKETS ====================
-
+/**
+ * Duplique les buckets de stratégie d'une version source vers une nouvelle version.
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @returns Une promesse qui se résout une fois les buckets dupliqués.
+ */
 async function duplicateBuckets(
   clientId: string,
   sourceCampaignId: string,
@@ -183,15 +192,13 @@ async function duplicateBuckets(
   newVersionId: string
 ): Promise<void> {
   try {
-    console.log(`💰 Duplication des buckets de la version ${sourceVersionId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateBuckets - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/buckets");
     const bucketsRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 'buckets'
     );
     const snapshot = await getDocs(bucketsRef);
     
     if (snapshot.empty) {
-      console.log('Aucun bucket à dupliquer');
       return;
     }
     
@@ -201,6 +208,7 @@ async function duplicateBuckets(
     
     for (const bucketDoc of snapshot.docs) {
       const bucketData = bucketDoc.data();
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateBuckets - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/buckets");
       await addDoc(newBucketsRef, {
         ...bucketData,
         createdAt: new Date().toISOString(),
@@ -208,16 +216,21 @@ async function duplicateBuckets(
       });
     }
     
-    console.log(`✅ ${snapshot.size} buckets dupliqués`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des buckets:', error);
-    // Ne pas faire échouer la duplication si les buckets n'existent pas
-    console.log('⚠️ Poursuite sans les buckets');
+    console.warn('⚠️ Poursuite sans les buckets');
   }
 }
 
-// ==================== DUPLICATION DES ONGLETS AVEC HIÉRARCHIE ====================
-
+/**
+ * Duplique les onglets d'une version source avec leur hiérarchie complète (sections, tactiques, placements, créatifs).
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @returns Une promesse qui se résout une fois les onglets et leur contenu dupliqués.
+ */
 async function duplicateOngletsWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
@@ -226,27 +239,24 @@ async function duplicateOngletsWithHierarchy(
   newVersionId: string
 ): Promise<void> {
   try {
-    console.log(`📂 Duplication des onglets de la version ${sourceVersionId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateOngletsWithHierarchy - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/onglets");
     const ongletsRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 'onglets'
     );
     const ongletsSnapshot = await getDocs(query(ongletsRef, orderBy('ONGLET_Order', 'asc')));
     
     if (ongletsSnapshot.empty) {
-      console.log('Aucun onglet à dupliquer');
       return;
     }
     
-    // Dupliquer chaque onglet avec son contenu
     for (const ongletDoc of ongletsSnapshot.docs) {
       const ongletData = ongletDoc.data();
       const sourceOngletId = ongletDoc.id;
       
-      // Créer le nouvel onglet
       const newOngletsRef = collection(
         db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 'onglets'
       );
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateOngletsWithHierarchy - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/onglets");
       const newOngletRef = await addDoc(newOngletsRef, {
         ...ongletData,
         createdAt: new Date().toISOString(),
@@ -254,9 +264,6 @@ async function duplicateOngletsWithHierarchy(
       });
       const newOngletId = newOngletRef.id;
       
-      console.log(`📋 Onglet "${ongletData.ONGLET_Name}" dupliqué: ${sourceOngletId} → ${newOngletId}`);
-      
-      // Dupliquer toutes les sections de cet onglet
       await duplicateSectionsWithHierarchy(
         clientId, 
         sourceCampaignId, 
@@ -268,15 +275,23 @@ async function duplicateOngletsWithHierarchy(
       );
     }
     
-    console.log(`✅ ${ongletsSnapshot.size} onglets dupliqués avec leur contenu`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des onglets:', error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION DES SECTIONS AVEC HIÉRARCHIE ====================
-
+/**
+ * Duplique les sections d'un onglet source avec leur hiérarchie complète (tactiques, placements, créatifs).
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @param sourceOngletId L'ID de l'onglet source.
+ * @param newOngletId L'ID du nouvel onglet.
+ * @returns Une promesse qui se résout une fois les sections et leur contenu dupliqués.
+ */
 async function duplicateSectionsWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
@@ -287,8 +302,7 @@ async function duplicateSectionsWithHierarchy(
   newOngletId: string
 ): Promise<void> {
   try {
-    console.log(`📑 Duplication des sections de l'onglet ${sourceOngletId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateSectionsWithHierarchy - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/onglets/${sourceOngletId}/sections");
     const sectionsRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
       'onglets', sourceOngletId, 'sections'
@@ -296,20 +310,18 @@ async function duplicateSectionsWithHierarchy(
     const sectionsSnapshot = await getDocs(query(sectionsRef, orderBy('SECTION_Order', 'asc')));
     
     if (sectionsSnapshot.empty) {
-      console.log('Aucune section à dupliquer');
       return;
     }
     
-    // Dupliquer chaque section avec ses tactiques
     for (const sectionDoc of sectionsSnapshot.docs) {
       const sectionData = sectionDoc.data();
       const sourceSectionId = sectionDoc.id;
       
-      // Créer la nouvelle section
       const newSectionsRef = collection(
         db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
         'onglets', newOngletId, 'sections'
       );
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateSectionsWithHierarchy - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/onglets/${newOngletId}/sections");
       const newSectionRef = await addDoc(newSectionsRef, {
         ...sectionData,
         createdAt: new Date().toISOString(),
@@ -317,9 +329,6 @@ async function duplicateSectionsWithHierarchy(
       });
       const newSectionId = newSectionRef.id;
       
-      console.log(`📄 Section "${sectionData.SECTION_Name}" dupliquée: ${sourceSectionId} → ${newSectionId}`);
-      
-      // Dupliquer toutes les tactiques de cette section
       await duplicateTactiquesWithHierarchy(
         clientId, 
         sourceCampaignId, 
@@ -333,15 +342,25 @@ async function duplicateSectionsWithHierarchy(
       );
     }
     
-    console.log(`✅ ${sectionsSnapshot.size} sections dupliquées avec leur contenu`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des sections:', error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION DES TACTIQUES AVEC HIÉRARCHIE ====================
-
+/**
+ * Duplique les tactiques d'une section source avec leur hiérarchie complète (placements, créatifs).
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @param sourceOngletId L'ID de l'onglet source.
+ * @param newOngletId L'ID du nouvel onglet.
+ * @param sourceSectionId L'ID de la section source.
+ * @param newSectionId L'ID de la nouvelle section.
+ * @returns Une promesse qui se résout une fois les tactiques et leur contenu dupliqués.
+ */
 async function duplicateTactiquesWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
@@ -354,8 +373,7 @@ async function duplicateTactiquesWithHierarchy(
   newSectionId: string
 ): Promise<void> {
   try {
-    console.log(`🎯 Duplication des tactiques de la section ${sourceSectionId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateTactiquesWithHierarchy - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/onglets/${sourceOngletId}/sections/${sourceSectionId}/tactiques");
     const tactiquesRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
       'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques'
@@ -363,31 +381,26 @@ async function duplicateTactiquesWithHierarchy(
     const tactiquesSnapshot = await getDocs(query(tactiquesRef, orderBy('TC_Order', 'asc')));
     
     if (tactiquesSnapshot.empty) {
-      console.log('Aucune tactique à dupliquer');
       return;
     }
     
-    // Dupliquer chaque tactique avec ses placements
     for (const tactiqueDoc of tactiquesSnapshot.docs) {
       const tactiqueData = tactiqueDoc.data();
       const sourceTactiqueId = tactiqueDoc.id;
       
-      // Créer la nouvelle tactique avec l'ID de section mis à jour
       const newTactiquesRef = collection(
         db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
         'onglets', newOngletId, 'sections', newSectionId, 'tactiques'
       );
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateTactiquesWithHierarchy - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/onglets/${newOngletId}/sections/${newSectionId}/tactiques");
       const newTactiqueRef = await addDoc(newTactiquesRef, {
         ...tactiqueData,
-        TC_SectionId: newSectionId, // Mettre à jour la référence
+        TC_SectionId: newSectionId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
       const newTactiqueId = newTactiqueRef.id;
       
-      console.log(`🏹 Tactique "${tactiqueData.TC_Label}" dupliquée: ${sourceTactiqueId} → ${newTactiqueId}`);
-      
-      // Dupliquer tous les placements de cette tactique
       await duplicatePlacementsWithHierarchy(
         clientId, 
         sourceCampaignId, 
@@ -403,15 +416,27 @@ async function duplicateTactiquesWithHierarchy(
       );
     }
     
-    console.log(`✅ ${tactiquesSnapshot.size} tactiques dupliquées avec leur contenu`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des tactiques:', error);
     throw error;
   }
 }
 
-// ==================== DUPLICATION DES PLACEMENTS AVEC HIÉRARCHIE ====================
-
+/**
+ * Duplique les placements d'une tactique source avec leurs créatifs.
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @param sourceOngletId L'ID de l'onglet source.
+ * @param newOngletId L'ID du nouvel onglet.
+ * @param sourceSectionId L'ID de la section source.
+ * @param newSectionId L'ID de la nouvelle section.
+ * @param sourceTactiqueId L'ID de la tactique source.
+ * @param newTactiqueId L'ID de la nouvelle tactique.
+ * @returns Une promesse qui se résout une fois les placements et leurs créatifs dupliqués.
+ */
 async function duplicatePlacementsWithHierarchy(
   clientId: string,
   sourceCampaignId: string,
@@ -426,8 +451,7 @@ async function duplicatePlacementsWithHierarchy(
   newTactiqueId: string
 ): Promise<void> {
   try {
-    console.log(`🏢 Duplication des placements de la tactique ${sourceTactiqueId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicatePlacementsWithHierarchy - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/onglets/${sourceOngletId}/sections/${sourceSectionId}/tactiques/${sourceTactiqueId}/placements");
     const placementsRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
       'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques', sourceTactiqueId, 'placements'
@@ -435,31 +459,26 @@ async function duplicatePlacementsWithHierarchy(
     const placementsSnapshot = await getDocs(query(placementsRef, orderBy('PL_Order', 'asc')));
     
     if (placementsSnapshot.empty) {
-      console.log('Aucun placement à dupliquer');
       return;
     }
     
-    // Dupliquer chaque placement avec ses créatifs
     for (const placementDoc of placementsSnapshot.docs) {
       const placementData = placementDoc.data();
       const sourcePlacementId = placementDoc.id;
       
-      // Créer le nouveau placement avec l'ID de tactique mis à jour
       const newPlacementsRef = collection(
         db, 'clients', clientId, 'campaigns', newCampaignId, 'versions', newVersionId, 
         'onglets', newOngletId, 'sections', newSectionId, 'tactiques', newTactiqueId, 'placements'
       );
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicatePlacementsWithHierarchy - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/onglets/${newOngletId}/sections/${newSectionId}/tactiques/${newTactiqueId}/placements");
       const newPlacementRef = await addDoc(newPlacementsRef, {
         ...placementData,
-        PL_TactiqueId: newTactiqueId, // Mettre à jour la référence
+        PL_TactiqueId: newTactiqueId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
       const newPlacementId = newPlacementRef.id;
       
-      console.log(`🎪 Placement "${placementData.PL_Label}" dupliqué: ${sourcePlacementId} → ${newPlacementId}`);
-      
-      // Dupliquer tous les créatifs de ce placement
       await duplicateCreatifs(
         clientId, 
         sourceCampaignId, 
@@ -477,16 +496,29 @@ async function duplicatePlacementsWithHierarchy(
       );
     }
     
-    console.log(`✅ ${placementsSnapshot.size} placements dupliqués avec leur contenu`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des placements:', error);
-    // Ne pas faire échouer si les placements n'existent pas
-    console.log('⚠️ Poursuite sans les placements');
+    console.warn('⚠️ Poursuite sans les placements');
   }
 }
 
-// ==================== DUPLICATION DES CRÉATIFS ====================
-
+/**
+ * Duplique les créatifs d'un placement source.
+ * @param clientId L'ID du client.
+ * @param sourceCampaignId L'ID de la campagne source.
+ * @param newCampaignId L'ID de la nouvelle campagne.
+ * @param sourceVersionId L'ID de la version source.
+ * @param newVersionId L'ID de la nouvelle version.
+ * @param sourceOngletId L'ID de l'onglet source.
+ * @param newOngletId L'ID du nouvel onglet.
+ * @param sourceSectionId L'ID de la section source.
+ * @param newSectionId L'ID de la nouvelle section.
+ * @param sourceTactiqueId L'ID de la tactique source.
+ * @param newTactiqueId L'ID de la nouvelle tactique.
+ * @param sourcePlacementId L'ID du placement source.
+ * @param newPlacementId L'ID du nouveau placement.
+ * @returns Une promesse qui se résout une fois les créatifs dupliqués.
+ */
 async function duplicateCreatifs(
   clientId: string,
   sourceCampaignId: string,
@@ -503,8 +535,7 @@ async function duplicateCreatifs(
   newPlacementId: string
 ): Promise<void> {
   try {
-    console.log(`🎨 Duplication des créatifs du placement ${sourcePlacementId}...`);
-    
+    console.log("FIREBASE: LECTURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateCreatifs - Path: clients/${clientId}/campaigns/${sourceCampaignId}/versions/${sourceVersionId}/onglets/${sourceOngletId}/sections/${sourceSectionId}/tactiques/${sourceTactiqueId}/placements/${sourcePlacementId}/creatifs");
     const creatifsRef = collection(
       db, 'clients', clientId, 'campaigns', sourceCampaignId, 'versions', sourceVersionId, 
       'onglets', sourceOngletId, 'sections', sourceSectionId, 'tactiques', sourceTactiqueId, 
@@ -513,7 +544,6 @@ async function duplicateCreatifs(
     const creatifsSnapshot = await getDocs(query(creatifsRef, orderBy('CR_Order', 'asc')));
     
     if (creatifsSnapshot.empty) {
-      console.log('Aucun créatif à dupliquer');
       return;
     }
     
@@ -526,19 +556,17 @@ async function duplicateCreatifs(
     for (const creatifDoc of creatifsSnapshot.docs) {
       const creatifData = creatifDoc.data();
       
-      // Créer le nouveau créatif avec l'ID de placement mis à jour
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignDuplicationUtils.ts - Fonction: duplicateCreatifs - Path: clients/${clientId}/campaigns/${newCampaignId}/versions/${newVersionId}/onglets/${newOngletId}/sections/${newSectionId}/tactiques/${newTactiqueId}/placements/${newPlacementId}/creatifs");
       await addDoc(newCreatifsRef, {
         ...creatifData,
-        CR_PlacementId: newPlacementId, // Mettre à jour la référence
+        CR_PlacementId: newPlacementId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
     
-    console.log(`✅ ${creatifsSnapshot.size} créatifs dupliqués`);
   } catch (error) {
     console.error('❌ Erreur lors de la duplication des créatifs:', error);
-    // Ne pas faire échouer si les créatifs n'existent pas
-    console.log('⚠️ Poursuite sans les créatifs');
+    console.warn('⚠️ Poursuite sans les créatifs');
   }
 }

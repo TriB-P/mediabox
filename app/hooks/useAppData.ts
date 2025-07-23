@@ -1,5 +1,9 @@
-// app/hooks/useAppData.ts - Version corrigée avec mémoire des sélections
-
+/**
+ * Ce hook gère le chargement et la gestion des données de l'application (campagnes, versions, onglets, tactiques, placements, créatifs)
+ * en interagissant avec Firebase. Il utilise les contextes ClientContext et SelectionContext
+ * pour maintenir l'état des sélections utilisateur (client, campagne, version, onglet) et persiste ces sélections.
+ * L'objectif est de charger les données de manière séquentielle et optimisée pour éviter les rechargements inutiles.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
@@ -9,16 +13,11 @@ import { getOnglets, getSections, getTactiques } from '../lib/tactiqueService';
 import { getPlacementsForTactique } from '../lib/placementService';
 import { getCreatifsForPlacement } from '../lib/creatifService';
 
-// ==================== TYPES ====================
-
 interface AppData {
-  // Campagnes
   campaigns: any[];
   versions: any[];
   selectedCampaign: any | null;
   selectedVersion: any | null;
-  
-  // Tactiques  
   onglets: any[];
   selectedOnglet: any | null;
   sections: any[];
@@ -33,8 +32,28 @@ interface LoadingState {
   stage: string | null;
 }
 
-// ==================== HOOK PRINCIPAL CORRIGÉ ====================
-
+/**
+ * Hook principal pour gérer les données de l'application.
+ *
+ * @returns {object} Un objet contenant les données chargées, l'état de chargement, les fonctions de gestion des changements et une fonction de rafraîchissement.
+ * - campaigns: Liste des campagnes disponibles.
+ * - versions: Liste des versions pour la campagne sélectionnée.
+ * - selectedCampaign: La campagne actuellement sélectionnée.
+ * - selectedVersion: La version actuellement sélectionnée.
+ * - onglets: Liste des onglets pour la version sélectionnée.
+ * - selectedOnglet: L'onglet actuellement sélectionné.
+ * - sections: Liste des sections pour l'onglet sélectionné.
+ * - tactiques: Objet mapant les ID de section à des listes de tactiques.
+ * - placements: Objet mapant les ID de tactique à des listes de placements.
+ * - creatifs: Objet mapant les ID de placement à des listes de créatifs.
+ * - loading: Indique si des données sont en cours de chargement.
+ * - error: Message d'erreur si un problème survient pendant le chargement.
+ * - stage: Indique l'étape actuelle du chargement.
+ * - handleCampaignChange: Fonction pour changer la campagne sélectionnée.
+ * - handleVersionChange: Fonction pour changer la version sélectionnée.
+ * - handleOngletChange: Fonction pour changer l'onglet sélectionné.
+ * - refresh: Fonction pour forcer un rechargement complet des données.
+ */
 export function useAppData() {
   const { selectedClient } = useClient();
   const { 
@@ -46,8 +65,6 @@ export function useAppData() {
     setSelectedOngletId 
   } = useSelection();
 
-  // ==================== ÉTATS ====================
-  
   const [data, setData] = useState<AppData>({
     campaigns: [],
     versions: [],
@@ -67,16 +84,16 @@ export function useAppData() {
     stage: null
   });
   
-  // ==================== REFS POUR ÉVITER LES DOUBLONS ====================
-  
   const loadedContextRef = useRef<string>('');
   const isLoadingRef = useRef(false);
   
-  // ==================== FONCTION DE CHARGEMENT SÉQUENTIEL ====================
-  
+  /**
+   * Charge toutes les données de manière séquentielle depuis Firebase en fonction des sélections actuelles.
+   * Cette fonction est optimisée pour éviter les chargements redondants.
+   * @returns {Promise<void>}
+   */
   const loadAllData = useCallback(async () => {
     if (!selectedClient?.clientId) {
-      // Reset si pas de client
       setData({
         campaigns: [],
         versions: [],
@@ -94,9 +111,7 @@ export function useAppData() {
 
     const contextKey = `${selectedClient.clientId}-${selectedCampaignId || ''}-${selectedVersionId || ''}-${selectedOngletId || ''}`;
     
-    // 🔥 PROTECTION : Éviter les doublons
     if (isLoadingRef.current || loadedContextRef.current === contextKey) {
-      console.log('⚠️ Chargement déjà fait ou en cours, skip');
       return;
     }
     
@@ -104,46 +119,39 @@ export function useAppData() {
     setLoading({ isLoading: true, error: null, stage: 'Démarrage...' });
     
     try {
-      
-      // ==================== ÉTAPE 1 : CAMPAGNES ====================
-      
       setLoading(prev => ({ ...prev, stage: 'Chargement des campagnes...' }));
       
+      console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns");
       const campaigns = await getCampaigns(selectedClient.clientId);
       
-      // 🔥 CORRECTION : Utiliser les IDs du contexte, pas auto-sélection
       const selectedCampaign = selectedCampaignId 
         ? campaigns.find(c => c.id === selectedCampaignId) || null
         : null;
       
       setData(prev => ({ ...prev, campaigns, selectedCampaign }));
       
-      // ==================== ÉTAPE 2 : VERSIONS ====================
-      
       if (selectedCampaignId) {
         setLoading(prev => ({ ...prev, stage: 'Chargement des versions...' }));
         
+        console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions");
         const versions = await getVersions(selectedClient.clientId, selectedCampaignId);
         
-        // 🔥 CORRECTION : Utiliser l'ID du contexte
         const selectedVersion = selectedVersionId 
           ? versions.find(v => v.id === selectedVersionId) || null
           : null;
         
         setData(prev => ({ ...prev, versions, selectedVersion }));
         
-        // ==================== ÉTAPE 3 : ONGLETS ====================
-        
         if (selectedVersionId) {
           setLoading(prev => ({ ...prev, stage: 'Chargement des onglets...' }));
           
+          console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets");
           const onglets = await getOnglets(selectedClient.clientId, selectedCampaignId, selectedVersionId);
           
-          // 🔥 CORRECTION : Si pas d'onglet sélectionné, auto-sélectionner le premier
           let currentOngletId = selectedOngletId;
           if (!currentOngletId && onglets.length > 0) {
             currentOngletId = onglets[0].id;
-            setSelectedOngletId(currentOngletId); // 🔥 SAUVEGARDER dans le contexte
+            setSelectedOngletId(currentOngletId);
           }
           
           const selectedOnglet = currentOngletId 
@@ -152,11 +160,10 @@ export function useAppData() {
             
           setData(prev => ({ ...prev, onglets, selectedOnglet }));
           
-          // ==================== ÉTAPE 4 : SECTIONS ====================
-          
           if (currentOngletId) {
             setLoading(prev => ({ ...prev, stage: 'Chargement des sections...' }));
             
+            console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${currentOngletId}/sections");
             const sections = await getSections(
               selectedClient.clientId, 
               selectedCampaignId, 
@@ -166,12 +173,11 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, sections }));
             
-            // ==================== ÉTAPE 5 : TACTIQUES ====================
-            
             setLoading(prev => ({ ...prev, stage: 'Chargement des tactiques...' }));
             
             const tactiques: { [sectionId: string]: any[] } = {};
             for (const section of sections) {
+              console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${currentOngletId}/sections/${section.id}/tactiques");
               const sectionTactiques = await getTactiques(
                 selectedClient.clientId,
                 selectedCampaignId,
@@ -184,13 +190,12 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, tactiques }));
             
-            // ==================== ÉTAPE 6 : PLACEMENTS ====================
-            
             setLoading(prev => ({ ...prev, stage: 'Chargement des placements...' }));
             
             const placements: { [tactiqueId: string]: any[] } = {};
             for (const [sectionId, sectionTactiques] of Object.entries(tactiques)) {
               for (const tactique of sectionTactiques) {
+                console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${currentOngletId}/sections/${sectionId}/tactiques/${tactique.id}/placements");
                 const tactiquePlacements = await getPlacementsForTactique(
                   selectedClient.clientId,
                   selectedCampaignId,
@@ -205,8 +210,6 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, placements }));
             
-            // ==================== ÉTAPE 7 : CRÉATIFS ====================
-            
             setLoading(prev => ({ ...prev, stage: 'Chargement des créatifs...' }));
             
             const creatifs: { [placementId: string]: any[] } = {};
@@ -217,6 +220,7 @@ export function useAppData() {
                 );
                 
                 if (sectionId) {
+                  console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${currentOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placement.id}/creatifs");
                   const placementCreatifs = await getCreatifsForPlacement(
                     selectedClient.clientId,
                     selectedCampaignId,
@@ -237,7 +241,6 @@ export function useAppData() {
       }
       
       loadedContextRef.current = contextKey;
-      console.log('✅ Toutes les données chargées avec succès');
       
     } catch (err) {
       console.error('❌ Erreur lors du chargement:', err);
@@ -251,42 +254,55 @@ export function useAppData() {
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId]);
   
-  // ==================== EFFET UNIQUE ====================
-  
+  /**
+   * Effet de hook qui déclenche le chargement initial des données lorsque le composant est monté
+   * ou lorsque les dépendances de `loadAllData` changent.
+   * @returns {void}
+   */
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
   
-  // ==================== ACTIONS CORRIGÉES ====================
-  
+  /**
+   * Gère le changement de la campagne sélectionnée.
+   * Met à jour la campagne sélectionnée dans le contexte et réinitialise la version.
+   * @param {any} campaign - La campagne nouvellement sélectionnée.
+   * @returns {void}
+   */
   const handleCampaignChange = useCallback((campaign: any) => {
-    console.log('📋 Changement campagne:', campaign.CA_Name);
-    // 🔥 CORRECTION : Sauvegarder dans le contexte (qui sauvegarde dans localStorage)
-    setSelectedVersionId(null); // Reset version
+    setSelectedVersionId(null);
     setSelectedCampaignId(campaign.id);
-    // Le rechargement se fait automatiquement via l'effet
   }, [setSelectedCampaignId, setSelectedVersionId]);
   
+  /**
+   * Gère le changement de la version sélectionnée.
+   * Met à jour la version sélectionnée dans le contexte.
+   * @param {any} version - La version nouvellement sélectionnée.
+   * @returns {void}
+   */
   const handleVersionChange = useCallback((version: any) => {
-    console.log('📝 Changement version:', version.name);
-    // 🔥 CORRECTION : Sauvegarder dans le contexte
     setSelectedVersionId(version.id);
-    // Le rechargement se fait automatiquement via l'effet
   }, [setSelectedVersionId]);
   
+  /**
+   * Gère le changement de l'onglet sélectionné.
+   * Met à jour l'onglet sélectionné dans le contexte.
+   * @param {any} onglet - L'onglet nouvellement sélectionné.
+   * @returns {void}
+   */
   const handleOngletChange = useCallback((onglet: any) => {
-    console.log('🎯 Changement onglet:', onglet.ONGLET_Name);
-    // 🔥 CORRECTION : Sauvegarder dans le contexte
     setSelectedOngletId(onglet.id);
-    // Le rechargement se fait automatiquement via l'effet
   }, [setSelectedOngletId]);
   
+  /**
+   * Force un rechargement complet de toutes les données.
+   * Réinitialise le référant de contexte pour assurer un nouveau chargement.
+   * @returns {void}
+   */
   const refresh = useCallback(() => {
-    loadedContextRef.current = ''; // Force le rechargement
+    loadedContextRef.current = '';
     loadAllData();
   }, [loadAllData]);
-  
-  // ==================== RETURN ====================
   
   return {
     ...data,

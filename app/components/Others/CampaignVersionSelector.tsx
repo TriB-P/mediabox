@@ -1,12 +1,15 @@
-// app/components/Others/CampaignVersionSelector.tsx - Composant réutilisable pour sélection campagne/version
-
+/**
+ * Ce fichier contient les composants et le hook nécessaires pour afficher des sélecteurs de campagne et de version.
+ * Il est conçu pour être réutilisable à travers l'application.
+ * - `CampaignVersionSelector` : Le composant principal qui affiche deux listes déroulantes.
+ * - `CompactCampaignVersionSelector` : Une variante plus petite du composant principal.
+ * - `useCampaignVersionSelector` : Un hook personnalisé pour gérer facilement l'état de sélection.
+ */
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDownIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Campaign } from '../../types/campaign';
-
-// ==================== TYPES ====================
 
 interface Version {
   id: string;
@@ -17,30 +20,27 @@ interface Version {
 }
 
 interface CampaignVersionSelectorProps {
-  // Données
   campaigns: Campaign[];
   versions: Version[];
   selectedCampaign: Campaign | null;
   selectedVersion: Version | null;
-  
-  // États
   loading: boolean;
   error: string | null;
-  
-  // Actions
   onCampaignChange: (campaign: Campaign) => void;
   onVersionChange: (version: Version) => void;
-  
-  // Configuration
   className?: string;
   disabled?: boolean;
-  autoSelectVersion?: boolean; // Auto-sélectionne si version unique (défaut: true)
-  showVersionBadges?: boolean; // Affiche les badges "Officielle" (défaut: true)
-  compact?: boolean; // Mode compact pour les espaces restreints (défaut: false)
+  autoSelectVersion?: boolean;
+  showVersionBadges?: boolean;
+  compact?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche deux listes déroulantes pour sélectionner une campagne puis une version.
+ * Ce composant gère l'affichage, la recherche dans les campagnes et la sélection.
+ * @param {CampaignVersionSelectorProps} props - Les propriétés pour configurer le composant.
+ * @returns {JSX.Element} Le composant de sélection de campagne et de version.
+ */
 export default function CampaignVersionSelector({
   campaigns,
   versions,
@@ -56,29 +56,20 @@ export default function CampaignVersionSelector({
   showVersionBadges = true,
   compact = false
 }: CampaignVersionSelectorProps) {
-  
-  // ==================== ÉTATS LOCAUX ====================
-  
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   const [campaignSearchTerm, setCampaignSearchTerm] = useState('');
-  
-  // Refs pour gérer les clics à l'extérieur et focus recherche
+
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
   const campaignSearchRef = useRef<HTMLInputElement>(null);
-  
-  // ==================== AUTO-SÉLECTION VERSION ====================
-  
+
   useEffect(() => {
     if (autoSelectVersion && selectedCampaign && versions.length === 1 && !selectedVersion) {
-      console.log('🎯 Auto-sélection de la version unique:', versions[0].name);
       onVersionChange(versions[0]);
     }
   }, [autoSelectVersion, selectedCampaign, versions, selectedVersion, onVersionChange]);
 
-  // ==================== FILTRAGE CAMPAGNES ====================
-  
   const filteredCampaigns = useMemo(() => {
     if (!campaignSearchTerm.trim()) {
       return campaigns;
@@ -89,30 +80,23 @@ export default function CampaignVersionSelector({
       campaign.CA_Name.toLowerCase().includes(searchLower)
     );
   }, [campaigns, campaignSearchTerm]);
-  
-  // ==================== GESTION FOCUS RECHERCHE ====================
-  
+
   useEffect(() => {
     if (showCampaignDropdown && campaignSearchRef.current) {
-      // Focus automatique sur la recherche quand le dropdown s'ouvre
       setTimeout(() => {
         campaignSearchRef.current?.focus();
       }, 100);
     }
   }, [showCampaignDropdown]);
-  
-  // Reset search quand on ferme le dropdown
+
   useEffect(() => {
     if (!showCampaignDropdown) {
       setCampaignSearchTerm('');
     }
   }, [showCampaignDropdown]);
-  
-  // ==================== GESTION CLICS EXTÉRIEURS ====================
-  
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      // Pour le dropdown campagne, vérifier que le clic n'est pas dans le champ de recherche
       if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(event.target as Node)) {
         setShowCampaignDropdown(false);
       }
@@ -124,18 +108,14 @@ export default function CampaignVersionSelector({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
-  // ==================== GESTIONNAIRES ====================
-  
+
   const handleCampaignSelect = useCallback((campaign: Campaign) => {
-    console.log('📋 Sélection campagne:', campaign.CA_Name);
     onCampaignChange(campaign);
     setShowCampaignDropdown(false);
-    setCampaignSearchTerm(''); // Reset recherche après sélection
+    setCampaignSearchTerm('');
   }, [onCampaignChange]);
-  
+
   const handleVersionSelect = useCallback((version: Version) => {
-    console.log('📝 Sélection version:', version.name);
     onVersionChange(version);
     setShowVersionDropdown(false);
   }, [onVersionChange]);
@@ -150,23 +130,16 @@ export default function CampaignVersionSelector({
     if (e.key === 'Escape') {
       setShowCampaignDropdown(false);
     } else if (e.key === 'Enter' && filteredCampaigns.length === 1) {
-      // Auto-sélection si une seule campagne correspond
       handleCampaignSelect(filteredCampaigns[0]);
     } else if (e.key === 'ArrowDown') {
-      // TODO: Navigation clavier dans la liste (bonus)
       e.preventDefault();
     }
   }, [filteredCampaigns, handleCampaignSelect]);
-  
-  // ==================== FORMATAGE ====================
-  
+
   const formatCampaignDisplay = useCallback((campaign: Campaign) => {
-    // Toujours afficher seulement le nom, plus de campaign identifier
     return campaign.CA_Name;
   }, []);
-  
-  // ==================== STYLES ====================
-  
+
   const baseClasses = compact 
     ? "flex gap-2" 
     : "flex gap-4";
@@ -183,9 +156,7 @@ export default function CampaignVersionSelector({
     disabled:opacity-50 disabled:cursor-not-allowed
     ${compact ? 'text-xs px-2 py-1' : ''}
   `.trim();
-  
-  // ==================== RENDU ====================
-  
+
   if (loading) {
     return (
       <div className={`${baseClasses} ${className}`}>
@@ -211,8 +182,6 @@ export default function CampaignVersionSelector({
   
   return (
     <div className={`${baseClasses} ${className}`}>
-      
-      {/* ==================== SÉLECTEUR CAMPAGNE ==================== */}
       <div className={`${dropdownClasses} relative`} ref={campaignDropdownRef}>
         <button
           type="button"
@@ -235,8 +204,6 @@ export default function CampaignVersionSelector({
 
         {showCampaignDropdown && campaigns.length > 0 && (
           <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-80 overflow-hidden">
-            
-            {/* Champ de recherche */}
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <div className="relative">
                 <input
@@ -261,7 +228,6 @@ export default function CampaignVersionSelector({
               )}
             </div>
 
-            {/* Liste des campagnes filtrées */}
             <div className="max-h-64 overflow-y-auto">
               {filteredCampaigns.length > 0 ? (
                 <ul className="py-1">
@@ -300,7 +266,6 @@ export default function CampaignVersionSelector({
         )}
       </div>
 
-      {/* ==================== SÉLECTEUR VERSION ==================== */}
       <div className={`${dropdownClasses} relative`} ref={versionDropdownRef}>
         <button
           type="button"
@@ -359,12 +324,16 @@ export default function CampaignVersionSelector({
   );
 }
 
-// ==================== COMPOSANT COMPACT ====================
-
 interface CompactCampaignVersionSelectorProps extends Omit<CampaignVersionSelectorProps, 'compact'> {
   orientation?: 'horizontal' | 'vertical';
 }
 
+/**
+ * Un wrapper pour `CampaignVersionSelector` qui applique un style compact.
+ * Utile pour les interfaces où l'espace est limité.
+ * @param {CompactCampaignVersionSelectorProps} props - Les propriétés pour configurer le composant, avec l'ajout de `orientation`.
+ * @returns {JSX.Element} Le composant `CampaignVersionSelector` en mode compact.
+ */
 export function CompactCampaignVersionSelector({
   orientation = 'horizontal',
   ...props
@@ -385,10 +354,10 @@ export function CompactCampaignVersionSelector({
   );
 }
 
-// ==================== HOOK UTILITAIRE ====================
-
 /**
- * Hook pour simplifier l'utilisation du CampaignVersionSelector
+ * Hook personnalisé pour simplifier la gestion de l'état du `CampaignVersionSelector`.
+ * Il gère la campagne et la version sélectionnées et fournit des fonctions pour les mettre à jour et les réinitialiser.
+ * @returns {{selectedCampaign: Campaign | null, selectedVersion: Version | null, handleCampaignChange: (campaign: Campaign) => void, handleVersionChange: (version: Version) => void, reset: () => void}} Un objet contenant l'état et les gestionnaires d'état.
  */
 export function useCampaignVersionSelector() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
@@ -396,7 +365,6 @@ export function useCampaignVersionSelector() {
   
   const handleCampaignChange = useCallback((campaign: Campaign) => {
     setSelectedCampaign(campaign);
-    // Reset version quand on change de campagne
     setSelectedVersion(null);
   }, []);
   

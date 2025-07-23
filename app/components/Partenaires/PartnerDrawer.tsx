@@ -1,31 +1,32 @@
+/**
+ * @file Ce fichier contient le composant PartnerDrawer, qui est un panneau latéral (drawer).
+ * Il sert à afficher les informations détaillées d'un partenaire, à les modifier,
+ * et à gérer les contacts et les spécifications techniques qui lui sont associés.
+ * Le composant est divisé en onglets pour une navigation claire entre les différentes sections.
+ */
+
 'use client';
 
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { 
-  XMarkIcon, 
-  UserIcon, 
-  BuildingOfficeIcon, 
-  DocumentTextIcon, 
-  PlusIcon, 
+import {
+  XMarkIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  DocumentTextIcon,
+  PlusIcon,
   TagIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-
-// Imports pour les contacts
 import { Contact, ContactFormData, getPartnerContacts, addContact, updateContact, deleteContact } from '../../lib/contactService';
 import ContactForm from './ContactForm';
 import ContactList from './ContactList';
-
-// Imports pour les specs
 import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
 import { updatePartner } from '../../lib/shortcodeService';
 
-
-// Type pour les partenaires
 interface Partner {
   id: string;
   SH_Code: string;
@@ -34,7 +35,7 @@ interface Partner {
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
-  SH_Tags?: string | string[]; // Peut être une chaîne ou un tableau
+  SH_Tags?: string | string[];
 }
 
 interface PartnerDrawerProps {
@@ -43,67 +44,69 @@ interface PartnerDrawerProps {
   partner: Partner | null;
 }
 
+/**
+ * Composant principal du panneau latéral pour afficher les détails d'un partenaire.
+ * @param {PartnerDrawerProps} props - Les propriétés du composant.
+ * @param {boolean} props.isOpen - Indique si le panneau est ouvert.
+ * @param {() => void} props.onClose - Fonction pour fermer le panneau.
+ * @param {Partner | null} props.partner - L'objet partenaire à afficher.
+ * @returns {JSX.Element} Le composant de panneau latéral.
+ */
 export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawerProps) {
-  // États pour l'image du partenaire
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
-  // États pour les onglets
+
   const [selectedTab, setSelectedTab] = useState(0);
-  
-  // États pour les contacts
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
-  
-  // États pour les specs
+
   const [specs, setSpecs] = useState<Spec[]>([]);
   const [loadingSpecs, setLoadingSpecs] = useState(false);
   const [selectedSpec, setSelectedSpec] = useState<Spec | null>(null);
   const [showSpecForm, setShowSpecForm] = useState(false);
 
-  // États pour l'édition du partenaire
   const [isEditingPartner, setIsEditingPartner] = useState(false);
   const [partnerFormData, setPartnerFormData] = useState<Partial<Partner>>({});
   const [isSavingPartner, setIsSavingPartner] = useState(false);
-  
-  // État pour la gestion des tags
+
   const [newTag, setNewTag] = useState('');
   const [partnerTags, setPartnerTags] = useState<string[]>([]);
-  
-  // Définition des onglets
+
   const categories = [
     { name: 'Informations', icon: BuildingOfficeIcon },
     { name: 'Contacts', icon: UserIcon },
     { name: 'Specs', icon: DocumentTextIcon }
   ];
 
-  // Effet pour charger l'image lorsqu'un nouveau partenaire est sélectionné
+  /**
+   * Effet pour charger l'URL de l'image du partenaire depuis Firebase Storage
+   * ou une URL directe lorsque le partenaire change.
+   */
   useEffect(() => {
-    // Toujours réinitialiser l'URL de l'image quand le partenaire change
     setImageUrl(null);
     setImageError(false);
-    
+
     if (partner && partner.SH_Logo) {
       setImageLoading(true);
 
       const loadImage = async () => {
         try {
           const storage = getStorage();
-          
+
           if (partner.SH_Logo?.startsWith('gs://')) {
-            // Si c'est une référence de stockage Firebase (gs://)
             const storageRef = ref(storage, partner.SH_Logo);
+            console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: loadImage - Path: ${partner.SH_Logo}`);
             const url = await getDownloadURL(storageRef);
             setImageUrl(url);
           } else if (partner.SH_Logo) {
-            // Si c'est déjà une URL HTTP(S), l'utiliser directement
             setImageUrl(partner.SH_Logo);
           }
         } catch (error) {
-          console.error('Erreur de chargement de l\'image:', error);
+          console.error("Erreur de chargement de l'image:", error);
           setImageError(true);
         } finally {
           setImageLoading(false);
@@ -116,20 +119,25 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   }, [partner]);
 
-  // Initialiser les tags du partenaire lorsqu'il change
+  /**
+   * Effet pour initialiser la liste des tags lorsque le partenaire change.
+   */
   useEffect(() => {
     if (partner) {
       setPartnerTags(getTagsArray(partner.SH_Tags));
     }
   }, [partner]);
 
-  // Charger les contacts lorsque le partenaire change
+  /**
+   * Effet pour charger les contacts associés au partenaire lorsque l'onglet "Contacts" est sélectionné.
+   */
   useEffect(() => {
     async function loadContacts() {
       if (!partner) return;
-      
+
       setLoadingContacts(true);
       try {
+        console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: loadContacts - Path: partners/${partner.id}/contacts`);
         const partnerContacts = await getPartnerContacts(partner.id);
         setContacts(partnerContacts);
       } catch (error) {
@@ -138,19 +146,23 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
         setLoadingContacts(false);
       }
     }
-    
+
     if (isOpen && partner && selectedTab === 1) {
       loadContacts();
     }
   }, [partner, isOpen, selectedTab]);
-  
-  // Charger les specs lorsque le partenaire change
+
+  /**
+   * Effet pour charger les spécifications techniques associées au partenaire
+   * lorsque l'onglet "Specs" est sélectionné.
+   */
   useEffect(() => {
     async function loadSpecs() {
       if (!partner) return;
-      
+
       setLoadingSpecs(true);
       try {
+        console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: loadSpecs - Path: partners/${partner.id}/specs`);
         const partnerSpecs = await getPartnerSpecs(partner.id);
         setSpecs(partnerSpecs);
       } catch (error) {
@@ -159,54 +171,63 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
         setLoadingSpecs(false);
       }
     }
-    
+
     if (isOpen && partner && selectedTab === 2) {
       loadSpecs();
     }
   }, [partner, isOpen, selectedTab]);
 
-  // Fonction pour convertir SH_Tags en tableau s'il s'agit d'une chaîne
+  /**
+   * Convertit la propriété SH_Tags (qui peut être une chaîne ou un tableau) en un tableau de chaînes.
+   * @param {string | string[] | undefined} tags - Les tags à traiter.
+   * @returns {string[]} Un tableau de tags normalisé.
+   */
   const getTagsArray = (tags: string | string[] | undefined): string[] => {
     if (!tags) return [];
-    
-    // Si c'est déjà un tableau, on le retourne tel quel
     if (Array.isArray(tags)) return tags;
-    
-    // Si c'est une chaîne, on la découpe et on nettoie les éléments
     return tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
   };
 
-  // Fonction pour rendre le placeholder
+  /**
+   * Affiche un placeholder avec la première lettre du nom du partenaire si aucune image n'est disponible.
+   * @returns {JSX.Element} Le composant placeholder.
+   */
   const renderPlaceholder = () => (
     <div className="h-40 w-40 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-500">
       {partner?.SH_Display_Name_FR.charAt(0).toUpperCase()}
     </div>
   );
 
-  // FONCTIONS POUR LES CONTACTS
-  
-  // Gérer l'ajout d'un contact
+  /**
+   * Gère l'ajout d'un nouveau contact pour le partenaire actuel.
+   * @param {ContactFormData} contactData - Les données du nouveau contact.
+   */
   const handleAddContact = async (contactData: ContactFormData) => {
     if (!partner) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleAddContact - Path: partners/${partner.id}/contacts`);
       await addContact(partner.id, contactData);
-      // Recharger les contacts
+      console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: handleAddContact - Path: partners/${partner.id}/contacts`);
       const updatedContacts = await getPartnerContacts(partner.id);
       setContacts(updatedContacts);
       setShowContactForm(false);
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du contact:', error);
+      console.error("Erreur lors de l'ajout du contact:", error);
     }
   };
 
-  // Gérer la mise à jour d'un contact
+  /**
+   * Gère la mise à jour d'un contact existant.
+   * @param {ContactFormData} contactData - Les nouvelles données du contact.
+   */
   const handleUpdateContact = async (contactData: ContactFormData) => {
     if (!partner || !selectedContact) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleUpdateContact - Path: partners/${partner.id}/contacts/${selectedContact.id}`);
       await updateContact(partner.id, selectedContact.id, contactData);
-      // Recharger les contacts
+      console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: handleUpdateContact - Path: partners/${partner.id}/contacts`);
       const updatedContacts = await getPartnerContacts(partner.id);
       setContacts(updatedContacts);
       setSelectedContact(null);
@@ -216,43 +237,52 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   };
 
-  // Gérer la suppression d'un contact
+  /**
+   * Gère la suppression d'un contact.
+   * @param {string} contactId - L'ID du contact à supprimer.
+   */
   const handleDeleteContact = async (contactId: string) => {
     if (!partner) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleDeleteContact - Path: partners/${partner.id}/contacts/${contactId}`);
       await deleteContact(partner.id, contactId);
-      // Mettre à jour la liste locale
       setContacts(prev => prev.filter(contact => contact.id !== contactId));
     } catch (error) {
       console.error('Erreur lors de la suppression du contact:', error);
     }
   };
-  
-  // FONCTIONS POUR LES SPECS
-  
-  // Gérer l'ajout d'une spec
+
+  /**
+   * Gère l'ajout d'une nouvelle spécification technique.
+   * @param {SpecFormData} specData - Les données de la nouvelle spec.
+   */
   const handleAddSpec = async (specData: SpecFormData) => {
     if (!partner) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleAddSpec - Path: partners/${partner.id}/specs`);
       await addSpec(partner.id, specData);
-      // Recharger les specs
+      console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: handleAddSpec - Path: partners/${partner.id}/specs`);
       const updatedSpecs = await getPartnerSpecs(partner.id);
       setSpecs(updatedSpecs);
       setShowSpecForm(false);
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de la spec:', error);
+      console.error("Erreur lors de l'ajout de la spec:", error);
     }
   };
 
-  // Gérer la mise à jour d'une spec
+  /**
+   * Gère la mise à jour d'une spécification technique existante.
+   * @param {SpecFormData} specData - Les nouvelles données de la spec.
+   */
   const handleUpdateSpec = async (specData: SpecFormData) => {
     if (!partner || !selectedSpec) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleUpdateSpec - Path: partners/${partner.id}/specs/${selectedSpec.id}`);
       await updateSpec(partner.id, selectedSpec.id, specData);
-      // Recharger les specs
+      console.log(`FIREBASE: LECTURE - Fichier: PartnerDrawer.tsx - Fonction: handleUpdateSpec - Path: partners/${partner.id}/specs`);
       const updatedSpecs = await getPartnerSpecs(partner.id);
       setSpecs(updatedSpecs);
       setSelectedSpec(null);
@@ -262,38 +292,45 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   };
 
-  // Gérer la suppression d'une spec
+  /**
+   * Gère la suppression d'une spécification technique.
+   * @param {string} specId - L'ID de la spec à supprimer.
+   */
   const handleDeleteSpec = async (specId: string) => {
     if (!partner) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleDeleteSpec - Path: partners/${partner.id}/specs/${specId}`);
       await deleteSpec(partner.id, specId);
-      // Mettre à jour la liste locale
       setSpecs(prev => prev.filter(spec => spec.id !== specId));
     } catch (error) {
       console.error('Erreur lors de la suppression de la spec:', error);
     }
   };
 
-  // FONCTIONS POUR LES TAGS
-  
-  // Ajouter un tag
+  /**
+   * Ajoute un nouveau tag à la liste des tags du partenaire (état local).
+   */
   const handleAddTag = () => {
     if (!newTag.trim()) return;
-    
-    // Vérifier si le tag existe déjà
     if (!partnerTags.includes(newTag.trim())) {
       setPartnerTags([...partnerTags, newTag.trim()]);
     }
     setNewTag('');
   };
-  
-  // Supprimer un tag
+
+  /**
+   * Supprime un tag de la liste des tags du partenaire (état local).
+   * @param {string} tagToRemove - Le tag à supprimer.
+   */
   const handleRemoveTag = (tagToRemove: string) => {
     setPartnerTags(partnerTags.filter(tag => tag !== tagToRemove));
   };
-  
-  // Gérer la touche Enter pour ajouter un tag
+
+  /**
+   * Déclenche l'ajout d'un tag lorsque la touche "Entrée" est pressée.
+   * @param {React.KeyboardEvent<HTMLInputElement>} e - L'événement clavier.
+   */
   const handleTagKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -301,9 +338,9 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   };
 
-  // FONCTIONS POUR L'ÉDITION DU PARTENAIRE
-
-  // Initialiser le formulaire d'édition avec les données du partenaire
+  /**
+   * Initialise le formulaire d'édition avec les données du partenaire actuel et passe en mode édition.
+   */
   const initPartnerForm = () => {
     if (partner) {
       setPartnerFormData({
@@ -319,29 +356,30 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
     }
   };
 
-  // Gérer les changements dans le formulaire
+  /**
+   * Gère les changements de valeur dans les champs du formulaire d'édition du partenaire.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - L'événement de changement.
+   */
   const handlePartnerFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setPartnerFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Sauvegarder les modifications
+  /**
+   * Sauvegarde les modifications apportées au partenaire dans la base de données.
+   */
   const handleSavePartner = async () => {
     if (!partner) return;
-    
+
     try {
       setIsSavingPartner(true);
-      
-      // Créer une copie pour la conversion des types
       const formattedData: any = { ...partnerFormData };
-      
-      // Convertir les tags en tableau
       formattedData.SH_Tags = partnerTags;
-      
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleSavePartner - Path: partners/${partner.id}`);
       await updatePartner(partner.id, formattedData);
       setIsEditingPartner(false);
-      // Rafraîchir les données
-      onClose(); // Fermer le drawer pour forcer un rechargement
+      onClose();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du partenaire:', error);
     } finally {
@@ -378,7 +416,6 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
               >
                 <Dialog.Panel className="pointer-events-auto w-[50vw]">
                   <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
-                    {/* Header */}
                     <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-lg font-medium text-white">
@@ -397,10 +434,8 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                       </div>
                     </div>
 
-                    {/* Content */}
                     {partner && (
                       <div>
-                        {/* Onglets */}
                         <div className="flex border-b border-gray-200">
                           {categories.map((category, index) => {
                             const Icon = category.icon;
@@ -423,12 +458,8 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                           })}
                         </div>
 
-                        {/* Panneau Informations */}
                         {selectedTab === 0 && (
                           <div className="p-6">
-                       
-                            
-                            {/* Mode Édition */}
                             {isEditingPartner ? (
                               <form className="space-y-4">
                                 <div className="flex justify-center mb-6">
@@ -447,7 +478,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700">Code</label>
                                   <input
@@ -460,7 +491,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     required
                                   />
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">Nom d'affichage (FR)</label>
                                   <input
@@ -473,7 +504,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     required
                                   />
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">Nom d'affichage (EN)</label>
                                   <input
@@ -485,7 +516,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700">UTM par défaut</label>
                                   <input
@@ -497,7 +528,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700">Type</label>
                                   <input
@@ -509,7 +540,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
                                 </div>
-                                
+
                                 <div>
                                   <label htmlFor="SH_Logo" className="block text-sm font-medium text-gray-700">URL du logo</label>
                                   <input
@@ -521,15 +552,12 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
                                 </div>
-                                
-                                {/* Tags - Interface intuitive */}
+
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
-                                  
-                                  {/* Tags existants */}
                                   <div className="flex flex-wrap gap-2 mb-2">
                                     {partnerTags.map((tag, index) => (
-                                      <div 
+                                      <div
                                         key={index}
                                         className="inline-flex items-center bg-indigo-100 text-indigo-800 rounded-full px-3 py-1 text-sm"
                                       >
@@ -544,8 +572,6 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                       </div>
                                     ))}
                                   </div>
-                                  
-                                  {/* Input pour ajouter des tags */}
                                   <div className="flex mt-2">
                                     <input
                                       type="text"
@@ -564,7 +590,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                       </button>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="flex justify-end space-x-3 pt-4">
                                     <button
                                       type="button"
@@ -584,9 +610,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                   </div>
                                 </form>
                               ) : (
-                                /* Mode Affichage - Interface redessinée */
                                 <div className="bg-white shadow overflow-hidden rounded-lg">
-                                  {/* En-tête avec logo et nom */}
                                   <div className="px-4 py-5 border-b border-gray-200 bg-gray-50">
                                     <div className="flex flex-col sm:flex-row items-center">
                                       <div className="flex-shrink-0 mb-4 sm:mb-0 sm:mr-4">
@@ -628,7 +652,6 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     </div>
                                   </div>
                                   
-                                  {/* Informations principales */}
                                   <div className="px-4 py-5 sm:p-6">
                                     <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                                       <div className="sm:col-span-1">
@@ -641,7 +664,6 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                         <dd className="mt-1 text-sm text-gray-900">{partner.SH_Default_UTM || '—'}</dd>
                                       </div>
                                       
-                                      {/* Tags avec design amélioré */}
                                       <div className="sm:col-span-2">
                                         <dt className="text-sm font-medium text-gray-500 flex items-center">
                                           <TagIcon className="h-4 w-4 mr-1" />
@@ -667,7 +689,6 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     </dl>
                                   </div>
                                   
-                                  {/* Informations complémentaires */}
                                   <div className="px-4 py-4 border-t border-gray-200 sm:px-6 bg-gray-50">
                                     <div className="flex items-center">
                                       <h3 className="text-sm font-medium text-gray-900">Informations techniques</h3>
@@ -691,8 +712,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                               )}
                             </div>
                           )}
-                          
-                          {/* Panneau Contacts */}
+
                           {selectedTab === 1 && (
                             <div className="p-6">
                               <div className="space-y-4">
@@ -712,7 +732,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     </button>
                                   )}
                                 </div>
-                                
+
                                 {showContactForm ? (
                                   <ContactForm
                                     contact={selectedContact || undefined}
@@ -740,8 +760,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                               </div>
                             </div>
                           )}
-                          
-                          {/* Panneau Specs */}
+
                           {selectedTab === 2 && (
                             <div className="p-6">
                               <div className="space-y-4">
@@ -761,7 +780,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                     </button>
                                   )}
                                 </div>
-                                
+
                                 {showSpecForm ? (
                                   <SpecForm
                                     spec={selectedSpec || undefined}

@@ -1,3 +1,9 @@
+/**
+ * Ce fichier définit le composant React `TemplateForm`.
+ * Il s'agit d'un formulaire modal utilisé pour créer un nouveau gabarit (template) ou pour en modifier un existant.
+ * Le formulaire gère les champs de saisie, la validation des données et la soumission.
+ * Il ne communique pas directement avec Firebase mais délègue la sauvegarde à un composant parent via la prop `onSave`.
+ */
 'use client';
 
 import { Fragment, useState, useEffect } from 'react';
@@ -12,6 +18,16 @@ interface TemplateFormProps {
   template: Template | null;
 }
 
+/**
+ * Composant principal du formulaire de gabarit.
+ * Il s'affiche sous forme de dialogue modal pour créer ou modifier un gabarit.
+ * @param {TemplateFormProps} props - Les propriétés du composant.
+ * @param {boolean} props.isOpen - Contrôle la visibilité du formulaire modal.
+ * @param {() => void} props.onClose - Fonction à appeler pour fermer le modal.
+ * @param {(templateData: Template) => void} props.onSave - Fonction à appeler lors de la soumission du formulaire avec les données valides.
+ * @param {Template | null} props.template - Les données du gabarit à modifier. Si null, le formulaire est en mode création.
+ * @returns {JSX.Element} Le formulaire modal pour la gestion des gabarits.
+ */
 export default function TemplateForm({ isOpen, onClose, onSave, template }: TemplateFormProps) {
   const [formData, setFormData] = useState<TemplateFormData>({
     TE_Name: '',
@@ -19,10 +35,15 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     TE_Duplicate: false,
     TE_Language: 'Français'
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Initialiser le formulaire avec les données du gabarit si en mode édition
+  /**
+   * Effet qui se déclenche lorsque la prop `template` change.
+   * Si un gabarit est fourni, il initialise le formulaire avec ses données pour le mode édition.
+   * Sinon, il réinitialise le formulaire à ses valeurs par défaut pour le mode création.
+   * Il efface également toutes les erreurs précédentes.
+   */
   useEffect(() => {
     if (template) {
       setFormData({
@@ -32,7 +53,6 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
         TE_Language: template.TE_Language
       });
     } else {
-      // Réinitialiser le formulaire en mode création
       setFormData({
         TE_Name: '',
         TE_URL: '',
@@ -43,43 +63,53 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     setErrors({});
   }, [template]);
 
+  /**
+   * Valide les données actuelles du formulaire.
+   * Vérifie que le nom et l'URL ne sont pas vides et que l'URL a un format valide.
+   * Met à jour l'état des erreurs en conséquence.
+   * @returns {boolean} - `true` si le formulaire est valide, sinon `false`.
+   */
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.TE_Name.trim()) {
       newErrors.TE_Name = 'Le nom du gabarit est requis';
     }
-    
+
     if (!formData.TE_URL.trim()) {
-      newErrors.TE_URL = 'L\'URL du gabarit est requise';
+      newErrors.TE_URL = "L'URL du gabarit est requise";
     } else {
       try {
         new URL(formData.TE_URL);
       } catch (e) {
-        newErrors.TE_URL = 'L\'URL doit être valide';
+        newErrors.TE_URL = "L'URL doit être valide";
       }
     }
-    
+
     if (!formData.TE_Language) {
       newErrors.TE_Language = 'La langue est requise';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Gère les changements de valeur des champs du formulaire (input, select, checkbox).
+   * Met à jour l'état du formulaire avec la nouvelle valeur.
+   * Efface l'erreur associée au champ qui est en cours de modification.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
-    // Gestion spéciale pour les cases à cocher
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-    
-    // Effacer l'erreur du champ modifié
+
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -89,9 +119,15 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     }
   };
 
+  /**
+   * Gère la soumission du formulaire.
+   * Empêche le comportement par défaut du formulaire, valide les données,
+   * et si elles sont valides, appelle la fonction `onSave` avec les données du gabarit.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       onSave({
         ...formData,
@@ -142,10 +178,9 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </Dialog.Title>
-                
+
                 <form onSubmit={handleSubmit} className="mt-4">
                   <div className="space-y-4">
-                    {/* Nom du gabarit */}
                     <div>
                       <label htmlFor="TE_Name" className="block text-sm font-medium text-gray-700">
                         Nom du gabarit *
@@ -166,7 +201,6 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       )}
                     </div>
 
-                    {/* URL du gabarit */}
                     <div>
                       <label htmlFor="TE_URL" className="block text-sm font-medium text-gray-700">
                         URL du gabarit *
@@ -187,7 +221,6 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       )}
                     </div>
 
-                    {/* Option de duplication */}
                     <div className="flex items-start">
                       <div className="flex items-center h-5">
                         <input
@@ -209,7 +242,6 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       </div>
                     </div>
 
-                    {/* Langue du gabarit */}
                     <div>
                       <label htmlFor="TE_Language" className="block text-sm font-medium text-gray-700">
                         Langue *

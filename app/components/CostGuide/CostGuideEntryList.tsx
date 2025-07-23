@@ -1,3 +1,12 @@
+/**
+ * Ce fichier définit le composant CostGuideEntryList, qui est responsable de l'affichage
+ * d'une liste hiérarchique des entrées d'un guide de coûts. Les entrées sont groupées
+ * par partenaire, puis par catégories (niveau 1 et 2). Le composant permet
+ * l'interaction avec les entrées, comme la modification, la suppression, la duplication,
+ * et l'ajout de nouvelles entrées avec des valeurs prédéfinies. Il inclut également un mode
+ * lecture seule pour désactiver les actions de modification.
+ */
+
 'use client';
 
 import { useState } from 'react';
@@ -21,20 +30,34 @@ interface CostGuideEntryListProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onAddWithPreset: (preset: { partnerId?: string; level1?: string; level2?: string }) => void;
-  readOnly?: boolean; // Nouvelle propriété pour le mode lecture seule
+  readOnly?: boolean;
 }
 
+/**
+ * Affiche une liste hiérarchique et interactive des entrées du guide de coûts.
+ * @param {CostGuideEntry[]} entries - La liste des entrées à afficher.
+ * @param {Function} onEdit - Callback déclenché lors du clic sur le bouton de modification.
+ * @param {Function} onDelete - Callback déclenché après la suppression d'une entrée.
+ * @param {Function} onDuplicate - Callback déclenché après la duplication d'une entrée.
+ * @param {Function} onAddWithPreset - Callback pour ajouter une nouvelle entrée avec des champs pré-remplis.
+ * @param {boolean} [readOnly=false] - Si vrai, désactive les boutons de modification, suppression et duplication.
+ * @returns {JSX.Element | null} Le composant React pour la liste des entrées, ou null si la liste est vide.
+ */
 export default function CostGuideEntryList({
   entries,
   onEdit,
   onDelete,
   onDuplicate,
   onAddWithPreset,
-  readOnly = false, // Par défaut, le mode lecture seule est désactivé
+  readOnly = false,
 }: CostGuideEntryListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  // Formatter le montant en devise
+  /**
+   * Formate un nombre en une chaîne de caractères représentant une devise en dollars canadiens (CAD).
+   * @param {number} amount - Le montant numérique à formater.
+   * @returns {string} La chaîne de caractères formatée en devise (ex: "123,45 $").
+   */
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
       style: 'currency',
@@ -42,7 +65,11 @@ export default function CostGuideEntryList({
     }).format(amount);
   };
 
-  // Fonction pour basculer l'expansion d'un groupe
+  /**
+   * Bascule l'état (ouvert/fermé) d'un groupe dans la liste hiérarchique.
+   * @param {string} groupId - L'identifiant unique du groupe à basculer.
+   * @returns {void}
+   */
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => ({
       ...prev,
@@ -50,13 +77,20 @@ export default function CostGuideEntryList({
     }));
   };
 
-  // Fonction pour supprimer une entrée
+  /**
+   * Gère la suppression d'une entrée du guide de coûts après confirmation de l'utilisateur.
+   * Ne fait rien si le composant est en mode lecture seule.
+   * @param {string} guideId - L'ID du guide de coûts parent.
+   * @param {string} entryId - L'ID de l'entrée à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
+   */
   const handleDeleteEntry = async (guideId: string, entryId: string) => {
-    if (readOnly) return; // Ne rien faire si en mode lecture seule
-    
+    if (readOnly) return;
+
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
 
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryList.tsx - Fonction: handleDeleteEntry - Path: costGuides/${guideId}/entries/${entryId}`);
       await deleteCostGuideEntry(guideId, entryId);
       onDelete();
     } catch (err) {
@@ -64,21 +98,31 @@ export default function CostGuideEntryList({
     }
   };
 
-  // Fonction pour dupliquer une entrée
+  /**
+   * Gère la duplication d'une entrée du guide de coûts.
+   * Ne fait rien si le composant est en mode lecture seule.
+   * @param {string} guideId - L'ID du guide de coûts parent.
+   * @param {string} entryId - L'ID de l'entrée à dupliquer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
+   */
   const handleDuplicateEntry = async (guideId: string, entryId: string) => {
-    if (readOnly) return; // Ne rien faire si en mode lecture seule
-    
+    if (readOnly) return;
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryList.tsx - Fonction: handleDuplicateEntry - Path: costGuides/${guideId}/entries/${entryId}`);
       await duplicateCostGuideEntry(guideId, entryId);
       onDuplicate();
-    } catch (err) {
+    } catch (err){
       console.error('Erreur lors de la duplication de l\'entrée:', err);
     }
   };
 
-  // Organiser les entrées de manière hiérarchique
+  /**
+   * Organise la liste plate d'entrées en une structure hiérarchique imbriquée
+   * par partenaire, puis par niveau 1 et niveau 2.
+   * @returns {Record<string, HierarchyItem>} Un objet représentant la hiérarchie des entrées.
+   */
   const organizeHierarchy = () => {
-    // Structure de données pour notre hiérarchie
     type HierarchyItem = {
       partner: string;
       partnerId: string;
@@ -93,11 +137,9 @@ export default function CostGuideEntryList({
       };
     };
 
-    // Créer la hiérarchie
     const hierarchy: Record<string, HierarchyItem> = {};
 
     entries.forEach((entry) => {
-      // Initialiser la structure pour ce partenaire s'il n'existe pas
       if (!hierarchy[entry.partnerId]) {
         hierarchy[entry.partnerId] = {
           partner: entry.partnerName,
@@ -106,21 +148,18 @@ export default function CostGuideEntryList({
         };
       }
 
-      // Initialiser level1 s'il n'existe pas
       if (!hierarchy[entry.partnerId].level1Items[entry.level1]) {
         hierarchy[entry.partnerId].level1Items[entry.level1] = {
           level2Items: {},
         };
       }
 
-      // Initialiser level2 s'il n'existe pas
       if (!hierarchy[entry.partnerId].level1Items[entry.level1].level2Items[entry.level2]) {
         hierarchy[entry.partnerId].level1Items[entry.level1].level2Items[entry.level2] = {
           level3Items: [],
         };
       }
 
-      // Ajouter l'entrée à level3
       hierarchy[entry.partnerId].level1Items[entry.level1].level2Items[entry.level2].level3Items.push(
         entry
       );
@@ -130,22 +169,19 @@ export default function CostGuideEntryList({
   };
 
   const hierarchy = organizeHierarchy();
-  
-  // Si aucune entrée
+
   if (entries.length === 0) {
     return null;
   }
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      {/* Partenaires */}
       {Object.values(hierarchy).map((partnerItem) => {
         const partnerId = partnerItem.partnerId;
         const isPartnerExpanded = expandedGroups[`partner-${partnerId}`] || false;
-        
+
         return (
           <div key={partnerId} className="border-b border-gray-200 last:border-b-0">
-            {/* En-tête Partenaire */}
             <div
               className={`px-6 py-4 bg-gray-50 flex items-center cursor-pointer ${
                 isPartnerExpanded ? 'border-b border-gray-200' : ''
@@ -158,8 +194,7 @@ export default function CostGuideEntryList({
                 <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
               )}
               <h3 className="text-lg font-medium text-gray-900">{partnerItem.partner}</h3>
-              
-              {/* Bouton pour ajouter une entrée pour ce partenaire */}
+
               {!readOnly && (
                 <button
                   onClick={(e) => {
@@ -174,17 +209,14 @@ export default function CostGuideEntryList({
               )}
             </div>
 
-            {/* Contenu Partenaire */}
             {isPartnerExpanded && (
               <div>
-                {/* Niveau 1 */}
                 {Object.keys(partnerItem.level1Items).map((level1) => {
                   const level1Id = `${partnerId}-${level1}`;
                   const isLevel1Expanded = expandedGroups[`level1-${level1Id}`] || false;
-                  
+
                   return (
                     <div key={level1Id} className="border-t border-gray-100">
-                      {/* En-tête Niveau 1 */}
                       <div
                         className={`px-6 py-3 pl-10 bg-gray-50 flex items-center cursor-pointer ${
                           isLevel1Expanded ? 'border-b border-gray-100' : ''
@@ -197,15 +229,14 @@ export default function CostGuideEntryList({
                           <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
                         )}
                         <h4 className="text-md font-medium text-gray-800">{level1}</h4>
-                        
-                        {/* Bouton pour ajouter une entrée avec level1 prérempli */}
+
                         {!readOnly && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onAddWithPreset({ 
-                                partnerId: partnerId, 
-                                level1: level1 
+                              onAddWithPreset({
+                                partnerId: partnerId,
+                                level1: level1
                               });
                             }}
                             className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
@@ -216,17 +247,14 @@ export default function CostGuideEntryList({
                         )}
                       </div>
 
-                      {/* Contenu Niveau 1 */}
                       {isLevel1Expanded && (
                         <div>
-                          {/* Niveau 2 */}
                           {Object.keys(partnerItem.level1Items[level1].level2Items).map((level2) => {
                             const level2Id = `${level1Id}-${level2}`;
                             const isLevel2Expanded = expandedGroups[`level2-${level2Id}`] || false;
-                            
+
                             return (
                               <div key={level2Id} className="border-t border-gray-50">
-                                {/* En-tête Niveau 2 */}
                                 <div
                                   className={`px-6 py-2 pl-16 bg-gray-50 flex items-center cursor-pointer ${
                                     isLevel2Expanded ? 'border-b border-gray-50' : ''
@@ -239,16 +267,15 @@ export default function CostGuideEntryList({
                                     <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
                                   )}
                                   <h5 className="text-sm font-medium text-gray-700">{level2}</h5>
-                                  
-                                  {/* Bouton pour ajouter une entrée avec level1 et level2 préremplis */}
+
                                   {!readOnly && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        onAddWithPreset({ 
-                                          partnerId: partnerId, 
+                                        onAddWithPreset({
+                                          partnerId: partnerId,
                                           level1: level1,
-                                          level2: level2 
+                                          level2: level2
                                         });
                                       }}
                                       className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
@@ -259,7 +286,6 @@ export default function CostGuideEntryList({
                                   )}
                                 </div>
 
-                                {/* Contenu Niveau 2 (Niveau 3 - Entrées) */}
                                 {isLevel2Expanded && (
                                   <div>
                                     <table className="min-w-full divide-y divide-gray-200">

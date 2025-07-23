@@ -1,3 +1,8 @@
+/**
+ * Ce fichier définit un composant React nommé CurrencyForm.
+ * Il s'agit d'un formulaire réutilisable permettant de créer ou de modifier un taux de change entre deux devises pour une année donnée.
+ * Le formulaire est pré-rempli si une devise existante est fournie et gère la soumission et l'annulation via des fonctions passées en props.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,6 +14,14 @@ interface CurrencyFormProps {
   onCancel: () => void;
 }
 
+/**
+ * CurrencyForm est un composant de formulaire pour ajouter ou modifier des taux de change.
+ * @param {CurrencyFormProps} props - Les propriétés du composant.
+ * @param {Currency} [props.currency] - Les données de la devise à modifier. Si non fourni, le formulaire est en mode création.
+ * @param {(data: CurrencyFormData) => void} props.onSubmit - La fonction à appeler lors de la soumission du formulaire.
+ * @param {() => void} props.onCancel - La fonction à appeler lorsque l'utilisateur clique sur le bouton "Annuler".
+ * @returns {React.ReactElement} Le formulaire de devise.
+ */
 const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCancel }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => (currentYear - 5 + i).toString());
@@ -20,7 +33,6 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
     CU_To: 'USD',
   });
 
-  // Mettre à jour le formulaire avec les données de la devise si elle existe
   useEffect(() => {
     if (currency) {
       setFormData({
@@ -32,18 +44,27 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
     }
   }, [currency]);
 
+  /**
+   * Gère la soumission du formulaire.
+   * Empêche le rechargement de la page et appelle la fonction `onSubmit` passée en props avec les données du formulaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
+  /**
+   * Met à jour l'état du formulaire à chaque modification d'un champ.
+   * Il traite spécifiquement le champ `CU_Rate` pour s'assurer que sa valeur est un nombre.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     
     if (name === 'CU_Rate') {
-      // Traitement spécial pour le taux (nombre)
       const numValue = parseFloat(value);
       setFormData({
         ...formData,

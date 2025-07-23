@@ -1,77 +1,66 @@
-// app/types/move.ts - VERSION CORRIGÉE
-
-// ==================== TYPES POUR LA FONCTIONNALITÉ DE DÉPLACEMENT ====================
-
+/**
+ * Ce fichier définit tous les types de données, interfaces et constantes
+ * utilisés pour la fonctionnalité de déplacement d'éléments (sections, tactiques,
+ * placements, créatifs) au sein de la structure des campagnes.
+ * Il inclut les définitions pour les destinations, les analyses de sélection,
+ * les opérations de déplacement, les résultats et l'état du modal de déplacement.
+ * Des fonctions utilitaires pour la construction et l'extraction de chemins hiérarchiques
+ * y sont également définies.
+ */
 import { Section, Tactique, Placement, Creatif } from './tactiques';
-
-// ==================== DESTINATION DE DÉPLACEMENT ====================
 
 export interface MoveDestination {
   campaignId: string;
-  campaignName: string;      // Pour l'affichage dans l'UI
+  campaignName: string;
   versionId: string;
-  versionName: string;       // Pour l'affichage dans l'UI
+  versionName: string;
   ongletId: string;
-  ongletName: string;        // Pour l'affichage dans l'UI
-  sectionId?: string;        // Optionnel selon le type de déplacement
-  sectionName?: string;      // Pour l'affichage dans l'UI
-  tactiqueId?: string;       // Requis pour déplacer placements/créatifs
-  tactiqueName?: string;     // Pour l'affichage dans l'UI
-  placementId?: string;      // Requis pour déplacer créatifs
-  placementName?: string;    // Pour l'affichage dans l'UI
+  ongletName: string;
+  sectionId?: string;
+  sectionName?: string;
+  tactiqueId?: string;
+  tactiqueName?: string;
+  placementId?: string;
+  placementName?: string;
 }
 
-// ==================== ANALYSE DE SÉLECTION ====================
-
 export type MoveItemType = 'section' | 'tactique' | 'placement' | 'creatif';
-
-// Structure du parentPath selon le type d'élément :
-// - Section: [campaignId, versionId, ongletId]
-// - Tactique: [sectionId, campaignId, versionId, ongletId] 
-// - Placement: [tactiqueId, sectionId, campaignId, versionId, ongletId]
-// - Créatif: [placementId, tactiqueId, sectionId, campaignId, versionId, ongletId]
 
 export interface SelectedItemWithSource {
   id: string;
   type: MoveItemType;
   selectionSource: 'direct' | 'automatic';
-  parentPath: string[];     // Chemin hiérarchique organisé du plus proche au plus éloigné
-  item: Section | Tactique | Placement | Creatif; // Référence à l'objet complet
+  parentPath: string[];
+  item: Section | Tactique | Placement | Creatif;
 }
 
 export interface SelectionAnalysis {
   isValid: boolean;
   canMove: boolean;
-  rootElements: SelectedItemWithSource[];    // Éléments sélectionnés directement par l'utilisateur
-  allElements: SelectedItemWithSource[];     // Tous les éléments (racines + enfants automatiques)
-  moveLevel: MoveItemType;                   // Type d'élément à déplacer (basé sur les racines)
-  targetLevel: 'onglet' | 'section' | 'tactique' | 'placement'; // Niveau de destination requis
-  totalItemsToMove: number;                  // Nombre total d'éléments qui seront déplacés
-  errorMessage?: string;                     // Message d'erreur si la sélection est invalide
-  warningMessage?: string;                   // Message d'avertissement (optionnel)
+  rootElements: SelectedItemWithSource[];
+  allElements: SelectedItemWithSource[];
+  moveLevel: MoveItemType;
+  targetLevel: 'onglet' | 'section' | 'tactique' | 'placement';
+  totalItemsToMove: number;
+  errorMessage?: string;
+  warningMessage?: string;
 }
-
-// ==================== OPÉRATION DE DÉPLACEMENT ====================
 
 export interface MoveOperation {
   sourceItems: SelectedItemWithSource[];
   destination: MoveDestination;
   operationType: MoveItemType;
   totalItemsAffected: number;
-  clientId: string;                          // Client source (pour validation)
+  clientId: string;
 }
-
-// ==================== VALIDATION DE DÉPLACEMENT ====================
 
 export interface MoveValidationResult {
   isValid: boolean;
   canProceed: boolean;
   errors: string[];
   warnings: string[];
-  suggestions?: string[];                    // Suggestions pour résoudre les problèmes
+  suggestions?: string[];
 }
-
-// ==================== RÉSULTAT DE DÉPLACEMENT ====================
 
 export interface MoveResult {
   success: boolean;
@@ -79,10 +68,8 @@ export interface MoveResult {
   skippedItemsCount: number;
   errors: string[];
   warnings: string[];
-  newItemIds?: { [oldId: string]: string }; // Mapping ancien ID → nouvel ID si nécessaire
+  newItemIds?: { [oldId: string]: string };
 }
-
-// ==================== OPTIONS DE CASCADE POUR LE MODAL ====================
 
 export interface CascadeLevel {
   level: 'campaign' | 'version' | 'onglet' | 'section' | 'tactique' | 'placement';
@@ -98,10 +85,8 @@ export interface CascadeItem {
   id: string;
   name: string;
   description?: string;
-  metadata?: Record<string, any>;           // Données supplémentaires (budget, dates, etc.)
+  metadata?: Record<string, any>;
 }
-
-// ==================== ÉTAT DU MODAL DE DÉPLACEMENT ====================
 
 export interface MoveModalState {
   isOpen: boolean;
@@ -123,8 +108,6 @@ export interface MoveModalState {
   error: string | null;
 }
 
-// ==================== FONCTIONS UTILITAIRES TYPES ====================
-
 export type MoveServiceFunction = (operation: MoveOperation) => Promise<MoveResult>;
 
 export type ValidationFunction = (
@@ -132,19 +115,17 @@ export type ValidationFunction = (
   destination: Partial<MoveDestination>
 ) => Promise<MoveValidationResult>;
 
-// ==================== CONSTANTES CORRIGÉES ====================
-
 export const MOVE_LEVEL_HIERARCHY: Record<MoveItemType, 'onglet' | 'section' | 'tactique' | 'placement'> = {
-  'section': 'onglet',      // Les sections vont vers un onglet
-  'tactique': 'section',    // Les tactiques vont vers une section
-  'placement': 'tactique',  // Les placements vont vers une tactique
-  'creatif': 'placement'    // Les créatifs vont vers un placement
+  'section': 'onglet',
+  'tactique': 'section',
+  'placement': 'tactique',
+  'creatif': 'placement'
 };
 
 export const MOVE_LEVEL_LABELS: Record<MoveItemType, string> = {
   'section': 'sections',
   'tactique': 'tactiques',
-  'placement': 'placements', 
+  'placement': 'placements',
   'creatif': 'créatifs'
 };
 
@@ -155,8 +136,6 @@ export const TARGET_LEVEL_LABELS: Record<string, string> = {
   'placement': 'un placement'
 };
 
-// ==================== CONSTANTES D'ORDRE DES CHAMPS ====================
-
 export const ORDER_FIELDS: Record<MoveItemType, string> = {
   'section': 'SECTION_Order',
   'tactique': 'TC_Order',
@@ -164,9 +143,14 @@ export const ORDER_FIELDS: Record<MoveItemType, string> = {
   'creatif': 'CR_Order'
 };
 
-// ==================== HELPERS POUR PARENTPATH ====================
-
-// Helper pour construire le parentPath selon le type d'élément
+/**
+ * Construit le chemin hiérarchique (parentPath) pour un élément donné.
+ * Ce chemin est utilisé pour identifier l'emplacement d'un élément dans la structure de la campagne.
+ *
+ * @param itemType - Le type de l'élément (section, tactique, placement, créatif).
+ * @param contextIds - Un objet contenant les IDs des parents de l'élément (campaignId, versionId, ongletId, etc.).
+ * @returns Un tableau de chaînes de caractères représentant le parentPath.
+ */
 export function buildParentPath(
   itemType: MoveItemType,
   contextIds: {
@@ -179,7 +163,7 @@ export function buildParentPath(
   }
 ): string[] {
   const { campaignId, versionId, ongletId, sectionId, tactiqueId, placementId } = contextIds;
-  
+
   switch (itemType) {
     case 'section':
       return [campaignId, versionId, ongletId];
@@ -194,10 +178,16 @@ export function buildParentPath(
   }
 }
 
-// Helper pour extraire les IDs depuis un parentPath
+/**
+ * Extrait les IDs des différents niveaux hiérarchiques à partir d'un parentPath donné.
+ *
+ * @param itemType - Le type de l'élément auquel le parentPath appartient.
+ * @param parentPath - Le tableau de chaînes de caractères représentant le parentPath.
+ * @returns Un objet contenant les IDs extraits (campaignId, versionId, ongletId, etc.).
+ */
 export function extractIdsFromParentPath(itemType: MoveItemType, parentPath: string[]): {
   campaignId: string;
-  versionId: string; 
+  versionId: string;
   ongletId: string;
   sectionId?: string;
   tactiqueId?: string;
@@ -243,15 +233,9 @@ export function extractIdsFromParentPath(itemType: MoveItemType, parentPath: str
   }
 }
 
-// ==================== TYPES POUR L'INTÉGRATION ====================
-
-// Type pour étendre les composants existants sans les casser
 export interface MoveCapableSelectedItem {
-  // Propriétés existantes conservées pour compatibilité
   id: string;
   isSelected?: boolean;
-  
-  // Nouvelles propriétés pour le déplacement
   _moveData?: {
     type: MoveItemType;
     selectionSource: 'direct' | 'automatic';
@@ -259,24 +243,14 @@ export interface MoveCapableSelectedItem {
   };
 }
 
-// Hook type pour l'intégration dans les composants existants
 export interface UseMoveOperationReturn {
-  // État du modal
   modalState: MoveModalState;
-  
-  // Actions principales
   openMoveModal: (selection: SelectionAnalysis) => void;
   closeMoveModal: () => void;
-  
-  // Navigation dans le modal
   selectDestination: (level: string, itemId: string) => Promise<void>;
   confirmMove: () => Promise<void>;
-  
-  // Validation
   analyzeSelection: (selectedItems: any[]) => SelectionAnalysis;
   validateMove: (destination: Partial<MoveDestination>) => Promise<MoveValidationResult>;
-  
-  // Utilitaires
   canMoveSelection: (selectedItems: any[]) => boolean;
   getMoveButtonLabel: (selectedItems: any[]) => string;
 }

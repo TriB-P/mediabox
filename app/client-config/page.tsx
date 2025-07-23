@@ -1,3 +1,11 @@
+/**
+ * @file Ce fichier définit la page principale de configuration pour un client.
+ * Il utilise un système d'onglets pour permettre à l'utilisateur de naviguer
+ * entre différentes sections de configuration comme les informations générales,
+ * la gestion des accès, les frais, les taxonomies, etc.
+ * Chaque onglet affiche un composant dédié à une tâche de configuration spécifique.
+ */
+
 'use client';
 
 import { useState } from 'react';
@@ -14,19 +22,25 @@ import ClientCustomCodes from '../components/Client/ClientCustomCodes';
 import ClientTemplates from '../components/Client/ClientTemplates';
 
 
-
-// Importez correctement tous les composants Tab
-import * as TabPrimitive from '@headlessui/react';
-const { Tab } = TabPrimitive;
-
-function classNames(...classes: string[]) {
+/**
+ * Concatène des noms de classes CSS en filtrant les valeurs non valides.
+ * Utile pour appliquer des classes conditionnelles dans React.
+ * @param {...string} classes - Une liste de chaînes de caractères représentant les classes CSS.
+ * @returns {string} Une chaîne de caractères unique contenant les classes valides, séparées par des espaces.
+ */
+function classNames(...classes: string[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function ClientConfigPage() {
+/**
+ * Composant principal de la page de configuration du client.
+ * Gère l'état de l'onglet actuellement sélectionné et affiche le composant correspondant.
+ * La page est protégée et ne peut être accédée que par un utilisateur authentifié.
+ * @returns {JSX.Element} Le rendu de la page de configuration avec ses onglets de navigation.
+ */
+export default function ClientConfigPage(): JSX.Element {
   const [selectedTab, setSelectedTab] = useState(0);
-  
-  // Liste complète des onglets
+
   const tabs = [
     { name: 'Général', component: () => <ClientGeneral /> },
     { name: 'Accès', component: () => <ClientAccess /> },
@@ -37,7 +51,6 @@ export default function ClientConfigPage() {
     { name: 'Dimensions', component: () => <ClientDimensions /> },
     { name: 'Codes personnalisés', component: () => <ClientCustomCodes /> },
     { name: 'Devises', component: () => <ClientCurrencies /> },
-
   ];
 
   return (
@@ -45,7 +58,7 @@ export default function ClientConfigPage() {
       <AuthenticatedLayout>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Configuration du client</h1>
-          
+
           <div className="flex flex-wrap rounded-xl bg-gray-100 p-1 mb-6">
             {tabs.map((tab, index) => (
               <button
@@ -63,7 +76,7 @@ export default function ClientConfigPage() {
               </button>
             ))}
           </div>
-          
+
           <div className="rounded-xl focus:outline-none">
             {tabs[selectedTab].component()}
           </div>

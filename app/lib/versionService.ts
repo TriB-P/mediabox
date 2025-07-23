@@ -1,11 +1,15 @@
-// app/lib/versionService.ts
-
-import { 
-  collection, 
-  doc, 
-  getDocs, 
+/**
+ * Ce fichier contient des fonctions de service pour interagir avec les données de version
+ * dans Firebase Firestore. Il permet de gérer les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
+ * pour les versions associées à des campagnes spécifiques, ainsi que la gestion
+ * de la version officielle d'une campagne.
+ */
+import {
+  collection,
+  doc,
+  getDocs,
   getDoc,
-  addDoc, 
+  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -14,7 +18,6 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 
-// Types
 export interface Version {
   id: string;
   name: string;
@@ -27,15 +30,18 @@ export interface VersionFormData {
   name: string;
 }
 
-// Fonctions
+/**
+ * Récupère toutes les versions pour une campagne spécifique.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @returns Une promesse qui résout en un tableau d'objets Version.
+ */
 export const getVersions = async (clientId: string, campaignId: string): Promise<Version[]> => {
   try {
     const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions')
     const q = query(versionsRef, orderBy('createdAt', 'asc'))
+    console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: getVersions - Path: clients/${clientId}/campaigns/${campaignId}/versions");
     const snapshot = await getDocs(q)
-    
-    console.log('Nombre de versions trouvées:', snapshot.size)
-    
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -46,10 +52,18 @@ export const getVersions = async (clientId: string, campaignId: string): Promise
   }
 }
 
+/**
+ * Crée une nouvelle version pour une campagne spécifique.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param formData Les données du formulaire pour la nouvelle version.
+ * @param userEmail L'e-mail de l'utilisateur qui crée la version.
+ * @returns Une promesse qui résout en l'ID de la nouvelle version créée.
+ */
 export const createVersion = async (
-  clientId: string, 
-  campaignId: string, 
-  formData: VersionFormData, 
+  clientId: string,
+  campaignId: string,
+  formData: VersionFormData,
   userEmail: string
 ): Promise<string> => {
   try {
@@ -60,7 +74,7 @@ export const createVersion = async (
       createdAt: new Date().toISOString(),
       createdBy: userEmail
     }
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: createVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions");
     const docRef = await addDoc(versionsRef, newVersion)
     return docRef.id
   } catch (error) {
@@ -69,28 +83,34 @@ export const createVersion = async (
   }
 }
 
+/**
+ * Définit une version spécifique comme officielle pour une campagne.
+ * Cela retire le statut officiel de toutes les autres versions et met à jour la campagne.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version à définir comme officielle.
+ * @returns Une promesse qui résout une fois l'opération terminée.
+ */
 export const setOfficialVersion = async (
-  clientId: string, 
-  campaignId: string, 
+  clientId: string,
+  campaignId: string,
   versionId: string
 ): Promise<void> => {
   try {
-    // 1. Retirer le statut officiel de toutes les versions
     const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions')
     const q = query(versionsRef, where('isOfficial', '==', true))
+    console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: setOfficialVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions");
     const snapshot = await getDocs(q)
-    
-    const updates = snapshot.docs.map(doc => 
-      updateDoc(doc.ref, { isOfficial: false })
-    )
+    const updates = snapshot.docs.map(doc => {
+      console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: setOfficialVersion - Path: versions/${doc.id}");
+      return updateDoc(doc.ref, { isOfficial: false })
+    })
     await Promise.all(updates)
-    
-    // 2. Marquer la nouvelle version comme officielle
     const versionRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId)
+    console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: setOfficialVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}");
     await updateDoc(versionRef, { isOfficial: true })
-    
-    // 3. Mettre à jour la campagne
     const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId)
+    console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: setOfficialVersion - Path: clients/${clientId}/campaigns/${campaignId}");
     await updateDoc(campaignRef, {
       officialVersionId: versionId
     })
@@ -100,56 +120,57 @@ export const setOfficialVersion = async (
   }
 }
 
+/**
+ * Supprime une version spécifique ainsi que toutes ses sous-collections (tactiques, créatifs, placements).
+ * Ne permet pas la suppression de la version officielle.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version à supprimer.
+ * @returns Une promesse qui résout une fois l'opération terminée.
+ * @throws Erreur si la version n'est pas trouvée ou si elle est la version officielle.
+ */
 export const deleteVersion = async (
-  clientId: string, 
-  campaignId: string, 
+  clientId: string,
+  campaignId: string,
   versionId: string
 ): Promise<void> => {
   try {
-    // 1. Vérifier que la version existe et n'est pas officielle
     const versionRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId)
+    console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: deleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}");
     const versionDoc = await getDoc(versionRef)
-    
     if (!versionDoc.exists()) {
       throw new Error('Version introuvable')
     }
-    
     const versionData = versionDoc.data() as Version
     if (versionData.isOfficial) {
       throw new Error('Impossible de supprimer la version officielle')
     }
-    
-    // 2. Supprimer toutes les tactiques liées à cette version
     const tacticsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'tactics')
+    console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: deleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/tactics");
     const tacticsSnapshot = await getDocs(tacticsRef)
-    
-    // Supprimer chaque tactique et ses sous-collections
     for (const tacticDoc of tacticsSnapshot.docs) {
       const tacticId = tacticDoc.id
-      
-      // Supprimer les créatifs de la tactique
       const creativesRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'tactics', tacticId, 'creatives')
+      console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: deleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/tactics/${tacticId}/creatives");
       const creativesSnapshot = await getDocs(creativesRef)
-      const deleteCreatives = creativesSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      const deleteCreatives = creativesSnapshot.docs.map(doc => {
+        console.log("FIREBASE: SUPPRESSION - Fichier: versionService.ts - Fonction: deleteVersion - Path: creatives/${doc.id}");
+        return deleteDoc(doc.ref)
+      })
       await Promise.all(deleteCreatives)
-      
-      // Supprimer les placements de la tactique
       const placementsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'tactics', tacticId, 'placements')
+      console.log("FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: deleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/tactics/${tacticId}/placements");
       const placementsSnapshot = await getDocs(placementsRef)
-      const deletePlacements = placementsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      const deletePlacements = placementsSnapshot.docs.map(doc => {
+        console.log("FIREBASE: SUPPRESSION - Fichier: versionService.ts - Fonction: deleteVersion - Path: placements/${doc.id}");
+        return deleteDoc(doc.ref)
+      })
       await Promise.all(deletePlacements)
-      
-      // Supprimer la tactique elle-même
+      console.log("FIREBASE: SUPPRESSION - Fichier: versionService.ts - Fonction: deleteVersion - Path: tactics/${tacticDoc.id}");
       await deleteDoc(tacticDoc.ref)
     }
-    
-    // 3. Supprimer toutes les autres sous-collections potentielles de la version
-    // (Ajouter ici d'autres collections si nécessaire : breakdowns, etc.)
-    
-    // 4. Supprimer la version elle-même
+    console.log("FIREBASE: SUPPRESSION - Fichier: versionService.ts - Fonction: deleteVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}");
     await deleteDoc(versionRef)
-    
-    console.log(`Version ${versionId} supprimée avec succès`)
   } catch (error) {
     console.error('Erreur lors de la suppression de la version:', error)
     throw error

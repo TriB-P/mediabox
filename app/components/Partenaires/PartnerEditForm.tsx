@@ -1,8 +1,20 @@
+/**
+ * Ce fichier définit le composant PartnerEditForm, qui est utilisé pour afficher et modifier les détails
+ * d'un partenaire (stakeholder). Le composant possède deux états : un mode de visualisation pour afficher
+ * les informations et un mode d'édition pour les modifier via un formulaire. Il interagit avec le
+ * PartnerContext pour accéder aux données du partenaire sélectionné et pour déclencher les mises à jour.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { usePartners } from '../../contexts/PartnerContext';
 
+/**
+ * Le composant PartnerEditForm gère l'affichage et la modification des détails d'un partenaire.
+ * Il utilise l'état local pour gérer le mode (édition ou visualisation) et les données du formulaire.
+ * Les données du partenaire proviennent du `PartnerContext`.
+ * @returns {JSX.Element | null} Le JSX pour le formulaire d'édition ou la vue détaillée, ou null si aucun partenaire n'est sélectionné.
+ */
 export default function PartnerEditForm() {
   const { selectedPartner, updateSelectedPartner, setIsDrawerOpen } = usePartners();
   const [isEditing, setIsEditing] = useState(false);
@@ -17,7 +29,11 @@ export default function PartnerEditForm() {
   });
   const [error, setError] = useState('');
 
-  // Initialiser le formulaire avec les données du partenaire sélectionné
+  /**
+   * Effet de bord qui s'exécute lorsque le partenaire sélectionné (`selectedPartner`) change.
+   * Il initialise l'état local du formulaire (`formData`) avec les données du partenaire
+   * pour pré-remplir les champs.
+   */
   useEffect(() => {
     if (selectedPartner) {
       setFormData({
@@ -31,13 +47,22 @@ export default function PartnerEditForm() {
     }
   }, [selectedPartner]);
 
-  // Gérer les changements dans le formulaire
+  /**
+   * Gère les changements de valeur des champs du formulaire.
+   * Met à jour l'état `formData` avec la nouvelle valeur.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Soumettre le formulaire
+  /**
+   * Gère la soumission du formulaire d'édition.
+   * Calcule les champs qui ont été modifiés, puis appelle la fonction `updateSelectedPartner`
+   * du contexte pour enregistrer les changements dans Firebase.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPartner) return;
@@ -46,7 +71,6 @@ export default function PartnerEditForm() {
       setIsSubmitting(true);
       setError('');
 
-      // Création de l'objet de mise à jour en ne gardant que les champs modifiés
       const updatedFields: any = {};
       Object.entries(formData).forEach(([key, value]) => {
         // @ts-ignore
@@ -55,13 +79,12 @@ export default function PartnerEditForm() {
         }
       });
 
-      // Si aucun champ n'a été modifié, simplement fermer le mode édition
       if (Object.keys(updatedFields).length === 0) {
         setIsEditing(false);
         return;
       }
 
-      // Effectuer la mise à jour
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: PartnerEditForm.tsx - Fonction: handleSubmit - Path: stakeholders/${selectedPartner.id}`);
       await updateSelectedPartner(updatedFields);
       setIsEditing(false);
     } catch (error: any) {
@@ -71,12 +94,10 @@ export default function PartnerEditForm() {
     }
   };
 
-  // Si aucun partenaire n'est sélectionné, ne rien afficher
   if (!selectedPartner) {
     return null;
   }
 
-  // Mode vue (non édition)
   if (!isEditing) {
     return (
       <div className="p-4">
@@ -91,18 +112,16 @@ export default function PartnerEditForm() {
         </div>
 
         <div className="space-y-4">
-          {/* Logo */}
           {selectedPartner.SH_Logo && (
             <div className="mb-4 flex justify-center">
-              <img 
-                src={selectedPartner.SH_Logo} 
-                alt={`Logo ${selectedPartner.SH_Display_Name_FR}`} 
+              <img
+                src={selectedPartner.SH_Logo}
+                alt={`Logo ${selectedPartner.SH_Display_Name_FR}`}
                 className="h-20 object-contain"
               />
             </div>
           )}
 
-          {/* Information détails */}
           <div className="grid grid-cols-1 gap-2">
             <div>
               <span className="text-sm font-medium text-gray-500">ID</span>
@@ -138,19 +157,17 @@ export default function PartnerEditForm() {
     );
   }
 
-  // Mode édition
   return (
     <div className="p-4">
       <h2 className="text-lg font-semibold mb-4">Modifier le partenaire</h2>
-      
+
       {error && (
         <div className="bg-red-50 text-red-500 p-2 rounded mb-4 text-sm">
           {error}
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Champ non modifiable: ID */}
         <div>
           <label className="form-label">ID</label>
           <input
@@ -160,8 +177,7 @@ export default function PartnerEditForm() {
             className="form-input bg-gray-100"
           />
         </div>
-        
-        {/* Code */}
+
         <div>
           <label htmlFor="SH_Code" className="form-label">Code</label>
           <input
@@ -174,8 +190,7 @@ export default function PartnerEditForm() {
             required
           />
         </div>
-        
-        {/* Nom d'affichage (FR) */}
+
         <div>
           <label htmlFor="SH_Display_Name_FR" className="form-label">Nom d'affichage (FR)</label>
           <input
@@ -188,8 +203,7 @@ export default function PartnerEditForm() {
             required
           />
         </div>
-        
-        {/* Nom d'affichage (EN) */}
+
         <div>
           <label htmlFor="SH_Display_Name_EN" className="form-label">Nom d'affichage (EN)</label>
           <input
@@ -201,8 +215,7 @@ export default function PartnerEditForm() {
             className="form-input"
           />
         </div>
-        
-        {/* UTM par défaut */}
+
         <div>
           <label htmlFor="SH_Default_UTM" className="form-label">UTM par défaut</label>
           <input
@@ -214,8 +227,7 @@ export default function PartnerEditForm() {
             className="form-input"
           />
         </div>
-        
-        {/* Type */}
+
         <div>
           <label htmlFor="SH_Type" className="form-label">Type</label>
           <input
@@ -227,8 +239,7 @@ export default function PartnerEditForm() {
             className="form-input"
           />
         </div>
-        
-        {/* Logo URL */}
+
         <div>
           <label htmlFor="SH_Logo" className="form-label">Logo URL</label>
           <input
@@ -240,23 +251,20 @@ export default function PartnerEditForm() {
             className="form-input"
           />
         </div>
-        
-        {/* Logo preview */}
+
         {formData.SH_Logo && (
           <div className="mt-2 flex justify-center">
-            <img 
+            <img
               src={formData.SH_Logo}
               alt="Aperçu du logo"
               className="h-20 object-contain"
               onError={(e) => {
-                // Gérer les erreurs de chargement d'image
                 e.currentTarget.src = 'https://via.placeholder.com/150?text=Logo+Error';
               }}
             />
           </div>
         )}
-        
-        {/* Boutons d'action */}
+
         <div className="flex justify-end gap-2 pt-4">
           <button
             type="button"

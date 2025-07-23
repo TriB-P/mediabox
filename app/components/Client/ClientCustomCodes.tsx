@@ -1,12 +1,16 @@
-// app/components/Client/ClientCustomCodes.tsx
-
+/**
+ * @file Ce composant React permet de visualiser et de gérer les codes personnalisés (custom codes) pour un client spécifique.
+ * Il affiche la liste des codes personnalisés, permet d'en ajouter, de les modifier et de les supprimer.
+ * L'accès aux fonctionnalités de modification est contrôlé par le système de permissions.
+ * Le composant interagit avec Firebase pour récupérer et manipuler les données des codes.
+ */
 'use client';
 
 import React, { useState, useEffect, Fragment } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { Dialog, Transition } from '@headlessui/react';
-import { 
+import {
   getAllShortcodes,
   getClientCustomCodes,
   addCustomCode,
@@ -15,14 +19,20 @@ import {
   Shortcode,
   CustomCode
 } from '../../lib/customCodeService';
-import { 
-  PlusIcon, 
-  XMarkIcon, 
-  MagnifyingGlassIcon, 
+import {
+  PlusIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
 
+/**
+ * Composant principal pour la gestion des codes personnalisés d'un client.
+ * Il gère l'état local, l'affichage des données, les interactions utilisateur (recherche, ajout, modification, suppression)
+ * et l'affichage des modales.
+ * @returns {React.ReactElement} Le JSX du composant.
+ */
 const ClientCustomCodes: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
@@ -31,42 +41,45 @@ const ClientCustomCodes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
-  // Vérifier si l'utilisateur a la permission de gérer les codes personnalisés
+
   const hasCustomCodePermission = canPerformAction('CustomCodes');
-  
-  // États pour le modal d'ajout/édition de code personnalisé
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<CustomCode | null>(null);
   const [selectedShortcode, setSelectedShortcode] = useState<Shortcode | null>(null);
   const [customCodeValue, setCustomCodeValue] = useState('');
-  
-  // États pour la recherche
+
   const [searchTerm, setSearchTerm] = useState('');
   const [shortcodeSearchTerm, setShortcodeSearchTerm] = useState('');
 
-  // Charger les données quand le client sélectionné change
   useEffect(() => {
     if (selectedClient) {
       loadData();
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les données nécessaires depuis Firebase.
+   * Récupère la liste de tous les shortcodes disponibles dans le système ainsi que les codes personnalisés
+   * spécifiques au client sélectionné.
+   * @async
+   * @returns {Promise<void>}
+   */
   const loadData = async () => {
     if (!selectedClient) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
-      // Charger tous les shortcodes du système
+
+      console.log("FIREBASE: LECTURE - Fichier: ClientCustomCodes.tsx - Fonction: loadData - Path: shortcodes");
       const shortcodes = await getAllShortcodes();
       setAllShortcodes(shortcodes);
-      
-      // Charger les codes personnalisés du client
+
+      console.log(`FIREBASE: LECTURE - Fichier: ClientCustomCodes.tsx - Fonction: loadData - Path: clients/${selectedClient.clientId}/customCodes`);
       const codes = await getClientCustomCodes(selectedClient.clientId);
       setCustomCodes(codes);
-      
+
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
       setError('Impossible de charger les données.');
@@ -75,9 +88,14 @@ const ClientCustomCodes: React.FC = () => {
     }
   };
 
+  /**
+   * Ouvre la modale pour ajouter un nouveau code personnalisé.
+   * Réinitialise les états du formulaire avant d'afficher la modale.
+   * Ne fait rien si l'utilisateur n'a pas la permission requise.
+   */
   const openAddModal = () => {
     if (!hasCustomCodePermission) return;
-    
+
     setEditingCode(null);
     setSelectedShortcode(null);
     setCustomCodeValue('');
@@ -85,19 +103,26 @@ const ClientCustomCodes: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  /**
+   * Ouvre la modale pour modifier un code personnalisé existant.
+   * Pré-remplit le formulaire avec les informations du code sélectionné.
+   * @param {CustomCode} code - L'objet du code personnalisé à modifier.
+   */
   const openEditModal = (code: CustomCode) => {
     if (!hasCustomCodePermission) return;
-    
+
     setEditingCode(code);
-    
-    // Trouver le shortcode correspondant
+
     const shortcode = allShortcodes.find(s => s.id === code.shortcodeId);
     setSelectedShortcode(shortcode || null);
-    
+
     setCustomCodeValue(code.customCode);
     setIsModalOpen(true);
   };
 
+  /**
+   * Ferme la modale d'ajout ou de modification et réinitialise les états associés.
+   */
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingCode(null);
@@ -105,24 +130,30 @@ const ClientCustomCodes: React.FC = () => {
     setCustomCodeValue('');
   };
 
+  /**
+   * Gère la soumission du formulaire pour l'ajout d'un nouveau code personnalisé.
+   * Appelle le service Firebase pour créer le document, puis rafraîchit les données locales.
+   * Affiche des messages de succès ou d'erreur.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleAddCode = async () => {
     if (!selectedClient || !selectedShortcode || !hasCustomCodePermission) return;
-    
+
     try {
       setError(null);
-      
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientCustomCodes.tsx - Fonction: handleAddCode - Path: clients/${selectedClient.clientId}/customCodes`);
       await addCustomCode(selectedClient.clientId, {
         shortcodeId: selectedShortcode.id,
         customCode: customCodeValue
       });
-      
+
       setSuccess('Code personnalisé ajouté avec succès.');
       setTimeout(() => setSuccess(null), 3000);
-      
-      // Recharger les données
+
       await loadData();
-      
-      // Fermer le modal
+
       closeModal();
     } catch (err) {
       console.error('Erreur lors de l\'ajout du code personnalisé:', err);
@@ -130,12 +161,20 @@ const ClientCustomCodes: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire pour la mise à jour d'un code personnalisé existant.
+   * Appelle le service Firebase pour mettre à jour le document, puis rafraîchit les données locales.
+   * Affiche des messages de succès ou d'erreur.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleUpdateCode = async () => {
     if (!selectedClient || !editingCode || !hasCustomCodePermission) return;
-    
+
     try {
       setError(null);
-      
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientCustomCodes.tsx - Fonction: handleUpdateCode - Path: clients/${selectedClient.clientId}/customCodes/${editingCode.id}`);
       await updateCustomCode(
         selectedClient.clientId,
         editingCode.id,
@@ -143,14 +182,12 @@ const ClientCustomCodes: React.FC = () => {
           customCode: customCodeValue
         }
       );
-      
+
       setSuccess('Code personnalisé mis à jour avec succès.');
       setTimeout(() => setSuccess(null), 3000);
-      
-      // Recharger les données
+
       await loadData();
-      
-      // Fermer le modal
+
       closeModal();
     } catch (err) {
       console.error('Erreur lors de la mise à jour du code personnalisé:', err);
@@ -158,19 +195,27 @@ const ClientCustomCodes: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la suppression d'un code personnalisé après confirmation de l'utilisateur.
+   * Appelle le service Firebase pour supprimer le document, puis rafraîchit les données locales.
+   * Affiche des messages de succès ou d'erreur.
+   * @async
+   * @param {string} codeId - L'ID du code personnalisé à supprimer.
+   * @returns {Promise<void>}
+   */
   const handleDeleteCode = async (codeId: string) => {
     if (!selectedClient || !hasCustomCodePermission) return;
-    
+
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce code personnalisé ?')) {
       try {
         setError(null);
-        
+
+        console.log(`FIREBASE: ÉCRITURE - Fichier: ClientCustomCodes.tsx - Fonction: handleDeleteCode - Path: clients/${selectedClient.clientId}/customCodes/${codeId}`);
         await deleteCustomCode(selectedClient.clientId, codeId);
-        
+
         setSuccess('Code personnalisé supprimé avec succès.');
         setTimeout(() => setSuccess(null), 3000);
-        
-        // Recharger les données
+
         await loadData();
       } catch (err) {
         console.error('Erreur lors de la suppression du code personnalisé:', err);
@@ -178,35 +223,40 @@ const ClientCustomCodes: React.FC = () => {
       }
     }
   };
-  
-  // Filtrer les codes personnalisés selon la recherche
+
+  // Filtre les codes personnalisés affichés dans le tableau en fonction du terme de recherche.
   const filteredCustomCodes = customCodes.filter(code => {
     if (!searchTerm) return true;
-    
+
     const searchLower = searchTerm.toLowerCase();
     const shortcode = allShortcodes.find(s => s.id === code.shortcodeId);
-    
+
     return (
       code.customCode.toLowerCase().includes(searchLower) ||
-      code.shortcodeId.toLowerCase().includes(searchLower) || // Recherche par ID du shortcode
+      code.shortcodeId.toLowerCase().includes(searchLower) ||
       (shortcode?.SH_Code && shortcode.SH_Code.toLowerCase().includes(searchLower)) ||
       (shortcode?.SH_Display_Name_FR && shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower))
     );
   });
-  
-  // Filtrer les shortcodes pour la sélection dans le modal
+
+  // Filtre la liste des shortcodes disponibles dans la modale en fonction du terme de recherche.
   const filteredShortcodes = allShortcodes.filter(shortcode => {
     if (!shortcodeSearchTerm) return true;
-    
+
     const searchLower = shortcodeSearchTerm.toLowerCase();
     return (
       shortcode.SH_Code.toLowerCase().includes(searchLower) ||
       shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
-      shortcode.id.toLowerCase().includes(searchLower) // Recherche par ID
+      shortcode.id.toLowerCase().includes(searchLower)
     );
   });
 
-  // Vérifier si le shortcode a déjà un code personnalisé
+  /**
+   * Vérifie si un shortcode donné a déjà un code personnalisé assigné pour le client actuel.
+   * Utilisé pour désactiver la sélection de shortcodes déjà utilisés dans la modale d'ajout.
+   * @param {string} shortcodeId - L'ID du shortcode à vérifier.
+   * @returns {boolean} - `true` si un code personnalisé existe, sinon `false`.
+   */
   const hasCustomCode = (shortcodeId: string) => {
     return customCodes.some(code => code.shortcodeId === shortcodeId);
   };
@@ -227,8 +277,8 @@ const ClientCustomCodes: React.FC = () => {
           <button
             onClick={openAddModal}
             className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
-              hasCustomCodePermission 
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+              hasCustomCodePermission
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 : 'text-gray-500 bg-gray-300 cursor-not-allowed'
             }`}
             disabled={!hasCustomCodePermission}
@@ -250,14 +300,13 @@ const ClientCustomCodes: React.FC = () => {
             {error}
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 text-green-700">
             {success}
           </div>
         )}
-        
-        {/* Barre de recherche */}
+
         <div className="mb-6">
           <div className="relative w-full max-w-md">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -272,14 +321,13 @@ const ClientCustomCodes: React.FC = () => {
             />
           </div>
         </div>
-        
-        {/* Liste des codes personnalisés */}
+
         {loading ? (
           <div className="py-4 text-center text-gray-500">Chargement des codes personnalisés...</div>
         ) : filteredCustomCodes.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
-            <p>{customCodes.length === 0 
-              ? 'Aucun code personnalisé configuré pour ce client.' 
+            <p>{customCodes.length === 0
+              ? 'Aucun code personnalisé configuré pour ce client.'
               : 'Aucun résultat pour votre recherche.'}</p>
           </div>
         ) : (
@@ -326,8 +374,8 @@ const ClientCustomCodes: React.FC = () => {
                           <button
                             onClick={() => openEditModal(code)}
                             className={`${
-                              hasCustomCodePermission 
-                                ? 'text-indigo-600 hover:text-indigo-900' 
+                              hasCustomCodePermission
+                                ? 'text-indigo-600 hover:text-indigo-900'
                                 : 'text-gray-400 cursor-not-allowed'
                             }`}
                             disabled={!hasCustomCodePermission}
@@ -338,8 +386,8 @@ const ClientCustomCodes: React.FC = () => {
                           <button
                             onClick={() => handleDeleteCode(code.id)}
                             className={`${
-                              hasCustomCodePermission 
-                                ? 'text-red-600 hover:text-red-900' 
+                              hasCustomCodePermission
+                                ? 'text-red-600 hover:text-red-900'
                                 : 'text-gray-400 cursor-not-allowed'
                             }`}
                             disabled={!hasCustomCodePermission}
@@ -358,7 +406,6 @@ const ClientCustomCodes: React.FC = () => {
         )}
       </div>
 
-      {/* Modal d'ajout/édition de code personnalisé */}
       <Transition show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={closeModal}>
           <div className="min-h-screen px-4 text-center">
@@ -377,7 +424,7 @@ const ClientCustomCodes: React.FC = () => {
             <span className="inline-block h-screen align-middle" aria-hidden="true">
               &#8203;
             </span>
-            
+
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -401,16 +448,14 @@ const ClientCustomCodes: React.FC = () => {
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
-                
+
                 <div className="mt-4 space-y-4">
-                  {/* Sélection du shortcode (seulement en mode ajout) */}
                   {!editingCode && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Sélectionner un shortcode
                       </label>
-                      
-                      {/* Champ de recherche */}
+
                       <div className="mb-2">
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -425,8 +470,7 @@ const ClientCustomCodes: React.FC = () => {
                           />
                         </div>
                       </div>
-                      
-                      {/* Liste des shortcodes */}
+
                       <div className="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
                         {filteredShortcodes.length === 0 ? (
                           <div className="p-4 text-center text-gray-500">
@@ -437,8 +481,8 @@ const ClientCustomCodes: React.FC = () => {
                             {filteredShortcodes.map((shortcode) => {
                               const isDisabled = hasCustomCode(shortcode.id);
                               return (
-                                <li 
-                                  key={shortcode.id} 
+                                <li
+                                  key={shortcode.id}
                                   className={`p-3 hover:bg-gray-50 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                   onClick={() => {
                                     if (!isDisabled) {
@@ -471,8 +515,7 @@ const ClientCustomCodes: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  
-                  {/* Affichage du shortcode sélectionné en mode édition */}
+
                   {editingCode && selectedShortcode && (
                     <div className="bg-gray-50 p-3 rounded-md">
                       <p className="text-sm font-medium text-gray-900">{selectedShortcode.SH_Code}</p>
@@ -480,8 +523,7 @@ const ClientCustomCodes: React.FC = () => {
                       <p className="text-xs font-mono text-gray-500 mt-1">ID: {selectedShortcode.id}</p>
                     </div>
                   )}
-                  
-                  {/* Code personnalisé */}
+
                   <div>
                     <label htmlFor="customCode" className="block text-sm font-medium text-gray-700 mb-1">
                       Code personnalisé
@@ -496,7 +538,7 @@ const ClientCustomCodes: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex justify-end">
                   <button
                     type="button"

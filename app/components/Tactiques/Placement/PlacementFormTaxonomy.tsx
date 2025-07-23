@@ -1,5 +1,10 @@
-// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx
-
+/**
+ * Ce fichier définit le composant `PlacementFormTaxonomy`.
+ * Il gère l'onglet "Taxonomie" du formulaire de création ou d'édition d'un placement.
+ * Il se divise en deux parties : à gauche, les champs de saisie pour les variables de taxonomie,
+ * et à droite, un aperçu en temps réel des noms générés.
+ * La logique complexe de gestion des taxonomies est déléguée au hook `useTaxonomyForm`.
+ */
 'use client';
 
 import React, { memo } from 'react';
@@ -19,6 +24,20 @@ interface PlacementFormTaxonomyProps {
   loading?: boolean;
 }
 
+/**
+ * Composant principal pour la section taxonomie du formulaire de placement.
+ * Il affiche les champs de configuration des variables de taxonomie et un aperçu en temps réel.
+ * La logique est gérée par le hook `useTaxonomyForm`.
+ * @param {PlacementFormTaxonomyProps} props - Les propriétés du composant.
+ * @param {PlacementFormData} props.formData - Les données actuelles du formulaire de placement.
+ * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void} props.onChange - Fonction de rappel pour gérer les changements dans le formulaire.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Fonction de rappel pour gérer l'affichage des infobulles.
+ * @param {string} props.clientId - L'identifiant du client.
+ * @param {Campaign} [props.campaignData] - Les données optionnelles de la campagne parente.
+ * @param {Tactique} [props.tactiqueData] - Les données optionnelles de la tactique parente.
+ * @param {boolean} [props.loading=false] - Indicateur de chargement global.
+ * @returns {React.ReactElement} Le composant JSX pour la section taxonomie.
+ */
 const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   formData,
   onChange,
@@ -53,12 +72,11 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     clientId,
     campaignData,
     tactiqueData,
-    formType: 'placement' // 🔥 CORRECTION: Spécifier explicitement le type placement
+    formType: 'placement'
   });
 
   return (
     <div className="flex h-full">
-      {/* Colonne de gauche : Configuration des variables */}
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
         
         {taxonomiesError && (
@@ -102,7 +120,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         )}
       </div>
 
-      {/* Colonne de droite : Aperçu */}
       <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
         <TaxonomyPreview
           parsedVariables={parsedVariables}

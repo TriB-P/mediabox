@@ -1,3 +1,10 @@
+/**
+ * @file Ce fichier contient le composant React `FeeForm`.
+ * Il s'agit d'un formulaire réutilisable pour créer ou modifier un "frais".
+ * Ce composant gère l'état local des champs du formulaire et utilise les fonctions
+ * passées en props (`onSubmit`, `onCancel`) pour communiquer avec son composant parent,
+ * qui est responsable de la logique métier (par exemple, un appel à Firebase).
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,6 +16,15 @@ interface FeeFormProps {
   onCancel: () => void;
 }
 
+/**
+ * Affiche un formulaire pour créer ou éditer un frais.
+ * Le formulaire est pré-rempli si un `fee` existant est fourni.
+ * @param {FeeFormProps} props - Les propriétés du composant.
+ * @param {Fee} [props.fee] - L'objet de frais existant à éditer. Si non fourni, le formulaire est en mode création.
+ * @param {(data: FeeFormData) => void} props.onSubmit - La fonction à appeler lors de la soumission du formulaire.
+ * @param {() => void} props.onCancel - La fonction à appeler lorsque l'utilisateur annule l'opération.
+ * @returns {React.ReactElement} Le composant de formulaire.
+ */
 const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<FeeFormData>({
     FE_Name: '',
@@ -16,7 +32,6 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
     FE_Calculation_Mode: "Directement sur le budget média",
   });
 
-  // Mettre à jour le formulaire avec les données du frais si elles existent
   useEffect(() => {
     if (fee) {
       setFormData({
@@ -27,11 +42,20 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
     }
   }, [fee]);
 
+  /**
+   * Gère la soumission du formulaire.
+   * Empêche le rechargement de la page et appelle la fonction `onSubmit` passée en props avec les données du formulaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
+  /**
+   * Met à jour l'état du formulaire à chaque modification d'un champ.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData({

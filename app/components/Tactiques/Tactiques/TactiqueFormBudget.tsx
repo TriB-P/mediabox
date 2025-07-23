@@ -1,4 +1,13 @@
-// app/components/Tactiques/TactiqueFormBudget.tsx - CORRECTION DÉFINITIVE
+// app/components/Tactiques/TactiqueFormBudget.tsx
+
+/**
+ * Ce fichier contient le composant React `TactiqueFormBudget`.
+ * Il s'agit d'un formulaire complexe dédié à la gestion du budget d'une tactique marketing.
+ * Il permet de définir le type de budget (client ou média), les coûts, les volumes,
+ * la bonification, et d'appliquer divers frais client.
+ * Le composant utilise le hook `useBudgetCalculations` pour encapsuler la logique de calcul complexe
+ * et remonte les données formatées au composant parent via la prop `onCalculatedChange`.
+ */
 
 'use client';
 
@@ -9,12 +18,8 @@ import BudgetMainSection from './BudgetMainSection';
 import BudgetBonificationSection from './BudgetBonificationSection';
 import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
-
-// Import du hook
 import { useBudgetCalculations } from '../../../hooks/useBudgetCalculations';
 import { ClientFee } from '../../../lib/budgetService';
-
-// ==================== TYPES ====================
 
 interface ListItem {
   id: string;
@@ -51,8 +56,20 @@ interface TactiqueFormBudgetProps {
   loading?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal du formulaire de budget pour une tactique.
+ * @param {TactiqueFormBudgetProps} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données initiales du formulaire pour la tactique.
+ * @param {object} props.dynamicLists - Listes de valeurs dynamiques pour les menus déroulants (ex: types d'unité).
+ * @param {ClientFee[]} props.clientFees - Un tableau des frais configurés pour le client.
+ * @param {string} props.campaignCurrency - La devise par défaut de la campagne.
+ * @param {object} props.exchangeRates - Les taux de change disponibles.
+ * @param {Function} props.onChange - Callback déclenché lors d'un changement sur un champ de formulaire standard.
+ * @param {Function} props.onCalculatedChange - Callback pour remonter les données calculées et formatées au parent.
+ * @param {Function} props.onTooltipChange - Callback pour afficher des infobulles d'aide.
+ * @param {boolean} [props.loading=false] - Indique si le composant est en état de chargement.
+ * @returns {React.ReactElement} Le formulaire de budget.
+ */
 const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   formData,
   dynamicLists,
@@ -86,11 +103,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     autoCalculate: true
   });
 
-  // ==================== NOUVEL ÉTAT LOCAL POUR L'INTENTION D'ACTIVATION ====================
-  
-  // État séparé pour savoir quels frais l'utilisateur VEUT activer (indépendamment des calculs)
   const [feeIntentions, setFeeIntentions] = useState<{ [feeId: string]: boolean }>(() => {
-    // Initialiser basé sur les données existantes
     const intentions: { [feeId: string]: boolean } = {};
     clientFees.forEach((fee, index) => {
       const feeNumber = index + 1;
@@ -101,27 +114,31 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return intentions;
   });
 
-  // État séparé pour la bonification
   const [bonusIntention, setBonusIntention] = useState(() => {
     return budgetData.TC_Media_Value > 0 || !!formData.TC_Has_Bonus;
   });
 
-  // ==================== REMONTER LES CHANGEMENTS AU PARENT ====================
-  
   useEffect(() => {
     const dataForParent = getDataForFirestore();
-    console.log('📤 Remontée des données au parent:', dataForParent);
     onCalculatedChange(dataForParent);
   }, [budgetData, getDataForFirestore, onCalculatedChange]);
 
-  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
-  
+  /**
+   * Gère le changement d'une valeur d'un champ unique du hook de calcul.
+   * @param {string} field - Le nom du champ à mettre à jour.
+   * @param {any} value - La nouvelle valeur du champ.
+   * @returns {void}
+   */
   const handleFieldChange = useCallback((field: string, value: any) => {
-    console.log(`🔄 Changement ${field}:`, value);
     const mappedField = mapLegacyFieldName(field);
     updateField(mappedField as any, value);
   }, [updateField]);
 
+  /**
+   * Gère les changements provenant des éléments de formulaire HTML natifs (input, select).
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
+   * @returns {void}
+   */
   const handleFormChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -137,20 +154,19 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     handleFieldChange(name, processedValue);
   }, [onChange, handleFieldChange]);
 
-  // ==================== GESTIONNAIRE BONUS CORRIGÉ ====================
-  
+  /**
+   * Gère l'activation ou la désactivation de la section bonification.
+   * @param {boolean} hasBonus - Indique si la bonification est activée.
+   * @returns {void}
+   */
   const handleBonusToggle = useCallback((hasBonus: boolean) => {
-    console.log(`🎁 Toggle bonus: ${hasBonus}`);
     setBonusIntention(hasBonus);
     
     if (hasBonus) {
-      // Activer la bonification - garder les valeurs existantes ou mettre des valeurs par défaut
       if (budgetData.TC_Media_Value === 0) {
-        // Pas de valeur existante, laisser l'utilisateur saisir
-        console.log('💡 Bonification activée - en attente de saisie utilisateur');
+        // Pas de traitement spécial, l'utilisateur saisira les valeurs.
       }
     } else {
-      // Désactiver la bonification
       updateMultipleFields({
         TC_Media_Value: 0,
         TC_Bonification: 0
@@ -158,12 +174,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     }
   }, [budgetData.TC_Media_Value, updateMultipleFields]);
 
-  // ==================== GESTIONNAIRE FRAIS CORRIGÉ ====================
-  
+  /**
+   * Gère l'activation ou la désactivation d'un frais spécifique.
+   * @param {string} feeId - L'ID du frais à basculer.
+   * @param {boolean} isActive - Le nouvel état d'activité du frais.
+   * @returns {void}
+   */
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
-    console.log(`🔘 Toggle frais ${feeId}: ${isActive}`);
-    
-    // Mettre à jour l'intention d'activation
     setFeeIntentions(prev => ({
       ...prev,
       [feeId]: isActive
@@ -181,29 +198,20 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     const updates: Record<string, any> = {};
     
     if (isActive) {
-      // Activer le frais
       if (fee.options && fee.options.length === 1) {
-        // Auto-sélection si une seule option
         updates[optionKey] = fee.options[0].id;
-        console.log(`✅ Auto-sélection option unique: ${fee.options[0].FO_Option}`);
       } else if (fee.options && fee.options.length > 1) {
-        // Plusieurs options - marquer comme actif sans sélection
         updates[optionKey] = 'ACTIVE_NO_SELECTION';
       }
-      // Ne pas toucher aux valeurs, elles seront calculées quand option sélectionnée
     } else {
-      // Désactiver le frais
       updates[optionKey] = '';
       updates[volumeKey] = 0;
       updates[valueKey] = 0;
     }
     
-    console.log(`🔄 Updates pour toggle frais:`, updates);
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields]);
 
-  // ==================== DONNÉES POUR LES SOUS-COMPOSANTS ====================
-  
   const calculatedMediaBudget = budgetData.TC_Media_Budget || 0;
   
   const calculatedTotalFees = useMemo(() => {
@@ -222,13 +230,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     TC_Budget: budgetData.TC_BudgetInput,
     TC_Cost_Per_Unit: budgetData.TC_Unit_Price,
     TC_Unit_Volume: budgetData.TC_Unit_Volume,
-    TC_Has_Bonus: bonusIntention, // 🔥 CORRECTION: Utiliser l'intention, pas les calculs
+    TC_Has_Bonus: bonusIntention,
     TC_Real_Value: budgetData.TC_Media_Value,
     TC_Bonus_Value: budgetData.TC_Bonification
   }), [budgetData, bonusIntention]);
 
-  // ==================== APPLIEDFEES AVEC INTENTIONS ====================
-  
   const appliedFees = useMemo(() => {
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
     
@@ -242,7 +248,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       const volumeValue = (budgetData as any)[volumeKey] as number || 0;
       const calculatedAmount = (budgetData as any)[valueKey] as number || 0;
       
-      // 🔥 CORRECTION: Utiliser l'intention d'activation au lieu des calculs
       const isActive = feeIntentions[fee.id] || false;
       
       const selectedOption = fee.options?.find(opt => opt.id === optionId);
@@ -254,7 +259,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         calculatedAmount
       };
       
-      // Ajouter les champs spécifiques selon le type de frais
       if (selectedOption && appliedFee.isActive) {
         switch (fee.FE_Calculation_Type) {
           case 'Unités':
@@ -283,21 +287,20 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     });
   }, [budgetData, clientFees, feeIntentions]);
 
-  // ==================== GESTIONNAIRE APPLIEDFEES SIMPLIFIÉ ====================
-  
+  /**
+   * Met à jour l'état des frais appliqués en fonction des interactions de l'utilisateur.
+   * @param {any} value - La nouvelle structure des frais appliqués, ou une fonction pour la mettre à jour.
+   * @returns {void}
+   */
   const setAppliedFees = useCallback((value: any) => {
-    console.log('🔄 Mise à jour appliedFees:', value);
-    
     const newAppliedFees = typeof value === 'function' ? value(appliedFees) : value;
     
-    // Mettre à jour les intentions d'activation
     const newIntentions: { [feeId: string]: boolean } = {};
     newAppliedFees.forEach((af: any) => {
       newIntentions[af.feeId] = af.isActive;
     });
     setFeeIntentions(newIntentions);
     
-    // Convertir vers budgetData
     const updates: Record<string, any> = {};
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
     
@@ -311,7 +314,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       
       if (appliedFee && appliedFee.isActive) {
         if (appliedFee.selectedOptionId && appliedFee.selectedOptionId !== 'ACTIVE_NO_SELECTION') {
-          // Frais avec option sélectionnée
           updates[optionKey] = appliedFee.selectedOptionId;
           
           const selectedOption = fee.options?.find(opt => opt.id === appliedFee.selectedOptionId);
@@ -338,28 +340,22 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             }
             
             updates[volumeKey] = volumeValue;
-            // La valeur sera recalculée par le hook
           }
         } else {
-          // Frais actif mais sans option sélectionnée
           updates[optionKey] = 'ACTIVE_NO_SELECTION';
           updates[volumeKey] = 0;
           updates[valueKey] = 0;
         }
       } else {
-        // Frais inactif
         updates[optionKey] = '';
         updates[volumeKey] = 0;
         updates[valueKey] = 0;
       }
     });
     
-    console.log('🔄 Updates finaux:', updates);
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields, appliedFees]);
 
-  // ==================== RÉSUMÉ BUDGÉTAIRE ====================
-  
   const budgetSummary = useMemo(() => {
     const currency = budgetData.TC_BuyCurrency;
     const bonusValue = budgetData.TC_Bonification;
@@ -391,18 +387,14 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     };
   }, [budgetData, calculatedMediaBudget, calculatedTotalFees, campaignCurrency, lastResult]);
 
-  // ==================== RENDU ====================
-
   return (
     <div className="p-8 space-y-8">
-      {/* En-tête de section */}
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
           Budget et frais
         </h3>
       </div>
 
-      {/* Messages d'erreur */}
       {errors.length > 0 && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -416,7 +408,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* Message de convergence */}
       {lastResult?.data?.convergenceInfo && !lastResult.data.convergenceInfo.hasConverged && (
         <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">
           <div className="flex items-start">
@@ -436,7 +427,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
       
-      {/* Paramètres généraux */}
       <BudgetGeneralParams
         formData={legacyFormData}
         onChange={handleFormChange}
@@ -445,7 +435,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         disabled={loading}
       />
 
-      {/* Section Budget principal */}
       <FormSection 
         title="Budget principal"
         description="Calculs automatiques du budget, coût et volume"
@@ -464,7 +453,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         />
       </FormSection>
 
-      {/* Section Bonification */}
       <FormSection 
         title="Bonification"
         description="Gestion de l'économie négociée"
@@ -474,13 +462,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           onChange={handleFormChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleFieldChange}
-          onToggle={handleBonusToggle} // 🔥 NOUVEAU: Gestionnaire spécifique
+          onToggle={handleBonusToggle}
           mediaBudget={calculatedMediaBudget}
           disabled={loading}
         />
       </FormSection>
 
-      {/* Section Frais */}
       <FormSection 
         title="Frais"
         description="Application des frais configurés pour le client"
@@ -497,7 +484,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         />
       </FormSection>
 
-      {/* Section Récapitulatif */}
       <FormSection 
         title="Récapitulatif"
         description="Détail des coûts et conversion de devise"
@@ -512,7 +498,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         />
       </FormSection>
 
-      {/* Panel de debug */}
       <div className="flex justify-end">
         <button
           type="button"
@@ -523,7 +508,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </button>
       </div>
 
-      {/* Debug info */}
       {debugMode && (
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
           <h5 className="text-sm font-medium text-gray-800 mb-2">🐛 Debug Info - Budget</h5>
@@ -549,7 +533,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
               </div>
             </div>
             
-            {/* Debug intentions */}
             <div className="border-t pt-2 mt-2">
               <div className="font-medium text-gray-800">Debug Intentions:</div>
               <div>Bonus Intention: {bonusIntention.toString()}</div>
@@ -559,7 +542,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </div>
       )}
 
-      {/* Message de chargement */}
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données budgétaires...</p>
@@ -569,8 +551,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   );
 });
 
-// ==================== UTILITAIRES ====================
 
+/**
+ * Mappe les anciens noms de champs de formulaire vers les nouveaux noms utilisés par le hook `useBudgetCalculations`.
+ * Assure la rétrocompatibilité lors de la gestion des changements de champs.
+ * @param {string} field - L'ancien nom du champ.
+ * @returns {string} Le nouveau nom du champ, ou l'ancien nom si aucune correspondance n'est trouvée.
+ */
 function mapLegacyFieldName(field: string): string {
   const mapping: Record<string, string> = {
     'TC_Budget': 'TC_BudgetInput',

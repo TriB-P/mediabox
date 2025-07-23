@@ -1,4 +1,8 @@
-// app/components/Tactiques/Creatif/CreatifFormTaxonomy.tsx
+/**
+ * @file Ce fichier définit le composant CreatifFormTaxonomy, qui est une section de formulaire dédiée à la configuration de la taxonomie pour un "Créatif".
+ * Il utilise une disposition à deux colonnes : une pour la saisie des variables taxonomiques et l'autre pour prévisualiser le résultat.
+ * La logique principale de gestion du formulaire est encapsulée dans le hook `useTaxonomyForm`.
+ */
 
 'use client';
 
@@ -20,6 +24,21 @@ interface CreatifFormTaxonomyProps {
   loading?: boolean;
 }
 
+/**
+ * Affiche l'interface de configuration de la taxonomie pour un créatif.
+ * Ce composant gère l'affichage des champs de saisie basés sur les taxonomies sélectionnées
+ * et fournit un aperçu en temps réel. Il se concentre spécifiquement sur les niveaux 5 et 6 de la taxonomie.
+ * @param {CreatifFormTaxonomyProps} props - Les propriétés du composant.
+ * @param {CreatifFormData} props.formData - Les données actuelles du formulaire du créatif.
+ * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void} props.onChange - La fonction de rappel pour gérer les changements dans le formulaire.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - La fonction de rappel pour afficher des infobulles.
+ * @param {string} props.clientId - L'identifiant du client.
+ * @param {Campaign} [props.campaignData] - Les données de la campagne associée.
+ * @param {Tactique} [props.tactiqueData] - Les données de la tactique associée.
+ * @param {Placement} [props.placementData] - Les données du placement associé.
+ * @param {boolean} [props.loading=false] - Indique si le composant est en état de chargement.
+ * @returns {React.ReactElement} Le composant React de la section taxonomie du formulaire créatif.
+ */
 const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
   formData,
   onChange,
@@ -61,7 +80,6 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
 
   return (
     <div className="flex h-full">
-      {/* Colonne de gauche : Configuration des variables et champs créatifs */}
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
         <div className="border-b border-gray-200 pb-4">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -116,7 +134,6 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
         )}
       </div>
 
-      {/* Colonne de droite : Aperçu taxonomie créatifs (niveaux 5-6) */}
       <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
         <div className="mb-4">
           <h4 className="text-md font-medium text-gray-900">Aperçu des taxonomies créatifs</h4>
@@ -134,7 +151,7 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
           onToggleExpansion={togglePreviewExpansion}
           getFormattedValue={getFormattedValue}
           getFormattedPreview={getFormattedPreview}
-          levelsToShow={[5, 6]} // 🔥 NOUVEAU : Ne montrer que les niveaux 5-6 pour les créatifs
+          levelsToShow={[5, 6]}
         />
       </div>
     </div>

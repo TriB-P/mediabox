@@ -1,4 +1,10 @@
-// app/components/Client/DimensionSidebar.tsx
+/**
+ * Ce fichier définit le composant React `DimensionSidebar`.
+ * Il s'agit d'une barre latérale qui affiche une liste de "dimensions" (par exemple, des catégories ou des filtres).
+ * Le composant permet à l'utilisateur de sélectionner une dimension dans la liste,
+ * et il gère également les états de chargement et les cas où aucune dimension n'est disponible.
+ * C'est un composant "client" car il nécessite de l'interactivité côté navigateur.
+ */
 
 'use client';
 
@@ -11,6 +17,16 @@ interface DimensionSidebarProps {
   loading?: boolean;
 }
 
+/**
+ * Affiche une barre latérale avec une liste de dimensions cliquables.
+ * Gère les états de chargement, d'absence de données et l'affichage de la liste.
+ * @param {DimensionSidebarProps} props - Les propriétés du composant.
+ * @param {string[]} props.dimensions - La liste des dimensions à afficher.
+ * @param {string} props.selectedDimension - La dimension actuellement sélectionnée pour la mise en surbrillance.
+ * @param {(dimension: string) => void} props.onSelectDimension - La fonction de rappel à exécuter lorsqu'une dimension est sélectionnée.
+ * @param {boolean} [props.loading=false] - Un booléen pour indiquer si le composant est en état de chargement.
+ * @returns {React.ReactElement} Le composant JSX de la barre latérale.
+ */
 const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
   dimensions,
   selectedDimension,
@@ -66,8 +82,8 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
               <button
                 onClick={() => onSelectDimension(dimension)}
                 className={`w-full px-4 py-3 text-left hover:bg-gray-100 focus:outline-none transition-colors duration-150 ${
-                  selectedDimension === dimension 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium border-r-2 border-indigo-500' 
+                  selectedDimension === dimension
+                    ? 'bg-indigo-50 text-indigo-700 font-medium border-r-2 border-indigo-500'
                     : 'text-gray-700 hover:text-gray-900'
                 }`}
                 title={`Sélectionner la dimension ${dimension}`}

@@ -1,8 +1,13 @@
-// app/tactiques/page.tsx - Version avec réinitialisation forcée de la sélection
-
+/**
+ * Ce fichier contient le composant principal de la page des tactiques.
+ * Il gère l'affichage des données des campagnes, versions, onglets, sections, tactiques, placements et créatifs.
+ * Il orchestre l'interaction entre les différents hooks (données, CRUD, sélection, UI)
+ * et les composants d'interface utilisateur pour offrir une expérience complète de gestion des tactiques.
+ * Il inclut des fonctionnalités de chargement, d'erreur, de rafraîchissement et de gestion des sélections.
+ */
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
@@ -22,16 +27,15 @@ import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 import { useClient } from '../contexts/ClientContext';
 
-// ==================== TYPES ====================
-
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal de la page des tactiques.
+ * Gère l'état global, les interactions utilisateur et l'affichage des différentes vues des tactiques.
+ *
+ * @returns {JSX.Element} Le composant de la page des tactiques.
+ */
 export default function TactiquesPage() {
-  
-  // ==================== DONNÉES PRINCIPALES ====================
-
   const { selectedClient } = useClient();
   
   const {
@@ -54,16 +58,10 @@ export default function TactiquesPage() {
     refresh
   } = useAppData();
 
-  // ==================== ÉTATS UI ====================
-
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   
-  // 🔥 AJOUT: Ref pour forcer le re-render de TactiquesHierarchyView
   const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
 
-  // ==================== HOOKS SPÉCIALISÉS ====================
-
-  // Hook pour les opérations CRUD
   const crudActions = useTactiquesCrud({
     sections,
     tactiques,
@@ -74,21 +72,22 @@ export default function TactiquesPage() {
     onRefresh: refresh
   });
 
-  // 🔥 CALLBACK DE RESET COMPLET
+  /**
+   * Réinitialise complètement la vue hiérarchique en forçant un re-render.
+   * Cette fonction est utilisée pour s'assurer que les états internes des composants enfants
+   * sont réinitialisés après certaines opérations (ex: rafraîchissement des données).
+   *
+   * @returns {void}
+   */
   const handleForceSelectionReset = useCallback(() => {
     console.log('🔄 Force reset complet de la vue hiérarchique');
-    
-    // Forcer le re-render de TactiquesHierarchyView qui va réinitialiser
-    // tous les hooks de sélection internes
     setHierarchyViewKey(prev => prev + 1);
     
-    // Petit délai pour s'assurer que le re-render est effectif
     setTimeout(() => {
       console.log('✅ Vue hiérarchique réinitialisée');
     }, 100);
   }, []);
 
-  // Hook pour les sélections avec fonction de reset
   const selectionState = useTactiquesSelection({
     sections,
     tactiques,
@@ -99,21 +98,17 @@ export default function TactiquesPage() {
     onDeleteTactique: crudActions.handleDeleteTactique,
     onDeletePlacement: crudActions.handleDeletePlacement,
     onDeleteCreatif: crudActions.handleDeleteCreatif,
-    // 🔥 AJOUT: Fonction de reset forcé
     onForceSelectionReset: handleForceSelectionReset
   });
 
-  // Hook pour le refresh et les frais client
   const refreshState = useTactiquesRefresh({
     selectedClientId: selectedClient?.clientId,
     loading,
     onRefresh: refresh
   });
 
-  // Hook pour les modals et expansions
   const modalState = useTactiquesModals();
 
-  // Hook pour les données enrichies
   const enrichedData = useTactiquesEnrichedData({
     sections,
     tactiques,
@@ -123,17 +118,23 @@ export default function TactiquesPage() {
     sectionExpansions: modalState.sectionExpansions
   });
 
-  // Hooks utilitaires
   const { formatCurrency, formatStatistics } = useTactiquesFormatting();
   const { getContainerClasses, getContentClasses, getMainContentClasses, getLoadingStates } = useTactiquesUIStates();
 
-  // ==================== GESTIONNAIRES DE MODAL SECTION ====================
-
+  /**
+   * Gère la sauvegarde d'une section, que ce soit pour la création ou la modification.
+   * Appelle les actions CRUD appropriées et rafraîchit les données après l'opération.
+   *
+   * @param {any} sectionData - Les données de la section à sauvegarder.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la sauvegarde effectuée.
+   */
   const handleSaveSection = useCallback(async (sectionData: any) => {
     try {
       if (modalState.sectionModal.mode === 'create') {
+        console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleSaveSection - Path: sections");
         await crudActions.handleCreateSection(sectionData);
       } else if (modalState.sectionModal.mode === 'edit' && modalState.sectionModal.section) {
+        console.log(`FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleSaveSection - Path: sections/${modalState.sectionModal.section.id}`);
         await crudActions.handleUpdateSection(modalState.sectionModal.section.id, sectionData);
       }
       
@@ -144,10 +145,21 @@ export default function TactiquesPage() {
     }
   }, [modalState.sectionModal.mode, modalState.sectionModal.section, crudActions, modalState.closeSectionModal, refresh]);
   
+  /**
+   * Ouvre la modale de création d'une nouvelle section.
+   *
+   * @returns {void}
+   */
   const handleAddSection = useCallback(() => {
     modalState.openSectionModal(null, 'create');
   }, [modalState.openSectionModal]);
   
+  /**
+   * Ouvre la modale de modification d'une section existante.
+   *
+   * @param {string} sectionId - L'identifiant de la section à modifier.
+   * @returns {void}
+   */
   const handleEditSection = useCallback((sectionId: string) => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
@@ -155,24 +167,23 @@ export default function TactiquesPage() {
     }
   }, [sections, modalState.openSectionModal]);
 
-  // ==================== 🔥 GESTIONNAIRE DE REFRESH AVEC RESET ====================
-  
+  /**
+   * Gère le rafraîchissement complet des données avec une réinitialisation de la sélection.
+   * Nettoie d'abord la sélection, rafraîchit les données, puis force le reset de la vue hiérarchique.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
+   */
   const handleRefreshWithReset = useCallback(async () => {
     console.log('🔄 Refresh avec réinitialisation complète');
     
-    // 1. Nettoyer d'abord la sélection
     selectionState.handleClearSelection();
     
-    // 2. Puis rafraîchir les données
     await refresh();
     
-    // 3. Attendre que le refresh soit terminé puis forcer le reset
     setTimeout(() => {
       handleForceSelectionReset();
     }, 200);
   }, [selectionState.handleClearSelection, refresh, handleForceSelectionReset]);
-
-  // ==================== DONNÉES CALCULÉES ====================
 
   const totalBudget = useMemo(() => {
     return selectedCampaign?.CA_Budget || 0;
@@ -192,17 +203,12 @@ export default function TactiquesPage() {
 
   const hasError = !!error;
 
-  // ==================== RENDU ====================
-
   return (
     <div className={getContainerClasses()}>
-      
-      {/* ==================== EN-TÊTE AVEC BOUTON REFRESH ==================== */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
           <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
           
-          {/* Bouton refresh */}
           {selectedOnglet && (
             <button
               onClick={refreshState.handleManualRefresh}
@@ -224,7 +230,6 @@ export default function TactiquesPage() {
         </div>
       </div>
 
-      {/* ==================== SÉLECTEUR CAMPAGNE/VERSION ==================== */}
       <CampaignVersionSelector
         campaigns={campaigns}
         versions={versions}
@@ -236,8 +241,6 @@ export default function TactiquesPage() {
         onVersionChange={handleVersionChange}
         className="mb-6"
       />
-
-      {/* ==================== INDICATEURS DE CHARGEMENT ==================== */}
       
       {loadingStates.shouldShowTopIndicator && (
         <div className={`border rounded-lg p-3 mb-4 ${
@@ -289,7 +292,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* ==================== AFFICHAGE D'ERREUR ==================== */}
       {hasError && !loading && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <div className="flex items-center space-x-3">
@@ -298,7 +300,7 @@ export default function TactiquesPage() {
               <h3 className="text-sm font-medium text-red-800">Erreur de chargement</h3>
               <p className="text-sm text-red-600 mt-1">{error}</p>
               <button
-                onClick={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
+                onClick={handleRefreshWithReset}
                 className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
               >
                 Réessayer
@@ -308,7 +310,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* ==================== CHARGEMENT COMPLET ==================== */}
       {loadingStates.shouldShowFullLoader && (
         <LoadingSpinner 
           message={stage || "Chargement des tactiques..."} 
@@ -316,27 +317,22 @@ export default function TactiquesPage() {
         />
       )}
 
-      {/* ==================== CONTENU PRINCIPAL ==================== */}
       {selectedVersion && !loadingStates.shouldShowFullLoader && (
         <div className={getContentClasses(viewMode)}>
-          
-          {/* Zone de contenu principal */}
           <div className={getMainContentClasses(viewMode)}>
             
-            {/* Panel d'actions groupées */}
             {selectionState.selectedItems.size > 0 && viewMode === 'hierarchy' && (
               <SelectedActionsPanel
                 selectedItems={selectionState.selectedItemsWithData}
                 onDuplicateSelected={selectionState.handleDuplicateSelected}
                 onDeleteSelected={selectionState.handleDeleteSelected}
                 onClearSelection={selectionState.handleClearSelection}
-                onRefresh={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
+                onRefresh={handleRefreshWithReset}
                 loading={loadingStates.isLoading}
                 hierarchyContext={enrichedData.hierarchyContextForMove}
               />
             )}
             
-            {/* Barre d'outils */}
             {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
               <div className="flex justify-between items-center mb-4">
                 <div className="flex space-x-2">
@@ -349,7 +345,6 @@ export default function TactiquesPage() {
                   </button>
                 </div>
 
-                {/* Statistiques */}
                 {enrichedData.sectionsWithTactiques.length > 0 && (
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <span>{statistics.placementsText}</span>
@@ -364,14 +359,13 @@ export default function TactiquesPage() {
               </div>
             )}
 
-            {/* Contenu selon le mode de vue */}
             {!hasError && (
               <>
                 {viewMode === 'hierarchy' && (
                   <>
                     {enrichedData.sectionsWithTactiques.length > 0 ? (
                       <TactiquesHierarchyView
-                        key={hierarchyViewKey} // 🔥 FORCER LE RE-RENDER AVEC CLÉ
+                        key={hierarchyViewKey}
                         sections={enrichedData.sectionsWithTactiques}
                         placements={enrichedData.enrichedPlacements} 
                         creatifs={enrichedData.enrichedCreatifs} 
@@ -389,7 +383,7 @@ export default function TactiquesPage() {
                         onDeleteCreatif={crudActions.handleDeleteCreatif}
                         formatCurrency={formatCurrency}
                         totalBudget={totalBudget}
-                        onRefresh={handleRefreshWithReset} // 🔥 UTILISATION DU REFRESH AVEC RESET
+                        onRefresh={handleRefreshWithReset}
                         onDuplicateSelected={selectionState.handleDuplicateSelected}
                         onDeleteSelected={selectionState.handleDeleteSelected}
                         onClearSelection={selectionState.handleClearSelection}
@@ -448,7 +442,6 @@ export default function TactiquesPage() {
             )}
           </div>
 
-          {/* Budget Panel */}
           {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
@@ -463,7 +456,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* Message si aucune version sélectionnée */}
       {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500">
@@ -472,7 +464,6 @@ export default function TactiquesPage() {
         </div>
       )}
 
-      {/* Footer avec onglets et boutons de vue */}
       {selectedOnglet && !loadingStates.shouldShowFullLoader && (
         <TactiquesFooter
           viewMode={viewMode}
@@ -486,7 +477,6 @@ export default function TactiquesPage() {
         />
       )}
 
-      {/* Modal de section */}
       <SectionModal
         isOpen={modalState.sectionModal.isOpen}
         onClose={modalState.closeSectionModal}

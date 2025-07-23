@@ -1,18 +1,25 @@
+/**
+ * Ce fichier contient des fonctions pour interagir avec les gabarits (templates) dans Firebase Firestore.
+ * Il permet de récupérer, créer, mettre à jour et supprimer des gabarits associés à des clients spécifiques.
+ * C'est utile pour gérer les modèles de documents ou de données propres à chaque client.
+ */
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, orderBy } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { Template, TemplateFormData } from '../types/template';
 
-// Récupérer tous les gabarits pour un client spécifique
+/**
+ * Récupère tous les gabarits pour un client donné depuis Firebase.
+ * @param {string} clientId L'identifiant unique du client.
+ * @returns {Promise<Template[]>} Une promesse qui résout en un tableau de gabarits.
+ */
 export async function getTemplatesByClient(clientId: string): Promise<Template[]> {
   try {
-    console.log(`Récupération des gabarits pour le client ${clientId}`);
-    // Utiliser la sous-collection 'templates' sous le document du client
     const templatesRef = collection(db, 'clients', clientId, 'templates');
-    // Trier les gabarits par nom pour faciliter la navigation
     const q = query(templatesRef, orderBy('TE_Name'));
+    console.log("FIREBASE: LECTURE - Fichier: client-templates.ts - Fonction: getTemplatesByClient - Path: clients/${clientId}/templates");
     const querySnapshot = await getDocs(q);
-    
+
     const templates: Template[] = [];
     querySnapshot.forEach((doc) => {
       templates.push({
@@ -20,8 +27,7 @@ export async function getTemplatesByClient(clientId: string): Promise<Template[]
         ...doc.data()
       } as Template);
     });
-    
-    console.log(`${templates.length} gabarits trouvés pour le client ${clientId}`);
+
     return templates;
   } catch (error) {
     console.error('Error getting templates:', error);
@@ -29,24 +35,27 @@ export async function getTemplatesByClient(clientId: string): Promise<Template[]
   }
 }
 
-// Créer un nouveau gabarit
+/**
+ * Crée un nouveau gabarit pour un client spécifique dans Firebase.
+ * @param {string} clientId L'identifiant unique du client.
+ * @param {TemplateFormData} templateData Les données du gabarit à créer.
+ * @returns {Promise<string>} Une promesse qui résout en l'identifiant du nouveau gabarit créé.
+ */
 export async function createTemplate(
   clientId: string,
   templateData: TemplateFormData
 ): Promise<string> {
   try {
-    console.log(`Création d'un nouveau gabarit pour le client ${clientId}`);
     const now = new Date().toISOString();
     const newTemplate = {
       ...templateData,
       createdAt: now,
       updatedAt: now
     };
-    
-    // Ajouter à la sous-collection du client
+
     const templatesRef = collection(db, 'clients', clientId, 'templates');
+    console.log("FIREBASE: ÉCRITURE - Fichier: client-templates.ts - Fonction: createTemplate - Path: clients/${clientId}/templates");
     const docRef = await addDoc(templatesRef, newTemplate);
-    console.log(`Gabarit créé avec ID: ${docRef.id}`);
     return docRef.id;
   } catch (error) {
     console.error('Error creating template:', error);
@@ -54,59 +63,70 @@ export async function createTemplate(
   }
 }
 
-// Mettre à jour un gabarit existant
+/**
+ * Met à jour un gabarit existant pour un client donné dans Firebase.
+ * @param {string} clientId L'identifiant unique du client.
+ * @param {string} templateId L'identifiant unique du gabarit à mettre à jour.
+ * @param {TemplateFormData} templateData Les nouvelles données du gabarit.
+ * @returns {Promise<void>} Une promesse qui résout une fois la mise à jour terminée.
+ */
 export async function updateTemplate(
   clientId: string,
   templateId: string,
   templateData: TemplateFormData
 ): Promise<void> {
   try {
-    console.log(`Mise à jour du gabarit ${templateId} pour le client ${clientId}`);
     const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
+    console.log("FIREBASE: ÉCRITURE - Fichier: client-templates.ts - Fonction: updateTemplate - Path: clients/${clientId}/templates/${templateId}");
     await updateDoc(templateRef, {
       ...templateData,
       updatedAt: new Date().toISOString()
     });
-    console.log(`Gabarit ${templateId} mis à jour avec succès`);
   } catch (error) {
     console.error('Error updating template:', error);
     throw error;
   }
 }
 
-// Supprimer un gabarit
+/**
+ * Supprime un gabarit pour un client donné de Firebase.
+ * @param {string} clientId L'identifiant unique du client.
+ * @param {string} templateId L'identifiant unique du gabarit à supprimer.
+ * @returns {Promise<void>} Une promesse qui résout une fois la suppression terminée.
+ */
 export async function deleteTemplate(
   clientId: string,
   templateId: string
 ): Promise<void> {
   try {
-    console.log(`Suppression du gabarit ${templateId} pour le client ${clientId}`);
     const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
+    console.log("FIREBASE: ÉCRITURE - Fichier: client-templates.ts - Fonction: deleteTemplate - Path: clients/${clientId}/templates/${templateId}");
     await deleteDoc(templateRef);
-    console.log(`Gabarit ${templateId} supprimé avec succès`);
   } catch (error) {
     console.error('Error deleting template:', error);
     throw error;
   }
 }
 
-// Récupérer un gabarit par son ID
+/**
+ * Récupère un gabarit spécifique par son identifiant pour un client donné.
+ * @param {string} clientId L'identifiant unique du client.
+ * @param {string} templateId L'identifiant unique du gabarit à récupérer.
+ * @returns {Promise<Template | null>} Une promesse qui résout en le gabarit trouvé ou null s'il n'existe pas.
+ */
 export async function getTemplateById(
   clientId: string,
   templateId: string
 ): Promise<Template | null> {
   try {
-    console.log(`Récupération du gabarit ${templateId} pour le client ${clientId}`);
     const templateRef = doc(db, 'clients', clientId, 'templates', templateId);
-
+    console.log("FIREBASE: LECTURE - Fichier: client-templates.ts - Fonction: getTemplateById - Path: clients/${clientId}/templates/${templateId}");
     const templateDoc = await getDoc(templateRef);
-    
+
     if (!templateDoc.exists()) {
-      console.log(`Gabarit ${templateId} non trouvé`);
       return null;
     }
-    
-    console.log(`Gabarit ${templateId} récupéré avec succès`);
+
     return {
       id: templateDoc.id,
       ...templateDoc.data()

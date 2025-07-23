@@ -1,5 +1,11 @@
-// app/components/Client/ShortcodeDetail.tsx
-
+/**
+ * Ce fichier définit le composant React `ShortcodeDetail`.
+ * Il s'agit d'une boîte de dialogue modale qui permet à l'utilisateur de visualiser,
+ * modifier et supprimer les détails d'un "shortcode" existant.
+ * Le composant gère son propre état pour les champs du formulaire, le chargement,
+ * et les erreurs. Il communique avec un service externe (`shortcodeService`)
+ * pour persister les modifications (mise à jour ou suppression) dans la base de données Firebase.
+ */
 'use client';
 
 import React, { useState, Fragment } from 'react';
@@ -15,6 +21,15 @@ interface ShortcodeDetailProps {
   onUpdate: () => void;
 }
 
+/**
+ * Affiche une modale avec un formulaire pour éditer ou supprimer un shortcode.
+ * @param {Shortcode} shortcode - L'objet shortcode à afficher et modifier.
+ * @param {boolean} isOpen - Contrôle la visibilité de la modale.
+ * @param {() => void} onClose - Callback pour fermer la modale.
+ * @param {() => void} onDelete - Callback exécuté après une suppression réussie.
+ * @param {() => void} onUpdate - Callback exécuté après une mise à jour réussie.
+ * @returns {React.ReactElement} Le composant de la modale de détails du shortcode.
+ */
 const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
   shortcode,
   isOpen,
@@ -27,6 +42,11 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  /**
+   * Gère les changements dans les champs du formulaire et met à jour l'état local du shortcode.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - L'événement de changement du champ.
+   * @returns {void}
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setEditedShortcode(prev => ({
@@ -35,6 +55,11 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
     }));
   };
 
+  /**
+   * Soumet les modifications du shortcode au service de mise à jour.
+   * Valide les champs obligatoires, gère les états de chargement et d'erreur.
+   * @returns {Promise<void>}
+   */
   const handleSubmit = async () => {
     if (!editedShortcode.SH_Code || !editedShortcode.SH_Display_Name_FR) {
       setError('Le code et le nom d\'affichage FR sont obligatoires.');
@@ -45,6 +70,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
       setLoading(true);
       setError(null);
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ShortcodeDetail.tsx - Fonction: handleSubmit - Path: shortcodes/${shortcode.id}`);
       await updateShortcodeService(shortcode.id, {
         SH_Code: editedShortcode.SH_Code,
         SH_Display_Name_FR: editedShortcode.SH_Display_Name_FR,
@@ -64,10 +90,16 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
     }
   };
 
+  /**
+   * Gère la suppression du shortcode après confirmation.
+   * Appelle le service de suppression et gère les états de chargement et d'erreur.
+   * @returns {Promise<void>}
+   */
   const handleDelete = async () => {
     try {
       setLoading(true);
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ShortcodeDetail.tsx - Fonction: handleDelete - Path: shortcodes/${shortcode.id}`);
       await deleteShortcodeService(shortcode.id);
       
       setIsDeleteModalOpen(false);
@@ -239,7 +271,6 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
         </Dialog>
       </Transition>
       
-      {/* Modal de confirmation de suppression */}
       <Transition show={isDeleteModalOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-20 overflow-y-auto" onClose={() => setIsDeleteModalOpen(false)}>
           <div className="min-h-screen px-4 text-center">

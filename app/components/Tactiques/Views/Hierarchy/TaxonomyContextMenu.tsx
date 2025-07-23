@@ -1,5 +1,10 @@
-// app/components/Tactiques/Views/Hierarchy/TaxonomyContextMenu.tsx
-
+/**
+ * Ce composant affiche un menu contextuel pour la gestion des taxonomies (tags, plateforme, MediaOcean)
+ * d'un élément (Placement ou Creatif). Il permet de visualiser les différents niveaux de taxonomie
+ * configurés et de copier la valeur finale de chaque niveau dans le presse-papiers.
+ * Il inclut également une fonctionnalité de rafraîchissement des données de l'élément pour s'assurer
+ * que les valeurs affichées sont toujours à jour.
+ */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -11,8 +16,6 @@ import { Placement, Creatif, TaxonomyValues, TaxonomyFormat } from '../../../../
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../lib/firebase';
 
-// ==================== TYPES ====================
-
 interface TaxonomyContextMenuProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,13 +24,12 @@ interface TaxonomyContextMenuProps {
   itemType: 'placement' | 'creatif';
   taxonomyType: 'tags' | 'platform' | 'mediaocean';
   clientId: string;
-  // 🔥 NOUVEAU: Props pour les IDs nécessaires au refresh
   campaignId?: string;
   versionId?: string;
   ongletId?: string;
   sectionId?: string;
   tactiqueId?: string;
-  placementId?: string; // Pour les créatifs
+  placementId?: string;
 }
 
 interface TaxonomyLevel {
@@ -38,11 +40,14 @@ interface TaxonomyLevel {
 
 interface LoadedTaxonomy {
   taxonomy?: Taxonomy;
-  fieldPrefix?: string; // Ex: "PL_Tag_", "PL_Plateforme_", "PL_MO_", "CR_Tag_", etc.
+  fieldPrefix?: string;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal du menu contextuel de taxonomie.
+ * @param {TaxonomyContextMenuProps} props - Les props du composant.
+ * @returns {React.FC} Le composant de menu contextuel.
+ */
 const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
   isOpen,
   onClose,
@@ -63,19 +68,20 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
   const [loading, setLoading] = useState(false);
   const [availableLevels, setAvailableLevels] = useState<TaxonomyLevel[]>([]);
   const [copiedLevel, setCopiedLevel] = useState<string | null>(null);
-  // 🔥 NOUVEAU: État pour les données fraîches
   const [freshItem, setFreshItem] = useState<Placement | Creatif>(item);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ==================== EFFET DE CHARGEMENT AVEC REFRESH AUTOMATIQUE ====================
-
+  /**
+   * Effet de chargement initial de la taxonomie et de rafraîchissement automatique des données de l'item.
+   * Déclenche le chargement de la taxonomie et un rafraîchissement des données de l'item
+   * lorsque le menu s'ouvre ou que les props `item`, `taxonomyType` ou `clientId` changent.
+   * @returns {void | (() => void)} Une fonction de nettoyage pour annuler le timer si le composant est démonté.
+   */
   useEffect(() => {
     if (isOpen && item) {
-      setFreshItem(item); // Initialiser avec l'item passé en props
+      setFreshItem(item);
       loadTaxonomy();
       
-      // 🔥 NOUVEAU: Refresh automatique à l'ouverture
-      // Délai court pour laisser le menu s'afficher d'abord
       const autoRefreshTimer = setTimeout(() => {
         refreshItemData();
       }, 100);
@@ -84,8 +90,12 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   }, [isOpen, item, taxonomyType, clientId]);
 
-  // ==================== EFFET DE CLIC EXTÉRIEUR ====================
-
+  /**
+   * Effet pour détecter les clics en dehors du menu et le fermer.
+   * Ajoute un écouteur d'événements 'mousedown' sur le document lorsque le menu est ouvert,
+   * et le retire lorsque le menu est fermé ou le composant démonté.
+   * @returns {void | (() => void)} Une fonction de nettoyage pour retirer l'écouteur d'événements.
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -99,8 +109,12 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   }, [isOpen, onClose]);
 
-  // ==================== 🔥 NOUVEAU: FONCTION DE REFRESH ====================
-
+  /**
+   * Rafraîchit les données de l'élément (placement ou créatif) depuis Firebase.
+   * Met à jour l'état `freshItem` avec les données les plus récentes et
+   * régénère les niveaux de taxonomie disponibles.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données rafraîchies.
+   */
   const refreshItemData = async () => {
     if (!campaignId || !versionId || !ongletId || !sectionId || !tactiqueId) {
       console.warn('IDs manquants pour le refresh');
@@ -112,7 +126,7 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
       let freshData: any = null;
 
       if (itemType === 'placement') {
-        // Récupérer les données fraîches du placement
+        console.log("FIREBASE: LECTURE - Fichier: TaxonomyContextMenu.tsx - Fonction: refreshItemData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${item.id}");
         const placementRef = doc(
           db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId,
           'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId,
@@ -123,7 +137,7 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
           freshData = { id: placementSnap.id, ...placementSnap.data() };
         }
       } else if (itemType === 'creatif' && placementId) {
-        // Récupérer les données fraîches du créatif
+        console.log("FIREBASE: LECTURE - Fichier: TaxonomyContextMenu.tsx - Fonction: refreshItemData - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${item.id}");
         const creatifRef = doc(
           db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId,
           'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId,
@@ -136,10 +150,8 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
       }
 
       if (freshData) {
-        console.log('🔄 Données rafraîchies:', freshData);
         setFreshItem(freshData);
         
-        // Régénérer les niveaux disponibles avec les nouvelles données
         if (loadedTaxonomy.taxonomy) {
           generateAvailableLevels(loadedTaxonomy);
         }
@@ -151,8 +163,11 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   };
 
-  // ==================== FONCTIONS DE CHARGEMENT ====================
-
+  /**
+   * Charge la taxonomie associée à l'élément actuel.
+   * Récupère la taxonomie via `getTaxonomyById` et met à jour les états `loadedTaxonomy` et `availableLevels`.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la taxonomie chargée.
+   */
   const loadTaxonomy = async () => {
     setLoading(true);
     try {
@@ -177,6 +192,10 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   };
 
+  /**
+   * Détermine l'ID de la taxonomie à charger en fonction du type d'élément et du type de taxonomie.
+   * @returns {string | undefined} L'ID de la taxonomie ou `undefined` si non trouvé.
+   */
   const getTaxonomyId = (): string | undefined => {
     if (itemType === 'placement') {
       const placement = freshItem as Placement;
@@ -197,6 +216,10 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   };
 
+  /**
+   * Détermine le préfixe de champ à utiliser pour accéder aux valeurs de taxonomie dans l'élément.
+   * @returns {string} Le préfixe de champ (ex: "PL_Tag_", "CR_Plateforme_").
+   */
   const getFieldPrefix = (): string => {
     const typePrefix = itemType === 'placement' ? 'PL_' : 'CR_';
     
@@ -208,15 +231,18 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     }
   };
 
-  // ==================== GÉNÉRATION DES NIVEAUX DISPONIBLES ====================
-
+  /**
+   * Génère la liste des niveaux de taxonomie disponibles à afficher dans le menu.
+   * Utilise la taxonomie chargée pour identifier les titres et structures de chaque niveau pertinent.
+   * @param {LoadedTaxonomy} loadedData - Les données de taxonomie chargées.
+   * @returns {void}
+   */
   const generateAvailableLevels = (loadedData: LoadedTaxonomy) => {
     const levels: TaxonomyLevel[] = [];
     const { taxonomy } = loadedData;
     
     if (!taxonomy) return;
     
-    // Déterminer les niveaux à afficher selon le type d'item
     const levelRange = itemType === 'placement' ? [1, 2, 3, 4] : [5, 6];
 
     levelRange.forEach(levelNum => {
@@ -235,26 +261,27 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     setAvailableLevels(levels);
   };
 
-  // ==================== GÉNÉRATION DES VALEURS (MODIFIÉE POUR UTILISER freshItem) ====================
-
+  /**
+   * Crée une fonction de résolution de valeurs pour la génération de chaînes de taxonomie.
+   * Cette fonction tente de récupérer la valeur d'une variable d'abord à partir des champs directs
+   * préfixés de l'élément (`PL_Tag_1`, etc.), puis des valeurs de taxonomie stockées,
+   * et enfin des champs directs non préfixés de l'élément.
+   * @returns {(variableName: string, format: TaxonomyFormat) => string} La fonction de résolution.
+   */
   const createValueResolver = () => {
     const { fieldPrefix = '' } = loadedTaxonomy;
     
     return (variableName: string, format: TaxonomyFormat): string => {
-      // 🔥 CORRECTION: Utiliser freshItem au lieu de item
-      // Essayer de récupérer depuis les champs spécifiques (PL_Tag_1, PL_Plateforme_1, etc.)
       if (fieldPrefix) {
         for (let level = 1; level <= 6; level++) {
           const fieldName = `${fieldPrefix}${level}`;
           const fieldValue = getDirectFieldValue(fieldName);
           if (fieldValue) {
-            console.log(`Valeur trouvée pour ${variableName}: ${fieldValue} (depuis ${fieldName})`);
             return fieldValue;
           }
         }
       }
 
-      // Fallback: vérifier dans les valeurs de taxonomie stockées
       const taxonomyValues = getTaxonomyValues();
       if (taxonomyValues && taxonomyValues[variableName]) {
         const taxonomyValue = taxonomyValues[variableName];
@@ -266,37 +293,46 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
         return taxonomyValue.value || `[${variableName}:${format}]`;
       }
 
-      // Sinon, essayer de récupérer depuis les champs directs de l'item
       const directValue = getDirectFieldValue(variableName);
       if (directValue) {
         return directValue;
       }
 
-      // Retourner la variable non résolue si aucune valeur trouvée
-      console.log(`Aucune valeur trouvée pour ${variableName}, recherche effectuée avec préfixe: ${fieldPrefix}`);
       return `[${variableName}:${format}]`;
     };
   };
 
+  /**
+   * Récupère les valeurs de taxonomie spécifiques (PL_Taxonomy_Values ou CR_Taxonomy_Values) de l'élément frais.
+   * @returns {TaxonomyValues | undefined} Les valeurs de taxonomie ou `undefined`.
+   */
   const getTaxonomyValues = (): TaxonomyValues | undefined => {
     if (itemType === 'placement') {
-      return (freshItem as Placement).PL_Taxonomy_Values; // 🔥 Utiliser freshItem
+      return (freshItem as Placement).PL_Taxonomy_Values;
     } else {
-      return (freshItem as Creatif).CR_Taxonomy_Values; // 🔥 Utiliser freshItem
+      return (freshItem as Creatif).CR_Taxonomy_Values;
     }
   };
 
+  /**
+   * Récupère la valeur d'un champ directement depuis l'objet `freshItem`.
+   * @param {string} variableName - Le nom du champ à récupérer.
+   * @returns {string | undefined} La valeur du champ sous forme de chaîne ou `undefined` si non trouvé ou non une chaîne.
+   */
   const getDirectFieldValue = (variableName: string): string | undefined => {
-    // 🔥 CORRECTION: Récupérer les valeurs depuis freshItem
     const value = (freshItem as any)[variableName];
     return typeof value === 'string' ? value : undefined;
   };
 
-  // ==================== COPIE DANS LE PRESSE-PAPIER ====================
-
+  /**
+   * Gère l'action de copier la valeur d'un niveau de taxonomie dans le presse-papiers.
+   * Tente de copier la valeur directe du champ s'il existe, sinon génère la chaîne à partir de la structure.
+   * Affiche une notification de succès temporaire.
+   * @param {TaxonomyLevel} level - Le niveau de taxonomie à copier.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la copie effectuée.
+   */
   const handleCopyLevel = async (level: TaxonomyLevel) => {
     try {
-      // Au lieu de parser la structure, copier directement la valeur du champ
       const { fieldPrefix = '' } = loadedTaxonomy;
       const fieldName = `${fieldPrefix}${level.level}`;
       const fieldValue = getDirectFieldValue(fieldName);
@@ -305,34 +341,33 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
       
       if (fieldValue) {
         valueToCopy = fieldValue;
-        console.log(`Copie directe du champ ${fieldName}: ${fieldValue}`);
       } else {
-        // Fallback : utiliser la structure si pas de valeur directe
         const valueResolver = createValueResolver();
         valueToCopy = generateFinalTaxonomyString(level.structure, valueResolver);
-        console.log(`Copie de la structure parsée pour niveau ${level.level}: ${valueToCopy}`);
       }
       
       await navigator.clipboard.writeText(valueToCopy);
       
-      // Afficher la notification de succès
       const levelKey = `level-${level.level}`;
       setCopiedLevel(levelKey);
       
-      // Masquer la notification après 2 secondes
       setTimeout(() => {
         setCopiedLevel(null);
       }, 2000);
       
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
-      // Fallback pour les navigateurs qui ne supportent pas l'API clipboard
       fallbackCopyToClipboard(level);
     }
   };
 
+  /**
+   * Fournit une méthode de secours pour copier du texte dans le presse-papiers pour les navigateurs
+   * qui ne supportent pas l'API `navigator.clipboard`.
+   * @param {TaxonomyLevel} level - Le niveau de taxonomie à copier.
+   * @returns {void}
+   */
   const fallbackCopyToClipboard = (level: TaxonomyLevel) => {
-    // Au lieu de parser la structure, copier directement la valeur du champ
     const { fieldPrefix = '' } = loadedTaxonomy;
     const fieldName = `${fieldPrefix}${level.level}`;
     const fieldValue = getDirectFieldValue(fieldName);
@@ -342,7 +377,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     if (fieldValue) {
       valueToCopy = fieldValue;
     } else {
-      // Fallback : utiliser la structure si pas de valeur directe
       const valueResolver = createValueResolver();
       valueToCopy = generateFinalTaxonomyString(level.structure, valueResolver);
     }
@@ -365,8 +399,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     document.body.removeChild(textArea);
   };
 
-  // ==================== RENDU ====================
-
   if (!isOpen) return null;
 
   const menuStyle: React.CSSProperties = {
@@ -378,26 +410,21 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
 
   return (
     <>
-      {/* Overlay transparent pour fermer le menu */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
-      {/* Menu contextuel */}
       <div
         ref={menuRef}
         style={menuStyle}
         className="z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-64 max-w-80"
       >
-        {/* En-tête */}
         <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-medium text-gray-900">
             {taxonomyType === 'tags' ? 'Tags' : taxonomyType === 'platform' ? 'Plateforme' : 'MediaOcean'}
-            {/* 🔥 NOUVEAU: Indicateur de refresh automatique */}
             {refreshing && (
               <span className="ml-2 text-xs text-blue-600">• Auto-refresh</span>
             )}
           </h3>
           <div className="flex items-center space-x-2">
-            {/* 🔥 MODIFIÉ: Bouton refresh plus discret (manuel optionnel) */}
             <button
               onClick={refreshItemData}
               disabled={refreshing}
@@ -415,7 +442,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
           </div>
         </div>
 
-        {/* Contenu */}
         <div className="py-2">
           {loading ? (
             <div className="px-4 py-3 text-sm text-gray-500 flex items-center">
@@ -431,7 +457,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
               const levelKey = `level-${level.level}`;
               const isCopied = copiedLevel === levelKey;
               
-              // Prévisualiser la valeur qui sera copiée
               const { fieldPrefix = '' } = loadedTaxonomy;
               const fieldName = `${fieldPrefix}${level.level}`;
               const fieldValue = getDirectFieldValue(fieldName);
@@ -449,7 +474,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
                       {level.title}
                     </div>
 
-                    {/* Aperçu de la valeur */}
                     {fieldValue && (
                       <div className="text-xs text-gray-400 truncate mt-1 font-mono">
                         {fieldValue.length > 40 ? `${fieldValue.substring(0, 40)}...` : fieldValue}
@@ -474,7 +498,6 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
         
         </div>
 
-        {/* 🔥 NOUVEAU: Indicateur de refresh en bas */}
         {refreshing && (
           <div className="px-4 py-2 border-t border-gray-100">
             <div className="flex items-center text-xs text-gray-500">

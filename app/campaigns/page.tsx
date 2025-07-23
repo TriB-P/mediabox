@@ -1,4 +1,10 @@
-// app/campaigns/page.tsx
+/**
+ * @file Ce fichier définit le composant de la page principale pour la gestion des campagnes publicitaires.
+ * @description Ce composant React permet aux utilisateurs de visualiser la liste des campagnes associées au client actuellement sélectionné.
+ * Il offre des fonctionnalités telles que la recherche, l'affichage de statistiques (nombre total de campagnes, budget total),
+ * et la possibilité de créer ou de modifier une campagne via un panneau latéral (drawer).
+ * La page gère son propre état, y compris la liste des campagnes, le chargement, les erreurs, et l'état du drawer.
+ */
 
 'use client';
 
@@ -12,21 +18,22 @@ import { getCampaigns, createCampaign, updateCampaign } from '../lib/campaignSer
 import CampaignDrawer from '../components/Campaigns/CampaignDrawer';
 import CampaignTable from '../components/Campaigns/CampaignTable';
 
+/**
+ * Composant principal de la page des campagnes.
+ * @returns {JSX.Element} Le rendu de la page des campagnes.
+ */
 export default function CampaignsPage() {
   const { selectedClient } = useClient();
   const { user } = useAuth();
-  
-  // États
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // États du drawer
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
 
-  // Charger les campagnes
   useEffect(() => {
     if (selectedClient) {
       loadCampaigns();
@@ -36,12 +43,18 @@ export default function CampaignsPage() {
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les campagnes pour le client sélectionné depuis la base de données.
+   * Met à jour les états de chargement, d'erreur et de la liste des campagnes.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les campagnes chargées.
+   */
   const loadCampaigns = async () => {
     if (!selectedClient) return;
 
     try {
       setLoading(true);
       setError(null);
+      console.log(`FIREBASE: LECTURE - Fichier: app/campaigns/page.tsx - Fonction: loadCampaigns - Path: clients/${selectedClient.clientId}/campaigns`);
       const data = await getCampaigns(selectedClient.clientId);
       setCampaigns(data);
     } catch (err) {
@@ -52,7 +65,6 @@ export default function CampaignsPage() {
     }
   };
 
-  // Filtrer les campagnes en fonction de la recherche
   const filteredCampaigns = useMemo(() => {
     if (!searchTerm) {
       return campaigns;
@@ -63,57 +75,71 @@ export default function CampaignsPage() {
       campaign.CA_Campaign_Identifier.toLowerCase().includes(lowercasedFilter)
     );
   }, [campaigns, searchTerm]);
-  
-  // Calculer le budget total correctement
+
   const totalBudget = useMemo(() => {
     return campaigns.reduce((total, campaign) => total + (campaign.CA_Budget || 0), 0);
   }, [campaigns]);
 
-  // Gestionnaires d'événements
+  /**
+   * Ouvre le panneau latéral (drawer) pour la création d'une nouvelle campagne.
+   * Réinitialise l'état de la campagne en cours d'édition.
+   */
   const handleCreateCampaign = () => {
     setEditingCampaign(null);
     setIsDrawerOpen(true);
   };
 
+  /**
+   * Ouvre le panneau latéral (drawer) pour la modification d'une campagne existante.
+   * @param {Campaign} campaign L'objet de la campagne à modifier.
+   */
   const handleEditCampaign = (campaign: Campaign) => {
     setEditingCampaign(campaign);
     setIsDrawerOpen(true);
   };
 
+  /**
+   * Ferme le panneau latéral et réinitialise l'état de la campagne en cours d'édition.
+   */
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setEditingCampaign(null);
   };
 
+  /**
+   * Gère la sauvegarde d'une campagne, qu'il s'agisse d'une création ou d'une modification.
+   * Appelle le service approprié pour interagir avec la base de données.
+   * @param {CampaignFormData} campaignData Les données du formulaire de la campagne.
+   * @param {BreakdownFormData[]} [additionalBreakdowns] Une liste optionnelle de breakdowns supplémentaires à créer.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de sauvegarde.
+   */
   const handleSaveCampaign = async (
-    campaignData: CampaignFormData, 
+    campaignData: CampaignFormData,
     additionalBreakdowns?: BreakdownFormData[]
   ) => {
     if (!selectedClient || !user) return;
 
     try {
       if (editingCampaign) {
-        // Modification d'une campagne existante
+        console.log(`FIREBASE: ÉCRITURE - Fichier: app/campaigns/page.tsx - Fonction: handleSaveCampaign - Path: clients/${selectedClient.clientId}/campaigns/${editingCampaign.id}`);
         await updateCampaign(selectedClient.clientId, editingCampaign.id, campaignData);
       } else {
-        // Création d'une nouvelle campagne
+        console.log(`FIREBASE: ÉCRITURE - Fichier: app/campaigns/page.tsx - Fonction: handleSaveCampaign - Path: clients/${selectedClient.clientId}/campaigns`);
         await createCampaign(
-          selectedClient.clientId, 
-          campaignData, 
+          selectedClient.clientId,
+          campaignData,
           user.email,
           additionalBreakdowns || []
         );
       }
-      
-      // Recharger les campagnes
+
       await loadCampaigns();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      throw error; // Laisser le drawer gérer l'erreur
+      throw error;
     }
   };
 
-  // Affichage conditionnel si pas de client sélectionné
   if (!selectedClient) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -131,12 +157,8 @@ export default function CampaignsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Conteneur principal de la page */}
       <div className="px-4 sm:px-6 lg:px-8 py-6">
-        {/* En-tête avec la nouvelle disposition */}
         <div className="space-y-4 mb-6">
-          
-          {/* Rangée du haut: Titre et Totaux */}
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
@@ -147,7 +169,6 @@ export default function CampaignsPage() {
               </p>
             </div>
             
-            {/* 🔥 CORRECTION: Conteneur pour les boîtes de totaux avec des largeurs fixes */}
             <div className="flex items-center gap-4">
               <div className="bg-white rounded-lg shadow p-3 text-center w-40">
                 <div className="text-xl font-bold text-gray-900">
@@ -173,10 +194,8 @@ export default function CampaignsPage() {
             </div>
           </div>
 
-          {/* Rangée du bas: Recherche et Bouton */}
           <div className="flex justify-between items-end">
             <div className="w-full max-w-md">
-              {/* Le label est caché visuellement mais accessible */}
               <label htmlFor="search" className="sr-only">Rechercher une campagne</label>
               <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -203,7 +222,6 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        {/* Messages d'erreur */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             <p className="text-sm">{error}</p>
@@ -216,7 +234,6 @@ export default function CampaignsPage() {
           </div>
         )}
 
-        {/* Tableau des campagnes */}
         <CampaignTable
           campaigns={filteredCampaigns}
           clientId={selectedClient.clientId}
@@ -226,7 +243,6 @@ export default function CampaignsPage() {
         />
       </div>
 
-      {/* Drawer de création/édition */}
       <CampaignDrawer
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}

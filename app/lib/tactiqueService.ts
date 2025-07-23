@@ -1,5 +1,12 @@
-// app/lib/tactiqueService.ts
-
+/**
+ * Ce fichier contient des fonctions de service pour interagir avec Firestore,
+ * spécifiquement pour la gestion des tactiques, sections et onglets
+ * dans le contexte des campagnes. Il gère également des fonctionnalités liées au budget
+ * comme la récupération des frais, des devises et des types d'unités.
+ *
+ * Il est conçu pour simplifier les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
+ * et les opérations de réorganisation pour les données structurées de campagne.
+ */
 import {
   collection,
   doc,
@@ -15,8 +22,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Section, Tactique, Onglet } from '../types/tactiques';
-
-// ==================== TYPES BUDGET ====================
 
 interface Fee {
   id: string;
@@ -35,9 +40,14 @@ interface FeeOption {
   FO_Editable: boolean;
 }
 
-// ==================== FONCTIONS EXISTANTES ====================
-
-// Obtenir les onglets pour une version spécifique
+/**
+ * Récupère tous les onglets pour une version spécifique d'une campagne.
+ * Les onglets sont triés par leur ordre.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @returns Une promesse qui résout en un tableau d'objets Onglet.
+ */
 export async function getOnglets(
   clientId: string,
   campaignId: string,
@@ -54,10 +64,9 @@ export async function getOnglets(
       versionId,
       'onglets'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getOnglets - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
     const q = query(ongletsRef, orderBy('ONGLET_Order', 'asc'));
     const snapshot = await getDocs(q);
-    
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -68,7 +77,15 @@ export async function getOnglets(
   }
 }
 
-// Obtenir les sections pour un onglet spécifique
+/**
+ * Récupère toutes les sections pour un onglet spécifique d'une version de campagne.
+ * Les sections sont triées par leur ordre.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @returns Une promesse qui résout en un tableau d'objets Section.
+ */
 export async function getSections(
   clientId: string,
   campaignId: string,
@@ -88,10 +105,9 @@ export async function getSections(
       ongletId,
       'sections'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getSections - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
     const q = query(sectionsRef, orderBy('SECTION_Order', 'asc'));
     const snapshot = await getDocs(q);
-    
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -102,7 +118,16 @@ export async function getSections(
   }
 }
 
-// Obtenir les tactiques pour une section spécifique
+/**
+ * Récupère toutes les tactiques pour une section spécifique d'un onglet.
+ * Les tactiques sont triées par leur ordre.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section.
+ * @returns Une promesse qui résout en un tableau d'objets Tactique.
+ */
 export async function getTactiques(
   clientId: string,
   campaignId: string,
@@ -125,10 +150,9 @@ export async function getTactiques(
       sectionId,
       'tactiques'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getTactiques - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
     const q = query(tactiquesRef, orderBy('TC_Order', 'asc'));
     const snapshot = await getDocs(q);
-    
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -139,7 +163,15 @@ export async function getTactiques(
   }
 }
 
-// Ajouter une nouvelle section
+/**
+ * Ajoute une nouvelle section à un onglet spécifique.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionData Les données de la section à ajouter (sans l'ID).
+ * @returns Une promesse qui résout en l'ID du document de la nouvelle section.
+ */
 export async function addSection(
   clientId: string,
   campaignId: string,
@@ -160,13 +192,12 @@ export async function addSection(
       ongletId,
       'sections'
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: addSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
     const docRef = await addDoc(sectionsRef, {
       ...sectionData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-    
     return docRef.id;
   } catch (error) {
     console.error('Erreur lors de l\'ajout de la section:', error);
@@ -174,7 +205,16 @@ export async function addSection(
   }
 }
 
-// Mettre à jour une section
+/**
+ * Met à jour une section existante.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section à mettre à jour.
+ * @param sectionData Les données partielles de la section à mettre à jour.
+ * @returns Une promesse qui résout lorsque la section est mise à jour.
+ */
 export async function updateSection(
   clientId: string,
   campaignId: string,
@@ -197,7 +237,7 @@ export async function updateSection(
       'sections',
       sectionId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: updateSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}");
     await updateDoc(sectionRef, {
       ...sectionData,
       updatedAt: new Date().toISOString()
@@ -208,7 +248,16 @@ export async function updateSection(
   }
 }
 
-// Ajouter une nouvelle tactique
+/**
+ * Ajoute une nouvelle tactique à une section spécifique.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section.
+ * @param tactiqueData Les données de la tactique à ajouter (sans l'ID).
+ * @returns Une promesse qui résout en l'ID du document de la nouvelle tactique.
+ */
 export async function addTactique(
   clientId: string,
   campaignId: string,
@@ -232,13 +281,12 @@ export async function addTactique(
       sectionId,
       'tactiques'
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: addTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
     const docRef = await addDoc(tactiquesRef, {
       ...tactiqueData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-    
     return docRef.id;
   } catch (error) {
     console.error('Erreur lors de l\'ajout de la tactique:', error);
@@ -246,7 +294,17 @@ export async function addTactique(
   }
 }
 
-// Mettre à jour une tactique
+/**
+ * Met à jour une tactique existante.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section.
+ * @param tactiqueId L'ID de la tactique à mettre à jour.
+ * @param tactiqueData Les données partielles de la tactique à mettre à jour.
+ * @returns Une promesse qui résout lorsque la tactique est mise à jour.
+ */
 export async function updateTactique(
   clientId: string,
   campaignId: string,
@@ -272,7 +330,7 @@ export async function updateTactique(
       'tactiques',
       tactiqueId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: updateTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
     await updateDoc(tactiqueRef, {
       ...tactiqueData,
       updatedAt: new Date().toISOString()
@@ -283,7 +341,16 @@ export async function updateTactique(
   }
 }
 
-// Réordonner les sections
+/**
+ * Réordonne les sections dans un onglet en mettant à jour leur propriété 'SECTION_Order'.
+ * Utilise un batch pour des mises à jour atomiques.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionOrders Un tableau d'objets contenant l'ID de la section et son nouvel ordre.
+ * @returns Une promesse qui résout lorsque toutes les sections sont réordonnées.
+ */
 export async function reorderSections(
   clientId: string,
   campaignId: string,
@@ -293,7 +360,6 @@ export async function reorderSections(
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
-    
     sectionOrders.forEach(({ id, order }) => {
       const sectionRef = doc(
         db,
@@ -308,13 +374,12 @@ export async function reorderSections(
         'sections',
         id
       );
-      
-      batch.update(sectionRef, { 
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: reorderSections - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${id}");
+      batch.update(sectionRef, {
         SECTION_Order: order,
         updatedAt: new Date().toISOString()
       });
     });
-    
     await batch.commit();
   } catch (error) {
     console.error('Erreur lors de la réorganisation des sections:', error);
@@ -322,7 +387,17 @@ export async function reorderSections(
   }
 }
 
-// Réordonner les tactiques
+/**
+ * Réordonne les tactiques dans une section en mettant à jour leur propriété 'TC_Order'.
+ * Utilise un batch pour des mises à jour atomiques.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section.
+ * @param tactiqueOrders Un tableau d'objets contenant l'ID de la tactique et son nouvel ordre.
+ * @returns Une promesse qui résout lorsque toutes les tactiques sont réordonnées.
+ */
 export async function reorderTactiques(
   clientId: string,
   campaignId: string,
@@ -333,7 +408,6 @@ export async function reorderTactiques(
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
-    
     tactiqueOrders.forEach(({ id, order }) => {
       const tactiqueRef = doc(
         db,
@@ -350,13 +424,12 @@ export async function reorderTactiques(
         'tactiques',
         id
       );
-      
-      batch.update(tactiqueRef, { 
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: reorderTactiques - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${id}");
+      batch.update(tactiqueRef, {
         TC_Order: order,
         updatedAt: new Date().toISOString()
       });
     });
-    
     await batch.commit();
   } catch (error) {
     console.error('Erreur lors de la réorganisation des tactiques:', error);
@@ -364,7 +437,18 @@ export async function reorderTactiques(
   }
 }
 
-// Déplacer une tactique vers une autre section
+/**
+ * Déplace une tactique d'une section à une autre et réordonne les tactiques des sections affectées.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param tactiqueId L'ID de la tactique à déplacer.
+ * @param fromSectionId L'ID de la section source.
+ * @param toSectionId L'ID de la section de destination.
+ * @param newOrder Le nouvel ordre de la tactique dans la section de destination.
+ * @returns Une promesse qui résout lorsque la tactique est déplacée et les ordres mis à jour.
+ */
 export async function moveTactiqueToSection(
   clientId: string,
   campaignId: string,
@@ -376,7 +460,6 @@ export async function moveTactiqueToSection(
   newOrder: number
 ): Promise<void> {
   try {
-    // 1. Récupérer la tactique source
     const tactiqueRef = doc(
       db,
       'clients',
@@ -392,17 +475,12 @@ export async function moveTactiqueToSection(
       'tactiques',
       tactiqueId
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: moveTactiqueToSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${fromSectionId}/tactiques/${tactiqueId}");
     const tactiqueSnap = await getDoc(tactiqueRef);
-    
     if (!tactiqueSnap.exists()) {
       throw new Error('Tactique introuvable');
     }
-    
-    // 2. Obtenir les données de la tactique
     const tactiqueData = tactiqueSnap.data() as Tactique;
-    
-    // 3. Créer la tactique dans la nouvelle section
     const newTactiquesRef = collection(
       db,
       'clients',
@@ -417,18 +495,15 @@ export async function moveTactiqueToSection(
       toSectionId,
       'tactiques'
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: moveTactiqueToSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${toSectionId}/tactiques");
     await addDoc(newTactiquesRef, {
       ...tactiqueData,
       TC_SectionId: toSectionId,
       TC_Order: newOrder,
       updatedAt: new Date().toISOString()
     });
-    
-    // 4. Supprimer l'ancienne tactique
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: moveTactiqueToSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${fromSectionId}/tactiques/${tactiqueId}");
     await deleteDoc(tactiqueRef);
-    
-    // 5. Réordonner les tactiques dans la section source
     const sourceTactiques = await getTactiques(
       clientId,
       campaignId,
@@ -436,13 +511,11 @@ export async function moveTactiqueToSection(
       ongletId,
       fromSectionId
     );
-    
     const filteredSourceTactiques = sourceTactiques.filter(t => t.id !== tactiqueId);
     const reorderedSourceTactiques = filteredSourceTactiques.map((t, index) => ({
       id: t.id,
       order: index
     }));
-    
     if (reorderedSourceTactiques.length > 0) {
       await reorderTactiques(
         clientId,
@@ -459,7 +532,16 @@ export async function moveTactiqueToSection(
   }
 }
 
-// Supprimer une section et toutes ses tactiques
+/**
+ * Supprime une section et toutes les tactiques qu'elle contient.
+ * Utilise un batch pour des suppressions atomiques.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section à supprimer.
+ * @returns Une promesse qui résout lorsque la section et ses tactiques sont supprimées.
+ */
 export async function deleteSection(
   clientId: string,
   campaignId: string,
@@ -468,7 +550,6 @@ export async function deleteSection(
   sectionId: string
 ): Promise<void> {
   try {
-    // 1. Récupérer toutes les tactiques de la section
     const tactiquesRef = collection(
       db,
       'clients',
@@ -483,17 +564,13 @@ export async function deleteSection(
       sectionId,
       'tactiques'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
     const tactiquesSnapshot = await getDocs(tactiquesRef);
-    
-    // 2. Supprimer toutes les tactiques
     const batch = writeBatch(db);
-    
     tactiquesSnapshot.docs.forEach(doc => {
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: " + doc.ref.path);
       batch.delete(doc.ref);
     });
-    
-    // 3. Supprimer la section
     const sectionRef = doc(
       db,
       'clients',
@@ -507,9 +584,8 @@ export async function deleteSection(
       'sections',
       sectionId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}");
     batch.delete(sectionRef);
-    
     await batch.commit();
   } catch (error) {
     console.error('Erreur lors de la suppression de la section:', error);
@@ -517,7 +593,16 @@ export async function deleteSection(
   }
 }
 
-// Supprimer une tactique
+/**
+ * Supprime une tactique spécifique et réordonne les tactiques restantes dans sa section.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet.
+ * @param sectionId L'ID de la section.
+ * @param tactiqueId L'ID de la tactique à supprimer.
+ * @returns Une promesse qui résout lorsque la tactique est supprimée et les ordres mis à jour.
+ */
 export async function deleteTactique(
   clientId: string,
   campaignId: string,
@@ -542,10 +627,8 @@ export async function deleteTactique(
       'tactiques',
       tactiqueId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
     await deleteDoc(tactiqueRef);
-    
-    // Réordonner les tactiques restantes
     const tactiques = await getTactiques(
       clientId,
       campaignId,
@@ -553,7 +636,6 @@ export async function deleteTactique(
       ongletId,
       sectionId
     );
-    
     const reorderedTactiques = tactiques
       .filter(t => t.id !== tactiqueId)
       .sort((a, b) => a.TC_Order - b.TC_Order)
@@ -561,12 +643,11 @@ export async function deleteTactique(
         id: t.id,
         order: index
       }));
-    
     if (reorderedTactiques.length > 0) {
       await reorderTactiques(
         clientId,
         campaignId,
-        versionId, 
+        versionId,
         ongletId,
         sectionId,
         reorderedTactiques
@@ -578,9 +659,14 @@ export async function deleteTactique(
   }
 }
 
-// ==================== NOUVELLES FONCTIONS ONGLETS ====================
-
-// Ajouter un nouvel onglet
+/**
+ * Ajoute un nouvel onglet à une version de campagne.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletData Les données de l'onglet à ajouter (sans l'ID).
+ * @returns Une promesse qui résout en l'ID du document du nouvel onglet.
+ */
 export async function addOnglet(
   clientId: string,
   campaignId: string,
@@ -598,14 +684,12 @@ export async function addOnglet(
       versionId,
       'onglets'
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: addOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
     const docRef = await addDoc(ongletsRef, {
       ...ongletData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-    
-    console.log('✅ Onglet créé avec ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Erreur lors de l\'ajout de l\'onglet:', error);
@@ -613,7 +697,15 @@ export async function addOnglet(
   }
 }
 
-// Mettre à jour un onglet (renommage)
+/**
+ * Met à jour un onglet existant (par exemple, pour le renommer).
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet à mettre à jour.
+ * @param ongletData Les données partielles de l'onglet à mettre à jour.
+ * @returns Une promesse qui résout lorsque l'onglet est mis à jour.
+ */
 export async function updateOnglet(
   clientId: string,
   campaignId: string,
@@ -633,20 +725,26 @@ export async function updateOnglet(
       'onglets',
       ongletId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: updateOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}");
     await updateDoc(ongletRef, {
       ...ongletData,
       updatedAt: new Date().toISOString()
     });
-    
-    console.log('✅ Onglet mis à jour:', ongletId);
   } catch (error) {
     console.error('❌ Erreur lors de la mise à jour de l\'onglet:', error);
     throw error;
   }
 }
 
-// Supprimer un onglet et toutes ses données
+/**
+ * Supprime un onglet et toutes les sections et tactiques qu'il contient.
+ * Utilise un batch pour des suppressions atomiques.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletId L'ID de l'onglet à supprimer.
+ * @returns Une promesse qui résout lorsque l'onglet et ses données sont supprimés.
+ */
 export async function deleteOnglet(
   clientId: string,
   campaignId: string,
@@ -654,9 +752,6 @@ export async function deleteOnglet(
   ongletId: string
 ): Promise<void> {
   try {
-    console.log('🗑️ Début suppression onglet:', ongletId);
-    
-    // 1. Récupérer toutes les sections de l'onglet
     const sectionsRef = collection(
       db,
       'clients',
@@ -669,16 +764,11 @@ export async function deleteOnglet(
       ongletId,
       'sections'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
     const sectionsSnapshot = await getDocs(sectionsRef);
-    
-    // 2. Pour chaque section, supprimer toutes les tactiques
     const batch = writeBatch(db);
-    
     for (const sectionDoc of sectionsSnapshot.docs) {
       const sectionId = sectionDoc.id;
-      
-      // Récupérer toutes les tactiques de cette section
       const tactiquesRef = collection(
         db,
         'clients',
@@ -693,19 +783,15 @@ export async function deleteOnglet(
         sectionId,
         'tactiques'
       );
-      
+      console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
       const tactiquesSnapshot = await getDocs(tactiquesRef);
-      
-      // Supprimer toutes les tactiques
       tactiquesSnapshot.docs.forEach(tactiqueDoc => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: " + tactiqueDoc.ref.path);
         batch.delete(tactiqueDoc.ref);
       });
-      
-      // Supprimer la section
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: " + sectionDoc.ref.path);
       batch.delete(sectionDoc.ref);
     }
-    
-    // 3. Supprimer l'onglet lui-même
     const ongletRef = doc(
       db,
       'clients',
@@ -717,20 +803,24 @@ export async function deleteOnglet(
       'onglets',
       ongletId
     );
-    
+    console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}");
     batch.delete(ongletRef);
-    
-    // 4. Exécuter toutes les suppressions
     await batch.commit();
-    
-    console.log('✅ Onglet et toutes ses données supprimés:', ongletId);
   } catch (error) {
     console.error('❌ Erreur lors de la suppression de l\'onglet:', error);
     throw error;
   }
 }
 
-// Réordonner les onglets
+/**
+ * Réordonne les onglets en mettant à jour leur propriété 'ONGLET_Order'.
+ * Utilise un batch pour des mises à jour atomiques.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param ongletOrders Un tableau d'objets contenant l'ID de l'onglet et son nouvel ordre.
+ * @returns Une promesse qui résout lorsque tous les onglets sont réordonnés.
+ */
 export async function reorderOnglets(
   clientId: string,
   campaignId: string,
@@ -739,7 +829,6 @@ export async function reorderOnglets(
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
-    
     ongletOrders.forEach(({ id, order }) => {
       const ongletRef = doc(
         db,
@@ -752,22 +841,29 @@ export async function reorderOnglets(
         'onglets',
         id
       );
-      
-      batch.update(ongletRef, { 
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: reorderOnglets - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${id}");
+      batch.update(ongletRef, {
         ONGLET_Order: order,
         updatedAt: new Date().toISOString()
       });
     });
-    
     await batch.commit();
-    console.log('✅ Onglets réordonnés');
   } catch (error) {
     console.error('❌ Erreur lors de la réorganisation des onglets:', error);
     throw error;
   }
 }
 
-// Dupliquer un onglet avec toutes ses données
+/**
+ * Duplique un onglet existant, y compris toutes ses sections et tactiques,
+ * sous un nouveau nom et avec un nouvel ordre.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param versionId L'ID de la version.
+ * @param sourceOngletId L'ID de l'onglet source à dupliquer.
+ * @param newOngletName Le nouveau nom pour l'onglet dupliqué.
+ * @returns Une promesse qui résout en l'ID du nouvel onglet dupliqué.
+ */
 export async function duplicateOnglet(
   clientId: string,
   campaignId: string,
@@ -776,9 +872,6 @@ export async function duplicateOnglet(
   newOngletName: string
 ): Promise<string> {
   try {
-    console.log('📋 Début duplication onglet:', sourceOngletId, '→', newOngletName);
-    
-    // 1. Récupérer l'onglet source
     const sourceOngletRef = doc(
       db,
       'clients',
@@ -790,30 +883,22 @@ export async function duplicateOnglet(
       'onglets',
       sourceOngletId
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: duplicateOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${sourceOngletId}");
     const sourceOngletSnap = await getDoc(sourceOngletRef);
-    
     if (!sourceOngletSnap.exists()) {
       throw new Error('Onglet source introuvable');
     }
-    
     const sourceOngletData = sourceOngletSnap.data() as Onglet;
-    
-    // 2. Déterminer le nouvel ordre
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: duplicateOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
     const ongletsSnapshot = await getDocs(
       collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets')
     );
     const newOrder = ongletsSnapshot.size;
-    
-    // 3. Créer le nouvel onglet
     const newOngletData = {
       ONGLET_Name: newOngletName,
       ONGLET_Order: newOrder,
     };
-    
     const newOngletId = await addOnglet(clientId, campaignId, versionId, newOngletData);
-    
-    // 4. Copier toutes les sections et leurs tactiques
     const sectionsRef = collection(
       db,
       'clients',
@@ -826,13 +911,10 @@ export async function duplicateOnglet(
       sourceOngletId,
       'sections'
     );
-    
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: duplicateOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${sourceOngletId}/sections");
     const sectionsSnapshot = await getDocs(query(sectionsRef, orderBy('SECTION_Order', 'asc')));
-    
     for (const sectionDoc of sectionsSnapshot.docs) {
       const sectionData = sectionDoc.data() as Section;
-      
-      // Créer la nouvelle section
       const newSectionId = await addSection(
         clientId, campaignId, versionId, newOngletId,
         {
@@ -842,8 +924,6 @@ export async function duplicateOnglet(
           SECTION_Budget: sectionData.SECTION_Budget
         }
       );
-      
-      // Copier les tactiques de cette section
       const tactiquesRef = collection(
         db,
         'clients',
@@ -858,64 +938,51 @@ export async function duplicateOnglet(
         sectionDoc.id,
         'tactiques'
       );
-      
+      console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: duplicateOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${sourceOngletId}/sections/${sectionDoc.id}/tactiques");
       const tactiquesSnapshot = await getDocs(query(tactiquesRef, orderBy('TC_Order', 'asc')));
-      
       for (const tactiqueDoc of tactiquesSnapshot.docs) {
         const tactiqueData = tactiqueDoc.data() as Tactique;
-        
         await addTactique(
           clientId, campaignId, versionId, newOngletId, newSectionId,
           {
             TC_Label: tactiqueData.TC_Label,
             TC_Order: tactiqueData.TC_Order,
             TC_Budget: tactiqueData.TC_Budget,
-            TC_Unit_Type: tactiqueData.TC_Unit_Type,
-            TC_Unit_Count: tactiqueData.TC_Unit_Count,
-            TC_Unit_Cost: tactiqueData.TC_Unit_Cost,
-            TC_Start_Date: tactiqueData.TC_Start_Date,
-            TC_End_Date: tactiqueData.TC_End_Date,
             TC_SectionId: newSectionId
           }
         );
       }
     }
-    
-    console.log('✅ Onglet dupliqué avec succès:', newOngletId);
     return newOngletId;
-    
   } catch (error) {
     console.error('❌ Erreur lors de la duplication de l\'onglet:', error);
     throw error;
   }
 }
 
-// ==================== NOUVELLES FONCTIONS BUDGET ====================
-
-// Récupérer les frais configurés pour un client
+/**
+ * Récupère tous les frais configurés pour un client, y compris leurs options.
+ * @param clientId L'ID du client.
+ * @returns Une promesse qui résout en un tableau d'objets Fee.
+ */
 export async function getClientFees(clientId: string): Promise<Fee[]> {
   try {
     const feesRef = collection(db, 'clients', clientId, 'fees');
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getClientFees - Path: clients/${clientId}/fees");
     const q = query(feesRef, orderBy('FE_Order', 'asc'));
     const snapshot = await getDocs(q);
-    
     const fees: Fee[] = [];
-    
     for (const feeDoc of snapshot.docs) {
       const feeData = { id: feeDoc.id, ...feeDoc.data() } as Fee;
-      
-      // Charger les options pour ce frais
       const optionsRef = collection(db, 'clients', clientId, 'fees', feeDoc.id, 'options');
+      console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getClientFees - Path: clients/${clientId}/fees/${feeDoc.id}/options");
       const optionsSnapshot = await getDocs(optionsRef);
-      
       feeData.options = optionsSnapshot.docs.map(optionDoc => ({
         id: optionDoc.id,
         ...optionDoc.data()
       } as FeeOption));
-      
       fees.push(feeData);
     }
-    
     return fees;
   } catch (error) {
     console.error('Erreur lors de la récupération des frais client:', error);
@@ -923,64 +990,71 @@ export async function getClientFees(clientId: string): Promise<Fee[]> {
   }
 }
 
-// Récupérer la devise de la campagne
+/**
+ * Récupère la devise principale d'une campagne.
+ * Retourne 'CAD' par défaut si la campagne n'est pas trouvée ou si la devise n'est pas définie.
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @returns Une promesse qui résout en une chaîne de caractères représentant la devise (ex: 'CAD', 'USD').
+ */
 export async function getCampaignCurrency(clientId: string, campaignId: string): Promise<string> {
   try {
     const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getCampaignCurrency - Path: clients/${clientId}/campaigns/${campaignId}");
     const campaignSnap = await getDoc(campaignRef);
-    
     if (!campaignSnap.exists()) {
       console.warn('Campagne non trouvée, devise par défaut: CAD');
       return 'CAD';
     }
-    
     const campaignData = campaignSnap.data();
     return campaignData.currency || 'CAD';
   } catch (error) {
     console.error('Erreur lors de la récupération de la devise de campagne:', error);
-    return 'CAD'; // Devise par défaut
+    return 'CAD';
   }
 }
 
-// Récupérer les taux de change du client
+/**
+ * Récupère les taux de change configurés pour un client.
+ * @param clientId L'ID du client.
+ * @returns Une promesse qui résout en un objet mappant les paires de devises (ex: "USD_CAD") à leurs taux de change.
+ */
 export async function getExchangeRates(clientId: string): Promise<{ [key: string]: number }> {
   try {
     const ratesRef = collection(db, 'clients', clientId, 'currencies');
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getExchangeRates - Path: clients/${clientId}/currencies");
     const snapshot = await getDocs(ratesRef);
-    
     const rates: { [key: string]: number } = {};
-    
     snapshot.docs.forEach(doc => {
       const currencyData = doc.data();
       const fromCurrency = currencyData.CU_From;
       const toCurrency = currencyData.CU_To;
       const rate = currencyData.CU_Rate;
-      
-      // Créer une clé pour le taux de change (ex: "USD_CAD")
       const rateKey = `${fromCurrency}_${toCurrency}`;
       rates[rateKey] = rate;
-      
-      // Aussi stocker par devise source pour faciliter l'accès
       rates[fromCurrency] = rate;
     });
-    
     return rates;
   } catch (error) {
     console.error('Erreur lors de la récupération des taux de change:', error);
-    return {}; // Taux vides par défaut
+    return {};
   }
 }
 
-// Récupérer la devise du client (devise principale/par défaut)
+/**
+ * Récupère la devise par défaut ou principale configurée pour un client.
+ * Retourne 'CAD' par défaut si le client n'est pas trouvé ou si la devise par défaut n'est pas définie.
+ * @param clientId L'ID du client.
+ * @returns Une promesse qui résout en une chaîne de caractères représentant la devise par défaut.
+ */
 export async function getClientDefaultCurrency(clientId: string): Promise<string> {
   try {
     const clientRef = doc(db, 'clients', clientId);
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getClientDefaultCurrency - Path: clients/${clientId}");
     const clientSnap = await getDoc(clientRef);
-    
     if (!clientSnap.exists()) {
       return 'CAD';
     }
-    
     const clientData = clientSnap.data();
     return clientData.defaultCurrency || 'CAD';
   } catch (error) {
@@ -989,17 +1063,21 @@ export async function getClientDefaultCurrency(clientId: string): Promise<string
   }
 }
 
-// Vérifier si un type d'unité existe dans les listes dynamiques
+/**
+ * Vérifie si des types d'unités sont définis pour un client ou pour la plateforme 'PlusCo'.
+ * @param clientId L'ID du client.
+ * @returns Une promesse qui résout en un booléen indiquant si des types d'unités existent.
+ */
 export async function hasUnitTypeList(clientId: string): Promise<boolean> {
   try {
     const unitTypesRef = collection(db, 'shortcodes');
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: hasUnitTypeList - Path: shortcodes");
     const q = query(
-      unitTypesRef, 
+      unitTypesRef,
       where('SH_Dimension', '==', 'TC_Unit_Type'),
       where('SH_Client_ID', 'in', [clientId, 'PlusCo'])
     );
     const snapshot = await getDocs(q);
-    
     return !snapshot.empty;
   } catch (error) {
     console.error('Erreur lors de la vérification du type d\'unité:', error);
@@ -1007,18 +1085,22 @@ export async function hasUnitTypeList(clientId: string): Promise<boolean> {
   }
 }
 
-// Récupérer les types d'unité disponibles
-export async function getUnitTypes(clientId: string): Promise<Array<{id: string, SH_Display_Name_FR: string}>> {
+/**
+ * Récupère la liste des types d'unités disponibles pour un client ou pour la plateforme 'PlusCo'.
+ * @param clientId L'ID du client.
+ * @returns Une promesse qui résout en un tableau d'objets avec l'ID et le nom d'affichage français du type d'unité.
+ */
+export async function getUnitTypes(clientId: string): Promise<Array<{ id: string, SH_Display_Name_FR: string }>> {
   try {
     const unitTypesRef = collection(db, 'shortcodes');
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getUnitTypes - Path: shortcodes");
     const q = query(
-      unitTypesRef, 
+      unitTypesRef,
       where('SH_Dimension', '==', 'TC_Unit_Type'),
       where('SH_Client_ID', 'in', [clientId, 'PlusCo']),
       orderBy('SH_Display_Name_FR', 'asc')
     );
     const snapshot = await getDocs(q);
-    
     return snapshot.docs.map(doc => ({
       id: doc.id,
       SH_Display_Name_FR: doc.data().SH_Display_Name_FR
@@ -1028,7 +1110,5 @@ export async function getUnitTypes(clientId: string): Promise<Array<{id: string,
     return [];
   }
 }
-
-// ==================== EXPORTS DES TYPES ====================
 
 export type { Fee, FeeOption };

@@ -1,10 +1,24 @@
+/**
+ * Ce fichier définit le composant ClientDropdown.
+ * Son rôle est d'afficher un menu déroulant qui permet à l'utilisateur de sélectionner
+ * un "client" parmi une liste. Il récupère les données via le hook `useClient`,
+ * gère un état de chargement, et affiche le nom et le logo du client sélectionné.
+ */
+
 'use client';
+
 
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { useClient } from '../../contexts/ClientContext';
 
+/**
+ * Affiche un menu déroulant permettant à l'utilisateur de sélectionner un client.
+ * Le composant gère son propre état (chargement, liste de clients, client sélectionné)
+ * en utilisant le contexte `ClientContext`.
+ * @returns {JSX.Element} Le composant JSX du menu déroulant.
+ */
 export default function ClientDropdown() {
   const { availableClients, selectedClient, setSelectedClient, loading } =
     useClient();
@@ -13,12 +27,10 @@ export default function ClientDropdown() {
     return <div className="text-sm text-gray-500">Chargement...</div>;
   }
 
-  // Afficher le dropdown s'il y a des clients disponibles
   if (availableClients.length === 0) {
     return <div className="text-sm text-gray-500">Aucun client disponible</div>;
   }
 
-  // Si aucun client n'est sélectionné, afficher "Sélectionner un client"
   const displayText = selectedClient ? (
     <div className="flex items-center gap-2 truncate">
       {selectedClient.CL_Logo && (

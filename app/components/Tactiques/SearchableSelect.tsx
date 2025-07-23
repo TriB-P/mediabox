@@ -1,3 +1,8 @@
+/**
+ * Ce composant 'SearchableSelect' est un sélecteur déroulant personnalisable et recherchable.
+ * Il permet aux utilisateurs de choisir une option parmi une liste, avec la possibilité de filtrer les options en tapant du texte.
+ * Il agit comme un remplacement enrichi pour un élément <select> HTML standard.
+ */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -15,6 +20,22 @@ interface SearchableSelectProps {
   required?: boolean;
 }
 
+/**
+ * Composant sélecteur avec fonctionnalité de recherche.
+ * Permet de sélectionner une option parmi une liste potentiellement longue avec une barre de recherche intégrée.
+ *
+ * @param {SearchableSelectProps} props - Les propriétés du composant.
+ * @param {string} props.id - L'identifiant unique du sélecteur.
+ * @param {string} props.name - Le nom de l'input pour la soumission du formulaire.
+ * @param {string} props.value - La valeur de l'option actuellement sélectionnée.
+ * @param {(e: React.ChangeEvent<HTMLSelectElement>) => void} props.onChange - Fonction de rappel appelée lorsque la valeur change.
+ * @param {Array<{ id: string; label: string }>} props.options - La liste des options disponibles, avec un ID et une étiquette.
+ * @param {string} [props.placeholder='Sélectionner...'] - Le texte affiché lorsque aucune option n'est sélectionnée.
+ * @param {string} [props.className=''] - Les classes CSS supplémentaires à appliquer au conteneur principal.
+ * @param {(string | React.ReactNode)} [props.label] - L'étiquette à afficher au-dessus du sélecteur.
+ * @param {boolean} [props.required=false] - Indique si le champ est obligatoire.
+ * @returns {JSX.Element} Le composant SearchableSelect.
+ */
 export default function SearchableSelect({
   id,
   name,
@@ -32,8 +53,14 @@ export default function SearchableSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * Effet de bord qui filtre les options chaque fois que le terme de recherche ou les options changent.
+   * Si un terme de recherche est présent, les options sont filtrées en fonction de leur étiquette.
+   * Sinon, toutes les options sont affichées.
+   *
+   * @returns {void}
+   */
   useEffect(() => {
-    // Filtrer les options en fonction du terme de recherche
     if (searchTerm) {
       const filtered = options.filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
@@ -44,7 +71,12 @@ export default function SearchableSelect({
     }
   }, [searchTerm, options]);
 
-  // Fermer le menu déroulant lorsqu'on clique en dehors
+  /**
+   * Effet de bord qui gère la fermeture du menu déroulant lorsque l'utilisateur clique en dehors du composant.
+   * Ajoute et retire un écouteur d'événement 'mousedown' sur le document.
+   *
+   * @returns {() => void} Une fonction de nettoyage pour retirer l'écouteur d'événement.
+   */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -58,20 +90,39 @@ export default function SearchableSelect({
     };
   }, []);
 
-  // Focus sur l'input de recherche quand on ouvre le dropdown
+  /**
+   * Effet de bord qui met le focus sur l'input de recherche lorsque le menu déroulant s'ouvre.
+   *
+   * @returns {void}
+   */
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [isOpen]);
 
-  // Trouver l'option sélectionnée
+  /**
+   * Trouve l'option sélectionnée à partir de la liste des options.
+   *
+   * @returns {({ id: string; label: string } | undefined)} L'objet option sélectionné ou undefined si aucune option n'est trouvée.
+   */
   const selectedOption = options.find(option => option.id === value);
 
-  // Trouver l'étiquette à afficher
+  /**
+   * Détermine la valeur à afficher dans le sélecteur.
+   * Affiche l'étiquette de l'option sélectionnée ou le texte du placeholder si aucune option n'est sélectionnée.
+   *
+   * @returns {string} La valeur à afficher.
+   */
   const displayValue = selectedOption ? selectedOption.label : placeholder;
 
-  // Gérer la sélection d'une option
+  /**
+   * Gère la sélection d'une option.
+   * Met à jour la valeur du sélecteur, ferme le menu déroulant et réinitialise le terme de recherche.
+   *
+   * @param {string} optionId - L'ID de l'option sélectionnée.
+   * @returns {void}
+   */
   const handleSelect = (optionId: string) => {
     const selectEvent = {
       target: {
@@ -85,7 +136,13 @@ export default function SearchableSelect({
     setSearchTerm('');
   };
 
-  // Gérer l'effacement de la sélection
+  /**
+   * Gère l'effacement de la sélection actuelle.
+   * Réinitialise la valeur du sélecteur à une chaîne vide et efface le terme de recherche.
+   *
+   * @param {React.MouseEvent} e - L'événement de la souris.
+   * @returns {void}
+   */
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     const selectEvent = {
@@ -135,10 +192,8 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {/* Dropdown menu */}
       {isOpen && (
         <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
-          {/* Search input */}
           <div className="relative border-b border-gray-200">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <MagnifyingGlassCircleIcon className="h-4 w-4 text-gray-400" />
@@ -166,7 +221,6 @@ export default function SearchableSelect({
             )}
           </div>
           
-          {/* Options list */}
           <ul
             className="max-h-60 overflow-auto py-1 text-sm"
             role="listbox"
@@ -195,7 +249,6 @@ export default function SearchableSelect({
         </div>
       )}
       
-      {/* Hidden select for form submission */}
       <select
         id={id}
         name={name}

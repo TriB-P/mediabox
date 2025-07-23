@@ -1,11 +1,16 @@
 // app/components/Tactiques/BudgetFeesSection.tsx
 
+/**
+ * @file Ce fichier contient le composant React `BudgetFeesSection` et ses sous-composants.
+ * Il est responsable de l'affichage et de la gestion de la configuration des frais (fees) associés au budget d'une tactique marketing.
+ * Ce composant permet aux utilisateurs d'activer, de désactiver et de personnaliser les frais qui s'appliqueront au calcul du budget total de la tactique.
+ * Il gère différents types de calculs de frais (pourcentage, volume, fixe) et affiche un résumé des coûts.
+ */
+
 'use client';
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
-
-// ==================== TYPES ====================
 
 interface Fee {
   id: string;
@@ -30,34 +35,27 @@ interface AppliedFee {
   selectedOptionId?: string;
   customValue?: number;
   customUnits?: number;
-  // NOUVEAU: Volume personnalisé pour les frais "Volume d'unité"
   useCustomVolume?: boolean;
   customVolume?: number;
   calculatedAmount: number;
 }
 
 interface BudgetFeesSectionProps {
-  // Données des frais
   clientFees: Fee[];
   appliedFees: AppliedFee[];
   setAppliedFees: React.Dispatch<React.SetStateAction<AppliedFee[]>>;
-  
-  // Données pour les calculs (informatives seulement)
   mediaBudget: number;
   unitVolume: number;
-  
-  // Devise de la tactique pour l'affichage
   tacticCurrency: string;
-  
-  // Gestionnaires d'événements
   onTooltipChange: (tooltip: string | null) => void;
-  
-  // État de chargement
   disabled?: boolean;
 }
 
-// ==================== UTILITAIRES ====================
-
+/**
+ * Retourne une icône emoji basée sur le type de calcul du frais.
+ * @param {Fee['FE_Calculation_Type']} calculationType - Le type de calcul du frais.
+ * @returns {string} - L'émoji correspondant au type.
+ */
 const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   switch (calculationType) {
     case 'Pourcentage budget': return '💰';
@@ -68,6 +66,11 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
+/**
+ * Retourne une description textuelle pour un type de calcul de frais.
+ * @param {Fee['FE_Calculation_Type']} calculationType - Le type de calcul du frais.
+ * @returns {string} - La description lisible du type de calcul.
+ */
 const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
   switch (calculationType) {
     case 'Pourcentage budget': return 'Pourcentage appliqué sur le budget';
@@ -78,7 +81,12 @@ const getFeeTypeDescription = (calculationType: Fee['FE_Calculation_Type']) => {
   }
 };
 
-// Formater une valeur pour l'affichage selon le type de frais
+/**
+ * Formate une valeur numérique pour l'affichage, en la multipliant par 100 si c'est un pourcentage.
+ * @param {number} value - La valeur numérique à formater.
+ * @param {Fee['FE_Calculation_Type']} calculationType - Le type de calcul pour déterminer si c'est un pourcentage.
+ * @returns {string} - La valeur formatée en chaîne de caractères pour l'affichage.
+ */
 const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculation_Type']) => {
   if (calculationType === 'Pourcentage budget') {
     return (value * 100).toFixed(2);
@@ -86,7 +94,12 @@ const formatValueForDisplay = (value: number, calculationType: Fee['FE_Calculati
   return value.toFixed(2);
 };
 
-// Convertir une valeur d'affichage vers le stockage selon le type de frais  
+/**
+ * Convertit une valeur d'affichage (string) en valeur numérique pour le stockage, en la divisant par 100 si c'est un pourcentage.
+ * @param {string} displayValue - La valeur affichée dans le champ de saisie.
+ * @param {Fee['FE_Calculation_Type']} calculationType - Le type de calcul pour déterminer si c'est un pourcentage.
+ * @returns {number} - La valeur numérique convertie pour le stockage.
+ */
 const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Calculation_Type']) => {
   const numValue = parseFloat(displayValue) || 0;
   if (calculationType === 'Pourcentage budget') {
@@ -95,8 +108,24 @@ const parseValueFromDisplay = (displayValue: string, calculationType: Fee['FE_Ca
   return numValue;
 };
 
-// ==================== COMPOSANT FRAIS INDIVIDUEL ====================
-
+/**
+ * Composant mémoïsé pour afficher et gérer un seul frais.
+ * Il contient la logique pour activer/désactiver le frais, sélectionner des options, et saisir des valeurs personnalisées.
+ * @param {object} props - Les propriétés du composant.
+ * @param {Fee} props.fee - Les données de base du frais (nom, type, options).
+ * @param {AppliedFee} props.appliedFee - L'état actuel du frais appliqué (actif, option sélectionnée, etc.).
+ * @param {function} props.onToggle - Callback pour activer/désactiver le frais.
+ * @param {function} props.onOptionChange - Callback pour changer l'option sélectionnée.
+ * @param {function} props.onCustomValueChange - Callback pour changer la valeur personnalisée.
+ * @param {function} props.onCustomUnitsChange - Callback pour changer le nombre d'unités personnalisé.
+ * @param {function} props.onCustomVolumeToggle - Callback pour activer/désactiver le volume personnalisé.
+ * @param {function} props.onCustomVolumeChange - Callback pour changer le volume personnalisé.
+ * @param {function} props.onTooltipChange - Callback pour gérer l'affichage d'infobulles.
+ * @param {string} props.tacticCurrency - La devise de la tactique pour l'affichage.
+ * @param {number} props.unitVolume - Le volume d'unité par défaut de la tactique.
+ * @param {boolean} [props.disabled=false] - Désactive les interactions si vrai.
+ * @returns {React.ReactElement} - Le JSX du composant pour un frais individuel.
+ */
 const FeeItem = memo<{
   fee: Fee;
   appliedFee: AppliedFee;
@@ -104,31 +133,29 @@ const FeeItem = memo<{
   onOptionChange: (feeId: string, optionId: string) => void;
   onCustomValueChange: (feeId: string, value: number) => void;
   onCustomUnitsChange: (feeId: string, units: number) => void;
-  // NOUVEAU: Gestionnaires pour le volume personnalisé
   onCustomVolumeToggle: (feeId: string, useCustom: boolean) => void;
   onCustomVolumeChange: (feeId: string, volume: number) => void;
   onTooltipChange: (tooltip: string | null) => void;
   tacticCurrency: string;
-  unitVolume: number; // Volume d'unité de la tactique
+  unitVolume: number;
   disabled?: boolean;
-}>(({ 
-  fee, 
-  appliedFee, 
-  onToggle, 
-  onOptionChange, 
-  onCustomValueChange, 
+}>(({
+  fee,
+  appliedFee,
+  onToggle,
+  onOptionChange,
+  onCustomValueChange,
   onCustomUnitsChange,
   onCustomVolumeToggle,
   onCustomVolumeChange,
-  onTooltipChange, 
+  onTooltipChange,
   tacticCurrency,
   unitVolume,
-  disabled = false 
+  disabled = false
 }) => {
-  
+
   const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
-  
-  // Gestionnaires d'événements
+
   const handleToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onToggle(fee.id, e.target.checked);
   }, [fee.id, onToggle]);
@@ -148,7 +175,6 @@ const FeeItem = memo<{
     onCustomUnitsChange(fee.id, units);
   }, [fee.id, onCustomUnitsChange]);
 
-  // NOUVEAU: Gestionnaires pour le volume personnalisé
   const handleCustomVolumeToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onCustomVolumeToggle(fee.id, e.target.checked);
   }, [fee.id, onCustomVolumeToggle]);
@@ -158,7 +184,6 @@ const FeeItem = memo<{
     onCustomVolumeChange(fee.id, volume);
   }, [fee.id, onCustomVolumeChange]);
 
-  // Calcul du montant avec buffer si applicable (pour affichage informatif seulement)
   const finalValue = useMemo(() => {
     if (!selectedOption) return 0;
     const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
@@ -166,7 +191,6 @@ const FeeItem = memo<{
     return baseValue * bufferMultiplier;
   }, [selectedOption, appliedFee.customValue]);
 
-  // Formatage des montants dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
     const currency = tacticCurrency || 'CAD';
     return new Intl.NumberFormat('fr-CA', {
@@ -175,19 +199,16 @@ const FeeItem = memo<{
     }).format(value) + ' ' + currency;
   }, [tacticCurrency]);
 
-  // Valeur affichée dans l'input (avec conversion pour les pourcentages)
   const displayValue = useMemo(() => {
     if (!selectedOption) return '';
     const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
     return formatValueForDisplay(baseValue, fee.FE_Calculation_Type);
   }, [selectedOption, appliedFee.customValue, fee.FE_Calculation_Type]);
 
-  // Valeur finale avec buffer (pour affichage informatif)
   const finalDisplayValue = useMemo(() => {
     return formatValueForDisplay(finalValue, fee.FE_Calculation_Type);
   }, [finalValue, fee.FE_Calculation_Type]);
 
-  // NOUVEAU: Volume effectif utilisé pour ce frais
   const effectiveVolume = useMemo(() => {
     if (fee.FE_Calculation_Type === 'Volume d\'unité' && appliedFee.useCustomVolume && appliedFee.customVolume) {
       return appliedFee.customVolume;
@@ -197,7 +218,6 @@ const FeeItem = memo<{
 
   return (
     <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
-      {/* Header avec toggle et information */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center flex-1">
           <input
@@ -209,8 +229,8 @@ const FeeItem = memo<{
             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
           />
           <div className="ml-3 flex-1">
-            <label 
-              htmlFor={`fee_${fee.id}`} 
+            <label
+              htmlFor={`fee_${fee.id}`}
               className="text-lg font-medium text-gray-900 cursor-pointer flex items-center gap-2"
             >
               <span>{getFeeTypeIcon(fee.FE_Calculation_Type)}</span>
@@ -221,8 +241,7 @@ const FeeItem = memo<{
             </div>
           </div>
         </div>
-        
-        {/* Montant calculé dans la devise de la tactique */}
+
         {appliedFee.isActive && (
           <div className="text-right ml-4">
             <div className="text-xl font-bold text-indigo-600">
@@ -233,10 +252,8 @@ const FeeItem = memo<{
         )}
       </div>
 
-      {/* Configuration du frais si activé */}
       {appliedFee.isActive && (
         <div className="space-y-4 pt-4 border-t border-gray-100">
-          {/* Sélection d'option */}
           {fee.options.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -268,7 +285,6 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* NOUVEAU: Option volume personnalisé pour les frais "Volume d'unité" */}
           {selectedOption && fee.FE_Calculation_Type === 'Volume d\'unité' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -283,20 +299,19 @@ const FeeItem = memo<{
                   />
                 </div>
                 <div className="ml-3 flex-1">
-                  <label 
+                  <label
                     htmlFor={`custom_volume_${fee.id}`}
                     className="text-sm font-medium text-yellow-800 cursor-pointer"
                   >
                     Utiliser un autre volume d'unité pour calculer ce frais
                   </label>
                   <p className="text-xs text-yellow-700 mt-1">
-                    Par défaut, ce frais utilise le volume d'unité de la tactique ({unitVolume.toLocaleString()}). 
+                    Par défaut, ce frais utilise le volume d'unité de la tactique ({unitVolume.toLocaleString()}).
                     Cochez pour saisir un volume différent.
                   </p>
                 </div>
               </div>
-              
-              {/* Input pour le volume personnalisé */}
+
               {appliedFee.useCustomVolume && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-yellow-800 mb-2">
@@ -320,10 +335,8 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* Champs personnalisés selon le type de frais */}
           {selectedOption && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Valeur personnalisée si éditable */}
               {selectedOption.FO_Editable && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -357,7 +370,6 @@ const FeeItem = memo<{
                 </div>
               )}
 
-              {/* Valeur non éditable */}
               {!selectedOption.FO_Editable && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -385,7 +397,6 @@ const FeeItem = memo<{
                 </div>
               )}
 
-              {/* Nombre d'unités pour type "Unités" */}
               {fee.FE_Calculation_Type === 'Unités' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -408,15 +419,14 @@ const FeeItem = memo<{
             </div>
           )}
 
-          {/* Explication du calcul avec devise - MODIFIÉE pour inclure le volume personnalisé */}
           {selectedOption && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-xs text-gray-600">
                 {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                   <div className="mt-1">
-                    {finalDisplayValue}% × Base de calcul 
-                    {fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-                      ? ` (budget média en ${tacticCurrency || 'CAD'})` 
+                    {finalDisplayValue}% × Base de calcul
+                    {fee.FE_Calculation_Mode === 'Directement sur le budget média'
+                      ? ` (budget média en ${tacticCurrency || 'CAD'})`
                       : ` (budget média + frais précédents en ${tacticCurrency || 'CAD'})`}
                   </div>
                 )}
@@ -454,8 +464,20 @@ const FeeItem = memo<{
 
 FeeItem.displayName = 'FeeItem';
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal qui affiche et gère la section des frais de budget pour une tactique.
+ * Il affiche une liste de frais disponibles, permet à l'utilisateur de les configurer et montre un résumé des coûts.
+ * @param {object} props - Les propriétés du composant.
+ * @param {Fee[]} props.clientFees - La liste de tous les frais disponibles pour le client.
+ * @param {AppliedFee[]} props.appliedFees - L'état des frais appliqués à la tactique.
+ * @param {React.Dispatch<React.SetStateAction<AppliedFee[]>>} props.setAppliedFees - La fonction pour mettre à jour l'état des frais appliqués.
+ * @param {number} props.mediaBudget - Le budget média de la tactique, utilisé pour les calculs.
+ * @param {number} props.unitVolume - Le volume d'unité de la tactique, utilisé pour les calculs.
+ * @param {string} props.tacticCurrency - La devise à utiliser pour l'affichage des montants.
+ * @param {function} props.onTooltipChange - Callback pour gérer l'affichage d'infobulles.
+ * @param {boolean} [props.disabled=false] - Désactive toute la section si vrai.
+ * @returns {React.ReactElement | null} - Le JSX de la section de gestion des frais.
+ */
 const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   clientFees,
   appliedFees,
@@ -467,27 +489,24 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   disabled = false
 }) => {
 
-  // Gestionnaire d'activation avec sélection automatique
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
     setAppliedFees(prev => prev.map(appliedFee => {
       if (appliedFee.feeId !== feeId) return appliedFee;
-      
+
       const fee = clientFees.find(f => f.id === feeId);
-      
+
       let selectedOptionId = isActive ? appliedFee.selectedOptionId : undefined;
-      
+
       if (isActive && fee && fee.options.length === 1 && !selectedOptionId) {
         selectedOptionId = fee.options[0].id;
-        console.log(`Sélection automatique de l'option unique pour le frais "${fee.FE_Name}": ${fee.options[0].FO_Option}`);
       }
-      
-      return { 
-        ...appliedFee, 
+
+      return {
+        ...appliedFee,
         isActive,
         selectedOptionId,
         customValue: isActive ? appliedFee.customValue : undefined,
         customUnits: isActive ? appliedFee.customUnits : undefined,
-        // NOUVEAU: Reset des options de volume personnalisé si désactivé
         useCustomVolume: isActive ? appliedFee.useCustomVolume : false,
         customVolume: isActive ? appliedFee.customVolume : undefined,
         calculatedAmount: isActive ? appliedFee.calculatedAmount : 0
@@ -496,35 +515,34 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   }, [setAppliedFees, clientFees]);
 
   const handleOptionChange = useCallback((feeId: string, optionId: string) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
+    setAppliedFees(prev => prev.map(appliedFee =>
+      appliedFee.feeId === feeId
         ? { ...appliedFee, selectedOptionId: optionId, customValue: undefined }
         : appliedFee
     ));
   }, [setAppliedFees]);
 
   const handleCustomValueChange = useCallback((feeId: string, value: number) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
+    setAppliedFees(prev => prev.map(appliedFee =>
+      appliedFee.feeId === feeId
         ? { ...appliedFee, customValue: value }
         : appliedFee
     ));
   }, [setAppliedFees]);
 
   const handleCustomUnitsChange = useCallback((feeId: string, units: number) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
+    setAppliedFees(prev => prev.map(appliedFee =>
+      appliedFee.feeId === feeId
         ? { ...appliedFee, customUnits: units }
         : appliedFee
     ));
   }, [setAppliedFees]);
 
-  // NOUVEAU: Gestionnaires pour le volume personnalisé
   const handleCustomVolumeToggle = useCallback((feeId: string, useCustom: boolean) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
-        ? { 
-            ...appliedFee, 
+    setAppliedFees(prev => prev.map(appliedFee =>
+      appliedFee.feeId === feeId
+        ? {
+            ...appliedFee,
             useCustomVolume: useCustom,
             customVolume: useCustom ? (appliedFee.customVolume || unitVolume) : undefined
           }
@@ -533,31 +551,28 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   }, [setAppliedFees, unitVolume]);
 
   const handleCustomVolumeChange = useCallback((feeId: string, volume: number) => {
-    setAppliedFees(prev => prev.map(appliedFee => 
-      appliedFee.feeId === feeId 
+    setAppliedFees(prev => prev.map(appliedFee =>
+      appliedFee.feeId === feeId
         ? { ...appliedFee, customVolume: volume }
         : appliedFee
     ));
   }, [setAppliedFees]);
 
-  // Trier les frais par ordre
-  const sortedFees = useMemo(() => 
+  const sortedFees = useMemo(() =>
     [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order),
     [clientFees]
   );
 
-  // Calculs pour le résumé
-  const activeFees = useMemo(() => 
+  const activeFees = useMemo(() =>
     appliedFees.filter(af => af.isActive && af.calculatedAmount > 0),
     [appliedFees]
   );
 
-  const totalFees = useMemo(() => 
+  const totalFees = useMemo(() =>
     activeFees.reduce((sum, af) => sum + af.calculatedAmount, 0),
     [activeFees]
   );
 
-  // Formatage dans la devise de la tactique
   const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('fr-CA', {
       minimumFractionDigits: 2,
@@ -565,7 +580,6 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     }).format(value) + ' ' + tacticCurrency;
   }, [tacticCurrency]);
 
-  // Message si aucun frais
   if (clientFees.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
@@ -582,7 +596,6 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
   return (
     <div className="space-y-6">
 
-      {/* En-tête avec information sur la devise */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <div className="flex items-center gap-2">
           <span className="text-blue-600">💱</span>
@@ -591,17 +604,16 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
           </div>
         </div>
         <div className="text-xs text-blue-600 mt-1">
-          Les montants de frais sont calculés et affichés dans la devise de la tactique. 
+          Les montants de frais sont calculés et affichés dans la devise de la tactique.
           Les calculs exacts sont effectués automatiquement par le système.
         </div>
       </div>
 
-      {/* Liste des frais */}
       <div className="space-y-4">
         {sortedFees.map(fee => {
           const appliedFee = appliedFees.find(af => af.feeId === fee.id);
           if (!appliedFee) return null;
-          
+
           return (
             <FeeItem
               key={fee.id}
@@ -622,7 +634,6 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         })}
       </div>
 
-      {/* Résumé des frais actifs dans la devise de la tactique */}
       {activeFees.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-indigo-800 mb-3">
@@ -632,14 +643,13 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
             {activeFees.map(appliedFee => {
               const fee = clientFees.find(f => f.id === appliedFee.feeId);
               if (!fee) return null;
-              
+
               return (
                 <div key={appliedFee.feeId} className="flex justify-between items-center text-sm">
                   <div className="flex items-center gap-2">
                     <span>{getFeeTypeIcon(fee.FE_Calculation_Type)}</span>
                     <span className="text-indigo-700">{fee.FE_Name}</span>
                     <span className="text-xs text-indigo-500">#{fee.FE_Order}</span>
-                    {/* NOUVEAU: Indicateur si volume personnalisé */}
                     {fee.FE_Calculation_Type === 'Volume d\'unité' && appliedFee.useCustomVolume && (
                       <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
                         Vol. pers.
@@ -657,11 +667,10 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
               <span>{formatCurrency(totalFees)}</span>
             </div>
           </div>
-        
+
         </div>
       )}
 
-      {/* Message si budget média requis */}
       {mediaBudget <= 0 && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -670,7 +679,6 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
         </div>
       )}
 
-      {/* Message si champs désactivés */}
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

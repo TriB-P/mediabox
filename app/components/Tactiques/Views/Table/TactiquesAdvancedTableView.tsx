@@ -1,5 +1,10 @@
-// app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx - CORRECTION LISTES DYNAMIQUES
-
+/**
+ * Ce composant affiche une vue de tableau avancée pour gérer les tactiques,
+ * placements et créatifs d'une campagne. Il permet l'édition en ligne des données,
+ * la gestion des niveaux d'affichage (section, tactique, placement, créatif)
+ * et intègre des listes dynamiques (comme les éditeurs ou les dimensions personnalisées)
+ * pour enrichir les options de sélection dans le tableau.
+ */
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -7,7 +12,7 @@ import { Section, Tactique, Placement, Creatif } from '../../../../types/tactiqu
 import { useAdvancedTableData } from '../../../../hooks/useAdvancedTableData';
 import DynamicTableStructure from './DynamicTableStructure';
 import { useTableNavigation } from './EditableTableCell';
-import { getColumnsForLevel, getTactiqueSubCategories, TactiqueSubCategory } from './tableColumns.config';
+import { getColumnsForLevel, TactiqueSubCategory } from './tableColumns.config';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../../hooks/useCampaignSelection';
 import { usePartners } from '../../../../contexts/PartnerContext';
@@ -20,8 +25,6 @@ import {
   ClientCustomDimensions,
   CampaignBucket,
 } from '../../../../lib/tactiqueListService';
-
-// ==================== TYPES ====================
 
 export type TableLevel = 'section' | 'tactique' | 'placement' | 'creatif';
 
@@ -71,8 +74,6 @@ interface VisibleFields {
   [key: string]: boolean | undefined;
 }
 
-// ==================== PROPS ====================
-
 interface TactiquesAdvancedTableViewProps {
   sections: Section[];
   tactiques: { [sectionId: string]: Tactique[] };
@@ -85,8 +86,13 @@ interface TactiquesAdvancedTableViewProps {
   formatCurrency: (amount: number) => string;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal de la vue de tableau avancée des tactiques.
+ * Gère l'affichage, l'édition et la sauvegarde des données de campagne.
+ *
+ * @param {TactiquesAdvancedTableViewProps} props Les propriétés du composant incluant les données et les fonctions de mise à jour.
+ * @returns {JSX.Element} Le composant de la vue de tableau avancée.
+ */
 export default function TactiquesAdvancedTableView({
   sections,
   tactiques,
@@ -99,13 +105,9 @@ export default function TactiquesAdvancedTableView({
   formatCurrency
 }: TactiquesAdvancedTableViewProps) {
 
-  // ==================== CONTEXTES ====================
-
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { getPublishersForSelect, isPublishersLoading } = usePartners();
-
-  // ==================== ÉTATS POUR LES LISTES DYNAMIQUES ====================
 
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
@@ -113,53 +115,52 @@ export default function TactiquesAdvancedTableView({
   const [visibleFields, setVisibleFields] = useState<VisibleFields>({});
   const [listsLoading, setListsLoading] = useState(false);
 
-  // ==================== CHARGEMENT DES LISTES DYNAMIQUES CORRIGÉ ====================
-
+  /**
+   * Charge toutes les données dynamiques nécessaires pour les listes de sélection
+   * du tableau (dimensions personnalisées, listes dynamiques de champs, buckets de campagne, éditeurs).
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   */
   const loadAllDynamicData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
-      console.log('🔄 loadAllDynamicData: Contexte incomplet');
       return;
     }
 
-    console.log('🔄 Chargement des listes dynamiques pour le tableau...');
     setListsLoading(true);
 
     try {
-      // 1. Charger les dimensions personnalisées du client
+      console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/customDimensions");
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       setCustomDimensions(clientDimensions);
 
-      // 2. Liste des champs à vérifier
       const dynamicListFields = [
         'TC_LoB', 'TC_Media_Type', 'TC_Buying_Method', 'TC_Custom_Dim_1',
         'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Market', 'TC_Language',
         'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
       ];
 
-      // 3. Déterminer quels champs personnalisés afficher
       const newVisibleFields: VisibleFields = {
         TC_Custom_Dim_1: !!clientDimensions.Custom_Dim_CA_1,
         TC_Custom_Dim_2: !!clientDimensions.Custom_Dim_CA_2,
         TC_Custom_Dim_3: !!clientDimensions.Custom_Dim_CA_3,
       };
 
-      // 4. Vérifier quelles listes dynamiques existent et charger les données
       const newDynamicLists: { [key: string]: ListItem[] } = {};
       
       for (const field of dynamicListFields) {
-        // Skip les custom dimensions non configurées
         if (field.startsWith('TC_Custom_Dim_') && !newVisibleFields[field]) {
           continue;
         }
         
         try {
+          console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clientDynamicLists/${selectedClient.clientId}/[field]");
           const hasListResult = await hasDynamicList(field, selectedClient.clientId);
           newVisibleFields[field] = hasListResult;
           
           if (hasListResult) {
+            console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clientDynamicLists/${selectedClient.clientId}/[field]");
             const list = await getDynamicList(field, selectedClient.clientId);
             newDynamicLists[field] = list;
-            console.log(`✅ Liste ${field}: ${list.length} éléments chargés`);
           }
         } catch (fieldError) {
           console.warn(`⚠️ Erreur chargement ${field}:`, fieldError);
@@ -167,13 +168,11 @@ export default function TactiquesAdvancedTableView({
         }
       }
 
-      // 5. TC_Publisher et TC_Inventory depuis les partenaires
       const publishersOptions = getPublishersForSelect();
       if (!isPublishersLoading && publishersOptions.length > 0) {
         newVisibleFields.TC_Publisher = true;
         newVisibleFields.TC_Inventory = true;
 
-        // Convertir les options partenaires au format ListItem
         const publishersAsListItems = publishersOptions.map(p => ({
           id: p.id,
           SH_Code: p.id,
@@ -181,27 +180,24 @@ export default function TactiquesAdvancedTableView({
         } as ListItem));
 
         newDynamicLists.TC_Publisher = publishersAsListItems;
-        newDynamicLists.TC_Inventory = publishersAsListItems; // Même liste pour l'inventaire
+        newDynamicLists.TC_Inventory = publishersAsListItems;
       }
 
       setDynamicLists(newDynamicLists);
       setVisibleFields(newVisibleFields);
 
-      // 6. Charger les buckets de campagne
       try {
+        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/buckets");
         const campaignBuckets = await getCampaignBuckets(
           selectedClient.clientId,
           selectedCampaign.id,
           selectedVersion.id
         );
         setBuckets(campaignBuckets);
-        console.log(`✅ Buckets: ${campaignBuckets.length} éléments chargés`);
       } catch (bucketError) {
         console.warn('Erreur lors du chargement des buckets:', bucketError);
         setBuckets([]);
       }
-
-      console.log('✅ Toutes les listes dynamiques chargées avec succès');
 
     } catch (error) {
       console.error('❌ Erreur lors du chargement des listes dynamiques:', error);
@@ -210,31 +206,40 @@ export default function TactiquesAdvancedTableView({
     }
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, getPublishersForSelect]);
 
-  // ==================== EFFECTS CORRIGÉS ====================
-
-  // 🔥 CORRECTION: Effect principal pour charger les listes dynamiques
+  /**
+   * Effet de bord qui déclenche le chargement des données dynamiques
+   * chaque fois que le client, la campagne ou la version sélectionnée change.
+   */
   useEffect(() => {
     loadAllDynamicData();
-  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, loadAllDynamicData]);
 
-  // 🔥 CORRECTION: Effect séparé pour reset les données quand le contexte change
+  /**
+   * Effet de bord qui réinitialise les états des listes dynamiques
+   * lorsque le contexte (client, campagne, version) change,
+   * assurant que les anciennes données ne persistent pas avant le rechargement.
+   */
   useEffect(() => {
-    // Reset immédiat des données
     setDynamicLists({});
     setBuckets([]);
     setCustomDimensions({});
     setVisibleFields({});
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
-  // ==================== ENRICHISSEMENT DES COLONNES ====================
-
+  /**
+   * Enrichit les colonnes de tableau de base avec des options de listes dynamiques
+   * (buckets, listes dynamiques des champs, éditeurs, inventaire).
+   *
+   * @param {TableLevel} level Le niveau actuel du tableau (section, tactique, placement, créatif).
+   * @param {TactiqueSubCategory} [tactiqueSubCategory] La sous-catégorie de tactique, si applicable.
+   * @returns {DynamicColumn[]} Les colonnes enrichies avec les options dynamiques.
+   */
   const enrichedColumns = useCallback((level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory) => {
     const baseColumns = getColumnsForLevel(level, tactiqueSubCategory);
     
     return baseColumns.map(column => {
       const enrichedColumn = { ...column };
 
-      // Enrichir avec les options des listes dynamiques
       if (column.type === 'select') {
         switch (column.key) {
           case 'TC_Bucket':
@@ -244,7 +249,6 @@ export default function TactiquesAdvancedTableView({
             }));
             break;
 
-          // Listes dynamiques tactiques
           case 'TC_LoB':
           case 'TC_Media_Type':
           case 'TC_Buying_Method':
@@ -265,9 +269,7 @@ export default function TactiquesAdvancedTableView({
             }));
             break;
 
-          // Listes statiques (déjà définies dans la config)
           default:
-            // Garder les options existantes pour les listes statiques
             break;
         }
       }
@@ -276,35 +278,22 @@ export default function TactiquesAdvancedTableView({
     });
   }, [dynamicLists, buckets]);
 
-  // ==================== HOOK DE GESTION DES DONNÉES ====================
-
   const {
-    // Données transformées
     tableRows,
     entityCounts,
-    
-    // États d'édition
     selectedLevel,
     pendingChanges,
     editingCells,
     expandedSections,
-    
-    // Actions de modification
     setSelectedLevel,
     updateCell,
     startEdit,
     endEdit,
-    
-    // Actions d'expansion
     toggleSectionExpansion,
     expandAllSections,
     collapseAllSections,
-    
-    // Actions de sauvegarde
     saveAllChanges,
     cancelAllChanges,
-    
-    // États utilitaires
     isSaving,
     hasUnsavedChanges
   } = useAdvancedTableData({
@@ -318,17 +307,24 @@ export default function TactiquesAdvancedTableView({
     onUpdateCreatif
   });
 
-  // ==================== NAVIGATION CLAVIER ====================
-
   const columns = useMemo(() => enrichedColumns(selectedLevel), [enrichedColumns, selectedLevel]);
   const navigate = useTableNavigation(tableRows, columns, editingCells, startEdit);
 
-  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
-
+  /**
+   * Gère le changement de niveau d'affichage du tableau.
+   *
+   * @param {TableLevel} level Le nouveau niveau d'affichage à appliquer.
+   */
   const handleLevelChange = (level: TableLevel) => {
     setSelectedLevel(level);
   };
 
+  /**
+   * Gère la sauvegarde de toutes les modifications en attente.
+   * Affiche un message de succès ou d'erreur selon le résultat.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de sauvegarde.
+   */
   const handleSaveAllChanges = async () => {
     try {
       await saveAllChanges();
@@ -339,6 +335,10 @@ export default function TactiquesAdvancedTableView({
     }
   };
 
+  /**
+   * Gère l'annulation de toutes les modifications en attente.
+   * Demande une confirmation à l'utilisateur si des modifications existent.
+   */
   const handleCancelAllChanges = () => {
     if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
       return;
@@ -346,11 +346,8 @@ export default function TactiquesAdvancedTableView({
     cancelAllChanges();
   };
 
-  // ==================== RENDU ====================
-
   return (
     <div className="space-y-3">
-      {/* Barre de sauvegarde - COMPACTE */}
       {hasUnsavedChanges && (
         <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
@@ -379,7 +376,6 @@ export default function TactiquesAdvancedTableView({
         </div>
       )}
 
-      {/* Indicateur de chargement des listes */}
       {listsLoading && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center space-x-3">
@@ -389,7 +385,6 @@ export default function TactiquesAdvancedTableView({
         </div>
       )}
 
-      {/* Structure du tableau principal avec barre d'outils intégrée */}
       <DynamicTableStructure
         tableRows={tableRows}
         selectedLevel={selectedLevel}
@@ -404,12 +399,10 @@ export default function TactiquesAdvancedTableView({
         entityCounts={entityCounts}
       />
 
-      {/* Informations de statut - COMPACTE */}
       <div className="flex items-center justify-between text-sm text-gray-500 py-2">
         <div className="flex items-center space-x-4">
           <span>{tableRows.length} ligne{tableRows.length > 1 ? 's' : ''} affichée{tableRows.length > 1 ? 's' : ''}</span>
           
-          {/* Actions d'expansion rapide */}
           <div className="flex items-center space-x-2">
             <button
               onClick={expandAllSections}
@@ -433,7 +426,6 @@ export default function TactiquesAdvancedTableView({
             </span>
           )}
           
-          {/* Indicateur des listes chargées */}
           {!listsLoading && Object.keys(dynamicLists).length > 0 && (
             <span className="text-green-600 text-xs">
               ✓ Listes chargées ({Object.keys(dynamicLists).length})
@@ -444,7 +436,6 @@ export default function TactiquesAdvancedTableView({
         </div>
       </div>
 
-      {/* Debug info (développement seulement) */}
       {process.env.NODE_ENV === 'development' && (
         <details className="bg-gray-50 p-3 rounded text-xs text-gray-600">
           <summary className="cursor-pointer font-medium">Debug Info</summary>

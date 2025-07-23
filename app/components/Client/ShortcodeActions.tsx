@@ -1,5 +1,12 @@
-// app/components/Client/ShortcodeActions.tsx
-
+/**
+ * Ce fichier définit le composant `ShortcodeActions`, une interface utilisateur côté client
+ * pour gérer les shortcodes associés à une dimension spécifique.
+ * Il fournit des boutons pour créer un nouveau shortcode ou en assigner un existant,
+ * ainsi qu'une barre de recherche pour filtrer la liste affichée.
+ * Les actions de création et d'assignation sont gérées via des modals interactives.
+ * Ce composant est dépendant de fonctions passées en props pour exécuter les opérations
+ * de base de données (création, assignation).
+ */
 'use client';
 
 import React, { useState, Fragment } from 'react';
@@ -27,6 +34,20 @@ interface ShortcodeActionsProps {
   onSearchChange: (query: string) => void;
 }
 
+/**
+ * Le composant `ShortcodeActions` affiche les boutons d'action et les modals
+ * pour la gestion des shortcodes.
+ * @param {object} props - Les propriétés du composant.
+ * @param {boolean} props.hasPermission - Indique si l'utilisateur a la permission d'éditer (active/désactive les boutons).
+ * @param {boolean} props.isCustomList - Indique si la liste de shortcodes est personnalisée pour le client ou la liste par défaut (PlusCo).
+ * @param {Shortcode[]} props.allShortcodes - La liste de tous les shortcodes existants dans le système.
+ * @param {Shortcode[]} props.currentShortcodes - La liste des shortcodes actuellement assignés à la dimension.
+ * @param {(shortcodeData: object) => Promise<void>} props.onCreateShortcode - Fonction asynchrone pour créer un nouveau shortcode.
+ * @param {(shortcodeId: string) => Promise<void>} props.onAddShortcode - Fonction asynchrone pour assigner un shortcode existant.
+ * @param {string} props.searchQuery - La valeur actuelle de la barre de recherche de la liste principale.
+ * @param {(query: string) => void} props.onSearchChange - Fonction pour mettre à jour la recherche de la liste principale.
+ * @returns {React.ReactElement} Le JSX pour la barre d'actions et les modals.
+ */
 const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
   hasPermission,
   isCustomList,
@@ -37,12 +58,10 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
   searchQuery,
   onSearchChange
 }) => {
-  // États pour les modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [shortcodeSearchQuery, setShortcodeSearchQuery] = useState('');
   
-  // État pour le formulaire de création
   const [newShortcode, setNewShortcode] = useState({
     SH_Code: '',
     SH_Default_UTM: '',
@@ -50,13 +69,15 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
     SH_Display_Name_EN: '',
   });
 
-  // Filtrer les shortcodes disponibles pour l'ajout
+  /**
+   * Filtre la liste complète des shortcodes pour n'afficher que ceux qui peuvent être ajoutés.
+   * Un shortcode est exclu s'il est déjà dans la liste actuelle ou s'il ne correspond pas
+   * à la requête de recherche dans le modal d'ajout.
+   */
   const filteredShortcodes = allShortcodes.filter(shortcode => {
-    // Exclure les shortcodes déjà dans la liste
     const isAlreadyInList = currentShortcodes.some(s => s.id === shortcode.id);
     if (isAlreadyInList) return false;
     
-    // Filtrer par recherche
     if (!shortcodeSearchQuery) return true;
     
     const searchLower = shortcodeSearchQuery.toLowerCase();
@@ -67,8 +88,14 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
     );
   });
 
+  /**
+   * Gère la soumission du formulaire de création de shortcode.
+   * Appelle la fonction `onCreateShortcode` passée en prop, puis réinitialise
+   * le formulaire et ferme le modal de création.
+   */
   const handleCreateSubmit = async () => {
     try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: ShortcodeActions.tsx - Fonction: handleCreateSubmit - Path: shortcodes");
       await onCreateShortcode(newShortcode);
       setNewShortcode({
         SH_Code: '',
@@ -78,23 +105,29 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
       });
       setIsCreateModalOpen(false);
     } catch (error) {
-      // L'erreur est gérée dans le hook
+      console.error("Erreur lors de la création du shortcode:", error);
     }
   };
 
+  /**
+   * Gère l'ajout d'un shortcode existant à la liste actuelle.
+   * Appelle la fonction `onAddShortcode` passée en prop avec l'ID du shortcode
+   * sélectionné, puis ferme le modal et réinitialise la recherche du modal.
+   * @param {string} shortcodeId - L'ID du shortcode à ajouter.
+   */
   const handleAddSubmit = async (shortcodeId: string) => {
     try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: ShortcodeActions.tsx - Fonction: handleAddSubmit - Path: [Path determined in parent component]");
       await onAddShortcode(shortcodeId);
       setIsAddModalOpen(false);
       setShortcodeSearchQuery('');
     } catch (error) {
-      // L'erreur est gérée dans le hook
+      console.error("Erreur lors de l'ajout du shortcode:", error);
     }
   };
 
   return (
     <>
-      {/* Barre d'actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="flex space-x-2 mb-4 sm:mb-0">
           <button
@@ -126,7 +159,6 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
           </button>
         </div>
         
-        {/* Barre de recherche */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -141,7 +173,6 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         </div>
       </div>
 
-      {/* Modal d'ajout de shortcode */}
       <Transition show={isAddModalOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={() => setIsAddModalOpen(false)}>
           <div className="min-h-screen px-4 text-center">
@@ -248,7 +279,6 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         </Dialog>
       </Transition>
 
-      {/* Modal de création de shortcode */}
       <Transition show={isCreateModalOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={() => setIsCreateModalOpen(false)}>
           <div className="min-h-screen px-4 text-center">

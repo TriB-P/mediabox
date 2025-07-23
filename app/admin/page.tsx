@@ -1,4 +1,9 @@
-// app/admin/page.tsx
+/**
+ * Ce fichier définit le composant principal de la page d'administration.
+ * Il gère l'affichage des différents onglets (Utilisateurs, Permissions)
+ * et restreint l'accès aux utilisateurs ayant le rôle "admin".
+ * La page utilise un layout à onglets pour naviguer entre les différentes sections de gestion.
+ */
 
 'use client';
 
@@ -10,11 +15,19 @@ import UsersTab from '../components/Admin/UsersTab';
 import PermissionsTab from '../components/Admin/PermissionsTab';
 import { Users, Shield } from 'lucide-react';
 
+
+/**
+ * Affiche la page d'administration avec des onglets pour gérer les utilisateurs et les permissions.
+ * Ce composant vérifie les permissions de l'utilisateur actuel via le hook `usePermissions`
+ * et le redirige vers la page des campagnes s'il n'a pas le rôle "admin".
+ * Un écran de chargement est affiché pendant la récupération des permissions.
+ * @returns {JSX.Element} Le rendu JSX de la page d'administration.
+ */
+
 export default function AdminPage() {
   const { userRole, loading } = usePermissions();
   const [activeTab, setActiveTab] = useState<'users' | 'permissions'>('users');
 
-  // Rediriger si l'utilisateur n'est pas admin
   const isAdmin = userRole === 'admin';
   if (!loading && !isAdmin) {
     redirect('/campaigns');
@@ -49,7 +62,6 @@ export default function AdminPage() {
       <Navigation />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="px-6 py-4">
             <h1 className="text-2xl font-bold text-gray-900">Administration</h1>
@@ -58,7 +70,6 @@ export default function AdminPage() {
             </p>
           </div>
           
-          {/* Tabs */}
           <div className="px-6">
             <nav className="flex space-x-8">
               {tabs.map((tab) => {
@@ -82,7 +93,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto">
           <div className="p-6">
             {activeTab === 'users' && <UsersTab />}

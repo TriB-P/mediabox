@@ -1,4 +1,10 @@
-// app/components/Admin/UsersTab.tsx
+/**
+ * @file app/components/Admin/UsersTab.tsx
+ * Ce fichier définit le composant React `UsersTab`, qui constitue un onglet dans l'interface d'administration.
+ * Il permet aux administrateurs de visualiser la liste de tous les utilisateurs (actifs, invités, expirés),
+ * d'inviter de nouveaux utilisateurs par email, de modifier le rôle des utilisateurs actifs, et de
+ * supprimer des utilisateurs ou des invitations.
+ */
 
 'use client';
 
@@ -12,6 +18,11 @@ import EditUserModal from './EditUserModal';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
+/**
+ * Composant principal de l'onglet de gestion des utilisateurs.
+ * Affiche une interface complète pour visualiser, inviter, et gérer les utilisateurs de l'application.
+ * @returns {JSX.Element} Le rendu de l'onglet de gestion des utilisateurs.
+ */
 export default function UsersTab() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserWithStatus[]>([]);
@@ -26,7 +37,6 @@ export default function UsersTab() {
     loadUsers();
   }, []);
 
-  // Filtrage des utilisateurs
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
@@ -40,6 +50,11 @@ export default function UsersTab() {
     }
   }, [users, searchTerm]);
 
+  /**
+   * Charge ou recharge la liste complète des utilisateurs et des invitations.
+   * Appelle le service `getAllUsersWithStatus` pour récupérer les données et met à jour l'état du composant.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les utilisateurs chargés.
+   */
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -53,26 +68,35 @@ export default function UsersTab() {
     }
   };
 
+  /**
+   * Gère l'ouverture de la modale d'édition pour un utilisateur spécifique.
+   * @param {UserWithStatus} user - L'objet utilisateur à modifier.
+   * @returns {void}
+   */
   const handleEditUser = (user: UserWithStatus) => {
     setUserToEdit(user);
     setIsEditModalOpen(true);
   };
 
+  /**
+   * Sauvegarde le nouveau rôle d'un utilisateur dans Firestore.
+   * @param {string} userId - L'ID de l'utilisateur à mettre à jour.
+   * @param {string} newRole - Le nouveau rôle à assigner.
+   * @returns {Promise<void>} Une promesse qui se résout après la mise à jour et le rechargement des données.
+   */
   const handleSaveUserRole = async (userId: string, newRole: string) => {
     try {
-      // Mettre à jour le rôle dans Firestore
       if (userId.startsWith('invitation-')) {
-        // C'est une invitation, pas un utilisateur actif
         throw new Error('Impossible de modifier le rôle d\'une invitation. L\'utilisateur doit d\'abord se connecter.');
       }
       
       const userRef = doc(db, 'users', userId);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: UsersTab.tsx - Fonction: handleSaveUserRole - Path: users/${userId}`);
       await updateDoc(userRef, {
         role: newRole,
         updatedAt: new Date(),
       });
       
-      // Recharger la liste des utilisateurs
       await loadUsers();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du rôle:', error);
@@ -80,6 +104,11 @@ export default function UsersTab() {
     }
   };
 
+  /**
+   * Gère l'envoi d'une nouvelle invitation via le service `createInvitation`.
+   * @param {InvitationFormData} invitationData - Les données du formulaire d'invitation (email, rôle).
+   * @returns {Promise<void>} Une promesse qui se résout après l'envoi de l'invitation et le rechargement de la liste.
+   */
   const handleSendInvitation = async (invitationData: InvitationFormData) => {
     if (!currentUser?.email) {
       throw new Error('Utilisateur non connecté');
@@ -87,13 +116,19 @@ export default function UsersTab() {
 
     try {
       await createInvitation(invitationData, currentUser.email);
-      await loadUsers(); // Recharger la liste
+      await loadUsers();
     } catch (error) {
       console.error('Erreur lors de l\'envoi de l\'invitation:', error);
       throw error;
     }
   };
 
+  /**
+   * Gère la suppression d'une invitation ou la désactivation d'un utilisateur actif.
+   * Demande une confirmation avant d'effectuer l'action.
+   * @param {UserWithStatus} userToRemove - L'utilisateur ou l'invitation à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout après la suppression et le rechargement de la liste.
+   */
   const handleRemoveUser = async (userToRemove: UserWithStatus) => {
     const confirmMessage = userToRemove.status === 'active' 
       ? `Êtes-vous sûr de vouloir désactiver l'utilisateur "${userToRemove.email}" ?`
@@ -105,13 +140,18 @@ export default function UsersTab() {
 
     try {
       await removeUser(userToRemove);
-      await loadUsers(); // Recharger la liste
+      await loadUsers();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
       alert('Erreur lors de la suppression de l\'utilisateur');
     }
   };
 
+  /**
+   * Retourne un badge JSX stylisé en fonction du statut de l'utilisateur.
+   * @param {UserWithStatus['status']} status - Le statut de l'utilisateur ('active', 'invited', 'expired').
+   * @returns {JSX.Element | null} Un composant de badge ou null.
+   */
   const getStatusBadge = (status: UserWithStatus['status']) => {
     switch (status) {
       case 'active':
@@ -140,6 +180,11 @@ export default function UsersTab() {
     }
   };
 
+  /**
+   * Formate une chaîne de caractères de date en une date lisible pour l'interface.
+   * @param {string | undefined} dateString - La date sous forme de chaîne ISO.
+   * @returns {string} La date formatée (ex: "23/07/2025, 10:25") ou '-'.
+   */
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     try {
@@ -181,7 +226,6 @@ export default function UsersTab() {
         </button>
       </div>
 
-      {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center">
@@ -232,7 +276,6 @@ export default function UsersTab() {
         </div>
       </div>
 
-      {/* Barre de recherche */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -263,7 +306,6 @@ export default function UsersTab() {
         )}
       </div>
 
-      {/* Tableau des utilisateurs */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-gray-200">
@@ -352,10 +394,7 @@ export default function UsersTab() {
                       )}
                       {user.status === 'expired' && (
                         <button
-                          onClick={() => {
-                            // TODO: Implémenter la réenvoi d'invitation
-                            console.log('Renvoyer invitation pour:', user.email);
-                          }}
+                          onClick={() => {}}
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="Renvoyer l'invitation"
                         >
@@ -414,7 +453,6 @@ export default function UsersTab() {
         </div>
       )}
 
-      {/* Note sur les utilisateurs avec invitation */}
       {users.some(u => u.status === 'invited') && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <div className="flex">
@@ -434,14 +472,12 @@ export default function UsersTab() {
         </div>
       )}
 
-      {/* Modal d'invitation */}
       <InvitationModal
         isOpen={isInvitationModalOpen}
         onClose={() => setIsInvitationModalOpen(false)}
         onSend={handleSendInvitation}
       />
 
-      {/* Modal d'édition utilisateur */}
       <EditUserModal
         isOpen={isEditModalOpen}
         onClose={() => {

@@ -1,5 +1,10 @@
-// app/components/Tactiques/Placement/TaxonomyPreview.tsx
-
+/**
+ * Ce fichier définit le composant `TaxonomyPreview`, un composant React côté client.
+ * Son rôle est d'afficher un aperçu en temps réel de la structure des taxonomies (comme les tags de suivi)
+ * pour un placement publicitaire. Il visualise comment les variables (issues de la campagne, de la tactique, etc.)
+ * sont résolues et insérées dans les modèles de taxonomie. Le composant met en évidence les variables,
+ * indique leur source, et permet à l'utilisateur d'explorer les différentes sections de taxonomie.
+ */
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
@@ -12,9 +17,6 @@ import type {
 } from '../../../types/tactiques';
 import { TAXONOMY_VARIABLE_REGEX } from '../../../config/taxonomyFields';
 import { StarIcon } from 'lucide-react';
-
-
-// ==================== TYPES ====================
 
 interface TaxonomyPreviewProps {
   parsedVariables: ParsedTaxonomyVariable[];
@@ -34,11 +36,25 @@ interface TaxonomyPreviewProps {
   onToggleExpansion: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => void;
   getFormattedValue: (variableName: string, format: string) => string;
   getFormattedPreview: (taxonomyType: 'tags' | 'platform' | 'mediaocean') => string;
-  levelsToShow?: number[]; // 🔥 NOUVEAU : Niveaux à afficher (par défaut [1,2,3,4] pour placements)
+  levelsToShow?: number[];
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal qui affiche les aperçus des différentes taxonomies.
+ * Il prend en charge la visualisation des variables, la mise en surbrillance, et l'affichage conditionnel des niveaux de la taxonomie.
+ * @param {TaxonomyPreviewProps} props - Les propriétés du composant.
+ * @param {ParsedTaxonomyVariable[]} props.parsedVariables - La liste des variables extraites des taxonomies.
+ * @param {object} props.selectedTaxonomyData - Les données des taxonomies sélectionnées (tags, platform, mediaocean).
+ * @param {TaxonomyValues} props.taxonomyValues - Les valeurs actuelles résolues pour chaque variable.
+ * @param {object} props.expandedPreviews - L'état d'expansion (ouvert/fermé) de chaque aperçu de taxonomie.
+ * @param {boolean} props.hasLoadingFields - Indicateur pour savoir si des champs sont en cours de chargement.
+ * @param {HighlightState} props.highlightState - L'état de la mise en surbrillance d'une variable.
+ * @param {(taxonomyType: 'tags' | 'platform' | 'mediaocean') => void} props.onToggleExpansion - Callback pour basculer l'état d'expansion d'un aperçu.
+ * @param {(variableName: string, format: string) => string} props.getFormattedValue - Fonction pour obtenir la valeur formatée d'une variable.
+ * @param {(taxonomyType: 'tags' | 'platform' | 'mediaocean') => string} props.getFormattedPreview - Fonction pour obtenir l'aperçu formaté complet d'une taxonomie.
+ * @param {number[]} [props.levelsToShow=[1, 2, 3, 4]] - Les numéros des niveaux de taxonomie à afficher.
+ * @returns {React.ReactElement} Le composant d'aperçu des taxonomies.
+ */
 export default function TaxonomyPreview({
   parsedVariables,
   selectedTaxonomyData,
@@ -49,27 +65,42 @@ export default function TaxonomyPreview({
   onToggleExpansion,
   getFormattedValue,
   getFormattedPreview,
-  levelsToShow = [1, 2, 3, 4] // 🔥 NOUVEAU : Par défaut niveaux 1-4 (placements)
+  levelsToShow = [1, 2, 3, 4]
 }: TaxonomyPreviewProps) {
 
-  // ==================== FONCTIONS UTILITAIRES ====================
-  
+  /**
+   * Détermine la source d'une variable donnée (campagne, tactique, etc.).
+   * @param {string} variableName - Le nom de la variable à rechercher.
+   * @returns {'campaign' | 'tactique' | 'placement' | 'manual'} La source de la variable.
+   */
   const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'manual' => {
     const variable = parsedVariables.find(v => v.variable === variableName);
     return variable?.source || 'manual';
   };
 
+  /**
+   * Vérifie si une variable a une valeur concrète qui a été résolue.
+   * @param {string} variableName - Le nom de la variable.
+   * @param {string} format - Le format de la variable (peut être nécessaire pour la fonction `getFormattedValue`).
+   * @returns {boolean} `true` si la variable a une valeur, sinon `false`.
+   */
   const hasVariableValue = (variableName: string, format: string): boolean => {
     const formattedValue = getFormattedValue(variableName, format);
     return Boolean(formattedValue && !formattedValue.startsWith('['));
   };
 
+  /**
+   * Vérifie si une variable spécifique est présente dans la structure d'une taxonomie donnée, en se basant sur les niveaux à afficher.
+   * La fonction est mémoïsée avec `useCallback` pour optimiser les performances.
+   * @param {Taxonomy | undefined} taxonomy - L'objet de taxonomie à inspecter.
+   * @param {string} variableName - Le nom de la variable à rechercher.
+   * @returns {boolean} `true` si la variable est trouvée dans la structure, sinon `false`.
+   */
   const isVariableInSection = useCallback((taxonomy: Taxonomy | undefined, variableName: string): boolean => {
     if (!taxonomy || !variableName) {
       return false;
     }
     
-    // 🔥 NOUVEAU : Construire la structure selon les niveaux à afficher
     const levelNames = levelsToShow.map(level => 
       taxonomy[`NA_Name_Level_${level}` as keyof Taxonomy] as string
     ).filter(Boolean);
@@ -80,12 +111,24 @@ export default function TaxonomyPreview({
     return variableRegex.test(fullStructure);
   }, [levelsToShow]);
 
+  /**
+   * Mémoïse la fonction qui retourne l'aperçu formaté d'une taxonomie.
+   * `useMemo` est utilisé ici pour éviter de recalculer inutilement l'aperçu à chaque rendu,
+   * tant que les dépendances (`getFormattedPreview`, `taxonomyValues`, etc.) n'ont pas changé.
+   */
   const getMemoizedPreview = useMemo(() => {
     return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
       return getFormattedPreview(taxonomyType);
     };
   }, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, highlightState]);
 
+  /**
+   * Génère le rendu d'un seul niveau de la structure de taxonomie. Il analyse la chaîne de structure,
+   * trouve les placeholders de variables, et les remplace par des éléments React stylisés qui affichent
+   * la valeur résolue, la source, et l'état de surbrillance.
+   * @param {string} levelStructure - La chaîne de caractères représentant la structure du niveau.
+   * @returns {React.ReactElement} Un élément `div` contenant le niveau rendu avec les variables stylisées.
+   */
   const renderLevelWithVariables = (levelStructure: string) => {
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
@@ -137,7 +180,12 @@ export default function TaxonomyPreview({
     );
   };
   
-  // 🔥 NOUVEAU : Fonction modifiée pour afficher seulement les niveaux demandés
+  /**
+   * Génère le rendu de la structure complète d'une taxonomie en se basant sur les niveaux spécifiés dans `levelsToShow`.
+   * Pour chaque niveau, il affiche un titre et le contenu rendu par `renderLevelWithVariables`.
+   * @param {Taxonomy} taxonomy - L'objet de taxonomie à rendre.
+   * @returns {React.ReactElement} Un élément `div` contenant la structure complète des niveaux de la taxonomie.
+   */
   const renderTaxonomyStructure = (taxonomy: Taxonomy) => {
     const levels = levelsToShow.map(levelNum => {
       const name = taxonomy[`NA_Name_Level_${levelNum}` as keyof Taxonomy] as string;
@@ -174,6 +222,15 @@ export default function TaxonomyPreview({
     );
   };
   
+  /**
+   * Génère le rendu d'une 'carte' pour un type de taxonomie spécifique (ex: Tags).
+   * Cette carte inclut un en-tête cliquable pour déplier/replier le contenu et affiche la structure de la taxonomie si elle est dépliée.
+   * @param {'tags' | 'platform' | 'mediaocean'} type - Le type de taxonomie.
+   * @param {Taxonomy} taxonomy - Les données de la taxonomie.
+   * @param {string} colorClass - La classe CSS pour la couleur de fond de l'en-tête.
+   * @param {string} label - L'étiquette à afficher dans l'en-tête de la carte.
+   * @returns {React.ReactElement} Un composant de carte pour la taxonomie.
+   */
   const renderTaxonomyCard = (
     type: 'tags' | 'platform' | 'mediaocean',
     taxonomy: Taxonomy,

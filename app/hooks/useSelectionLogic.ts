@@ -1,8 +1,11 @@
-// app/hooks/useSelectionLogic.ts - Version simplifiée sans distinction direct/hérité
-
+/**
+ * Ce fichier contient un hook personnalisé (useSelectionLogic) qui gère la logique de sélection
+ * d'éléments hiérarchiques (sections, tactiques, placements, créatifs) dans une interface utilisateur.
+ * Il permet de sélectionner et désélectionner des éléments, en propageant la sélection aux descendants.
+ * Le hook fournit également des fonctions pour vérifier l'état de sélection et obtenir des statistiques.
+ * C'est une version simplifiée qui traite toute sélection comme "directe" et n'a pas de concept d'héritage.
+ */
 import { useState, useCallback, useMemo } from 'react';
-
-// ==================== TYPES SIMPLIFIÉS ====================
 
 export interface SelectionItem {
   id: string;
@@ -31,23 +34,25 @@ export interface UseSelectionLogicProps {
   }>;
 }
 
-// ==================== HOOK PRINCIPAL SIMPLIFIÉ ====================
-
+/**
+ * Hook principal pour gérer la logique de sélection d'éléments hiérarchiques.
+ *
+ * @param {UseSelectionLogicProps} props - Les propriétés incluant la liste des sections.
+ * @returns {object} Un objet contenant les actions de sélection, l'état de sélection, les statistiques et les IDs bruts sélectionnés.
+ */
 export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
-  
-  // ==================== ÉTAT SIMPLE ====================
-  
-  // Un seul Set avec tous les éléments sélectionnés (sans distinction)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // ==================== CONSTRUCTION DE LA MAP DES ÉLÉMENTS ====================
-  
+  /**
+   * Construit une carte (Map) de tous les éléments sélectionnables à partir des sections fournies.
+   * Cette carte facilite la recherche rapide d'éléments par leur ID et l'accès à leurs propriétés.
+   *
+   * @returns {Map<string, SelectionItem>} Une carte où les clés sont les IDs des éléments et les valeurs sont les objets SelectionItem correspondants.
+   */
   const itemsMap = useMemo(() => {
     const map = new Map<string, SelectionItem>();
     
-    
     sections.forEach(section => {
-      // Ajouter la section
       const sectionChildrenIds = section.tactiques.map(t => t.id);
       map.set(section.id, {
         id: section.id,
@@ -57,7 +62,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
       });
       
       section.tactiques.forEach(tactique => {
-        // Ajouter la tactique
         const tactiqueChildrenIds = tactique.placements?.map(p => p.id) || [];
         map.set(tactique.id, {
           id: tactique.id,
@@ -68,7 +72,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
         });
         
         tactique.placements?.forEach(placement => {
-          // Ajouter le placement
           const placementChildrenIds = placement.creatifs?.map(c => c.id) || [];
           map.set(placement.id, {
             id: placement.id,
@@ -79,7 +82,6 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
           });
           
           placement.creatifs?.forEach(creatif => {
-            // Ajouter le créatif
             map.set(creatif.id, {
               id: creatif.id,
               type: 'creatif',
@@ -95,8 +97,12 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
     return map;
   }, [sections]);
 
-  // ==================== FONCTIONS UTILITAIRES ====================
-  
+  /**
+   * Récupère tous les IDs des descendants d'un élément donné.
+   *
+   * @param {string} itemId - L'ID de l'élément dont on veut récupérer les descendants.
+   * @returns {string[]} Un tableau d'IDs représentant tous les descendants de l'élément.
+   */
   const getAllDescendants = useCallback((itemId: string): string[] => {
     const descendants: string[] = [];
     const item = itemsMap.get(itemId);
@@ -123,6 +129,12 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
     return descendants;
   }, [itemsMap]);
   
+  /**
+   * Récupère tous les IDs des ancêtres d'un élément donné.
+   *
+   * @param {string} itemId - L'ID de l'élément dont on veut récupérer les ancêtres.
+   * @returns {string[]} Un tableau d'IDs représentant tous les ancêtres de l'élément.
+   */
   const getAllAncestors = useCallback((itemId: string): string[] => {
     const ancestors: string[] = [];
     let currentItem = itemsMap.get(itemId);
@@ -135,8 +147,14 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
     return ancestors;
   }, [itemsMap]);
 
-  // ==================== ACTION DE SÉLECTION SIMPLIFIÉE ====================
-  
+  /**
+   * Bascule l'état de sélection d'un élément (sélectionne ou désélectionne).
+   * Lorsque l'élément est sélectionné, tous ses descendants sont également sélectionnés.
+   * Lorsque l'élément est désélectionné, tous ses descendants sont également désélectionnés.
+   *
+   * @param {string} itemId - L'ID de l'élément à basculer.
+   * @param {boolean} [forceSelected] - Si vrai, force la sélection ; si faux, force la désélection. Si non défini, bascule l'état actuel.
+   */
   const toggleSelection = useCallback((itemId: string, forceSelected?: boolean) => {
     
     const item = itemsMap.get(itemId);
@@ -153,17 +171,12 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
         : !newSelected.has(itemId);
       
       if (shouldSelect) {
-        // SÉLECTION : Ajouter l'élément ET tous ses descendants
-        
         newSelected.add(itemId);
         const descendants = getAllDescendants(itemId);
         descendants.forEach(descendantId => newSelected.add(descendantId));
         
         
       } else {
-        // DÉSÉLECTION : Enlever l'élément ET tous ses descendants (mais PAS les parents)
-        
-        // Enlever l'élément et ses descendants
         newSelected.delete(itemId);
         const descendants = getAllDescendants(itemId);
         descendants.forEach(descendantId => newSelected.delete(descendantId));
@@ -174,40 +187,57 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
     });
   }, [itemsMap, getAllDescendants, getAllAncestors]);
   
+  /**
+   * Efface toute la sélection, résultant en un ensemble vide d'éléments sélectionnés.
+   */
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
 
-  // ==================== GETTERS SIMPLIFIÉS ====================
-  
+  /**
+   * Vérifie si un élément donné est sélectionné.
+   *
+   * @param {string} itemId - L'ID de l'élément à vérifier.
+   * @returns {boolean} Vrai si l'élément est sélectionné, faux sinon.
+   */
   const isSelected = useCallback((itemId: string): boolean => {
     return selectedIds.has(itemId);
   }, [selectedIds]);
   
+  /**
+   * Récupère tous les éléments actuellement sélectionnés.
+   *
+   * @returns {object} Un objet contenant :
+   * - `direct`: Un tableau de tous les IDs sélectionnés (tous considérés comme directs dans cette version).
+   * - `all`: Un tableau de tous les IDs sélectionnés (identique à `direct`).
+   * - `details`: Un tableau d'objets contenant l'ID, l'élément complet et un indicateur `isDirect` (toujours vrai).
+   */
   const getSelectedItems = useCallback(() => {
     const allSelected = Array.from(selectedIds);
     
     return {
-      // Tous les éléments sélectionnés (plus de distinction)
       direct: allSelected,
       all: allSelected,
       
-      // Détails complets
       details: allSelected.map(id => ({
         id,
         item: itemsMap.get(id),
-        isDirect: true // Maintenant tout est "direct"
+        isDirect: true
       })).filter(item => item.item !== undefined)
     };
   }, [selectedIds, itemsMap]);
 
-  // ==================== STATISTIQUES SIMPLIFIÉES ====================
-  
+  /**
+   * Calcule des statistiques sur la sélection actuelle, y compris le total des éléments sélectionnés
+   * et la répartition par type d'élément (section, tactique, placement, créatif).
+   *
+   * @returns {object} Un objet de statistiques de sélection.
+   */
   const selectionStats = useMemo(() => {
     const stats = {
       total: selectedIds.size,
-      direct: selectedIds.size,    // Maintenant tout est direct
-      inherited: 0,                // Plus d'héritage
+      direct: selectedIds.size,
+      inherited: 0,
       byType: {
         section: 0,
         tactique: 0,
@@ -226,21 +256,15 @@ export function useSelectionLogic({ sections }: UseSelectionLogicProps) {
     return stats;
   }, [selectedIds, itemsMap]);
 
-  // ==================== RETURN SIMPLIFIÉ ====================
-  
   return {
-    // Actions
     toggleSelection,
     clearSelection,
     
-    // État (simplifié - plus qu'une seule méthode)
-    isSelected,            // Remplace isDirectlySelected et isVisuallySelected
+    isSelected,
     getSelectedItems,
     
-    // Statistiques
     selectionStats,
     
-    // Données brutes (pour debug)
     rawSelectedIds: selectedIds
   };
 }

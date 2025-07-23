@@ -1,17 +1,19 @@
-// app/lib/taxonomyParser.ts
-
-// 🔥 MODIFICATION: Import des fonctions et types depuis le fichier de configuration central.
+/**
+ * Ce fichier est responsable de l'analyse et de la génération des taxonomies.
+ * Il gère la substitution des variables dans les chaînes de taxonomie,
+ * la validation des formats et des noms de variables, et l'extraction
+ * des variables uniques à partir de différentes structures de taxonomie.
+ * Il sert de moteur central pour la logique de taxonomie de l'application.
+ */
 import {
   TAXONOMY_VARIABLE_REGEX,
   ERROR_MESSAGES,
   getFieldSource,
   isKnownVariable,
-  isFormatAllowed,
-  getVariableConfig, // <- Import de la nouvelle fonction
-  type TaxonomyFormat // <- Import du type depuis la bonne source
+  getVariableConfig,
+  type TaxonomyFormat
 } from '../config/taxonomyFields';
 
-// 🔥 MODIFICATION: Les types du parser proviennent maintenant de 'tactiques'
 import type {
   ParsedTaxonomyVariable,
   ParsedTaxonomyStructure,
@@ -21,15 +23,12 @@ import type {
   TaxonomyProcessingResult,
 } from '../types/tactiques';
 
-
-// Regex pour extraire les variables individuelles et les groupes.
-// Un groupe est maintenant défini par <...>
 const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
 
 /**
  * Génère la chaîne de taxonomie finale en remplaçant les variables et en traitant les groupes.
- * @param structure - La chaîne de taxonomie brute (ex: "[VAR1]|<[VAR2]_[VAR3]>").
- * @param valueResolver - Une fonction qui prend (variableName, format) et retourne la valeur résolue.
+ * @param structure La chaîne de taxonomie brute (ex: "[VAR1]|<[VAR2]_[VAR3]>").
+ * @param valueResolver Une fonction qui prend (variableName, format) et retourne la valeur résolue.
  * @returns La chaîne de taxonomie finale.
  */
 export function generateFinalTaxonomyString(
@@ -46,28 +45,23 @@ export function generateFinalTaxonomyString(
       const groupContent = segment.slice(1, -1);
       
       const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-      if (variablesInGroup.length === 0) return groupContent; // Retourne le contenu statique s'il n'y a pas de variables
+      if (variablesInGroup.length === 0) return groupContent;
 
-      // 1. Résoudre toutes les variables et ne garder que celles qui ont une valeur
       const resolvedValues = variablesInGroup
         .map(match => {
           const [, variableName, format] = match;
           const resolved = valueResolver(variableName, format as TaxonomyFormat);
-          // Retourner la valeur si elle est valide, sinon null
           return (resolved && !resolved.startsWith('[')) ? resolved : null;
         })
-        .filter((value): value is string => value !== null && value.trim() !== ''); // Filtre les null et les chaînes vides
+        .filter((value): value is string => value !== null && value.trim() !== '');
 
-      // 2. Si aucune variable n'a pu être résolue, le groupe est vide
       if (resolvedValues.length === 0) {
         return '';
       }
 
-      // 3. Trouver le délimiteur (logique existante, suppose un délimiteur constant)
       const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
       const delimiter = delimiterMatch ? delimiterMatch[1] : '';
 
-      // 4. Joindre UNIQUEMENT les valeurs résolues
       return resolvedValues.join(delimiter);
     }
 
@@ -77,20 +71,23 @@ export function generateFinalTaxonomyString(
       if (variableMatch) {
         const [, variableName, format] = variableMatch;
         const resolvedValue = valueResolver(variableName, format as TaxonomyFormat);
-        return resolvedValue.startsWith('[') ? '' : resolvedValue; // Retourner vide si non résolu
+        return resolvedValue.startsWith('[') ? '' : resolvedValue;
       }
     }
 
-    // Le segment est du texte statique (comme '|')
     return segment;
   });
 
   return result.join('');
 }
 
-
-// --- Fonctions existantes (aucune modification nécessaire ici) ---
-
+/**
+ * Parse une structure de taxonomie donnée et extrait les variables qu'elle contient.
+ * Valide chaque variable trouvée et collecte les erreurs.
+ * @param structure La chaîne de taxonomie à analyser.
+ * @param level Le niveau de la taxonomie (pour le contexte).
+ * @returns Un objet ParsedTaxonomyStructure contenant les variables extraites, leur validité et les erreurs.
+ */
 export function parseTaxonomyStructure(
   structure: string, 
   level: number = 1
@@ -121,7 +118,7 @@ export function parseTaxonomyStructure(
 
     const source = getFieldSource(variableName);
     const validation = validateVariable(variableName, format as TaxonomyFormat);
-    const config = getVariableConfig(variableName); // ✅ NOUVEAU: Récupérer la config
+    const config = getVariableConfig(variableName);
 
     
     const existingVarIndex = result.variables.findIndex(v => v.variable === variableName);
@@ -150,7 +147,12 @@ export function parseTaxonomyStructure(
   return result;
 }
 
-
+/**
+ * Valide une variable de taxonomie en vérifiant si elle est connue et si le format est autorisé.
+ * @param variableName Le nom de la variable à valider.
+ * @param format Le format de la variable.
+ * @returns Un objet indiquant si la variable est valide et un message d'erreur si ce n'est pas le cas.
+ */
 function validateVariable(
   variableName: string, 
   format: TaxonomyFormat
@@ -162,7 +164,7 @@ function validateVariable(
     };
   }
   
-  const config = getVariableConfig(variableName); // Utilise la fonction importée
+  const config = getVariableConfig(variableName);
   const allowedFormats = config?.allowedFormats || [];
 
   if (!allowedFormats.includes(format)) {
@@ -175,8 +177,13 @@ function validateVariable(
   return { isValid: true };
 }
 
-// Les autres fonctions comme resolveVariableValues, extractUniqueVariables, etc. restent inchangées.
-// ... (le reste du fichier reste identique)
+/**
+ * Analyse toutes les taxonomies fournies (tags, platform, mediaOcean).
+ * @param taxonomyTags La chaîne de taxonomie pour les tags.
+ * @param taxonomyPlatform La chaîne de taxonomie pour la plateforme.
+ * @param taxonomyMediaOcean La chaîne de taxonomie pour MediaOcean.
+ * @returns Un objet contenant les structures analysées pour chaque type de taxonomie.
+ */
 export function parseAllTaxonomies(
   taxonomyTags?: string,
   taxonomyPlatform?: string, 
@@ -189,6 +196,12 @@ export function parseAllTaxonomies(
   return results;
 }
 
+/**
+ * Extrait toutes les variables uniques de plusieurs structures de taxonomie analysées.
+ * Consolidate les formats pour les variables dupliquées.
+ * @param parsedStructures Un objet contenant des structures de taxonomie analysées.
+ * @returns Un tableau de ParsedTaxonomyVariable, où chaque variable est unique et contient tous ses formats pertinents.
+ */
 export function extractUniqueVariables(
   parsedStructures: { [key: string]: ParsedTaxonomyStructure }
 ): ParsedTaxonomyVariable[] {
@@ -213,6 +226,16 @@ export function extractUniqueVariables(
   return Array.from(uniqueVariables.values());
 }
 
+/**
+ * Traite les taxonomies complètes en analysant les structures, en extrayant les variables uniques,
+ * et en générant les chaînes de taxonomie finales en résolvant les valeurs.
+ * @param taxonomyTags La chaîne de taxonomie pour les tags.
+ * @param taxonomyPlatform La chaîne de taxonomie pour la plateforme.
+ * @param taxonomyMediaOcean La chaîne de taxonomie pour MediaOcean.
+ * @param context Le contexte pour la résolution des variables (ex: campagne, tactique).
+ * @param taxonomyValues Les valeurs de taxonomie spécifiques.
+ * @returns Un objet TaxonomyProcessingResult contenant les variables, les valeurs, les taxonomies générées, les erreurs et les avertissements.
+ */
 export function processTaxonomies(
   taxonomyTags?: string,
   taxonomyPlatform?: string,

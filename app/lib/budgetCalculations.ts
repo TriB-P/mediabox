@@ -1,4 +1,8 @@
-// app/lib/budgetCalculations.ts
+/**
+ * Ce fichier contient les fonctions et les types nécessaires au calcul des budgets, des frais et des volumes d'unités.
+ * Il gère différents types de calculs de frais, la convergence de budget client et les spécificités liées aux impressions.
+ * C'est le cœur logique pour toutes les opérations financières du projet.
+ */
 
 // ==================== TYPES ====================
 
@@ -14,7 +18,6 @@ export interface FeeDefinition {
   value: number;
   buffer: number;
   customUnits?: number;
-  // NOUVEAU: Volume personnalisé pour les frais "Volume d'unité"
   useCustomVolume?: boolean;
   customVolume?: number;
 }
@@ -25,7 +28,6 @@ export interface BudgetInputs {
   fees: FeeDefinition[];
   mediaBudget?: number;
   clientBudget?: number;
-  // NOUVEAU: Type d'unité pour le calcul des impressions
   unitType?: string;
   unitTypeDisplayName?: string;
 }
@@ -62,155 +64,177 @@ export interface BudgetResults {
 // ==================== UTILITAIRES POUR LES IMPRESSIONS ====================
 
 /**
- * Détermine si le type d'unité correspond aux impressions
+ * Détermine si le type d'unité correspond aux impressions.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {boolean} Vrai si le type d'unité est une impression, faux sinon.
  */
 const isImpressionUnitType = (unitType?: string, unitTypeDisplayName?: string): boolean => {
   if (!unitType && !unitTypeDisplayName) return false;
-  
+
   const displayName = unitTypeDisplayName?.toLowerCase() || '';
   const typeId = unitType?.toLowerCase() || '';
-  
+
   return displayName.includes('impression') || typeId.includes('impression');
 };
 
 /**
- * Calcule le volume d'unité en tenant compte du type d'unité
- * Pour les impressions : (budget ÷ CPM) × 1000 = nombre d'impressions
- * Pour les autres : budget ÷ coût unitaire = nombre d'unités
+ * Calcule le volume d'unité en tenant compte du type d'unité (impressions ou autres).
+ * Pour les impressions : (budget ÷ CPM) × 1000 = nombre d'impressions.
+ * Pour les autres : budget ÷ coût unitaire = nombre d'unités.
+ * @param {number} effectiveBudget - Le budget effectif à utiliser pour le calcul.
+ * @param {number} costPerUnit - Le coût par unité ou le CPM.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {number} Le volume d'unités calculé.
  */
 const calculateUnitVolume = (
-  effectiveBudget: number, 
-  costPerUnit: number, 
-  unitType?: string, 
+  effectiveBudget: number,
+  costPerUnit: number,
+  unitType?: string,
   unitTypeDisplayName?: string
 ): number => {
   if (effectiveBudget <= 0 || costPerUnit <= 0) {
     return 0;
   }
-  
+
   const baseVolume = effectiveBudget / costPerUnit;
-  
-  // Pour les impressions, multiplier par 1000 car le CPM est pour 1000 impressions
+
   if (isImpressionUnitType(unitType, unitTypeDisplayName)) {
     return Math.round(baseVolume * 1000);
   }
-  
+
   return Math.round(baseVolume);
 };
 
 /**
- * Calcule le budget effectif à partir du volume d'unité
- * Pour les impressions : (volume ÷ 1000) × CPM = budget
- * Pour les autres : volume × coût unitaire = budget
+ * Calcule le budget effectif à partir du volume d'unité.
+ * Pour les impressions : (volume ÷ 1000) × CPM = budget.
+ * Pour les autres : volume × coût unitaire = budget.
+ * @param {number} volume - Le volume d'unités.
+ * @param {number} costPerUnit - Le coût par unité ou le CPM.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {number} Le budget effectif calculé.
  */
 const calculateEffectiveBudgetFromVolume = (
-  volume: number, 
-  costPerUnit: number, 
-  unitType?: string, 
+  volume: number,
+  costPerUnit: number,
+  unitType?: string,
   unitTypeDisplayName?: string
 ): number => {
   if (volume <= 0 || costPerUnit <= 0) {
     return 0;
   }
-  
-  // Pour les impressions, diviser par 1000 car le CPM est pour 1000 impressions
+
   if (isImpressionUnitType(unitType, unitTypeDisplayName)) {
     return (volume / 1000) * costPerUnit;
   }
-  
+
   return volume * costPerUnit;
 };
 
 // ==================== VALIDATION ====================
 
+/**
+ * Valide les entrées du budget pour s'assurer qu'elles sont cohérentes.
+ * @param {BudgetInputs} inputs - Les données d'entrée du budget.
+ * @returns {string[]} Une liste d'erreurs de validation, vide si aucune erreur.
+ */
 export const validateBudgetInputs = (inputs: BudgetInputs): string[] => {
   const errors: string[] = [];
-  
+
   if (inputs.costPerUnit <= 0) {
     errors.push('Le coût par unité doit être supérieur à 0');
   }
-  
+
   if (inputs.realValue !== undefined && inputs.realValue < 0) {
     errors.push('La valeur réelle ne peut pas être négative');
   }
-  
+
   if (!inputs.mediaBudget && !inputs.clientBudget) {
     errors.push('Un budget média ou client doit être spécifié');
   }
-  
+
   if (inputs.mediaBudget && inputs.mediaBudget <= 0) {
     errors.push('Le budget média doit être supérieur à 0');
   }
-  
+
   if (inputs.clientBudget && inputs.clientBudget <= 0) {
     errors.push('Le budget client doit être supérieur à 0');
   }
-  
-  // Validation spécifique pour les frais
+
   for (const fee of inputs.fees) {
     if (fee.value < 0) {
       errors.push(`La valeur du frais "${fee.name}" ne peut pas être négative`);
     }
-    
+
     if (fee.calculationType === 'Unités' && (!fee.customUnits || fee.customUnits <= 0)) {
       errors.push(`Le frais "${fee.name}" de type "Unités" nécessite un nombre d'unités valide`);
     }
   }
-  
+
   return errors;
 };
 
 // ==================== CALCUL DES FRAIS ====================
 
+/**
+ * Calcule le montant total des frais et le détail de chaque frais.
+ * @param {number} mediaBudget - Le budget média actuel.
+ * @param {number} unitVolume - Le volume d'unités.
+ * @param {FeeDefinition[]} fees - La liste des définitions de frais.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {{ totalFees: number; feeDetails: FeeDetail[] }} Un objet contenant le total des frais et leurs détails.
+ */
 const calculateFees = (
-  mediaBudget: number, 
-  unitVolume: number, 
+  mediaBudget: number,
+  unitVolume: number,
   fees: FeeDefinition[],
   unitType?: string,
   unitTypeDisplayName?: string
 ): { totalFees: number; feeDetails: FeeDetail[] } => {
   const sortedFees = [...fees].sort((a, b) => a.order - b.order);
   const feeDetails: FeeDetail[] = [];
-  
+
   let runningMediaBudget = mediaBudget;
   let runningFeesTotal = 0;
-  
+
   for (const fee of sortedFees) {
     let calculatedAmount = 0;
     let units: number | undefined;
-    
+
     switch (fee.calculationType) {
       case 'Pourcentage budget':
-        const baseForPercentage = fee.calculationMode === 'Directement sur le budget média' 
-          ? mediaBudget 
+        const baseForPercentage = fee.calculationMode === 'Directement sur le budget média'
+          ? mediaBudget
           : (mediaBudget + runningFeesTotal);
         calculatedAmount = (baseForPercentage * fee.value);
         break;
-        
+
       case 'Volume d\'unité':
-        // MODIFIÉ: Utiliser le volume personnalisé si défini, sinon le volume ajusté pour les impressions
         const volumeToUse = fee.useCustomVolume && fee.customVolume ? fee.customVolume : unitVolume;
         calculatedAmount = volumeToUse * fee.value;
         units = volumeToUse;
         break;
-        
+
       case 'Unités':
         if (fee.customUnits && fee.customUnits > 0) {
           calculatedAmount = fee.customUnits * fee.value;
           units = fee.customUnits;
         }
         break;
-        
+
       case 'Frais fixe':
         calculatedAmount = fee.value;
         break;
     }
-    
-    // Appliquer le buffer si défini
+
     if (fee.buffer > 0) {
       calculatedAmount += (calculatedAmount * fee.buffer) / 100;
     }
-    
+
     feeDetails.push({
       feeId: fee.id,
       name: fee.name,
@@ -220,10 +244,10 @@ const calculateFees = (
       calculatedAmount,
       units
     });
-    
+
     runningFeesTotal += calculatedAmount;
   }
-  
+
   return {
     totalFees: runningFeesTotal,
     feeDetails
@@ -232,26 +256,24 @@ const calculateFees = (
 
 // ==================== CALCUL PRINCIPAL MODIFIÉ ====================
 
+/**
+ * Calcule le budget complet basé sur les entrées fournies.
+ * Si un budget média est spécifié, il calcule le budget client.
+ * Si un budget client est spécifié, il utilise un processus de convergence pour trouver le budget média correspondant.
+ * @param {BudgetInputs} inputs - Les données d'entrée pour le calcul du budget.
+ * @returns {BudgetResults} Les résultats détaillés du calcul du budget.
+ * @throws {Error} Si aucun budget (média ou client) n'est spécifié.
+ */
 export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
   const { costPerUnit, realValue, fees, mediaBudget, clientBudget, unitType, unitTypeDisplayName } = inputs;
-  
-  // Calcul de la bonification
-  
+
   if (mediaBudget) {
-    // Mode budget média → calculer le budget client
-    
     const bonusValue = realValue ? Math.max(0, realValue - mediaBudget) : 0;
-
     const effectiveBudgetForVolume = mediaBudget + bonusValue;
-
-
-    // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
     const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
-    
     const { totalFees, feeDetails } = calculateFees(mediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
-
     const calculatedClientBudget = mediaBudget + totalFees;
-    
+
     return {
       mediaBudget,
       totalFees,
@@ -262,79 +284,66 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
       feeDetails
     };
   }
-  
+
   if (clientBudget) {
-    // Mode budget client → calculer le budget média avec convergence
     return calculateBudgetWithConvergence(inputs);
   }
-  
+
   throw new Error('Aucun budget spécifié');
 };
 
 // ==================== CONVERGENCE POUR MODE CLIENT MODIFIÉE ====================
 
+/**
+ * Calcule le budget média nécessaire pour atteindre un budget client cible en utilisant une méthode de convergence.
+ * @param {BudgetInputs} inputs - Les données d'entrée, incluant le budget client cible.
+ * @returns {BudgetResults} Les résultats détaillés du calcul du budget, incluant les informations de convergence.
+ * @throws {Error} Si le budget client n'est pas spécifié.
+ */
 const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => {
   const { costPerUnit, realValue, fees, clientBudget, unitType, unitTypeDisplayName } = inputs;
-  
+
   if (!clientBudget) {
     throw new Error('Budget client requis pour ce calcul');
   }
-  
-  const tolerance = 0.0004; 
+
+  const tolerance = 0.0004;
   const maxIterations = 100;
-  
-  let currentMediaBudget = clientBudget * 0.8; // Estimation initiale
-  let bonusValue = 0; // 🔥 DÉCLARER ICI pour qu'elle soit accessible partout
+
+  let currentMediaBudget = clientBudget * 0.8;
+  let bonusValue = 0;
   let iteration = 0;
   let finalDifference = 0;
   let hasConverged = false;
 
-  
-  while (iteration < maxIterations && !hasConverged) {
 
-    // 🔥 CORRECTION: Calculer bonusValue avec le budget média actuel
+  while (iteration < maxIterations && !hasConverged) {
     bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
     const effectiveBudgetForVolume = currentMediaBudget + bonusValue;
-    
-    // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
     const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
-    
-    //console.log(`Validation #${iteration}\nUnitVolume:${unitVolume}\nfees:${fees}\nunitType :${unitType}\nunitTypeDisplayName : ${unitTypeDisplayName}`)
 
     const { totalFees } = calculateFees(currentMediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
     const calculatedTotal = currentMediaBudget + totalFees;
-    
+
     finalDifference = clientBudget - calculatedTotal;
-   
-    console.log(`CONVERGENCE #${iteration}\nCurrent media budget:${currentMediaBudget}\nFinal delta:${finalDifference}\nObjectif :${clientBudget}\nFees : ${totalFees}`)
 
     if (Math.abs(finalDifference) <= tolerance) {
       hasConverged = true;
     } else {
-      // Ajustement adaptatif du budget média
       const adjustmentFactor = 0.8;
       currentMediaBudget += finalDifference * adjustmentFactor;
-      
-      // S'assurer que le budget média reste positif
       currentMediaBudget = Math.max(0.01, currentMediaBudget);
     }
-    
+
     iteration++;
   }
-  
-  // 🔥 RECALCULER bonusValue une dernière fois avec le budget média final
-  bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
-  
-  // Calcul final avec le budget média optimisé
-  const effectiveBudgetForVolume = currentMediaBudget + bonusValue;
-  
-  // MODIFIÉ: Utiliser la nouvelle fonction qui gère les impressions
-  const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
-  
-  const { totalFees, feeDetails } = calculateFees(currentMediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
 
+  bonusValue = realValue ? Math.max(0, realValue - currentMediaBudget) : 0;
+  const effectiveBudgetForVolume = currentMediaBudget + bonusValue;
+  const unitVolume = calculateUnitVolume(effectiveBudgetForVolume, costPerUnit, unitType, unitTypeDisplayName);
+  const { totalFees, feeDetails } = calculateFees(currentMediaBudget, unitVolume, fees, unitType, unitTypeDisplayName);
   const actualCalculatedTotal = currentMediaBudget + totalFees;
-  
+
   return {
     mediaBudget: currentMediaBudget,
     totalFees,
@@ -356,8 +365,14 @@ const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => 
 // ==================== NOUVELLES FONCTIONS UTILITAIRES ====================
 
 /**
- * Calcule le volume théorique à partir d'un budget donné
- * Utile pour les validations et affichages
+ * Calcule le volume théorique à partir d'un budget donné.
+ * Cette fonction est utile pour les validations et les affichages préliminaires.
+ * @param {number} budget - Le budget à partir duquel calculer le volume.
+ * @param {number} costPerUnit - Le coût par unité.
+ * @param {number} bonusValue - La valeur de bonification, par défaut 0.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {number} Le volume théorique calculé.
  */
 export const calculateTheoreticalVolume = (
   budget: number,
@@ -371,8 +386,14 @@ export const calculateTheoreticalVolume = (
 };
 
 /**
- * Calcule le budget théorique à partir d'un volume donné
- * Utile pour les validations inverse
+ * Calcule le budget théorique à partir d'un volume donné.
+ * Cette fonction est utile pour les validations inverses et les scénarios de planification.
+ * @param {number} volume - Le volume à partir duquel calculer le budget.
+ * @param {number} costPerUnit - Le coût par unité.
+ * @param {number} bonusValue - La valeur de bonification, par défaut 0.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {number} Le budget théorique calculé.
  */
 export const calculateTheoreticalBudget = (
   volume: number,
@@ -386,12 +407,21 @@ export const calculateTheoreticalBudget = (
 };
 
 /**
- * Vérifie si le type d'unité nécessite un traitement spécial pour les impressions
+ * Vérifie si le type d'unité nécessite un traitement spécial pour les impressions.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {boolean} Vrai si c'est un type d'impression, faux sinon.
  */
 export const isImpressionType = isImpressionUnitType;
 
 /**
- * Formate l'explication du calcul selon le type d'unité
+ * Formate une explication textuelle du calcul du volume selon le type d'unité.
+ * @param {number} budget - Le budget utilisé dans le calcul.
+ * @param {number} costPerUnit - Le coût par unité ou le CPM.
+ * @param {number} bonusValue - La valeur de bonification.
+ * @param {string} unitType - L'identifiant interne du type d'unité.
+ * @param {string} unitTypeDisplayName - Le nom affiché du type d'unité.
+ * @returns {string} L'explication formatée du calcul.
  */
 export const getCalculationExplanation = (
   budget: number,
@@ -402,7 +432,7 @@ export const getCalculationExplanation = (
 ): string => {
   const effectiveBudget = budget + bonusValue;
   const isImpression = isImpressionUnitType(unitType, unitTypeDisplayName);
-  
+
   if (isImpression) {
     return `${effectiveBudget.toFixed(2)}$ ÷ ${costPerUnit.toFixed(4)}$ CPM × 1000 = ${calculateUnitVolume(effectiveBudget, costPerUnit, unitType, unitTypeDisplayName).toLocaleString()} impressions`;
   } else {

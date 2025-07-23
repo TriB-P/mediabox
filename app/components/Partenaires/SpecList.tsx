@@ -1,3 +1,11 @@
+/**
+ * @file Ce fichier contient le composant React `SpecList`.
+ * @description Ce composant est responsable de l'affichage d'une liste de spécifications techniques (`Spec`).
+ * Il permet à l'utilisateur de voir les détails de chaque spécification en l'ouvrant/fermant (mode accordéon)
+ * et propose des actions pour modifier ou supprimer une spécification via des fonctions passées en props.
+ * C'est un composant de présentation qui reçoit ses données et ses fonctions de gestion depuis un composant parent.
+ */
+
 'use client';
 
 import React, { useState } from 'react';
@@ -10,9 +18,22 @@ interface SpecListProps {
   onDelete: (specId: string) => void;
 }
 
+/**
+ * Affiche une liste interactive de spécifications techniques.
+ * @param {SpecListProps} props - Les propriétés du composant.
+ * @param {Spec[]} props.specs - La liste des spécifications à afficher.
+ * @param {(spec: Spec) => void} props.onEdit - La fonction à appeler lorsqu'on clique sur le bouton "Modifier".
+ * @param {(specId: string) => void} props.onDelete - La fonction à appeler lorsqu'on clique sur le bouton "Supprimer".
+ * @returns {React.ReactElement} Le composant JSX affichant la liste des spécifications.
+ */
 export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
   const [expandedSpec, setExpandedSpec] = useState<string | null>(null);
-  
+
+  /**
+   * Gère l'affichage (ouverture/fermeture) du panneau de détails d'une spécification.
+   * Si la spécification cliquée est déjà ouverte, elle est fermée. Sinon, elle est ouverte.
+   * @param {string} specId - L'identifiant de la spécification à afficher ou cacher.
+   */
   const toggleExpand = (specId: string) => {
     if (expandedSpec === specId) {
       setExpandedSpec(null);
@@ -20,7 +41,7 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
       setExpandedSpec(specId);
     }
   };
-  
+
   if (specs.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500">
@@ -28,13 +49,12 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-3">
       {specs.map((spec) => (
         <div key={spec.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          {/* Header */}
-          <div 
+          <div
             className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50"
             onClick={() => toggleExpand(spec.id)}
           >
@@ -75,8 +95,7 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
               )}
             </div>
           </div>
-          
-          {/* Detail Panel */}
+
           {expandedSpec === spec.id && (
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm">
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -105,29 +124,27 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
                   <p>{spec.weight || '-'}</p>
                 </div>
               </div>
-              
+
               {(spec.title || spec.text) && (
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  {/* Titre */}
                   <div>
                     <h4 className="font-medium text-gray-700 mb-1">Titre</h4>
                     <p>{spec.title || '-'}</p>
                   </div>
-                  
-                  {/* Texte */}
+
                   <div>
                     <h4 className="font-medium text-gray-700 mb-1">Texte</h4>
                     <p>{spec.text || '-'}</p>
                   </div>
                 </div>
               )}
-              
+
               {spec.specSheetLink && (
                 <div className="mb-4">
                   <h4 className="font-medium text-gray-700 mb-1">Lien vers feuille de specs</h4>
-                  <a 
-                    href={spec.specSheetLink} 
-                    target="_blank" 
+                  <a
+                    href={spec.specSheetLink}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-indigo-600 hover:text-indigo-800 flex items-center"
                   >
@@ -136,14 +153,14 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
                   </a>
                 </div>
               )}
-              
+
               {spec.notes && (
                 <div>
                   <h4 className="font-medium text-gray-700 mb-1">Notes</h4>
                   <p className="whitespace-pre-line">{spec.notes}</p>
                 </div>
               )}
-              
+
               <div className="mt-3 text-xs text-gray-500">
                 Dernière mise à jour: {new Date(spec.updatedAt).toLocaleDateString()}
               </div>

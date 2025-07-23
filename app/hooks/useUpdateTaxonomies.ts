@@ -1,26 +1,29 @@
-// app/hooks/useUpdateTaxonomies.ts - CORRECTION RÉSOLUTION VARIABLES PLACEMENT
-
+/**
+ * Ce fichier contient un hook React `useUpdateTaxonomies` qui gère la régénération et la mise à jour des taxonomies
+ * pour les campagnes, tactiques, placements et créatifs dans la base de données Firebase (Firestore).
+ * Il permet de résoudre dynamiquement les variables de taxonomie basées sur des données de campagne,
+ * de tactique et de placement, y compris les shortcodes et les codes personnalisés, puis de mettre à jour
+ * les documents Firebase correspondants.
+ */
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  getDocs, 
+import {
+  collection,
+  getDocs,
   getDoc,
   doc,
-  writeBatch, 
+  writeBatch,
   query,
   where
 } from 'firebase/firestore';
 import { getTaxonomyById } from '../lib/taxonomyService';
-import { 
+import {
   TAXONOMY_VARIABLE_REGEX,
   getFieldSource,
   formatRequiresShortcode,
   isPlacementVariable,
   isCreatifVariable,
-  TaxonomyFormat 
+  TaxonomyFormat
 } from '../config/taxonomyFields';
-
-// ==================== TYPES ====================
 
 type ParentType = 'campaign' | 'tactic' | 'placement';
 
@@ -29,27 +32,31 @@ interface ParentData {
   name: string;
   clientId: string;
   campaignId?: string;
-  [key: string]: any; 
+  [key: string]: any;
 }
 
-// 🔥 CORRECTION: Contexte enrichi pour les créatifs
 interface ResolutionContext {
   clientId: string;
   campaignData: any;
   tactiqueData: any;
   placementData: any;
-  creatifData?: any; // 🔥 NOUVEAU: Ajout des données créatif séparées
+  creatifData?: any;
   caches: {
     shortcodes: Map<string, any>;
     customCodes: Map<string, string | null>;
   };
 }
 
-// ==================== FONCTIONS UTILITAIRES ====================
-
+/**
+ * Récupère les données d'un shortcode depuis Firebase ou le cache.
+ * @param id L'ID du shortcode à récupérer.
+ * @param cache Le cache pour stocker et récupérer les données de shortcode.
+ * @returns Les données du shortcode ou null si non trouvé ou une erreur survient.
+ */
 async function getShortcode(id: string, cache: Map<string, any>): Promise<any | null> {
   if (cache.has(id)) return cache.get(id);
   try {
+    console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: getShortcode - Path: shortcodes/${id}");
     const docRef = doc(db, 'shortcodes', id);
     const docSnap = await getDoc(docRef);
     const data = docSnap.exists() ? docSnap.data() : null;
@@ -62,11 +69,19 @@ async function getShortcode(id: string, cache: Map<string, any>): Promise<any | 
   }
 }
 
+/**
+ * Récupère un code personnalisé pour un client et un shortcode donnés, depuis Firebase ou le cache.
+ * @param clientId L'ID du client.
+ * @param shortcodeId L'ID du shortcode associé au code personnalisé.
+ * @param cache Le cache pour stocker et récupérer les codes personnalisés.
+ * @returns Le code personnalisé ou null si non trouvé ou une erreur survient.
+ */
 async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<string, string | null>): Promise<string | null> {
   const cacheKey = `${clientId}__${shortcodeId}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
   try {
+    console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: getCustomCode - Path: clients/${clientId}/customCodes");
     const q = query(collection(db, 'clients', clientId, 'customCodes'), where('shortcodeId', '==', shortcodeId));
     const snapshot = await getDocs(q);
     const data = snapshot.empty ? null : snapshot.docs[0].data().customCode;
@@ -79,9 +94,16 @@ async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<s
   }
 }
 
+/**
+ * Formate la valeur d'un shortcode selon un format de taxonomie spécifié.
+ * @param shortcodeData Les données du shortcode.
+ * @param customCode Le code personnalisé à utiliser si applicable.
+ * @param format Le format de taxonomie souhaité (ex: 'code', 'display_fr', 'utm').
+ * @returns La valeur formatée du shortcode.
+ */
 function formatShortcodeValue(shortcodeData: any, customCode: string | null, format: TaxonomyFormat): string {
   if (!shortcodeData) return '';
-  
+
   switch (format) {
     case 'code': return shortcodeData.SH_Code || '';
     case 'display_fr': return shortcodeData.SH_Display_Name_FR || '';
@@ -93,44 +115,43 @@ function formatShortcodeValue(shortcodeData: any, customCode: string | null, for
   }
 }
 
-// 🔥 CORRECTION: Fonction de résolution corrigée et alignée avec creatifService.ts
+/**
+ * Résout la valeur d'une variable de taxonomie en utilisant le contexte fourni.
+ * La résolution prend en compte les valeurs manuelles, puis les données de campagne,
+ * tactique, placement ou créatif, et enfin le formatage avec shortcode/code personnalisé.
+ * @param variableName Le nom de la variable à résoudre (ex: 'CA_ClientName').
+ * @param format Le format souhaité pour la valeur résolue.
+ * @param context Le contexte de résolution contenant les données de la campagne, tactique, placement, créatif et les caches.
+ * @param isCreatif Indique si la variable est résolue dans le contexte d'un créatif.
+ * @returns La valeur résolue de la variable.
+ */
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  console.log(`🔍 [UpdateTaxonomies] === RÉSOLUTION VARIABLE ${variableName} ===`);
-  console.log(`🎯 Source détectée: ${source}, Format: ${format}, IsCreatif: ${isCreatif}`);
-
-  // 1. 🔥 CORRECTION: Vérifier d'abord les valeurs manuelles selon le type
   if (isCreatif) {
-    // Pour les créatifs, chercher dans CR_Taxonomy_Values du créatif
     const manualValue = context.creatifData?.CR_Taxonomy_Values?.[variableName];
     if (manualValue) {
-      console.log(`✅ [UpdateTaxonomies] Valeur manuelle créatif trouvée:`, manualValue);
       if (manualValue.format === 'open') return manualValue.openValue || '';
       if (manualValue.shortcodeId) {
         const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
         if (shortcodeData) {
           const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
           const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          console.log(`🔧 [UpdateTaxonomies] Valeur créatif formatée depuis shortcode:`, formattedValue);
           return formattedValue;
         }
       }
       return manualValue.value || '';
     }
   } else {
-    // Pour les placements, chercher dans PL_Taxonomy_Values
     const manualValue = context.placementData.PL_Taxonomy_Values?.[variableName];
     if (manualValue) {
-      console.log(`✅ [UpdateTaxonomies] Valeur manuelle placement trouvée:`, manualValue);
       if (manualValue.format === 'open') return manualValue.openValue || '';
       if (manualValue.shortcodeId) {
         const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
         if (shortcodeData) {
           const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
           const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          console.log(`🔧 [UpdateTaxonomies] Valeur placement formatée depuis shortcode:`, formattedValue);
           return formattedValue;
         }
       }
@@ -138,20 +159,14 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
     }
   }
 
-  // 2. 🔥 CORRECTION: Résolution selon la source avec logique corrigée pour les placements
   if (source === 'campaign' && context.campaignData) {
     rawValue = context.campaignData[variableName];
-    console.log(`🏛️ [UpdateTaxonomies] Valeur campagne[${variableName}]:`, rawValue);
   } else if (source === 'tactique' && context.tactiqueData) {
     rawValue = context.tactiqueData[variableName];
-    console.log(`🎯 [UpdateTaxonomies] Valeur tactique[${variableName}]:`, rawValue);
   } else if (source === 'placement' && context.placementData) {
-    // 🔥 CORRECTION: Pour les variables de placement, chercher dans PL_Taxonomy_Values
     if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
       const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-      console.log(`🏢 [UpdateTaxonomies] Variable placement trouvée dans PL_Taxonomy_Values[${variableName}]:`, taxonomyValue);
-      
-      // Extraire la valeur selon le format demandé
+
       if (format === 'open' && taxonomyValue.openValue) {
         rawValue = taxonomyValue.openValue;
       } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
@@ -159,59 +174,49 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
         if (shortcodeData) {
           const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
           const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          console.log(`🔧 [UpdateTaxonomies] Variable placement formatée depuis shortcode:`, formattedValue);
-          return formattedValue; // Retour direct car déjà formaté
+          return formattedValue;
         }
       } else {
         rawValue = taxonomyValue.value;
       }
-      console.log(`✅ [UpdateTaxonomies] Valeur placement extraite:`, rawValue);
     } else {
-      // Fallback: chercher directement dans l'objet placement
       rawValue = context.placementData[variableName];
-      console.log(`🏢 [UpdateTaxonomies] Valeur placement directe[${variableName}]:`, rawValue);
     }
   } else if (source === 'manual') {
     if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
-      // Variables créatifs manuelles directement sur l'objet créatif
       rawValue = context.creatifData[variableName];
-      console.log(`🎨 [UpdateTaxonomies] Variable créatif manuelle directe[${variableName}]:`, rawValue);
     } else {
-      // Variables manuelles générales
       rawValue = context.placementData[variableName];
-      console.log(`📝 [UpdateTaxonomies] Variable manuelle générale[${variableName}]:`, rawValue);
     }
   }
 
   if (rawValue === null || rawValue === undefined || rawValue === '') {
-    console.log(`❌ [UpdateTaxonomies] Aucune valeur trouvée pour ${variableName}`);
-    console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
     return '';
   }
 
-  // 3. Formatage final si shortcode (seulement si pas déjà formaté)
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
     const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
     if (shortcodeData) {
       const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
       const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      console.log(`🔧 [UpdateTaxonomies] Formatage final (shortcode):`, formattedValue);
-      console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
       return formattedValue;
     }
   }
-  
+
   const finalValue = String(rawValue);
-  console.log(`✅ [UpdateTaxonomies] Valeur finale pour ${variableName}:`, finalValue);
-  console.log(`🔍 [UpdateTaxonomies] === FIN RÉSOLUTION ${variableName} ===`);
   return finalValue;
 }
 
+/**
+ * Génère une chaîne de caractères de taxonomie en résolvant les variables et les groupes à partir d'une structure donnée.
+ * @param structure La chaîne de structure de taxonomie contenant des variables (ex: "[CA_ClientName:code]").
+ * @param context Le contexte de résolution.
+ * @param isCreatif Indique si la chaîne est générée pour un créatif.
+ * @returns La chaîne de taxonomie finale résolue.
+ */
 async function generateLevelString(structure: string, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
   if (!structure) return '';
-  
-  console.log(`🔄 [UpdateTaxonomies] Generating level (isCreatif: ${isCreatif}): "${structure}"`);
-  
+
   const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
   const segments = structure.split(MASTER_REGEX).filter(Boolean);
   let finalString = '';
@@ -223,11 +228,10 @@ async function generateLevelString(structure: string, context: ResolutionContext
         const [, variableName, format] = variableMatch;
         const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
         finalString += resolvedValue;
-        console.log(`🔧 [UpdateTaxonomies] ${variableName}:${format} -> "${resolvedValue}"`);
       }
     } else if (segment.startsWith('<') && segment.endsWith('>')) {
       const groupContent = segment.slice(1, -1);
-      
+
       const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
       if (variablesInGroup.length === 0) {
         finalString += groupContent;
@@ -242,41 +246,45 @@ async function generateLevelString(structure: string, context: ResolutionContext
           resolvedValues.push(resolved);
         }
       }
-      
+
       if (resolvedValues.length === 0) continue;
 
       const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
       const delimiter = delimiterMatch ? delimiterMatch[1] : '';
       finalString += resolvedValues.join(delimiter);
-      
+
     } else {
       finalString += segment;
     }
   }
-  
-  console.log(`✅ [UpdateTaxonomies] Level generated: "${finalString}"`);
+
   return finalString;
 }
 
-// ==================== FONCTIONS DE RÉGÉNÉRATION ====================
-
+/**
+ * Régénère les taxonomies d'un placement donné en fonction des données de la campagne et de la tactique.
+ * @param clientId L'ID du client.
+ * @param placementData Les données du placement.
+ * @param campaignData Les données de la campagne parente.
+ * @param tactiqueData Les données de la tactique parente.
+ * @returns Un objet contenant les taxonomies régénérées du placement.
+ */
 async function regeneratePlacementTaxonomies(clientId: string, placementData: any, campaignData: any, tactiqueData: any): Promise<any> {
-  console.log(`🔄 [UpdateTaxonomies] Regenerating placement taxonomies for: ${placementData.PL_Label}`);
-  
+
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData, caches };
 
   const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
     if (!taxonomyId) return ['', '', '', ''];
-    
+
     const taxonomy = await getTaxonomyById(clientId, taxonomyId);
     if (!taxonomy) return ['', '', '', ''];
-    
+
     const levels = [
-      taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, 
+      taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2,
       taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4
     ];
-    
+
     return Promise.all(levels.map(level => generateLevelString(level || '', context, false)));
   };
 
@@ -285,8 +293,6 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
     processTaxonomyType(placementData.PL_Taxonomy_Platform),
     processTaxonomyType(placementData.PL_Taxonomy_MediaOcean)
   ]);
-
-  console.log(`🏷️ [UpdateTaxonomies] Placement chains generated:`, { tagChains, platformChains, moChains });
 
   return {
     PL_Tag_1: tagChains[0] || '',
@@ -310,38 +316,38 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
   };
 }
 
-// 🔥 CORRECTION: Fonction corrigée pour les créatifs
+/**
+ * Régénère les taxonomies d'un créatif donné en fonction des données de la campagne, de la tactique et du placement.
+ * @param clientId L'ID du client.
+ * @param creatifData Les données du créatif.
+ * @param campaignData Les données de la campagne parente.
+ * @param tactiqueData Les données de la tactique parente.
+ * @param placementData Les données du placement parent.
+ * @returns Un objet contenant les taxonomies régénérées du créatif.
+ */
 async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, campaignData: any, tactiqueData: any, placementData: any): Promise<any> {
-  console.log(`🔄 [UpdateTaxonomies] Regenerating creative taxonomies for: ${creatifData.CR_Label}`);
-  console.log(`🔍 [UpdateTaxonomies] Creative data:`, creatifData);
-  console.log(`🔍 [UpdateTaxonomies] Placement data:`, placementData);
-  
+
   const caches = { shortcodes: new Map(), customCodes: new Map() };
-  // 🔥 CORRECTION: Contexte correct avec creatifData séparée
-  const context: ResolutionContext = { 
-    clientId, 
-    campaignData, 
-    tactiqueData, 
-    placementData, // 🔥 GARDER les vraies données placement
-    creatifData,   // 🔥 AJOUTER les données créatif séparément
-    caches 
+  const context: ResolutionContext = {
+    clientId,
+    campaignData,
+    tactiqueData,
+    placementData,
+    creatifData,
+    caches
   };
 
   const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
     if (!taxonomyId) return ['', ''];
-    
-    console.log(`📋 [UpdateTaxonomies] Processing creative taxonomy: ${taxonomyId}`);
-    
+
     const taxonomy = await getTaxonomyById(clientId, taxonomyId);
     if (!taxonomy) return ['', ''];
-    
+
     const levels = [
-      taxonomy.NA_Name_Level_5 || '', 
+      taxonomy.NA_Name_Level_5 || '',
       taxonomy.NA_Name_Level_6 || ''
     ];
-    
-    console.log(`📐 [UpdateTaxonomies] Creative level 5-6 structures:`, levels);
-    
+
     return Promise.all(levels.map(level => generateLevelString(level, context, true)));
   };
 
@@ -350,8 +356,6 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
     processTaxonomyType(creatifData.CR_Taxonomy_Platform),
     processTaxonomyType(creatifData.CR_Taxonomy_MediaOcean)
   ]);
-
-  console.log(`🏷️ [UpdateTaxonomies] Creative chains generated:`, { tagChains, platformChains, moChains });
 
   return {
     CR_Tag_5: tagChains[0] || '',
@@ -369,13 +373,21 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
   };
 }
 
-// ==================== HOOK PRINCIPAL (INCHANGÉ) ====================
-
+/**
+ * Hook personnalisé pour déclencher la mise à jour des taxonomies.
+ * @returns Un objet contenant la fonction `updateTaxonomies`.
+ */
 export const useUpdateTaxonomies = () => {
+  /**
+   * Met à jour les taxonomies pour une campagne, une tactique ou un placement donné.
+   * La fonction parcourt l'arborescence des documents Firebase (versions, onglets, sections, tactiques, placements, créatifs)
+   * et régénère les taxonomies pour les éléments concernés.
+   * Toutes les mises à jour sont effectuées en lot pour optimiser les écritures Firebase.
+   * @param parentType Le type de l'entité parente ('campaign', 'tactic', ou 'placement') qui a déclenché la mise à jour.
+   * @param parentData Les données de l'entité parente.
+   * @throws Lance une erreur si la mise à jour des taxonomies échoue.
+   */
   const updateTaxonomies = async (parentType: ParentType, parentData: ParentData) => {
-    console.log(`🔄 [UpdateTaxonomies] === DÉBUT MISE À JOUR TAXONOMIES ===`);
-    console.log(`📍 Type: ${parentType}, Données reçues:`, parentData);
-
     const batch = writeBatch(db);
     let updatedCount = 0;
 
@@ -385,7 +397,7 @@ export const useUpdateTaxonomies = () => {
         console.error('❌ ClientId manquant');
         return;
       }
-      
+
       let campaignId: string;
       if (parentType === 'campaign') {
         campaignId = parentData.id;
@@ -398,60 +410,60 @@ export const useUpdateTaxonomies = () => {
         }
       }
 
-      console.log(`🏛️ [UpdateTaxonomies] Traitement campagne: ${campaignId}`);
-      
+      console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}");
       const campaignRef = doc(db, 'clients', clientId, 'campaigns', campaignId);
       const campaignSnap = await getDoc(campaignRef);
-      
+
       if (!campaignSnap.exists()) {
         console.error(`❌ Campagne non trouvée`);
         return;
       }
-      
+
       const campaignSnapData = campaignSnap.data();
       if (!campaignSnapData) {
         console.error(`❌ Données campagne vides`);
         return;
       }
-      
-      const campaignData = { ...campaignSnapData, clientId };
-      console.log(`✅ Campagne trouvée: ${(campaignData as any).CA_Name || 'Sans nom'}`);
 
-      // Navigation et mise à jour
+      const campaignData = { ...campaignSnapData, clientId };
+
+      console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions");
       const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions');
       const versionsSnap = await getDocs(versionsRef);
-      console.log(`📊 Versions: ${versionsSnap.size}`);
-      
+
       for (const versionDoc of versionsSnap.docs) {
         const versionId = versionDoc.id;
-        
+
+        console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
         const ongletsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets');
         const ongletsSnap = await getDocs(ongletsRef);
-        
+
         for (const ongletDoc of ongletsSnap.docs) {
           const ongletId = ongletDoc.id;
-          
+
+          console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
           const sectionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections');
           const sectionsSnap = await getDocs(sectionsRef);
-          
+
           for (const sectionDoc of sectionsSnap.docs) {
             const sectionId = sectionDoc.id;
-            
+
+            console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
             const tactiquesRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques');
             const tactiquesSnap = await getDocs(tactiquesRef);
-            
+
             for (const tactiqueDoc of tactiquesSnap.docs) {
               const tactiqueId = tactiqueDoc.id;
               const tactiqueData = tactiqueDoc.data();
-              
+
+              console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
               const placementsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
               const placementsSnap = await getDocs(placementsRef);
-              
+
               for (const placementDoc of placementsSnap.docs) {
                 const placementId = placementDoc.id;
                 const placementData = placementDoc.data();
-                
-                // Déterminer si on doit mettre à jour ce placement
+
                 let shouldUpdatePlacement = false;
                 if (parentType === 'campaign') {
                   shouldUpdatePlacement = true;
@@ -460,12 +472,11 @@ export const useUpdateTaxonomies = () => {
                 } else if (parentType === 'placement' && placementId === parentData.id) {
                   shouldUpdatePlacement = true;
                 }
-                
+
                 if (shouldUpdatePlacement) {
-                  console.log(`🔄 Mise à jour placement: ${placementData.PL_Label}`);
-                  
                   try {
                     const updatedFields = await regeneratePlacementTaxonomies(clientId, placementData, campaignData, tactiqueData);
+                    console.log("FIREBASE: ÉCRITURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
                     const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
                     batch.update(placementRef, updatedFields);
                     updatedCount++;
@@ -473,15 +484,15 @@ export const useUpdateTaxonomies = () => {
                     console.error(`❌ Erreur placement ${placementId}:`, error);
                   }
                 }
-                
-                // Traiter les créatifs
+
+                console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
                 const creatifsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs');
                 const creatifsSnap = await getDocs(creatifsRef);
-                
+
                 for (const creatifDoc of creatifsSnap.docs) {
                   const creatifId = creatifDoc.id;
                   const creatifData = creatifDoc.data();
-                  
+
                   let shouldUpdateCreatif = false;
                   if (parentType === 'campaign') {
                     shouldUpdateCreatif = true;
@@ -490,17 +501,16 @@ export const useUpdateTaxonomies = () => {
                   } else if (parentType === 'placement' && placementId === parentData.id) {
                     shouldUpdateCreatif = true;
                   }
-                  
+
                   if (shouldUpdateCreatif) {
-                    console.log(`🔄 Mise à jour créatif: ${creatifData.CR_Label}`);
-                    
                     try {
                       const updatedFields = await regenerateCreatifTaxonomies(clientId, creatifData, campaignData, tactiqueData, placementData);
+                      console.log("FIREBASE: ÉCRITURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
                       const creatifRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs', creatifId);
                       batch.update(creatifRef, updatedFields);
                       updatedCount++;
                     } catch (error) {
-                      console.error(`❌ Erreur créatif ${creatifId}:`, error);
+                      console.error(`❌ Erreur créatif ${creifId}:`, error);
                     }
                   }
                 }
@@ -510,20 +520,16 @@ export const useUpdateTaxonomies = () => {
         }
       }
 
-      // Exécuter toutes les mises à jour
       if (updatedCount > 0) {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useUpdateTaxonomies.ts - Fonction: updateTaxonomies - Path: Batch commit");
         await batch.commit();
-        console.log(`✅ [UpdateTaxonomies] ${updatedCount} éléments mis à jour avec succès !`);
       } else {
-        console.log(`ℹ️ [UpdateTaxonomies] Aucun élément à mettre à jour`);
       }
-      
+
     } catch (error) {
       console.error('❌ [UpdateTaxonomies] Erreur:', error);
       throw new Error('La mise à jour des taxonomies a échoué.');
     }
-    
-    console.log(`🔄 [UpdateTaxonomies] === FIN MISE À JOUR ===`);
   };
 
   return { updateTaxonomies };

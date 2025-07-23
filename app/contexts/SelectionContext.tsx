@@ -1,5 +1,10 @@
-// app/contexts/SelectionContext.tsx
-
+/**
+ * Ce fichier définit le contexte de sélection pour l'application.
+ * Il gère la sélection de la campagne, de la version et de l'onglet actuellement actifs.
+ * Les sélections sont persistées dans le localStorage pour maintenir l'état entre les sessions de l'utilisateur.
+ * Il dépend des contextes d'authentification (AuthContext) et de client (ClientContext)
+ * pour générer une clé de stockage unique basée sur l'utilisateur et le client sélectionnés.
+ */
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -25,6 +30,14 @@ const SelectionContext = createContext<SelectionContextType | undefined>(undefin
 
 const STORAGE_KEY = 'mediabox-selections';
 
+/**
+ * Fournit le contexte de sélection à l'ensemble de l'application.
+ * Gère le chargement et la sauvegarde des sélections dans le localStorage.
+ *
+ * @param {Object} props - Les propriétés du composant.
+ * @param {React.ReactNode} props.children - Les éléments enfants à rendre dans le fournisseur de contexte.
+ * @returns {JSX.Element} Le fournisseur de contexte de sélection.
+ */
 export function SelectionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { selectedClient } = useClient();
@@ -36,13 +49,22 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
     selectedOngletId: null,
   });
 
-  // Générer une clé unique basée sur l'utilisateur et le client
+  /**
+   * Génère une clé unique pour le stockage local basée sur l'e-mail de l'utilisateur et l'ID du client sélectionné.
+   *
+   * @returns {string | null} La clé de stockage ou null si l'utilisateur ou le client ne sont pas définis.
+   */
   const getStorageKey = () => {
     if (!user?.email || !selectedClient?.clientId) return null;
     return `${STORAGE_KEY}-${user.email}-${selectedClient.clientId}`;
   };
 
-  // Charger les sélections depuis le localStorage
+  /**
+   * Effet de bord pour charger les sélections depuis le localStorage lors du montage du composant
+   * ou lorsque l'utilisateur ou le client sélectionné changent.
+   *
+   * @returns {void}
+   */
   useEffect(() => {
     const loadSelections = () => {
       const storageKey = getStorageKey();
@@ -61,7 +83,6 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         if (saved) {
           const parsedSelections = JSON.parse(saved) as SelectionState;
           setSelectionState(parsedSelections);
-          console.log('Sélections restaurées depuis localStorage:', parsedSelections);
         } else {
           setSelectionState({
             selectedCampaignId: null,
@@ -71,7 +92,6 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Erreur lors du chargement des sélections:', error);
-        // En cas d'erreur, réinitialiser
         const storageKey = getStorageKey();
         if (storageKey) {
           localStorage.removeItem(storageKey);
@@ -89,7 +109,6 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
     if (user && selectedClient) {
       loadSelections();
     } else {
-      // Réinitialiser quand il n'y a plus d'utilisateur ou de client
       setSelectionState({
         selectedCampaignId: null,
         selectedVersionId: null,
@@ -99,40 +118,61 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, selectedClient]);
 
-  // Sauvegarder les sélections dans le localStorage
+  /**
+   * Sauvegarde l'état actuel des sélections dans le localStorage.
+   *
+   * @param {SelectionState} newState - Le nouvel état de sélection à sauvegarder.
+   * @returns {void}
+   */
   const saveSelections = (newState: SelectionState) => {
     const storageKey = getStorageKey();
     if (!storageKey) return;
 
     try {
       localStorage.setItem(storageKey, JSON.stringify(newState));
-      console.log('Sélections sauvegardées:', newState);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des sélections:', error);
     }
   };
 
-  // Fonctions pour mettre à jour les sélections
+  /**
+   * Met à jour l'ID de la campagne sélectionnée et réinitialise les sélections de version et d'onglet.
+   *
+   * @param {string | null} campaignId - L'ID de la campagne à sélectionner ou null pour désélectionner.
+   * @returns {void}
+   */
   const setSelectedCampaignId = (campaignId: string | null) => {
     const newState = {
       selectedCampaignId: campaignId,
-      selectedVersionId: null, // Reset version quand on change de campagne
-      selectedOngletId: null,   // Reset onglet quand on change de campagne
+      selectedVersionId: null,
+      selectedOngletId: null,
     };
     setSelectionState(newState);
     saveSelections(newState);
   };
 
+  /**
+   * Met à jour l'ID de la version sélectionnée et réinitialise la sélection de l'onglet.
+   *
+   * @param {string | null} versionId - L'ID de la version à sélectionner ou null pour désélectionner.
+   * @returns {void}
+   */
   const setSelectedVersionId = (versionId: string | null) => {
     const newState = {
       ...selectionState,
       selectedVersionId: versionId,
-      selectedOngletId: null, // Reset onglet quand on change de version
+      selectedOngletId: null,
     };
     setSelectionState(newState);
     saveSelections(newState);
   };
 
+  /**
+   * Met à jour l'ID de l'onglet sélectionné.
+   *
+   * @param {string | null} ongletId - L'ID de l'onglet à sélectionner ou null pour désélectionner.
+   * @returns {void}
+   */
   const setSelectedOngletId = (ongletId: string | null) => {
     const newState = {
       ...selectionState,
@@ -142,6 +182,11 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
     saveSelections(newState);
   };
 
+  /**
+   * Réinitialise les sélections de version et d'onglet.
+   *
+   * @returns {void}
+   */
   const clearVersionSelection = () => {
     const newState = {
       ...selectionState,
@@ -152,6 +197,11 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
     saveSelections(newState);
   };
 
+  /**
+   * Réinitialise toutes les sélections (campagne, version, onglet).
+   *
+   * @returns {void}
+   */
   const clearCampaignSelection = () => {
     const newState = {
       selectedCampaignId: null,
@@ -179,6 +229,12 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Hook personnalisé pour utiliser le contexte de sélection.
+ *
+ * @returns {SelectionContextType} Le contexte de sélection.
+ * @throws {Error} Si le hook est utilisé en dehors d'un `SelectionProvider`.
+ */
 export function useSelection() {
   const context = useContext(SelectionContext);
   if (context === undefined) {

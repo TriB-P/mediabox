@@ -1,5 +1,9 @@
-// app/components/Tactiques/SelectedActionsPanel.tsx - VERSION CORRIGÉE AVEC REFRESH HIÉRARCHIQUE COMPLET
-
+/**
+ * Ce fichier définit le composant SelectedActionsPanel, qui est un panneau d'actions
+ * affiché lorsque des éléments (sections, tactiques, placements, créatifs) sont sélectionnés.
+ * Il permet d'effectuer des opérations groupées comme la duplication, la suppression et le déplacement
+ * des éléments sélectionnés, en interagissant avec l'état global et les hooks de gestion de la sélection.
+ */
 'use client';
 
 import React, { useMemo, useEffect, useCallback } from 'react';
@@ -13,8 +17,6 @@ import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
 import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
 import { useSimpleMoveModal } from '../../hooks/useSimpleMoveModal';
 import SimpleMoveModal from './SimpleMoveModal';
-
-// ==================== TYPES ====================
 
 interface SelectedItem {
   id: string;
@@ -39,8 +41,11 @@ interface SelectedActionsPanelProps {
   };
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal qui affiche les actions disponibles pour les éléments sélectionnés.
+ * @param {SelectedActionsPanelProps} props - Les propriétés du composant.
+ * @returns {JSX.Element | null} Le panneau d'actions ou null si aucun élément n'est sélectionné.
+ */
 export default function SelectedActionsPanel({
   selectedItems,
   onDuplicateSelected,
@@ -52,22 +57,10 @@ export default function SelectedActionsPanel({
   hierarchyContext
 }: SelectedActionsPanelProps) {
 
-  // ==================== 🔍 DEBUG DU CONTEXTE HIÉRARCHIQUE ====================
-  
-  useEffect(() => {
-    console.log('🔍 DEBUG - Panel reçoit hierarchyContext:', {
-      isDefined: !!hierarchyContext,
-      sections: hierarchyContext?.sections?.length || 0,
-      tactiques: Object.keys(hierarchyContext?.tactiques || {}).length,
-      placements: Object.keys(hierarchyContext?.placements || {}).length,
-      creatifs: Object.keys(hierarchyContext?.creatifs || {}).length,
-      sampleSectionId: hierarchyContext?.sections?.[0]?.id || 'N/A',
-      timestamp: Date.now() // Pour traquer les changements
-    });
-  }, [hierarchyContext]);
-
-  // ==================== HOOK MODAL DE DÉPLACEMENT ====================
-
+  /**
+   * Hook pour la gestion de l'état du modal de déplacement.
+   * Fournit les fonctions pour ouvrir, fermer le modal, sélectionner une destination et confirmer le déplacement.
+   */
   const {
     modalState: moveModalState,
     openModal: openMoveModal,
@@ -77,40 +70,36 @@ export default function SelectedActionsPanel({
     isDestinationComplete
   } = useSimpleMoveModal();
 
-  // ==================== 🔥 CALLBACK DE REFRESH COMPLET ====================
-  
+  /**
+   * Callback pour rafraîchir complètement les données après une opération comme le déplacement.
+   * Il appelle la fonction onRefresh passée en props et efface la sélection après un court délai.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le rafraîchissement terminé.
+   */
   const handleRefreshComplete = useCallback(async () => {
-    console.log('🔄 Début du refresh complet après déplacement...');
-    
     if (!onRefresh) {
-      console.warn('⚠️ Pas de fonction onRefresh disponible');
       return;
     }
-    
+
     try {
-      // Attendre que le refresh soit complètement terminé
       await onRefresh();
-      console.log('✅ Refresh des données terminé');
-      
-      // Attendre un délai pour s'assurer que tous les états sont propagés
       await new Promise(resolve => setTimeout(resolve, 200));
-      console.log('✅ Délai de synchronisation terminé');
-      
-      // 🔥 OPTION 1: Clear la sélection après un déplacement réussi
-      // (puisque les éléments ont changé de position)
       onClearSelection();
-      console.log('✅ Sélection effacée après déplacement');
-      
     } catch (error) {
       console.error('❌ Erreur lors du refresh complet:', error);
-      throw error; // Remonter l'erreur pour que le modal puisse la gérer
+      throw error;
     }
   }, [onRefresh, onClearSelection]);
 
-  // ==================== CALCULS DÉRIVÉS ====================
-
+  /**
+   * Mémoïse les IDs des éléments sélectionnés pour éviter des recalculs inutiles.
+   * @returns {string[]} Un tableau des IDs des éléments sélectionnés.
+   */
   const itemIds = useMemo(() => selectedItems.map(item => item.id), [selectedItems]);
 
+  /**
+   * Calcule le nombre d'éléments sélectionnés par type (section, tactique, placement, creatif).
+   * @returns {object} Un objet contenant le compte de chaque type d'élément.
+   */
   const itemCountsByType = useMemo(() => {
     const counts = {
       section: 0,
@@ -128,12 +117,19 @@ export default function SelectedActionsPanel({
     return counts;
   }, [selectedItems]);
 
+  /**
+   * Calcule le nombre total d'éléments sélectionnés.
+   * @returns {number} Le nombre total d'éléments.
+   */
   const totalCount = selectedItems.length;
 
-  // Texte descriptif de la sélection
+  /**
+   * Génère une description textuelle des éléments sélectionnés.
+   * @returns {string} Une chaîne de caractères décrivant la sélection (ex: "2 sections, 1 tactique").
+   */
   const selectionDescription = useMemo(() => {
     const parts: string[] = [];
-    
+
     if (itemCountsByType.section > 0) {
       parts.push(`${itemCountsByType.section} section${itemCountsByType.section > 1 ? 's' : ''}`);
     }
@@ -150,8 +146,11 @@ export default function SelectedActionsPanel({
     return parts.join(', ');
   }, [itemCountsByType]);
 
-  // ==================== LOGIQUE DE BOUTON DÉPLACER ====================
-
+  /**
+   * Détermine l'état du bouton de déplacement (activé, désactivé, libellé, raison).
+   * Se base sur le résultat de la validation de la sélection.
+   * @returns {object} Un objet contenant l'état et les informations du bouton.
+   */
   const moveButtonState = useMemo(() => {
     if (!validationResult) {
       return {
@@ -173,17 +172,17 @@ export default function SelectedActionsPanel({
 
     const { moveLevel, targetLevel, affectedItemsCount } = validationResult;
     const directCount = selectedItems.length;
-    
+
     const moveLabels: Record<string, string> = {
       'section': 'sections',
       'tactique': 'tactiques',
       'placement': 'placements',
       'creatif': 'créatifs'
     };
-    
+
     const targetLabels: Record<string, string> = {
       'onglet': 'un onglet',
-      'section': 'une section', 
+      'section': 'une section',
       'tactique': 'une tactique',
       'placement': 'un placement'
     };
@@ -202,54 +201,56 @@ export default function SelectedActionsPanel({
     };
   }, [validationResult, selectedItems.length]);
 
-  // ==================== GESTIONNAIRES D'ACTIONS ====================
-
+  /**
+   * Gère l'action de duplication des éléments sélectionnés.
+   * Appelle la fonction onDuplicateSelected passée en props.
+   */
   const handleDuplicate = () => {
     if (loading) return;
     onDuplicateSelected(itemIds);
   };
 
+  /**
+   * Gère l'action de suppression des éléments sélectionnés.
+   * Appelle la fonction onDeleteSelected passée en props.
+   */
   const handleDelete = () => {
     if (loading) return;
     onDeleteSelected(itemIds);
   };
 
+  /**
+   * Gère l'action d'annulation de la sélection.
+   * Appelle la fonction onClearSelection passée en props.
+   */
   const handleClear = () => {
     if (loading) return;
     onClearSelection();
   };
 
-  // ==================== 🔥 GESTIONNAIRE DE DÉPLACEMENT AVEC REFRESH COMPLET ====================
-
+  /**
+   * Gère l'action de déplacement des éléments sélectionnés.
+   * Ouvre le modal de déplacement et passe la fonction de rafraîchissement complète.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le modal ouvert.
+   */
   const handleMove = async () => {
     if (loading || !moveButtonState.canMove || !validationResult) {
-      console.log('🔍 DEBUG - handleMove bloqué:', {
-        loading,
-        canMove: moveButtonState.canMove,
-        hasValidation: !!validationResult
-      });
       return;
     }
-    
-    console.log('🚀 DEBUT handleMove avec refresh complet');
-    
-    // Vérifications de contexte
+
     if (!hierarchyContext) {
       console.error('❌ hierarchyContext est undefined dans handleMove !');
       return;
     }
-    
+
     if (!hierarchyContext.sections || hierarchyContext.sections.length === 0) {
       console.error('❌ hierarchyContext.sections est vide !');
       return;
     }
-    
-    console.log('✅ Contexte validé, ouverture du modal...');
-    
+
     try {
-      // 🔥 CORRECTION: Passer la fonction de refresh complète
       await openMoveModal(
-        validationResult, 
+        validationResult,
         selectedItems.map(item => item.id),
         {
           sections: hierarchyContext?.sections || [],
@@ -257,16 +258,12 @@ export default function SelectedActionsPanel({
           placements: hierarchyContext?.placements || {},
           creatifs: hierarchyContext?.creatifs || {}
         },
-        handleRefreshComplete // 🔥 NOUVEAU: Fonction de refresh complète
+        handleRefreshComplete
       );
-      
-      console.log('✅ openMoveModal appelé avec succès');
     } catch (error) {
       console.error('❌ Erreur dans openMoveModal:', error);
     }
   };
-
-  // ==================== RENDU ====================
 
   if (totalCount === 0) {
     return null;
@@ -276,7 +273,6 @@ export default function SelectedActionsPanel({
     <>
       <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
         <div className="flex items-center justify-between">
-          {/* Informations de sélection */}
           <div className="flex items-center space-x-4">
             <div className="text-sm font-medium text-indigo-900">
               {totalCount} élément{totalCount > 1 ? 's' : ''} sélectionné{totalCount > 1 ? 's' : ''}
@@ -284,18 +280,16 @@ export default function SelectedActionsPanel({
             <div className="text-xs text-indigo-600">
               {selectionDescription}
             </div>
-            
+
           </div>
 
-          {/* Actions */}
           <div className="flex items-center space-x-2">
-            {/* Bouton de déplacement avec validation */}
             <button
               onClick={handleMove}
               disabled={loading || moveButtonState.disabled}
               className={`flex items-center px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                 moveButtonState.canMove && !loading
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
               title={moveButtonState.reason}
@@ -304,7 +298,6 @@ export default function SelectedActionsPanel({
               {moveButtonState.canMove ? 'Déplacer' : 'Invalide'}
             </button>
 
-            {/* Bouton de duplication */}
             <button
               onClick={handleDuplicate}
               disabled={loading}
@@ -314,7 +307,6 @@ export default function SelectedActionsPanel({
               Dupliquer
             </button>
 
-            {/* Bouton de suppression */}
             <button
               onClick={handleDelete}
               disabled={loading}
@@ -324,7 +316,6 @@ export default function SelectedActionsPanel({
               Supprimer
             </button>
 
-            {/* Bouton d'annulation */}
             <button
               onClick={handleClear}
               disabled={loading}
@@ -336,14 +327,12 @@ export default function SelectedActionsPanel({
           </div>
         </div>
 
-        {/* Affichage du statut de validation */}
         {validationResult && !validationResult.canMove && (
           <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
             <strong>Déplacement impossible :</strong> {validationResult.errorMessage}
           </div>
         )}
 
-        {/* Indicateur de chargement */}
         {loading && (
           <div className="mt-2 flex items-center text-xs text-indigo-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
@@ -352,7 +341,6 @@ export default function SelectedActionsPanel({
         )}
       </div>
 
-      {/* Modal de déplacement */}
       <SimpleMoveModal
         modalState={moveModalState}
         onClose={closeMoveModal}

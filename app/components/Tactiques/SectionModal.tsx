@@ -1,3 +1,9 @@
+/**
+ * Ce fichier définit un composant modal utilisé pour créer ou modifier une section.
+ * Il permet à l'utilisateur de saisir un nom de section et de choisir une couleur.
+ * Le modal gère la validation des entrées et les appels de sauvegarde via les props.
+ * Il est conçu pour être réutilisable pour la création et l'édition de sections.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -20,13 +26,24 @@ interface SectionModalProps {
 }
 
 const PREDEFINED_COLORS = [
-  '#5EBFD0', 
+  '#5EBFD0',
   '#F8C207',
-  '#F5659A', 
-  '#25A740', 
-  '#594B96', 
+  '#F5659A',
+  '#25A740',
+  '#594B96',
 ];
 
+/**
+ * Composant SectionModal.
+ *
+ * @param {SectionModalProps} props - Les propriétés du composant.
+ * @param {boolean} props.isOpen - Indique si le modal est ouvert.
+ * @param {function} props.onClose - Fonction à appeler lors de la fermeture du modal.
+ * @param {function} props.onSave - Fonction à appeler lors de la sauvegarde des données de la section.
+ * @param {Section | null} props.section - L'objet section à modifier (si mode est 'edit').
+ * @param {'create' | 'edit'} props.mode - Le mode du modal ('create' pour la création, 'edit' pour la modification).
+ * @returns {JSX.Element | null} Le composant modal ou null s'il n'est pas ouvert.
+ */
 export default function SectionModal({
   isOpen,
   onClose,
@@ -38,7 +55,15 @@ export default function SectionModal({
   const [selectedColor, setSelectedColor] = useState('#6366f1');
   const [errors, setErrors] = useState<{ name?: string }>({});
 
-  // Initialiser les valeurs quand le modal s'ouvre
+  /**
+   * Effet de hook pour initialiser les valeurs du formulaire lors de l'ouverture du modal
+   * ou lorsque le mode ou la section change.
+   *
+   * @param {boolean} isOpen - Indique si le modal est ouvert.
+   * @param {'create' | 'edit'} mode - Le mode actuel du modal.
+   * @param {Section | null} section - L'objet section actuellement édité.
+   * @returns {void}
+   */
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && section) {
@@ -52,17 +77,28 @@ export default function SectionModal({
     }
   }, [isOpen, mode, section]);
 
+  /**
+   * Valide les champs du formulaire.
+   *
+   * @returns {boolean} True si le formulaire est valide, false sinon.
+   */
   const validateForm = () => {
     const newErrors: { name?: string } = {};
-    
+
     if (!name.trim()) {
       newErrors.name = 'Le nom de la section est obligatoire';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Gère la soumission du formulaire.
+   * Valide le formulaire et appelle la fonction onSave si valide.
+   *
+   * @returns {void}
+   */
   const handleSubmit = () => {
     if (!validateForm()) {
       return;
@@ -72,10 +108,16 @@ export default function SectionModal({
       SECTION_Name: name.trim(),
       SECTION_Color: selectedColor
     });
-    
+
     handleClose();
   };
 
+  /**
+   * Gère la fermeture du modal.
+   * Réinitialise les états du formulaire et appelle la fonction onClose.
+   *
+   * @returns {void}
+   */
   const handleClose = () => {
     setName('');
     setSelectedColor('#6366f1');
@@ -83,6 +125,12 @@ export default function SectionModal({
     onClose();
   };
 
+  /**
+   * Gère les événements de touche clavier pour la soumission ou la fermeture du modal.
+   *
+   * @param {React.KeyboardEvent} e - L'événement clavier.
+   * @returns {void}
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -98,7 +146,7 @@ export default function SectionModal({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         {/* Overlay */}
-        <div 
+        <div
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={handleClose}
         />
@@ -157,8 +205,8 @@ export default function SectionModal({
                         type="button"
                         onClick={() => setSelectedColor(color)}
                         className={`w-10 h-10 rounded-full border-2 transition-all duration-200 ${
-                          selectedColor === color 
-                            ? 'border-gray-800 scale-110' 
+                          selectedColor === color
+                            ? 'border-gray-800 scale-110'
                             : 'border-gray-300 hover:border-gray-500'
                         }`}
                         style={{ backgroundColor: color }}
@@ -172,8 +220,8 @@ export default function SectionModal({
                       </button>
                     ))}
                   </div>
-                  
-                  
+
+
                 </div>
 
                 {/* Boutons d'action */}

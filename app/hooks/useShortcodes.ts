@@ -1,5 +1,9 @@
-// app/hooks/useShortcodes.ts - Version avec pagination serveur
-
+/**
+ * Ce hook gère la logique de récupération, de création et de modification des shortcodes.
+ * Il interagit avec les services Firebase pour gérer les dimensions, les shortcodes
+ * spécifiques aux clients et les listes personnalisées de shortcodes, incluant la pagination.
+ * Il fournit également des états de chargement, d'erreur et de succès.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { DocumentSnapshot } from 'firebase/firestore';
 import { useClient } from '../contexts/ClientContext';
@@ -54,54 +58,66 @@ interface UseShortcodesReturn {
   clearMessages: () => void;
 }
 
+/**
+ * Hook personnalisé pour gérer les shortcodes, les dimensions et les interactions Firebase.
+ *
+ * @returns {UseShortcodesReturn} Un objet contenant les données, les états et les fonctions de manipulation des shortcodes.
+ */
 export function useShortcodes(): UseShortcodesReturn {
   const { selectedClient } = useClient();
   
-  // États principaux
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [selectedDimension, setSelectedDimension] = useState<string>('');
   const [shortcodes, setShortcodes] = useState<Shortcode[]>([]);
   const [allShortcodes, setAllShortcodes] = useState<Shortcode[]>([]);
   const [isCustomList, setIsCustomList] = useState(false);
   
-  // États de pagination
   const [lastDocument, setLastDocument] = useState<DocumentSnapshot | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
-  const [pageSize] = useState(50); // Taille de page fixe
+  const [pageSize] = useState(50);
   
-  // États de chargement et messages
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Charger les dimensions au montage du composant
+  /**
+   * Effet de bord pour charger les dimensions au montage initial du composant.
+   */
   useEffect(() => {
     loadDimensions();
   }, []);
 
-  // Charger les shortcodes quand la dimension ou le client change
+  /**
+   * Effet de bord pour charger les shortcodes clients lorsque le client ou la dimension sélectionnée change.
+   */
   useEffect(() => {
     if (selectedClient && selectedDimension) {
       loadClientDimensionShortcodes();
     }
   }, [selectedClient, selectedDimension]);
 
+  /**
+   * Charge toutes les dimensions disponibles et initialise la dimension sélectionnée.
+   * Récupère également tous les shortcodes pour les modals d'ajout.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les dimensions et tous les shortcodes chargés.
+   */
   const loadDimensions = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      console.log("FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadDimensions - Path: dimensions");
       const fetchedDimensions = await getAllDimensions();
       setDimensions(fetchedDimensions);
       
-      // Sélectionner la première dimension par défaut
       if (fetchedDimensions.length > 0 && !selectedDimension) {
         setSelectedDimension(fetchedDimensions[0]);
       }
       
-      // Charger tous les shortcodes disponibles (pour les modals d'ajout)
+      console.log("FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadDimensions - Path: shortcodes");
       const fetchedAllShortcodes = await getAllShortcodes();
       setAllShortcodes(fetchedAllShortcodes);
       
@@ -113,6 +129,13 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Charge les shortcodes pour la dimension et le client sélectionnés, avec gestion de la pagination.
+   * Vérifie également si le client a une liste personnalisée.
+   *
+   * @param {boolean} [resetPagination=true] Indique si la pagination doit être réinitialisée.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les shortcodes chargés.
+   */
   const loadClientDimensionShortcodes = async (resetPagination = true) => {
     if (!selectedClient || !selectedDimension) return;
     
@@ -121,21 +144,20 @@ export function useShortcodes(): UseShortcodesReturn {
       setError(null);
       
       if (resetPagination) {
-        // Réinitialiser la pagination
         setShortcodes([]);
         setLastDocument(null);
         setHasMore(true);
       }
       
-      // Vérifier si le client a une liste personnalisée
+      console.log(`FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadClientDimensionShortcodes - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}`);
       const hasCustom = await hasCustomList(selectedDimension, selectedClient.clientId);
       setIsCustomList(hasCustom);
       
-      // Charger le nombre total (optionnel, pour affichage)
+      console.log(`FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadClientDimensionShortcodes - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}`);
       const count = await getClientDimensionShortcodesCount(selectedDimension, selectedClient.clientId);
       setTotalCount(count);
       
-      // Charger la première page de shortcodes
+      console.log(`FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadClientDimensionShortcodes - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}/shortcodes`);
       const response = await getClientDimensionShortcodesPaginated(
         selectedDimension,
         selectedClient.clientId,
@@ -154,6 +176,11 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Charge la page suivante de shortcodes en utilisant la pagination.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les shortcodes supplémentaires chargés.
+   */
   const loadMoreShortcodes = async () => {
     if (!selectedClient || !selectedDimension || !hasMore || loadingMore || loading) return;
     
@@ -161,6 +188,7 @@ export function useShortcodes(): UseShortcodesReturn {
       setLoadingMore(true);
       setError(null);
       
+      console.log(`FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: loadMoreShortcodes - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}/shortcodes`);
       const response = await getClientDimensionShortcodesPaginated(
         selectedDimension,
         selectedClient.clientId,
@@ -168,7 +196,6 @@ export function useShortcodes(): UseShortcodesReturn {
         lastDocument
       );
       
-      // Ajouter les nouveaux shortcodes à la liste existante
       setShortcodes(prev => [...prev, ...response.shortcodes]);
       setLastDocument(response.lastDoc);
       setHasMore(response.hasMore);
@@ -181,14 +208,27 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Rafraîchit la liste des shortcodes du client et de la dimension sélectionnée.
+   * Utilise useCallback pour mémoriser la fonction.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les shortcodes rafraîchis.
+   */
   const refreshShortcodes = useCallback(async () => {
     if (selectedClient && selectedDimension) {
       await loadClientDimensionShortcodes(true);
     }
   }, [selectedClient, selectedDimension]);
 
+  /**
+   * Rafraîchit tous les shortcodes disponibles.
+   * Utilise useCallback pour mémoriser la fonction.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois tous les shortcodes rafraîchis.
+   */
   const refreshAllShortcodes = useCallback(async () => {
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useShortcodes.ts - Fonction: refreshAllShortcodes - Path: shortcodes");
       const fetchedAllShortcodes = await getAllShortcodes();
       setAllShortcodes(fetchedAllShortcodes);
     } catch (err) {
@@ -197,6 +237,11 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   }, []);
 
+  /**
+   * Crée une liste personnalisée de shortcodes pour le client et la dimension sélectionnés.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois la liste créée.
+   */
   const handleCreateCustomList = async () => {
     if (!selectedClient || !selectedDimension) return;
     
@@ -204,12 +249,12 @@ export function useShortcodes(): UseShortcodesReturn {
       setLoading(true);
       setError(null);
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleCreateCustomList - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}`);
       await createCustomListFromPlusCo(selectedDimension, selectedClient.clientId);
       
       setSuccess('Liste personnalisée créée avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger les shortcodes
       await loadClientDimensionShortcodes(true);
       
     } catch (err) {
@@ -220,6 +265,11 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Supprime la liste personnalisée de shortcodes pour le client et la dimension sélectionnés.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois la liste supprimée.
+   */
   const handleDeleteCustomList = async () => {
     if (!selectedClient || !selectedDimension || !isCustomList) return;
     
@@ -227,12 +277,12 @@ export function useShortcodes(): UseShortcodesReturn {
       setLoading(true);
       setError(null);
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleDeleteCustomList - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}`);
       await deleteCustomList(selectedDimension, selectedClient.clientId);
       
       setSuccess('Liste personnalisée supprimée avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger les shortcodes (maintenant ce sera la liste PlusCo)
       await loadClientDimensionShortcodes(true);
       
     } catch (err) {
@@ -243,6 +293,12 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Ajoute un shortcode à la dimension pour le client spécifié (liste personnalisée ou PlusCo).
+   *
+   * @param {string} shortcodeId L'ID du shortcode à ajouter.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le shortcode ajouté.
+   */
   const handleAddShortcode = async (shortcodeId: string) => {
     if (!selectedClient || !selectedDimension) return;
     
@@ -250,10 +306,9 @@ export function useShortcodes(): UseShortcodesReturn {
       setLoading(true);
       setError(null);
       
-      // Déterminer si on travaille sur une liste PlusCo ou personnalisée
       const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
       
-      // Ajouter le shortcode à la liste appropriée
+      console.log(`FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleAddShortcode - Path: dimensions/${selectedDimension}/clients/${targetClientId}/shortcodes/${shortcodeId}`);
       await addShortcodeToDimension(
         selectedDimension,
         targetClientId,
@@ -263,7 +318,6 @@ export function useShortcodes(): UseShortcodesReturn {
       setSuccess('Shortcode ajouté avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger les shortcodes
       await loadClientDimensionShortcodes(true);
       
     } catch (err) {
@@ -274,22 +328,27 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Supprime un shortcode de la dimension pour le client spécifié (liste personnalisée ou PlusCo).
+   *
+   * @param {string} shortcodeId L'ID du shortcode à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le shortcode supprimé.
+   */
   const handleRemoveShortcode = async (shortcodeId: string) => {
     if (!selectedClient || !selectedDimension) return;
     
     try {
       setError(null);
       
-      // Déterminer si on travaille sur une liste PlusCo ou personnalisée
       const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
       
+      console.log(`FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleRemoveShortcode - Path: dimensions/${selectedDimension}/clients/${targetClientId}/shortcodes/${shortcodeId}`);
       await removeShortcodeFromDimension(
         selectedDimension,
         targetClientId,
         shortcodeId
       );
       
-      // Retirer le shortcode de la liste locale pour un feedback immédiat
       setShortcodes(prev => prev.filter(s => s.id !== shortcodeId));
       setTotalCount(prev => prev - 1);
       
@@ -299,11 +358,18 @@ export function useShortcodes(): UseShortcodesReturn {
     } catch (err) {
       console.error('Erreur lors du retrait du shortcode:', err);
       setError('Impossible de retirer le shortcode.');
-      // Recharger en cas d'erreur pour rétablir l'état correct
       await loadClientDimensionShortcodes(true);
     }
   };
 
+  /**
+   * Crée un nouveau shortcode avec les données fournies.
+   * Si une liste personnalisée est active pour le client, le shortcode est également ajouté à cette liste.
+   *
+   * @param {object} shortcodeData Les données du nouveau shortcode (SH_Code, SH_Default_UTM, SH_Display_Name_FR, SH_Display_Name_EN).
+   * @returns {Promise<void>} Une promesse qui se résout une fois le shortcode créé.
+   * @throws {Error} Si le code ou le nom d'affichage FR sont manquants.
+   */
   const handleCreateShortcode = async (shortcodeData: {
     SH_Code: string;
     SH_Default_UTM: string;
@@ -319,23 +385,22 @@ export function useShortcodes(): UseShortcodesReturn {
       setLoading(true);
       setError(null);
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleCreateShortcode - Path: shortcodes");
       const shortcodeId = await createShortcode(shortcodeData);
       
       setSuccess('Shortcode créé avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger tous les shortcodes
       await refreshAllShortcodes();
       
-      // Si le client a une liste personnalisée, ajouter directement le shortcode
       if (selectedClient && selectedDimension && isCustomList) {
+        console.log(`FIREBASE: ÉCRITURE - Fichier: useShortcodes.ts - Fonction: handleCreateShortcode - Path: dimensions/${selectedDimension}/clients/${selectedClient.clientId}/shortcodes/${shortcodeId}`);
         await addShortcodeToDimension(
           selectedDimension,
           selectedClient.clientId,
           shortcodeId
         );
         
-        // Recharger les shortcodes
         await loadClientDimensionShortcodes(true);
       }
       
@@ -348,30 +413,29 @@ export function useShortcodes(): UseShortcodesReturn {
     }
   };
 
+  /**
+   * Efface les messages d'erreur et de succès.
+   */
   const clearMessages = () => {
     setError(null);
     setSuccess(null);
   };
 
   return {
-    // Données
     dimensions,
     selectedDimension,
     shortcodes,
     allShortcodes,
     isCustomList,
     
-    // Pagination
     hasMore,
     totalCount,
     
-    // États
     loading,
     loadingMore,
     error,
     success,
     
-    // Actions
     setSelectedDimension,
     loadMoreShortcodes,
     refreshShortcodes,

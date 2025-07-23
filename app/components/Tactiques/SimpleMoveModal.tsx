@@ -1,4 +1,8 @@
-// app/components/Tactiques/SimpleMoveModal.tsx - Modal de déplacement simplifié
+/**
+ * Ce fichier définit le composant `SimpleMoveModal`, une modale utilisée pour déplacer des éléments (tactiques, sections, etc.) au sein de l'application.
+ * Elle permet à l'utilisateur de sélectionner une nouvelle destination via une interface en cascade (campagne, version, onglet, etc.)
+ * et de confirmer le déplacement. La modale gère différents états : sélection de destination, affichage de la progression du déplacement, et affichage des résultats.
+ */
 
 'use client';
 
@@ -22,8 +26,6 @@ interface SimpleMoveModalProps {
   isDestinationComplete: boolean;
 }
 
-// ==================== COMPOSANT NIVEAU DE CASCADE ====================
-
 interface CascadeLevelComponentProps {
   title: string;
   items: CascadeItem[];
@@ -35,6 +37,20 @@ interface CascadeLevelComponentProps {
   searchable?: boolean;
 }
 
+/**
+ * Composant `CascadeLevelComponent`
+ * Affiche un niveau de sélection dans la cascade de destination (ex: Campagnes, Versions, Onglets).
+ * Prend en paramètres:
+ * - `title`: Le titre du niveau (ex: "Campagne").
+ * - `items`: Un tableau d'éléments à afficher dans ce niveau.
+ * - `selectedId`: L'identifiant de l'élément actuellement sélectionné.
+ * - `loading`: Indique si les éléments sont en cours de chargement.
+ * - `onSelect`: Fonction de rappel appelée lorsqu'un élément est sélectionné.
+ * - `isVisible`: Indique si ce niveau doit être affiché.
+ * - `isRequired`: Indique si la sélection d'un élément dans ce niveau est obligatoire.
+ * - `searchable`: Indique si une barre de recherche doit être affichée pour filtrer les éléments.
+ * Retourne: Un composant React affichant le niveau de sélection ou null s'il n'est pas visible.
+ */
 const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
   title,
   items,
@@ -51,7 +67,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
     if (!searchable || !searchTerm.trim()) {
       return items;
     }
-    return items.filter(item => 
+    return items.filter(item =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -63,7 +79,6 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
 
   return (
     <div className="border-b border-gray-200 last:border-b-0">
-      {/* En-tête du niveau */}
       <div className="bg-gray-50 px-4 py-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium text-gray-900 capitalize">
@@ -74,8 +89,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
             <ArrowPathIcon className="h-4 w-4 text-gray-400 animate-spin" />
           )}
         </div>
-        
-        {/* Barre de recherche pour les campagnes */}
+
         {searchable && items.length > 0 && (
           <div className="mt-2 relative">
             <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -90,7 +104,6 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
         )}
       </div>
 
-      {/* Contenu du niveau */}
       <div className="max-h-48 overflow-y-auto">
         {loading ? (
           <div className="p-4 text-center text-gray-500">
@@ -143,16 +156,22 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
   );
 };
 
-// ==================== COMPOSANT RÉSUMÉ DE DESTINATION ====================
-
 interface DestinationSummaryProps {
   destination: any;
   targetLevel?: string;
 }
 
+/**
+ * Composant `DestinationSummary`
+ * Affiche un résumé de la destination actuellement sélectionnée par l'utilisateur.
+ * Prend en paramètres:
+ * - `destination`: Un objet contenant les noms des éléments sélectionnés pour la destination (ex: campaignName, versionName).
+ * - `targetLevel`: Le niveau cible de l'opération de déplacement.
+ * Retourne: Un composant React affichant le chemin complet de la destination sélectionnée ou null si aucune destination n'est définie.
+ */
 const DestinationSummary: React.FC<DestinationSummaryProps> = ({ destination, targetLevel }) => {
   const pathElements = [];
-  
+
   if (destination.campaignName) {
     pathElements.push({ label: 'Campagne', value: destination.campaignName });
   }
@@ -191,8 +210,17 @@ const DestinationSummary: React.FC<DestinationSummaryProps> = ({ destination, ta
   );
 };
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant `SimpleMoveModal`
+ * Modale principale pour le déplacement d'éléments.
+ * Prend en paramètres:
+ * - `modalState`: L'état actuel de la modale, géré par un hook (`useSimpleMoveModal`).
+ * - `onClose`: Fonction de rappel pour fermer la modale.
+ * - `onSelectDestination`: Fonction de rappel appelée lorsqu'un élément de destination est sélectionné.
+ * - `onConfirmMove`: Fonction de rappel pour confirmer l'opération de déplacement.
+ * - `isDestinationComplete`: Booléen indiquant si une destination complète et valide a été sélectionnée.
+ * Retourne: Le composant de la modale ou null si elle n'est pas ouverte.
+ */
 export default function SimpleMoveModal({
   modalState,
   onClose,
@@ -200,28 +228,32 @@ export default function SimpleMoveModal({
   onConfirmMove,
   isDestinationComplete
 }: SimpleMoveModalProps) {
-  
+
   if (!modalState.isOpen) {
     return null;
   }
 
   const { step, validationResult, destination, error, result, processing } = modalState;
 
-  // ==================== DÉTERMINER LES NIVEAUX VISIBLES ====================
-  
+  /**
+   * Fonction `shouldShowLevel`
+   * Détermine si un niveau de cascade donné doit être visible en fonction du niveau cible de l'opération de déplacement.
+   * Prend en paramètre:
+   * - `level`: Le niveau à vérifier (ex: 'campaign', 'version', 'onglet').
+   * Retourne: `true` si le niveau doit être affiché, `false` sinon.
+   */
   const shouldShowLevel = (level: string): boolean => {
     if (!validationResult) return false;
-    
+
     const targetLevel = validationResult.targetLevel;
-    
-    // Vérification de sécurité pour éviter l'erreur TypeScript
+
     if (!targetLevel) return false;
-    
+
     switch (level) {
       case 'campaign':
       case 'version':
       case 'onglet':
-        return true; // Toujours visibles
+        return true;
       case 'section':
         return ['section', 'tactique', 'placement'].includes(targetLevel);
       case 'tactique':
@@ -233,14 +265,18 @@ export default function SimpleMoveModal({
     }
   };
 
-  // ==================== RENDU SELON L'ÉTAPE ====================
-
+  /**
+   * Fonction `renderContent`
+   * Rend le contenu de la modale en fonction de l'étape actuelle du processus de déplacement.
+   * Gère les étapes 'destination', 'progress' et 'result'.
+   * Ne prend aucun paramètre.
+   * Retourne: Le JSX correspondant à l'étape actuelle.
+   */
   const renderContent = () => {
     switch (step) {
       case 'destination':
         return (
           <>
-            {/* En-tête */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -271,11 +307,9 @@ export default function SimpleMoveModal({
               </div>
             </div>
 
-            {/* Sélection en cascade */}
             <div className="flex-1 overflow-hidden">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 h-full">
-                
-                {/* Campagnes */}
+
                 <CascadeLevelComponent
                   title="Campagne"
                   items={modalState.campaigns}
@@ -287,7 +321,6 @@ export default function SimpleMoveModal({
                   searchable={true}
                 />
 
-                {/* Versions */}
                 <CascadeLevelComponent
                   title="Version"
                   items={modalState.versions}
@@ -298,7 +331,6 @@ export default function SimpleMoveModal({
                   isRequired={true}
                 />
 
-                {/* Onglets */}
                 <CascadeLevelComponent
                   title="Onglet"
                   items={modalState.onglets}
@@ -309,7 +341,6 @@ export default function SimpleMoveModal({
                   isRequired={true}
                 />
 
-                {/* Sections */}
                 <CascadeLevelComponent
                   title="Section"
                   items={modalState.sections}
@@ -320,7 +351,6 @@ export default function SimpleMoveModal({
                   isRequired={shouldShowLevel('section')}
                 />
 
-                {/* Tactiques */}
                 <CascadeLevelComponent
                   title="Tactique"
                   items={modalState.tactiques}
@@ -331,7 +361,6 @@ export default function SimpleMoveModal({
                   isRequired={shouldShowLevel('tactique')}
                 />
 
-                {/* Placements */}
                 <CascadeLevelComponent
                   title="Placement"
                   items={modalState.placements}
@@ -345,17 +374,16 @@ export default function SimpleMoveModal({
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
               {isDestinationComplete && (
                 <div className="mb-4">
-                  <DestinationSummary 
-                    destination={destination} 
+                  <DestinationSummary
+                    destination={destination}
                     targetLevel={validationResult?.targetLevel}
                   />
                 </div>
               )}
-              
+
               {error && (
                 <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                   <div className="flex items-center">
@@ -415,11 +443,11 @@ export default function SimpleMoveModal({
               ) : (
                 <ExclamationTriangleIcon className="h-12 w-12 text-red-600 mx-auto mb-4" />
               )}
-              
+
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 {result?.success ? 'Déplacement réussi !' : 'Déplacement échoué'}
               </h3>
-              
+
               {result && (
                 <div className="text-sm text-gray-600 space-y-1">
                   <div>
@@ -434,7 +462,6 @@ export default function SimpleMoveModal({
               )}
             </div>
 
-            {/* Erreurs */}
             {result?.errors && result.errors.length > 0 && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                 <h4 className="text-sm font-medium text-red-800 mb-2">Erreurs :</h4>
@@ -449,7 +476,6 @@ export default function SimpleMoveModal({
               </div>
             )}
 
-            {/* Avertissements */}
             {result?.warnings && result.warnings.length > 0 && (
               <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <h4 className="text-sm font-medium text-yellow-800 mb-2">Avertissements :</h4>
@@ -482,16 +508,14 @@ export default function SimpleMoveModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Overlay */}
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div 
+        <div
           className="fixed inset-0 transition-opacity"
           onClick={step === 'destination' ? onClose : undefined}
         >
           <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
 
-        {/* Modal */}
         <div className="inline-block w-full max-w-6xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
           <div className="flex flex-col h-[80vh]">
             {renderContent()}

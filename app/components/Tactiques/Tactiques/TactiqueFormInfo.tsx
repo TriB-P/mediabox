@@ -1,13 +1,18 @@
+// app/components/TactiqueFormInfo.tsx
+/**
+ * Ce fichier définit le composant React `TactiqueFormInfo`.
+ * Il s'agit d'une section de formulaire dédiée à la saisie des informations générales d'une "tactique".
+ * Ce composant est "pur" (présentationnel) : il reçoit l'état du formulaire et les fonctions pour le modifier via ses props,
+ * mais ne gère pas l'état lui-même. Il affiche les champs pour l'étiquette, l'enveloppe budgétaire et gère l'état de chargement.
+ */
 'use client';
 
 import React, { memo } from 'react';
-import { 
-  FormInput, 
-  SmartSelect, 
-  createLabelWithHelp 
+import {
+  FormInput,
+  SmartSelect,
+  createLabelWithHelp
 } from './TactiqueFormComponents';
-
-// ==================== TYPES ====================
 
 interface CampaignBucket {
   id: string;
@@ -18,7 +23,6 @@ interface CampaignBucket {
 }
 
 interface TactiqueFormInfoProps {
-  // Données du formulaire
   formData: {
     TC_Label?: string;
     TC_Budget?: number;
@@ -28,20 +32,23 @@ interface TactiqueFormInfoProps {
     TC_EndDate?: string;
     TC_Bucket?: string;
   };
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  
-  // Données externes
   buckets: CampaignBucket[];
-  
-  // État de chargement
   loading?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche la section "Informations générales" du formulaire de création/édition d'une tactique.
+ * Ce composant est optimisé avec `React.memo` pour éviter les rendus inutiles.
+ * @param {object} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données actuelles des champs du formulaire.
+ * @param {Function} props.onChange - La fonction de rappel à exécuter lorsqu'un champ du formulaire change.
+ * @param {Function} props.onTooltipChange - La fonction de rappel pour afficher une infobulle d'aide.
+ * @param {CampaignBucket[]} props.buckets - La liste des enveloppes budgétaires disponibles pour la campagne.
+ * @param {boolean} [props.loading=false] - Un booléen indiquant si les données sont en cours de chargement. Si true, les champs sont désactivés.
+ * @returns {JSX.Element} Le JSX représentant la section du formulaire.
+ */
 const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
   formData,
   onChange,
@@ -49,7 +56,6 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
   buckets,
   loading = false
 }) => {
-  // Options pour le statut
   const statusOptions = [
     { id: 'Planned', label: 'Planifié' },
     { id: 'Active', label: 'Actif' },
@@ -57,12 +63,10 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
     { id: 'Cancelled', label: 'Annulé' },
   ];
 
-  // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
   return (
     <div className="p-8 space-y-6">
-      {/* En-tête de section */}
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
           Informations générales
@@ -71,11 +75,8 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           Configuration de base de la tactique
         </p>
       </div>
-      
-      {/* Champs du formulaire */}
+
       <div className="space-y-6">
-        
-        {/* TC_Label - Champ obligatoire */}
         <FormInput
           id="TC_Label"
           name="TC_Label"
@@ -85,34 +86,31 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           placeholder="Ex: Bannières Display Google"
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Étiquette *', 
-            'Open string. Pas de contraintes', 
+            'Étiquette *',
+            'Open string. Pas de contraintes',
             onTooltipChange
           )}
         />
 
-       
-        {/* TC_Bucket - Seulement si des buckets sont disponibles */}
         {buckets.length > 0 && (
           <SmartSelect
             id="TC_Bucket"
             name="TC_Bucket"
             value={formData.TC_Bucket || ''}
             onChange={onChange}
-            options={buckets.map(bucket => ({ 
-              id: bucket.id, 
-              label: bucket.name 
+            options={buckets.map(bucket => ({
+              id: bucket.id,
+              label: bucket.name
             }))}
             placeholder="Sélectionner une enveloppe..."
             label={createLabelWithHelp(
-              'Enveloppe', 
-              'Liste des buckets dans la campagne. Une sélection possible', 
+              'Enveloppe',
+              'Liste des buckets dans la campagne. Une sélection possible',
               onTooltipChange
             )}
           />
         )}
 
-        {/* TC_Order - Champ caché pour l'ordre */}
         <input
           type="hidden"
           name="TC_Order"
@@ -121,18 +119,16 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
         />
       </div>
 
-      {/* Message d'information si en chargement */}
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données...</p>
         </div>
       )}
 
-      {/* Message d'information si aucun bucket */}
       {buckets.length === 0 && !loading && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            Aucune enveloppe budgétaire définie pour cette campagne. 
+            Aucune enveloppe budgétaire définie pour cette campagne.
             Vous pouvez créer des enveloppes dans la section Stratégie.
           </p>
         </div>

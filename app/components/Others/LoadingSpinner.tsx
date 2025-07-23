@@ -1,22 +1,32 @@
-// app/components/Others/LoadingSpinner.tsx
-
+/**
+ * Ce fichier contient un composant React `LoadingSpinner` et un hook personnalisé `useMinimumLoading`.
+ * Leur but est d'afficher une animation de chargement pendant au moins une durée minimale
+ * pour éviter les flashs d'interface (UI) lorsque les données se chargent très rapidement.
+ * Cela améliore l'expérience utilisateur en donnant une impression de fluidité.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 
 interface LoadingSpinnerProps {
-  /** Chemin vers le gif d'animation (ex: "/images/loading.gif") */
   gifPath?: string;
-  /** Durée minimum d'affichage en millisecondes (défaut: 2000ms) */
   minimumDuration?: number;
-  /** Message à afficher sous l'animation */
   message?: string;
-  /** Classe CSS personnalisée pour le conteneur */
   className?: string;
-  /** Fonction appelée quand le timer minimum est écoulé */
   onMinimumTimeElapsed?: () => void;
 }
 
+/**
+ * Affiche un spinner de chargement avec un message et une barre de progression.
+ * Le spinner est garanti de s'afficher pendant une durée minimale pour une meilleure expérience utilisateur.
+ * @param {object} props - Les propriétés du composant.
+ * @param {string} [props.gifPath="/images/loading.gif"] - Chemin vers le fichier GIF d'animation.
+ * @param {number} [props.minimumDuration=2000] - Durée minimale d'affichage du spinner en millisecondes.
+ * @param {string} [props.message="Chargement en cours..."] - Le message à afficher sous le spinner.
+ * @param {string} [props.className=""] - Classes CSS additionnelles pour le conteneur principal.
+ * @param {() => void} [props.onMinimumTimeElapsed] - Une fonction de callback exécutée une fois la durée minimale écoulée.
+ * @returns {React.ReactElement} Le composant de chargement.
+ */
 export default function LoadingSpinner({
   gifPath = "/images/loading.gif",
   minimumDuration = 2000,
@@ -39,25 +49,21 @@ export default function LoadingSpinner({
 
   return (
     <div className={`flex flex-col items-center justify-center p-8 bg-white rounded-lg shadow ${className}`}>
-      {/* Container pour le gif */}
       <div className="mb-4 flex items-center justify-center">
         <img 
           src={gifPath}
           alt="Chargement..."
           className="max-w-32 max-h-32 object-contain"
           onError={(e) => {
-            // Fallback en cas d'erreur de chargement du gif
             console.warn(`Impossible de charger le gif: ${gifPath}`);
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
         
-        {/* Fallback spinner CSS si le gif ne charge pas */}
         <div 
           className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
           style={{ display: 'none' }}
           onLoad={(e) => {
-            // Si le gif se charge correctement, cacher le spinner de fallback
             const img = (e.target as HTMLElement).parentElement?.querySelector('img');
             if (img && !img.complete) {
               (e.target as HTMLElement).style.display = 'block';
@@ -66,13 +72,11 @@ export default function LoadingSpinner({
         />
       </div>
       
-      {/* Message de chargement */}
       <div className="text-center">
         <div className="text-sm font-medium text-gray-900 mb-2">
           {message}
         </div>
         
-        {/* Barre de progression minimale */}
         <div className="w-48 bg-gray-200 rounded-full h-1">
           <div 
             className={`h-1 rounded-full transition-all duration-300 ease-out ${
@@ -84,7 +88,6 @@ export default function LoadingSpinner({
           />
         </div>
         
-        {/* Indicateur de temps écoulé */}
         {minimumTimeElapsed && (
           <div className="text-xs text-green-600 mt-2 animate-fade-in">
             ✓ Prêt
@@ -95,7 +98,13 @@ export default function LoadingSpinner({
   );
 }
 
-// Hook personnalisé pour gérer le loading avec timer minimum
+/**
+ * Un hook personnalisé pour gérer un état de chargement qui doit durer un temps minimum.
+ * Utile pour éviter de masquer un spinner de chargement trop rapidement.
+ * @param {boolean} isLoading - L'état de chargement brut (par exemple, venant d'une requête de données).
+ * @param {number} [minimumDuration=2000] - La durée minimale en millisecondes pendant laquelle le chargement doit être affiché.
+ * @returns {boolean} Retourne `true` si le chargement doit être affiché, `false` sinon.
+ */
 export function useMinimumLoading(isLoading: boolean, minimumDuration: number = 2000) {
   const [showLoading, setShowLoading] = useState(isLoading);
   const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);

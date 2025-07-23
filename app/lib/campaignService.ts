@@ -1,5 +1,10 @@
-// app/lib/campaignService.ts - MISE À JOUR fonction duplicateCampaign
-
+/**
+ * Ce fichier gère toutes les opérations CRUD (Création, Lecture, Mise à jour, Suppression)
+ * liées aux campagnes dans Firebase Firestore.
+ * Il inclut également la logique pour dupliquer des campagnes entières,
+ * créer des versions originales de campagnes et gérer les breakdowns par défaut associés.
+ * C'est le point central pour interagir avec la collection 'campaigns' de Firebase.
+ */
 import {
   collection,
   doc,
@@ -12,22 +17,30 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Campaign, CampaignFormData } from '../types/campaign';
-import { 
-  createDefaultBreakdown, 
-  updateDefaultBreakdownDates, 
-  ensureDefaultBreakdownExists 
+import {
+  createDefaultBreakdown,
+  updateDefaultBreakdownDates,
+  ensureDefaultBreakdownExists
 } from './breakdownService';
 import {
-  duplicateCompleteCampaign // 🔥 NOUVELLE IMPORT
+  duplicateCompleteCampaign
 } from './campaignDuplicationUtils';
 
-// La fonction createOriginalVersion reste inchangée
+/**
+ * Crée une version "Originale" pour une campagne donnée dans Firebase.
+ * Cette version est marquée comme officielle et enregistre l'utilisateur et la date de création.
+ * @param CA_Client L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne.
+ * @param userEmail L'e-mail de l'utilisateur qui crée la version.
+ * @returns L'identifiant du document de la version originale créée.
+ */
 async function createOriginalVersion(
   CA_Client: string,
   campaignId: string,
   userEmail: string
 ): Promise<string> {
   try {
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createOriginalVersion - Path: clients/${CA_Client}/campaigns/${campaignId}/versions");
     const versionsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions');
     const originalVersion = {
       name: 'Originale',
@@ -36,6 +49,7 @@ async function createOriginalVersion(
       createdBy: userEmail,
     };
     const docRef = await addDoc(versionsRef, originalVersion);
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createOriginalVersion - Path: clients/${CA_Client}/campaigns/${campaignId}");
     const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     await updateDoc(campaignRef, { officialVersionId: docRef.id });
     return docRef.id;
@@ -45,9 +59,15 @@ async function createOriginalVersion(
   }
 }
 
-// getCampaigns reste inchangée
+/**
+ * Récupère toutes les campagnes pour un client donné, triées par date de début.
+ * Assure également qu'un breakdown par défaut existe pour chaque campagne si les dates sont présentes.
+ * @param CA_Client L'identifiant du client.
+ * @returns Une promesse qui résout en un tableau d'objets Campaign.
+ */
 export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
   try {
+    console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: getCampaigns - Path: clients/${CA_Client}/campaigns");
     const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const q = query(campaignsCollection, orderBy('CA_Start_Date', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -74,13 +94,23 @@ export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
   }
 }
 
+/**
+ * Crée une nouvelle campagne dans Firebase avec les données fournies.
+ * Initialise également une version originale et, si nécessaire, des breakdowns additionnels ou un breakdown par défaut.
+ * @param CA_Client L'identifiant du client.
+ * @param campaignData Les données du formulaire de la nouvelle campagne.
+ * @param userEmail L'e-mail de l'utilisateur qui crée la campagne.
+ * @param additionalBreakdowns Un tableau optionnel de breakdowns à ajouter lors de la création.
+ * @returns L'identifiant du document de la campagne créée.
+ */
 export async function createCampaign(
   CA_Client: string,
   campaignData: CampaignFormData,
   userEmail: string,
-  additionalBreakdowns: any[] = [] 
+  additionalBreakdowns: any[] = []
 ): Promise<string> {
   try {
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createCampaign - Path: clients/${CA_Client}/campaigns");
     const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const now = new Date().toISOString();
 
@@ -138,13 +168,21 @@ export async function createCampaign(
   }
 }
 
-// updateCampaign reste inchangée
+/**
+ * Met à jour une campagne existante dans Firebase avec les nouvelles données.
+ * Si les dates de début ou de fin de la campagne changent, met à jour les dates du breakdown par défaut.
+ * @param CA_Client L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne à mettre à jour.
+ * @param campaignData Les données du formulaire mises à jour pour la campagne.
+ * @returns Une promesse qui résout une fois la mise à jour terminée.
+ */
 export async function updateCampaign(
   CA_Client: string,
   campaignId: string,
   campaignData: CampaignFormData
 ): Promise<void> {
   try {
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: updateCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}");
     const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     const now = new Date().toISOString();
 
@@ -179,9 +217,9 @@ export async function updateCampaign(
 
     await updateDoc(campaignRef, updatedCampaign);
 
-    if (oldCampaign && 
-        (oldCampaign.CA_Start_Date !== campaignData.CA_Start_Date || 
-         oldCampaign.CA_End_Date !== campaignData.CA_End_Date)) {
+    if (oldCampaign &&
+      (oldCampaign.CA_Start_Date !== campaignData.CA_Start_Date ||
+        oldCampaign.CA_End_Date !== campaignData.CA_End_Date)) {
       await ensureDefaultBreakdownExists(
         CA_Client,
         campaignId,
@@ -201,29 +239,45 @@ export async function updateCampaign(
   }
 }
 
-// deleteCampaign reste inchangée  
+/**
+ * Supprime une campagne ainsi que toutes ses sous-collections (versions et breakdowns) de Firebase.
+ * @param CA_Client L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne à supprimer.
+ * @returns Une promesse qui résout une fois la suppression terminée.
+ */
 export async function deleteCampaign(
   CA_Client: string,
   campaignId: string
 ): Promise<void> {
-    try {
-        const subcollections = ['versions', 'breakdowns'];
-        for (const subcollection of subcollections) {
-            const subRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, subcollection);
-            const snapshot = await getDocs(subRef);
-            for (const doc of snapshot.docs) {
-                await deleteDoc(doc.ref);
-            }
-        }
-        const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
-        await deleteDoc(campaignRef);
-    } catch (error) {
-        console.error('Erreur lors de la suppression de la campagne:', error);
-        throw error;
+  try {
+    const subcollections = ['versions', 'breakdowns'];
+    for (const subcollection of subcollections) {
+      console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/${subcollection}");
+      const subRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, subcollection);
+      const snapshot = await getDocs(subRef);
+      for (const doc of snapshot.docs) {
+        console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: ${doc.ref.path}");
+        await deleteDoc(doc.ref);
+      }
     }
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}");
+    const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
+    await deleteDoc(campaignRef);
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la campagne:', error);
+    throw error;
+  }
 }
 
-// 🔥 NOUVELLE FONCTION: Duplication complète
+/**
+ * Duplique une campagne existante, y compris ses versions et ses breakdowns,
+ * et crée une nouvelle campagne avec les données copiées.
+ * @param CA_Client L'identifiant du client.
+ * @param sourceCampaignId L'identifiant de la campagne source à dupliquer.
+ * @param userEmail L'e-mail de l'utilisateur qui effectue la duplication.
+ * @param newName Un nouveau nom optionnel pour la campagne dupliquée.
+ * @returns L'identifiant du document de la nouvelle campagne dupliquée.
+ */
 export async function duplicateCampaign(
   CA_Client: string,
   sourceCampaignId: string,
@@ -231,23 +285,16 @@ export async function duplicateCampaign(
   newName?: string
 ): Promise<string> {
   try {
-    console.log('🚀 Début duplication campagne complète:', sourceCampaignId);
-    
-    // 1. Récupérer la campagne source
     const campaigns = await getCampaigns(CA_Client);
     const sourceCampaign = campaigns.find(c => c.id === sourceCampaignId);
     if (!sourceCampaign) {
       throw new Error('Campagne source non trouvée');
     }
-    
-    console.log('📋 Campagne source trouvée:', sourceCampaign.CA_Name);
-    
-    // 2. Préparer les données de la nouvelle campagne
+
     const newCampaignData: any = { ...sourceCampaign };
     delete newCampaignData.id;
     delete newCampaignData.officialVersionId;
-    
-    // 🔥 CORRECTION BUG #1: Améliorer la logique de nommage
+
     const originalName = sourceCampaign.CA_Name || 'Campagne sans nom';
     newCampaignData.CA_Name = newName || `${originalName} - Copie`;
     newCampaignData.CA_Status = 'Draft';
@@ -255,27 +302,17 @@ export async function duplicateCampaign(
     newCampaignData.updatedAt = new Date().toISOString();
     newCampaignData.CA_Last_Edit = new Date().toISOString();
 
-    console.log('📝 Nouveau nom de campagne:', newCampaignData.CA_Name);
-
-    // 3. Créer la nouvelle campagne (structure de base)
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: duplicateCampaign - Path: clients/${CA_Client}/campaigns");
     const campaignsCollection = collection(db, 'clients', CA_Client, 'campaigns');
     const docRef = await addDoc(campaignsCollection, newCampaignData);
     const newCampaignId = docRef.id;
-    
-    console.log('✅ Campagne de base créée:', newCampaignId);
 
-    // 4. 🔥 NOUVELLE LOGIQUE: Dupliquer TOUT le contenu avec la fonction complète
     await duplicateCompleteCampaign(CA_Client, sourceCampaignId, newCampaignId);
-    
-    // 🔥 CORRECTION BUG #2: NE PAS créer de version "original" lors d'une duplication
-    // Les versions sont déjà copiées avec tout leur contenu par duplicateCompleteCampaign()
-    console.log('ℹ️ Versions déjà copiées, pas de création de version "original"');
 
-    console.log('🎉 Duplication complète terminée avec succès!');
     return newCampaignId;
-    
+
   } catch (error) {
-    console.error('❌ Erreur lors de la duplication complète de campagne:', error);
+    console.error('Erreur lors de la duplication complète de campagne:', error);
     throw error;
   }
 }

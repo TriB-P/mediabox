@@ -1,7 +1,14 @@
+/**
+ * Ce fichier définit le composant React `BudgetBucket`.
+ * Ce composant est responsable de l'affichage d'un "bucket" (une catégorie) de budget.
+ * Il permet à l'utilisateur de voir les détails du budget, de le modifier (nom, description, montant)
+ * et de le supprimer. Il gère son propre état d'édition et communique avec le composant parent
+ * via des fonctions de rappel (callbacks) pour mettre à jour ou supprimer les données.
+ */
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface Bucket {
   id: string;
@@ -33,6 +40,22 @@ interface BudgetBucketProps {
   formatCurrency: (amount: number) => string;
 }
 
+/**
+ * Affiche une carte pour un "bucket" de budget individuel.
+ * Gère l'affichage, le mode édition, la mise à jour, et la suppression de ce bucket.
+ * @param {BudgetBucketProps} props - Les propriétés du composant.
+ * @param {Bucket} props.bucket - L'objet contenant les données du bucket.
+ * @param {number} props.totalBudget - Le budget total pour calculer les pourcentages.
+ * @param {() => void} props.onDelete - Callback pour supprimer le bucket.
+ * @param {(bucket: Bucket) => void} props.onUpdate - Callback pour mettre à jour le bucket.
+ * @param {(id: string, percentage: number) => void} props.onSliderChange - Callback pour changer le pourcentage (non utilisé directement).
+ * @param {(id: string, amount: number) => void} props.onAmountChange - Callback pour changer le montant (non utilisé directement).
+ * @param {(id: string, color: string) => void} props.onColorChange - Callback pour changer la couleur du bucket.
+ * @param {string[]} props.availableColors - La liste des couleurs disponibles pour le sélecteur.
+ * @param {Publisher[]} props.publisherLogos - La liste des éditeurs avec leurs logos.
+ * @param {(amount: number) => string} props.formatCurrency - Fonction pour formater un nombre en devise.
+ * @returns {React.ReactElement} Le JSX du composant BudgetBucket.
+ */
 const BudgetBucket: React.FC<BudgetBucketProps> = ({
   bucket,
   totalBudget,
@@ -53,14 +76,16 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
-  // Formatage des chiffres
   const formattedTarget = formatCurrency(bucket.target);
   const formattedActual = formatCurrency(bucket.actual);
   const difference = bucket.actual - bucket.target;
   const formattedDifference = formatCurrency(Math.abs(difference));
   const isDifferencePositive = difference > 0;
 
-  // Cliquer en dehors pour fermer les dropdowns
+  /**
+   * Hook d'effet pour gérer la fermeture du sélecteur de couleur
+   * lorsqu'un clic est détecté en dehors de celui-ci.
+   */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
@@ -74,7 +99,10 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
     };
   }, []);
 
-  // Mettre à jour les valeurs d'édition quand le bucket change
+  /**
+   * Hook d'effet pour synchroniser l'état d'édition local
+   * avec les données du bucket si celles-ci changent depuis le parent.
+   */
   useEffect(() => {
     setEditName(bucket.name);
     setEditDescription(bucket.description);
@@ -82,7 +110,12 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
     setEditPercentage(bucket.percentage);
   }, [bucket]);
 
+  /**
+   * Sauvegarde les modifications apportées au bucket en appelant la fonction `onUpdate`
+   * et désactive le mode édition.
+   */
   const handleEditSave = () => {
+    console.log(`FIREBASE: ÉCRITURE - Fichier: BudgetBucket.tsx - Fonction: handleEditSave - Path: budgets/${bucket.id}`);
     onUpdate({
       ...bucket,
       name: editName,
@@ -93,6 +126,10 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
     setIsEditing(false);
   };
 
+  /**
+   * Annule les modifications en cours, réinitialise les champs
+   * à leurs valeurs d'origine et désactive le mode édition.
+   */
   const handleEditCancel = () => {
     setEditName(bucket.name);
     setEditDescription(bucket.description);
@@ -101,27 +138,34 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
     setIsEditing(false);
   };
 
+  /**
+   * Gère le changement de la valeur dans le champ de saisie du montant.
+   * Met à jour le montant et recalcule le pourcentage correspondant par rapport au budget total.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement du champ de saisie.
+   */
   const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newAmount = parseFloat(e.target.value) || 0;
     setEditTarget(newAmount);
     
-    // Calculer le nouveau pourcentage basé sur le montant
     if (totalBudget > 0) {
       const newPercentage = Math.round((newAmount / totalBudget) * 100);
       setEditPercentage(newPercentage);
     }
   };
 
+  /**
+   * Gère le changement de la valeur du curseur (slider) de pourcentage.
+   * Met à jour le pourcentage et recalcule le montant cible correspondant.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement du curseur.
+   */
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPercentage = parseInt(e.target.value);
     setEditPercentage(newPercentage);
     
-    // Calculer le nouveau montant cible basé sur le pourcentage
     const newTarget = Math.round(totalBudget * newPercentage / 100);
     setEditTarget(newTarget);
   };
 
-  // Liste des publishers dans ce bucket (pour affichage seulement)
   const bucketPublishers = publisherLogos.filter(publisher => 
     bucket.publishers.includes(publisher.id)
   );
@@ -132,7 +176,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
       style={{ borderTop: `4px solid ${bucket.color}` }}
     >
       <div className="bg-white">
-        {/* Header section with edit/delete buttons */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex justify-between items-start mb-2">
             {isEditing ? (
@@ -172,7 +215,10 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                     <PencilIcon className="h-5 w-5" />
                   </button>
                   <button 
-                    onClick={onDelete}
+                    onClick={() => {
+                        console.log(`FIREBASE: ÉCRITURE - Fichier: BudgetBucket.tsx - Fonction: onDelete (inline) - Path: budgets/${bucket.id}`);
+                        onDelete();
+                    }}
                     className="text-gray-500 hover:text-red-600"
                   >
                     <TrashIcon className="h-5 w-5" />
@@ -182,7 +228,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             </div>
           </div>
           
-          {/* Description */}
           {isEditing ? (
             <textarea
               value={editDescription}
@@ -194,7 +239,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             <p className="text-sm text-gray-600">{bucket.description}</p>
           )}
           
-          {/* Color picker button - visible only in edit mode */}
           {isEditing && (
             <div className="mt-3 relative" ref={colorPickerRef}>
               <button 
@@ -208,7 +252,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                 Changer la couleur
               </button>
               
-              {/* Color picker dropdown */}
               {isColorPickerOpen && (
                 <div className="absolute mt-1 p-2 bg-white border border-gray-200 rounded-md shadow-lg z-10 flex space-x-2">
                   {availableColors.map(color => (
@@ -217,6 +260,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                       className={`w-6 h-6 rounded-full border ${bucket.color === color ? 'border-gray-800 p-0.5' : 'border-gray-300'}`}
                       style={{ backgroundColor: color }}
                       onClick={() => {
+                        console.log(`FIREBASE: ÉCRITURE - Fichier: BudgetBucket.tsx - Fonction: onColorChange (inline) - Path: budgets/${bucket.id}`);
                         onColorChange(bucket.id, color);
                         setIsColorPickerOpen(false);
                       }}
@@ -234,7 +278,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
           )}
         </div>
         
-        {/* Target section */}
         <div className="p-4 border-b border-gray-100 bg-gray-50">
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-medium text-gray-700">Budget planifié</label>
@@ -257,7 +300,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             </div>
           </div>
           
-          {/* Interactive slider - only editable in edit mode */}
           <div className="relative pt-4 pb-2">
             {isEditing ? (
               <input
@@ -279,7 +321,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
           </div>
         </div>
         
-        {/* Actual section (placeholder) */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">Assigné dans MediaBox</span>
@@ -292,10 +333,8 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
           </div>
         </div>
         
-        {/* Publisher logos section - Static display only */}
         <div className="p-4">
           <div className="flex flex-wrap gap-1 items-center">
-            {/* Afficher jusqu'à 3 logos maximum */}
             {bucketPublishers.slice(0, 3).map(publisher => (
               <div 
                 key={publisher.id} 
@@ -306,7 +345,6 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
               </div>
             ))}
             
-            {/* Afficher une bulle "+X" si plus de 3 partenaires */}
             {bucketPublishers.length > 3 && (
               <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700 border border-gray-300">
                 +{bucketPublishers.length - 3}

@@ -1,3 +1,8 @@
+/**
+ * Ce fichier contient le formulaire qui permet d'ajouter ou de modifier une entrée dans un guide de coûts.
+ * Il gère les champs du formulaire, vérifie que les données sont correctes avant de les envoyer,
+ * et communique avec la base de données pour sauvegarder les informations.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,6 +26,17 @@ interface CostGuideEntryFormProps {
   onSuccess: () => void;
 }
 
+/**
+ * Affiche un formulaire pour créer ou modifier une entrée dans un guide de coûts.
+ * @param {CostGuideEntryFormProps} props - Les propriétés du composant.
+ * @param {string} props.guideId - L'ID du guide de coûts auquel l'entrée appartient.
+ * @param {CostGuideEntry | null} props.entry - L'entrée à modifier. Si null, le formulaire est en mode création.
+ * @param {any[]} props.partners - La liste des partenaires à afficher dans le sélecteur.
+ * @param {object} [props.preset] - Valeurs prédéfinies pour certains champs du formulaire.
+ * @param {() => void} props.onCancel - Fonction appelée lorsque l'utilisateur annule.
+ * @param {() => void} props.onSuccess - Fonction appelée après une soumission réussie.
+ * @returns {JSX.Element} Le composant de formulaire.
+ */
 export default function CostGuideEntryForm({
   guideId,
   entry,
@@ -43,7 +59,6 @@ export default function CostGuideEntryForm({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Initialiser le formulaire si on édite une entrée existante ou si on a un preset
   useEffect(() => {
     if (entry) {
       setFormData({
@@ -56,7 +71,6 @@ export default function CostGuideEntryForm({
         comment: entry.comment || '',
       });
     } else if (preset && Object.keys(preset).length > 0) {
-      // Si nous avons un preset, utiliser ces valeurs pour initialiser le formulaire
       setFormData(prev => ({
         ...prev,
         partnerId: preset.partnerId || prev.partnerId,
@@ -66,6 +80,11 @@ export default function CostGuideEntryForm({
     }
   }, [entry, preset]);
 
+  /**
+   * Gère les changements dans les champs du formulaire.
+   * Met à jour l'état du formulaire avec la nouvelle valeur et efface les erreurs associées au champ modifié.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -75,7 +94,6 @@ export default function CostGuideEntryForm({
       [name]: value,
     }));
 
-    // Effacer l'erreur lorsqu'on modifie le champ
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -84,6 +102,11 @@ export default function CostGuideEntryForm({
     }
   };
 
+  /**
+   * Valide les données du formulaire.
+   * Vérifie que tous les champs requis sont remplis et que les valeurs sont correctes.
+   * @returns {boolean} - 'true' si le formulaire est valide, sinon 'false'.
+   */
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -113,6 +136,11 @@ export default function CostGuideEntryForm({
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Gère la soumission du formulaire.
+   * Valide les données, puis appelle le service approprié pour ajouter ou mettre à jour l'entrée dans Firebase.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -123,19 +151,17 @@ export default function CostGuideEntryForm({
     try {
       setSubmitting(true);
 
-      // Trouver le nom du partenaire sélectionné
       const selectedPartner = partners.find(p => p.id === formData.partnerId);
       const partnerName = selectedPartner ? selectedPartner.SH_Display_Name_FR : '';
 
       if (entry) {
-        // Mise à jour d'une entrée existante
+        console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries/${entry.id}`);
         await updateCostGuideEntry(guideId, entry.id, formData, partnerName);
       } else {
-        // Ajout d'une nouvelle entrée
+        console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries`);
         await addCostGuideEntry(guideId, formData, partnerName);
       }
 
-      // Afficher le message de succès
       setSuccess(true);
       setTimeout(() => {
         onSuccess();
@@ -172,7 +198,6 @@ export default function CostGuideEntryForm({
           </button>
         </div>
 
-        {/* Partenaire */}
         <div>
           <label htmlFor="partnerId" className="block text-sm font-medium text-gray-700">
             Partenaire *
@@ -200,7 +225,6 @@ export default function CostGuideEntryForm({
           )}
         </div>
 
-        {/* Information niveau 1, 2, 3 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
@@ -266,7 +290,6 @@ export default function CostGuideEntryForm({
           </div>
         </div>
 
-        {/* Unité d'achat et montant */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="purchaseUnit" className="block text-sm font-medium text-gray-700">
@@ -313,7 +336,6 @@ export default function CostGuideEntryForm({
           </div>
         </div>
 
-        {/* Commentaire */}
         <div>
           <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
             Commentaire
@@ -329,7 +351,6 @@ export default function CostGuideEntryForm({
           />
         </div>
 
-        {/* Boutons d'action */}
         <div className="flex justify-end space-x-3 pt-3">
           <button
             type="button"

@@ -1,3 +1,8 @@
+/**
+ * Ce fichier définit un composant React "FormTabs" qui permet d'afficher une série d'onglets cliquables.
+ * Il est utile pour naviguer entre différentes sections d'un formulaire ou d'une interface.
+ * Le composant prend en charge l'affichage d'icônes et la gestion de l'onglet actif.
+ */
 'use client';
 
 import React from 'react';
@@ -14,18 +19,29 @@ interface FormTabsProps {
   onTabChange: (tabId: string) => void;
 }
 
+/**
+ * Composant FormTabs pour afficher des onglets de navigation.
+ * @param {FormTabsProps} props - Les props du composant.
+ * @param {FormTab[]} props.tabs - Un tableau d'objets FormTab représentant les onglets à afficher.
+ * @param {string} props.activeTab - L'identifiant de l'onglet actuellement actif.
+ * @param {(tabId: string) => void} props.onTabChange - Une fonction de rappel appelée lorsque l'onglet actif change.
+ * @returns {JSX.Element} Le composant FormTabs.
+ */
 export default function FormTabs({
   tabs,
   activeTab,
   onTabChange
 }: FormTabsProps) {
-  // Fonction pour gérer le clic sur un onglet
+  /**
+   * Gère l'événement de clic sur un onglet.
+   * @param {React.MouseEvent} e - L'événement de souris.
+   * @param {string} tabId - L'identifiant de l'onglet cliqué.
+   * @returns {void}
+   */
   const handleTabClick = (e: React.MouseEvent, tabId: string) => {
-    // Empêcher la propagation de l'événement
     e.preventDefault();
     e.stopPropagation();
     
-    // Changer d'onglet
     onTabChange(tabId);
   };
 
@@ -47,7 +63,7 @@ export default function FormTabs({
                   : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}
               `}
               aria-current={isActive ? 'page' : undefined}
-              type="button" // Ajout explicite du type pour éviter la soumission du formulaire
+              type="button"
             >
               {Icon && <Icon className="mr-2 h-5 w-5 flex-shrink-0" aria-hidden="true" />}
               {tab.name}

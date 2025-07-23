@@ -1,13 +1,18 @@
-// app/components/Tactiques/Views/Hierarchy/HierarchyComponents.tsx
-
+/**
+ * Ce fichier contient les composants React pour afficher la hiérarchie des tactiques, placements et créatifs.
+ * Il gère l'affichage des éléments glissables et déposables (Draggable, Droppable) pour permettre la réorganisation.
+ * Les composants affichent les informations pertinentes pour chaque niveau (nom, budget, nombre d'éléments enfants, logos de partenaires)
+ * et gèrent les interactions utilisateur comme l'édition, l'expansion/réduction et la sélection.
+ * Il inclut également la logique pour afficher les indicateurs de taxonomie et les menus contextuels associés.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
-import { 
-  ChevronDownIcon, 
-  ChevronRightIcon, 
-  PencilIcon, 
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PencilIcon,
   PlusIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline';
@@ -17,21 +22,16 @@ import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
 
-// ==================== INTERFACE COMMUNE ====================
-
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
 }
 
-// État pour le menu contextuel des taxonomies
 interface TaxonomyMenuState {
   isOpen: boolean;
   item: Placement | Creatif | null;
   itemType: 'placement' | 'creatif' | null;
   position: { x: number; y: number };
 }
-
-// ==================== COMPOSANT CRÉATIF ====================
 
 interface CreatifItemProps extends BaseItemProps {
   creatif: Creatif;
@@ -46,6 +46,12 @@ interface CreatifItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Creatif, itemType: 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
+/**
+ * Composant pour afficher un élément créatif dans la hiérarchie.
+ * Permet le glisser-déposer, l'édition et la sélection, ainsi que l'affichage des taxonomies.
+ * @param {CreatifItemProps} props - Les propriétés du composant.
+ * @returns {React.FC<CreatifItemProps>} Le composant CreatifItem.
+ */
 export const CreatifItem: React.FC<CreatifItemProps> = ({
   creatif,
   index,
@@ -60,15 +66,10 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
-  // Déterminer la présence des taxonomies
   const hasTagsTaxonomy = !!creatif.CR_Taxonomy_Tags;
   const hasPlatformTaxonomy = !!creatif.CR_Taxonomy_Platform;
   const hasMediaOceanTaxonomy = !!creatif.CR_Taxonomy_MediaOcean;
 
-  // Vérifier s'il y a au moins une taxonomie configurée
-  const hasAnyTaxonomy = hasTagsTaxonomy || hasPlatformTaxonomy || hasMediaOceanTaxonomy;
-
-  // Gestionnaires séparés pour chaque type de taxonomie
   const handleTagsClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (hasTagsTaxonomy) {
@@ -109,7 +110,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
       index={index}
     >
       {(provided, snapshot) => (
-        <div 
+        <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={`flex justify-between items-center pl-3 pr-4 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
@@ -139,13 +140,13 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
               </span>
             )}
           </div>
-          
+
           {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
           <div className="flex items-center space-x-4">
             {/* Actions (crayon d'édition) - Standardisé */}
             <div className="w-6 h-6 flex items-center justify-center">
               {isHovered && (
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onEdit(placementId, creatif);
@@ -160,30 +161,30 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
 
             {/* Indicateurs de taxonomie - Cliquables individuellement */}
             <div className="flex items-center space-x-2 -ml-8">
-              <span 
+              <span
                 className={`w-3 h-3 rounded-full transition-colors ${
-                  hasTagsTaxonomy 
-                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                  hasTagsTaxonomy
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                     : 'bg-gray-300'
-                }`} 
+                }`}
                 title={hasTagsTaxonomy ? "Tags" : "Tags"}
                 onClick={handleTagsClick}
               ></span>
-              <span 
+              <span
                 className={`w-3 h-3 rounded-full transition-colors ${
-                  hasPlatformTaxonomy 
-                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                  hasPlatformTaxonomy
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                     : 'bg-gray-300'
-                }`} 
+                }`}
                 title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
                 onClick={handlePlatformClick}
               ></span>
-              <span 
+              <span
                 className={`w-3 h-3 rounded-full transition-colors ${
-                  hasMediaOceanTaxonomy 
-                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                  hasMediaOceanTaxonomy
+                    ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                     : 'bg-gray-300'
-                }`} 
+                }`}
                 title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
                 onClick={handleMediaOceanClick}
               ></span>
@@ -194,8 +195,6 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
     </Draggable>
   );
 };
-
-// ==================== COMPOSANT PLACEMENT ====================
 
 interface PlacementItemProps extends BaseItemProps {
   placement: Placement;
@@ -217,6 +216,13 @@ interface PlacementItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
+/**
+ * Composant pour afficher un élément de placement dans la hiérarchie.
+ * Permet le glisser-déposer, l'expansion/réduction pour afficher les créatifs enfants, l'édition et la sélection.
+ * Gère également l'ajout de nouveaux créatifs et l'affichage des taxonomies.
+ * @param {PlacementItemProps} props - Les propriétés du composant.
+ * @returns {React.FC<PlacementItemProps>} Le composant PlacementItem.
+ */
 export const PlacementItem: React.FC<PlacementItemProps> = ({
   placement,
   index,
@@ -239,15 +245,10 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
 
-  // Déterminer la présence des taxonomies
   const hasTagsTaxonomy = !!placement.PL_Taxonomy_Tags;
   const hasPlatformTaxonomy = !!placement.PL_Taxonomy_Platform;
   const hasMediaOceanTaxonomy = !!placement.PL_Taxonomy_MediaOcean;
 
-  // Vérifier s'il y a au moins une taxonomie configurée
-  const hasAnyTaxonomy = hasTagsTaxonomy || hasPlatformTaxonomy || hasMediaOceanTaxonomy;
-
-  // Gestionnaires séparés pour chaque type de taxonomie
   const handleTagsClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (hasTagsTaxonomy) {
@@ -288,7 +289,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
       index={index}
     >
       {(provided, snapshot) => (
-        <div 
+        <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={`border-b border-gray-200 last:border-b-0 ${
@@ -297,7 +298,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
           onMouseEnter={() => onHoverPlacement({sectionId, tactiqueId, placementId: placement.id})}
           onMouseLeave={() => onHoverPlacement(null)}
         >
-          <div 
+          <div
             className="flex justify-between items-center px-4 py-2 cursor-pointer bg-white"
             onClick={() => onExpand(placement.id)}
           >
@@ -313,29 +314,29 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-3 w-3 text-gray-400" />
               </span>
-              
+
               {isExpanded ? (
                 <ChevronDownIcon className="h-3 w-3 text-gray-500 mr-2" />
               ) : (
                 <ChevronRightIcon className="h-3 w-3 text-gray-500 mr-2" />
               )}
-              
+
               <div className="text-xs text-gray-700 font-medium truncate">
                  {placement.PL_Label}
               </div>
-              
+
               {/* Badge créatifs plus discret */}
               {creatifs.length > 0 && (
                 <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
                   {creatifs.length}
                 </span>
               )}
-              
-              <button 
+
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onCreateCreatif?.(placement.id);
-                }} 
+                }}
                 className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
                   isHovered ? 'text-indigo-600' : 'text-indigo-400'
                 }`}
@@ -344,13 +345,13 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                 <PlusIcon className="h-3 w-3" />
               </button>
             </div>
-            
+
             {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
             <div className="flex items-center space-x-4">
               {/* Actions (crayon d'édition) - Standardisé */}
               <div className="w-6 h-6 flex items-center justify-center">
                 {isHovered && (
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onEdit(tactiqueId, placement);
@@ -365,37 +366,37 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
 
               {/* Indicateurs de taxonomie - Cliquables individuellement */}
               <div className="flex items-center space-x-2">
-                <span 
+                <span
                   className={`w-3 h-3 rounded-full transition-colors ${
-                    hasTagsTaxonomy 
-                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    hasTagsTaxonomy
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                       : 'bg-gray-300'
-                  }`} 
+                  }`}
                   title={hasTagsTaxonomy ? "Tags" : "Tags"}
                   onClick={handleTagsClick}
                 ></span>
-                <span 
+                <span
                   className={`w-3 h-3 rounded-full transition-colors ${
-                    hasPlatformTaxonomy 
-                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    hasPlatformTaxonomy
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                       : 'bg-gray-300'
-                  }`} 
+                  }`}
                   title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
                   onClick={handlePlatformClick}
                 ></span>
-                <span 
+                <span
                   className={`w-3 h-3 rounded-full transition-colors ${
-                    hasMediaOceanTaxonomy 
-                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer' 
+                    hasMediaOceanTaxonomy
+                      ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                       : 'bg-gray-300'
-                  }`} 
+                  }`}
                   title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
                   onClick={handleMediaOceanClick}
                 ></span>
               </div>
             </div>
           </div>
-          
+
           {/* Créatifs - fond blanc uniforme */}
           {isExpanded && (
             <div className="pl-8 bg-white py-1">
@@ -436,8 +437,6 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   );
 };
 
-// ==================== COMPOSANT TACTIQUE AVEC LOGO PARTENAIRE ====================
-
 interface TactiqueItemProps extends BaseItemProps {
   tactique: Tactique;
   index: number;
@@ -465,6 +464,13 @@ interface TactiqueItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
+/**
+ * Composant pour afficher un élément de tactique dans la hiérarchie.
+ * Permet le glisser-déposer, l'expansion/réduction pour afficher les placements enfants, l'édition et la sélection.
+ * Gère également l'affichage du logo partenaire, l'ajout de nouveaux placements et le budget.
+ * @param {TactiqueItemProps} props - Les propriétés du composant.
+ * @returns {React.FC<TactiqueItemProps>} Le composant TactiqueItem.
+ */
 export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   tactique,
   index,
@@ -494,31 +500,35 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
 }) => {
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
-  
-  // Hook pour récupérer les données partenaires
+
   const { partners } = usePartners();
-  
-  // États pour le logo du partenaire
+
   const [partnerImageUrl, setPartnerImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // Charger l'image du partenaire
+  /**
+   * Charge l'image du partenaire depuis Firebase Storage ou une URL directe.
+   * Si le chemin de l'image commence par 'gs://', elle est récupérée depuis Firebase Storage.
+   * Sinon, l'URL est utilisée directement.
+   * Met à jour l'état de l'URL de l'image, du chargement et des erreurs.
+   * @returns {Promise<void>}
+   */
   useEffect(() => {
     const loadPartnerImage = async () => {
       if (!tactique.TC_Publisher) return;
-      
-      // Trouver le partenaire correspondant
+
       const partner = partners.find(p => p.id === tactique.TC_Publisher);
       if (!partner?.SH_Logo) return;
-      
+
       setImageLoading(true);
       setImageError(false);
-      
+
       try {
         const storage = getStorage();
-        
+
         if (partner.SH_Logo.startsWith('gs://')) {
+          console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerImage - Path: partners/${partner.id}/logo");
           const storageRef = ref(storage, partner.SH_Logo);
           const url = await getDownloadURL(storageRef);
           setPartnerImageUrl(url);
@@ -532,14 +542,9 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
         setImageLoading(false);
       }
     };
-    
+
     loadPartnerImage();
   }, [tactique.TC_Publisher, partners]);
-
-  // Calculer le nombre total de créatifs
-  const totalCreatifs = placements.reduce((total, placement) => {
-    return total + (creatifs[placement.id]?.length || 0);
-  }, 0);
 
   return (
     <Draggable
@@ -557,7 +562,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
           onMouseEnter={() => onHoverTactique({sectionId, tactiqueId: tactique.id})}
           onMouseLeave={() => onHoverTactique(null)}
         >
-          <div 
+          <div
             className="flex justify-between items-center px-4 py-3 cursor-pointer bg-white"
             onClick={() => onExpandTactique(tactique.id)}
           >
@@ -573,13 +578,13 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                 <Bars3Icon className="h-4 w-4 text-gray-400" />
               </span>
-              
+
               {isExpanded ? (
                 <ChevronDownIcon className="h-4 w-4 text-gray-500 mr-2" />
               ) : (
                 <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
               )}
-              
+
               {/* Logo partenaire - carré plus gros */}
               <div className="flex items-center mr-3">
                 {imageLoading ? (
@@ -597,23 +602,23 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                   </div>
                 ) : null}
               </div>
-              
+
               <div className="text-sm text-gray-800 font-medium truncate">
                 {tactique.TC_Label}
               </div>
-              
+
               {/* Badge placements seulement - niveau en dessous */}
               {placements.length > 0 && (
                 <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
                   {placements.length}
                 </span>
               )}
-              
-              <button 
+
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onCreatePlacement?.(tactique.id);
-                }} 
+                }}
                 className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
                   isHovered ? 'text-indigo-600' : 'text-indigo-400'
                 }`}
@@ -622,17 +627,17 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 <PlusIcon className="h-4 w-4" />
               </button>
             </div>
-            
+
             {/* Contenu de droite : Actions et budget */}
             <div className="flex items-center space-x-4">
               {/* Actions fixes - Standardisé */}
               <div className="w-6 h-6 flex items-center justify-center">
                 {isHovered && (
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onEdit(sectionId, tactique);
-                    }} 
+                    }}
                     className="p-1 rounded hover:bg-gray-200 transition-colors"
                     title="Modifier la tactique"
                   >
@@ -640,13 +645,13 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                   </button>
                 )}
               </div>
-              
+
               <div className="text-sm font-medium">
                 {formatCurrency(tactique.TC_Budget)}
               </div>
             </div>
           </div>
-          
+
           {/* Placements - fond blanc uniforme */}
           {isExpanded && (
             <div className="pl-8 pb-2 bg-white">

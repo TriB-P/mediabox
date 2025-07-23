@@ -1,11 +1,13 @@
-// app/hooks/useTactiquesSelection.ts - Version corrigée avec nettoyage complet
-
+/**
+ * Ce hook gère la sélection, la duplication et la suppression d'éléments (sections, tactiques, placements, créatifs)
+ * dans l'interface utilisateur. Il fournit des fonctions pour manipuler l'état de sélection,
+ * interagir avec les services de duplication et de suppression, et afficher des notifications.
+ * Il est utilisé pour centraliser la logique de gestion des éléments hiérarchiques.
+ */
 import { useState, useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { duplicateSelectedItems, DuplicationContext } from '../lib/duplicationService';
-
-// ==================== TYPES ====================
 
 interface UseTactiquesSelectionProps {
   sections: any[];
@@ -17,7 +19,6 @@ interface UseTactiquesSelectionProps {
   onDeleteTactique?: (sectionId: string, tactiqueId: string) => Promise<void>;
   onDeletePlacement?: (sectionId: string, tactiqueId: string, placementId: string) => Promise<void>;
   onDeleteCreatif?: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => Promise<void>;
-  // 🔥 AJOUT: Callback pour forcer la réinitialisation complète
   onForceSelectionReset?: () => void;
 }
 
@@ -41,8 +42,6 @@ interface UseTactiquesSelectionReturn {
   }>;
 }
 
-// ==================== TYPES POUR LA SUPPRESSION ====================
-
 interface ItemToDelete {
   id: string;
   type: 'section' | 'tactique' | 'placement' | 'creatif';
@@ -52,8 +51,22 @@ interface ItemToDelete {
   name: string;
 }
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour gérer la sélection, la duplication et la suppression des éléments.
+ *
+ * @param {UseTactiquesSelectionProps} props - Les propriétés nécessaires au hook.
+ * @param {any[]} props.sections - Liste des sections.
+ * @param {{ [sectionId: string]: any[] }} props.tactiques - Objet mappant les tactiques par ID de section.
+ * @param {{ [tactiqueId: string]: any[] }} props.placements - Objet mappant les placements par ID de tactique.
+ * @param {{ [placementId: string]: any[] }} props.creatifs - Objet mappant les créatifs par ID de placement.
+ * @param {(() => Promise<void>) | (() => void)} props.onRefresh - Fonction de rappel pour rafraîchir les données.
+ * @param {(sectionId: string) => Promise<void>} [props.onDeleteSection] - Fonction de rappel pour supprimer une section.
+ * @param {(sectionId: string, tactiqueId: string) => Promise<void>} [props.onDeleteTactique] - Fonction de rappel pour supprimer une tactique.
+ * @param {(sectionId: string, tactiqueId: string, placementId: string) => Promise<void>} [props.onDeletePlacement] - Fonction de rappel pour supprimer un placement.
+ * @param {(sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => Promise<void>} [props.onDeleteCreatif] - Fonction de rappel pour supprimer un créatif.
+ * @param {() => void} [props.onForceSelectionReset] - Fonction de rappel pour forcer la réinitialisation complète de la sélection.
+ * @returns {UseTactiquesSelectionReturn} L'objet retourné contenant l'état et les fonctions de manipulation.
+ */
 export function useTactiquesSelection({
   sections,
   tactiques,
@@ -64,20 +77,24 @@ export function useTactiquesSelection({
   onDeleteTactique,
   onDeletePlacement,
   onDeleteCreatif,
-  onForceSelectionReset // 🔥 AJOUT
+  onForceSelectionReset
 }: UseTactiquesSelectionProps): UseTactiquesSelectionReturn {
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
-  // ==================== ÉTATS ====================
-  
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [duplicationLoading, setDuplicationLoading] = useState(false);
   const [deletionLoading, setDeletionLoading] = useState(false);
 
-  // ==================== GESTION DES SÉLECTIONS ====================
-
+  /**
+   * Gère la sélection ou la désélection d'un ou plusieurs éléments.
+   *
+   * @param {string[]} itemIds - Les IDs des éléments à sélectionner ou désélectionner.
+   * @param {'section' | 'tactique' | 'placement' | 'creatif'} type - Le type des éléments.
+   * @param {boolean} isSelected - Vrai pour sélectionner, faux pour désélectionner.
+   * @returns {void}
+   */
   const handleSelectItems = useCallback((
     itemIds: string[],
     type: 'section' | 'tactique' | 'placement' | 'creatif',
@@ -96,22 +113,25 @@ export function useTactiquesSelection({
     });
   }, []);
 
-  // 🔥 CORRECTION: Nettoyage complet avec réinitialisation forcée
+  /**
+   * Efface complètement la sélection actuelle et force une réinitialisation des hooks dépendants si un callback est fourni.
+   *
+   * @returns {void}
+   */
   const handleClearSelection = useCallback(() => {
-    console.log('🧹 Nettoyage complet de la sélection');
-    
-    // Nettoyer l'état local
     setSelectedItems(new Set());
-    
-    // 🔥 NOUVEAU: Forcer la réinitialisation de tous les hooks dépendants
     if (onForceSelectionReset) {
-      console.log('🔄 Force reset de la logique de sélection');
       onForceSelectionReset();
     }
   }, [onForceSelectionReset]);
 
-  // ==================== FONCTION DE NOTIFICATION ====================
-
+  /**
+   * Affiche une notification temporaire en haut à droite de l'écran.
+   *
+   * @param {string} message - Le message à afficher dans la notification.
+   * @param {'success' | 'error'} [type='success'] - Le type de notification (succès ou erreur).
+   * @returns {void}
+   */
   const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const toast = document.createElement('div');
     toast.className = `fixed top-4 right-4 ${
@@ -127,10 +147,13 @@ export function useTactiquesSelection({
     }, type === 'success' ? 2000 : 3000);
   }, []);
 
-  // ==================== FONCTION DE RECHERCHE D'ÉLÉMENTS ====================
-
+  /**
+   * Recherche la hiérarchie complète (section, tactique, placement, créatif) d'un élément donné par son ID.
+   *
+   * @param {string} itemId - L'ID de l'élément à rechercher.
+   * @returns {ItemToDelete | null} L'objet ItemToDelete contenant les informations hiérarchiques, ou null si l'élément n'est pas trouvé.
+   */
   const findItemHierarchy = useCallback((itemId: string): ItemToDelete | null => {
-    // Chercher dans les sections
     for (const section of sections) {
       if (section.id === itemId) {
         return {
@@ -140,8 +163,6 @@ export function useTactiquesSelection({
           name: section.SECTION_Name
         };
       }
-      
-      // Chercher dans les tactiques
       for (const tactique of (tactiques[section.id] || [])) {
         if (tactique.id === itemId) {
           return {
@@ -152,8 +173,6 @@ export function useTactiquesSelection({
             name: tactique.TC_Label
           };
         }
-        
-        // Chercher dans les placements
         for (const placement of (placements[tactique.id] || [])) {
           if (placement.id === itemId) {
             return {
@@ -165,8 +184,6 @@ export function useTactiquesSelection({
               name: placement.PL_Label
             };
           }
-          
-          // Chercher dans les créatifs
           for (const creatif of (creatifs[placement.id] || [])) {
             if (creatif.id === itemId) {
               return {
@@ -182,25 +199,28 @@ export function useTactiquesSelection({
         }
       }
     }
-    
     return null;
   }, [sections, tactiques, placements, creatifs]);
 
-  // ==================== SUPPRESSION GROUPÉE ====================
-
+  /**
+   * Gère la suppression groupée des éléments sélectionnés.
+   * Une confirmation est demandée à l'utilisateur avant la suppression.
+   * Les éléments sont supprimés dans l'ordre hiérarchique inverse (créatifs, placements, tactiques, sections).
+   *
+   * @param {string[]} itemIds - Les IDs des éléments à supprimer.
+   * @returns {Promise<void>}
+   */
   const handleDeleteSelected = useCallback(async (itemIds: string[]) => {
     if (itemIds.length === 0) {
       return;
     }
 
-    // Vérifier que les fonctions de suppression sont disponibles
     if (!onDeleteSection || !onDeleteTactique || !onDeletePlacement || !onDeleteCreatif) {
-      console.error('❌ Fonctions de suppression non disponibles');
-      showNotification('❌ Fonctions de suppression non configurées', 'error');
+      console.error('Fonctions de suppression non disponibles');
+      showNotification('Fonctions de suppression non configurées', 'error');
       return;
     }
 
-    // Construire la liste des éléments à supprimer avec leur hiérarchie
     const itemsToDelete: ItemToDelete[] = [];
     
     for (const itemId of itemIds) {
@@ -208,16 +228,15 @@ export function useTactiquesSelection({
       if (hierarchy) {
         itemsToDelete.push(hierarchy);
       } else {
-        console.warn('⚠️ Élément non trouvé dans la hiérarchie:', itemId);
+        console.warn('Élément non trouvé dans la hiérarchie:', itemId);
       }
     }
 
     if (itemsToDelete.length === 0) {
-      console.warn('⚠️ Aucun élément valide à supprimer');
+      console.warn('Aucun élément valide à supprimer');
       return;
     }
 
-    // Confirmation utilisateur
     const itemsDescription = itemsToDelete.map(item => `${item.name} (${item.type})`).join(', ');
     const confirmMessage = `Êtes-vous sûr de vouloir supprimer les ${itemsToDelete.length} éléments sélectionnés ?\n\n${itemsDescription}\n\n⚠️ Cette action est irréversible et supprimera également tous les éléments enfants.`;
     
@@ -225,12 +244,9 @@ export function useTactiquesSelection({
       return;
     }
 
-    console.log('🗑️ Début suppression groupée:', itemsToDelete);
-
     try {
       setDeletionLoading(true);
 
-      // Organisation par ordre de suppression (enfants d'abord)
       const creatifItems = itemsToDelete.filter(item => item.type === 'creatif');
       const placementItems = itemsToDelete.filter(item => item.type === 'placement');
       const tactiqueItems = itemsToDelete.filter(item => item.type === 'tactique');
@@ -240,63 +256,58 @@ export function useTactiquesSelection({
       let errorCount = 0;
       const errors: string[] = [];
 
-      // 1. Supprimer les créatifs
       for (const item of creatifItems) {
         try {
+          console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesSelection.ts - Fonction: handleDeleteSelected - Path: creatifs");
           await onDeleteCreatif(item.sectionId, item.tactiqueId!, item.placementId!, item.id);
           successCount++;
-          console.log('✅ Créatif supprimé:', item.name);
         } catch (error) {
           errorCount++;
           const errorMsg = `Erreur suppression créatif "${item.name}"`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg, error);
+          console.error(errorMsg, error);
         }
       }
 
-      // 2. Supprimer les placements
       for (const item of placementItems) {
         try {
+          console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesSelection.ts - Fonction: handleDeleteSelected - Path: placements");
           await onDeletePlacement(item.sectionId, item.tactiqueId!, item.id);
           successCount++;
-          console.log('✅ Placement supprimé:', item.name);
         } catch (error) {
           errorCount++;
           const errorMsg = `Erreur suppression placement "${item.name}"`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg, error);
+          console.error(errorMsg, error);
         }
       }
 
-      // 3. Supprimer les tactiques
       for (const item of tactiqueItems) {
         try {
+          console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesSelection.ts - Fonction: handleDeleteSelected - Path: tactiques");
           await onDeleteTactique(item.sectionId, item.id);
           successCount++;
-          console.log('✅ Tactique supprimée:', item.name);
         } catch (error) {
           errorCount++;
           const errorMsg = `Erreur suppression tactique "${item.name}"`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg, error);
+          console.error(errorMsg, error);
         }
       }
 
-      // 4. Supprimer les sections
       for (const item of sectionItems) {
         try {
+          console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesSelection.ts - Fonction: handleDeleteSelected - Path: sections");
           await onDeleteSection(item.id);
           successCount++;
-          console.log('✅ Section supprimée:', item.name);
         } catch (error) {
           errorCount++;
           const errorMsg = `Erreur suppression section "${item.name}"`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg, error);
+          console.error(errorMsg, error);
         }
       }
 
-      // Résultats
       if (successCount > 0) {
         const successMessage = `✅ ${successCount} élément${successCount > 1 ? 's supprimés' : ' supprimé'} avec succès`;
         showNotification(successMessage);
@@ -305,24 +316,16 @@ export function useTactiquesSelection({
       if (errorCount > 0) {
         const errorMessage = `❌ ${errorCount} erreur${errorCount > 1 ? 's' : ''} lors de la suppression`;
         showNotification(errorMessage, 'error');
-        console.error('❌ Erreurs de suppression:', errors);
+        console.error('Erreurs de suppression:', errors);
       }
 
-      // 🔥 CORRECTION: Nettoyage complet AVANT le refresh
-      console.log('🧹 Nettoyage complet après suppression');
       handleClearSelection();
-      
-      // Attendre un petit délai pour s'assurer que le nettoyage est effectif
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Puis rafraîchir
       await Promise.resolve(onRefresh());
 
     } catch (error) {
-      console.error('💥 Erreur critique lors de la suppression groupée:', error);
+      console.error('Erreur critique lors de la suppression groupée:', error);
       showNotification('❌ Erreur critique lors de la suppression', 'error');
-      
-      // 🔥 CORRECTION: Nettoyer même en cas d'erreur
       handleClearSelection();
     } finally {
       setDeletionLoading(false);
@@ -338,8 +341,13 @@ export function useTactiquesSelection({
     showNotification
   ]);
 
-  // ==================== DUPLICATION (INCHANGÉE) ====================
-
+  /**
+   * Gère la duplication des éléments sélectionnés.
+   * Requiert le contexte client, campagne, version et onglet pour effectuer la duplication.
+   *
+   * @param {string[]} itemIds - Les IDs des éléments à dupliquer.
+   * @returns {Promise<void>}
+   */
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour la duplication');
@@ -350,8 +358,6 @@ export function useTactiquesSelection({
     if (itemIds.length === 0) {
       return;
     }
-
-    console.log('🔄 Début duplication de', itemIds.length, 'éléments:', itemIds);
 
     try {
       setDuplicationLoading(true);
@@ -373,8 +379,6 @@ export function useTactiquesSelection({
       const result = await duplicateSelectedItems(context, itemIds, itemHierarchy);
 
       if (result.success && result.duplicatedIds.length > 0) {
-        console.log('✅ Duplication réussie:', result.duplicatedIds);
-        
         const successMessage = `✅ ${result.duplicatedIds.length} élément${
           result.duplicatedIds.length > 1 ? 's dupliqués' : ' dupliqué'
         } avec succès`;
@@ -386,12 +390,12 @@ export function useTactiquesSelection({
 
       } else {
         const errorMessages = result.errors.length > 0 ? result.errors : ['Erreur inconnue lors de la duplication'];
-        console.error('❌ Erreurs duplication:', errorMessages);
+        console.error('Erreurs duplication:', errorMessages);
         showNotification(`❌ Erreur duplication: ${errorMessages[0]}`, 'error');
       }
 
     } catch (error) {
-      console.error('💥 Erreur critique duplication:', error);
+      console.error('Erreur critique duplication:', error);
       showNotification('❌ Erreur critique lors de la duplication', 'error');
     } finally {
       setDuplicationLoading(false);
@@ -410,8 +414,11 @@ export function useTactiquesSelection({
     showNotification
   ]);
 
-  // ==================== DONNÉES ENRICHIES POUR LES ÉLÉMENTS SÉLECTIONNÉS ====================
-
+  /**
+   * Retourne une liste des éléments actuellement sélectionnés avec leurs données enrichies.
+   *
+   * @returns {Array<{ id: string; name: string; type: 'section' | 'tactique' | 'placement' | 'creatif'; data?: any; }>} La liste des éléments sélectionnés avec leurs détails.
+   */
   const selectedItemsWithData = useCallback(() => {
     const result: Array<{
       id: string;
@@ -434,8 +441,6 @@ export function useTactiquesSelection({
 
     return result;
   }, [selectedItems, findItemHierarchy]);
-
-  // ==================== RETURN ====================
 
   return {
     selectedItems,

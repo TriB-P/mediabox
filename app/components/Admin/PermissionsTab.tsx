@@ -1,4 +1,10 @@
-// app/components/Admin/PermissionsTab.tsx
+/**
+ * @file Ce fichier contient le composant PermissionsTab.
+ * Il s'agit d'un onglet de l'interface d'administration qui permet de gérer les rôles et leurs permissions.
+ * Le composant affiche une table des rôles, permet de modifier les permissions directement,
+ * et d'ouvrir des modales pour créer, éditer ou supprimer des rôles.
+ * Toutes les données sont synchronisées avec la base de données Firebase.
+ */
 
 'use client';
 
@@ -8,6 +14,11 @@ import { Role, RoleFormData } from '../../types/roles';
 import { Save, Plus, Trash2, Edit2 } from 'lucide-react';
 import RoleFormModal from './RoleFormModal';
 
+
+/**
+ * Affiche et gère l'onglet des permissions des rôles dans le panneau d'administration.
+ * @returns {JSX.Element} Le composant React de l'onglet des permissions.
+ */
 export default function PermissionsTab() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,11 +30,16 @@ export default function PermissionsTab() {
     loadRoles();
   }, []);
 
+  /**
+   * Charge la liste des rôles depuis Firebase et met à jour l'état du composant.
+   * Gère l'état de chargement pendant l'opération.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les rôles chargés.
+   */
   const loadRoles = async () => {
     try {
       setLoading(true);
+      console.log("FIREBASE: LECTURE - Fichier: PermissionsTab.tsx - Fonction: loadRoles - Path: roles");
       const rolesData = await getRoles();
-      console.log('Rôles chargés:', rolesData); // Pour déboguer
       setRoles(rolesData);
     } catch (error) {
       console.error('Erreur lors du chargement des rôles:', error);
@@ -32,11 +48,19 @@ export default function PermissionsTab() {
     }
   };
 
+  /**
+   * Met à jour une permission spécifique pour un rôle donné.
+   * La mise à jour est d'abord appliquée localement pour une meilleure réactivité,
+   * puis envoyée à Firebase. En cas d'erreur, les données sont rechargées.
+   * @param {string} roleId - L'ID du rôle à modifier.
+   * @param {keyof Omit<Role, 'id' | 'name' | 'createdAt' | 'updatedAt'>} permission - La clé de la permission à changer.
+   * @param {boolean} value - La nouvelle valeur (true ou false) de la permission.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la mise à jour terminée.
+   */
   const handlePermissionChange = async (roleId: string, permission: keyof Omit<Role, 'id' | 'name' | 'createdAt' | 'updatedAt'>, value: boolean) => {
     try {
       setSaving(roleId);
       
-      // Mettre à jour localement
       setRoles(prevRoles => 
         prevRoles.map(role => 
           role.id === roleId 
@@ -44,65 +68,99 @@ export default function PermissionsTab() {
             : role
         )
       );
-
-      // Mettre à jour en base de données
+      
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PermissionsTab.tsx - Fonction: handlePermissionChange - Path: roles/${roleId}`);
       await updateRole(roleId, { [permission]: value });
       
     } catch (error) {
       console.error('Erreur lors de la mise à jour des permissions:', error);
-      // Recharger les données en cas d'erreur
       loadRoles();
     } finally {
       setSaving(null);
     }
   };
 
+  /**
+   * Gère la création d'un nouveau rôle en base de données.
+   * Appelle le service de création et recharge la liste des rôles.
+   * @param {RoleFormData} roleData - Les données du nouveau rôle provenant du formulaire.
+   * @returns {Promise<void>} Une promesse qui se résout après la création et le rechargement.
+   */
   const handleCreateRole = async (roleData: RoleFormData) => {
     try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: PermissionsTab.tsx - Fonction: handleCreateRole - Path: roles");
       await createRole(roleData);
-      await loadRoles(); // Recharger la liste
+      await loadRoles();
     } catch (error) {
       console.error('Erreur lors de la création du rôle:', error);
       throw error;
     }
   };
 
+  /**
+   * Gère la modification d'un rôle existant en base de données.
+   * Appelle le service de mise à jour et recharge la liste des rôles.
+   * @param {RoleFormData} roleData - Les nouvelles données du rôle provenant du formulaire.
+   * @returns {Promise<void>} Une promesse qui se résout après la modification et le rechargement.
+   */
   const handleEditRole = async (roleData: RoleFormData) => {
     if (!editingRole) return;
     
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PermissionsTab.tsx - Fonction: handleEditRole - Path: roles/${editingRole.id}`);
       await updateRole(editingRole.id, roleData);
-      await loadRoles(); // Recharger la liste
+      await loadRoles();
     } catch (error) {
       console.error('Erreur lors de la modification du rôle:', error);
       throw error;
     }
   };
 
+  /**
+   * Gère la suppression d'un rôle après une confirmation de l'utilisateur.
+   * Appelle le service de suppression et recharge la liste des rôles.
+   * @param {string} roleId - L'ID du rôle à supprimer.
+   * @param {string} roleName - Le nom du rôle à supprimer (utilisé pour la confirmation).
+   * @returns {Promise<void>} Une promesse qui se résout après la suppression et le rechargement.
+   */
   const handleDeleteRole = async (roleId: string, roleName: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le rôle "${roleName}" ?`)) {
       return;
     }
 
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: PermissionsTab.tsx - Fonction: handleDeleteRole - Path: roles/${roleId}`);
       await deleteRole(roleId);
-      await loadRoles(); // Recharger la liste
+      await loadRoles();
     } catch (error) {
       console.error('Erreur lors de la suppression du rôle:', error);
       alert('Erreur lors de la suppression du rôle');
     }
   };
 
+  /**
+   * Ouvre la modale pour créer un nouveau rôle.
+   * @returns {void}
+   */
   const openCreateModal = () => {
     setEditingRole(null);
     setIsModalOpen(true);
   };
 
+  /**
+   * Ouvre la modale pour éditer un rôle existant.
+   * @param {Role} role - L'objet du rôle à éditer.
+   * @returns {void}
+   */
   const openEditModal = (role: Role) => {
     setEditingRole(role);
     setIsModalOpen(true);
   };
 
+  /**
+   * Ferme la modale de création/édition et réinitialise l'état d'édition.
+   * @returns {void}
+   */
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingRole(null);
@@ -221,7 +279,6 @@ export default function PermissionsTab() {
         </div>
       )}
 
-      {/* Modal de création/édition */}
       <RoleFormModal
         isOpen={isModalOpen}
         onClose={closeModal}

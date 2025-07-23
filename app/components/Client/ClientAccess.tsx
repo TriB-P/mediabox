@@ -1,6 +1,14 @@
+/**
+ * Ce fichier contient le composant React `ClientAccess`.
+ * Ce composant a pour rôle de gérer les permissions d'accès des utilisateurs à un client spécifique.
+ * Il permet d'afficher la liste des utilisateurs ayant déjà un accès, d'ajouter de nouveaux accès,
+ * de modifier les droits existants (par exemple, passer un utilisateur d'un rôle "Utilisateur" à "Éditeur"),
+ * et de révoquer l'accès d'un utilisateur.
+ * Le composant interagit avec Firebase pour récupérer les listes d'utilisateurs et pour mettre à jour les permissions.
+ */
 'use client';
 
-import React, { useState, useEffect, Fragment, useRef } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { 
@@ -12,10 +20,8 @@ import {
   User,
   UserAccess
 } from '../../lib/userService';
-import { Listbox, Transition, Dialog } from '@headlessui/react';
+import { Dialog } from '@headlessui/react';
 import { 
-  CheckIcon, 
-  ChevronUpDownIcon, 
   PencilIcon, 
   TrashIcon,
   XMarkIcon,
@@ -27,6 +33,11 @@ const ACCESS_LEVELS = [
   { value: 'user', label: 'Utilisateur' }
 ];
 
+/**
+ * Composant principal pour la gestion des accès d'un client.
+ * Il affiche les utilisateurs ayant accès, permet d'en ajouter, modifier ou supprimer.
+ * @returns {React.ReactElement} Le JSX du composant.
+ */
 const ClientAccess: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
@@ -36,25 +47,28 @@ const ClientAccess: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  // Vérifier si l'utilisateur a la permission de gérer les accès
   const hasAccessPermission = canPerformAction('Access');
   
-  // États pour le formulaire d'ajout/modification d'utilisateur
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserAccess | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedAccessLevel, setSelectedAccessLevel] = useState(ACCESS_LEVELS[1]); // 'user' par défaut
+  const [selectedAccessLevel, setSelectedAccessLevel] = useState(ACCESS_LEVELS[1]);
   const [note, setNote] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   
-  // Charger les données quand le client sélectionné change
   useEffect(() => {
     if (selectedClient) {
       loadData();
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les données depuis Firebase : la liste de tous les utilisateurs du système
+   * et la liste des utilisateurs ayant un accès spécifique au client sélectionné.
+   * @async
+   * @returns {Promise<void>}
+   */
   const loadData = async () => {
     if (!selectedClient) return;
     
@@ -62,16 +76,12 @@ const ClientAccess: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Charger tous les utilisateurs du système
-      console.log("Chargement des utilisateurs...");
+      console.log("FIREBASE: [LECTURE] - Fichier: ClientAccess.tsx - Fonction: loadData - Path: users");
       const allUsers = await getAllUsers();
-      console.log(`${allUsers.length} utilisateurs chargés`);
       setUsers(allUsers);
       
-      // Charger les utilisateurs ayant accès au client
-      console.log(`Chargement des utilisateurs avec accès au client ${selectedClient.clientId}...`);
+      console.log(`FIREBASE: [LECTURE] - Fichier: ClientAccess.tsx - Fonction: loadData - Path: clients/${selectedClient.clientId}/userAccess`);
       const clientUsersList = await getClientUsers(selectedClient.clientId);
-      console.log(`${clientUsersList.length} utilisateurs ont accès`);
       setClientUsers(clientUsersList);
       
     } catch (err) {
@@ -82,41 +92,64 @@ const ClientAccess: React.FC = () => {
     }
   };
   
+  /**
+   * Ouvre la fenêtre modale pour ajouter un nouvel utilisateur.
+   * Réinitialise les états du formulaire en mode "ajout".
+   * Ne fait rien si l'utilisateur n'a pas les permissions nécessaires.
+   * @returns {void}
+   */
   const openAddUserModal = () => {
     if (!hasAccessPermission) return;
     
     setIsEditing(false);
     setSelectedUser(null);
-    setSelectedAccessLevel(ACCESS_LEVELS[1]); // 'user' par défaut
+    setSelectedAccessLevel(ACCESS_LEVELS[1]);
     setNote('');
     setUserSearchQuery('');
     setIsModalOpen(true);
   };
   
+  /**
+   * Ouvre la fenêtre modale pour modifier un utilisateur existant.
+   * Pré-remplit le formulaire avec les informations de l'utilisateur sélectionné.
+   * Ne fait rien si l'utilisateur n'a pas les permissions nécessaires.
+   * @param {UserAccess} user - L'utilisateur dont l'accès doit être modifié.
+   * @returns {void}
+   */
   const openEditUserModal = (user: UserAccess) => {
     if (!hasAccessPermission) return;
     
     setIsEditing(true);
     setCurrentUser(user);
     
-    // Définir les valeurs actuelles
     setSelectedAccessLevel(ACCESS_LEVELS.find(level => level.value === user.accessLevel) || ACCESS_LEVELS[1]);
     setNote(user.note || '');
     
     setIsModalOpen(true);
   };
   
+  /**
+   * Ferme la fenêtre modale et réinitialise l'état de l'utilisateur en cours d'édition.
+   * @returns {void}
+   */
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentUser(null);
   };
 
+  /**
+   * Gère la soumission du formulaire pour ajouter un accès utilisateur.
+   * Appelle le service Firebase pour créer le nouvel accès, puis recharge les données.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleAddUser = async () => {
     if (!selectedClient || !selectedUser || !hasAccessPermission) return;
     
     try {
       setError(null);
       
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientAccess.tsx - Fonction: handleAddUser - Path: clients/${selectedClient.clientId}/userAccess`);
       await addUserAccess(
         selectedClient.clientId,
         selectedClient.CL_Name,
@@ -131,10 +164,8 @@ const ClientAccess: React.FC = () => {
       setSuccess('Utilisateur ajouté avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger les données
       await loadData();
       
-      // Fermer le modal
       closeModal();
     } catch (err) {
       console.error('Erreur lors de l\'ajout de l\'utilisateur:', err);
@@ -142,12 +173,19 @@ const ClientAccess: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire pour mettre à jour un accès utilisateur.
+   * Appelle le service Firebase pour modifier l'accès, puis recharge les données.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleUpdateUser = async () => {
     if (!selectedClient || !currentUser || !hasAccessPermission) return;
     
     try {
       setError(null);
       
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientAccess.tsx - Fonction: handleUpdateUser - Path: clients/${selectedClient.clientId}/userAccess/${currentUser.userEmail}`);
       await updateUserAccess(
         selectedClient.clientId,
         currentUser.userEmail,
@@ -160,10 +198,8 @@ const ClientAccess: React.FC = () => {
       setSuccess('Accès utilisateur mis à jour avec succès.');
       setTimeout(() => setSuccess(null), 3000);
       
-      // Recharger les données
       await loadData();
       
-      // Fermer le modal
       closeModal();
     } catch (err) {
       console.error('Erreur lors de la mise à jour de l\'accès utilisateur:', err);
@@ -171,6 +207,13 @@ const ClientAccess: React.FC = () => {
     }
   };
 
+  /**
+   * Gère la suppression de l'accès d'un utilisateur après confirmation.
+   * Appelle le service Firebase pour supprimer l'accès, puis recharge les données.
+   * @param {string} userEmail - L'email de l'utilisateur dont l'accès doit être supprimé.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleRemoveUser = async (userEmail: string) => {
     if (!selectedClient || !hasAccessPermission) return;
     
@@ -178,12 +221,12 @@ const ClientAccess: React.FC = () => {
       try {
         setError(null);
         
+        console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientAccess.tsx - Fonction: handleRemoveUser - Path: clients/${selectedClient.clientId}/userAccess/${userEmail}`);
         await removeUserAccess(selectedClient.clientId, userEmail);
         
         setSuccess('Accès utilisateur supprimé avec succès.');
         setTimeout(() => setSuccess(null), 3000);
         
-        // Recharger les données
         await loadData();
       } catch (err) {
         console.error('Erreur lors de la suppression de l\'accès utilisateur:', err);
@@ -192,7 +235,6 @@ const ClientAccess: React.FC = () => {
     }
   };
   
-  // Filtrer les utilisateurs en fonction de la recherche
   const filteredUsers = users.filter(user => {
     if (!userSearchQuery) return true;
     
@@ -203,7 +245,6 @@ const ClientAccess: React.FC = () => {
     );
   });
   
-  // Filtrer pour ne montrer que les utilisateurs qui n'ont pas encore accès
   const availableUsers = filteredUsers.filter(user => 
     !clientUsers.some(clientUser => clientUser.userEmail === user.email)
   );
@@ -262,7 +303,6 @@ const ClientAccess: React.FC = () => {
           </div>
         )}
         
-        {/* Liste des utilisateurs ayant accès */}
         {clientUsers.length === 0 ? (
           <div className="bg-gray-50 p-6 text-center rounded-lg">
             <p className="text-gray-500">Aucun utilisateur n'a accès à ce client.</p>
@@ -358,13 +398,11 @@ const ClientAccess: React.FC = () => {
           </div>
         )}
         
-        {/* Modal d'ajout/modification d'utilisateur */}
         {isModalOpen && hasAccessPermission && (
           <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" open={isModalOpen} onClose={closeModal}>
             <div className="min-h-screen px-4 text-center">
               <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
 
-              {/* Astuce pour centrer le modal */}
               <span className="inline-block h-screen align-middle" aria-hidden="true">
                 &#8203;
               </span>
@@ -385,14 +423,12 @@ const ClientAccess: React.FC = () => {
                 </div>
                 
                 <div className="mt-4 space-y-4">
-                  {/* Sélection d'utilisateur (uniquement en mode ajout) */}
                   {!isEditing && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Sélectionner un utilisateur
                       </label>
                       
-                      {/* Champ de recherche/filtre */}
                       <div className="mb-2">
                         <input
                           type="text"
@@ -403,7 +439,6 @@ const ClientAccess: React.FC = () => {
                         />
                       </div>
                       
-                      {/* Liste déroulante d'utilisateurs */}
                       <div className="relative">
                         <select
                           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -447,7 +482,6 @@ const ClientAccess: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Affichage de l'utilisateur en mode édition */}
                   {isEditing && currentUser && (
                     <div className="mb-4 flex items-center bg-gray-50 p-2 rounded-md">
                       {currentUser.photoURL ? (
@@ -470,7 +504,6 @@ const ClientAccess: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Niveau d'accès */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Niveau d'accès
@@ -492,7 +525,6 @@ const ClientAccess: React.FC = () => {
                     </select>
                   </div>
                   
-                  {/* Note */}
                   <div>
                     <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
                       Note

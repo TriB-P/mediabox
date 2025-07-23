@@ -1,13 +1,15 @@
-// app/hooks/useCampaignSelection.ts - Version optimisée sans boucles infinies
-
+/**
+ * Ce hook gère la sélection des campagnes et de leurs versions associées pour un client donné.
+ * Il s'occupe du chargement des données depuis Firebase, de la gestion des états de chargement et d'erreur,
+ * et de la mise à jour des sélections via les contextes appropriés.
+ * Il est conçu pour éviter les rechargements inutiles et les boucles infinies.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
 import { Campaign } from '../types/campaign';
-
-// ==================== TYPES ====================
 
 interface Version {
   id: string;
@@ -31,12 +33,14 @@ interface UseCampaignSelectionReturn {
   clearSelection: () => void;
 }
 
-// ==================== HOOK PRINCIPAL OPTIMISÉ ====================
-
+/**
+ * Hook personnalisé pour gérer la sélection des campagnes et des versions.
+ *
+ * @returns {UseCampaignSelectionReturn} Un objet contenant les campagnes, les versions,
+ * la campagne et la version sélectionnées, l'état de chargement, les erreurs,
+ * et les fonctions pour gérer les changements et rafraîchir les données.
+ */
 export function useCampaignSelection(): UseCampaignSelectionReturn {
-  
-  // ==================== DÉPENDANCES ====================
-  
   const { selectedClient } = useClient();
   const { 
     selectedCampaignId, 
@@ -46,32 +50,29 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     clearCampaignSelection 
   } = useSelection();
   
-  // ==================== ÉTATS LOCAUX ====================
-  
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // ==================== REFS POUR ÉVITER LES BOUCLES ====================
   
   const loadedClientRef = useRef<string | null>(null);
   const loadedCampaignRef = useRef<string | null>(null);
   const loadingCampaignsRef = useRef(false);
   const loadingVersionsRef = useRef(false);
   
-  // ==================== FONCTIONS DE CHARGEMENT OPTIMISÉES ====================
-  
+  /**
+   * Charge les campagnes pour un client donné.
+   *
+   * @param {string} clientId L'ID du client pour lequel charger les campagnes.
+   * @param {boolean} force Indique si le rechargement doit être forcé, ignorant le cache.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les campagnes chargées.
+   */
   const loadCampaigns = useCallback(async (clientId: string, force = false) => {
-    // 🔥 PROTECTION : Éviter les appels simultanés
     if (loadingCampaignsRef.current && !force) {
-      console.log('⚠️ Chargement campagnes déjà en cours, ignoré');
       return;
     }
     
-    // 🔥 PROTECTION : Éviter les rechargements inutiles
     if (loadedClientRef.current === clientId && !force) {
-      console.log('✅ Campagnes déjà chargées pour ce client');
       return;
     }
     
@@ -80,19 +81,15 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     setError(null);
     
     try {
-      console.log('🔄 Chargement campagnes pour client:', clientId);
-      
+      console.log("FIREBASE: LECTURE - Fichier: useCampaignSelection.ts - Fonction: loadCampaigns - Path: campaigns (via getCampaigns)");
       const campaignsData = await getCampaigns(clientId);
       setCampaigns(campaignsData);
       loadedClientRef.current = clientId;
       
-      // 🔥 CORRECTION : Reset versions seulement si changement de client
       if (loadedCampaignRef.current && loadedCampaignRef.current !== selectedCampaignId) {
         setVersions([]);
         loadedCampaignRef.current = null;
       }
-      
-      console.log('✅ Campagnes chargées:', campaignsData.length);
       
     } catch (err) {
       console.error('❌ Erreur chargement campagnes:', err);
@@ -104,16 +101,20 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     }
   }, [selectedCampaignId]);
   
+  /**
+   * Charge les versions pour une campagne donnée et un client spécifique.
+   *
+   * @param {string} clientId L'ID du client.
+   * @param {string} campaignId L'ID de la campagne pour laquelle charger les versions.
+   * @param {boolean} force Indique si le rechargement doit être forcé.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les versions chargées.
+   */
   const loadVersions = useCallback(async (clientId: string, campaignId: string, force = false) => {
-    // 🔥 PROTECTION : Éviter les appels simultanés
     if (loadingVersionsRef.current && !force) {
-      console.log('⚠️ Chargement versions déjà en cours, ignoré');
       return;
     }
     
-    // 🔥 PROTECTION : Éviter les rechargements inutiles
     if (loadedCampaignRef.current === campaignId && !force) {
-      console.log('✅ Versions déjà chargées pour cette campagne');
       return;
     }
     
@@ -122,13 +123,10 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     setError(null);
     
     try {
-      console.log('🔄 Chargement versions pour campagne:', campaignId);
-      
+      console.log("FIREBASE: LECTURE - Fichier: useCampaignSelection.ts - Fonction: loadVersions - Path: versions (via getVersions)");
       const versionsData = await getVersions(clientId, campaignId);
       setVersions(versionsData);
       loadedCampaignRef.current = campaignId;
-      
-      console.log('✅ Versions chargées:', versionsData.length);
       
     } catch (err) {
       console.error('❌ Erreur chargement versions:', err);
@@ -140,11 +138,12 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     }
   }, []);
   
-  // ==================== EFFET SIMPLIFIÉ POUR LE CLIENT ====================
-  
+  /**
+   * Effet de bord qui s'exécute lorsque le client sélectionné change.
+   * Il réinitialise les sélections et charge les campagnes si un client est sélectionné.
+   */
   useEffect(() => {
     if (!selectedClient?.clientId) {
-      // Reset complet si pas de client
       setCampaigns([]);
       setVersions([]);
       loadedClientRef.current = null;
@@ -153,15 +152,15 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       return;
     }
     
-    // Charger uniquement si nécessaire
     loadCampaigns(selectedClient.clientId);
   }, [selectedClient?.clientId, loadCampaigns]);
   
-  // ==================== EFFET SIMPLIFIÉ POUR LA CAMPAGNE ====================
-  
+  /**
+   * Effet de bord qui s'exécute lorsque la campagne sélectionnée ou le client change.
+   * Il réinitialise les versions si aucune campagne n'est sélectionnée et charge les versions si nécessaire.
+   */
   useEffect(() => {
     if (!selectedClient?.clientId || !selectedCampaignId) {
-      // Reset versions si pas de campagne
       if (loadedCampaignRef.current) {
         setVersions([]);
         loadedCampaignRef.current = null;
@@ -169,46 +168,64 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       return;
     }
     
-    // Charger uniquement si nécessaire
     loadVersions(selectedClient.clientId, selectedCampaignId);
   }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
-  
-  // ==================== OBJETS DÉRIVÉS MÉMORISÉS ====================
   
   const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId) || null;
   const selectedVersion = versions.find(v => v.id === selectedVersionId) || null;
   
-  // ==================== GESTIONNAIRES SIMPLIFIÉS ====================
-  
+  /**
+   * Gère le changement de la campagne sélectionnée.
+   * Réinitialise la version sélectionnée et met à jour l'ID de la campagne sélectionnée.
+   *
+   * @param {Campaign} campaign La nouvelle campagne sélectionnée.
+   * @returns {void}
+   */
   const handleCampaignChange = useCallback((campaign: Campaign) => {
-    console.log('📋 Changement campagne:', campaign.CA_Name);
-    
-    // 🔥 CORRECTION : Changement synchrone sans setTimeout
-    setSelectedVersionId(null); // Reset version d'abord
-    setSelectedCampaignId(campaign.id); // Puis changer campagne
+    setSelectedVersionId(null);
+    setSelectedCampaignId(campaign.id);
   }, [setSelectedCampaignId, setSelectedVersionId]);
   
+  /**
+   * Gère le changement de la version sélectionnée.
+   * Met à jour l'ID de la version sélectionnée.
+   *
+   * @param {Version} version La nouvelle version sélectionnée.
+   * @returns {void}
+   */
   const handleVersionChange = useCallback((version: Version) => {
-    console.log('📝 Changement version:', version.name);
     setSelectedVersionId(version.id);
   }, [setSelectedVersionId]);
   
-  // ==================== ACTIONS UTILITAIRES ====================
-  
+  /**
+   * Force le rechargement des campagnes.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les campagnes rafraîchies.
+   */
   const refreshCampaigns = useCallback(async () => {
     if (selectedClient?.clientId) {
-      loadedClientRef.current = null; // Force le rechargement
+      loadedClientRef.current = null;
       await loadCampaigns(selectedClient.clientId, true);
     }
   }, [selectedClient?.clientId, loadCampaigns]);
   
+  /**
+   * Force le rechargement des versions.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les versions rafraîchies.
+   */
   const refreshVersions = useCallback(async () => {
     if (selectedClient?.clientId && selectedCampaignId) {
-      loadedCampaignRef.current = null; // Force le rechargement
+      loadedCampaignRef.current = null;
       await loadVersions(selectedClient.clientId, selectedCampaignId, true);
     }
   }, [selectedClient?.clientId, selectedCampaignId, loadVersions]);
   
+  /**
+   * Efface toutes les sélections de campagne et de version, et réinitialise les données.
+   *
+   * @returns {void}
+   */
   const clearSelection = useCallback(() => {
     clearCampaignSelection();
     setCampaigns([]);
@@ -218,15 +235,13 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
     setError(null);
   }, [clearCampaignSelection]);
   
-  // ==================== RETURN ====================
-  
   return {
     campaigns,
     versions,
     selectedCampaign,
     selectedVersion,
     loading,
-    error: selectedClient ? error : null, // Pas d'erreur si pas de client
+    error: selectedClient ? error : null,
     handleCampaignChange,
     handleVersionChange,
     refreshCampaigns,

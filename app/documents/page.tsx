@@ -1,5 +1,8 @@
-// app/documents/page.tsx
-
+/**
+ * Ce fichier représente la page des documents de l'application.
+ * Il permet de tester la génération de documents via Google Sheets et le nettoyage de données provenant de Firebase.
+ * C'est une page de test pour les fonctionnalités liées aux documents.
+ */
 'use client';
 
 import React, { useState } from 'react';
@@ -9,6 +12,11 @@ import { useGenerateDoc } from '../hooks/documents/useGenerateDoc';
 import { useCleanDocData } from '../hooks/documents/useCleanDocData';
 import { FileText, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
 
+/**
+ * Composant principal pour la page des documents.
+ * Permet de déclencher et d'afficher les résultats des tests de génération et de nettoyage de documents.
+ * @returns {JSX.Element} Le composant de la page des documents.
+ */
 export default function DocumentsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<{
@@ -16,33 +24,30 @@ export default function DocumentsPage() {
     message: string;
   } | null>(null);
 
-  // Hook pour générer le document (existant)
   const { generateDocument, loading, error } = useGenerateDoc();
 
-  // Hook pour nettoyer les données (nouveau)
   const { cleanData, loading: cleanLoading, error: cleanError, data: cleanedData } = useCleanDocData();
 
-  // Configuration hard-codée pour les tests
   const TEST_CONFIG = {
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1mt_vSmoZOb0_8YYHPzGB02f0Aby3IbiUdBf3eAbvTFk/edit',
     sheetName: 'Test'
   };
 
-  // Configuration hard-codée pour le nettoyage des données
   const CLEAN_TEST_CONFIG = {
     clientId: '46bc9dd4',
     campaignId: 'YuRAhYKqKiTvUQOfXPwd',
     versionId: 'hShB62xJQhyG978FqBXZ'
   };
 
+  /**
+   * Gère le test de génération de document.
+   * Déclenche la fonction `generateDocument` avec des paramètres de test et met à jour l'état du résultat.
+   * @returns {Promise<void>}
+   */
   const handleGenerateTest = async () => {
     try {
       setIsGenerating(true);
       setResult(null);
-
-      console.log('🚀 Génération du document test...');
-      console.log('URL:', TEST_CONFIG.sheetUrl);
-      console.log('Onglet:', TEST_CONFIG.sheetName);
 
       const success = await generateDocument(
         TEST_CONFIG.sheetUrl,
@@ -71,11 +76,13 @@ export default function DocumentsPage() {
     }
   };
 
+  /**
+   * Gère le test de nettoyage des données.
+   * Déclenche la fonction `cleanData` avec des paramètres de test.
+   * @returns {Promise<void>}
+   */
   const handleCleanDataTest = async () => {
     try {
-      console.log('🧹 Nettoyage des données test...');
-      console.log('Config:', CLEAN_TEST_CONFIG);
-
       await cleanData(
         CLEAN_TEST_CONFIG.clientId,
         CLEAN_TEST_CONFIG.campaignId,
@@ -90,7 +97,7 @@ export default function DocumentsPage() {
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div className="space-y-6">
-          
+
           {/* ==================== EN-TÊTE ==================== */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -111,7 +118,7 @@ export default function DocumentsPage() {
               <div className="text-sm">
                 <p className="text-blue-800 font-medium mb-1">Module Documents - Version Test</p>
                 <p className="text-blue-700">
-                  Cette version de test permet de vérifier la connexion avec l'API Google Sheets 
+                  Cette version de test permet de vérifier la connexion avec l'API Google Sheets
                   et le nettoyage des données depuis Firebase.
                 </p>
               </div>
@@ -126,7 +133,7 @@ export default function DocumentsPage() {
                 Paramètres hard-codés pour le test d'écriture
               </p>
             </div>
-            
+
             <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -180,7 +187,7 @@ export default function DocumentsPage() {
                 Extraction et nettoyage des données depuis Firebase
               </p>
             </div>
-            
+
             <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -250,7 +257,7 @@ export default function DocumentsPage() {
                   Tableau 2D prêt pour l'export ({cleanedData.length} lignes × {cleanedData[0]?.length || 0} colonnes)
                 </p>
               </div>
-              
+
               <div className="px-6 py-4">
                 <div className="overflow-x-auto max-h-96 border border-gray-200 rounded-md">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -290,8 +297,8 @@ export default function DocumentsPage() {
           {/* ==================== RÉSULTATS ==================== */}
           {result && (
             <div className={`rounded-lg p-4 ${
-              result.success 
-                ? 'bg-green-50 border border-green-200' 
+              result.success
+                ? 'bg-green-50 border border-green-200'
                 : 'bg-red-50 border border-red-200'
             }`}>
               <div className="flex items-start space-x-3">

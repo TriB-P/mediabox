@@ -1,3 +1,8 @@
+/**
+ * Ce fichier contient des fonctions utilitaires pour interagir avec la base de données Firebase
+ * afin de récupérer des informations sur les clients, les listes associées aux clients (comme les shortcodes),
+ * et les partenaires. Il gère la lecture des données depuis Firestore.
+ */
 import { collection, getDocs, query, doc, getDoc, where } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -13,14 +18,13 @@ export interface ShortcodeItem {
 }
 
 /**
- * Récupère les informations d'un client depuis Firestore
- * @param clientId - ID du client
- * @returns Les informations du client
+ * Récupère les informations d'un client spécifique depuis Firestore.
+ * @param clientId - L'identifiant unique du client à récupérer.
+ * @returns Un objet contenant les informations du client, ou null si le client n'est pas trouvé ou en cas d'erreur.
  */
 export async function getClientInfo(clientId: string): Promise<any> {
   try {
-    console.log(`Récupération des informations pour le client ${clientId}`);
-
+    console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getClientInfo - Path: clients/${clientId}");
     const clientRef = doc(db, 'clients', clientId);
     const clientDoc = await getDoc(clientRef);
 
@@ -40,21 +44,19 @@ export async function getClientInfo(clientId: string): Promise<any> {
 }
 
 /**
- * Récupère une liste spécifique pour un client donné
- * @param listType - Type de liste (ex: CA_Division, CA_Custom_Dim_1)
- * @param clientId - ID du client
- * @returns Une liste d'éléments avec leurs propriétés
+ * Récupère une liste spécifique de shortcodes associée à un client donné.
+ * Cette fonction récupère d'abord les IDs des shortcodes liés à la liste et au client,
+ * puis récupère les détails complets de chaque shortcode.
+ * @param listType - Le type de la liste à récupérer (par exemple, 'CA_Division', 'CA_Custom_Dim_1').
+ * @param clientId - L'identifiant unique du client pour lequel récupérer la liste.
+ * @returns Un tableau d'objets ShortcodeItem triés par nom d'affichage français, ou un tableau vide en cas d'erreur ou d'absence de shortcodes.
  */
 export async function getClientList(
   listType: string,
   clientId: string
 ): Promise<ShortcodeItem[]> {
   try {
-    console.log(
-      `Récupération de la liste ${listType} pour le client ${clientId}`
-    );
-
-    // 1. Récupérer les IDs des shortcodes de la liste du client
+    console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getClientList - Path: lists/${listType}/clients/${clientId}/shortcodes");
     const shortcodeRefs = collection(
       db,
       'lists',
@@ -68,14 +70,11 @@ export async function getClientList(
     const shortcodeIds = snapshot.docs.map(doc => doc.id);
 
     if (shortcodeIds.length === 0) {
-      console.log(`Aucun shortcode trouvé dans la liste ${listType} pour le client ${clientId}`);
       return [];
     }
     
-    console.log(`${shortcodeIds.length} IDs de shortcode trouvés pour ${listType}. Récupération des détails...`);
-
-    // 2. Récupérer les détails de chaque shortcode depuis la collection racine 'shortcodes'
     const shortcodesPromises = shortcodeIds.map(async (id) => {
+      console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getClientList - Path: shortcodes/${id}");
       const shortcodeRef = doc(db, 'shortcodes', id);
       const shortcodeSnap = await getDoc(shortcodeRef);
       if (shortcodeSnap.exists()) {
@@ -97,7 +96,6 @@ export async function getClientList(
     const resolvedShortcodes = await Promise.all(shortcodesPromises);
     const finalShortcodes = resolvedShortcodes.filter(s => s !== null) as ShortcodeItem[];
 
-    // Trier par nom d'affichage français
     return finalShortcodes.sort((a, b) => 
       a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
     );
@@ -112,28 +110,24 @@ export async function getClientList(
 }
 
 /**
- * Récupère la liste des partenaires (non classifiée par client)
- * @returns Une liste des partenaires avec leurs propriétés
+ * Récupère la liste de tous les partenaires disponibles.
+ * Cette fonction est utilisée pour obtenir une liste globale des éditeurs/partenaires.
+ * @returns Un tableau d'objets ShortcodeItem représentant les partenaires, triés par nom d'affichage français, ou un tableau vide en cas d'erreur.
  */
 export async function getPartnersList(): Promise<ShortcodeItem[]> {
   try {
-    console.log('Récupération de la liste des partenaires');
-
-    // 1. Récupérer les IDs des partenaires depuis la nouvelle structure
+    console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getPartnersList - Path: lists/TC_Publisher/clients/PlusCo/shortcodes");
     const partnerIdsRef = collection(db, 'lists', 'TC_Publisher', 'clients', 'PlusCo', 'shortcodes');
     const partnerIdsSnapshot = await getDocs(partnerIdsRef);
-    
-    console.log(`${partnerIdsSnapshot.size} IDs de partenaires trouvés`);
     
     if (partnerIdsSnapshot.empty) {
       return [];
     }
     
-    // 2. Pour chaque ID, récupérer les informations complètes
     const partnersPromises = partnerIdsSnapshot.docs.map(async (docSnap) => {
       const partnerId = docSnap.id;
       
-      // Récupérer les informations complètes du partenaire
+      console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getPartnersList - Path: shortcodes/${partnerId}");
       const partnerRef = doc(db, 'shortcodes', partnerId);
       const partnerSnap = await getDoc(partnerRef);
       
@@ -157,9 +151,6 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
     const partnersResults = await Promise.all(partnersPromises);
     const partners = partnersResults.filter(p => p !== null) as ShortcodeItem[];
     
-    console.log(`${partners.length} partenaires avec informations complètes récupérés`);
-    
-    // Trier par ordre alphabétique du nom d'affichage
     return partners.sort((a, b) => 
       a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
     );
@@ -170,20 +161,17 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
 }
 
 /**
- * Récupère un partenaire spécifique par son ID
- * @param partnerId - ID du partenaire
- * @returns Les informations détaillées du partenaire
+ * Récupère les informations détaillées d'un partenaire spécifique par son ID.
+ * @param partnerId - L'identifiant unique du partenaire à récupérer.
+ * @returns Un objet ShortcodeItem contenant les informations du partenaire, ou null si le partenaire n'est pas trouvé ou en cas d'erreur.
  */
 export async function getPartnerById(partnerId: string): Promise<ShortcodeItem | null> {
   try {
-    console.log(`Récupération du partenaire ${partnerId}`);
-
-    // Récupérer directement les informations du partenaire depuis la collection shortcodes
+    console.log("FIREBASE: LECTURE - Fichier: code.ts - Fonction: getPartnerById - Path: shortcodes/${partnerId}");
     const partnerRef = doc(db, 'shortcodes', partnerId);
     const partnerDoc = await getDoc(partnerRef);
 
     if (!partnerDoc.exists()) {
-      console.log(`Partenaire ${partnerId} non trouvé`);
       return null;
     }
 

@@ -1,13 +1,33 @@
+/**
+ * Ce fichier définit la page de connexion de l'application.
+ * Il gère l'authentification des utilisateurs via Google et les redirige
+ * vers la page des campagnes une fois connectés.
+ */
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
+/**
+ * Composant de la page de connexion.
+ * Gère l'affichage de la page de connexion, la redirection après authentification
+ * et le processus de connexion avec Google.
+ *
+ * @returns {JSX.Element} La page de connexion.
+ */
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
 
+  /**
+   * Effet de bord pour gérer la redirection de l'utilisateur après connexion.
+   * Redirige l'utilisateur vers la page '/campaigns' si un utilisateur est authentifié et que le chargement est terminé.
+   *
+   * @param {object} user - L'objet utilisateur authentifié.
+   * @param {boolean} loading - Indique si l'état d'authentification est en cours de chargement.
+   * @param {object} router - L'objet router de Next.js pour la navigation.
+   */
   useEffect(() => {
     if (user && !loading) {
       router.push('/campaigns');
@@ -34,9 +54,8 @@ export default function LoginPage() {
 
         <button
           onClick={() => {
-            console.log('Bouton cliqué');
+            console.log("FIREBASE: ÉCRITURE - Fichier: LoginPage.js - Fonction: LoginPage - Path: N/A");
             signInWithGoogle()
-              .then(() => console.log('Connexion réussie'))
               .catch((error) => console.error('Erreur de connexion:', error));
           }}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"

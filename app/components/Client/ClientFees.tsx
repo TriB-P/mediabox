@@ -1,13 +1,17 @@
-// app/components/Client/ClientFees.tsx
-
+/**
+ * Ce composant est responsable de l'affichage et de la gestion des frais associés à un client sélectionné.
+ * Il permet aux utilisateurs disposant des permissions adéquates d'ajouter, de modifier, de supprimer et de réorganiser les frais
+ * ainsi que leurs options spécifiques. Il récupère les données depuis Firebase et gère l'interface utilisateur pour
+ * l'administration des frais, y compris les formulaires et les modaux.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  getClientFees, 
-  getFeeOptions, 
-  addFee, 
-  updateFee, 
+import {
+  getClientFees,
+  getFeeOptions,
+  addFee,
+  updateFee,
   deleteFee,
   addFeeOption,
   updateFeeOption,
@@ -20,69 +24,72 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 import { Fee, FeeOption, FeeFormData, FeeOptionFormData } from '../../types/fee';
 import FeeForm from './FeeForm';
 import FeeOptionForm from './FeeOptionForm';
-import { 
-  PlusIcon, 
-  ChevronDownIcon, 
-  ChevronRightIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  TrashIcon,
   PencilIcon,
-  ChevronUpIcon,
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/outline';
 
+/**
+ * Composant principal pour gérer les frais d'un client. Il gère l'état,
+ * les interactions utilisateur et la communication avec les services Firebase
+ * pour toutes les opérations liées aux frais.
+ * @returns {React.JSX.Element} Le JSX du composant de gestion des frais.
+ */
 export default function ClientFees() {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [fees, setFees] = useState<Fee[]>([]);
-  const [feeOptions, setFeeOptions] = useState<{[feeId: string]: FeeOption[]}>({}); 
+  const [feeOptions, setFeeOptions] = useState<{ [feeId: string]: FeeOption[] }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
-  // Vérifier si l'utilisateur a la permission de gérer les frais
   const hasFeesPermission = canPerformAction('Fees');
-  
-  // États pour les formulaires
   const [showFeeForm, setShowFeeForm] = useState(false);
   const [currentFee, setCurrentFee] = useState<Fee | null>(null);
   const [showOptionForm, setShowOptionForm] = useState(false);
-  const [currentOption, setCurrentOption] = useState<{feeId: string, option: FeeOption | null}>({feeId: '', option: null});
-  
-  // État pour les accordions
-  const [expandedFees, setExpandedFees] = useState<{[feeId: string]: boolean}>({});
+  const [currentOption, setCurrentOption] = useState<{ feeId: string, option: FeeOption | null }>({ feeId: '', option: null });
+  const [expandedFees, setExpandedFees] = useState<{ [feeId: string]: boolean }>({});
 
-  // Charger les frais quand le client change
   useEffect(() => {
     if (selectedClient) {
       loadFees();
     }
   }, [selectedClient]);
 
+  /**
+   * Charge les frais et leurs options depuis Firebase pour le client actuellement sélectionné.
+   * Met à jour les états `fees`, `feeOptions`, `loading` et `error`.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   */
   const loadFees = async () => {
     if (!selectedClient) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
+      console.log(`FIREBASE: LECTURE - Fichier: ClientFees.tsx - Fonction: loadFees - Path: clients/${selectedClient.clientId}/fees`);
       const fetchedFees = await getClientFees(selectedClient.clientId);
       setFees(fetchedFees);
-      
-      // Initialiser l'état des accordions
-      const expanded: {[feeId: string]: boolean} = {};
+
+      const expanded: { [feeId: string]: boolean } = {};
       fetchedFees.forEach(fee => {
         expanded[fee.id] = false;
       });
       setExpandedFees(expanded);
-      
-      // Charger les options pour chaque frais
-      const options: {[feeId: string]: FeeOption[]} = {};
+
+      const options: { [feeId: string]: FeeOption[] } = {};
       for (const fee of fetchedFees) {
+        console.log(`FIREBASE: LECTURE - Fichier: ClientFees.tsx - Fonction: loadFees - Path: clients/${selectedClient.clientId}/fees/${fee.id}/options`);
         options[fee.id] = await getFeeOptions(selectedClient.clientId, fee.id);
       }
       setFeeOptions(options);
-      
+
     } catch (err) {
       console.error('Erreur lors du chargement des frais:', err);
       setError('Impossible de charger les frais du client.');
@@ -91,6 +98,11 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Bascule l'affichage (développé/réduit) des options pour un frais donné dans l'interface.
+   * @param {string} feeId - L'ID du frais à basculer.
+   * @returns {void}
+   */
   const toggleFeeExpand = (feeId: string) => {
     setExpandedFees(prev => ({
       ...prev,
@@ -98,11 +110,16 @@ export default function ClientFees() {
     }));
   };
 
-  // Gestion du déplacement des frais
+  /**
+   * Gère la demande de déplacement d'un frais vers le haut dans la liste.
+   * @param {string} feeId - L'ID du frais à déplacer.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de déplacement.
+   */
   const handleMoveFeeUp = async (feeId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleMoveFeeUp - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
       await moveFeeUp(selectedClient.clientId, feeId);
       setSuccess('Frais déplacé vers le haut.');
       setTimeout(() => setSuccess(null), 2000);
@@ -113,10 +130,16 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Gère la demande de déplacement d'un frais vers le bas dans la liste.
+   * @param {string} feeId - L'ID du frais à déplacer.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de déplacement.
+   */
   const handleMoveFeeDown = async (feeId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleMoveFeeDown - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
       await moveFeeDown(selectedClient.clientId, feeId);
       setSuccess('Frais déplacé vers le bas.');
       setTimeout(() => setSuccess(null), 2000);
@@ -127,11 +150,16 @@ export default function ClientFees() {
     }
   };
 
-  // Gestion des frais
+  /**
+   * Gère la soumission du formulaire pour ajouter un nouveau frais.
+   * @param {FeeFormData} formData - Les données du nouveau frais à ajouter.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative d'ajout.
+   */
   const handleAddFee = async (formData: FeeFormData) => {
     if (!selectedClient || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleAddFee - Path: clients/${selectedClient.clientId}/fees`);
       await addFee(selectedClient.clientId, formData);
       setShowFeeForm(false);
       loadFees();
@@ -143,10 +171,16 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire pour mettre à jour un frais existant.
+   * @param {FeeFormData} formData - Les nouvelles données du frais.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de mise à jour.
+   */
   const handleUpdateFee = async (formData: FeeFormData) => {
     if (!selectedClient || !currentFee || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleUpdateFee - Path: clients/${selectedClient.clientId}/fees/${currentFee.id}`);
       await updateFee(selectedClient.clientId, currentFee.id, formData);
       setShowFeeForm(false);
       setCurrentFee(null);
@@ -159,11 +193,17 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Gère la demande de suppression d'un frais après confirmation de l'utilisateur.
+   * @param {string} feeId - L'ID du frais à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de suppression.
+   */
   const handleDeleteFee = async (feeId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
-    
+
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce frais et toutes ses options ?')) {
       try {
+        console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleDeleteFee - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
         await deleteFee(selectedClient.clientId, feeId);
         loadFees();
         setSuccess('Frais supprimé avec succès.');
@@ -175,15 +215,21 @@ export default function ClientFees() {
     }
   };
 
-  // Gestion des options (code existant abrégé pour rester dans les 400 lignes)
+  /**
+   * Gère la soumission du formulaire pour ajouter une nouvelle option à un frais.
+   * @param {FeeOptionFormData} formData - Les données de la nouvelle option.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative d'ajout.
+   */
   const handleAddOption = async (formData: FeeOptionFormData) => {
     if (!selectedClient || !currentOption.feeId || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleAddOption - Path: clients/${selectedClient.clientId}/fees/${currentOption.feeId}/options`);
       await addFeeOption(selectedClient.clientId, currentOption.feeId, formData);
       setShowOptionForm(false);
-      setCurrentOption({feeId: '', option: null});
-      
+      setCurrentOption({ feeId: '', option: null });
+
+      console.log(`FIREBASE: LECTURE - Fichier: ClientFees.tsx - Fonction: handleAddOption - Path: clients/${selectedClient.clientId}/fees/${currentOption.feeId}/options`);
       const updatedOptions = await getFeeOptions(selectedClient.clientId, currentOption.feeId);
       setFeeOptions(prev => ({
         ...prev,
@@ -197,19 +243,26 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Gère la soumission du formulaire pour mettre à jour une option de frais existante.
+   * @param {FeeOptionFormData} formData - Les nouvelles données de l'option.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de mise à jour.
+   */
   const handleUpdateOption = async (formData: FeeOptionFormData) => {
     if (!selectedClient || !currentOption.feeId || !currentOption.option || !hasFeesPermission) return;
-    
+
     try {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleUpdateOption - Path: clients/${selectedClient.clientId}/fees/${currentOption.feeId}/options/${currentOption.option.id}`);
       await updateFeeOption(
-        selectedClient.clientId, 
-        currentOption.feeId, 
-        currentOption.option.id, 
+        selectedClient.clientId,
+        currentOption.feeId,
+        currentOption.option.id,
         formData
       );
       setShowOptionForm(false);
-      setCurrentOption({feeId: '', option: null});
-      
+      setCurrentOption({ feeId: '', option: null });
+
+      console.log(`FIREBASE: LECTURE - Fichier: ClientFees.tsx - Fonction: handleUpdateOption - Path: clients/${selectedClient.clientId}/fees/${currentOption.feeId}/options`);
       const updatedOptions = await getFeeOptions(selectedClient.clientId, currentOption.feeId);
       setFeeOptions(prev => ({
         ...prev,
@@ -223,13 +276,21 @@ export default function ClientFees() {
     }
   };
 
+  /**
+   * Gère la demande de suppression d'une option de frais après confirmation de l'utilisateur.
+   * @param {string} feeId - L'ID du frais parent de l'option.
+   * @param {string} optionId - L'ID de l'option à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout après la tentative de suppression.
+   */
   const handleDeleteOption = async (feeId: string, optionId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
-    
+
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette option ?')) {
       try {
+        console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleDeleteOption - Path: clients/${selectedClient.clientId}/fees/${feeId}/options/${optionId}`);
         await deleteFeeOption(selectedClient.clientId, feeId, optionId);
-        
+
+        console.log(`FIREBASE: LECTURE - Fichier: ClientFees.tsx - Fonction: handleDeleteOption - Path: clients/${selectedClient.clientId}/fees/${feeId}/options`);
         const updatedOptions = await getFeeOptions(selectedClient.clientId, feeId);
         setFeeOptions(prev => ({
           ...prev,
@@ -264,11 +325,10 @@ export default function ClientFees() {
                 setShowFeeForm(true);
               }
             }}
-            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm ${
-              hasFeesPermission 
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm ${hasFeesPermission
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 : 'text-gray-500 bg-gray-300 cursor-not-allowed'
-            }`}
+              }`}
             disabled={!hasFeesPermission}
             title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des frais" : ""}
           >
@@ -282,13 +342,13 @@ export default function ClientFees() {
             {error}
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 text-green-700">
             {success}
           </div>
         )}
-        
+
         {!hasFeesPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
             Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les frais.
@@ -305,8 +365,7 @@ export default function ClientFees() {
           <div className="space-y-4">
             {fees.map((fee, index) => (
               <div key={fee.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* En-tête du frais */}
-                <div 
+                <div
                   className="bg-gray-50 p-4 flex justify-between items-center cursor-pointer"
                   onClick={() => toggleFeeExpand(fee.id)}
                 >
@@ -326,7 +385,6 @@ export default function ClientFees() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {/* Flèches de déplacement */}
                     <div className="flex flex-col space-y-1">
                       <button
                         onClick={(e) => {
@@ -335,11 +393,10 @@ export default function ClientFees() {
                             handleMoveFeeUp(fee.id);
                           }
                         }}
-                        className={`p-1 ${
-                          hasFeesPermission && index > 0
-                            ? 'text-gray-500 hover:text-indigo-600' 
+                        className={`p-1 ${hasFeesPermission && index > 0
+                            ? 'text-gray-500 hover:text-indigo-600'
                             : 'text-gray-300 cursor-not-allowed'
-                        }`}
+                          }`}
                         disabled={!hasFeesPermission || index === 0}
                         title="Déplacer vers le haut"
                       >
@@ -352,18 +409,16 @@ export default function ClientFees() {
                             handleMoveFeeDown(fee.id);
                           }
                         }}
-                        className={`p-1 ${
-                          hasFeesPermission && index < fees.length - 1
-                            ? 'text-gray-500 hover:text-indigo-600' 
+                        className={`p-1 ${hasFeesPermission && index < fees.length - 1
+                            ? 'text-gray-500 hover:text-indigo-600'
                             : 'text-gray-300 cursor-not-allowed'
-                        }`}
+                          }`}
                         disabled={!hasFeesPermission || index === fees.length - 1}
                         title="Déplacer vers le bas"
                       >
                         <ArrowDownIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    {/* Actions modifier/supprimer */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -372,11 +427,10 @@ export default function ClientFees() {
                           setShowFeeForm(true);
                         }
                       }}
-                      className={`${
-                        hasFeesPermission 
-                          ? 'text-gray-500 hover:text-indigo-600' 
+                      className={`${hasFeesPermission
+                          ? 'text-gray-500 hover:text-indigo-600'
                           : 'text-gray-300 cursor-not-allowed'
-                      }`}
+                        }`}
                       disabled={!hasFeesPermission}
                       title={!hasFeesPermission ? "Vous n'avez pas la permission de modifier les frais" : ""}
                     >
@@ -389,11 +443,10 @@ export default function ClientFees() {
                           handleDeleteFee(fee.id);
                         }
                       }}
-                      className={`${
-                        hasFeesPermission 
-                          ? 'text-gray-500 hover:text-red-600' 
+                      className={`${hasFeesPermission
+                          ? 'text-gray-500 hover:text-red-600'
                           : 'text-gray-300 cursor-not-allowed'
-                      }`}
+                        }`}
                       disabled={!hasFeesPermission}
                       title={!hasFeesPermission ? "Vous n'avez pas la permission de supprimer les frais" : ""}
                     >
@@ -402,7 +455,6 @@ export default function ClientFees() {
                   </div>
                 </div>
 
-                {/* Options du frais (visible si expanded) */}
                 {expandedFees[fee.id] && (
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
@@ -410,15 +462,14 @@ export default function ClientFees() {
                       <button
                         onClick={() => {
                           if (hasFeesPermission) {
-                            setCurrentOption({feeId: fee.id, option: null});
+                            setCurrentOption({ feeId: fee.id, option: null });
                             setShowOptionForm(true);
                           }
                         }}
-                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md ${
-                          hasFeesPermission 
-                            ? 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md ${hasFeesPermission
+                            ? 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                             : 'text-gray-500 bg-gray-200 cursor-not-allowed'
-                        }`}
+                          }`}
                         disabled={!hasFeesPermission}
                         title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des options" : ""}
                       >
@@ -469,15 +520,14 @@ export default function ClientFees() {
                                     <button
                                       onClick={() => {
                                         if (hasFeesPermission) {
-                                          setCurrentOption({feeId: fee.id, option});
+                                          setCurrentOption({ feeId: fee.id, option });
                                           setShowOptionForm(true);
                                         }
                                       }}
-                                      className={`${
-                                        hasFeesPermission 
-                                          ? 'text-indigo-600 hover:text-indigo-900' 
+                                      className={`${hasFeesPermission
+                                          ? 'text-indigo-600 hover:text-indigo-900'
                                           : 'text-gray-300 cursor-not-allowed'
-                                      }`}
+                                        }`}
                                       disabled={!hasFeesPermission}
                                     >
                                       <PencilIcon className="h-4 w-4" />
@@ -488,11 +538,10 @@ export default function ClientFees() {
                                           handleDeleteOption(fee.id, option.id);
                                         }
                                       }}
-                                      className={`${
-                                        hasFeesPermission 
-                                          ? 'text-red-600 hover:text-red-900' 
+                                      className={`${hasFeesPermission
+                                          ? 'text-red-600 hover:text-red-900'
                                           : 'text-gray-300 cursor-not-allowed'
-                                      }`}
+                                        }`}
                                       disabled={!hasFeesPermission}
                                     >
                                       <TrashIcon className="h-4 w-4" />
@@ -515,7 +564,6 @@ export default function ClientFees() {
         )}
       </div>
 
-      {/* Modal pour le formulaire de frais */}
       {showFeeForm && hasFeesPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
@@ -534,7 +582,6 @@ export default function ClientFees() {
         </div>
       )}
 
-      {/* Modal pour le formulaire d'option */}
       {showOptionForm && hasFeesPermission && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
@@ -546,7 +593,7 @@ export default function ClientFees() {
               onSubmit={currentOption.option ? handleUpdateOption : handleAddOption}
               onCancel={() => {
                 setShowOptionForm(false);
-                setCurrentOption({feeId: '', option: null});
+                setCurrentOption({ feeId: '', option: null });
               }}
             />
           </div>

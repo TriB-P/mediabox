@@ -1,11 +1,16 @@
 // app/components/Tactiques/BudgetGeneralParams.tsx
 
+/**
+ * @file Ce fichier définit le composant BudgetGeneralParams.
+ * Il s'agit d'un composant de formulaire réutilisable qui affiche les champs de configuration
+ * généraux pour le budget d'une tactique, tels que le type d'unité, la devise et le mode de saisie
+ * du budget (client ou média). Il est conçu pour être intégré dans des formulaires plus larges.
+ */
+
 'use client';
 
 import React, { memo } from 'react';
 import { SmartSelect, createLabelWithHelp } from './TactiqueFormComponents';
-
-// ==================== TYPES ====================
 
 interface ListItem {
   id: string;
@@ -13,25 +18,16 @@ interface ListItem {
 }
 
 interface BudgetGeneralParamsProps {
-  // Données du formulaire
   formData: {
     TC_Currency?: string;
     TC_Unit_Type?: string;
     TC_Budget_Mode?: 'client' | 'media';
   };
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  
-  // Données externes
   unitTypeOptions: ListItem[];
-  
-  // État de chargement
   disabled?: boolean;
 }
-
-// ==================== CONSTANTES ====================
 
 const CURRENCIES = [
   { id: 'CAD', label: 'CAD - Dollar Canadien' },
@@ -50,8 +46,17 @@ const BUDGET_MODES = [
   }
 ];
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche les champs de formulaire pour les paramètres généraux du budget d'une tactique.
+ * Ce composant est mémoïsé pour optimiser les performances en évitant les rendus inutiles.
+ * @param {BudgetGeneralParamsProps} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données actuelles du formulaire pour pré-remplir les champs.
+ * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} props.onChange - La fonction de rappel à exécuter lors d'un changement dans un champ.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - La fonction pour afficher une infobulle d'aide.
+ * @param {ListItem[]} props.unitTypeOptions - La liste des options pour le sélecteur de type d'unité.
+ * @param {boolean} [props.disabled=false] - Un booléen pour désactiver les champs, par exemple pendant le chargement des données.
+ * @returns {React.ReactElement} Le fragment de formulaire JSX pour les paramètres généraux du budget.
+ */
 const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
   formData,
   onChange,
@@ -66,7 +71,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
 
   return (
     <div className="space-y-6">
-      {/* Type d'unité - Affiché seulement si des options sont disponibles */}
       {unitTypeOptions.length > 0 && (
         <SmartSelect
           id="TC_Unit_Type"
@@ -87,7 +91,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Devise d'achat */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -112,7 +115,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
           </select>
         </div>
 
-        {/* Mode de saisie */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
@@ -135,11 +137,9 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
               </option>
             ))}
           </select>
-          
         </div>
       </div>
 
-      {/* Encadré explicatif des modes de saisie */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
           💡 Modes de saisie du budget
@@ -162,7 +162,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
         </div>
       </div>
 
-      {/* Message si aucun type d'unité disponible */}
       {unitTypeOptions.length === 0 && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
@@ -172,7 +171,6 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
         </div>
       )}
 
-      {/* Message si champs désactivés */}
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

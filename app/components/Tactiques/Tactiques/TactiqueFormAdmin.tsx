@@ -1,9 +1,16 @@
+// components/admin/TactiqueFormAdmin.tsx
+/**
+ * @file Ce fichier contient les composants React nécessaires pour afficher la section "Administration"
+ * du formulaire de création ou d'édition d'une tactique.
+ * Il gère les champs liés à la facturation et au numéro de bon de commande (PO),
+ * avec une fonctionnalité permettant d'hériter ces valeurs depuis la campagne parente
+ * ou de les spécifier manuellement.
+ */
+
 'use client';
 
 import React, { memo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
-
-// ==================== TYPES ====================
 
 interface CampaignAdminValues {
   CA_Billing_ID?: string;
@@ -11,33 +18,38 @@ interface CampaignAdminValues {
 }
 
 interface TactiqueFormAdminProps {
-  // Données du formulaire
   formData: {
     TC_Billing_ID?: string;
     TC_PO?: string;
   };
-  
-  // États des héritages
   useInheritedBilling: boolean;
   useInheritedPO: boolean;
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   onInheritedBillingChange: (useInherited: boolean) => void;
   onInheritedPOChange: (useInherited: boolean) => void;
-  
-  // Données externes
   campaignAdminValues: CampaignAdminValues;
-  
-  // État de chargement
   loading?: boolean;
 }
 
-// ==================== COMPOSANTS ====================
-
 /**
- * Composant pour un champ admin avec héritage
+ * @component AdminField
+ * @description Un composant de champ de formulaire réutilisable qui gère la logique d'héritage.
+ * Il peut afficher soit une valeur héritée (non modifiable), soit un champ de saisie pour une valeur spécifique.
+ * @param {object} props - Les propriétés du composant.
+ * @param {string} props.id - L'identifiant unique pour le champ de saisie et la checkbox.
+ * @param {string} props.name - Le nom du champ de saisie, utilisé pour les formulaires.
+ * @param {string} props.label - L'étiquette affichée au-dessus du champ.
+ * @param {string} props.tooltip - Le texte d'aide affiché dans une infobulle.
+ * @param {string} props.value - La valeur actuelle du champ (si l'héritage est désactivé).
+ * @param {string} props.inheritedValue - La valeur héritée de la campagne parente.
+ * @param {boolean} props.useInherited - Un booléen indiquant si le champ doit utiliser la valeur héritée.
+ * @param {(e: React.ChangeEvent<HTMLInputElement>) => void} props.onChange - La fonction à appeler lors de la modification de la valeur du champ.
+ * @param {(useInherited: boolean) => void} props.onInheritedChange - La fonction à appeler lorsque l'état d'héritage change (via la checkbox).
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - La fonction pour afficher ou masquer l'infobulle.
+ * @param {string} [props.placeholder] - Le texte indicatif pour le champ de saisie.
+ * @param {boolean} [props.disabled=false] - Un booléen pour désactiver le champ.
+ * @returns {React.ReactElement} Le champ de formulaire avec sa logique d'héritage.
  */
 const AdminField = memo<{
   id: string;
@@ -67,6 +79,12 @@ const AdminField = memo<{
   disabled = false
 }) => {
   
+  /**
+   * @callback handleInheritedChange
+   * @description Gère le changement d'état de la checkbox d'héritage.
+   * Appelle la fonction onInheritedChange passée en props avec la nouvelle valeur.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   */
   const handleInheritedChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onInheritedChange(e.target.checked);
   }, [onInheritedChange]);
@@ -75,7 +93,6 @@ const AdminField = memo<{
 
   return (
     <div>
-      {/* Checkbox pour l'héritage */}
       <div className="flex items-center mb-4">
         <input
           type="checkbox"
@@ -90,12 +107,10 @@ const AdminField = memo<{
         </label>
       </div>
       
-      {/* Label avec icône d'aide */}
       <div className="flex items-center gap-3 mb-2">
         {createLabelWithHelp(label, tooltip, onTooltipChange)}
       </div>
       
-      {/* Input selon le mode */}
       {useInherited ? (
         <input
           type="text"
@@ -122,8 +137,23 @@ const AdminField = memo<{
 
 AdminField.displayName = 'AdminField';
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * @component TactiqueFormAdmin
+ * @description Le composant principal qui assemble la section administrative du formulaire de tactique.
+ * Il utilise le composant AdminField pour les champs "Numéro de facturation" et "PO".
+ * Affiche également des informations contextuelles sur l'héritage et les valeurs actuelles de la campagne.
+ * @param {object} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données du formulaire pour la tactique (valeurs spécifiques).
+ * @param {boolean} props.useInheritedBilling - État d'héritage pour le numéro de facturation.
+ * @param {boolean} props.useInheritedPO - État d'héritage pour le PO.
+ * @param {(e: React.ChangeEvent<HTMLInputElement>) => void} props.onChange - Gestionnaire de changement pour les champs du formulaire.
+ * @param {(tooltip: string | null) => void} props.onTooltipChange - Gestionnaire pour l'affichage des infobulles.
+ * @param {(useInherited: boolean) => void} props.onInheritedBillingChange - Gestionnaire pour le changement d'héritage du numéro de facturation.
+ * @param {(useInherited: boolean) => void} props.onInheritedPOChange - Gestionnaire pour le changement d'héritage du PO.
+ * @param {CampaignAdminValues} props.campaignAdminValues - Les valeurs administratives actuelles de la campagne parente.
+ * @param {boolean} [props.loading=false] - Indique si les données sont en cours de chargement, ce qui désactive les champs.
+ * @returns {React.ReactElement} La section de formulaire pour l'administration.
+ */
 const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
   formData,
   useInheritedBilling,
@@ -136,12 +166,10 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
   loading = false
 }) => {
   
-  // Désactiver les champs si en cours de chargement
   const isDisabled = loading;
 
   return (
     <div className="p-8 space-y-8">
-      {/* En-tête de section */}
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
           Administration
@@ -151,10 +179,8 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
         </p>
       </div>
       
-      {/* Champs administratifs */}
       <div className="space-y-8">
         
-        {/* TC_Billing_ID */}
         <AdminField
           id="TC_Billing_ID"
           name="TC_Billing_ID"
@@ -170,7 +196,6 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
           disabled={isDisabled}
         />
 
-        {/* TC_PO */}
         <AdminField
           id="TC_PO"
           name="TC_PO"
@@ -187,7 +212,6 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
         />
       </div>
 
-      {/* Informations sur l'héritage */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
           💡 À propos de l'héritage
@@ -205,7 +229,6 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
         </div>
       </div>
 
-      {/* Valeurs actuelles de la campagne */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-gray-800 mb-3">
           📋 Valeurs de la campagne
@@ -230,14 +253,12 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
         </div>
       </div>
 
-      {/* Message d'information si en chargement */}
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données administratives...</p>
         </div>
       )}
 
-      {/* Message si les valeurs de campagne sont manquantes */}
       {(!campaignAdminValues.CA_Billing_ID && !campaignAdminValues.CA_PO) && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

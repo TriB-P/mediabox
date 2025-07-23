@@ -1,4 +1,10 @@
-// app/components/Admin/EditUserModal.tsx
+/**
+ * @file Ce fichier définit le composant de la modale `EditUserModal`.
+ * Son rôle est de permettre à un administrateur de modifier le rôle d'un utilisateur.
+ * La modale affiche les informations de l'utilisateur, une liste déroulante des rôles
+ * disponibles (chargés depuis Firebase), et gère la sauvegarde de la modification.
+ */
+
 
 'use client';
 
@@ -8,6 +14,10 @@ import { UserWithStatus } from '../../types/invitations';
 import { getRoles } from '../../lib/roleService';
 import { Role } from '../../types/roles';
 
+/**
+ * @interface EditUserModalProps
+ * @description Définit les propriétés requises par le composant `EditUserModal`.
+ */
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +25,15 @@ interface EditUserModalProps {
   onSave: (userId: string, newRole: string) => Promise<void>;
 }
 
+/**
+ * Composant React pour la modale de modification du rôle d'un utilisateur.
+ * @param {EditUserModalProps} props Les propriétés du composant.
+ * @param {boolean} props.isOpen Indique si la modale est ouverte.
+ * @param {() => void} props.onClose Fonction pour fermer la modale.
+ * @param {UserWithStatus | null} props.user L'utilisateur à modifier.
+ * @param {(userId: string, newRole: string) => Promise<void>} props.onSave Fonction pour sauvegarder la modification du rôle.
+ * @returns {JSX.Element | null} La modale ou null si elle n'est pas ouverte.
+ */
 export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUserModalProps) {
   const [selectedRole, setSelectedRole] = useState('');
   const [roles, setRoles] = useState<Role[]>([]);
@@ -28,9 +47,14 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
     }
   }, [isOpen, user]);
 
+  /**
+   * Charge la liste des rôles depuis la base de données en utilisant `getRoles`.
+   * Gère les états de chargement et met à jour l'état `roles`.
+   */
   const loadRoles = async () => {
     try {
       setLoadingRoles(true);
+      console.log("FIREBASE: [LECTURE] - Fichier: EditUserModal.tsx - Fonction: loadRoles - Path: roles");
       const rolesData = await getRoles();
       setRoles(rolesData);
     } catch (error) {
@@ -40,6 +64,11 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
     }
   };
 
+  /**
+   * Gère la soumission du formulaire de modification de rôle.
+   * Il appelle la fonction `onSave` passée en props pour persister le changement.
+   * @param {React.FormEvent} e L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -48,13 +77,13 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
     }
 
     if (selectedRole === user.role) {
-      // Aucun changement
       onClose();
       return;
     }
 
     try {
       setSaving(true);
+      console.log(`FIREBASE: [ÉCRITURE] - Fichier: EditUserModal.tsx - Fonction: handleSubmit - Path: users/${user.id}`);
       await onSave(user.id, selectedRole);
       onClose();
     } catch (error: any) {
@@ -72,16 +101,13 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        {/* Overlay */}
         <div 
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={onClose}
         ></div>
 
-        {/* Modal */}
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <form onSubmit={handleSubmit}>
-            {/* Header */}
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -96,7 +122,6 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 </button>
               </div>
 
-              {/* Informations utilisateur */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center">
                   {user.photoURL ? (
@@ -123,7 +148,6 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 </div>
               </div>
 
-              {/* Sélection du rôle */}
               <div>
                 <label className="form-label">
                   Nouveau rôle *
@@ -153,14 +177,12 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                   </select>
                 )}
                 
-                {/* Rôle actuel */}
                 <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
                   <span className="text-blue-800">
                     Rôle actuel : <strong>{user.role || 'Aucun rôle'}</strong>
                   </span>
                 </div>
 
-                {/* Aperçu des permissions */}
                 {selectedRoleData && (
                   <div className="mt-3 p-3 bg-green-50 rounded">
                     <h4 className="text-sm font-medium text-green-800 mb-2">
@@ -182,7 +204,6 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
               </div>
             </div>
 
-            {/* Footer */}
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
                 type="submit"

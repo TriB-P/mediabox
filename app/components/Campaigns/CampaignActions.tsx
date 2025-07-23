@@ -1,8 +1,12 @@
-// app/components/Campaigns/CampaignActions.tsx
+/**
+ * Ce fichier définit le composant `CampaignActions`, qui fournit une série de boutons d'action
+ * (Modifier, Dupliquer, Supprimer) pour une campagne spécifique. Le composant gère son propre état
+ * de chargement et s'adapte à l'affichage sur mobile (menu déroulant) et sur ordinateur (boutons directs).
+ */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PencilIcon, 
   TrashIcon, 
@@ -21,6 +25,15 @@ interface CampaignActionsProps {
   className?: string;
 }
 
+/**
+ * Affiche les actions possibles pour une campagne (modifier, dupliquer, supprimer).
+ * @param {Campaign} campaign - L'objet de la campagne sur lequel les actions s'appliquent.
+ * @param {string} clientId - L'ID du client propriétaire de la campagne.
+ * @param {(campaign: Campaign) => void} onEdit - Fonction de rappel à exécuter lorsque l'utilisateur clique sur "Modifier".
+ * @param {() => void} onRefresh - Fonction de rappel pour rafraîchir la liste des campagnes après une action.
+ * @param {string} [className] - Classes CSS optionnelles pour le conteneur principal.
+ * @returns {React.ReactElement} Le composant JSX des actions de campagne.
+ */
 export default function CampaignActions({
   campaign,
   clientId,
@@ -32,19 +45,27 @@ export default function CampaignActions({
   const [isLoading, setIsLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
+  /**
+   * Appelle la fonction onEdit passée en props avec la campagne actuelle
+   * et ferme le menu d'actions.
+   */
   const handleEdit = () => {
     onEdit(campaign);
     setShowMenu(false);
   };
 
+  /**
+   * Gère la suppression d'une campagne après confirmation de l'utilisateur.
+   * Met à jour l'état de chargement et rafraîchit la liste des campagnes en cas de succès.
+   */
   const handleDelete = async () => {
-    // 🔥 CORRECTION: Utiliser CA_Name au lieu de name
     if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaign.CA_Name}" ?\n\nCette action est irréversible et supprimera également toutes les tactiques, versions et autres données associées.`)) {
       return;
     }
 
     try {
       setIsLoading(true);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignActions.tsx - Fonction: handleDelete - Path: clients/${clientId}/campaigns/${campaign.id}`);
       await deleteCampaign(clientId, campaign.id);
       onRefresh();
     } catch (error) {
@@ -56,17 +77,22 @@ export default function CampaignActions({
     }
   };
 
+  /**
+   * Gère la duplication d'une campagne.
+   * Crée un nouveau nom pour la campagne dupliquée, appelle le service de duplication,
+   * et rafraîchit la liste des campagnes en cas de succès.
+   */
   const handleDuplicate = async () => {
     if (!user?.email) {
       alert('Utilisateur non connecté.');
       return;
     }
 
-    // 🔥 CORRECTION: Utiliser CA_Name au lieu de name
     const newName = `${campaign.CA_Name} - Copie`;
 
     try {
       setIsLoading(true);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignActions.tsx - Fonction: handleDuplicate - Path: clients/${clientId}/campaigns/${campaign.id}`);
       await duplicateCampaign(clientId, campaign.id, user.email, newName);
       onRefresh();
       alert('Campagne dupliquée avec succès !');
@@ -79,8 +105,11 @@ export default function CampaignActions({
     }
   };
 
-  // Fermer le menu si on clique à l'extérieur
-  React.useEffect(() => {
+  /**
+   * Hook d'effet pour fermer le menu d'actions si l'utilisateur clique en dehors de celui-ci.
+   * Ajoute un écouteur d'événements au document lorsque le menu est visible.
+   */
+  useEffect(() => {
     const handleClickOutside = () => setShowMenu(false);
     if (showMenu) {
       document.addEventListener('click', handleClickOutside);
@@ -90,7 +119,6 @@ export default function CampaignActions({
 
   return (
     <div className={`relative ${className}`}>
-      {/* Version mobile/compacte avec menu déroulant */}
       <div className="sm:hidden">
         <button
           onClick={(e) => {
@@ -133,7 +161,6 @@ export default function CampaignActions({
         )}
       </div>
 
-      {/* Version desktop avec boutons séparés */}
       <div className="hidden sm:flex items-center gap-2">
         <button
           onClick={handleEdit}
@@ -163,7 +190,6 @@ export default function CampaignActions({
         </button>
       </div>
 
-      {/* Indicateur de chargement */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>

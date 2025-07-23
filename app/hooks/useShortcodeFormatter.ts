@@ -1,12 +1,16 @@
-// app/hooks/useShortcodeFormatter.ts
+/**
+ * Ce fichier contient un hook personnalisé `useShortcodeFormatter` qui permet de formater
+ * des identifiants de shortcodes en différentes valeurs (code, nom d'affichage, UTM, etc.).
+ * Il gère la récupération des données depuis Firebase (Firestore) et intègre un système de cache
+ * pour optimiser les performances. Il inclut également des fonctions utilitaires
+ * pour vider ce cache.
+ */
 
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-
-// ==================== TYPES ====================
 
 export type ShortcodeFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom_utm' | 'custom_code' | 'open';
 
@@ -18,7 +22,6 @@ interface ShortcodeData {
   SH_Default_UTM?: string;
 }
 
-// CORRIGÉ: Interface alignée avec la structure de données sauvegardée
 interface CustomCode {
   id: string;
   shortcodeId: string;
@@ -37,21 +40,24 @@ interface UseShortcodeFormatterReturn {
   clearCache: () => void;
 }
 
-// ==================== CACHE ====================
-
 const shortcodeCache = new Map<string, ShortcodeData>();
 const customCodesCache = new Map<string, CustomCode[]>();
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour formater les shortcodes.
+ *
+ * @param {string} clientId - L'identifiant du client pour lequel récupérer les custom codes.
+ * @returns {UseShortcodeFormatterReturn} Un objet contenant les fonctions de formatage et de gestion du cache.
+ */
 export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterReturn {
   const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
-  // ==================== FONCTIONS DE CHARGEMENT ====================
-
   /**
-   * Charge un shortcode depuis Firestore avec mise en cache
+   * Charge un shortcode depuis Firestore, en utilisant un cache si disponible.
+   *
+   * @param {string} shortcodeId - L'identifiant du shortcode à charger.
+   * @returns {Promise<ShortcodeData | null>} Les données du shortcode ou null si non trouvé ou une erreur survient.
    */
   const loadShortcode = useCallback(async (shortcodeId: string): Promise<ShortcodeData | null> => {
     if (shortcodeCache.has(shortcodeId)) {
@@ -60,6 +66,7 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
 
     try {
       const shortcodeRef = doc(db, 'shortcodes', shortcodeId);
+      console.log("FIREBASE: LECTURE - Fichier: useShortcodeFormatter.ts - Fonction: loadShortcode - Path: shortcodes/${shortcodeId}");
       const shortcodeSnap = await getDoc(shortcodeRef);
 
       if (!shortcodeSnap.exists()) {
@@ -86,7 +93,10 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
   }, []);
 
   /**
-   * Charge les custom codes pour un client avec mise en cache
+   * Charge les custom codes associés à un client depuis Firestore, avec mise en cache.
+   *
+   * @param {string} clientId - L'identifiant du client.
+   * @returns {Promise<CustomCode[]>} Un tableau des custom codes pour le client.
    */
   const loadClientCustomCodes = useCallback(async (clientId: string): Promise<CustomCode[]> => {
     if (customCodesCache.has(clientId)) {
@@ -95,9 +105,9 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
 
     try {
       const customCodesRef = collection(db, 'clients', clientId, 'customCodes');
+      console.log("FIREBASE: LECTURE - Fichier: useShortcodeFormatter.ts - Fonction: loadClientCustomCodes - Path: clients/${clientId}/customCodes");
       const snapshot = await getDocs(customCodesRef);
 
-      // CORRIGÉ: Mappage avec les bons noms de champs
       const customCodes: CustomCode[] = snapshot.docs.map(doc => ({
         id: doc.id,
         shortcodeId: doc.data().shortcodeId,
@@ -114,18 +124,24 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
   }, []);
 
   /**
-   * Trouve un custom code pour un shortcode spécifique
+   * Trouve un custom code spécifique pour un shortcode donné parmi les custom codes du client.
+   *
+   * @param {string} shortcodeId - L'identifiant du shortcode pour lequel trouver le custom code.
+   * @returns {Promise<CustomCode | null>} Le custom code trouvé ou null.
    */
   const findCustomCode = useCallback(async (shortcodeId: string): Promise<CustomCode | null> => {
     const customCodes = await loadClientCustomCodes(clientId);
-    // CORRIGÉ: Recherche avec le bon nom de champ
     return customCodes.find(cc => cc.shortcodeId === shortcodeId) || null;
   }, [clientId, loadClientCustomCodes]);
 
-  // ==================== FORMATAGE ====================
-
   /**
-   * Formate une valeur selon le format demandé
+   * Formate une valeur de shortcode selon le format demandé.
+   * Gère les états de chargement et les erreurs.
+   *
+   * @param {string} shortcodeId - L'identifiant du shortcode à formater.
+   * @param {ShortcodeFormat} format - Le format de sortie désiré.
+   * @param {string} [openValue] - Une valeur optionnelle utilisée pour le format 'open'.
+   * @returns {FormattedValueResult} L'objet résultat contenant la valeur formatée, l'état de chargement et une éventuelle erreur.
    */
   const formatValue = useCallback((
     shortcodeId: string, 
@@ -177,7 +193,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
             formattedValue = shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
             break;
           
-          // CORRIGÉ: Logique de formatage pour les codes personnalisés
           case 'custom_utm':
             const customCodeForUTM = await findCustomCode(shortcodeId);
             formattedValue = customCodeForUTM?.customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
@@ -191,8 +206,6 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
           default:
             formattedValue = shortcodeData.SH_Display_Name_FR;
         }
-
-        console.log(`🎯 Formatage ${shortcodeId} (${format}): "${formattedValue}"`);
 
       } catch (error) {
         console.error(`Erreur formatage ${shortcodeId}:`, error);
@@ -208,6 +221,12 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
     return { value: '', loading: true };
   }, [loadShortcode, findCustomCode, loadingStates, errors]);
 
+  /**
+   * Formate plusieurs valeurs de shortcode en une seule opération.
+   *
+   * @param {Array<{id: string, format: ShortcodeFormat, openValue?: string}>} values - Un tableau d'objets, chacun contenant l'ID du shortcode, le format et une valeur optionnelle.
+   * @returns {FormattedValueResult[]} Un tableau des résultats formatés.
+   */
   const formatMultipleValues = useCallback((
     values: Array<{id: string, format: ShortcodeFormat, openValue?: string}>
   ): FormattedValueResult[] => {
@@ -216,12 +235,14 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
     );
   }, [formatValue]);
 
+  /**
+   * Vide les caches de shortcodes et de custom codes, et réinitialise les états de chargement et d'erreurs.
+   */
   const clearCache = useCallback(() => {
     shortcodeCache.clear();
     customCodesCache.clear();
     setLoadingStates({});
     setErrors({});
-    console.log('🧹 Cache shortcode formatter vidé');
   }, []);
 
   return {
@@ -231,8 +252,15 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
   };
 }
 
-// ==================== FONCTIONS UTILITAIRES ====================
-
+/**
+ * Hook utilitaire pour formater une seule valeur de shortcode.
+ *
+ * @param {string} clientId - L'identifiant du client.
+ * @param {string} shortcodeId - L'identifiant du shortcode à formater.
+ * @param {ShortcodeFormat} format - Le format de sortie désiré.
+ * @param {string} [openValue] - Une valeur optionnelle pour le format 'open'.
+ * @returns {FormattedValueResult} L'objet résultat du formatage.
+ */
 export function useFormattedValue(
   clientId: string,
   shortcodeId: string,
@@ -243,8 +271,10 @@ export function useFormattedValue(
   return formatValue(shortcodeId, format, openValue);
 }
 
+/**
+ * Vide globalement tous les caches de formatage de shortcodes.
+ */
 export function clearAllShortcodeFormatCache(): void {
   shortcodeCache.clear();
   customCodesCache.clear();
-  console.log('🧹 Cache global shortcode formatter vidé');
 }

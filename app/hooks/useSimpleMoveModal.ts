@@ -1,46 +1,43 @@
-// app/hooks/useSimpleMoveModal.ts - Hook simple pour gérer le modal de déplacement AVEC REFRESH CORRIGÉ
-
+/**
+ * Ce hook gère la logique d'un modal simple pour le déplacement d'éléments entre différentes structures
+ * de campagne (campagnes, versions, onglets, sections, tactiques, placements).
+ * Il prend en charge l'ouverture et la fermeture du modal, le chargement des options de destination
+ * depuis Firebase, la sélection de la destination, la validation et l'exécution du déplacement.
+ * Il assure également un rafraîchissement de l'interface après un déplacement réussi.
+ */
 import { useState, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { SelectionValidationResult } from './useSelectionValidation';
 import * as MoveService from '../lib/simpleMoveService';
 
-// ==================== TYPES ====================
-
 export interface MoveModalState {
   isOpen: boolean;
   step: 'destination' | 'progress' | 'result';
-  
-  // Données de validation
+
   validationResult: SelectionValidationResult | null;
   selectedItemIds: string[];
-  
-  // Navigation dans le modal
+
   campaigns: MoveService.CascadeItem[];
   versions: MoveService.CascadeItem[];
   onglets: MoveService.CascadeItem[];
   sections: MoveService.CascadeItem[];
   tactiques: MoveService.CascadeItem[];
   placements: MoveService.CascadeItem[];
-  
-  // Destination sélectionnée
+
   destination: Partial<MoveService.MoveDestination>;
-  
-  // États de chargement
+
   loadingCampaigns: boolean;
   loadingVersions: boolean;
   loadingOnglets: boolean;
   loadingSections: boolean;
   loadingTactiques: boolean;
   loadingPlacements: boolean;
-  
-  // Résultat final
+
   result: MoveService.MoveResult | null;
   processing: boolean;
   error: string | null;
-  
-  // Contexte hiérarchique pour construire les chemins source
+
   hierarchyContext?: {
     sections: any[];
     tactiques: { [sectionId: string]: any[] };
@@ -49,17 +46,16 @@ export interface MoveModalState {
   };
 }
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour gérer le modal de déplacement.
+ * @returns {object} Un objet contenant l'état du modal et les fonctions pour interagir avec.
+ */
 export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
-  
-  // 🔥 CORRECTION: Références pour la fonction de callback
+
   const onRefreshRef = useRef<(() => Promise<void>) | null>(null);
-  
-  // ==================== ÉTAT DU MODAL ====================
-  
+
   const [modalState, setModalState] = useState<MoveModalState>({
     isOpen: false,
     step: 'destination',
@@ -84,40 +80,49 @@ export function useSimpleMoveModal() {
     hierarchyContext: undefined
   });
 
-  // ==================== FONCTIONS DE CHARGEMENT (inchangées) ====================
-  
+  /**
+   * Charge les campagnes disponibles pour le client sélectionné.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les campagnes chargées.
+   */
   const loadCampaigns = useCallback(async () => {
     if (!selectedClient?.clientId) return;
-    
+
     setModalState(prev => ({ ...prev, loadingCampaigns: true, error: null }));
-    
+
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadCampaigns - Path: clients/${selectedClient.clientId}/campaigns");
       const campaigns = await MoveService.loadCampaigns(selectedClient.clientId);
-      setModalState(prev => ({ 
-        ...prev, 
-        campaigns, 
-        loadingCampaigns: false 
+      setModalState(prev => ({
+        ...prev,
+        campaigns,
+        loadingCampaigns: false
       }));
     } catch (error) {
       console.error('❌ Erreur chargement campagnes:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingCampaigns: false, 
-        error: 'Erreur lors du chargement des campagnes' 
+      setModalState(prev => ({
+        ...prev,
+        loadingCampaigns: false,
+        error: 'Erreur lors du chargement des campagnes'
       }));
     }
   }, [selectedClient?.clientId]);
-  
+
+  /**
+   * Charge les versions pour une campagne donnée.
+   * @param {string} campaignId L'identifiant de la campagne.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les versions chargées.
+   */
   const loadVersions = useCallback(async (campaignId: string) => {
     if (!selectedClient?.clientId) return;
-    
+
     setModalState(prev => ({ ...prev, loadingVersions: true, error: null }));
-    
+
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadVersions - Path: clients/${selectedClient.clientId}/campaigns/${campaignId}/versions");
       const versions = await MoveService.loadVersions(selectedClient.clientId, campaignId);
-      setModalState(prev => ({ 
-        ...prev, 
-        versions, 
+      setModalState(prev => ({
+        ...prev,
+        versions,
         loadingVersions: false,
         onglets: [],
         sections: [],
@@ -126,24 +131,31 @@ export function useSimpleMoveModal() {
       }));
     } catch (error) {
       console.error('❌ Erreur chargement versions:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingVersions: false, 
-        error: 'Erreur lors du chargement des versions' 
+      setModalState(prev => ({
+        ...prev,
+        loadingVersions: false,
+        error: 'Erreur lors du chargement des versions'
       }));
     }
   }, [selectedClient?.clientId]);
-  
+
+  /**
+   * Charge les onglets pour une campagne et une version données.
+   * @param {string} campaignId L'identifiant de la campagne.
+   * @param {string} versionId L'identifiant de la version.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les onglets chargés.
+   */
   const loadOnglets = useCallback(async (campaignId: string, versionId: string) => {
     if (!selectedClient?.clientId) return;
-    
+
     setModalState(prev => ({ ...prev, loadingOnglets: true, error: null }));
-    
+
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadOnglets - Path: clients/${selectedClient.clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
       const onglets = await MoveService.loadOnglets(selectedClient.clientId, campaignId, versionId);
-      setModalState(prev => ({ 
-        ...prev, 
-        onglets, 
+      setModalState(prev => ({
+        ...prev,
+        onglets,
         loadingOnglets: false,
         sections: [],
         tactiques: [],
@@ -151,114 +163,147 @@ export function useSimpleMoveModal() {
       }));
     } catch (error) {
       console.error('❌ Erreur chargement onglets:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingOnglets: false, 
-        error: 'Erreur lors du chargement des onglets' 
+      setModalState(prev => ({
+        ...prev,
+        loadingOnglets: false,
+        error: 'Erreur lors du chargement des onglets'
       }));
     }
   }, [selectedClient?.clientId]);
-  
+
+  /**
+   * Charge les sections pour une campagne, une version et un onglet donnés.
+   * @param {string} campaignId L'identifiant de la campagne.
+   * @param {string} versionId L'identifiant de la version.
+   * @param {string} ongletId L'identifiant de l'onglet.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les sections chargées.
+   */
   const loadSections = useCallback(async (campaignId: string, versionId: string, ongletId: string) => {
     if (!selectedClient?.clientId) return;
-    
+
     setModalState(prev => ({ ...prev, loadingSections: true, error: null }));
-    
+
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadSections - Path: clients/${selectedClient.clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
       const sections = await MoveService.loadSections(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
+        selectedClient.clientId,
+        campaignId,
+        versionId,
         ongletId
       );
-      setModalState(prev => ({ 
-        ...prev, 
-        sections, 
+      setModalState(prev => ({
+        ...prev,
+        sections,
         loadingSections: false,
         tactiques: [],
         placements: []
       }));
     } catch (error) {
       console.error('❌ Erreur chargement sections:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingSections: false, 
-        error: 'Erreur lors du chargement des sections' 
+      setModalState(prev => ({
+        ...prev,
+        loadingSections: false,
+        error: 'Erreur lors du chargement des sections'
       }));
     }
   }, [selectedClient?.clientId]);
-  
+
+  /**
+   * Charge les tactiques pour une campagne, une version, un onglet et une section donnés.
+   * @param {string} campaignId L'identifiant de la campagne.
+   * @param {string} versionId L'identifiant de la version.
+   * @param {string} ongletId L'identifiant de l'onglet.
+   * @param {string} sectionId L'identifiant de la section.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les tactiques chargées.
+   */
   const loadTactiques = useCallback(async (
-    campaignId: string, 
-    versionId: string, 
-    ongletId: string, 
+    campaignId: string,
+    versionId: string,
+    ongletId: string,
     sectionId: string
   ) => {
     if (!selectedClient?.clientId) return;
-    
+
     setModalState(prev => ({ ...prev, loadingTactiques: true, error: null }));
-    
+
     try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadTactiques - Path: clients/${selectedClient.clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
       const tactiques = await MoveService.loadTactiques(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
-        ongletId, 
+        selectedClient.clientId,
+        campaignId,
+        versionId,
+        ongletId,
         sectionId
       );
-      setModalState(prev => ({ 
-        ...prev, 
-        tactiques, 
+      setModalState(prev => ({
+        ...prev,
+        tactiques,
         loadingTactiques: false,
         placements: []
       }));
     } catch (error) {
       console.error('❌ Erreur chargement tactiques:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingTactiques: false, 
-        error: 'Erreur lors du chargement des tactiques' 
-      }));
-    }
-  }, [selectedClient?.clientId]);
-  
-  const loadPlacements = useCallback(async (
-    campaignId: string, 
-    versionId: string, 
-    ongletId: string, 
-    sectionId: string, 
-    tactiqueId: string
-  ) => {
-    if (!selectedClient?.clientId) return;
-    
-    setModalState(prev => ({ ...prev, loadingPlacements: true, error: null }));
-    
-    try {
-      const placements = await MoveService.loadPlacements(
-        selectedClient.clientId, 
-        campaignId, 
-        versionId, 
-        ongletId, 
-        sectionId, 
-        tactiqueId
-      );
-      setModalState(prev => ({ 
-        ...prev, 
-        placements, 
-        loadingPlacements: false
-      }));
-    } catch (error) {
-      console.error('❌ Erreur chargement placements:', error);
-      setModalState(prev => ({ 
-        ...prev, 
-        loadingPlacements: false, 
-        error: 'Erreur lors du chargement des placements' 
+      setModalState(prev => ({
+        ...prev,
+        loadingTactiques: false,
+        error: 'Erreur lors du chargement des tactiques'
       }));
     }
   }, [selectedClient?.clientId]);
 
-  // ==================== OUVERTURE DU MODAL AVEC CALLBACKS ====================
-  
+  /**
+   * Charge les placements pour une campagne, une version, un onglet, une section et une tactique donnés.
+   * @param {string} campaignId L'identifiant de la campagne.
+   * @param {string} versionId L'identifiant de la version.
+   * @param {string} ongletId L'identifiant de l'onglet.
+   * @param {string} sectionId L'identifiant de la section.
+   * @param {string} tactiqueId L'identifiant de la tactique.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les placements chargés.
+   */
+  const loadPlacements = useCallback(async (
+    campaignId: string,
+    versionId: string,
+    ongletId: string,
+    sectionId: string,
+    tactiqueId: string
+  ) => {
+    if (!selectedClient?.clientId) return;
+
+    setModalState(prev => ({ ...prev, loadingPlacements: true, error: null }));
+
+    try {
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: loadPlacements - Path: clients/${selectedClient.clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
+      const placements = await MoveService.loadPlacements(
+        selectedClient.clientId,
+        campaignId,
+        versionId,
+        ongletId,
+        sectionId,
+        tactiqueId
+      );
+      setModalState(prev => ({
+        ...prev,
+        placements,
+        loadingPlacements: false
+      }));
+    } catch (error) {
+      console.error('❌ Erreur chargement placements:', error);
+      setModalState(prev => ({
+        ...prev,
+        loadingPlacements: false,
+        error: 'Erreur lors du chargement des placements'
+      }));
+    }
+  }, [selectedClient?.clientId]);
+
+  /**
+   * Ouvre le modal de déplacement avec les données de validation et les IDs des éléments sélectionnés.
+   * @param {SelectionValidationResult} validationResult Le résultat de la validation de la sélection.
+   * @param {string[]} selectedItemIds Les identifiants des éléments sélectionnés.
+   * @param {object} hierarchyContext Le contexte hiérarchique des éléments (sections, tactiques, placements, créatifs).
+   * @param {() => Promise<void>} onRefresh Callback à exécuter après un déplacement réussi pour rafraîchir les données.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le modal initialisé et les campagnes chargées.
+   */
   const openModal = useCallback(async (
     validationResult: SelectionValidationResult,
     selectedItemIds: string[],
@@ -270,21 +315,13 @@ export function useSimpleMoveModal() {
     },
     onRefresh?: () => Promise<void>
   ) => {
-    console.log('🚀 Ouverture du modal de déplacement');
-
-    console.log('🔍 DEBUG - openModal reçoit callbacks:', {
-      hasOnRefresh: !!onRefresh
-    });
-    
     if (!selectedClient?.clientId) {
       console.error('❌ Aucun client sélectionné');
       return;
     }
-    
-    // 🔥 CORRECTION: Stocker la fonction de callback
+
     onRefreshRef.current = onRefresh || null;
-    
-    // Réinitialiser et ouvrir le modal
+
     setModalState(prev => ({
       ...prev,
       isOpen: true,
@@ -303,34 +340,34 @@ export function useSimpleMoveModal() {
       processing: false,
       error: null
     }));
-    
-    // Charger les campagnes immédiatement
+
     await loadCampaigns();
   }, [selectedClient?.clientId, loadCampaigns]);
 
-  // ==================== 🔥 FERMETURE DU MODAL SIMPLE ====================
-  
+  /**
+   * Ferme le modal de déplacement.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le modal fermé.
+   */
   const closeModal = useCallback(async () => {
-    console.log('❌ Fermeture du modal de déplacement');
-    
     setModalState(prev => ({
       ...prev,
       isOpen: false
     }));
-    
-    // Nettoyer la référence
+
     onRefreshRef.current = null;
   }, []);
 
-  // ==================== SÉLECTION DE DESTINATION (inchangée) ====================
-  
+  /**
+   * Sélectionne une destination pour le déplacement à un niveau donné (campagne, version, etc.).
+   * @param {string} level Le niveau de la destination sélectionnée ('campaign', 'version', 'onglet', 'section', 'tactique', 'placement').
+   * @param {string} itemId L'identifiant de l'élément sélectionné à ce niveau.
+   * @param {string} itemName Le nom de l'élément sélectionné à ce niveau.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la destination mise à jour et le niveau suivant chargé.
+   */
   const selectDestination = useCallback(async (level: string, itemId: string, itemName: string) => {
-    console.log(`🎯 Sélection destination ${level}:`, { itemId, itemName });
-    
-    // Mettre à jour la destination
     setModalState(prev => {
       const newDestination = { ...prev.destination };
-      
+
       switch (level) {
         case 'campaign':
           newDestination.campaignId = itemId;
@@ -357,13 +394,12 @@ export function useSimpleMoveModal() {
           newDestination.placementName = itemName;
           break;
       }
-      
+
       return { ...prev, destination: newDestination };
     });
-    
-    // Charger le niveau suivant
+
     const dest = modalState.destination;
-    
+
     switch (level) {
       case 'campaign':
         await loadVersions(itemId);
@@ -391,14 +427,18 @@ export function useSimpleMoveModal() {
     }
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
-  // ==================== 🔥 CONFIRMATION DU DÉPLACEMENT AVEC REFRESH SÉQUENTIEL ====================
-  
+  /**
+   * Confirme et exécute le déplacement des éléments sélectionnés vers la destination choisie.
+   * Gère la construction du contexte source, l'appel au service de déplacement,
+   * et le rafraîchissement de l'interface après l'opération.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le déplacement terminé.
+   */
   const confirmMove = useCallback(async () => {
     if (!selectedClient?.clientId || !modalState.validationResult || !modalState.validationResult.canMove) {
       console.error('❌ Conditions non remplies pour le déplacement');
       return;
     }
-    
+
     if (!modalState.hierarchyContext) {
       console.error('❌ Contexte hiérarchique manquant');
       setModalState(prev => ({
@@ -407,33 +447,28 @@ export function useSimpleMoveModal() {
       }));
       return;
     }
-    
-    console.log('🚀 Confirmation du déplacement');
-    
+
     setModalState(prev => ({ ...prev, step: 'progress', processing: true, error: null }));
-    
+
     try {
-      // Construire le contexte des éléments avec les vrais IDs
       const sourceContext = {
         campaignId: selectedCampaignId!,
         versionId: selectedVersionId!,
         ongletId: selectedOngletId!
       };
-      
-      console.log('🔧 Construction du contexte des éléments...');
+
+      console.log("FIREBASE: LECTURE - Fichier: useSimpleMoveModal.ts - Fonction: confirmMove - Path: itemsWithContext (dynamique)");
       const itemsWithContext = await MoveService.buildItemsContext(
         selectedClient.clientId,
         modalState.selectedItemIds,
         sourceContext,
         modalState.hierarchyContext
       );
-      
+
       if (itemsWithContext.length === 0) {
         throw new Error('Aucun élément trouvé dans le contexte - impossible de construire les chemins source');
       }
-      
-      console.log('📍 Éléments avec contexte:', itemsWithContext);
-      
+
       const operation: MoveService.MoveOperation = {
         clientId: selectedClient.clientId,
         itemType: modalState.validationResult.moveLevel!,
@@ -442,43 +477,33 @@ export function useSimpleMoveModal() {
         sourceContext,
         itemsWithContext
       };
-      
+
+      console.log("FIREBASE: ÉCRITURE - Fichier: useSimpleMoveModal.ts - Fonction: confirmMove - Path: MoveService.performMove (multiples chemins)");
       const result = await MoveService.performMove(operation);
-      
-      console.log('✅ Déplacement terminé:', result);
-      
-      // 🔥 CORRECTION: Refresh AVANT de passer au résultat
+
       if (result.success && onRefreshRef.current) {
-        console.log('🔄 Déplacement réussi - Refresh en cours...');
-        
-        // Mettre à jour l'état pour indiquer le refresh
         setModalState(prev => ({
           ...prev,
           processing: true,
           error: null
         }));
-        
+
         try {
           await onRefreshRef.current();
-          console.log('✅ Refresh terminé avec succès - Hiérarchie mise à jour');
-          
-          // Attendre un petit délai pour s'assurer que tous les états sont synchronisés
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
         } catch (refreshError) {
           console.error('❌ Erreur lors du refresh:', refreshError);
-          // Même en cas d'erreur de refresh, on continue pour afficher le résultat
         }
       }
-      
-      // Passer à l'étape de résultat APRÈS le refresh
+
       setModalState(prev => ({
         ...prev,
         step: 'result',
         processing: false,
         result
       }));
-      
+
     } catch (error) {
       console.error('❌ Erreur lors du déplacement:', error);
       setModalState(prev => ({
@@ -496,24 +521,26 @@ export function useSimpleMoveModal() {
       }));
     }
   }, [
-    selectedClient?.clientId, 
-    modalState.validationResult, 
-    modalState.selectedItemIds, 
-    modalState.destination, 
+    selectedClient?.clientId,
+    modalState.validationResult,
+    modalState.selectedItemIds,
+    modalState.destination,
     modalState.hierarchyContext,
-    selectedCampaignId, 
-    selectedVersionId, 
+    selectedCampaignId,
+    selectedVersionId,
     selectedOngletId
   ]);
 
-  // ==================== UTILITAIRES (inchangées) ====================
-  
+  /**
+   * Vérifie si la destination sélectionnée est complète en fonction du niveau de déplacement cible.
+   * @returns {boolean} Vrai si la destination est complète, faux sinon.
+   */
   const isDestinationComplete = useCallback((): boolean => {
     if (!modalState.validationResult) return false;
-    
+
     const targetLevel = modalState.validationResult.targetLevel;
     const dest = modalState.destination;
-    
+
     switch (targetLevel) {
       case 'onglet':
         return !!(dest.campaignId && dest.versionId && dest.ongletId);
@@ -528,8 +555,6 @@ export function useSimpleMoveModal() {
     }
   }, [modalState.validationResult, modalState.destination]);
 
-  // ==================== RETURN ====================
-  
   return {
     modalState,
     openModal,

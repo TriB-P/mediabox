@@ -1,17 +1,22 @@
 // app/components/Tactiques/TactiqueFormRepartition.tsx
+/**
+ * Ce fichier est un composant React pour le formulaire de répartition d'une tactique.
+ * Il permet de configurer les dates de début et de fin d'une tactique,
+ * et de répartir des montants sur différentes périodes définies par des "breakdowns" (mensuels, hebdomadaires, ou personnalisés).
+ * Il gère également l'activation/désactivation de périodes pour les breakdowns par défaut
+ * et offre un outil pour distribuer un montant total équitablement sur les périodes actives.
+ */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  HelpIcon, 
+import {
+  HelpIcon,
   createLabelWithHelp,
-  FormSection 
+  FormSection
 } from './TactiqueFormComponents';
 import { Breakdown } from '../../../types/breakdown';
 import { CalendarIcon, ClockIcon, Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/outline';
-
-// ==================== TYPES ====================
 
 interface TactiqueFormRepartitionProps {
   formData: any;
@@ -38,16 +43,18 @@ interface DistributionModalState {
   distributionMode: 'equal' | 'weighted';
 }
 
-// ==================== UTILITAIRES ====================
-
 /**
- * Génère les périodes pour un breakdown mensuel
+ * Génère les périodes pour un breakdown mensuel.
+ * @param breakdown L'objet Breakdown pour lequel générer les périodes.
+ * @param tactiqueStartDate La date de début de la tactique (optionnel, utilisé si le breakdown est par défaut).
+ * @param tactiqueEndDate La date de fin de la tactique (optionnel, utilisé si le breakdown est par défaut).
+ * @returns Un tableau d'objets BreakdownPeriod représentant les périodes mensuelles.
  */
 function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
-  
+
   let startDate: Date, endDate: Date;
-  
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
@@ -55,16 +62,16 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
     startDate = new Date(breakdown.startDate);
     endDate = new Date(breakdown.endDate);
   }
-  
+
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  
+
   while (current <= endDate) {
-    const monthNames = ['JAN', 'FEB', 'MAR', 'AVR', 'MAI', 'JUN', 
-                       'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'];
-    
+    const monthNames = ['JAN', 'FEB', 'MAR', 'AVR', 'MAI', 'JUN',
+      'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'];
+
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
-    
+
     periods.push({
       id: `${breakdown.id}_${current.getFullYear()}_${current.getMonth()}`,
       label: `${monthLabel} ${yearSuffix}`,
@@ -72,30 +79,34 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
       breakdownId: breakdown.id,
       breakdownName: breakdown.name
     });
-    
+
     current.setMonth(current.getMonth() + 1);
   }
-  
+
   if (periods.length > 0) {
     periods[0].isFirst = true;
     periods[periods.length - 1].isLast = true;
   }
-  
+
   return periods;
 }
 
 /**
- * Génère les périodes pour un breakdown hebdomadaire
+ * Génère les périodes pour un breakdown hebdomadaire.
+ * @param breakdown L'objet Breakdown pour lequel générer les périodes.
+ * @param tactiqueStartDate La date de début de la tactique (optionnel, utilisé si le breakdown est par défaut).
+ * @param tactiqueEndDate La date de fin de la tactique (optionnel, utilisé si le breakdown est par défaut).
+ * @returns Un tableau d'objets BreakdownPeriod représentant les périodes hebdomadaires.
  */
 function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
-  
+
   let startDate: Date, endDate: Date;
-  
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
-    
+
     const dayOfWeek = startDate.getDay();
     if (dayOfWeek !== 1) {
       const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -105,15 +116,15 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
     startDate = new Date(breakdown.startDate);
     endDate = new Date(breakdown.endDate);
   }
-  
+
   const current = new Date(startDate);
-  
+
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
-                       'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const month = monthNames[current.getMonth()];
-    
+
     periods.push({
       id: `${breakdown.id}_${current.getTime()}`,
       label: `${day} ${month}`,
@@ -121,24 +132,26 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
       breakdownId: breakdown.id,
       breakdownName: breakdown.name
     });
-    
+
     current.setDate(current.getDate() + 7);
   }
-  
+
   if (periods.length > 0) {
     periods[0].isFirst = true;
     periods[periods.length - 1].isLast = true;
   }
-  
+
   return periods;
 }
 
 /**
- * Génère les périodes pour un breakdown custom
+ * Génère les périodes pour un breakdown custom.
+ * @param breakdown L'objet Breakdown pour lequel générer les périodes.
+ * @returns Un tableau d'objets BreakdownPeriod représentant les périodes personnalisées.
  */
 function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
-  
+
   if (breakdown.customPeriods) {
     breakdown.customPeriods
       .sort((a, b) => a.order - b.order)
@@ -152,19 +165,23 @@ function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
         });
       });
   }
-  
+
   return periods;
 }
 
 /**
- * Génère toutes les périodes pour tous les breakdowns
+ * Génère toutes les périodes pour tous les breakdowns fournis.
+ * @param breakdowns Un tableau d'objets Breakdown.
+ * @param tactiqueStartDate La date de début de la tactique (optionnel).
+ * @param tactiqueEndDate La date de fin de la tactique (optionnel).
+ * @returns Un tableau d'objets BreakdownPeriod contenant toutes les périodes générées.
  */
 function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const allPeriods: BreakdownPeriod[] = [];
-  
+
   breakdowns.forEach(breakdown => {
     let periods: BreakdownPeriod[] = [];
-    
+
     switch (breakdown.type) {
       case 'Mensuel':
         periods = generateMonthlyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
@@ -176,49 +193,59 @@ function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string,
         periods = generateCustomPeriods(breakdown);
         break;
     }
-    
+
     allPeriods.push(...periods);
   });
-  
+
   return allPeriods;
 }
 
 /**
- * Vérifie si toutes les valeurs non vides sont numériques pour un breakdown spécifique
+ * Vérifie si toutes les valeurs non vides sont numériques pour un breakdown spécifique.
+ * @param values Un objet contenant les valeurs des périodes.
+ * @param breakdownPeriods Un tableau des périodes pour le breakdown.
+ * @param activePeriods Un objet indiquant quelles périodes sont actives.
+ * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
+ * @returns Vrai si toutes les valeurs non vides sont numériques, faux sinon.
  */
 function areAllValuesNumericForBreakdown(
-  values: { [key: string]: string }, 
-  breakdownPeriods: BreakdownPeriod[], 
-  activePeriods: { [key: string]: boolean }, 
+  values: { [key: string]: string },
+  breakdownPeriods: BreakdownPeriod[],
+  activePeriods: { [key: string]: boolean },
   isDefaultBreakdown: boolean
 ): boolean {
   const breakdownValues = breakdownPeriods
     .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false)
     .map(period => values[period.id] || '')
     .filter(value => value.trim() !== '');
-  
+
   if (breakdownValues.length === 0) return false;
-  
+
   return breakdownValues.every(value => {
     const trimmedValue = value.trim();
     const numericRegex = /^[-+]?(\d+([.,]\d*)?|\.\d+)$/;
-    
+
     if (!numericRegex.test(trimmedValue)) {
       return false;
     }
-    
+
     const numValue = parseFloat(trimmedValue.replace(',', '.'));
     return !isNaN(numValue) && isFinite(numValue);
   });
 }
 
 /**
- * Calcule le total des valeurs numériques pour un breakdown spécifique
+ * Calcule le total des valeurs numériques pour un breakdown spécifique.
+ * @param values Un objet contenant les valeurs des périodes.
+ * @param breakdownPeriods Un tableau des périodes pour le breakdown.
+ * @param activePeriods Un objet indiquant quelles périodes sont actives.
+ * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
+ * @returns Le total des valeurs numériques pour le breakdown.
  */
 function calculateTotalForBreakdown(
-  values: { [key: string]: string }, 
-  breakdownPeriods: BreakdownPeriod[], 
-  activePeriods: { [key: string]: boolean }, 
+  values: { [key: string]: string },
+  breakdownPeriods: BreakdownPeriod[],
+  activePeriods: { [key: string]: boolean },
   isDefaultBreakdown: boolean
 ): number {
   return breakdownPeriods
@@ -232,7 +259,10 @@ function calculateTotalForBreakdown(
 }
 
 /**
- * Calcule le pourcentage d'une valeur par rapport au total du breakdown
+ * Calcule le pourcentage d'une valeur par rapport au total du breakdown.
+ * @param value La valeur à convertir en pourcentage.
+ * @param total Le total par rapport auquel calculer le pourcentage.
+ * @returns Le pourcentage de la valeur.
  */
 function calculatePercentageForBreakdown(value: string, total: number): number {
   if (total === 0) return 0;
@@ -241,29 +271,32 @@ function calculatePercentageForBreakdown(value: string, total: number): number {
 }
 
 /**
- * Obtient les dates complètes formatées pour afficher dans les cases
+ * Obtient les dates complètes formatées pour affichage.
+ * @param tactiqueStartDate La date de début de la tactique.
+ * @param tactiqueEndDate La date de fin de la tactique.
+ * @returns Un objet contenant les dates de début et de fin formatées.
  */
 function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string): { startDateFormatted: string; endDateFormatted: string } {
   if (!tactiqueStartDate || !tactiqueEndDate) {
     return { startDateFormatted: '', endDateFormatted: '' };
   }
-  
+
   const parseDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
     return new Date(year, month - 1, day);
   };
-  
+
   const startDate = parseDate(tactiqueStartDate);
   const endDate = parseDate(tactiqueEndDate);
-  
+
   const formatDate = (date: Date) => {
     const day = date.getDate();
-    const monthNames = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 
-                       'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
+    const monthNames = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun',
+      'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
     const month = monthNames[date.getMonth()];
     return `${day} ${month}`;
   };
-  
+
   return {
     startDateFormatted: formatDate(startDate),
     endDateFormatted: formatDate(endDate)
@@ -271,32 +304,39 @@ function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string)
 }
 
 /**
- * Distribue équitablement un montant sur les périodes actives
+ * Distribue équitablement un montant sur les périodes actives d'un breakdown.
+ * @param totalAmount Le montant total à distribuer.
+ * @param breakdownPeriods Un tableau des périodes pour le breakdown.
+ * @param activePeriods Un objet indiquant quelles périodes sont actives.
+ * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
+ * @returns Un objet où les clés sont les IDs des périodes et les valeurs sont les montants distribués.
  */
 function distributeAmountEqually(
-  totalAmount: number, 
-  breakdownPeriods: BreakdownPeriod[], 
-  activePeriods: { [key: string]: boolean }, 
+  totalAmount: number,
+  breakdownPeriods: BreakdownPeriod[],
+  activePeriods: { [key: string]: boolean },
   isDefaultBreakdown: boolean
 ): { [key: string]: string } {
-  const activePeriodsList = breakdownPeriods.filter(period => 
+  const activePeriodsList = breakdownPeriods.filter(period =>
     !isDefaultBreakdown || activePeriods[period.id] !== false
   );
-  
+
   if (activePeriodsList.length === 0) return {};
-  
+
   const amountPerPeriod = totalAmount / activePeriodsList.length;
   const result: { [key: string]: string } = {};
-  
+
   activePeriodsList.forEach(period => {
     result[period.id] = amountPerPeriod.toFixed(2);
   });
-  
+
   return result;
 }
 
 /**
- * Obtient l'icône pour un type de breakdown
+ * Obtient l'icône correspondante à un type de breakdown.
+ * @param type Le type de breakdown ('Hebdomadaire', 'Mensuel', 'Custom').
+ * @returns L'icône React correspondante.
  */
 function getBreakdownIcon(type: string) {
   switch (type) {
@@ -311,8 +351,6 @@ function getBreakdownIcon(type: string) {
   }
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
 export default function TactiqueFormRepartition({
   formData,
   onChange,
@@ -320,39 +358,40 @@ export default function TactiqueFormRepartition({
   breakdowns,
   loading = false
 }: TactiqueFormRepartitionProps) {
-  
-  // États
+
   const [periods, setPeriods] = useState<BreakdownPeriod[]>([]);
   const [periodValues, setPeriodValues] = useState<{ [key: string]: string }>({});
   const [activePeriods, setActivePeriods] = useState<{ [key: string]: boolean }>({});
-  
-  // État pour le modal de distribution
+
   const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
     isOpen: false,
     breakdownId: null,
     totalAmount: '',
     distributionMode: 'equal'
   });
-  
-  // Générer les périodes quand les breakdowns changent
+
+  /**
+   * Effet de bord pour générer les périodes lorsque les breakdowns ou les dates de la tactique changent.
+   * Il initialise également les valeurs des périodes et leur état d'activation.
+   */
   useEffect(() => {
     if (breakdowns.length > 0) {
       const allPeriods = generateAllPeriods(
-        breakdowns, 
-        formData.TC_StartDate, 
+        breakdowns,
+        formData.TC_StartDate,
         formData.TC_EndDate
       );
       setPeriods(allPeriods);
-      
+
       const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
-      
+
       const initialValues: { [key: string]: string } = {};
       const initialActivePeriods: { [key: string]: boolean } = {};
-      
+
       allPeriods.forEach(period => {
         const fieldName = `TC_Breakdown_${period.id}`;
         let initialValue = (formData as any)[fieldName] || '';
-        
+
         const breakdown = breakdowns.find(b => b.id === period.breakdownId);
         if (breakdown?.isDefault && !initialValue) {
           if (period.isFirst && startDateFormatted) {
@@ -361,18 +400,18 @@ export default function TactiqueFormRepartition({
             initialValue = endDateFormatted;
           }
         }
-        
+
         initialValues[period.id] = initialValue;
-        
+
         const activeFieldName = `TC_Breakdown_Active_${period.id}`;
-        
+
         if (breakdown?.isDefault) {
-          initialActivePeriods[period.id] = (formData as any)[activeFieldName] !== undefined 
-            ? (formData as any)[activeFieldName] 
+          initialActivePeriods[period.id] = (formData as any)[activeFieldName] !== undefined
+            ? (formData as any)[activeFieldName]
             : true;
         }
       });
-      
+
       setPeriodValues(initialValues);
       setActivePeriods(initialActivePeriods);
     } else {
@@ -381,19 +420,23 @@ export default function TactiqueFormRepartition({
       setActivePeriods({});
     }
   }, [breakdowns, formData.TC_StartDate, formData.TC_EndDate]);
-  
-  // Gestionnaire pour les changements de valeurs de période
+
+  /**
+   * Gère le changement de la valeur d'une période.
+   * @param periodId L'identifiant de la période.
+   * @param value La nouvelle valeur de la période.
+   */
   const handlePeriodValueChange = (periodId: string, value: string) => {
     const breakdown = breakdowns.find(b => periods.find(p => p.id === periodId)?.breakdownId === b.id);
     if (breakdown?.isDefault && !activePeriods[periodId]) {
       return;
     }
-    
+
     setPeriodValues(prev => ({
       ...prev,
       [periodId]: value
     }));
-    
+
     const fieldName = `TC_Breakdown_${periodId}`;
     const syntheticEvent = {
       target: {
@@ -402,21 +445,25 @@ export default function TactiqueFormRepartition({
         type: 'text'
       }
     } as React.ChangeEvent<HTMLInputElement>;
-    
+
     onChange(syntheticEvent);
   };
-  
-  // Gestionnaire pour l'activation/désactivation des cases
+
+  /**
+   * Gère le changement d'état d'activation (coché/décoché) d'une période.
+   * @param periodId L'identifiant de la période.
+   * @param isActive Le nouvel état d'activation (vrai si actif, faux si inactif).
+   */
   const handlePeriodActiveChange = (periodId: string, isActive: boolean) => {
     setActivePeriods(prev => ({
       ...prev,
       [periodId]: isActive
     }));
-    
+
     if (!isActive) {
       handlePeriodValueChange(periodId, '');
     }
-    
+
     const activeFieldName = `TC_Breakdown_Active_${periodId}`;
     const syntheticEvent = {
       target: {
@@ -426,11 +473,14 @@ export default function TactiqueFormRepartition({
         checked: isActive
       }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
-    
+
     onChange(syntheticEvent);
   };
-  
-  // Gestionnaire pour ouvrir le modal de distribution
+
+  /**
+   * Ouvre le modal de distribution pour un breakdown spécifique.
+   * @param breakdownId L'identifiant du breakdown pour lequel ouvrir le modal.
+   */
   const handleOpenDistributionModal = (breakdownId: string) => {
     setDistributionModal({
       isOpen: true,
@@ -439,8 +489,10 @@ export default function TactiqueFormRepartition({
       distributionMode: 'equal'
     });
   };
-  
-  // Gestionnaire pour fermer le modal de distribution
+
+  /**
+   * Ferme le modal de distribution.
+   */
   const handleCloseDistributionModal = () => {
     setDistributionModal({
       isOpen: false,
@@ -449,36 +501,37 @@ export default function TactiqueFormRepartition({
       distributionMode: 'equal'
     });
   };
-  
-  // Gestionnaire pour confirmer la distribution
+
+  /**
+   * Confirme la distribution d'un montant sur les périodes actives du breakdown sélectionné.
+   * Le montant est distribué équitablement.
+   */
   const handleConfirmDistribution = () => {
     if (!distributionModal.breakdownId || !distributionModal.totalAmount) return;
-    
+
     const totalAmount = parseFloat(distributionModal.totalAmount);
     if (isNaN(totalAmount)) return;
-    
+
     const breakdown = breakdowns.find(b => b.id === distributionModal.breakdownId);
     if (!breakdown) return;
-    
+
     const breakdownPeriods = periods.filter(p => p.breakdownId === breakdown.id);
     const isDefaultBreakdown = breakdown.isDefault;
-    
+
     const distributedValues = distributeAmountEqually(
-      totalAmount, 
-      breakdownPeriods, 
-      activePeriods, 
+      totalAmount,
+      breakdownPeriods,
+      activePeriods,
       isDefaultBreakdown
     );
-    
-    // Appliquer les valeurs distribuées
+
     Object.entries(distributedValues).forEach(([periodId, value]) => {
       handlePeriodValueChange(periodId, value);
     });
-    
+
     handleCloseDistributionModal();
   };
-  
-  // Organiser les périodes par breakdown
+
   const periodsByBreakdown = periods.reduce((acc, period) => {
     if (!acc[period.breakdownId]) {
       acc[period.breakdownId] = [];
@@ -493,14 +546,12 @@ export default function TactiqueFormRepartition({
         title="Répartition temporelle"
         description="Configurez les dates de la tactique et répartissez les valeurs selon les breakdowns de la campagne"
       >
-        
-        {/* Section des dates de tactique - Design épuré */}
+
         <div className="bg-slate-50 rounded-xl p-6 mb-8">
           <div className="grid grid-cols-2 gap-6">
-            {/* Date de début */}
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <HelpIcon 
+                <HelpIcon
                   tooltip="Date de début de cette tactique spécifique"
                   onTooltipChange={onTooltipChange}
                 />
@@ -518,10 +569,9 @@ export default function TactiqueFormRepartition({
               />
             </div>
 
-            {/* Date de fin */}
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <HelpIcon 
+                <HelpIcon
                   tooltip="Date de fin de cette tactique spécifique"
                   onTooltipChange={onTooltipChange}
                 />
@@ -540,31 +590,29 @@ export default function TactiqueFormRepartition({
             </div>
           </div>
         </div>
-        
-        {/* Section des breakdowns - Design épuré */}
+
         {breakdowns.length > 0 ? (
           <div className="space-y-8">
             {breakdowns.map(breakdown => {
               const Icon = getBreakdownIcon(breakdown.type);
               const breakdownPeriods = periodsByBreakdown[breakdown.id] || [];
               const isDefaultBreakdown = breakdown.isDefault;
-              
+
               const showCalculationsForBreakdown = areAllValuesNumericForBreakdown(
-                periodValues, 
-                breakdownPeriods, 
-                activePeriods, 
+                periodValues,
+                breakdownPeriods,
+                activePeriods,
                 isDefaultBreakdown
               );
               const totalValueForBreakdown = showCalculationsForBreakdown ? calculateTotalForBreakdown(
-                periodValues, 
-                breakdownPeriods, 
-                activePeriods, 
+                periodValues,
+                breakdownPeriods,
+                activePeriods,
                 isDefaultBreakdown
               ) : 0;
-              
+
               return (
                 <div key={breakdown.id} className="bg-white rounded-xl shadow-sm">
-                  {/* En-tête du breakdown - Design épuré */}
                   <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -590,16 +638,14 @@ export default function TactiqueFormRepartition({
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-3">
-                        {/* Total pour ce breakdown */}
                         {showCalculationsForBreakdown && totalValueForBreakdown > 0 && (
                           <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
                             Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </div>
                         )}
-                        
-                        {/* Bouton Distribuer */}
+
                         <button
                           type="button"
                           onClick={() => handleOpenDistributionModal(breakdown.id)}
@@ -612,33 +658,31 @@ export default function TactiqueFormRepartition({
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Grille des périodes - Design épuré */}
+
                   <div className="p-6">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {breakdownPeriods.map(period => {
                         const currentValue = periodValues[period.id] || '';
-                        const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0 
-                          ? calculatePercentageForBreakdown(currentValue, totalValueForBreakdown) 
+                        const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0
+                          ? calculatePercentageForBreakdown(currentValue, totalValueForBreakdown)
                           : 0;
-                        
+
                         const isDefaultBreakdown = breakdown.isDefault;
                         const isActive = isDefaultBreakdown ? (activePeriods[period.id] ?? true) : true;
-                        
+
                         return (
                           <div key={period.id} className={`rounded-lg transition-all duration-200 ${
-                            isDefaultBreakdown && !isActive 
-                              ? 'bg-slate-50' 
+                            isDefaultBreakdown && !isActive
+                              ? 'bg-slate-50'
                               : 'bg-slate-50 hover:bg-slate-100'
                           }`}>
-                            {/* Label et checkbox */}
                             <div className="flex items-center justify-between p-3 pb-2">
                               <label className={`text-sm font-medium ${
                                 isDefaultBreakdown && !isActive ? 'text-slate-400' : 'text-slate-700'
                               }`}>
                                 {period.label}
                               </label>
-                              
+
                               {isDefaultBreakdown && (
                                 <input
                                   type="checkbox"
@@ -649,8 +693,7 @@ export default function TactiqueFormRepartition({
                                 />
                               )}
                             </div>
-                            
-                            {/* Input */}
+
                             <div className="px-3 pb-3">
                               <input
                                 type="text"
@@ -659,13 +702,12 @@ export default function TactiqueFormRepartition({
                                 disabled={loading || (isDefaultBreakdown && !isActive)}
                                 placeholder="Valeur"
                                 className={`w-full px-3 py-2 text-sm rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
-                                  isDefaultBreakdown && !isActive 
+                                  isDefaultBreakdown && !isActive
                                     ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
                                     : 'bg-white border-0 shadow-sm focus:shadow-md'
                                 }`}
                               />
-                              
-                              {/* Pourcentage */}
+
                               {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && (
                                 <div className="mt-2 text-center space-y-1">
                                   <div className="text-sm font-medium text-indigo-600">
@@ -692,15 +734,14 @@ export default function TactiqueFormRepartition({
           </div>
         )}
       </FormSection>
-      
-      {/* Modal de distribution */}
+
       {distributionModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Distribuer le montant
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -719,7 +760,7 @@ export default function TactiqueFormRepartition({
                 </p>
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCloseDistributionModal}

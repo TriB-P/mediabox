@@ -1,3 +1,8 @@
+/**
+ * Ce fichier définit le composant React `ContactForm`.
+ * Il s'agit d'un formulaire réutilisable pour créer un nouveau contact ou modifier un contact existant.
+ * Il gère son propre état pour les champs du formulaire, la validation et les retours visuels à l'utilisateur (messages de succès, erreurs).
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,6 +15,13 @@ interface ContactFormProps {
   onCancel: () => void;
 }
 
+/**
+ * Composant de formulaire pour la création et la mise à jour de contacts.
+ * @param {Contact} [contact] - Les données du contact existant à modifier. Si non fourni, le formulaire est en mode création.
+ * @param {Function} onSubmit - La fonction à appeler lors de la soumission du formulaire. Reçoit les données du formulaire.
+ * @param {Function} onCancel - La fonction à appeler pour annuler l'opération et fermer le formulaire.
+ * @returns {JSX.Element} Le formulaire de contact rendu.
+ */
 export default function ContactForm({ contact, onSubmit, onCancel }: ContactFormProps) {
   const [formData, setFormData] = useState<ContactFormData>({
     firstName: '',
@@ -18,17 +30,20 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
     languages: { FR: true, EN: false },
     comment: '',
   });
-  
+
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     email?: string;
   }>({});
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Si on modifie un contact existant, initialiser le formulaire avec ses données
+  /**
+   * Effet qui pré-remplit le formulaire avec les données d'un contact existant
+   * lorsque le composant est utilisé en mode "modification".
+   */
   useEffect(() => {
     if (contact) {
       setFormData({
@@ -41,6 +56,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
     }
   }, [contact]);
 
+  /**
+   * Gère les changements de valeur des champs de saisie (input, textarea).
+   * Met à jour l'état du formulaire et efface l'erreur de validation associée au champ modifié.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - L'événement de changement.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -49,8 +69,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
       ...prev,
       [name]: value,
     }));
-    
-    // Effacer l'erreur lorsqu'on modifie le champ
+
     if (errors[name as keyof typeof errors]) {
       setErrors(prev => ({
         ...prev,
@@ -59,6 +78,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
     }
   };
 
+  /**
+   * Gère le changement d'état des cases à cocher pour les langues.
+   * @param {'FR' | 'EN'} language - La langue dont l'état doit être basculé.
+   */
   const handleLanguageChange = (language: 'FR' | 'EN') => {
     setFormData(prev => ({
       ...prev,
@@ -69,59 +92,66 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
     }));
   };
 
+  /**
+   * Valide les données du formulaire.
+   * Vérifie que le prénom, le nom et l'email sont présents et valides.
+   * S'assure qu'au moins une langue est sélectionnée, sinon sélectionne 'FR' par défaut.
+   * @returns {boolean} `true` si le formulaire est valide, sinon `false`.
+   */
   const validateForm = (): boolean => {
     const newErrors: {
       firstName?: string;
       lastName?: string;
       email?: string;
     } = {};
-    
+
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'Le prénom est requis';
     }
-    
+
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Le nom est requis';
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'L\'email est requis';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email invalide';
     }
-    
-    // Vérifier qu'au moins une langue est sélectionnée
+
     if (!formData.languages.FR && !formData.languages.EN) {
-      // Sélectionner FR par défaut si aucune langue n'est choisie
       setFormData(prev => ({
         ...prev,
         languages: { ...prev.languages, FR: true }
       }));
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Gère la soumission du formulaire.
+   * Prévient le comportement par défaut, valide les données, et appelle la fonction `onSubmit` passée en props.
+   * Gère l'état de soumission et affiche un message de succès avant de fermer le formulaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await onSubmit(formData);
-      
-      // Afficher un message de succès
+
       setShowSuccess(true);
-      
-      // Après 2 secondes, fermer le formulaire
+
       setTimeout(() => {
         if (!contact) {
-          // Réinitialiser le formulaire si c'est un nouveau contact
           setFormData({
             firstName: '',
             lastName: '',
@@ -130,12 +160,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             comment: '',
           });
         }
-        
-        // Fermer le message de succès et le formulaire
+
         setShowSuccess(false);
-        onCancel(); // Ferme le formulaire et retourne à la liste
+        onCancel();
       }, 1500);
-      
+
     } catch (error) {
       console.error('Erreur lors de la soumission du formulaire:', error);
       setShowSuccess(false);
@@ -154,10 +183,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
           </div>
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-4 bg-gray-50 p-4 rounded-md border border-gray-200">
         <div className="grid grid-cols-2 gap-4">
-          {/* Prénom */}
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
               Prénom *
@@ -176,8 +204,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
               <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
             )}
           </div>
-          
-          {/* Nom */}
+
           <div>
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
               Nom *
@@ -197,8 +224,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             )}
           </div>
         </div>
-        
-        {/* Email */}
+
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
             Email *
@@ -217,8 +243,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             <p className="mt-1 text-sm text-red-600">{errors.email}</p>
           )}
         </div>
-        
-        {/* Langues - Checkboxes au lieu d'un select */}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Langues préférées
@@ -250,8 +275,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             </div>
           </div>
         </div>
-        
-        {/* Commentaire */}
+
         <div>
           <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
             Commentaire
@@ -266,8 +290,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             placeholder="Informations supplémentaires..."
           />
         </div>
-        
-        {/* Boutons d'action */}
+
         <div className="flex justify-end space-x-3 pt-3">
           <button
             type="button"

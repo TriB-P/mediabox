@@ -1,4 +1,9 @@
-// app/components/Admin/RoleFormModal.tsx
+/**
+ * Ce fichier définit un composant de modal React utilisé pour créer ou modifier des rôles d'utilisateur.
+ * Il affiche un formulaire avec le nom du rôle et une liste de permissions sous forme de cases à cocher.
+ * Le composant gère son propre état pour les données du formulaire et l'état de sauvegarde.
+ * Il communique avec son composant parent via des props pour l'ouverture, la fermeture et la sauvegarde des données.
+ */
 
 'use client';
 
@@ -13,6 +18,15 @@ interface RoleFormModalProps {
   role?: Role | null;
 }
 
+
+/**
+ * Affiche une modal permettant de créer ou de modifier un rôle et ses permissions associées.
+ * @param {boolean} isOpen - Contrôle la visibilité de la modal.
+ * @param {() => void} onClose - Fonction à appeler pour fermer la modal.
+ * @param {(roleData: RoleFormData) => Promise<void>} onSave - Fonction asynchrone à appeler pour sauvegarder les données du rôle.
+ * @param {Role | null} [role] - L'objet rôle à modifier. Si `null` ou `undefined`, la modal est en mode création.
+ * @returns {JSX.Element | null} Le composant de la modal ou `null` si `isOpen` est faux.
+ */
 export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFormModalProps) {
   const [formData, setFormData] = useState<RoleFormData>({
     name: '',
@@ -31,7 +45,6 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
 
   useEffect(() => {
     if (role) {
-      // Mode édition
       setFormData({
         name: role.name,
         Access: role.Access,
@@ -46,7 +59,6 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
         Templates: role.Templates,
       });
     } else {
-      // Mode création - réinitialiser le formulaire
       setFormData({
         name: '',
         Access: false,
@@ -63,6 +75,11 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
     }
   }, [role, isOpen]);
 
+  /**
+   * Gère la soumission du formulaire. Valide le nom du rôle, appelle la fonction `onSave`
+   * et gère l'état de chargement pendant la sauvegarde.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -83,6 +100,11 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
     }
   };
 
+  /**
+   * Met à jour l'état du formulaire lorsqu'une case à cocher de permission est modifiée.
+   * @param {keyof Omit<RoleFormData, 'name'>} permission - La clé de la permission à modifier.
+   * @param {boolean} value - La nouvelle valeur (cochée ou non).
+   */
   const handlePermissionChange = (permission: keyof Omit<RoleFormData, 'name'>, value: boolean) => {
     setFormData(prev => ({
       ...prev,
@@ -108,16 +130,13 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        {/* Overlay */}
         <div 
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={onClose}
         ></div>
 
-        {/* Modal */}
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <form onSubmit={handleSubmit}>
-            {/* Header */}
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -132,7 +151,6 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
                 </button>
               </div>
 
-              {/* Nom du rôle */}
               <div className="mb-6">
                 <label className="form-label">
                   Nom du rôle *
@@ -147,7 +165,6 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
                 />
               </div>
 
-              {/* Permissions */}
               <div>
                 <label className="form-label mb-3">
                   Permissions
@@ -174,7 +191,6 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
               </div>
             </div>
 
-            {/* Footer */}
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
                 type="submit"

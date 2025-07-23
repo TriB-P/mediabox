@@ -1,10 +1,17 @@
-// app/components/Client/ClientLists.tsx
+/**
+ * @file Ce composant représente l'interface principale pour la gestion des listes de shortcodes d'un client.
+ * Il orchestre l'affichage des dimensions (catégories de listes), la liste des shortcodes
+ * pour la dimension sélectionnée, et toutes les actions associées comme la création/suppression
+ * de listes personnalisées et l'ajout/suppression de shortcodes. Il s'appuie sur le hook
+ * `useShortcodes` pour la logique métier et les interactions avec Firebase, et utilise
+ * le `ClientContext` pour savoir quel client est sélectionné.
+ */
 
 'use client';
 
 import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useShortcodes } from '../../hooks/useShortcodes';
@@ -13,18 +20,21 @@ import ListHeader from './ListHeader';
 import ShortcodeActions from './ShortcodeActions';
 import ShortcodeTable from './ShortcodeTable';
 
+/**
+ * Composant principal pour la gestion des listes de shortcodes.
+ * Il affiche l'interface utilisateur permettant de naviguer entre les dimensions, de voir les shortcodes,
+ * et d'effectuer des opérations de gestion de liste en fonction des permissions de l'utilisateur.
+ * @returns {React.ReactElement} Le JSX du composant de gestion des listes.
+ */
 const ClientLists: React.FC = () => {
   const { selectedClient } = useClient();
   const { canPerformAction, userRole } = usePermissions();
-  
-  // Vérifier si l'utilisateur a la permission de gérer les listes
+
   const hasListPermission = canPerformAction('Listes');
-  
-  // États pour la recherche et les modals
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
-  
-  // Hook personnalisé pour la gestion des shortcodes
+
   const {
     dimensions,
     selectedDimension,
@@ -48,15 +58,30 @@ const ClientLists: React.FC = () => {
     clearMessages
   } = useShortcodes();
 
+  /**
+   * Ouvre la modale de confirmation pour la suppression d'une liste personnalisée.
+   * Change simplement l'état `isDeleteListModalOpen` à `true`.
+   */
   const onDeleteCustomList = () => {
     setIsDeleteListModalOpen(true);
   };
 
+  /**
+   * Exécute la suppression de la liste personnalisée après confirmation de l'utilisateur.
+   * Appelle la fonction `handleDeleteCustomList` du hook `useShortcodes` puis ferme la modale.
+   * @returns {Promise<void>}
+   */
   const confirmDeleteCustomList = async () => {
     await handleDeleteCustomList();
     setIsDeleteListModalOpen(false);
   };
 
+  /**
+   * Déclenche le rafraîchissement de la liste des shortcodes.
+   * Utile après une mise à jour pour récupérer les données les plus récentes.
+   * Appelle `refreshShortcodes` du hook `useShortcodes`.
+   * @returns {Promise<void>}
+   */
   const onUpdateShortcode = async () => {
     await refreshShortcodes();
   };
@@ -73,8 +98,7 @@ const ClientLists: React.FC = () => {
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-6">Gestion des listes</h2>
-        
-        {/* Messages d'erreur et de succès */}
+
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
             <div className="flex justify-between items-start">
@@ -85,7 +109,7 @@ const ClientLists: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-400 text-green-700">
             <div className="flex justify-between items-start">
@@ -96,26 +120,22 @@ const ClientLists: React.FC = () => {
             </div>
           </div>
         )}
-        
-        {/* Bandeau d'avertissement pour les permissions */}
+
         {!hasListPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
             Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les listes.
           </div>
         )}
-        
+
         <div className="flex flex-col md:flex-row md:space-x-6">
-          {/* Sidebar des dimensions */}
           <DimensionSidebar
             dimensions={dimensions}
             selectedDimension={selectedDimension}
             onSelectDimension={setSelectedDimension}
             loading={loading && dimensions.length === 0}
           />
-          
-          {/* Contenu principal */}
+
           <div className="flex-1 mt-6 md:mt-0">
-            {/* En-tête de la liste */}
             <ListHeader
               selectedDimension={selectedDimension}
               isCustomList={isCustomList}
@@ -124,10 +144,9 @@ const ClientLists: React.FC = () => {
               onCreateCustomList={handleCreateCustomList}
               onDeleteCustomList={onDeleteCustomList}
             />
-            
+
             {selectedDimension && (
               <>
-                {/* Actions et recherche */}
                 <ShortcodeActions
                   hasPermission={hasListPermission}
                   isCustomList={isCustomList}
@@ -138,8 +157,7 @@ const ClientLists: React.FC = () => {
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                 />
-                
-                {/* Tableau des shortcodes */}
+
                 <ShortcodeTable
                   shortcodes={shortcodes}
                   hasPermission={hasListPermission}
@@ -158,8 +176,7 @@ const ClientLists: React.FC = () => {
             )}
           </div>
         </div>
-        
-        {/* Modal de confirmation de suppression de liste */}
+
         <Transition show={isDeleteListModalOpen} as={Fragment}>
           <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={() => setIsDeleteListModalOpen(false)}>
             <div className="min-h-screen px-4 text-center">
@@ -176,7 +193,7 @@ const ClientLists: React.FC = () => {
               </Transition.Child>
 
               <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
-              
+
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-300"
@@ -200,13 +217,13 @@ const ClientLists: React.FC = () => {
                       <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                     </button>
                   </div>
-                  
+
                   <div className="mt-4">
                     <p className="text-sm text-gray-500">
                       Êtes-vous sûr de vouloir supprimer cette liste personnalisée ? Le système utilisera la liste par défaut (PlusCo) à la place. Cette action est irréversible.
                     </p>
                   </div>
-                  
+
                   <div className="mt-6 flex justify-end">
                     <button
                       type="button"

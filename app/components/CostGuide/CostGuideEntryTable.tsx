@@ -1,15 +1,22 @@
+/**
+ * Ce fichier définit le composant `CostGuideEntryTable`, une interface interactive pour afficher et gérer les entrées d'un guide de coûts.
+ * Il permet aux utilisateurs de visualiser les données sous forme de tableau, de les trier, et si les permissions le permettent, de les modifier.
+ * Les fonctionnalités d'édition incluent la modification en ligne, l'ajout, la suppression, la duplication d'entrées, ainsi que la sélection multiple et le copier-coller pour une édition rapide.
+ * Le composant interagit avec les services Firebase pour persister les changements et dispose d'un mode lecture seule pour les utilisateurs non autorisés.
+ */
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../../types/costGuide';
-import { 
-  batchUpdateCostGuideEntries, 
+import {
+  batchUpdateCostGuideEntries,
   addCostGuideEntry,
   deleteCostGuideEntry,
   duplicateCostGuideEntry
 } from '../../lib/costGuideService';
-import { 
-  CheckIcon, 
+import {
+  CheckIcon,
   XMarkIcon,
   ArrowDownTrayIcon,
   ChevronUpDownIcon,
@@ -23,7 +30,7 @@ interface CostGuideEntryTableProps {
   entries: CostGuideEntry[];
   partners: any[];
   onEntriesUpdated: () => void;
-  readOnly?: boolean; // Nouvelle propriété pour le mode lecture seule
+  readOnly?: boolean;
 }
 
 type EditableCell = {
@@ -37,20 +44,28 @@ type SelectedCell = {
   field: keyof CostGuideEntry;
 };
 
+/**
+ * Affiche et gère un tableau d'entrées de guide de coûts avec des fonctionnalités d'édition avancées.
+ * @param {CostGuideEntryTableProps} props - Les propriétés du composant.
+ * @param {string} props.guideId - L'ID du guide de coûts parent.
+ * @param {CostGuideEntry[]} props.entries - La liste des entrées à afficher.
+ * @param {any[]} props.partners - La liste des partenaires disponibles pour la sélection.
+ * @param {() => void} props.onEntriesUpdated - Une fonction de rappel pour rafraîchir les données après une mise à jour.
+ * @param {boolean} [props.readOnly=false] - Si vrai, le tableau est en mode lecture seule.
+ * @returns {JSX.Element} Le composant de tableau des entrées du guide de coûts.
+ */
 export default function CostGuideEntryTable({
   guideId,
   entries,
   partners,
   onEntriesUpdated,
-  readOnly = false, // Par défaut, le mode lecture seule est désactivé
+  readOnly = false,
 }: CostGuideEntryTableProps) {
   const [editMode, setEditMode] = useState(false);
   const [sortField, setSortField] = useState<keyof CostGuideEntry>('partnerName');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editableCells, setEditableCells] = useState<EditableCell[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Nouvelle logique pour la sélection multiple
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [selectionStart, setSelectionStart] = useState<SelectedCell | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<SelectedCell | null>(null);
@@ -66,10 +81,9 @@ export default function CostGuideEntryTable({
     unitPrice: '',
     comment: ''
   });
-  
+
   const tableRef = useRef<HTMLTableElement>(null);
 
-  // Désactiver le mode édition si en lecture seule
   useEffect(() => {
     if (readOnly) {
       setEditMode(false);
@@ -78,7 +92,11 @@ export default function CostGuideEntryTable({
     }
   }, [readOnly]);
 
-  // Formatter le montant en devise
+  /**
+   * Formate un nombre en une chaîne de caractères de devise CAD.
+   * @param {number} amount - Le montant numérique à formater.
+   * @returns {string} Le montant formaté en devise (ex: "1 234,56 $").
+   */
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
       style: 'currency',
@@ -86,74 +104,77 @@ export default function CostGuideEntryTable({
     }).format(amount);
   };
 
-  // Trier les entrées
   const sortedEntries = [...entries].sort((a, b) => {
     let valueA = a[sortField];
     let valueB = b[sortField];
-    
-    // Gérer les cas spéciaux pour le tri
+
     if (typeof valueA === 'string' && typeof valueB === 'string') {
       valueA = valueA.toLowerCase();
       valueB = valueB.toLowerCase();
     }
-    
+
     if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
     if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
     return 0;
   });
 
-  // Gérer les touches pour la sélection et la copie
   useEffect(() => {
-    if (readOnly) return; // Ne pas ajouter d'événements en mode lecture seule
-    
+    if (readOnly) return;
+
+    /**
+     * Gère les événements d'appui sur une touche pour des actions comme le copier-coller et la sélection multiple.
+     * @param {KeyboardEvent} e - L'événement du clavier.
+     */
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Shift pour la sélection multiple
       if (e.key === 'Shift') {
         setIsShiftKeyPressed(true);
       }
-      
-      // Ctrl+C ou Command+C pour copier
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         if (selectedCells.length > 0) {
-          // Copier la valeur de la première cellule sélectionnée
           const firstCell = selectedCells[0];
           const entry = sortedEntries[firstCell.rowIndex];
           const value = entry[firstCell.field];
           setCopiedValue(value);
         }
       }
-      
-      // Ctrl+V ou Command+V pour coller
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         if (copiedValue !== null && selectedCells.length > 0 && editMode) {
           handlePaste();
         }
       }
-      
-      // Échap pour annuler la sélection
+
       if (e.key === 'Escape') {
         setSelectedCells([]);
         setSelectionStart(null);
         setSelectionEnd(null);
       }
     };
-    
+
+    /**
+     * Gère les événements de relâchement d'une touche pour réinitialiser l'état de la touche Shift.
+     * @param {KeyboardEvent} e - L'événement du clavier.
+     */
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Shift') {
         setIsShiftKeyPressed(false);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [selectedCells, sortedEntries, editMode, copiedValue, readOnly]);
 
-  // Gérer le clic sur un en-tête pour trier
+  /**
+   * Gère le tri des colonnes du tableau lorsque l'utilisateur clique sur un en-tête.
+   * @param {keyof CostGuideEntry} field - Le champ sur lequel trier.
+   */
   const handleSort = (field: keyof CostGuideEntry) => {
     if (field === sortField) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -163,47 +184,49 @@ export default function CostGuideEntryTable({
     }
   };
 
-  // Gérer le double-clic sur une cellule pour l'éditer
+  /**
+   * Active le mode édition pour une cellule lors d'un double-clic, si le mode édition est activé.
+   * @param {CostGuideEntry} entry - L'entrée de coût de la cellule.
+   * @param {keyof CostGuideEntry} field - Le champ de la cellule.
+   * @param {number} rowIndex - L'index de la ligne de la cellule.
+   */
   const handleCellDoubleClick = (entry: CostGuideEntry, field: keyof CostGuideEntry, rowIndex: number) => {
     if (!editMode || readOnly) return;
-    
-    // Vérifier si le champ est éditable
+
     const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
     if (!editableFields.includes(field)) return;
-    
-    // Vérifier si la cellule est déjà en cours d'édition
+
     const isAlreadyEditing = editableCells.some(
       cell => cell.entryId === entry.id && cell.field === field
     );
-    
+
     if (!isAlreadyEditing) {
       setEditableCells(prev => [
         ...prev,
         { entryId: entry.id, field, value: entry[field] }
       ]);
-      
-      // Définir cette cellule comme sélectionnée
+
       setSelectedCells([{ rowIndex, field }]);
       setSelectionStart({ rowIndex, field });
       setSelectionEnd({ rowIndex, field });
     }
   };
 
-  // Gérer le clic sur une cellule pour la sélection
+  /**
+   * Gère la sélection d'une ou plusieurs cellules lors d'un clic.
+   * @param {number} rowIndex - L'index de la ligne de la cellule cliquée.
+   * @param {keyof CostGuideEntry} field - Le champ de la cellule cliquée.
+   */
   const handleCellClick = (rowIndex: number, field: keyof CostGuideEntry) => {
     if (!editMode || readOnly) return;
-    
-    // Déterminer si la cellule est éditable
+
     const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
     if (!editableFields.includes(field)) return;
-    
-    // Si Shift est pressé, étendre la sélection
+
     if (isShiftKeyPressed && selectionStart) {
-      // Calculer la plage entre selectionStart et cette cellule
       const startRow = Math.min(selectionStart.rowIndex, rowIndex);
       const endRow = Math.max(selectionStart.rowIndex, rowIndex);
-      
-      // Pour l'instant, on gère uniquement la sélection dans la même colonne
+
       if (field === selectionStart.field) {
         const newSelection: SelectedCell[] = [];
         for (let i = startRow; i <= endRow; i++) {
@@ -212,39 +235,35 @@ export default function CostGuideEntryTable({
         setSelectedCells(newSelection);
         setSelectionEnd({ rowIndex, field });
       } else {
-        // Sélection d'une seule cellule si la colonne est différente
         setSelectedCells([{ rowIndex, field }]);
         setSelectionStart({ rowIndex, field });
         setSelectionEnd({ rowIndex, field });
       }
     } else {
-      // Sélection d'une seule cellule
       setSelectedCells([{ rowIndex, field }]);
       setSelectionStart({ rowIndex, field });
       setSelectionEnd({ rowIndex, field });
     }
   };
 
-  // Gérer le collage de valeurs
+  /**
+   * Colle la valeur copiée dans les cellules actuellement sélectionnées.
+   */
   const handlePaste = () => {
     if (copiedValue === null || selectedCells.length === 0 || readOnly) return;
-    
-    // Créer de nouvelles cellules éditables avec la valeur copiée
+
     const newEditableCells = [...editableCells];
-    
+
     selectedCells.forEach(cell => {
       const entry = sortedEntries[cell.rowIndex];
-      
-      // Vérifier si cette cellule est déjà en édition
+
       const existingCellIndex = newEditableCells.findIndex(
         ec => ec.entryId === entry.id && ec.field === cell.field
       );
-      
+
       if (existingCellIndex >= 0) {
-        // Mettre à jour la cellule existante
         newEditableCells[existingCellIndex].value = copiedValue;
       } else {
-        // Ajouter une nouvelle cellule
         newEditableCells.push({
           entryId: entry.id,
           field: cell.field,
@@ -252,32 +271,37 @@ export default function CostGuideEntryTable({
         });
       }
     });
-    
+
     setEditableCells(newEditableCells);
   };
 
-  // Mettre à jour la valeur d'une cellule éditable
+  /**
+   * Met à jour la valeur d'une cellule en cours d'édition dans l'état local.
+   * @param {number} index - L'index de la cellule dans le tableau `editableCells`.
+   * @param {any} value - La nouvelle valeur pour la cellule.
+   */
   const handleCellChange = (index: number, value: any) => {
     if (readOnly) return;
-    
+
     const newEditableCells = [...editableCells];
     newEditableCells[index].value = value;
     setEditableCells(newEditableCells);
   };
 
-  // Sauvegarder les modifications
+  /**
+   * Sauvegarde toutes les modifications en attente dans Firebase.
+   */
   const handleSaveChanges = async () => {
     if (editableCells.length === 0 || readOnly) return;
-    
+
     try {
       setIsSaving(true);
-      
-      // Regrouper les mises à jour par entrée
+
       const updates: { id: string; updates: Record<string, any> }[] = [];
-      
+
       editableCells.forEach(cell => {
         let existingUpdate = updates.find(update => update.id === cell.entryId);
-        
+
         if (existingUpdate) {
           existingUpdate.updates[cell.field] = cell.value;
         } else {
@@ -288,14 +312,12 @@ export default function CostGuideEntryTable({
         }
       });
       
-      // Envoyer les mises à jour
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleSaveChanges - Path: costGuides/${guideId}/entries`);
       await batchUpdateCostGuideEntries(guideId, updates);
-      
-      // Effacer les cellules éditables
+
       setEditableCells([]);
       setSelectedCells([]);
-      
-      // Rafraîchir les entrées
+
       onEntriesUpdated();
     } catch (err) {
       console.error('Erreur lors de la sauvegarde des modifications:', err);
@@ -305,10 +327,12 @@ export default function CostGuideEntryTable({
     }
   };
 
-  // Ajouter une nouvelle ligne
+  /**
+   * Ajoute une nouvelle entrée au guide de coûts dans Firebase.
+   */
   const handleAddRow = async () => {
     if (readOnly) return;
-    
+
     if (!newRowData.partnerId || !newRowData.level1 || !newRowData.level2 || !newRowData.level3 || !newRowData.unitPrice) {
       alert('Veuillez remplir tous les champs obligatoires.');
       return;
@@ -316,14 +340,13 @@ export default function CostGuideEntryTable({
 
     try {
       setIsSaving(true);
-      
-      // Trouver le nom du partenaire
+
       const selectedPartner = partners.find(p => p.id === newRowData.partnerId);
       const partnerName = selectedPartner ? selectedPartner.SH_Display_Name_FR : '';
       
-      // Créer la nouvelle entrée
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleAddRow - Path: costGuides/${guideId}/entries`);
       await addCostGuideEntry(
-        guideId, 
+        guideId,
         {
           partnerId: newRowData.partnerId || '',
           level1: newRowData.level1 || '',
@@ -335,8 +358,7 @@ export default function CostGuideEntryTable({
         },
         partnerName
       );
-      
-      // Réinitialiser le formulaire
+
       setNewRowData({
         partnerId: '',
         level1: '',
@@ -346,11 +368,8 @@ export default function CostGuideEntryTable({
         unitPrice: '',
         comment: ''
       });
-      
-      // Cacher le formulaire
+
       setIsAddingRow(false);
-      
-      // Rafraîchir les entrées
       onEntriesUpdated();
     } catch (err) {
       console.error('Erreur lors de l\'ajout d\'une entrée:', err);
@@ -360,14 +379,18 @@ export default function CostGuideEntryTable({
     }
   };
 
-  // Supprimer une ligne
+  /**
+   * Supprime une entrée du guide de coûts dans Firebase.
+   * @param {string} entryId - L'ID de l'entrée à supprimer.
+   */
   const handleDeleteRow = async (entryId: string) => {
     if (readOnly) return;
-    
+
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
-    
+
     try {
       setIsSaving(true);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleDeleteRow - Path: costGuides/${guideId}/entries/${entryId}`);
       await deleteCostGuideEntry(guideId, entryId);
       onEntriesUpdated();
     } catch (err) {
@@ -378,12 +401,16 @@ export default function CostGuideEntryTable({
     }
   };
 
-  // Dupliquer une ligne
+  /**
+   * Duplique une entrée existante dans le guide de coûts.
+   * @param {string} entryId - L'ID de l'entrée à dupliquer.
+   */
   const handleDuplicateRow = async (entryId: string) => {
     if (readOnly) return;
-    
+
     try {
       setIsSaving(true);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleDuplicateRow - Path: costGuides/${guideId}/entries/${entryId}`);
       await duplicateCostGuideEntry(guideId, entryId);
       onEntriesUpdated();
     } catch (err) {
@@ -394,7 +421,9 @@ export default function CostGuideEntryTable({
     }
   };
 
-  // Annuler les modifications
+  /**
+   * Annule toutes les modifications en cours et réinitialise l'état de sélection.
+   */
   const handleCancelChanges = () => {
     setEditableCells([]);
     setSelectedCells([]);
@@ -403,22 +432,22 @@ export default function CostGuideEntryTable({
     setCopiedValue(null);
   };
 
-  // Exporter en CSV
+  /**
+   * Exporte les données du tableau au format CSV.
+   */
   const handleExportCSV = () => {
     if (entries.length === 0) return;
-    
-    // Construire l'en-tête CSV
+
     const headers = [
       'Partenaire',
       'Niveau 1',
-      'Niveau 2', 
+      'Niveau 2',
       'Niveau 3',
       'Unité d\'achat',
       'Prix unitaire',
       'Commentaire'
     ];
-    
-    // Construire les lignes de données
+
     const rows = entries.map(entry => [
       entry.partnerName,
       entry.level1,
@@ -428,14 +457,12 @@ export default function CostGuideEntryTable({
       entry.unitPrice.toString(),
       entry.comment || ''
     ]);
-    
-    // Créer le contenu CSV
+
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
-    
-    // Créer et télécharger le fichier
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -446,26 +473,44 @@ export default function CostGuideEntryTable({
     document.body.removeChild(link);
   };
 
-  // Fonction pour savoir si une cellule est en cours d'édition
+  /**
+   * Vérifie si une cellule est actuellement en mode édition.
+   * @param {string} entryId - L'ID de l'entrée de la cellule.
+   * @param {keyof CostGuideEntry} field - Le champ de la cellule.
+   * @returns {boolean} Vrai si la cellule est en cours d'édition.
+   */
   const isCellEditing = (entryId: string, field: keyof CostGuideEntry) => {
     return editableCells.some(cell => cell.entryId === entryId && cell.field === field);
   };
 
-  // Fonction pour savoir si une cellule est sélectionnée
+  /**
+   * Vérifie si une cellule est actuellement sélectionnée.
+   * @param {number} rowIndex - L'index de la ligne de la cellule.
+   * @param {keyof CostGuideEntry} field - Le champ de la cellule.
+   * @returns {boolean} Vrai si la cellule est sélectionnée.
+   */
   const isCellSelected = (rowIndex: number, field: keyof CostGuideEntry) => {
     return selectedCells.some(cell => cell.rowIndex === rowIndex && cell.field === field);
   };
 
-  // Obtenir la valeur éditée d'une cellule
+  /**
+   * Récupère la valeur modifiée d'une cellule en cours d'édition.
+   * @param {string} entryId - L'ID de l'entrée de la cellule.
+   * @param {keyof CostGuideEntry} field - Le champ de la cellule.
+   * @returns {any | null} La valeur éditée ou null si elle n'est pas en édition.
+   */
   const getEditedCellValue = (entryId: string, field: keyof CostGuideEntry) => {
     const cell = editableCells.find(cell => cell.entryId === entryId && cell.field === field);
     return cell ? cell.value : null;
   };
 
-  // Mettre à jour un champ de la nouvelle ligne
+  /**
+   * Gère les changements dans les champs du formulaire d'ajout d'une nouvelle ligne.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'événement de changement.
+   */
   const handleNewRowChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     if (readOnly) return;
-    
+
     const { name, value } = e.target;
     setNewRowData(prev => ({
       ...prev,
@@ -473,23 +518,26 @@ export default function CostGuideEntryTable({
     }));
   };
 
-  // Rendu d'une cellule en fonction de son état
+  /**
+   * Rend une cellule du tableau, en gérant son affichage en mode normal, sélectionné ou édition.
+   * @param {CostGuideEntry} entry - L'objet de données de la ligne.
+   * @param {keyof CostGuideEntry} field - Le champ à rendre pour cette cellule.
+   * @param {number} rowIndex - L'index de la ligne dans le tableau.
+   * @returns {JSX.Element} Le `<td>` rendu pour la cellule.
+   */
   const renderCell = (entry: CostGuideEntry, field: keyof CostGuideEntry, rowIndex: number) => {
-    // Classes CSS pour la cellule
     const cellClasses = `px-4 py-2 whitespace-nowrap text-sm ${
       isCellSelected(rowIndex, field) ? 'bg-indigo-100' : ''
     } ${editMode && !readOnly ? 'cursor-cell' : ''}`;
-    
-    // Si la cellule est en cours d'édition
+
     if (isCellEditing(entry.id, field) && !readOnly) {
       const cellIndex = editableCells.findIndex(
         cell => cell.entryId === entry.id && cell.field === field
       );
-      
-      // Différents contrôles en fonction du type de champ
+
       if (field === 'partnerId') {
         return (
-          <td 
+          <td
             className={cellClasses}
             onClick={() => handleCellClick(rowIndex, field)}
           >
@@ -510,7 +558,7 @@ export default function CostGuideEntryTable({
         );
       } else if (field === 'purchaseUnit') {
         return (
-          <td 
+          <td
             className={cellClasses}
             onClick={() => handleCellClick(rowIndex, field)}
           >
@@ -529,7 +577,7 @@ export default function CostGuideEntryTable({
         );
       } else if (field === 'unitPrice') {
         return (
-          <td 
+          <td
             className={cellClasses}
             onClick={() => handleCellClick(rowIndex, field)}
           >
@@ -545,7 +593,7 @@ export default function CostGuideEntryTable({
         );
       } else {
         return (
-          <td 
+          <td
             className={cellClasses}
             onClick={() => handleCellClick(rowIndex, field)}
           >
@@ -561,11 +609,10 @@ export default function CostGuideEntryTable({
         );
       }
     }
-    
-    // Affichage normal
+
     if (field === 'unitPrice') {
       return (
-        <td 
+        <td
           className={cellClasses}
           onClick={() => handleCellClick(rowIndex, field)}
           onDoubleClick={() => handleCellDoubleClick(entry, field, rowIndex)}
@@ -574,9 +621,8 @@ export default function CostGuideEntryTable({
         </td>
       );
     } else if (field === 'partnerId') {
-      // Pour le champ partnerId, on affiche le nom du partenaire mais on stocke l'ID
       return (
-        <td 
+        <td
           className={cellClasses}
           onClick={() => handleCellClick(rowIndex, field)}
           onDoubleClick={() => handleCellDoubleClick(entry, field, rowIndex)}
@@ -585,9 +631,9 @@ export default function CostGuideEntryTable({
         </td>
       );
     }
-    
+
     return (
-      <td 
+      <td
         className={cellClasses}
         onClick={() => handleCellClick(rowIndex, field)}
         onDoubleClick={() => handleCellDoubleClick(entry, field, rowIndex)}
@@ -609,7 +655,6 @@ export default function CostGuideEntryTable({
 
   return (
     <div className="space-y-4">
-      {/* Barre d'outils */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
           {!readOnly && (
@@ -624,7 +669,7 @@ export default function CostGuideEntryTable({
               {editMode ? 'Mode édition activé' : 'Activer l\'édition'}
             </button>
           )}
-          
+
           <button
             onClick={handleExportCSV}
             className="flex items-center px-4 py-2 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -633,7 +678,7 @@ export default function CostGuideEntryTable({
             Exporter CSV
           </button>
         </div>
-        
+
         {editMode && !readOnly && editableCells.length > 0 && (
           <div className="flex items-center space-x-2">
             <button
@@ -654,7 +699,7 @@ export default function CostGuideEntryTable({
             </button>
           </div>
         )}
-        
+
         {!readOnly && !isAddingRow && (
           <button
             onClick={() => setIsAddingRow(true)}
@@ -666,17 +711,15 @@ export default function CostGuideEntryTable({
         )}
       </div>
 
-      {/* Instructions */}
       {editMode && !readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
           <p>
-            <strong>Mode édition rapide :</strong> Cliquez pour sélectionner une cellule. Maintenez Shift pour sélectionner plusieurs cellules. 
+            <strong>Mode édition rapide :</strong> Cliquez pour sélectionner une cellule. Maintenez Shift pour sélectionner plusieurs cellules.
             Double-cliquez pour modifier une cellule. Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller sur les cellules sélectionnées.
           </p>
         </div>
       )}
 
-      {/* Formulaire d'ajout de ligne */}
       {isAddingRow && !readOnly && (
         <div className="bg-white rounded-lg shadow p-4 border border-indigo-200">
           <div className="flex justify-between items-center mb-4">
@@ -688,7 +731,7 @@ export default function CostGuideEntryTable({
               <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
             <div>
               <label htmlFor="partnerId" className="block text-sm font-medium text-gray-700">
@@ -709,7 +752,7 @@ export default function CostGuideEntryTable({
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
                 Niveau 1 *
@@ -723,7 +766,7 @@ export default function CostGuideEntryTable({
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
             </div>
-            
+
             <div>
               <label htmlFor="level2" className="block text-sm font-medium text-gray-700">
                 Niveau 2 *
@@ -738,7 +781,7 @@ export default function CostGuideEntryTable({
               />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
             <div>
               <label htmlFor="level3" className="block text-sm font-medium text-gray-700">
@@ -753,7 +796,7 @@ export default function CostGuideEntryTable({
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
             </div>
-            
+
             <div>
               <label htmlFor="purchaseUnit" className="block text-sm font-medium text-gray-700">
                 Unité d'achat *
@@ -770,7 +813,7 @@ export default function CostGuideEntryTable({
                 <option value="Unitaire">Unitaire</option>
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
                 Montant unitaire * (CAD)
@@ -791,7 +834,7 @@ export default function CostGuideEntryTable({
               </div>
             </div>
           </div>
-          
+
           <div className="mb-4">
             <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
               Commentaire
@@ -806,7 +849,7 @@ export default function CostGuideEntryTable({
               placeholder="Informations supplémentaires..."
             />
           </div>
-          
+
           <div className="flex justify-end space-x-3">
             <button
               type="button"
@@ -827,7 +870,6 @@ export default function CostGuideEntryTable({
         </div>
       )}
 
-      {/* Tableau */}
       {(entries.length > 0 || isAddingRow) && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -851,10 +893,10 @@ export default function CostGuideEntryTable({
                     >
                       <div className="flex items-center">
                         <span>{label}</span>
-                        <ChevronUpDownIcon 
+                        <ChevronUpDownIcon
                           className={`ml-1 h-4 w-4 ${
                             sortField === key ? 'text-indigo-500' : 'text-gray-400'
-                          }`} 
+                          }`}
                         />
                       </div>
                     </th>
@@ -912,8 +954,7 @@ export default function CostGuideEntryTable({
           </div>
         </div>
       )}
-      
-      {/* Bouton d'ajout en bas pour les longues listes */}
+
       {!isAddingRow && !readOnly && entries.length > 5 && (
         <div className="flex justify-end mt-4">
           <button
@@ -926,7 +967,6 @@ export default function CostGuideEntryTable({
         </div>
       )}
 
-      {/* Message pour les utilisateurs en mode lecture seule */}
       {readOnly && (
         <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
           <div className="flex">

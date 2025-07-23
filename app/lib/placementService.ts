@@ -1,5 +1,9 @@
-// app/lib/placementService.ts - DEBUG DONNÉES REÇUES
-
+/**
+ * Ce fichier gère toutes les opérations liées aux placements dans Firebase Firestore.
+ * Il inclut les fonctions pour créer, lire, mettre à jour et supprimer des placements,
+ * ainsi que la logique complexe de résolution et de génération des taxonomies
+ * pour s'assurer que les données sont correctement formatées avant d'être sauvegardées.
+ */
 import {
   collection,
   doc,
@@ -26,8 +30,6 @@ import {
   TaxonomyFormat 
 } from '../config/taxonomyFields';
 
-// ==================== LOGIQUE DE RÉSOLUTION DE TAXONOMIE CORRIGÉE ====================
-
 interface ResolutionContext {
   clientId: string;
   campaignData: any;
@@ -39,26 +41,48 @@ interface ResolutionContext {
   };
 }
 
+/**
+ * Récupère un shortcode depuis la base de données ou le cache.
+ * @param id L'identifiant du shortcode.
+ * @param cache Le cache pour stocker les shortcodes déjà récupérés.
+ * @returns Les données du shortcode ou null si non trouvé.
+ */
 async function getShortcode(id: string, cache: Map<string, any>): Promise<any | null> {
   if (cache.has(id)) return cache.get(id);
   const docRef = doc(db, 'shortcodes', id);
+  console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: getShortcode - Path: shortcodes/${id}");
   const docSnap = await getDoc(docRef);
   const data = docSnap.exists() ? docSnap.data() : null;
   cache.set(id, data);
   return data;
 }
 
+/**
+ * Récupère un code personnalisé pour un client et un shortcode donnés, en utilisant un cache.
+ * @param clientId L'identifiant du client.
+ * @param shortcodeId L'identifiant du shortcode.
+ * @param cache Le cache pour stocker les codes personnalisés déjà récupérés.
+ * @returns Le code personnalisé ou null si non trouvé.
+ */
 async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<string, string | null>): Promise<string | null> {
   const cacheKey = `${clientId}__${shortcodeId}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
   const q = query(collection(db, 'clients', clientId, 'customCodes'), where('shortcodeId', '==', shortcodeId));
+  console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: getCustomCode - Path: clients/${clientId}/customCodes");
   const snapshot = await getDocs(q);
   const data = snapshot.empty ? null : snapshot.docs[0].data().customCode;
   cache.set(cacheKey, data);
   return data;
 }
 
+/**
+ * Formate la valeur d'un shortcode selon un format spécifié.
+ * @param shortcodeData Les données du shortcode.
+ * @param customCode Le code personnalisé, s'il existe.
+ * @param format Le format de sortie désiré (ex: 'code', 'display_fr', 'utm').
+ * @returns La chaîne de caractères formatée.
+ */
 function formatShortcodeValue(
 shortcodeData: any,
 customCode: string | null,
@@ -82,18 +106,23 @@ switch (format) {
 }
 }
 
+/**
+ * Résout la valeur d'une variable de taxonomie en fonction de sa source et de son format.
+ * La résolution se fait dans l'ordre suivant : valeurs manuelles dans PL_Taxonomy_Values,
+ * puis variables manuelles directes sur l'objet placement, puis données de campagne,
+ * tactique et enfin de placement.
+ * @param variableName Le nom de la variable à résoudre.
+ * @param format Le format de sortie désiré pour la variable.
+ * @param context Le contexte de résolution contenant les données nécessaires (client, campagne, tactique, placement, caches).
+ * @returns La valeur résolue de la variable sous forme de chaîne de caractères.
+ */
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext): Promise<string> {
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  console.log(`🔍 [PlacementService] Résolution ${variableName} (source: ${source}, format: ${format})`);
-
-  // 1. Vérifier d'abord les valeurs manuelles dans PL_Taxonomy_Values
   if (context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
       const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-      console.log(`✅ [PlacementService] Valeur manuelle trouvée dans PL_Taxonomy_Values:`, taxonomyValue);
       
-      // Extraire selon le format
       if (format === 'open' && taxonomyValue.openValue) {
           rawValue = taxonomyValue.openValue;
       } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
@@ -101,28 +130,20 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
           if (shortcodeData) {
               const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
               const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-              console.log(`🔧 [PlacementService] Valeur formatée depuis shortcode:`, formattedValue);
               return formattedValue;
           }
       } else {
           rawValue = taxonomyValue.value;
       }
-      console.log(`📋 [PlacementService] Valeur extraite:`, rawValue);
   } else if (source === 'manual') {
-      // Variables manuelles directement sur l'objet placement
       rawValue = context.placementData[variableName];
-      console.log(`📝 [PlacementService] Valeur manuelle directe:`, rawValue);
   } else if (source === 'campaign' && context.campaignData) {
       rawValue = context.campaignData[variableName];
-      console.log(`🏛️ [PlacementService] Valeur campagne:`, rawValue);
   } else if (source === 'tactique' && context.tactiqueData) {
       rawValue = context.tactiqueData[variableName];
-      console.log(`🎯 [PlacementService] Valeur tactique:`, rawValue);
   } else if (source === 'placement' && context.placementData) {
-      // For placement variables, first look in PL_Taxonomy_Values
       if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
           const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-          console.log(`🏢 [PlacementService] Variable placement in PL_Taxonomy_Values:`, taxonomyValue);
           
           if (format === 'open' && taxonomyValue.openValue) {
               rawValue = taxonomyValue.openValue;
@@ -131,44 +152,41 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
               if (shortcodeData) {
                   const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
                   const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                  console.log(`🔧 [PlacementService] Variable placement formatted:`, formattedValue);
                   return formattedValue;
               }
           } else {
               rawValue = taxonomyValue.value;
           }
       } else {
-          // Fallback: look directly
           rawValue = context.placementData[variableName];
-          console.log(`🏢 [PlacementService] Direct placement value[${variableName}]:`, rawValue);
       }
   }
 
   if (rawValue === null || rawValue === undefined || rawValue === '') {
-      console.log(`❌ [PlacementService] Aucune valeur pour ${variableName}`);
       return '';
   }
 
-  // Final formatting if not already done
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
       const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
       if (!shortcodeData) return rawValue;
 
       const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
       const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      console.log(`🔧 [PlacementService] Final formatting:`, formattedValue);
       return formattedValue;
   }
   
   const finalValue = String(rawValue);
-  console.log(`✅ [PlacementService] Final value for ${variableName}:`, finalValue);
   return finalValue;
 }
 
+/**
+ * Génère une chaîne de caractères pour un niveau de taxonomie en résolvant les variables qu'elle contient.
+ * @param structure La chaîne de structure du niveau (ex: "[VAR_NAME:format]-<GroupContent>").
+ * @param context Le contexte de résolution.
+ * @returns La chaîne de caractères générée avec les variables résolues.
+ */
 async function generateLevelString(structure: string, context: ResolutionContext): Promise<string> {
   if (!structure) return '';
-  
-  console.log(`🔄 [PlacementService] Generating level: "${structure}"`);
   
   const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
   const segments = structure.split(MASTER_REGEX).filter(Boolean);
@@ -181,7 +199,6 @@ async function generateLevelString(structure: string, context: ResolutionContext
               const [, variableName, format] = variableMatch;
               const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
               finalString += resolvedValue;
-              console.log(`🔧 [PlacementService] ${variableName}:${format} -> "${resolvedValue}"`);
           }
       } else if (segment.startsWith('<') && segment.endsWith('>')) {
           const groupContent = segment.slice(1, -1);
@@ -214,10 +231,19 @@ async function generateLevelString(structure: string, context: ResolutionContext
       }
   }
   
-  console.log(`✅ [PlacementService] Level generated: "${finalString}"`);
   return finalString;
 }
 
+/**
+ * Prépare les données d'un placement pour l'enregistrement dans Firestore.
+ * Cela inclut la résolution des taxonomies et la fusion des données nécessaires.
+ * @param placementData Les données du formulaire de placement.
+ * @param clientId L'identifiant du client.
+ * @param campaignData Les données de la campagne associée.
+ * @param tactiqueData Les données de la tactique associée.
+ * @param isUpdate Indique si l'opération est une mise à jour (true) ou une création (false).
+ * @returns Un objet contenant les données prêtes pour Firestore.
+ */
 async function prepareDataForFirestore(
 placementData: PlacementFormData,
 clientId: string,
@@ -226,34 +252,13 @@ tactiqueData: any,
 isUpdate: boolean = false
 ): Promise<any> {
   
-  console.log(`🔄 [PlacementService] === START DATA PREPARATION ===`);
-  console.log(`📊 PlacementData received:`, placementData);
-  console.log(`🏛️ CampaignData received:`, campaignData);
-  console.log(`🎯 TactiqueData received:`, tactiqueData);
-  
-  // 🔥 DEBUG: Specific checks
-  console.log(`🔍 [PlacementService] CHECKS:`);
-  console.log(`  - PlacementData defined: ${!!placementData}`);
-  console.log(`  - CampaignData defined: ${!!campaignData}`);
-  console.log(`  - TactiqueData defined: ${!!tactiqueData}`);
-  
-  if (campaignData) {
-      console.log(`  - CampaignData keys: ${Object.keys(campaignData).join(', ')}`);
-      console.log(`  - CA_Name: ${campaignData.CA_Name || 'undefined'}`);
-  }
-  
-  if (tactiqueData) {
-      console.log(`  - TactiqueData keys: ${Object.keys(tactiqueData).join(', ')}`);
-      console.log(`  - TC_Label: ${tactiqueData.TC_Label || 'undefined'}`);
-  }
-  
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { clientId, campaignData, tactiqueData, placementData, caches };
 
   const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
       if (!taxonomyId) return ['', '', '', ''];
-      console.log(`📋 [PlacementService] Processing taxonomy: ${taxonomyId}`);
       
+      console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: prepareDataForFirestore - Path: clients/${clientId}/taxonomies/${taxonomyId}");
       const taxonomy = await getTaxonomyById(clientId, taxonomyId);
       if (!taxonomy) return ['', '', '', ''];
       
@@ -261,8 +266,6 @@ isUpdate: boolean = false
           taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, 
           taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4
       ];
-      
-      console.log(`📐 [PlacementService] Level structures:`, levels);
       
       return Promise.all(levels.map(level => generateLevelString(level, context)));
   };
@@ -272,11 +275,6 @@ isUpdate: boolean = false
     processTaxonomyType(placementData.PL_Taxonomy_Platform),
     processTaxonomyType(placementData.PL_Taxonomy_MediaOcean)
   ]);
-  
-  console.log(`🏷️ [PlacementService] Generated chains:`);
-  console.log(`  Tags:`, tagChains);
-  console.log(`  Platform:`, platformChains);
-  console.log(`  MediaOcean:`, moChains);
   
   const taxonomyChains = {
     PL_Tag_1: tagChains[0], PL_Tag_2: tagChains[1], PL_Tag_3: tagChains[2], PL_Tag_4: tagChains[3],
@@ -317,53 +315,76 @@ isUpdate: boolean = false
       }
   });
 
-  console.log(`✅ [PlacementService] Final data for Firestore:`, firestoreData);
-  console.log(`🔄 [PlacementService] === END DATA PREPARATION ===`);
   return firestoreData;
 }
 
+/**
+ * Crée un nouveau placement dans la base de données.
+ * @param clientId L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne.
+ * @param versionId L'identifiant de la version.
+ * @param ongletId L'identifiant de l'onglet.
+ * @param sectionId L'identifiant de la section.
+ * @param tactiqueId L'identifiant de la tactique.
+ * @param placementData Les données du nouveau placement.
+ * @param campaignData Les données de la campagne (optionnel, pour la résolution des taxonomies).
+ * @param tactiqueData Les données de la tactique (optionnel, pour la résolution des taxonomies).
+ * @returns L'identifiant du placement créé.
+ */
 export async function createPlacement(
 clientId: string, campaignId: string, versionId: string, ongletId: string, sectionId: string, tactiqueId: string,
 placementData: PlacementFormData, campaignData?: any, tactiqueData?: any
 ): Promise<string> {
 
-// 🔥 DEBUG: Log input parameters
-console.log(`🚀 [PlacementService] === CREATING PLACEMENT ===`);
-console.log(`📍 Parameters:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId });
-console.log(`📊 PlacementData passed:`, placementData);
-console.log(`🏛️ CampaignData passed:`, campaignData || 'undefined');
-console.log(`🎯 TactiqueData passed:`, tactiqueData || 'undefined');
-
 const placementsCollection = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
 const firestoreData = await prepareDataForFirestore(placementData, clientId, campaignData, tactiqueData, false);
+console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: createPlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
 const docRef = await addDoc(placementsCollection, firestoreData);
 
-console.log(`✅ [PlacementService] Placement created with ID: ${docRef.id}`);
 return docRef.id;
 }
 
+/**
+ * Met à jour un placement existant dans la base de données.
+ * @param clientId L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne.
+ * @param versionId L'identifiant de la version.
+ * @param ongletId L'identifiant de l'onglet.
+ * @param sectionId L'identifiant de la section.
+ * @param tactiqueId L'identifiant de la tactique.
+ * @param placementId L'identifiant du placement à mettre à jour.
+ * @param placementData Les données partielles du placement à mettre à jour.
+ * @param campaignData Les données de la campagne (optionnel, pour la résolution des taxonomies).
+ * @param tactiqueData Les données de la tactique (optionnel, pour la résolution des taxonomies).
+ * @returns Une promesse vide.
+ * @throws Error si le placement n'est pas trouvé.
+ */
 export async function updatePlacement(
 clientId: string, campaignId: string, versionId: string, ongletId: string, sectionId: string, tactiqueId: string, placementId: string,
 placementData: Partial<PlacementFormData>, campaignData?: any, tactiqueData?: any
 ): Promise<void> {
 
-// 🔥 DEBUG: Log input parameters
-console.log(`🔄 [PlacementService] === UPDATING PLACEMENT ===`);
-console.log(`📍 Parameters:`, { clientId, campaignId, versionId, ongletId, sectionId, tactiqueId, placementId });
-console.log(`📊 PlacementData passed:`, placementData);
-console.log(`🏛️ CampaignData passed:`, campaignData || 'undefined');
-console.log(`🎯 TactiqueData passed:`, tactiqueData || 'undefined');
-
 const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
+console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: updatePlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
 const existingDoc = await getDoc(placementRef);
 if (!existingDoc.exists()) throw new Error('Placement non trouvé');
 const mergedData = { ...existingDoc.data(), ...placementData } as PlacementFormData;
 const firestoreData = await prepareDataForFirestore(mergedData, clientId, campaignData, tactiqueData, true);
+console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: updatePlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
 await updateDoc(placementRef, firestoreData);
-
-console.log(`✅ [PlacementService] Placement updated: ${placementId}`);
 }
 
+/**
+ * Récupère tous les placements pour une tactique donnée, triés par ordre.
+ * @param clientId L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne.
+ * @param versionId L'identifiant de la version.
+ * @param ongletId L'identifiant de l'onglet.
+ * @param sectionId L'identifiant de la section.
+ * @param tactiqueId L'identifiant de la tactique.
+ * @returns Un tableau d'objets Placement.
+ * @throws L'erreur rencontrée lors de la récupération.
+ */
 export async function getPlacementsForTactique(
   clientId: string, campaignId: string, versionId: string, ongletId: string,
   sectionId: string, tactiqueId: string
@@ -371,6 +392,7 @@ export async function getPlacementsForTactique(
   try {
     const placementsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
     const q = query(placementsRef, orderBy('PL_Order', 'asc'));
+    console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: getPlacementsForTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Placement));
   } catch (error) {
@@ -379,17 +401,35 @@ export async function getPlacementsForTactique(
   }
 }
 
+/**
+ * Supprime un placement et tous les créatifs associés.
+ * @param clientId L'identifiant du client.
+ * @param campaignId L'identifiant de la campagne.
+ * @param versionId L'identifiant de la version.
+ * @param ongletId L'identifiant de l'onglet.
+ * @param sectionId L'identifiant de la section.
+ * @param tactiqueId L'identifiant de la tactique.
+ * @param placementId L'identifiant du placement à supprimer.
+ * @returns Une promesse vide.
+ * @throws L'erreur rencontrée lors de la suppression.
+ */
 export async function deletePlacement(
   clientId: string, campaignId: string, versionId: string, ongletId: string,
   sectionId: string, tactiqueId: string, placementId: string
 ): Promise<void> {
   try {
     const creatifsRef = collection(db,'clients',clientId,'campaigns',campaignId,'versions',versionId,'onglets',ongletId,'sections',sectionId,'tactiques',tactiqueId,'placements',placementId,'creatifs');
+    console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: deletePlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
     const creatifsSnapshot = await getDocs(creatifsRef);
     const batch = writeBatch(db);
-    creatifsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+    creatifsSnapshot.docs.forEach(doc => {
+      console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: deletePlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${doc.id}");
+      batch.delete(doc.ref);
+    });
     const placementRef = doc(db,'clients',clientId,'campaigns',campaignId,'versions',versionId,'onglets',ongletId,'sections',sectionId,'tactiques',tactiqueId,'placements',placementId);
+    console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: deletePlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
     batch.delete(placementRef);
+    console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: deletePlacement - Path: Batch commit");
     await batch.commit();
   } catch (error) {
     console.error("Erreur lors de la suppression du placement:", error);

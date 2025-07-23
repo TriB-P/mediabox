@@ -1,5 +1,9 @@
-// app/hooks/useTactiquesOperations.ts - Version finale avec suppression optimiste intégrée
-
+/**
+ * Ce hook gère les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer) pour les tactiques,
+ * les placements et les créatifs au sein d'une campagne spécifique.
+ * Il assure la communication avec Firebase et intègre des mises à jour optimistes
+ * pour une meilleure réactivité de l'interface utilisateur.
+ */
 import { useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
 import { useClient } from '../contexts/ClientContext';
@@ -30,21 +34,16 @@ import {
   deleteCreatif
 } from '../lib/creatifService';
 
-// ==================== TYPES ====================
-
 interface UseTactiquesOperationsProps {
   selectedCampaign: Campaign | null;
   selectedOnglet: Onglet | null;
   sections: Section[];
   tactiques: { [sectionId: string]: Tactique[] };
-  // 🔥 AJOUT: Données de contexte pour la résolution des taxonomies
   campaignData?: any;
-  allTactiques: { [sectionId: string]: Tactique[] }; // Toutes les tactiques, utile pour trouver le parent d'un placement
-  allPlacements: { [tactiqueId: string]: Placement[] }; // Tous les placements, utile pour trouver le parent d'un créatif
-  allCreatifs: { [placementId: string]: Creatif[] }; // 🔥 AJOUT: Tous les créatifs
+  allTactiques: { [sectionId: string]: Tactique[] };
+  allPlacements: { [tactiqueId: string]: Placement[] };
+  allCreatifs: { [placementId: string]: Creatif[] };
   onRefresh: (() => Promise<void>) | (() => void);
-
-  // Fonctions de suppression locale pour mises à jour optimistes
   removeSectionLocally: (sectionId: string) => void;
   removeTactiqueAndChildrenLocally: (sectionId: string, tactiqueId: string) => void;
   removePlacementAndChildrenLocally: (sectionId: string, tactiqueId: string, placementId: string) => void;
@@ -52,34 +51,32 @@ interface UseTactiquesOperationsProps {
 }
 
 interface UseTactiquesOperationsReturn {
-  // Opérations tactiques
   handleCreateTactique: (sectionId: string) => Promise<Tactique>;
   handleUpdateTactique: (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => Promise<void>;
   handleDeleteTactique: (sectionId: string, tactiqueId: string) => void;
-
-  // Opérations placements
   handleCreatePlacement: (tactiqueId: string) => Promise<Placement>;
   handleUpdatePlacement: (placementId: string, data: Partial<Placement>) => Promise<void>;
   handleDeletePlacement: (sectionId: string, tactiqueId: string, placementId: string) => void; 
-
-  // Opérations créatifs
   handleCreateCreatif: (placementId: string) => Promise<Creatif>;
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
   handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 }
 
-// ==================== HOOK PRINCIPAL ====================
-
+/**
+ * Hook principal pour gérer les opérations sur les tactiques, placements et créatifs.
+ *
+ * @param {UseTactiquesOperationsProps} props - Les propriétés nécessaires au hook.
+ * @returns {UseTactiquesOperationsReturn} Un objet contenant les fonctions de gestion des opérations.
+ */
 export const useTactiquesOperations = ({
   selectedCampaign,
   selectedOnglet,
   sections,
   tactiques,
-  // 🔥 DÉSTRUCTURATION DES NOUVELLES PROPS
   campaignData,
   allTactiques,
   allPlacements,
-  allCreatifs, // 🔥 DÉSTRUCTURATION: Récupérer allCreatifs
+  allCreatifs,
   onRefresh,
   removeSectionLocally,
   removeTactiqueAndChildrenLocally,
@@ -90,10 +87,11 @@ export const useTactiquesOperations = ({
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   
-  // ==================== UTILITAIRES ====================
-  
   /**
-   * Vérifie que le contexte est complet pour les opérations
+   * Vérifie que le contexte nécessaire aux opérations Firebase est complet.
+   *
+   * @returns {{clientId: string, campaignId: string, versionId: string, ongletId: string}} L'objet de contexte.
+   * @throws {Error} Si le contexte est incomplet.
    */
   const ensureContext = () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
@@ -108,7 +106,13 @@ export const useTactiquesOperations = ({
   };
 
   /**
-   * Exécute une opération avec gestion d'erreur et refresh conditionnel
+   * Exécute une opération Firebase en gérant les erreurs et le rafraîchissement des données.
+   *
+   * @param {string} operationName - Le nom de l'opération pour les logs.
+   * @param {() => Promise<T>} operation - La fonction asynchrone à exécuter.
+   * @param {boolean} [skipRefresh=false] - Indique si le rafraîchissement des données doit être ignoré après l'opération.
+   * @returns {Promise<T>} Le résultat de l'opération.
+   * @throws {Error} L'erreur survenue lors de l'opération.
    */
   const executeOperation = useCallback(async <T>(
     operationName: string,
@@ -116,25 +120,24 @@ export const useTactiquesOperations = ({
     skipRefresh = false
   ): Promise<T> => {
     try {
-      console.log(`🔄 ${operationName}...`);
       const result = await operation();
-      console.log(`✅ ${operationName} réussi`);
-      
       if (!skipRefresh) {
         await Promise.resolve(onRefresh());
       }
-      
       return result;
     } catch (error) {
       console.error(`❌ Erreur ${operationName}:`, error);
-      // En cas d'erreur, toujours refresh pour resynchroniser
       await Promise.resolve(onRefresh());
       throw error;
     }
   }, [onRefresh]);
   
-  // ==================== OPÉRATIONS TACTIQUES ====================
-
+  /**
+   * Gère la création d'une nouvelle tactique.
+   *
+   * @param {string} sectionId - L'ID de la section à laquelle la tactique appartient.
+   * @returns {Promise<Tactique>} La tactique nouvellement créée.
+   */
   const handleCreateTactique = useCallback(async (sectionId: string): Promise<Tactique> => {
     const context = ensureContext();
     const sectionTactiques = tactiques[sectionId] || [];
@@ -150,6 +153,7 @@ export const useTactiquesOperations = ({
     return executeOperation(
       'Création tactique',
       async () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleCreateTactique - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques");
         const tactiqueId = await addTactique(
           context.clientId,
           context.campaignId,
@@ -163,6 +167,14 @@ export const useTactiquesOperations = ({
     );
   }, [tactiques, executeOperation]);
 
+  /**
+   * Gère la mise à jour d'une tactique existante.
+   *
+   * @param {string} sectionId - L'ID de la section de la tactique.
+   * @param {string} tactiqueId - L'ID de la tactique à mettre à jour.
+   * @param {Partial<Tactique>} data - Les données partielles de la tactique à mettre à jour.
+   * @returns {Promise<void>}
+   */
   const handleUpdateTactique = useCallback(async (
     sectionId: string, 
     tactiqueId: string, 
@@ -172,28 +184,34 @@ export const useTactiquesOperations = ({
 
     return executeOperation(
       'Mise à jour tactique',
-      // 🔥 AJOUT: Passer campaignData à updateTactique (même si non utilisé par le service actuellement, bonne pratique)
-      () => updateTactique(
-        context.clientId,
-        context.campaignId,
-        context.versionId,
-        context.ongletId,
-        sectionId,
-        tactiqueId,
-        data,
-
-        )
+      () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleUpdateTactique - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
+        return updateTactique(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          tactiqueId,
+          data,
+        );
+      }
     );
   }, [executeOperation, campaignData]);
 
+  /**
+   * Gère la suppression d'une tactique et de ses enfants (placements, créatifs).
+   * Applique une suppression optimiste localement avant de supprimer sur Firebase.
+   *
+   * @param {string} sectionId - L'ID de la section de la tactique.
+   * @param {string} tactiqueId - L'ID de la tactique à supprimer.
+   */
   const handleDeleteTactique = useCallback((sectionId: string, tactiqueId: string) => {
     const context = ensureContext();
 
-    // Mise à jour optimiste immédiate
     removeTactiqueAndChildrenLocally(sectionId, tactiqueId);
-    console.log(`🗑️ Suppression optimiste tactique ${tactiqueId}`);
     
-    // Suppression en arrière-plan
+    console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleDeleteTactique - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
     deleteTactique(
       context.clientId,
       context.campaignId,
@@ -203,17 +221,20 @@ export const useTactiquesOperations = ({
       tactiqueId
     ).catch(error => {
       console.error('❌ Erreur suppression tactique Firestore:', error);
-      // En cas d'échec, resynchroniser avec la base
       onRefresh();
     });
   }, [removeTactiqueAndChildrenLocally, onRefresh]);
 
-  // ==================== OPÉRATIONS PLACEMENTS ====================
-
+  /**
+   * Gère la création d'un nouveau placement.
+   *
+   * @param {string} tactiqueId - L'ID de la tactique parente.
+   * @returns {Promise<Placement>} Le placement nouvellement créé.
+   * @throws {Error} Si la section ou la tactique parente n'est pas trouvée.
+   */
   const handleCreatePlacement = useCallback(async (tactiqueId: string): Promise<Placement> => {
     const context = ensureContext();
 
-    // Trouver la section qui contient cette tactique
     const sectionId = Object.keys(allTactiques).find(sId =>
       allTactiques[sId].some(t => t.id === tactiqueId)
     );
@@ -226,13 +247,14 @@ export const useTactiquesOperations = ({
 
     const newPlacementData: PlacementFormData = {
       PL_Label: 'Nouveau placement',
-      PL_Order: 0, // Sera recalculé côté serveur
+      PL_Order: 0,
       PL_TactiqueId: tactiqueId
     };
 
     return executeOperation(
       'Création placement',
       async () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleCreatePlacement - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
         const placementId = await createPlacement(
           context.clientId,
           context.campaignId,
@@ -241,28 +263,34 @@ export const useTactiquesOperations = ({
           sectionId,
           tactiqueId,
           newPlacementData,
-          campaignData, // Pass campaignData
-          currentTactique // Pass tactiqueData
+          campaignData,
+          currentTactique
         );
         return { id: placementId, ...newPlacementData };
       }
     );
   }, [allTactiques, executeOperation, campaignData]);
 
+  /**
+   * Gère la mise à jour d'un placement existant.
+   *
+   * @param {string} placementId - L'ID du placement à mettre à jour.
+   * @param {Partial<Placement>} data - Les données partielles du placement à mettre à jour.
+   * @returns {Promise<void>}
+   * @throws {Error} Si le contexte parent (section, tactique) n'est pas trouvé.
+   */
   const handleUpdatePlacement = useCallback(async (
     placementId: string, 
     data: Partial<Placement>
   ): Promise<void> => {
     const context = ensureContext();
 
-    // Trouver le contexte parent (section et tactique)
     let sectionId = '';
     let tactiqueId = '';
     let currentTactique: Tactique | undefined;
 
     for (const [sId, sectionTactiques] of Object.entries(allTactiques)) {
       for (const tactique of sectionTactiques) {
-        // Rechercher le placement pour trouver sa tactique parente
         const placement = allPlacements[tactique.id]?.find(p => p.id === placementId);
         if (placement) {
           sectionId = sId;
@@ -280,29 +308,38 @@ export const useTactiquesOperations = ({
 
     return executeOperation(
       'Mise à jour placement',
-      () => updatePlacement(
-        context.clientId,
-        context.campaignId,
-        context.versionId,
-        context.ongletId,
-        sectionId,
-        tactiqueId,
-        placementId,
-        data,
-        campaignData, // Pass campaignData
-        currentTactique // Pass tactiqueData
-      )
+      () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleUpdatePlacement - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+        return updatePlacement(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          tactiqueId,
+          placementId,
+          data,
+          campaignData,
+          currentTactique
+        );
+      }
     );
   }, [allTactiques, allPlacements, executeOperation, campaignData]);
 
+  /**
+   * Gère la suppression d'un placement et de ses enfants (créatifs).
+   * Applique une suppression optimiste localement avant de supprimer sur Firebase.
+   *
+   * @param {string} sectionId - L'ID de la section de la tactique parente.
+   * @param {string} tactiqueId - L'ID de la tactique parente.
+   * @param {string} placementId - L'ID du placement à supprimer.
+   */
   const handleDeletePlacement = useCallback((sectionId: string, tactiqueId: string, placementId: string) => {
     const context = ensureContext();
 
-    // Mise à jour optimiste immédiate
     removePlacementAndChildrenLocally(sectionId, tactiqueId, placementId);
-    console.log(`🗑️ Suppression optimiste placement ${placementId}`);
 
-    // Suppression en arrière-plan
+    console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleDeletePlacement - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
     deletePlacement(
       context.clientId,
       context.campaignId,
@@ -317,12 +354,16 @@ export const useTactiquesOperations = ({
     });
   }, [removePlacementAndChildrenLocally, onRefresh]);
 
-  // ==================== OPÉRATIONS CRÉATIFS ====================
-
+  /**
+   * Gère la création d'un nouveau créatif.
+   *
+   * @param {string} placementId - L'ID du placement parent.
+   * @returns {Promise<Creatif>} Le créatif nouvellement créé.
+   * @throws {Error} Si le contexte parent (section, tactique, placement) n'est pas trouvé.
+   */
   const handleCreateCreatif = useCallback(async (placementId: string): Promise<Creatif> => {
     const context = ensureContext();
 
-    // Trouver le contexte parent (section, tactique, placement)
     let sectionId = '';
     let tactiqueId = '';
     let currentTactique: Tactique | undefined;
@@ -355,6 +396,7 @@ export const useTactiquesOperations = ({
     return executeOperation(
       'Création créatif',
       async () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleCreateCreatif - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
         const creatifId = await createCreatif(
           context.clientId,
           context.campaignId,
@@ -364,15 +406,23 @@ export const useTactiquesOperations = ({
           tactiqueId,
           placementId,
           newCreatifData,
-          campaignData, // Pass campaignData
-          currentTactique, // Pass tactiqueData
-          currentPlacement // Pass placementData
+          campaignData,
+          currentTactique,
+          currentPlacement
         );
         return { id: creatifId, ...newCreatifData };
       }
     );
   }, [allTactiques, allPlacements, executeOperation, campaignData]);
 
+  /**
+   * Gère la mise à jour d'un créatif existant.
+   *
+   * @param {string} creatifId - L'ID du créatif à mettre à jour.
+   * @param {Partial<Creatif>} data - Les données partielles du créatif à mettre à jour.
+   * @returns {Promise<void>}
+   * @throws {Error} Si le contexte parent (section, tactique, placement) n'est pas trouvé.
+   */
   const handleUpdateCreatif = useCallback(async (
     creatifId: string, 
     data: Partial<Creatif>
@@ -385,8 +435,6 @@ export const useTactiquesOperations = ({
     let currentTactique: Tactique | undefined;
     let currentPlacement: Placement | undefined;
 
-    // 🔥 CORRECTION: Trouver le placement et la tactique en recherchant le creatif
-    // 1. Trouver le placement parent du créatif
     for (const [pId, creatifsInPlacement] of Object.entries(allCreatifs)) {
       if (creatifsInPlacement.some(c => c.id === creatifId)) {
         placementId = pId;
@@ -398,7 +446,6 @@ export const useTactiquesOperations = ({
       throw new Error('Placement parent non trouvé pour le créatif');
     }
 
-    // 2. Trouver l'objet currentPlacement correspondant au placementId
     for (const tactiqueIdIter in allPlacements) {
         const placementsInTactique = allPlacements[tactiqueIdIter];
         currentPlacement = placementsInTactique.find(p => p.id === placementId);
@@ -412,7 +459,6 @@ export const useTactiquesOperations = ({
       throw new Error('Tactique parent non trouvée pour le placement du créatif');
     }
 
-    // 3. Trouver l'objet currentTactique correspondant au tactiqueId
     for (const sectionIdIter in allTactiques) {
       const tactiquesInSection = allTactiques[sectionIdIter];
       currentTactique = tactiquesInSection.find(t => t.id === tactiqueId);
@@ -428,31 +474,41 @@ export const useTactiquesOperations = ({
 
     return executeOperation(
       'Mise à jour créatif',
-      () => updateCreatif(
-        context.clientId,
-        context.campaignId,
-        context.versionId,
-        context.ongletId,
-        sectionId,
-        tactiqueId,
-        placementId,
-        creatifId,
-        data,
-        campaignData, // Pass campaignData
-        currentTactique, // Pass tactiqueData
-        currentPlacement // Pass placementData
-      )
+      () => {
+        console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleUpdateCreatif - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
+        return updateCreatif(
+          context.clientId,
+          context.campaignId,
+          context.versionId,
+          context.ongletId,
+          sectionId,
+          tactiqueId,
+          placementId,
+          creatifId,
+          data,
+          campaignData,
+          currentTactique,
+          currentPlacement
+        );
+      }
     );
-  }, [allTactiques, allPlacements, allCreatifs, executeOperation, campaignData]); // 🔥 AJOUT: Dépendance allCreatifs
+  }, [allTactiques, allPlacements, allCreatifs, executeOperation, campaignData]);
 
+  /**
+   * Gère la suppression d'un créatif.
+   * Applique une suppression optimiste localement avant de supprimer sur Firebase.
+   *
+   * @param {string} sectionId - L'ID de la section de la tactique parente.
+   * @param {string} tactiqueId - L'ID de la tactique parente.
+   * @param {string} placementId - L'ID du placement parent.
+   * @param {string} creatifId - L'ID du créatif à supprimer.
+   */
   const handleDeleteCreatif = useCallback((sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
     const context = ensureContext();
 
-    // Mise à jour optimiste immédiate
     removeCreatifLocally(sectionId, tactiqueId, placementId, creatifId);
-    console.log(`🗑️ Suppression optimiste créatif ${creatifId}`);
     
-    // Suppression en arrière-plan
+    console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleDeleteCreatif - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
     deleteCreatif(
       context.clientId,
       context.campaignId,
@@ -468,30 +524,24 @@ export const useTactiquesOperations = ({
     });
   }, [removeCreatifLocally, onRefresh]);
 
-  // ==================== RETURN ====================
-
   return {
-    // Opérations tactiques
     handleCreateTactique,
     handleUpdateTactique,
     handleDeleteTactique,
-
-    // Opérations placements
     handleCreatePlacement,
     handleUpdatePlacement,
     handleDeletePlacement,
-
-    // Opérations créatifs
     handleCreateCreatif,
     handleUpdateCreatif,
     handleDeleteCreatif,
   };
 };
 
-// ==================== HOOK UTILITAIRE POUR LES OPÉRATIONS CRUD ====================
-
 /**
- * Hook simplifié pour les opérations basiques sans contexte complexe
+ * Hook simplifié pour les opérations CRUD basiques nécessitant uniquement le contexte client, campagne, version et onglet.
+ *
+ * @returns {{executeWithContext: (operation: (context: {clientId: string, campaignId: string, versionId: string, ongletId: string}) => Promise<T>) => Promise<T>}}
+ * Un objet contenant la fonction executeWithContext pour exécuter des opérations avec le contexte.
  */
 export function useBasicCrudOperations() {
   const { selectedClient } = useClient();
@@ -519,7 +569,5 @@ export function useBasicCrudOperations() {
 
   return { executeWithContext };
 }
-
-// ==================== TYPES EXPORT ====================
 
 export type { UseTactiquesOperationsProps, UseTactiquesOperationsReturn };

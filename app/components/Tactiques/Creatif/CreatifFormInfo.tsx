@@ -1,4 +1,11 @@
-// app/components/Tactiques/Creatif/CreatifFormInfo.tsx
+/**
+ * @file Ce fichier contient le composant React `CreatifFormInfo`.
+ * Ce composant est une partie d'un formulaire plus grand et gère spécifiquement
+ * les informations de base d'un "créatif" (comme une publicité).
+ * Il permet à l'utilisateur de définir un nom pour le créatif et d'associer
+ * des taxonomies (catégories pré-définies) qui sont récupérées depuis Firebase
+ * en fonction du client sélectionné.
+ */
 
 'use client';
 
@@ -11,30 +18,33 @@ import {
 import { getClientTaxonomies } from '../../../lib/taxonomyService';
 import { Taxonomy } from '../../../types/taxonomy';
 
-// ==================== TYPES ====================
-
 interface CreatifFormInfoProps {
-  // Données simplifiées du formulaire créatif
   formData: {
     CR_Label?: string;
     CR_Taxonomy_Tags?: string;
     CR_Taxonomy_Platform?: string;
     CR_Taxonomy_MediaOcean?: string;
   };
-  
-  // Gestionnaires d'événements
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  
-  // Contexte client
   clientId: string;
-  
-  // État de chargement
   loading?: boolean;
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Affiche la section du formulaire dédiée aux informations générales du créatif.
+ * Ce composant gère la saisie du nom du créatif et la sélection des taxonomies
+ * applicables pour les tags, la plateforme et MediaOcean.
+ * Il récupère dynamiquement les taxonomies disponibles pour le client spécifié.
+ *
+ * @param {CreatifFormInfoProps} props - Les propriétés du composant.
+ * @param {object} props.formData - Les données actuelles du formulaire pour ce composant.
+ * @param {function} props.onChange - Le gestionnaire pour les changements dans les champs de saisie.
+ * @param {function} props.onTooltipChange - Le gestionnaire pour afficher des infobulles d'aide.
+ * @param {string} props.clientId - L'ID du client pour lequel charger les taxonomies.
+ * @param {boolean} [props.loading=false] - Indique si le formulaire parent est en état de chargement.
+ * @returns {React.ReactElement} Le composant de formulaire pour les informations du créatif.
+ */
 const CreatifFormInfo = memo<CreatifFormInfoProps>(({
   formData,
   onChange,
@@ -42,27 +52,33 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
   clientId,
   loading = false
 }) => {
-  // État pour les taxonomies
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(true);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
 
-  // Charger les taxonomies quand le clientId change
   useEffect(() => {
     if (clientId) {
       loadTaxonomies();
     }
   }, [clientId]);
 
+  /**
+   * Charge les taxonomies associées au client depuis le service de taxonomie.
+   * Met à jour l'état du composant avec les taxonomies récupérées, ou une erreur
+   * si le chargement échoue.
+   *
+   * @async
+   * @returns {Promise<void>} Une promesse qui se résout une fois les taxonomies chargées et l'état mis à jour.
+   */
   const loadTaxonomies = async () => {
     try {
       setTaxonomiesLoading(true);
       setTaxonomiesError(null);
       
+      console.log(`FIREBASE: LECTURE - Fichier: CreatifFormInfo.tsx - Fonction: loadTaxonomies - Path: clients/${clientId}/taxonomies`);
       const clientTaxonomies = await getClientTaxonomies(clientId);
       setTaxonomies(clientTaxonomies);
       
-      console.log(`${clientTaxonomies.length} taxonomies chargées pour le créatif`);
     } catch (error) {
       console.error('Erreur lors du chargement des taxonomies:', error);
       setTaxonomiesError('Erreur lors du chargement des taxonomies');
@@ -71,18 +87,15 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
     }
   };
 
-  // Préparer les options pour les sélecteurs de taxonomie
   const taxonomyOptions = taxonomies.map(taxonomy => ({
     id: taxonomy.id,
     label: taxonomy.NA_Display_Name
   }));
 
-  // Désactiver les champs si en cours de chargement
   const isDisabled = loading || taxonomiesLoading;
 
   return (
     <div className="p-8 space-y-6">
-      {/* En-tête de section */}
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
           Informations du créatif
@@ -92,10 +105,8 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
         </p>
       </div>
       
-      {/* Champs du formulaire */}
       <div className="space-y-6">
         
-        {/* CR_Label - Champ obligatoire */}
         <FormInput
           id="CR_Label"
           name="CR_Label"
@@ -111,7 +122,6 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           )}
         />
 
-        {/* Message d'erreur pour les taxonomies */}
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {taxonomiesError}
@@ -124,17 +134,13 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           </div>
         )}
 
-        {/* Section taxonomies créatifs */}
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4">
             Taxonomies créatifs (niveaux 5-6)
           </h4>
 
-
-          {/* Sélecteurs de taxonomies */}
           {taxonomies.length > 0 ? (
             <div className="space-y-4">
-              {/* Taxonomie pour les tags */}
               <SmartSelect
                 id="CR_Taxonomy_Tags"
                 name="CR_Taxonomy_Tags"
@@ -149,7 +155,6 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
                 )}
               />
 
-              {/* Taxonomie pour la plateforme */}
               <SmartSelect
                 id="CR_Taxonomy_Platform"
                 name="CR_Taxonomy_Platform"
@@ -164,7 +169,6 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
                 )}
               />
 
-              {/* Taxonomie pour MediaOcean */}
               <SmartSelect
                 id="CR_Taxonomy_MediaOcean"
                 name="CR_Taxonomy_MediaOcean"
@@ -180,7 +184,6 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
               />
             </div>
           ) : !taxonomiesLoading && !taxonomiesError ? (
-            /* Message si aucune taxonomie */
             <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
               <p className="text-sm">
                 Aucune taxonomie configurée pour ce client. 
@@ -191,7 +194,6 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
         </div>
       </div>
 
-      {/* Message d'information si en chargement */}
       {(loading || taxonomiesLoading) && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">

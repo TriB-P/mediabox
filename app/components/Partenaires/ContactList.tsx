@@ -1,3 +1,10 @@
+/**
+ * Ce fichier définit le composant React `ContactList`.
+ * Son rôle est d'afficher une liste de contacts associés à un partenaire.
+ * Il permet aux utilisateurs de voir les informations de base de chaque contact,
+ * de déplier une section pour voir plus de détails, et d'accéder aux
+ * fonctionnalités de modification et de suppression pour chaque contact.
+ */
 'use client';
 
 import React, { useState } from 'react';
@@ -10,9 +17,21 @@ interface ContactListProps {
   onDelete: (contactId: string) => void;
 }
 
+/**
+ * Affiche une liste interactive de contacts.
+ * @param {ContactListProps} props - Les propriétés du composant.
+ * @param {Contact[]} props.contacts - Le tableau des contacts à afficher.
+ * @param {(contact: Contact) => void} props.onEdit - La fonction à appeler lors du clic sur le bouton "Modifier".
+ * @param {(contactId: string) => void} props.onDelete - La fonction à appeler lors du clic sur le bouton "Supprimer".
+ * @returns {React.ReactElement} Le composant JSX représentant la liste des contacts.
+ */
 export default function ContactList({ contacts, onEdit, onDelete }: ContactListProps) {
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
-  
+
+  /**
+   * Gère l'affichage (ouverture/fermeture) des détails d'un contact.
+   * @param {string} contactId - L'identifiant du contact à afficher ou masquer.
+   */
   const toggleExpand = (contactId: string) => {
     if (expandedContact === contactId) {
       setExpandedContact(null);
@@ -20,7 +39,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
       setExpandedContact(contactId);
     }
   };
-  
+
   if (contacts.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500">
@@ -28,11 +47,15 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
       </div>
     );
   }
-  
-  // Rendu des badges de langue
+
+  /**
+   * Génère des badges visuels pour les langues parlées par un contact.
+   * @param {{ FR: boolean; EN: boolean }} languages - Un objet indiquant les langues maîtrisées.
+   * @returns {React.ReactElement[]} Un tableau d'éléments JSX représentant les badges.
+   */
   const renderLanguageBadges = (languages: { FR: boolean; EN: boolean }) => {
     const badges = [];
-    
+
     if (languages.FR) {
       badges.push(
         <span key="FR" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-1">
@@ -40,7 +63,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
         </span>
       );
     }
-    
+
     if (languages.EN) {
       badges.push(
         <span key="EN" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
@@ -48,15 +71,15 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
         </span>
       );
     }
-    
+
     return badges;
   };
-  
+
   return (
     <ul className="divide-y divide-gray-200">
       {contacts.map((contact) => (
         <li key={contact.id} className="py-3">
-          <div 
+          <div
             className="flex items-start justify-between cursor-pointer"
             onClick={() => toggleExpand(contact.id)}
           >
@@ -66,7 +89,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {contact.firstName} {contact.lastName} {' '}
+                  {contact.firstName} {contact.lastName}{' '}
                   <span className="ml-1">
                     {renderLanguageBadges(contact.languages)}
                   </span>
@@ -102,8 +125,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
               </button>
             </div>
           </div>
-          
-          {/* Détails étendus */}
+
           {expandedContact === contact.id && (
             <div className="mt-3 ml-10 p-3 bg-gray-50 rounded-md text-sm">
               <div className="grid grid-cols-2 gap-2">
@@ -111,7 +133,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
                   <span className="font-medium text-gray-500">Langues:</span>{' '}
                   <span className="text-gray-900">
                     {contact.languages.FR && contact.languages.EN ? 'Français et Anglais' :
-                     contact.languages.FR ? 'Français' : 
+                     contact.languages.FR ? 'Français' :
                      contact.languages.EN ? 'Anglais' : 'Non spécifié'}
                   </span>
                 </div>
@@ -120,7 +142,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
                   <span className="text-gray-900">{new Date(contact.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
-              
+
               {contact.comment && (
                 <div className="mt-2">
                   <span className="font-medium text-gray-500">Commentaire:</span>

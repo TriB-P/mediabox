@@ -1,3 +1,9 @@
+/**
+ * Ce fichier gère la page principale des guides de coûts.
+ * Il permet aux administrateurs de créer, visualiser, modifier et supprimer des guides de coûts.
+ * Pour les utilisateurs non-administrateurs, il affiche le guide de coûts associé à leur client.
+ * Il intègre des composants pour la gestion des entrées de guide (liste hiérarchique et tableau d'édition rapide).
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,14 +34,18 @@ import CostGuideEntryTable from '../components/CostGuide/CostGuideEntryTable';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { useClient } from '../contexts/ClientContext';
 
+/**
+ * Composant principal de la page des guides de coûts.
+ * Affiche la liste des guides pour les administrateurs et le guide spécifique pour les clients.
+ * Permet la gestion des guides et de leurs entrées.
+ * @returns {JSX.Element} Le composant de la page des guides de coûts.
+ */
 export default function CostGuidePage() {
-  // Contextes pour les permissions et le client
   const { userRole, canPerformAction } = usePermissions();
   const { selectedClient } = useClient();
   const isAdmin = userRole === 'admin';
   const hasCostGuidePermission = canPerformAction('CostGuide');
 
-  // États pour la liste des guides
   const [guides, setGuides] = useState<CostGuide[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +53,6 @@ export default function CostGuidePage() {
   const [newGuideName, setNewGuideName] = useState('');
   const [newGuideDescription, setNewGuideDescription] = useState('');
   
-  // États pour le guide détaillé
   const [selectedGuide, setSelectedGuide] = useState<CostGuide | null>(null);
   const [entries, setEntries] = useState<CostGuideEntry[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
@@ -64,20 +73,27 @@ export default function CostGuidePage() {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
   const [clientGuideId, setClientGuideId] = useState<string | null>(null);
 
-  // Charger le guide associé au client ou tous les guides pour admin
+  /**
+   * Effet de chargement initial des guides basé sur le rôle de l'utilisateur et le client sélectionné.
+   * Si l'utilisateur est admin, charge tous les guides.
+   * Si un client est sélectionné, charge le guide associé à ce client.
+   * @returns {void}
+   */
   useEffect(() => {
     if (isAdmin) {
-      // Si admin, charger tous les guides
       loadGuides();
     } else if (selectedClient) {
-      // Sinon, charger uniquement le guide associé au client
       loadClientGuide();
     } else {
       setLoading(false);
     }
   }, [selectedClient, isAdmin]);
 
-  // Charger le guide associé au client actuel
+  /**
+   * Charge le guide de coûts associé au client actuellement sélectionné.
+   * Met à jour les états `guides`, `clientGuideId`, `error` et `loading`.
+   * @returns {Promise<void>}
+   */
   const loadClientGuide = async () => {
     if (!selectedClient) return;
     
@@ -85,17 +101,16 @@ export default function CostGuidePage() {
       setLoading(true);
       setError(null);
       
-      // Récupérer les infos du client pour obtenir l'ID du guide associé
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadClientGuide - Path: clients/${selectedClient.clientId}");
       const clientInfo = await getClientInfo(selectedClient.clientId);
       const guideId = clientInfo.CL_Cost_Guide_ID;
       setClientGuideId(guideId || null);
       
       if (guideId) {
-        // Si un guide est associé, le récupérer
+        console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadClientGuide - Path: costGuides/${guideId}");
         const loadedGuide = await getCostGuideById(guideId);
         if (loadedGuide) {
           setGuides([loadedGuide]);
-          // Charger automatiquement le détail du guide
           await loadGuideDetails(guideId);
         } else {
           setGuides([]);
@@ -112,11 +127,16 @@ export default function CostGuidePage() {
     }
   };
 
-  // Charger la liste des guides (pour admin uniquement)
+  /**
+   * Charge la liste complète des guides de coûts. Utilisé uniquement par les administrateurs.
+   * Met à jour les états `guides`, `error` et `loading`.
+   * @returns {Promise<void>}
+   */
   const loadGuides = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuides - Path: costGuides");
       const data = await getCostGuides();
       setGuides(data);
     } catch (err) {
@@ -127,15 +147,20 @@ export default function CostGuidePage() {
     }
   };
 
-  // Charger un guide détaillé
+  /**
+   * Charge les détails d'un guide de coûts spécifique, y compris ses entrées et la liste des partenaires.
+   * Met à jour les états `selectedGuide`, `editedName`, `editedDescription`, `entries`, `partners`, `error` et `loadingDetail`.
+   * @param {string} guideId L'identifiant du guide à charger.
+   * @returns {Promise<void>}
+   */
   const loadGuideDetails = async (guideId: string) => {
     try {
       setLoadingDetail(true);
       
-              // Trouver le guide dans la liste ou le charger directement
       let guide = guides.find(g => g.id === guideId);
       
       if (!guide) {
+        console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuideDetails - Path: costGuides/${guideId}");
         const loadedGuide = await getCostGuideById(guideId);
         if (!loadedGuide) {
           setError('Guide de coûts non trouvé');
@@ -148,11 +173,11 @@ export default function CostGuidePage() {
       setEditedName(guide.name);
       setEditedDescription(guide.description);
       
-      // Charger les entrées
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuideDetails - Path: costGuides/${guideId}/entries");
       const entriesData = await getCostGuideEntries(guideId);
       setEntries(entriesData);
       
-      // Charger les partenaires
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuideDetails - Path: partners");
       const partnersData = await getPartnersList();
       setPartners(partnersData);
     } catch (err) {
@@ -163,12 +188,19 @@ export default function CostGuidePage() {
     }
   };
 
-  // Créer un nouveau guide
+  /**
+   * Gère la création d'un nouveau guide de coûts.
+   * Ne permet la création que si l'utilisateur est admin.
+   * Met à jour les états `loading`, `error`, `isCreateModalOpen`, `newGuideName` et `newGuideDescription`.
+   * Appelle `loadGuides` pour rafraîchir la liste et `loadGuideDetails` pour afficher le nouveau guide.
+   * @returns {Promise<void>}
+   */
   const handleCreateGuide = async () => {
     if (!newGuideName.trim() || !isAdmin) return;
 
     try {
       setLoading(true);
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleCreateGuide - Path: costGuides");
       const guideId = await createCostGuide({
         name: newGuideName,
         description: newGuideDescription,
@@ -178,7 +210,6 @@ export default function CostGuidePage() {
       setNewGuideName('');
       setNewGuideDescription('');
       
-      // Charger le nouveau guide automatiquement
       await loadGuideDetails(guideId);
     } catch (err) {
       setError('Erreur lors de la création du guide');
@@ -188,15 +219,21 @@ export default function CostGuidePage() {
     }
   };
 
-  // Supprimer un guide
+  /**
+   * Gère la suppression d'un guide de coûts.
+   * Ne permet la suppression que si l'utilisateur est admin et après confirmation.
+   * Met à jour les états `loading`, `selectedGuide`, `guides`, `clientGuideId` et `error`.
+   * @param {string} guideId L'identifiant du guide à supprimer.
+   * @returns {Promise<void>}
+   */
   const handleDeleteGuide = async (guideId: string) => {
     if (!isAdmin || !confirm('Êtes-vous sûr de vouloir supprimer ce guide de coûts ?')) return;
 
     try {
       setLoading(true);
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleDeleteGuide - Path: costGuides/${guideId}");
       await deleteCostGuide(guideId);
       
-      // Si on supprime le guide actuellement sélectionné
       if (selectedGuide && selectedGuide.id === guideId) {
         setSelectedGuide(null);
       }
@@ -215,17 +252,22 @@ export default function CostGuidePage() {
     }
   };
 
-  // Mettre à jour un guide
+  /**
+   * Gère la mise à jour d'un guide de coûts existant.
+   * Ne permet la mise à jour que si un guide est sélectionné et si l'utilisateur est admin ou si c'est le guide de son client.
+   * Met à jour les états `guides`, `selectedGuide`, `editedName`, `editedDescription` et `isEditing`.
+   * @returns {Promise<void>}
+   */
   const handleUpdateGuide = async () => {
     if (!selectedGuide || (!isAdmin && clientGuideId !== selectedGuide.id)) return;
     
     try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleUpdateGuide - Path: costGuides/${selectedGuide.id}");
       await updateCostGuide(selectedGuide.id, {
         name: editedName,
         description: editedDescription,
       });
       
-      // Mettre à jour le guide dans la liste
       const updatedGuides = guides.map(guide => 
         guide.id === selectedGuide.id 
           ? { ...guide, name: editedName, description: editedDescription } 
@@ -233,7 +275,6 @@ export default function CostGuidePage() {
       );
       setGuides(updatedGuides);
       
-      // Mettre à jour le guide sélectionné
       setSelectedGuide({
         ...selectedGuide,
         name: editedName,
@@ -247,11 +288,16 @@ export default function CostGuidePage() {
     }
   };
 
-  // Rafraîchir les entrées
+  /**
+   * Rafraîchit la liste des entrées du guide actuellement sélectionné.
+   * Met à jour l'état `entries`.
+   * @returns {Promise<void>}
+   */
   const refreshEntries = async () => {
     if (!selectedGuide) return;
     
     try {
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: refreshEntries - Path: costGuides/${selectedGuide.id}/entries");
       const entriesData = await getCostGuideEntries(selectedGuide.id);
       setEntries(entriesData);
     } catch (err) {
@@ -259,10 +305,13 @@ export default function CostGuidePage() {
     }
   };
 
-  // Retourner à la liste des guides (pour admin uniquement)
+  /**
+   * Gère le retour à la liste des guides (pour les administrateurs) ou au rechargement du guide client (pour les non-administrateurs).
+   * Réinitialise les états liés à la vue détaillée du guide.
+   * @returns {void}
+   */
   const handleBackToList = () => {
     if (!isAdmin && clientGuideId) {
-      // Pour les non-admin avec un guide client, recharger ce guide
       loadClientGuide();
     } else {
       setSelectedGuide(null);
@@ -275,7 +324,13 @@ export default function CostGuidePage() {
     }
   };
   
-  // Ouvrir le formulaire avec valeurs préremplies
+  /**
+   * Ouvre le formulaire d'ajout d'entrée avec des valeurs prédéfinies.
+   * Vérifie les permissions avant d'ouvrir le formulaire.
+   * Met à jour les états `formPreset`, `selectedEntry` et `showEntryForm`.
+   * @param {{ partnerId?: string; level1?: string; level2?: string; }} preset Les valeurs prédéfinies pour le formulaire.
+   * @returns {void}
+   */
   const handleAddWithPreset = (preset: {
     partnerId?: string;
     level1?: string;
@@ -288,7 +343,10 @@ export default function CostGuidePage() {
     setShowEntryForm(true);
   };
 
-  // Affichage d'un message pour les utilisateurs non-admin sans guide associé
+  /**
+   * Affiche un message d'information si aucun guide de coûts n'est associé au client actuel.
+   * @returns {JSX.Element} Le composant du message d'avertissement.
+   */
   const renderNoClientGuide = () => (
     <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md">
       <div className="flex">
@@ -304,10 +362,8 @@ export default function CostGuidePage() {
     </div>
   );
 
-  // Rendu conditionnel selon l'état de l'application
   return (
     <div className="space-y-6">
-      {/* En-tête de la page */}
       <div className="flex justify-between items-center">
         <div>
           {!selectedGuide ? (
@@ -346,27 +402,22 @@ export default function CostGuidePage() {
         )}
       </div>
 
-      {/* Message d'erreur */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
       )}
 
-      {/* Message spécifique pour les utilisateurs non-admin sans guide client */}
       {!isAdmin && !loading && guides.length === 0 && !selectedGuide && renderNoClientGuide()}
 
-      {/* Liste des guides pour admin */}
       {!selectedGuide && isAdmin && (
         <>
-          {/* État de chargement */}
           {loading && !guides.length && (
             <div className="text-center py-8">
               <p className="text-gray-500">Chargement des guides de coût...</p>
             </div>
           )}
 
-          {/* Aucun guide */}
           {!loading && !guides.length && (
             <div className="text-center py-8 bg-white rounded-lg shadow">
               <p className="text-gray-500">
@@ -375,7 +426,6 @@ export default function CostGuidePage() {
             </div>
           )}
 
-          {/* Liste des guides */}
           {guides.length > 0 && (
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <ul className="divide-y divide-gray-200">
@@ -419,10 +469,8 @@ export default function CostGuidePage() {
         </>
       )}
 
-      {/* Détail d'un guide */}
       {selectedGuide && (
         <>
-          {/* État de chargement */}
           {loadingDetail && (
             <div className="text-center py-8">
               <p className="text-gray-500">Chargement du guide de coûts...</p>
@@ -431,7 +479,6 @@ export default function CostGuidePage() {
 
           {!loadingDetail && (
             <div className="space-y-6">
-              {/* En-tête du guide */}
               <div className="flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
                 {isEditing ? (
                   <div className="flex-1">
@@ -504,7 +551,6 @@ export default function CostGuidePage() {
                 </div>
               </div>
 
-              {/* Barre d'outils */}
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <button
@@ -548,7 +594,6 @@ export default function CostGuidePage() {
                 )}
               </div>
 
-              {/* Formulaire d'ajout/édition d'entrée */}
               {showEntryForm && hasCostGuidePermission && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <CostGuideEntryForm
@@ -571,7 +616,6 @@ export default function CostGuidePage() {
                 </div>
               )}
 
-              {/* Contenu principal - Vue hiérarchique ou tableau */}
               {viewMode === 'list' ? (
                 <CostGuideEntryList
                   entries={entries}
@@ -606,7 +650,6 @@ export default function CostGuidePage() {
                 </div>
               )}
               
-              {/* Message pour les utilisateurs sans permission d'édition */}
               {!hasCostGuidePermission && (
                 <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md mt-4">
                   <div className="flex">
@@ -623,7 +666,6 @@ export default function CostGuidePage() {
         </>
       )}
 
-      {/* Modal de création de guide */}
       {isCreateModalOpen && isAdmin && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">

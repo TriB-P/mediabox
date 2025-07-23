@@ -1,3 +1,10 @@
+/**
+ * Ce fichier définit le contexte `PartnerContext` qui permet de gérer l'état et les logiques
+ * liés aux partenaires de l'application. Il inclut des fonctionnalités pour
+ * charger, filtrer, rechercher et mettre à jour les partenaires, ainsi que la gestion
+ * de l'état du panneau latéral (drawer) d'édition.
+ * Il fournit également des fonctions utilitaires pour formater les données des partenaires.
+ */
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
@@ -15,7 +22,6 @@ interface Partner {
   SH_Tags?: string[];
 }
 
-// Type pour les options de SelectableSearch
 interface SelectOption {
   id: string;
   label: string;
@@ -36,13 +42,17 @@ interface PartnerContextType {
   updateSelectedPartner: (updatedData: Partial<Partner>) => Promise<void>;
   refreshPartners: () => Promise<void>;
   
-  // Nouvelles fonctions pour TactiqueDrawer
   getPublishersForSelect: () => SelectOption[];
   isPublishersLoading: boolean;
 }
 
 const PartnerContext = createContext<PartnerContextType | undefined>(undefined);
 
+/**
+ * Hook personnalisé pour utiliser le contexte des partenaires.
+ * @returns {PartnerContextType} Le contexte des partenaires.
+ * @throws {Error} Si le hook est utilisé en dehors d'un `PartnerProvider`.
+ */
 export const usePartners = () => {
   const context = useContext(PartnerContext);
   if (context === undefined) {
@@ -51,6 +61,13 @@ export const usePartners = () => {
   return context;
 };
 
+/**
+ * Fournisseur de contexte pour les partenaires.
+ * Gère l'état des partenaires, le filtrage, la recherche et les interactions avec Firebase.
+ * @param {Object} props Les propriétés du composant.
+ * @param {React.ReactNode} props.children Les composants enfants qui auront accès au contexte.
+ * @returns {JSX.Element} Le fournisseur de contexte.
+ */
 export const PartnerProvider = ({ children }: { children: React.ReactNode }) => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [filteredPartners, setFilteredPartners] = useState<Partner[]>([]);
@@ -61,15 +78,19 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
   const [isLoading, setIsLoading] = useState(true);
   const [isPublishersLoading, setIsPublishersLoading] = useState(true);
 
-  // Récupération des partenaires
+  /**
+   * Récupère la liste des partenaires depuis Firebase et met à jour l'état.
+   * Trie les partenaires par nom d'affichage et initialise les types uniques.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les partenaires récupérés.
+   */
   const fetchPartners = async () => {
     try {
       setIsLoading(true);
       setIsPublishersLoading(true);
       
+      console.log("FIREBASE: LECTURE - Fichier: PartnerProvider.tsx - Fonction: fetchPartners - Path: partners");
       const partnersData = await getPartnersList();
       
-      // Trier les partenaires par ordre alphabétique du nom d'affichage
       const sortedPartners = [...partnersData].sort((a, b) => 
         a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
       );
@@ -77,24 +98,20 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
       setPartners(sortedPartners);
       setFilteredPartners(sortedPartners);
 
-      // Extraire les types uniques
       const uniqueTypes: {[key: string]: boolean} = {};
       sortedPartners.forEach(partner => {
         if (partner.SH_Type) {
-          uniqueTypes[partner.SH_Type] = false; // Tous désactivés par défaut
+          uniqueTypes[partner.SH_Type] = false;
         }
       });
       setActiveTypes(uniqueTypes);
 
-      // Si un partenaire était sélectionné, mettre à jour ses données
       if (selectedPartner) {
         const updatedSelectedPartner = sortedPartners.find(p => p.id === selectedPartner.id);
         if (updatedSelectedPartner) {
           setSelectedPartner(updatedSelectedPartner);
         }
       }
-      
-      console.log(`${sortedPartners.length} partenaires chargés pour TactiqueDrawer`);
       
     } catch (error) {
       console.error('Erreur lors de la récupération des partenaires:', error);
@@ -104,17 +121,25 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     }
   };
 
-  // Initialisation des partenaires
+  /**
+   * Hook d'effet pour l'initialisation des partenaires lors du montage du composant.
+   */
   useEffect(() => {
     fetchPartners();
   }, []);
 
-  // Fonction pour rafraîchir la liste des partenaires
+  /**
+   * Rafraîchit la liste des partenaires en appelant `fetchPartners`.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la liste rafraîchie.
+   */
   const refreshPartners = async () => {
     await fetchPartners();
   };
 
-  // Fonction pour obtenir les partenaires formatés pour SearchableSelect
+  /**
+   * Formate la liste des partenaires pour être utilisée dans un composant `SelectableSearch`.
+   * @returns {SelectOption[]} Une liste d'objets avec `id` et `label`.
+   */
   const getPublishersForSelect = (): SelectOption[] => {
     return partners.map(partner => ({
       id: partner.id,
@@ -122,11 +147,13 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     }));
   };
 
-  // Filtrage des partenaires amélioré pour chercher dans tous les champs pertinents
+  /**
+   * Hook d'effet pour filtrer les partenaires en fonction du terme de recherche et des types actifs.
+   * Le filtrage s'effectue sur plusieurs champs du partenaire.
+   */
   useEffect(() => {
     const activeTypesList = Object.keys(activeTypes).filter(type => activeTypes[type]);
     const filtered = partners.filter(partner => {
-      // Recherche améliorée dans plusieurs champs
       const searchFields = [
         partner.id,
         partner.SH_Code,
@@ -147,9 +174,12 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     setFilteredPartners(filtered);
   }, [partners, searchTerm, activeTypes]);
 
-  // Nouvelle implémentation: sélectionner un seul type à la fois
+  /**
+   * Active ou désactive un type de partenaire.
+   * Permet de sélectionner un seul type à la fois ou de désactiver tous les types.
+   * @param {string} type Le type de partenaire à basculer.
+   */
   const toggleType = (type: string) => {
-    // Si le type est déjà actif, on désactive tous les types
     if (activeTypes[type]) {
       const resetTypes = {...activeTypes};
       Object.keys(resetTypes).forEach(key => {
@@ -157,7 +187,6 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
       });
       setActiveTypes(resetTypes);
     } else {
-      // Sinon, on désactive tous les types et on active uniquement celui-ci
       const newActiveTypes = {...activeTypes};
       Object.keys(newActiveTypes).forEach(key => {
         newActiveTypes[key] = key === type;
@@ -166,18 +195,22 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     }
   };
 
-  // Fonction pour mettre à jour le partenaire sélectionné
+  /**
+   * Met à jour les données d'un partenaire sélectionné dans Firebase et rafraîchit l'état local.
+   * @param {Partial<Partner>} updatedData Les données partielles à mettre à jour pour le partenaire.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le partenaire mis à jour.
+   * @throws {Error} Si une erreur survient lors de la mise à jour.
+   */
   const updateSelectedPartner = async (updatedData: Partial<Partner>) => {
     if (!selectedPartner) return;
     
     try {
+      console.log("FIREBASE: ÉCRITURE - Fichier: PartnerProvider.tsx - Fonction: updateSelectedPartner - Path: partners/${selectedPartner.id}");
       await updatePartner(selectedPartner.id, updatedData);
       
-      // Mettre à jour l'état local avec les nouvelles données
       const updatedPartner = { ...selectedPartner, ...updatedData };
       setSelectedPartner(updatedPartner);
       
-      // Mettre à jour la liste des partenaires
       await refreshPartners();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du partenaire:', error);
@@ -200,7 +233,6 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     updateSelectedPartner,
     refreshPartners,
     
-    // Nouvelles fonctions pour TactiqueDrawer
     getPublishersForSelect,
     isPublishersLoading,
   };

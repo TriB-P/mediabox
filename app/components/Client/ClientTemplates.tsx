@@ -1,5 +1,9 @@
-// app/components/Client/ClientTemplates.tsx
-
+/**
+ * Ce fichier définit le composant React `ClientTemplates`.
+ * Son rôle est d'afficher et de gérer la liste des gabarits (templates) associés à un client sélectionné.
+ * Il permet de visualiser, ajouter, modifier et supprimer des gabarits en interagissant avec la base de données Firebase.
+ * Le composant gère également les permissions des utilisateurs pour s'assurer que seuls les utilisateurs autorisés peuvent effectuer des modifications.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,6 +19,12 @@ import {
   deleteTemplate 
 } from '../../lib/templateService';
  
+/**
+ * Composant principal pour la gestion des gabarits d'un client.
+ * Il affiche la liste des gabarits et fournit des options pour les créer, les modifier ou les supprimer.
+ * La fonctionnalité est conditionnée par les permissions de l'utilisateur et la sélection d'un client.
+ * @returns {JSX.Element} Le composant UI pour la gestion des gabarits.
+ */
 export default function ClientTemplates() {
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
@@ -24,14 +34,17 @@ export default function ClientTemplates() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
   
-  // Vérifier si l'utilisateur a la permission de gérer les templates
   const hasTemplatePermission = canPerformAction('Templates');
   
-  // Charger les données depuis Firestore
   useEffect(() => {
     fetchTemplates();
   }, [selectedClient]);
 
+  /**
+   * Récupère les gabarits du client sélectionné depuis Firebase Firestore.
+   * Met à jour les états `templates`, `isLoading` et `error` en fonction du résultat.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   */
   const fetchTemplates = async () => {
     if (!selectedClient) {
       setTemplates([]);
@@ -42,6 +55,7 @@ export default function ClientTemplates() {
     try {
       setIsLoading(true);
       setError(null);
+      console.log(`FIREBASE: [LECTURE] - Fichier: ClientTemplates.tsx - Fonction: fetchTemplates - Path: clients/${selectedClient.clientId}/templates`);
       const fetchedTemplates = await getTemplatesByClient(selectedClient.clientId);
       setTemplates(fetchedTemplates);
     } catch (err) {
@@ -52,16 +66,31 @@ export default function ClientTemplates() {
     }
   };
 
+  /**
+   * Ouvre le formulaire modal pour ajouter ou modifier un gabarit.
+   * @param {Template | null} template - Le gabarit à modifier. Si null, le formulaire s'ouvre en mode création.
+   * @returns {void}
+   */
   const handleOpenForm = (template: Template | null = null) => {
     setCurrentTemplate(template);
     setIsFormOpen(true);
   };
 
+  /**
+   * Ferme le formulaire modal et réinitialise l'état du gabarit courant.
+   * @returns {void}
+   */
   const handleCloseForm = () => {
     setCurrentTemplate(null);
     setIsFormOpen(false);
   };
 
+  /**
+   * Gère la sauvegarde (création ou mise à jour) d'un gabarit dans Firebase.
+   * Après la sauvegarde, rafraîchit la liste des gabarits et ferme le formulaire.
+   * @param {Template} templateData - Les données du gabarit à sauvegarder.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
+   */
   const handleSaveTemplate = async (templateData: Template) => {
     if (!selectedClient || !hasTemplatePermission) return;
     
@@ -70,7 +99,7 @@ export default function ClientTemplates() {
       setError(null);
       
       if (currentTemplate) {
-        // Mise à jour d'un gabarit existant
+        console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientTemplates.tsx - Fonction: handleSaveTemplate - Path: clients/${selectedClient.clientId}/templates/${currentTemplate.id}`);
         await updateTemplate(selectedClient.clientId, currentTemplate.id, {
           TE_Name: templateData.TE_Name,
           TE_URL: templateData.TE_URL,
@@ -78,7 +107,7 @@ export default function ClientTemplates() {
           TE_Language: templateData.TE_Language
         });
       } else {
-        // Création d'un nouveau gabarit
+        console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientTemplates.tsx - Fonction: handleSaveTemplate - Path: clients/${selectedClient.clientId}/templates`);
         await createTemplate(selectedClient.clientId, {
           TE_Name: templateData.TE_Name,
           TE_URL: templateData.TE_URL,
@@ -87,7 +116,6 @@ export default function ClientTemplates() {
         });
       }
       
-      // Rafraîchir la liste des gabarits
       await fetchTemplates();
       handleCloseForm();
     } catch (err) {
@@ -98,6 +126,12 @@ export default function ClientTemplates() {
     }
   };
 
+  /**
+   * Gère la suppression d'un gabarit dans Firebase après confirmation de l'utilisateur.
+   * Après la suppression, rafraîchit la liste des gabarits.
+   * @param {string} id - L'identifiant du gabarit à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
+   */
   const handleDeleteTemplate = async (id: string) => {
     if (!selectedClient || !hasTemplatePermission) return;
     
@@ -105,6 +139,7 @@ export default function ClientTemplates() {
       if (confirm('Êtes-vous sûr de vouloir supprimer ce gabarit ?')) {
         setIsLoading(true);
         setError(null);
+        console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientTemplates.tsx - Fonction: handleDeleteTemplate - Path: clients/${selectedClient.clientId}/templates/${id}`);
         await deleteTemplate(selectedClient.clientId, id);
         await fetchTemplates();
       }

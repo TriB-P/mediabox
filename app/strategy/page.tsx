@@ -1,5 +1,10 @@
-// app/strategy/page.tsx - Avec calcul des budgets assignés aux buckets
-
+/**
+ * Ce fichier définit la page "Stratégie" de l'application.
+ * Elle permet de visualiser et de gérer les "enveloppes budgétaires" (buckets)
+ * pour une campagne et une version de campagne sélectionnées.
+ * Les utilisateurs peuvent créer, modifier, supprimer des buckets et y allouer des budgets.
+ * Le composant affiche également le budget total, le budget alloué et le budget restant de la campagne.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -27,8 +32,6 @@ import {
   BucketBudgetAssignment 
 } from '../lib/bucketBudgetService';
 
-// ==================== TYPES ====================
-
 interface Bucket {
   id: string;
   name: string;
@@ -40,8 +43,12 @@ interface Bucket {
   publishers: string[];
 }
 
-// ==================== COMPOSANT PRINCIPAL ====================
-
+/**
+ * Composant principal de la page Stratégie.
+ * Permet de gérer les enveloppes budgétaires pour les campagnes.
+ *
+ * @returns {JSX.Element} Le composant React de la page Stratégie.
+ */
 export default function StrategiePage() {
   const { selectedClient } = useClient();
   const {
@@ -55,31 +62,24 @@ export default function StrategiePage() {
     handleVersionChange,
   } = useCampaignSelection();
 
-  // ==================== ÉTATS LOCAUX ====================
-
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [totalBudget, setTotalBudget] = useState<number>(0);
   const [remainingBudget, setRemainingBudget] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // 🔥 NOUVEAU: États pour les budgets assignés
   const [bucketAssignments, setBucketAssignments] = useState<BucketBudgetAssignment>({});
   const [campaignCurrency, setCampaignCurrency] = useState<string>('CAD');
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   
-  // ==================== CONFIGURATION ====================
-
-  // Exemple de couleurs disponibles pour les buckets
   const availableColors = [
-    '#2cac44', // vert
-    '#ed679e', // rose
-    '#fdc300', // jaune
-    '#58c1d5', // bleu clair
-    '#5b4c9a', // violet
+    '#2cac44',
+    '#ed679e',
+    '#fdc300',
+    '#58c1d5',
+    '#5b4c9a',
   ];
 
-  // Exemple de logos de publishers (utilisation de placeholders)
   const publisherLogos = [
     { id: 'meta', name: 'Meta', logo: '📘' },
     { id: 'google', name: 'Google', logo: '🔍' },
@@ -91,9 +91,10 @@ export default function StrategiePage() {
     { id: 'snapchat', name: 'Snapchat', logo: '👻' },
   ];
 
-  // ==================== EFFETS ====================
-
-  // Mettre à jour le budget total et la devise quand la campagne change
+  /**
+   * Effet de bord pour mettre à jour le budget total et la devise lorsque la campagne sélectionnée change.
+   * @param {object} selectedCampaign - La campagne actuellement sélectionnée.
+   */
   useEffect(() => {
     if (selectedCampaign) {
       setTotalBudget(selectedCampaign.CA_Budget);
@@ -104,7 +105,12 @@ export default function StrategiePage() {
     }
   }, [selectedCampaign]);
 
-  // Charger les buckets quand une version est sélectionnée
+  /**
+   * Effet de bord pour charger les buckets lorsque la version, le client ou la campagne sélectionnée change.
+   * @param {object} selectedVersion - La version de campagne actuellement sélectionnée.
+   * @param {object} selectedClient - Le client actuellement sélectionné.
+   * @param {object} selectedCampaign - La campagne actuellement sélectionnée.
+   */
   useEffect(() => {
     if (selectedVersion && selectedClient && selectedCampaign) {
       loadBuckets(selectedVersion.id);
@@ -114,14 +120,25 @@ export default function StrategiePage() {
     }
   }, [selectedVersion, selectedClient, selectedCampaign]);
 
-  // 🔥 NOUVEAU: Charger les budgets assignés quand les buckets changent
+  /**
+   * Effet de bord pour charger les budgets assignés aux buckets lorsque les buckets,
+   * la version, le client ou la campagne sélectionnée changent.
+   * @param {object} selectedVersion - La version de campagne actuellement sélectionnée.
+   * @param {object} selectedClient - Le client actuellement sélectionné.
+   * @param {object} selectedCampaign - La campagne actuellement sélectionnée.
+   * @param {number} buckets.length - Le nombre de buckets chargés.
+   */
   useEffect(() => {
     if (selectedVersion && selectedClient && selectedCampaign && buckets.length > 0) {
       loadBucketAssignments();
     }
   }, [selectedVersion, selectedClient, selectedCampaign, buckets.length]);
 
-  // Calculer le budget restant à chaque changement de buckets ou de budget total
+  /**
+   * Effet de bord pour calculer le budget restant à chaque changement des buckets ou du budget total.
+   * @param {Array<Bucket>} buckets - La liste des buckets.
+   * @param {object} selectedCampaign - La campagne actuellement sélectionnée.
+   */
   useEffect(() => {
     if (selectedCampaign) {
       const allocated = buckets.reduce((sum, bucket) => sum + bucket.target, 0);
@@ -129,9 +146,12 @@ export default function StrategiePage() {
     }
   }, [buckets, selectedCampaign]);
   
-  // ==================== FONCTIONS DE CHARGEMENT ====================
-
-  // Charger les buckets pour une version spécifique
+  /**
+   * Charge les buckets depuis Firebase pour une version spécifique de campagne.
+   *
+   * @param {string} versionId - L'ID de la version de campagne.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les buckets chargés.
+   */
   const loadBuckets = async (versionId: string) => {
     if (!selectedClient || !selectedCampaign) return;
     
@@ -151,6 +171,7 @@ export default function StrategiePage() {
       );
       
       const q = query(bucketsRef, orderBy('name'));
+      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBuckets - Path: clients/" + selectedClient.clientId + "/campaigns/" + selectedCampaign.id + "/versions/" + versionId + "/buckets");
       const querySnapshot = await getDocs(q);
       
       const bucketsData: Bucket[] = [];
@@ -177,13 +198,16 @@ export default function StrategiePage() {
     }
   };
 
-  // 🔥 NOUVEAU: Charger les budgets assignés aux buckets
+  /**
+   * Charge les budgets assignés aux buckets depuis le service `bucketBudgetService`.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois les budgets assignés chargés.
+   */
   const loadBucketAssignments = async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
     
     try {
       setLoadingAssignments(true);
-      console.log('📊 Chargement des budgets assignés...');
       
       const assignments = await getBucketAssignmentsWithCurrency(
         selectedClient.clientId,
@@ -193,36 +217,45 @@ export default function StrategiePage() {
       );
       
       setBucketAssignments(assignments);
-      console.log('✅ Budgets assignés chargés:', assignments);
       
     } catch (err) {
       console.error('❌ Erreur lors du chargement des budgets assignés:', err);
-      // Ne pas afficher d'erreur à l'utilisateur car ce n'est pas critique
       setBucketAssignments({});
     } finally {
       setLoadingAssignments(false);
     }
   };
 
-  // ==================== GESTIONNAIRES DE CHANGEMENT ====================
-
-  // 🔥 NOUVEAU: Gestionnaires simplifiés grâce au CampaignVersionSelector
+  /**
+   * Gère le changement de campagne sélectionnée.
+   *
+   * @param {any} campaign - La nouvelle campagne sélectionnée.
+   * @returns {void}
+   */
   const handleCampaignChangeLocal = (campaign: any) => {
     handleCampaignChange(campaign);
-    setBuckets([]); // Vider les buckets quand on change de campagne
-    setBucketAssignments({}); // Vider les assignations
-    setError(null); // Reset erreur
+    setBuckets([]);
+    setBucketAssignments({});
+    setError(null);
   };
 
+  /**
+   * Gère le changement de version de campagne sélectionnée.
+   *
+   * @param {any} version - La nouvelle version de campagne sélectionnée.
+   * @returns {void}
+   */
   const handleVersionChangeLocal = (version: any) => {
     handleVersionChange(version);
-    setBucketAssignments({}); // Vider les assignations
-    setError(null); // Reset erreur
+    setBucketAssignments({});
+    setError(null);
   };
 
-  // ==================== FONCTIONS CRUD BUCKETS ====================
-
-  // Fonction pour ajouter un nouveau bucket
+  /**
+   * Ajoute un nouveau bucket à la campagne et version sélectionnées dans Firebase.
+   *
+   * @returns {Promise<void>} Une promesse qui se résout une fois le bucket ajouté et les buckets rechargés.
+   */
   const handleAddBucket = async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
     
@@ -247,13 +280,13 @@ export default function StrategiePage() {
         actual: 0,
         percentage: 0,
         color: availableColors[buckets.length % availableColors.length],
-        publishers: [], // Commencer avec une liste vide
+        publishers: [],
         createdAt: new Date().toISOString(),
       };
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleAddBucket - Path: clients/" + selectedClient.clientId + "/campaigns/" + selectedCampaign.id + "/versions/" + selectedVersion.id + "/buckets");
       await addDoc(bucketsRef, newBucket);
       
-      // Recharger les buckets
       await loadBuckets(selectedVersion.id);
     } catch (err) {
       console.error('Erreur lors de la création du bucket:', err);
@@ -263,7 +296,12 @@ export default function StrategiePage() {
     }
   };
 
-  // Fonction pour supprimer un bucket
+  /**
+   * Supprime un bucket de Firebase.
+   *
+   * @param {string} id - L'ID du bucket à supprimer.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le bucket supprimé et les buckets rechargés.
+   */
   const handleDeleteBucket = async (id: string) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
     
@@ -282,9 +320,9 @@ export default function StrategiePage() {
         id
       );
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleDeleteBucket - Path: clients/" + selectedClient.clientId + "/campaigns/" + selectedCampaign.id + "/versions/" + selectedVersion.id + "/buckets/" + id);
       await deleteDoc(bucketRef);
       
-      // Recharger les buckets
       await loadBuckets(selectedVersion.id);
     } catch (err) {
       console.error('Erreur lors de la suppression du bucket:', err);
@@ -294,7 +332,12 @@ export default function StrategiePage() {
     }
   };
 
-  // Fonction pour mettre à jour un bucket
+  /**
+   * Met à jour un bucket existant dans Firebase.
+   *
+   * @param {Bucket} updatedBucket - Le bucket avec les données mises à jour.
+   * @returns {Promise<void>} Une promesse qui se résout une fois le bucket mis à jour.
+   */
   const handleUpdateBucket = async (updatedBucket: Bucket) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
     
@@ -313,12 +356,11 @@ export default function StrategiePage() {
         updatedBucket.id
       );
       
-      // Exclure l'ID car c'est déjà le chemin du document
       const { id, ...bucketData } = updatedBucket;
       
+      console.log("FIREBASE: ÉCRITURE - Fichier: page.tsx - Fonction: handleUpdateBucket - Path: clients/" + selectedClient.clientId + "/campaigns/" + selectedCampaign.id + "/versions/" + selectedVersion.id + "/buckets/" + updatedBucket.id);
       await updateDoc(bucketRef, bucketData);
       
-      // Mettre à jour l'état local
       setBuckets(prev => prev.map(bucket => 
         bucket.id === updatedBucket.id ? updatedBucket : bucket
       ));
@@ -330,9 +372,15 @@ export default function StrategiePage() {
     }
   };
 
-  // Fonction pour changer la couleur d'un bucket
+  /**
+   * Gère le changement de couleur d'un bucket.
+   * Met à jour l'état local du bucket et déclenche une mise à jour dans Firebase.
+   *
+   * @param {string} id - L'ID du bucket à modifier.
+   * @param {string} newColor - La nouvelle couleur du bucket.
+   * @returns {Promise<void>} Une promesse qui se résout une fois la couleur mise à jour.
+   */
   const handleColorChange = async (id: string, newColor: string) => {
-    // Mettre à jour l'état local
     const updatedBuckets = buckets.map(bucket => {
       if (bucket.id === id) {
         return {
@@ -345,22 +393,30 @@ export default function StrategiePage() {
     
     setBuckets(updatedBuckets);
     
-    // Trouver le bucket mis à jour
     const updatedBucket = updatedBuckets.find(b => b.id === id);
     if (updatedBucket) {
       await handleUpdateBucket(updatedBucket);
     }
   };
 
-  // ==================== FONCTIONS UTILITAIRES ====================
-
-  // Ces fonctions sont maintenant des stubs qui seront passées au composant
-  // mais ne seront pas réellement utilisées puisque le composant gère les valeurs
-  // en local et ne les soumet que lors de la sauvegarde
+  /**
+   * Fonction de rappel pour le changement du slider. Actuellement un stub.
+   * @returns {void}
+   */
   const handleSliderChange = () => {};
+
+  /**
+   * Fonction de rappel pour le changement de montant. Actuellement un stub.
+   * @returns {void}
+   */
   const handleAmountChange = () => {};
 
-  // Formater les montants en CAD
+  /**
+   * Formate un montant numérique en une chaîne de caractères représentant une devise.
+   *
+   * @param {number} amount - Le montant à formater.
+   * @returns {string} Le montant formaté avec le symbole de la devise.
+   */
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-CA', {
       style: 'currency',
@@ -369,28 +425,28 @@ export default function StrategiePage() {
     }).format(amount);
   };
 
-  // 🔥 NOUVEAU: Fonction pour enrichir les buckets avec les budgets assignés
+  /**
+   * Enrichit la liste des buckets existants avec les budgets assignés calculés.
+   * Chaque bucket aura sa propriété 'actual' mise à jour avec le budget assigné correspondant.
+   *
+   * @returns {Array<Bucket>} La liste des buckets enrichis.
+   */
   const getEnrichedBuckets = () => {
     return buckets.map(bucket => ({
       ...bucket,
-      actual: bucketAssignments[bucket.id] || 0, // Utiliser le budget assigné calculé
+      actual: bucketAssignments[bucket.id] || 0,
     }));
   };
-
-  // ==================== CALCULS ====================
 
   const isLoading = campaignLoading || loading;
   const hasError = campaignError || error;
   const enrichedBuckets = getEnrichedBuckets();
-
-  // ==================== RENDU ====================
 
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div className="space-y-6">
           
-          {/* ==================== EN-TÊTE ==================== */}
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Stratégie</h1>
             {selectedCampaign && selectedVersion && (
@@ -406,7 +462,6 @@ export default function StrategiePage() {
             )}
           </div>
           
-          {/* ==================== SÉLECTEUR CAMPAGNE/VERSION ==================== */}
           <div className="flex justify-between items-center">
             <div className="flex-1 max-w-4xl">
               <CampaignVersionSelector
@@ -422,7 +477,6 @@ export default function StrategiePage() {
               />
             </div>
             
-            {/* Bouton nouvelle enveloppe */}
             <div className="ml-4">
               <button
                 onClick={handleAddBucket}
@@ -439,7 +493,6 @@ export default function StrategiePage() {
             </div>
           </div>
           
-          {/* ==================== DESCRIPTION ==================== */}
           <div className="bg-white p-4 rounded-lg shadow mb-6 text-sm text-gray-600">
             <p>
               Les enveloppes budgétaires sont un outil pour les équipes de planification qui permet d'utiliser MediaBox pour faire de la planification à très
@@ -448,7 +501,6 @@ export default function StrategiePage() {
             </p>
           </div>
           
-          {/* ==================== MESSAGES D'ÉTAT ==================== */}
           {isLoading && (
             <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
               <div className="flex items-center space-x-3">
@@ -470,10 +522,8 @@ export default function StrategiePage() {
             </div>
           )}
           
-          {/* ==================== CONTENU PRINCIPAL ==================== */}
           {!isLoading && !hasError && (
             <>
-              {/* Budget Info */}
               {selectedCampaign && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
                   <div className="flex justify-between items-center mb-2">
@@ -492,7 +542,6 @@ export default function StrategiePage() {
                       </p>
                     </div>
                   </div>
-                  {/* Barre de progression globale */}
                   <div className="w-full bg-blue-200 rounded-full h-2.5">
                     <div 
                       className={`h-2.5 rounded-full ${remainingBudget < 0 ? 'bg-red-500' : 'bg-blue-500'}`} 
@@ -502,7 +551,6 @@ export default function StrategiePage() {
                 </div>
               )}
               
-              {/* Messages d'aide */}
               {!selectedCampaign && (
                 <div className="bg-white p-8 rounded-lg shadow text-center">
                   <p className="text-gray-500">
@@ -519,7 +567,6 @@ export default function StrategiePage() {
                 </div>
               )}
               
-              {/* Grid de buckets */}
               {selectedCampaign && selectedVersion && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {enrichedBuckets.map(bucket => (

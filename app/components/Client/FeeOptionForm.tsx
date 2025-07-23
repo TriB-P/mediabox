@@ -1,3 +1,10 @@
+/**
+ * Ce fichier définit le composant React `FeeOptionForm`.
+ * Il s'agit d'un formulaire réutilisable pour créer ou modifier une "option de frais".
+ * Le formulaire gère son propre état pour les champs de saisie et communique
+ * avec un composant parent via les props `onSubmit` et `onCancel` pour gérer la
+ * logique de sauvegarde ou d'annulation.
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,6 +16,13 @@ interface FeeOptionFormProps {
   onCancel: () => void;
 }
 
+/**
+ * Composant de formulaire pour ajouter ou modifier une option de frais.
+ * @param {FeeOption} [option] - Les données de l'option existante à modifier. Si non fourni, le formulaire est en mode création.
+ * @param {(data: FeeOptionFormData) => void} onSubmit - Fonction de rappel exécutée lors de la soumission du formulaire avec les données saisies.
+ * @param {() => void} onCancel - Fonction de rappel exécutée lorsque l'utilisateur clique sur le bouton d'annulation.
+ * @returns {React.ReactElement} Le composant de formulaire JSX.
+ */
 export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionFormProps) {
   const [formData, setFormData] = useState<FeeOptionFormData>({
     FO_Option: '',
@@ -17,7 +31,6 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
     FO_Editable: false,
   });
 
-  // Mettre à jour le formulaire avec les données de l'option si elles existent
   useEffect(() => {
     if (option) {
       setFormData({
@@ -29,11 +42,21 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
     }
   }, [option]);
 
+  /**
+   * Gère la soumission du formulaire.
+   * Empêche le rechargement de la page et appelle la fonction `onSubmit` passée en props avec les données du formulaire.
+   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
+  /**
+   * Met à jour l'état du formulaire à chaque modification d'un champ.
+   * Gère la conversion des types de données (nombre, case à cocher).
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement du champ.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {

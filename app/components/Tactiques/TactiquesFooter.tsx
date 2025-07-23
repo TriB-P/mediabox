@@ -1,3 +1,10 @@
+/**
+ * Ce fichier gère le pied de page de l'application des tactiques.
+ * Il permet de naviguer entre les différents onglets de tactiques, d'en ajouter de nouveaux,
+ * de renommer les onglets existants et de les supprimer.
+ * Il inclut également des boutons pour changer le mode d'affichage des tactiques (hiérarchie, tableau, timeline).
+ */
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -23,6 +30,19 @@ interface TactiquesFooterProps {
   onDeleteOnglet: (ongletId: string) => Promise<void>;
 }
 
+/**
+ * Composant de pied de page pour la gestion des onglets et des modes de vue des tactiques.
+ * @param {TactiquesFooterProps} props - Les propriétés du composant.
+ * @param {'hierarchy' | 'table' | 'timeline'} props.viewMode - Le mode d'affichage actuel.
+ * @param {(mode: 'hierarchy' | 'table' | 'timeline') => void} props.setViewMode - Fonction pour définir le mode d'affichage.
+ * @param {Onglet[]} props.onglets - La liste de tous les onglets disponibles.
+ * @param {Onglet | null} props.selectedOnglet - L'onglet actuellement sélectionné.
+ * @param {(onglet: Onglet) => void} props.onSelectOnglet - Fonction pour sélectionner un onglet.
+ * @param {() => Promise<void>} props.onAddOnglet - Fonction pour ajouter un nouvel onglet.
+ * @param {(ongletId: string, newName: string) => Promise<void>} props.onRenameOnglet - Fonction pour renommer un onglet.
+ * @param {(ongletId: string) => Promise<void>} props.onDeleteOnglet - Fonction pour supprimer un onglet.
+ * @returns {JSX.Element} Le composant de pied de page des tactiques.
+ */
 export default function TactiquesFooter({
   viewMode,
   setViewMode,
@@ -39,7 +59,11 @@ export default function TactiquesFooter({
   
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Fermer le menu lors d'un clic en dehors
+  /**
+   * Effet de bord pour fermer le menu contextuel de l'onglet si un clic est détecté en dehors de celui-ci.
+   * Ne prend pas de paramètres.
+   * Ne retourne rien.
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showMenuForOnglet && !(event.target as HTMLElement).closest('.onglet-menu')) {
@@ -53,7 +77,11 @@ export default function TactiquesFooter({
     };
   }, [showMenuForOnglet]);
   
-  // Focus sur l'input lors de l'édition
+  /**
+   * Effet de bord pour mettre le focus sur l'input de renommage lorsqu'un onglet est en mode édition.
+   * Ne prend pas de paramètres.
+   * Ne retourne rien.
+   */
   useEffect(() => {
     if (editingOnglet && inputRef.current) {
       inputRef.current.focus();
@@ -61,12 +89,24 @@ export default function TactiquesFooter({
     }
   }, [editingOnglet]);
   
+  /**
+   * Gère le début de l'édition d'un onglet, en définissant l'ID de l'onglet en édition et son nom actuel.
+   * @param {Onglet} onglet - L'objet onglet à éditer.
+   * @param {React.MouseEvent} e - L'événement de souris qui a déclenché l'édition.
+   * Ne retourne rien.
+   */
   const handleStartEdit = (onglet: Onglet, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingOnglet(onglet.id);
     setEditName(onglet.ONGLET_Name);
   };
   
+  /**
+   * Gère la sauvegarde du nom modifié de l'onglet.
+   * Appelle la fonction onRenameOnglet passée en prop.
+   * Ne prend pas de paramètres.
+   * Ne retourne rien.
+   */
   const handleSaveEdit = async () => {
     if (editingOnglet && editName.trim()) {
       await onRenameOnglet(editingOnglet, editName.trim());
@@ -74,6 +114,11 @@ export default function TactiquesFooter({
     }
   };
   
+  /**
+   * Gère les événements clavier pour l'input de renommage (Enter pour sauvegarder, Escape pour annuler).
+   * @param {React.KeyboardEvent} e - L'événement clavier.
+   * Ne retourne rien.
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSaveEdit();
@@ -82,21 +127,31 @@ export default function TactiquesFooter({
     }
   };
   
+  /**
+   * Bascule l'affichage du menu contextuel pour un onglet donné.
+   * @param {React.MouseEvent} e - L'événement de souris qui a déclenché le basculement.
+   * @param {string} ongletId - L'ID de l'onglet pour lequel basculer le menu.
+   * Ne retourne rien.
+   */
   const toggleOngletMenu = (e: React.MouseEvent, ongletId: string) => {
     e.stopPropagation();
     setShowMenuForOnglet(showMenuForOnglet === ongletId ? null : ongletId);
   };
   
+  /**
+   * Gère la suppression d'un onglet après confirmation.
+   * Vérifie qu'il reste plus d'un onglet avant de permettre la suppression.
+   * @param {string} id - L'ID de l'onglet à supprimer.
+   * Ne retourne rien.
+   */
   const handleDeleteOnglet = async (id: string) => {
-    // Vérifier qu'il y a plus d'un onglet avant de supprimer
     if (onglets.length > 1) {
-      // Trouver le nom de l'onglet pour un message plus informatif
       const ongletToDelete = onglets.find(o => o.id === id);
       const ongletName = ongletToDelete ? ongletToDelete.ONGLET_Name : 'cet onglet';
       
-      // Demander confirmation avant de supprimer
       if (confirm(`Êtes-vous sûr de vouloir supprimer l'onglet "${ongletName}" ? Cette action supprimera également toutes les sections et tactiques associées.`)) {
         setShowMenuForOnglet(null);
+        console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesFooter.tsx - Fonction: handleDeleteOnglet - Path: onglets/${id}");
         await onDeleteOnglet(id);
       }
     } else {
@@ -107,9 +162,7 @@ export default function TactiquesFooter({
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md z-10">
       <div className="max-w-screen-xl mx-auto px-4 w-full">
-        {/* Conteneur principal, adapté avec la même largeur que la zone principale */}
         <div className="flex items-center py-1 md:pr-0">
-          {/* Zone des onglets style Excel */}
           <div className="flex-1 flex items-center overflow-x-auto">
             {onglets.map((onglet) => (
               <div 
@@ -120,7 +173,6 @@ export default function TactiquesFooter({
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {/* Contenu de l'onglet */}
                 <div 
                   className="flex items-center"
                   onClick={() => onSelectOnglet(onglet)}
@@ -142,7 +194,6 @@ export default function TactiquesFooter({
                   )}
                 </div>
                 
-                {/* Bouton fermer/supprimer (apparaît au survol) */}
                 {onglets.length > 1 && (
                   <button 
                     className="ml-2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded-full focus:outline-none transition-opacity duration-200"
@@ -153,7 +204,6 @@ export default function TactiquesFooter({
                   </button>
                 )}
                 
-                {/* Bouton d'édition (apparaît au survol) */}
                 <button 
                   className="ml-1 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-700 rounded-full focus:outline-none transition-opacity duration-200"
                   onClick={(e) => {
@@ -167,7 +217,6 @@ export default function TactiquesFooter({
               </div>
             ))}
             
-            {/* Bouton d'ajout d'onglet */}
             <button 
               onClick={onAddOnglet}
               className="px-3 py-2 text-gray-600 hover:bg-gray-200 focus:outline-none"
@@ -177,7 +226,6 @@ export default function TactiquesFooter({
             </button>
           </div>
           
-          {/* Zone des boutons de vue - complètement à droite */}
           <div className="flex space-x-2">
             <button
               onClick={() => setViewMode('hierarchy')}
