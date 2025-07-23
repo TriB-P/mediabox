@@ -1,3 +1,5 @@
+// app/lib/firebase.ts
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
@@ -26,3 +28,10 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
+
+// 🔥 NOUVEAU: Ajouter les scopes Google Sheets
+googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+
+// 🔥 OPTIONNEL: Autres scopes utiles pour les documents
+// googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+// googleProvider.addScope('https://www.googleapis.com/auth/documents');
