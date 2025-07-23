@@ -6,7 +6,8 @@ import React, { useState } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import { useGenerateDoc } from '../hooks/documents/useGenerateDoc';
-import { FileText, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { useCleanDocData } from '../hooks/documents/useCleanDocData';
+import { FileText, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
 
 export default function DocumentsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -15,13 +16,23 @@ export default function DocumentsPage() {
     message: string;
   } | null>(null);
 
-  // Hook pour générer le document (sera créé dans le prochain artefact)
+  // Hook pour générer le document (existant)
   const { generateDocument, loading, error } = useGenerateDoc();
 
-  // Configuration hard-codée pour le test
+  // Hook pour nettoyer les données (nouveau)
+  const { cleanData, loading: cleanLoading, error: cleanError, data: cleanedData } = useCleanDocData();
+
+  // Configuration hard-codée pour les tests
   const TEST_CONFIG = {
     sheetUrl: 'https://docs.google.com/spreadsheets/d/1mt_vSmoZOb0_8YYHPzGB02f0Aby3IbiUdBf3eAbvTFk/edit',
     sheetName: 'Test'
+  };
+
+  // Configuration hard-codée pour le nettoyage des données
+  const CLEAN_TEST_CONFIG = {
+    clientId: '46bc9dd4',
+    campaignId: 'YuRAhYKqKiTvUQOfXPwd',
+    versionId: 'hShB62xJQhyG978FqBXZ'
   };
 
   const handleGenerateTest = async () => {
@@ -33,7 +44,6 @@ export default function DocumentsPage() {
       console.log('URL:', TEST_CONFIG.sheetUrl);
       console.log('Onglet:', TEST_CONFIG.sheetName);
 
-      // Appel du hook pour écrire "TEST" dans A1
       const success = await generateDocument(
         TEST_CONFIG.sheetUrl,
         TEST_CONFIG.sheetName
@@ -58,6 +68,21 @@ export default function DocumentsPage() {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleCleanDataTest = async () => {
+    try {
+      console.log('🧹 Nettoyage des données test...');
+      console.log('Config:', CLEAN_TEST_CONFIG);
+
+      await cleanData(
+        CLEAN_TEST_CONFIG.clientId,
+        CLEAN_TEST_CONFIG.campaignId,
+        CLEAN_TEST_CONFIG.versionId
+      );
+    } catch (err) {
+      console.error('Erreur lors du nettoyage:', err);
     }
   };
 
@@ -86,19 +111,19 @@ export default function DocumentsPage() {
               <div className="text-sm">
                 <p className="text-blue-800 font-medium mb-1">Module Documents - Version Test</p>
                 <p className="text-blue-700">
-                  Cette version de test permet de vérifier la connexion avec l'API Google Sheets. 
-                  Le bouton ci-dessous écrira "TEST" dans la cellule A1 de l'onglet configuré.
+                  Cette version de test permet de vérifier la connexion avec l'API Google Sheets 
+                  et le nettoyage des données depuis Firebase.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* ==================== CONFIGURATION TEST ==================== */}
+          {/* ==================== CONFIGURATION TEST GOOGLE SHEETS ==================== */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Configuration de Test</h2>
+              <h2 className="text-lg font-medium text-gray-900">Test Google Sheets</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Paramètres hard-codés pour le test initial
+                Paramètres hard-codés pour le test d'écriture
               </p>
             </div>
             
@@ -121,24 +146,6 @@ export default function DocumentsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Action
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600">
-                  Écrire "TEST" dans la cellule A1
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ==================== BOUTON D'ACTION ==================== */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test d'Intégration</h2>
-            </div>
-            
-            <div className="px-6 py-6">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={handleGenerateTest}
@@ -161,16 +168,124 @@ export default function DocumentsPage() {
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
 
-                {/* Indicateur de statut */}
-                {(isGenerating || loading) && (
+          {/* ==================== CONFIGURATION TEST NETTOYAGE DONNÉES ==================== */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Test Nettoyage des Données</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Extraction et nettoyage des données depuis Firebase
+              </p>
+            </div>
+            
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Client ID
+                </label>
+                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
+                  {CLEAN_TEST_CONFIG.clientId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Campaign ID
+                </label>
+                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
+                  {CLEAN_TEST_CONFIG.campaignId}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Version ID
+                </label>
+                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
+                  {CLEAN_TEST_CONFIG.versionId}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleCleanDataTest}
+                  disabled={cleanLoading}
+                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${
+                    cleanLoading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+                  }`}
+                >
+                  {cleanLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                      Nettoyage en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="h-5 w-5 mr-3" />
+                      Test Nettoyage Données
+                    </>
+                  )}
+                </button>
+
+                {cleanLoading && (
                   <div className="flex items-center text-sm text-gray-500">
-                    <div className="animate-pulse">Connexion à Google Sheets...</div>
+                    <div className="animate-pulse">Extraction des données Firebase...</div>
                   </div>
                 )}
               </div>
             </div>
           </div>
+
+          {/* ==================== AFFICHAGE DU TABLEAU NETTOYÉ ==================== */}
+          {cleanedData && (
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">Données Nettoyées</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Tableau 2D prêt pour l'export ({cleanedData.length} lignes × {cleanedData[0]?.length || 0} colonnes)
+                </p>
+              </div>
+              
+              <div className="px-6 py-4">
+                <div className="overflow-x-auto max-h-96 border border-gray-200 rounded-md">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        {cleanedData[0]?.map((header: string, index: number) => (
+                          <th
+                            key={index}
+                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {cleanedData.slice(1).map((row: string[], rowIndex: number) => (
+                        <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          {row.map((cell: string, cellIndex: number) => (
+                            <td
+                              key={cellIndex}
+                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 max-w-xs truncate"
+                              title={cell}
+                            >
+                              {cell || '-'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ==================== RÉSULTATS ==================== */}
           {result && (
@@ -202,16 +317,16 @@ export default function DocumentsPage() {
           )}
 
           {/* ==================== ERREURS GLOBALES ==================== */}
-          {error && (
+          {(error || cleanError) && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="text-sm font-medium text-red-800">
-                    Erreur du Hook
+                    Erreur
                   </h3>
                   <p className="mt-1 text-sm text-red-700">
-                    {error}
+                    {error || cleanError}
                   </p>
                 </div>
               </div>
@@ -223,10 +338,10 @@ export default function DocumentsPage() {
             <div className="text-sm text-gray-600 space-y-2">
               <p className="font-medium text-gray-800">📝 Instructions pour le développeur :</p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Remplacer "YOUR_SHEET_ID_HERE" par l'ID réel du Google Sheet de test</li>
-                <li>Créer le hook useGenerateDoc dans app/hooks/useGenerateDoc.ts</li>
-                <li>Configurer les permissions Google Sheets API si nécessaire</li>
-                <li>Tester avec un Google Sheet accessible en mode éditeur</li>
+                <li>Créer le hook useCleanDocData dans app/hooks/documents/useCleanDocData.ts</li>
+                <li>Créer la configuration de mapping dans app/config/documentMapping.ts</li>
+                <li>Tester avec les IDs hard-codés puis permettre la sélection dynamique</li>
+                <li>Optimiser les appels Firebase pour éviter les requêtes redondantes</li>
               </ul>
             </div>
           </div>
