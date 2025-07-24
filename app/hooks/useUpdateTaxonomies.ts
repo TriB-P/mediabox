@@ -510,7 +510,7 @@ export const useUpdateTaxonomies = () => {
                       batch.update(creatifRef, updatedFields);
                       updatedCount++;
                     } catch (error) {
-                      console.error(`❌ Erreur créatif ${creifId}:`, error);
+                      console.error(`❌ Erreur créatif ${creatifId}:`, error);
                     }
                   }
                 }

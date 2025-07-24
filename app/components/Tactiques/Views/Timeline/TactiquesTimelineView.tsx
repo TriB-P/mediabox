@@ -1,15 +1,25 @@
+// app/components/Tactiques/Views/Timeline/TactiquesTimelineView.tsx
 /**
- * Ce fichier React affiche une vue chronologique (timeline) des tactiques d'une campagne.
- * Il permet de visualiser la durée, le statut et le budget de chaque tactique sur une échelle de temps.
- * Les tactiques peuvent être filtrées par section pour une meilleure lisibilité.
- *
- * Il reçoit en props la liste des tactiques, les noms des sections, les dates de début et de fin de campagne,
- * une fonction pour formater les devises et une fonction de rappel pour l'édition d'une tactique.
+ * Vue timeline rénovée pour visualiser et éditer les répartitions des tactiques selon les breakdowns.
+ * Permet de changer de breakdown, voir les périodes correspondantes et éditer les valeurs directement.
+ * Inclut les fonctionnalités d'édition en ligne avec copier-coller et gestion des périodes actives.
  */
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Tactique } from '../../../../types/tactiques';
+import { Breakdown } from '../../../../types/breakdown';
+import TactiquesTimelineTable from './TactiquesTimelineTable';
+import { 
+  CalendarIcon, 
+  ClockIcon, 
+  Cog6ToothIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  ArrowDownTrayIcon
+} from '@heroicons/react/24/outline';
 
 interface TactiquesTimelineViewProps {
   tactiques: Tactique[];
@@ -18,19 +28,18 @@ interface TactiquesTimelineViewProps {
   campaignEndDate: string;
   formatCurrency: (amount: number) => string;
   onEditTactique: (tactiqueId: string, sectionId: string) => void;
+  // Nouvelles props pour les breakdowns
+  breakdowns: Breakdown[];
+  onUpdateTactique: (
+    tactiqueId: string, 
+    sectionId: string, 
+    updates: Partial<Tactique>
+  ) => Promise<void>;
 }
 
 /**
- * Composant d'affichage des tactiques sur une timeline.
- *
- * @param {TactiquesTimelineViewProps} props - Les propriétés du composant.
- * @param {Tactique[]} props.tactiques - La liste des tactiques à afficher.
- * @param {{ [key: string]: string }} props.sectionNames - Un objet mappant les IDs de section à leurs noms.
- * @param {string} props.campaignStartDate - La date de début de la campagne au format chaîne de caractères.
- * @param {string} props.campaignEndDate - La date de fin de la campagne au format chaîne de caractères.
- * @param {(amount: number) => string} props.formatCurrency - Fonction pour formater un montant en devise.
- * @param {(tactiqueId: string, sectionId: string) => void} props.onEditTactique - Fonction de rappel appelée lors de l'édition d'une tactique.
- * @returns {JSX.Element} Le composant de la timeline des tactiques.
+ * Composant principal de la vue timeline rénovée.
+ * Gère la sélection des breakdowns et orchestre l'affichage du tableau.
  */
 export default function TactiquesTimelineView({
   tactiques,
@@ -38,152 +47,298 @@ export default function TactiquesTimelineView({
   campaignStartDate,
   campaignEndDate,
   formatCurrency,
-  onEditTactique
+  onEditTactique,
+  breakdowns,
+  onUpdateTactique
 }: TactiquesTimelineViewProps) {
-  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [selectedBreakdownId, setSelectedBreakdownId] = useState<string>('');
+  const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const filteredTactiques = selectedSection
-    ? tactiques.filter(t => t.TC_SectionId === selectedSection)
-    : tactiques;
+  // Initialisation du breakdown par défaut
+  useEffect(() => {
+    if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0 && !selectedBreakdownId) {
+      const defaultBreakdown = breakdowns.find(b => b.isDefault) || breakdowns[0];
+      setSelectedBreakdownId(defaultBreakdown.id);
+    }
+  }, [breakdowns, selectedBreakdownId]);
 
-  const startDate = new Date(campaignStartDate);
-  const endDate = new Date(campaignEndDate);
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const selectedBreakdown = useMemo(() => {
+    if (!breakdowns || !Array.isArray(breakdowns)) {
+      return null;
+    }
+    return breakdowns.find(b => b.id === selectedBreakdownId) || null;
+  }, [breakdowns, selectedBreakdownId]);
 
   /**
-   * Calcule la position et la largeur d'une tactique sur la timeline.
-   *
-   * @param {Tactique} tactique - La tactique pour laquelle calculer la position.
-   * @returns {{ left: string | number; width: string | number; color: string }} Un objet contenant la position gauche, la largeur et la couleur de la barre de tactique.
+   * Obtient l'icône correspondante à un type de breakdown.
    */
-  const calculateTimelinePosition = (tactique: Tactique) => {
-    if (!tactique.TC_StartDate || !tactique.TC_EndDate) {
-      return { left: 0, width: '100%', color: '#f3f4f6' };
+  const getBreakdownIcon = (type: string) => {
+    switch (type) {
+      case 'Hebdomadaire':
+        return CalendarIcon;
+      case 'Mensuel':
+        return ClockIcon;
+      case 'Custom':
+        return Cog6ToothIcon;
+      default:
+        return CalendarIcon;
     }
-
-    const tactiqueStart = new Date(tactique.TC_StartDate);
-    const tactiqueEnd = new Date(tactique.TC_EndDate);
-
-    const effectiveStart = tactiqueStart < startDate ? startDate : tactiqueStart;
-
-    const effectiveEnd = tactiqueEnd > endDate ? endDate : tactiqueEnd;
-
-    const startOffset = Math.max(0, (effectiveStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const duration = Math.max(1, (effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
-
-    const left = (startOffset / totalDays) * 100;
-    const width = (duration / totalDays) * 100;
-
-    let color = '#fef3c7';
-    if (tactique.TC_Status === 'Active') color = '#dcfce7';
-    if (tactique.TC_Status === 'Completed') color = '#dbeafe';
-    if (tactique.TC_Status === 'Cancelled') color = '#fee2e2';
-
-    return { left: `${left}%`, width: `${width}%`, color };
   };
 
   /**
-   * Génère les données pour l'échelle de temps (mois) de la timeline.
-   *
-   * @returns {{ label: string; position: string }[]} Un tableau d'objets représentant chaque mois avec son libellé et sa position.
+   * Groupe les tactiques par section pour l'affichage hiérarchique.
    */
-  const generateTimeScale = () => {
-    const months = [];
-    const currentDate = new Date(startDate);
+  const tactiquesGroupedBySection = useMemo(() => {
+    const grouped: { [sectionId: string]: Tactique[] } = {};
+    
+    tactiques.forEach(tactique => {
+      const sectionId = tactique.TC_SectionId;
+      if (!grouped[sectionId]) {
+        grouped[sectionId] = [];
+      }
+      grouped[sectionId].push(tactique);
+    });
 
-    while (currentDate <= endDate) {
-      const monthStart = new Date(currentDate);
+    // Trier les tactiques dans chaque section par ordre
+    Object.keys(grouped).forEach(sectionId => {
+      grouped[sectionId].sort((a, b) => (a.TC_Order || 0) - (b.TC_Order || 0));
+    });
 
-      const daysFromStart = Math.ceil((monthStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const position = (daysFromStart / totalDays) * 100;
+    return grouped;
+  }, [tactiques]);
 
-      const monthName = monthStart.toLocaleDateString('fr-FR', { month: 'short' });
-      const year = monthStart.getFullYear();
-
-      months.push({
-        label: `${monthName} ${year}`,
-        position: `${position}%`
-      });
-
-      currentDate.setMonth(currentDate.getMonth() + 1);
+  /**
+   * Gère le changement de breakdown sélectionné.
+   */
+  const handleBreakdownChange = (breakdownId: string) => {
+    if (editMode) {
+      const confirmChange = confirm(
+        'Vous êtes en mode édition. Changer de breakdown annulera vos modifications. Continuer ?'
+      );
+      if (!confirmChange) return;
     }
-
-    return months;
+    
+    setEditMode(false);
+    setSelectedBreakdownId(breakdownId);
   };
 
-  const timeScale = generateTimeScale();
+  /**
+   * Active ou désactive le mode édition.
+   */
+  const handleToggleEditMode = () => {
+    if (editMode) {
+      const confirmExit = confirm(
+        'Êtes-vous sûr de vouloir quitter le mode édition ? Les modifications non sauvegardées seront perdues.'
+      );
+      if (!confirmExit) return;
+    }
+    
+    setEditMode(!editMode);
+  };
 
-  const uniqueSections = Array.from(new Set(tactiques.map(t => t.TC_SectionId)));
+  /**
+   * Gère la sauvegarde complète après édition.
+   */
+  const handleSaveComplete = () => {
+    setEditMode(false);
+    // Ici on pourrait ajouter une notification de succès
+    console.log('✅ Sauvegarde des répartitions terminée');
+  };
+
+  /**
+   * Gère l'annulation de l'édition.
+   */
+  const handleCancelEdit = () => {
+    setEditMode(false);
+  };
+
+  /**
+   * Exporte les données au format CSV.
+   */
+  const handleExportCSV = () => {
+    if (!selectedBreakdown) return;
+
+    // Ici on pourrait implémenter l'export CSV
+    // Pour l'instant, on affiche juste un message
+    console.log('Export CSV pour le breakdown:', selectedBreakdown.name);
+  };
+
+  // Vérification de sécurité supplémentaire
+  if (!breakdowns || !Array.isArray(breakdowns) || breakdowns.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 text-center">
+        <p className="text-gray-500">
+          Aucun breakdown configuré pour cette campagne. 
+          Veuillez configurer des breakdowns dans les paramètres de campagne.
+        </p>
+      </div>
+    );
+  }
+
+  if (tactiques.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 text-center">
+        <p className="text-gray-500">
+          Aucune tactique disponible pour cette campagne.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded-lg shadow">
-        <label htmlFor="section-filter" className="block text-sm font-medium text-gray-700 mb-1">
-          Filtrer par section
-        </label>
-        <select
-          id="section-filter"
-          value={selectedSection}
-          onChange={(e) => setSelectedSection(e.target.value)}
-          className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <option value="">Toutes les sections</option>
-          {uniqueSections.map(sectionId => (
-            <option key={sectionId} value={sectionId}>
-              {sectionNames[sectionId] || 'Section sans nom'}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="border-b border-gray-200 p-4">
-          <div className="relative h-8">
-            {timeScale.map((month, index) => (
-              <div
-                key={index}
-                className="absolute h-full border-l border-gray-300"
-                style={{ left: month.position }}
+      {/* Header avec contrôles */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Sélecteur de breakdown */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700">
+                Répartition :
+              </label>
+              <select
+                value={selectedBreakdownId}
+                onChange={(e) => handleBreakdownChange(e.target.value)}
+                disabled={editMode && loading}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
-                <span className="absolute top-0 -ml-3 text-xs text-gray-500">{month.label}</span>
+                {breakdowns && Array.isArray(breakdowns) && breakdowns.map((breakdown) => {
+                  const Icon = getBreakdownIcon(breakdown.type);
+                  return (
+                    <option key={breakdown.id} value={breakdown.id}>
+                      {breakdown.name} ({breakdown.type})
+                      {breakdown.isDefault ? ' - Par défaut' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Informations sur le breakdown sélectionné */}
+            {selectedBreakdown && (
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-1">
+                  {React.createElement(getBreakdownIcon(selectedBreakdown.type), {
+                    className: "h-4 w-4"
+                  })}
+                  <span>{selectedBreakdown.type}</span>
+                </div>
+                {selectedBreakdown.type !== 'Custom' && (
+                  <span>
+                    • {selectedBreakdown.startDate} → {selectedBreakdown.endDate}
+                  </span>
+                )}
+                {selectedBreakdown.type === 'Custom' && selectedBreakdown.customPeriods && (
+                  <span>
+                    • {selectedBreakdown.customPeriods.length} période(s)
+                  </span>
+                )}
               </div>
-            ))}
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Bouton d'export */}
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+              disabled={loading}
+            >
+              <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+              Exporter
+            </button>
+
+            {/* Bouton mode édition */}
+            <button
+              onClick={handleToggleEditMode}
+              className={`flex items-center px-4 py-2 text-sm rounded-md font-medium ${
+                editMode
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+              }`}
+              disabled={loading}
+            >
+              {editMode ? (
+                <>
+                  <XMarkIcon className="h-4 w-4 mr-1" />
+                  Quitter l'édition
+                </>
+              ) : (
+                <>
+                  <PencilIcon className="h-4 w-4 mr-1" />
+                  Mode édition
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        <div className="p-4">
-          {filteredTactiques.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              Aucune tactique à afficher
+        {/* Message d'information en mode édition */}
+        {editMode && (
+          <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+            <div className="flex items-start space-x-2">
+              <div className="text-yellow-600 mt-0.5">
+                <CheckIcon className="h-4 w-4" />
+              </div>
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium">Mode édition activé</p>
+                <p className="mt-1">
+                  Vous pouvez maintenant modifier les valeurs des répartitions. 
+                  Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller.
+                  {selectedBreakdown?.isDefault && " Cochez/décochez les cases pour activer/désactiver les périodes."}
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredTactiques.map(tactique => {
-                const { left, width, color } = calculateTimelinePosition(tactique);
+          </div>
+        )}
+      </div>
 
-                return (
-                  <div key={tactique.id} className="relative h-12">
-                    <div className="absolute top-0 -ml-2 w-24 h-full flex items-center pr-2">
-                      <span className="text-sm font-medium truncate">{tactique.TC_Label}</span>
-                    </div>
+      {/* Tableau des répartitions */}
+      {selectedBreakdown ? (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <TactiquesTimelineTable
+            tactiques={Object.values(tactiquesGroupedBySection).flat()}
+            sectionNames={sectionNames}
+            selectedBreakdown={selectedBreakdown}
+            editMode={editMode}
+            campaignStartDate={campaignStartDate}
+            campaignEndDate={campaignEndDate}
+            formatCurrency={formatCurrency}
+            onUpdateTactique={onUpdateTactique}
+            onSaveComplete={handleSaveComplete}
+            onCancelEdit={handleCancelEdit}
+          />
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-6 text-center">
+          <p className="text-gray-500">
+            Aucun breakdown sélectionné. Veuillez sélectionner un breakdown pour voir les répartitions.
+          </p>
+        </div>
+      )}
 
-                    <div
-                      className="absolute h-8 rounded-md border border-gray-300 cursor-pointer hover:border-indigo-500 flex items-center px-2 ml-24"
-                      style={{ left, width, backgroundColor: color }}
-                      onClick={() => onEditTactique(tactique.id, tactique.TC_SectionId)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-xs font-medium">{formatCurrency(tactique.TC_Budget)}</span>
-                        <span className="text-xs text-gray-500 truncate">
-                          {sectionNames[tactique.TC_SectionId] || 'Section sans nom'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Statistiques en bas */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-gray-700">Sections :</span>
+            <span className="ml-2 text-gray-600">
+              {Object.keys(tactiquesGroupedBySection).length}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Tactiques :</span>
+            <span className="ml-2 text-gray-600">
+              {tactiques.length}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Budget total :</span>
+            <span className="ml-2 text-gray-600">
+              {formatCurrency(tactiques.reduce((sum, t) => sum + (t.TC_Budget || 0), 0))}
+            </span>
+          </div>
         </div>
       </div>
     </div>

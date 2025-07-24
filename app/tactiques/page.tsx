@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
@@ -24,6 +24,9 @@ import LoadingSpinner from '../components/Others/LoadingSpinner';
 import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
 import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
 import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+
+import { getBreakdowns } from '../lib/breakdownService';
+import { Breakdown } from '../types/breakdown';
 
 import { useClient } from '../contexts/ClientContext';
 
@@ -61,6 +64,9 @@ export default function TactiquesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   
   const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
+
+  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
+  const [breakdownsLoading, setBreakdownsLoading] = useState(false);
 
   const crudActions = useTactiquesCrud({
     sections,
@@ -203,6 +209,30 @@ export default function TactiquesPage() {
 
   const hasError = !!error;
 
+  // Effet pour charger les breakdowns quand la campagne change
+useEffect(() => {
+  const loadBreakdowns = async () => {
+    if (!selectedClient?.clientId || !selectedCampaign?.id) {
+      setBreakdowns([]);
+      return;
+    }
+
+    try {
+      setBreakdownsLoading(true);
+      console.log(`FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBreakdowns - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/breakdowns`);
+      const breakdownsData = await getBreakdowns(selectedClient.clientId, selectedCampaign.id);
+      setBreakdowns(breakdownsData);
+    } catch (error) {
+      console.error('Erreur lors du chargement des breakdowns:', error);
+      setBreakdowns([]);
+    } finally {
+      setBreakdownsLoading(false);
+    }
+  };
+
+  loadBreakdowns();
+}, [selectedClient?.clientId, selectedCampaign?.id]);
+
   return (
     <div className={getContainerClasses()}>
       <div className="flex justify-between items-center">
@@ -333,7 +363,7 @@ export default function TactiquesPage() {
               />
             )}
             
-            {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
+            {(viewMode === 'hierarchy') && (
               <div className="flex justify-between items-center mb-4">
                 <div className="flex space-x-2">
                   <button
@@ -423,26 +453,29 @@ export default function TactiquesPage() {
                   </div>
                 )}
 
-                {viewMode === 'timeline' && selectedCampaign && (
-                  <TactiquesTimelineView
-                    tactiques={enrichedData.flatTactiques}
-                    sectionNames={enrichedData.sectionNames}
-                    campaignStartDate={selectedCampaign.CA_Start_Date}
-                    campaignEndDate={selectedCampaign.CA_End_Date}
-                    formatCurrency={formatCurrency}
-                    onEditTactique={(tactiqueId, sectionId) => {
-                      const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
-                      if (tactique) {
-                        console.log('Éditer tactique:', tactique);
-                      }
-                    }}
-                  />
-                )}
+                  {viewMode === 'timeline' && selectedCampaign && (
+                    <TactiquesTimelineView
+                      tactiques={enrichedData.flatTactiques}
+                      sectionNames={enrichedData.sectionNames}
+                      campaignStartDate={selectedCampaign.CA_Start_Date}
+                      campaignEndDate={selectedCampaign.CA_End_Date}
+                      formatCurrency={formatCurrency}
+                      onEditTactique={(tactiqueId, sectionId) => {
+                        const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
+                        if (tactique) {
+                          console.log('Éditer tactique:', tactique);
+                        }
+                      }}
+                      // Nouvelles props ajoutées
+                      breakdowns={breakdowns || []}
+                      onUpdateTactique={crudActions.handleUpdateTactique}
+                    />
+                  )}
               </>
             )}
           </div>
 
-          {(viewMode === 'hierarchy' || viewMode === 'timeline') && (
+          {(viewMode === 'hierarchy') && (
             <TactiquesBudgetPanel
               selectedCampaign={selectedCampaign}
               sections={sections}
