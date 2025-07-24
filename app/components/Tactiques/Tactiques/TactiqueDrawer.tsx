@@ -86,7 +86,7 @@ interface VisibleFields {
  * @returns {TactiqueFormData} - Les données formatées pour le formulaire.
  */
 const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
-  return {
+  const baseData = {
     TC_Label: tactique.TC_Label || '',
     TC_Budget: tactique.TC_Budget || 0,
     TC_Order: tactique.TC_Order || 0,
@@ -132,11 +132,17 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
         key.startsWith('TC_Cost_') ||
         key.startsWith('TC_Real_') ||
         key.startsWith('TC_Bonus_') ||
-        key.startsWith('TC_Has_') ||
-        key.startsWith('TC_Breakdown_')
+        key.startsWith('TC_Has_')
       )
     )
   };
+
+  // NOUVEAU : Gérer la structure de breakdowns
+  if (tactique.breakdowns) {
+    baseData.breakdowns = tactique.breakdowns;
+  }
+
+  return baseData;
 };
 
 /**

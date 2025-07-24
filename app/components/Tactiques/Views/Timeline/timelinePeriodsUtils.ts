@@ -1,15 +1,22 @@
 // app/components/Tactiques/Views/Timeline/timelinePeriodsUtils.ts
 /**
  * Utilitaires pour générer les périodes d'affichage selon les breakdowns.
- * Gère la génération des colonnes pour les vues timeline avec édition.
+ * MODIFIÉ: Utilise les nouvelles fonctions du service breakdown pour lire 
+ * les données stockées dans l'objet breakdowns des tactiques.
  */
 
 import { Breakdown } from '../../../../types/breakdown';
+import { 
+  getTactiqueBreakdownValue,
+  getTactiqueBreakdownToggleStatus,
+  calculateTactiqueBreakdownTotal,
+  areAllTactiqueBreakdownValuesNumeric
+} from '../../../../lib/breakdownService';
 
 export interface TimelinePeriod {
   id: string;
   label: string;
-  fieldName: string; // Nom du champ dans la tactique (ex: TC_Breakdown_breakdown_id_period_id)
+  fieldName: string; // Conservé pour compatibilité, mais plus utilisé
   breakdownId: string;
   breakdownName: string;
   isFirst?: boolean;
@@ -53,9 +60,9 @@ export function generateMonthlyPeriods(
     const fullPeriodId = `${breakdown.id}_${periodId}`;
     
     periods.push({
-      id: fullPeriodId,
+      id: periodId, // ID simple pour la nouvelle structure
       label: `${monthLabel} ${yearSuffix}`,
-      fieldName: `TC_Breakdown_${fullPeriodId}`,
+      fieldName: `TC_Breakdown_${fullPeriodId}`, // Conservé pour compatibilité
       breakdownId: breakdown.id,
       breakdownName: breakdown.name,
       order: order++
@@ -109,13 +116,13 @@ export function generateWeeklyPeriods(
       'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const month = monthNames[current.getMonth()];
     
-    // Format d'ID identique à celui du formulaire de répartition
-    const periodId = `${breakdown.id}_${current.getTime()}`;
-
+    // ID simple basé sur le timestamp pour identifier la période de manière unique
+    const periodId = `week_${current.getTime()}`;
+    
     periods.push({
       id: periodId,
       label: `${day} ${month}`,
-      fieldName: `TC_Breakdown_${periodId}`,
+      fieldName: `TC_Breakdown_${breakdown.id}_${periodId}`, // Conservé pour compatibilité
       breakdownId: breakdown.id,
       breakdownName: breakdown.name,
       order: order++
@@ -146,13 +153,10 @@ export function generateCustomPeriods(breakdown: Breakdown): TimelinePeriod[] {
   breakdown.customPeriods
     .sort((a, b) => a.order - b.order)
     .forEach((period, index) => {
-      // Format d'ID identique à celui du formulaire de répartition
-      const periodId = `${breakdown.id}_${period.id}`;
-      
       periods.push({
-        id: periodId,
+        id: period.id, // Utilise l'ID de la période custom directement
         label: period.name,
-        fieldName: `TC_Breakdown_${periodId}`,
+        fieldName: `TC_Breakdown_${breakdown.id}_${period.id}`, // Conservé pour compatibilité
         breakdownId: breakdown.id,
         breakdownName: breakdown.name,
         order: index
@@ -185,84 +189,62 @@ export function generatePeriodsForBreakdown(
 
 /**
  * Obtient la valeur d'une période pour une tactique donnée.
+ * MODIFIÉ: Utilise le service breakdown au lieu des champs plats.
  */
 export function getPeriodValue(tactique: any, period: TimelinePeriod): string {
-  const value = tactique[period.fieldName];
-  return value !== undefined ? String(value) : '';
+  return getTactiqueBreakdownValue(tactique, period.breakdownId, period.id);
 }
 
 /**
  * Obtient le statut d'activation d'une période pour une tactique (breakdown par défaut uniquement).
+ * MODIFIÉ: Utilise le service breakdown au lieu des champs plats.
  */
 export function getPeriodActiveStatus(tactique: any, period: TimelinePeriod): boolean {
-  const activeFieldName = `TC_Breakdown_Active_${period.id}`;
-  const activeStatus = tactique[activeFieldName];
-  return activeStatus !== undefined ? Boolean(activeStatus) : true; // Par défaut activé
+  return getTactiqueBreakdownToggleStatus(tactique, period.breakdownId, period.id);
 }
 
 /**
  * Calcule le total des valeurs numériques pour un breakdown.
+ * MODIFIÉ: Utilise le service breakdown au lieu de calculer manuellement.
  */
 export function calculateBreakdownTotal(
   tactique: any, 
   periods: TimelinePeriod[], 
   isDefaultBreakdown: boolean = false
 ): number {
-  return periods
-    .filter(period => {
-      if (!isDefaultBreakdown) return true;
-      return getPeriodActiveStatus(tactique, period);
-    })
-    .reduce((sum, period) => {
-      const value = getPeriodValue(tactique, period);
-      const numValue = parseFloat(value);
-      return !isNaN(numValue) ? sum + numValue : sum;
-    }, 0);
+  if (periods.length === 0) return 0;
+  
+  // Utilise la fonction du service qui gère déjà la logique des périodes actives
+  const breakdownId = periods[0].breakdownId;
+  return calculateTactiqueBreakdownTotal(tactique, breakdownId, isDefaultBreakdown);
 }
 
 /**
  * Vérifie si toutes les valeurs d'un breakdown sont numériques.
+ * MODIFIÉ: Utilise le service breakdown au lieu de calculer manuellement.
  */
 export function areAllValuesNumeric(
   tactique: any, 
   periods: TimelinePeriod[], 
   isDefaultBreakdown: boolean = false
 ): boolean {
-  const relevantPeriods = periods.filter(period => {
-    if (!isDefaultBreakdown) return true;
-    return getPeriodActiveStatus(tactique, period);
-  });
-
-  if (relevantPeriods.length === 0) return false;
-
-  const values = relevantPeriods
-    .map(period => getPeriodValue(tactique, period))
-    .filter(value => value.trim() !== '');
-
-  if (values.length === 0) return false;
-
-  return values.every(value => {
-    const trimmedValue = value.trim();
-    const numericRegex = /^[-+]?(\d+([.,]\d*)?|\.\d+)$/;
-    
-    if (!numericRegex.test(trimmedValue)) {
-      return false;
-    }
-
-    const numValue = parseFloat(trimmedValue.replace(',', '.'));
-    return !isNaN(numValue) && isFinite(numValue);
-  });
+  if (periods.length === 0) return false;
+  
+  // Utilise la fonction du service qui gère déjà la logique des périodes actives
+  const breakdownId = periods[0].breakdownId;
+  return areAllTactiqueBreakdownValuesNumeric(tactique, breakdownId, isDefaultBreakdown);
 }
 
 /**
  * Distribue équitablement un montant sur les périodes actives.
+ * MODIFIÉ: Retourne les données dans le nouveau format pour le service breakdown.
  */
 export function distributeAmountEqually(
   totalAmount: number,
   periods: TimelinePeriod[],
   activePeriods: { [periodId: string]: boolean } = {},
   isDefaultBreakdown: boolean = false
-): { [fieldName: string]: string } {
+): { [periodId: string]: { value: string; isToggled: boolean } } {
   const relevantPeriods = periods.filter(period => {
     if (!isDefaultBreakdown) return true;
     return activePeriods[period.id] !== false;
@@ -271,10 +253,13 @@ export function distributeAmountEqually(
   if (relevantPeriods.length === 0) return {};
 
   const amountPerPeriod = totalAmount / relevantPeriods.length;
-  const result: { [fieldName: string]: string } = {};
+  const result: { [periodId: string]: { value: string; isToggled: boolean } } = {};
 
   relevantPeriods.forEach(period => {
-    result[period.fieldName] = amountPerPeriod.toFixed(2);
+    result[period.id] = {
+      value: amountPerPeriod.toFixed(2),
+      isToggled: true
+    };
   });
 
   return result;

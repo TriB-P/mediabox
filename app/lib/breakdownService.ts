@@ -1,8 +1,13 @@
+// app/lib/breakdownService.ts
+
 /**
  * Ce fichier gère toutes les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
  * pour les breakdowns d'une campagne dans Firebase Firestore.
  * Il inclut également des fonctions utilitaires pour la validation des dates
  * et la gestion des breakdowns par défaut.
+ * 
+ * NOUVEAU: Gestion des données de breakdown stockées directement sur les tactiques
+ * sous forme d'objet structuré au lieu de champs plats.
  */
 import {
   collection,
@@ -27,12 +32,45 @@ import {
   DEFAULT_BREAKDOWN_NAME
 } from '../types/breakdown';
 
+// ============================================================================
+// INTERFACES POUR LA NOUVELLE STRUCTURE DE DONNÉES
+// ============================================================================
+
+/**
+ * Structure d'une période de breakdown sur une tactique
+ */
+export interface TactiqueBreakdownPeriod {
+  value: string;
+  isToggled: boolean;
+  order: number;
+}
+
+/**
+ * Structure des breakdowns sur une tactique
+ */
+export interface TactiqueBreakdownData {
+  [breakdownId: string]: {
+    [periodId: string]: TactiqueBreakdownPeriod;
+  };
+}
+
+/**
+ * Données de breakdown à sauvegarder pour une tactique
+ */
+export interface BreakdownUpdateData {
+  breakdownId: string;
+  periodId: string;
+  value: string;
+  isToggled?: boolean;
+  order?: number;
+}
+
+// ============================================================================
+// FONCTIONS DE VALIDATION EXISTANTES (inchangées)
+// ============================================================================
+
 /**
  * Valide une date selon le type de breakdown.
- * @param date - La date à valider au format YYYY-MM-DD.
- * @param type - Le type de breakdown ('Hebdomadaire', 'Mensuel', 'Custom').
- * @param isStartDate - Indique si la date est une date de début (true) ou de fin (false).
- * @returns Un objet DateValidationResult indiquant si la date est valide et un message d'erreur si ce n'est pas le cas.
  */
 export function validateBreakdownDate(
   date: string,
@@ -84,8 +122,6 @@ export function validateBreakdownDate(
 
 /**
  * Trouve le lundi le plus proche d'une date donnée.
- * @param date - La date de référence au format YYYY-MM-DD.
- * @returns La date du lundi le plus proche au format YYYY-MM-DD.
  */
 export function getClosestMonday(date: string): string {
   const dateObj = new Date(date + 'T00:00:00');
@@ -107,8 +143,6 @@ export function getClosestMonday(date: string): string {
 
 /**
  * Trouve le 1er du mois d'une date donnée.
- * @param date - La date de référence au format YYYY-MM-DD.
- * @returns La date du 1er du mois au format YYYY-MM-DD.
  */
 export function getFirstOfMonth(date: string): string {
   const dateObj = new Date(date);
@@ -116,19 +150,10 @@ export function getFirstOfMonth(date: string): string {
     .toISOString().split('T')[0];
 }
 
-/**
- * Génère un ID unique pour une période personnalisée.
- * @returns Un identifiant de chaîne unique.
- */
 function generateCustomPeriodId(): string {
   return `period_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-/**
- * Convertit les périodes du formulaire en périodes avec ID.
- * @param periods - Un tableau d'objets CustomPeriodFormData.
- * @returns Un tableau d'objets CustomPeriod avec des IDs générés.
- */
 function processCustomPeriods(periods: CustomPeriodFormData[]): CustomPeriod[] {
   return periods.map((period, index) => ({
     id: generateCustomPeriodId(),
@@ -137,13 +162,10 @@ function processCustomPeriods(periods: CustomPeriodFormData[]): CustomPeriod[] {
   }));
 }
 
-/**
- * Récupère tous les breakdowns pour une campagne spécifique.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @returns Une promesse qui résout en un tableau d'objets Breakdown.
- * @throws Une erreur si la récupération échoue.
- */
+// ============================================================================
+// FONCTIONS CRUD POUR LES BREAKDOWNS (inchangées)
+// ============================================================================
+
 export async function getBreakdowns(
   clientId: string,
   campaignId: string
@@ -170,15 +192,6 @@ export async function getBreakdowns(
   }
 }
 
-/**
- * Crée un nouveau breakdown pour une campagne.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param breakdownData - Les données du breakdown à créer.
- * @param isDefault - Indique si le breakdown doit être le breakdown par défaut.
- * @returns Une promesse qui résout en l'identifiant du breakdown créé.
- * @throws Une erreur si la création échoue ou si les données sont invalides.
- */
 export async function createBreakdown(
   clientId: string,
   campaignId: string,
@@ -255,15 +268,6 @@ export async function createBreakdown(
   }
 }
 
-/**
- * Met à jour un breakdown existant.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param breakdownId - L'identifiant du breakdown à mettre à jour.
- * @param breakdownData - Les nouvelles données du breakdown.
- * @returns Une promesse qui résout lorsque la mise à jour est terminée.
- * @throws Une erreur si la mise à jour échoue, si le breakdown est par défaut ou si les données sont invalides.
- */
 export async function updateBreakdown(
   clientId: string,
   campaignId: string,
@@ -328,14 +332,6 @@ export async function updateBreakdown(
   }
 }
 
-/**
- * Supprime un breakdown existant.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param breakdownId - L'identifiant du breakdown à supprimer.
- * @returns Une promesse qui résout lorsque la suppression est terminée.
- * @throws Une erreur si la suppression échoue ou si le breakdown est le breakdown par défaut.
- */
 export async function deleteBreakdown(
   clientId: string,
   campaignId: string,
@@ -367,15 +363,6 @@ export async function deleteBreakdown(
   }
 }
 
-/**
- * Met à jour les dates du breakdown par défaut lorsque les dates de campagne changent.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param newStartDate - La nouvelle date de début de la campagne.
- * @param newEndDate - La nouvelle date de fin de la campagne.
- * @returns Une promesse qui résout lorsque la mise à jour est terminée.
- * @throws Une erreur si la mise à jour échoue.
- */
 export async function updateDefaultBreakdownDates(
   clientId: string,
   campaignId: string,
@@ -410,15 +397,6 @@ export async function updateDefaultBreakdownDates(
   }
 }
 
-/**
- * Crée le breakdown par défaut pour une nouvelle campagne.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param campaignStartDate - La date de début de la campagne.
- * @param campaignEndDate - La date de fin de la campagne.
- * @returns Une promesse qui résout en l'identifiant du breakdown par défaut créé ou mis à jour.
- * @throws Une erreur si la création échoue ou si les dates sont invalides.
- */
 export async function createDefaultBreakdown(
   clientId: string,
   campaignId: string,
@@ -457,15 +435,6 @@ export async function createDefaultBreakdown(
   }
 }
 
-/**
- * Vérifie et s'assure qu'un breakdown par défaut existe pour une campagne, le crée si nécessaire.
- * @param clientId - L'identifiant du client.
- * @param campaignId - L'identifiant de la campagne.
- * @param campaignStartDate - La date de début de la campagne.
- * @param campaignEndDate - La date de fin de la campagne.
- * @returns Une promesse qui résout en l'identifiant du breakdown par défaut existant ou nouvellement créé.
- * @throws Une erreur si la vérification ou la création échoue.
- */
 export async function ensureDefaultBreakdownExists(
   clientId: string,
   campaignId: string,
@@ -483,4 +452,207 @@ export async function ensureDefaultBreakdownExists(
     console.error('Erreur lors de la vérification du breakdown par défaut:', error);
     throw error;
   }
+}
+
+// ============================================================================
+// NOUVELLES FONCTIONS POUR LA GESTION DES BREAKDOWNS SUR LES TACTIQUES
+// ============================================================================
+
+/**
+ * Lit les données de breakdown d'une tactique selon la nouvelle structure.
+ * NOUVELLE STRUCTURE: breakdown.periods[periodId] = { name, value, isToggled, order }
+ * @param tactique - L'objet tactique contenant les données de breakdown
+ * @param breakdownId - L'ID du breakdown à lire
+ * @param periodId - L'ID de la période à lire (sans préfixe breakdown)
+ * @returns Les données de la période ou undefined si non trouvée
+ */
+export function getTactiqueBreakdownPeriod(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): TactiqueBreakdownPeriod | undefined {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return undefined;
+  }
+  
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods || !breakdown.periods[periodId]) {
+    return undefined;
+  }
+  
+  const period = breakdown.periods[periodId];
+  return {
+    value: period.value || '',
+    isToggled: period.isToggled !== undefined ? period.isToggled : true,
+    order: period.order || 0
+  };
+}
+
+/**
+ * Lit la valeur d'une période de breakdown depuis une tactique.
+ * MODIFIÉ: Utilise la nouvelle structure periods
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param periodId - L'ID de la période (sans préfixe breakdown)
+ * @returns La valeur de la période ou chaîne vide si non trouvée
+ */
+export function getTactiqueBreakdownValue(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.value || '';
+}
+
+/**
+ * Lit le statut d'activation d'une période de breakdown depuis une tactique.
+ * MODIFIÉ: Utilise la nouvelle structure periods
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param periodId - L'ID de la période (sans préfixe breakdown)
+ * @returns Le statut d'activation ou true par défaut
+ */
+export function getTactiqueBreakdownToggleStatus(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): boolean {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.isToggled ?? true;
+}
+
+/**
+ * Met à jour les données de breakdown d'une tactique avec la nouvelle structure.
+ * MODIFIÉ: Utilise la structure breakdown.periods[periodId] = { name, value, isToggled, order }
+ * @param currentTactiqueData - Les données actuelles de la tactique
+ * @param updates - Tableau des mises à jour à appliquer
+ * @returns Les données de tactique mises à jour
+ */
+export function updateTactiqueBreakdownData(
+  currentTactiqueData: any,
+  updates: BreakdownUpdateData[]
+): any {
+  const updatedTactique = { ...currentTactiqueData };
+  
+  // Initialiser l'objet breakdowns s'il n'existe pas
+  if (!updatedTactique.breakdowns) {
+    updatedTactique.breakdowns = {};
+  }
+
+  // Appliquer chaque mise à jour
+  updates.forEach(update => {
+    const { breakdownId, periodId, value, isToggled, order } = update;
+    
+    // Initialiser le breakdown s'il n'existe pas
+    if (!updatedTactique.breakdowns[breakdownId]) {
+      updatedTactique.breakdowns[breakdownId] = {
+        periods: {}
+      };
+    }
+    
+    // Initialiser l'objet periods s'il n'existe pas
+    if (!updatedTactique.breakdowns[breakdownId].periods) {
+      updatedTactique.breakdowns[breakdownId].periods = {};
+    }
+    
+    // Initialiser la période s'il n'existe pas
+    if (!updatedTactique.breakdowns[breakdownId].periods[periodId]) {
+      updatedTactique.breakdowns[breakdownId].periods[periodId] = {
+        name: '', // Sera mis à jour par le tableau
+        value: '',
+        isToggled: true,
+        order: 0
+      };
+    }
+    
+    // Appliquer les mises à jour
+    const period = updatedTactique.breakdowns[breakdownId].periods[periodId];
+    period.value = value;
+    if (isToggled !== undefined) {
+      period.isToggled = isToggled;
+    }
+    if (order !== undefined) {
+      period.order = order;
+    }
+  });
+
+  return updatedTactique;
+}
+
+/**
+ * Calcule le total des valeurs pour un breakdown spécifique d'une tactique.
+ * MODIFIÉ: Utilise la structure breakdown.periods
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param onlyToggled - Si true, ne compte que les périodes activées
+ * @returns Le total des valeurs numériques
+ */
+export function calculateTactiqueBreakdownTotal(
+  tactique: any,
+  breakdownId: string,
+  onlyToggled: boolean = true
+): number {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return 0;
+  }
+
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    return 0;
+  }
+
+  let total = 0;
+
+  Object.values(breakdown.periods).forEach((period: any) => {
+    if (!onlyToggled || period.isToggled) {
+      const numValue = parseFloat(period.value || '0');
+      if (!isNaN(numValue)) {
+        total += numValue;
+      }
+    }
+  });
+
+  return total;
+}
+
+/**
+ * Vérifie si toutes les valeurs d'un breakdown sont numériques.
+ * MODIFIÉ: Utilise la structure breakdown.periods
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param onlyToggled - Si true, ne vérifie que les périodes activées
+ * @returns True si toutes les valeurs sont numériques
+ */
+export function areAllTactiqueBreakdownValuesNumeric(
+  tactique: any,
+  breakdownId: string,
+  onlyToggled: boolean = true
+): boolean {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return false;
+  }
+
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    return false;
+  }
+
+  const periods = Object.values(breakdown.periods) as TactiqueBreakdownPeriod[];
+  
+  const relevantPeriods = periods.filter(period => 
+    !onlyToggled || period.isToggled
+  );
+
+  if (relevantPeriods.length === 0) {
+    return false;
+  }
+
+  return relevantPeriods.every(period => {
+    const value = period.value?.trim();
+    if (!value) return false;
+    
+    const numValue = parseFloat(value);
+    return !isNaN(numValue) && isFinite(numValue);
+  });
 }

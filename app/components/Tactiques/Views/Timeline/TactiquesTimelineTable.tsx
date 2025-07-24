@@ -1,8 +1,8 @@
 // app/components/Tactiques/Views/Timeline/TactiquesTimelineTable.tsx
 /**
  * Tableau d'édition des répartitions temporelles des tactiques.
- * Permet de visualiser et modifier les valeurs des breakdowns avec fonctionnalités
- * de copier-coller, sélection multiple et gestion des périodes actives.
+ * MODIFIÉ: Utilise la nouvelle structure de données de breakdown avec objet imbriqué
+ * au lieu des champs plats sur les tactiques.
  */
 
 'use client';
@@ -12,13 +12,16 @@ import { Tactique } from '../../../../types/tactiques';
 import { Breakdown } from '../../../../types/breakdown';
 import {
   TimelinePeriod,
-  generatePeriodsForBreakdown,
-  getPeriodValue,
-  getPeriodActiveStatus,
-  calculateBreakdownTotal,
-  areAllValuesNumeric,
-  distributeAmountEqually
+  generatePeriodsForBreakdown
 } from './timelinePeriodsUtils';
+import {
+  getTactiqueBreakdownValue,
+  getTactiqueBreakdownToggleStatus,
+  updateTactiqueBreakdownData,
+  calculateTactiqueBreakdownTotal,
+  areAllTactiqueBreakdownValuesNumeric,
+  BreakdownUpdateData
+} from '../../../../lib/breakdownService';
 import {
   CheckIcon,
   XMarkIcon,
@@ -44,13 +47,16 @@ interface TactiquesTimelineTableProps {
 
 interface EditableCell {
   tactiqueId: string;
-  fieldName: string;
+  breakdownId: string;
+  periodId: string;
   value: string;
+  isToggled?: boolean;
 }
 
 interface SelectedCell {
   rowIndex: number;
-  fieldName: string;
+  breakdownId: string;
+  periodId: string;
 }
 
 interface DistributionModalState {
@@ -143,7 +149,7 @@ export default function TactiquesTimelineTable({
         if (selectedCells.length > 0) {
           const firstCell = selectedCells[0];
           const tactique = flatTactiques[firstCell.rowIndex];
-          const value = getPeriodValueForTactique(tactique, firstCell.fieldName);
+          const value = getTactiqueBreakdownValue(tactique, firstCell.breakdownId, firstCell.periodId);
           setCopiedValue(value);
         }
       }
@@ -176,65 +182,99 @@ export default function TactiquesTimelineTable({
   }, [selectedCells, flatTactiques, editMode, copiedValue]);
 
   /**
-   * Obtient la valeur d'une période pour une tactique.
+   * Obtient la valeur d'une période pour une tactique en considérant les modifications en cours.
    */
-  const getPeriodValueForTactique = (tactique: Tactique, fieldName: string): string => {
+  const getPeriodValueForTactique = (tactique: Tactique, breakdownId: string, periodId: string): string => {
     const editedCell = editableCells.find(
-      cell => cell.tactiqueId === tactique.id && cell.fieldName === fieldName
+      cell => cell.tactiqueId === tactique.id && 
+               cell.breakdownId === breakdownId && 
+               cell.periodId === periodId
     );
     
     if (editedCell) {
       return editedCell.value;
     }
     
-    return String(tactique[fieldName as keyof Tactique] || '');
+    return getTactiqueBreakdownValue(tactique, breakdownId, periodId);
+  };
+
+  /**
+   * Obtient le statut d'activation d'une période pour une tactique en considérant les modifications en cours.
+   */
+  const getPeriodToggleForTactique = (tactique: Tactique, breakdownId: string, periodId: string): boolean => {
+    const editedCell = editableCells.find(
+      cell => cell.tactiqueId === tactique.id && 
+               cell.breakdownId === breakdownId && 
+               cell.periodId === periodId
+    );
+    
+    if (editedCell && editedCell.isToggled !== undefined) {
+      return editedCell.isToggled;
+    }
+    
+    return getTactiqueBreakdownToggleStatus(tactique, breakdownId, periodId);
   };
 
   /**
    * Gère la sélection d'une cellule.
    */
-  const handleCellClick = (rowIndex: number, fieldName: string) => {
+  const handleCellClick = (rowIndex: number, breakdownId: string, periodId: string) => {
     if (!editMode) return;
 
     if (isShiftKeyPressed && selectionStart) {
       const startRow = Math.min(selectionStart.rowIndex, rowIndex);
       const endRow = Math.max(selectionStart.rowIndex, rowIndex);
 
-      if (fieldName === selectionStart.fieldName) {
+      if (breakdownId === selectionStart.breakdownId && periodId === selectionStart.periodId) {
         const newSelection: SelectedCell[] = [];
         for (let i = startRow; i <= endRow; i++) {
-          newSelection.push({ rowIndex: i, fieldName });
+          newSelection.push({ rowIndex: i, breakdownId, periodId });
         }
         setSelectedCells(newSelection);
       } else {
-        setSelectedCells([{ rowIndex, fieldName }]);
-        setSelectionStart({ rowIndex, fieldName });
+        setSelectedCells([{ rowIndex, breakdownId, periodId }]);
+        setSelectionStart({ rowIndex, breakdownId, periodId });
       }
     } else {
-      setSelectedCells([{ rowIndex, fieldName }]);
-      setSelectionStart({ rowIndex, fieldName });
+      setSelectedCells([{ rowIndex, breakdownId, periodId }]);
+      setSelectionStart({ rowIndex, breakdownId, periodId });
     }
   };
 
   /**
    * Gère le double-clic pour éditer une cellule.
    */
-  const handleCellDoubleClick = (tactique: Tactique, fieldName: string, rowIndex: number) => {
+  const handleCellDoubleClick = (
+    tactique: Tactique, 
+    breakdownId: string, 
+    periodId: string, 
+    rowIndex: number
+  ) => {
     if (!editMode) return;
 
     const isAlreadyEditing = editableCells.some(
-      cell => cell.tactiqueId === tactique.id && cell.fieldName === fieldName
+      cell => cell.tactiqueId === tactique.id && 
+               cell.breakdownId === breakdownId && 
+               cell.periodId === periodId
     );
 
     if (!isAlreadyEditing) {
-      const currentValue = getPeriodValueForTactique(tactique, fieldName);
+      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId);
+      const currentToggle = getPeriodToggleForTactique(tactique, breakdownId, periodId);
+      
       setEditableCells(prev => [
         ...prev,
-        { tactiqueId: tactique.id, fieldName, value: currentValue }
+        { 
+          tactiqueId: tactique.id, 
+          breakdownId, 
+          periodId, 
+          value: currentValue,
+          isToggled: currentToggle
+        }
       ]);
 
-      setSelectedCells([{ rowIndex, fieldName }]);
-      setSelectionStart({ rowIndex, fieldName });
+      setSelectedCells([{ rowIndex, breakdownId, periodId }]);
+      setSelectionStart({ rowIndex, breakdownId, periodId });
     }
   };
 
@@ -245,6 +285,45 @@ export default function TactiquesTimelineTable({
     const newEditableCells = [...editableCells];
     newEditableCells[index].value = value;
     setEditableCells(newEditableCells);
+  };
+
+  /**
+   * Gère le changement d'état d'activation d'une période.
+   */
+  const handleToggleChange = (
+    tactique: Tactique, 
+    breakdownId: string, 
+    periodId: string, 
+    isToggled: boolean
+  ) => {
+    if (!editMode) return;
+
+    const existingCellIndex = editableCells.findIndex(
+      cell => cell.tactiqueId === tactique.id && 
+               cell.breakdownId === breakdownId && 
+               cell.periodId === periodId
+    );
+
+    if (existingCellIndex >= 0) {
+      const newEditableCells = [...editableCells];
+      newEditableCells[existingCellIndex].isToggled = isToggled;
+      if (!isToggled) {
+        newEditableCells[existingCellIndex].value = '';
+      }
+      setEditableCells(newEditableCells);
+    } else {
+      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId);
+      setEditableCells(prev => [
+        ...prev,
+        { 
+          tactiqueId: tactique.id, 
+          breakdownId, 
+          periodId, 
+          value: isToggled ? currentValue : '',
+          isToggled 
+        }
+      ]);
+    }
   };
 
   /**
@@ -259,16 +338,21 @@ export default function TactiquesTimelineTable({
       const tactique = flatTactiques[cell.rowIndex];
 
       const existingCellIndex = newEditableCells.findIndex(
-        ec => ec.tactiqueId === tactique.id && ec.fieldName === cell.fieldName
+        ec => ec.tactiqueId === tactique.id && 
+              ec.breakdownId === cell.breakdownId && 
+              ec.periodId === cell.periodId
       );
 
       if (existingCellIndex >= 0) {
         newEditableCells[existingCellIndex].value = copiedValue;
       } else {
+        const currentToggle = getPeriodToggleForTactique(tactique, cell.breakdownId, cell.periodId);
         newEditableCells.push({
           tactiqueId: tactique.id,
-          fieldName: cell.fieldName,
-          value: copiedValue
+          breakdownId: cell.breakdownId,
+          periodId: cell.periodId,
+          value: copiedValue,
+          isToggled: currentToggle
         });
       }
     });
@@ -277,7 +361,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Sauvegarde toutes les modifications.
+   * Sauvegarde toutes les modifications avec la nouvelle structure de données.
    */
   const handleSaveChanges = async () => {
     if (editableCells.length === 0) return;
@@ -286,20 +370,34 @@ export default function TactiquesTimelineTable({
       setIsSaving(true);
 
       // Grouper les modifications par tactique
-      const updatesByTactique: { [tactiqueId: string]: Partial<Tactique> } = {};
+      const updatesByTactique: { [tactiqueId: string]: BreakdownUpdateData[] } = {};
 
       editableCells.forEach(cell => {
         if (!updatesByTactique[cell.tactiqueId]) {
-          updatesByTactique[cell.tactiqueId] = {};
+          updatesByTactique[cell.tactiqueId] = [];
         }
-        updatesByTactique[cell.tactiqueId][cell.fieldName as keyof Tactique] = cell.value as any;
+        
+        updatesByTactique[cell.tactiqueId].push({
+          breakdownId: cell.breakdownId,
+          periodId: cell.periodId,
+          value: cell.value,
+          isToggled: cell.isToggled,
+          order: 0 // Vous pouvez ajuster selon vos besoins
+        });
       });
 
-      // Sauvegarder chaque tactique
+      // Sauvegarder chaque tactique avec la nouvelle structure
       for (const tactiqueId of Object.keys(updatesByTactique)) {
         const tactique = flatTactiques.find(t => t.id === tactiqueId);
         if (tactique) {
-          await onUpdateTactique(tactiqueId, tactique.TC_SectionId, updatesByTactique[tactiqueId]);
+          const updatedTactiqueData = updateTactiqueBreakdownData(
+            tactique, 
+            updatesByTactique[tactiqueId]
+          );
+          
+          await onUpdateTactique(tactiqueId, tactique.TC_SectionId, {
+            breakdowns: updatedTactiqueData.breakdowns
+          });
         }
       }
 
@@ -330,15 +428,23 @@ export default function TactiquesTimelineTable({
   /**
    * Vérifie si une cellule est sélectionnée.
    */
-  const isCellSelected = (rowIndex: number, fieldName: string): boolean => {
-    return selectedCells.some(cell => cell.rowIndex === rowIndex && cell.fieldName === fieldName);
+  const isCellSelected = (rowIndex: number, breakdownId: string, periodId: string): boolean => {
+    return selectedCells.some(cell => 
+      cell.rowIndex === rowIndex && 
+      cell.breakdownId === breakdownId && 
+      cell.periodId === periodId
+    );
   };
 
   /**
    * Vérifie si une cellule est en cours d'édition.
    */
-  const isCellEditing = (tactiqueId: string, fieldName: string): boolean => {
-    return editableCells.some(cell => cell.tactiqueId === tactiqueId && cell.fieldName === fieldName);
+  const isCellEditing = (tactiqueId: string, breakdownId: string, periodId: string): boolean => {
+    return editableCells.some(cell => 
+      cell.tactiqueId === tactiqueId && 
+      cell.breakdownId === breakdownId && 
+      cell.periodId === periodId
+    );
   };
 
   if (periods.length === 0) {
@@ -414,42 +520,57 @@ export default function TactiquesTimelineTable({
                 {tactiquesGroupedBySection[sectionId].map((tactique, tactiqueIndex) => {
                   const rowIndex = flatTactiques.findIndex(t => t.id === tactique.id);
                   const isDefaultBreakdown = selectedBreakdown.isDefault;
-                  const total = calculateBreakdownTotal(tactique, periods, isDefaultBreakdown);
-                  const hasNumericValues = areAllValuesNumeric(tactique, periods, isDefaultBreakdown);
+                  const total = calculateTactiqueBreakdownTotal(tactique, selectedBreakdown.id, isDefaultBreakdown);
+                  const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(tactique, selectedBreakdown.id, isDefaultBreakdown);
 
                   return (
                     <tr key={tactique.id} className="hover:bg-gray-50">
                       {/* Colonne tactique */}
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 sticky left-0 bg-white z-10">
                         <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-500"></span>
                           <span>{tactique.TC_Label}</span>
                         </div>
                       </td>
 
                       {/* Colonnes des périodes */}
                       {periods.map((period) => {
-                        const currentValue = getPeriodValueForTactique(tactique, period.fieldName);
-                        const isActive = !isDefaultBreakdown || getPeriodActiveStatus(tactique, period);
+                        const currentValue = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id);
+                        const isActive = getPeriodToggleForTactique(tactique, selectedBreakdown.id, period.id);
                         const cellClasses = `px-2 py-2 whitespace-nowrap text-sm text-center ${
-                          isCellSelected(rowIndex, period.fieldName) ? 'bg-indigo-100' : ''
+                          isCellSelected(rowIndex, selectedBreakdown.id, period.id) ? 'bg-indigo-100' : ''
                         } ${editMode ? 'cursor-cell' : ''}`;
 
-                        if (isCellEditing(tactique.id, period.fieldName)) {
+                        if (isCellEditing(tactique.id, selectedBreakdown.id, period.id)) {
                           const cellIndex = editableCells.findIndex(
-                            cell => cell.tactiqueId === tactique.id && cell.fieldName === period.fieldName
+                            cell => cell.tactiqueId === tactique.id && 
+                                   cell.breakdownId === selectedBreakdown.id && 
+                                   cell.periodId === period.id
                           );
 
                           return (
                             <td key={period.id} className={cellClasses}>
-                              <input
-                                type="text"
-                                value={editableCells[cellIndex]?.value || ''}
-                                onChange={(e) => handleCellChange(cellIndex, e.target.value)}
-                                className="w-full p-1 border border-indigo-500 rounded text-sm text-center"
-                                style={{ fontSize: 'inherit' }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              <div className="relative">
+                                {isDefaultBreakdown && (
+                                  <input
+                                    type="checkbox"
+                                    checked={editableCells[cellIndex]?.isToggled ?? true}
+                                    onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked)}
+                                    className="absolute top-0 left-0 h-3 w-3"
+                                    disabled={!editMode}
+                                  />
+                                )}
+                                <input
+                                  type="text"
+                                  value={editableCells[cellIndex]?.value || ''}
+                                  onChange={(e) => handleCellChange(cellIndex, e.target.value)}
+                                  className={`w-full p-1 border border-indigo-500 rounded text-sm text-center ${
+                                    isDefaultBreakdown ? 'mt-4' : ''
+                                  }`}
+                                  style={{ fontSize: 'inherit' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  disabled={isDefaultBreakdown && !isActive}
+                                />
+                              </div>
                             </td>
                           );
                         }
@@ -458,18 +579,15 @@ export default function TactiquesTimelineTable({
                           <td
                             key={period.id}
                             className={cellClasses}
-                            onClick={() => handleCellClick(rowIndex, period.fieldName)}
-                            onDoubleClick={() => handleCellDoubleClick(tactique, period.fieldName, rowIndex)}
+                            onClick={() => handleCellClick(rowIndex, selectedBreakdown.id, period.id)}
+                            onDoubleClick={() => handleCellDoubleClick(tactique, selectedBreakdown.id, period.id, rowIndex)}
                           >
                             <div className="relative">
                               {isDefaultBreakdown && (
                                 <input
                                   type="checkbox"
                                   checked={isActive}
-                                  onChange={(e) => {
-                                    // TODO: Gérer le changement d'état actif
-                                    console.log('Toggle period active:', period.id, e.target.checked);
-                                  }}
+                                  onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked)}
                                   className="absolute top-0 left-0 h-3 w-3"
                                   disabled={!editMode}
                                 />

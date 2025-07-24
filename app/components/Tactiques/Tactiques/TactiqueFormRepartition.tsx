@@ -1,15 +1,11 @@
-// app/components/Tactiques/TactiqueFormRepartition.tsx
+// app/components/Tactiques/Tactiques/TactiqueFormRepartition.tsx
 /**
- * Ce fichier est un composant React pour le formulaire de répartition d'une tactique.
- * Il permet de configurer les dates de début et de fin d'une tactique,
- * et de répartir des montants sur différentes périodes définies par des "breakdowns" (mensuels, hebdomadaires, ou personnalisés).
- * Il gère également l'activation/désactivation de périodes pour les breakdowns par défaut
- * et offre un outil pour distribuer un montant total équitablement sur les périodes actives.
+ * CORRIGÉ: Problème de réinitialisation des valeurs dans le drawer de tactique
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   HelpIcon,
   createLabelWithHelp,
@@ -17,6 +13,12 @@ import {
 } from './TactiqueFormComponents';
 import { Breakdown } from '../../../types/breakdown';
 import { CalendarIcon, ClockIcon, Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/outline';
+import {
+  getTactiqueBreakdownValue,
+  getTactiqueBreakdownToggleStatus,
+  calculateTactiqueBreakdownTotal,
+  areAllTactiqueBreakdownValuesNumeric
+} from '../../../lib/breakdownService';
 
 interface TactiqueFormRepartitionProps {
   formData: any;
@@ -43,13 +45,7 @@ interface DistributionModalState {
   distributionMode: 'equal' | 'weighted';
 }
 
-/**
- * Génère les périodes pour un breakdown mensuel.
- * @param breakdown L'objet Breakdown pour lequel générer les périodes.
- * @param tactiqueStartDate La date de début de la tactique (optionnel, utilisé si le breakdown est par défaut).
- * @param tactiqueEndDate La date de fin de la tactique (optionnel, utilisé si le breakdown est par défaut).
- * @returns Un tableau d'objets BreakdownPeriod représentant les périodes mensuelles.
- */
+// Fonctions de génération de périodes (inchangées)
 function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -72,8 +68,9 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
 
+    // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
     periods.push({
-      id: `${breakdown.id}_${current.getFullYear()}_${current.getMonth()}`,
+      id: `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`,
       label: `${monthLabel} ${yearSuffix}`,
       value: '',
       breakdownId: breakdown.id,
@@ -91,13 +88,6 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
   return periods;
 }
 
-/**
- * Génère les périodes pour un breakdown hebdomadaire.
- * @param breakdown L'objet Breakdown pour lequel générer les périodes.
- * @param tactiqueStartDate La date de début de la tactique (optionnel, utilisé si le breakdown est par défaut).
- * @param tactiqueEndDate La date de fin de la tactique (optionnel, utilisé si le breakdown est par défaut).
- * @returns Un tableau d'objets BreakdownPeriod représentant les périodes hebdomadaires.
- */
 function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -125,8 +115,9 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
       'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const month = monthNames[current.getMonth()];
 
+    // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
     periods.push({
-      id: `${breakdown.id}_${current.getTime()}`,
+      id: `${breakdown.id}_week_${current.getTime()}`,
       label: `${day} ${month}`,
       value: '',
       breakdownId: breakdown.id,
@@ -144,11 +135,6 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
   return periods;
 }
 
-/**
- * Génère les périodes pour un breakdown custom.
- * @param breakdown L'objet Breakdown pour lequel générer les périodes.
- * @returns Un tableau d'objets BreakdownPeriod représentant les périodes personnalisées.
- */
 function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -156,6 +142,7 @@ function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
     breakdown.customPeriods
       .sort((a, b) => a.order - b.order)
       .forEach((period) => {
+        // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
         periods.push({
           id: `${breakdown.id}_${period.id}`,
           label: period.name,
@@ -169,13 +156,6 @@ function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   return periods;
 }
 
-/**
- * Génère toutes les périodes pour tous les breakdowns fournis.
- * @param breakdowns Un tableau d'objets Breakdown.
- * @param tactiqueStartDate La date de début de la tactique (optionnel).
- * @param tactiqueEndDate La date de fin de la tactique (optionnel).
- * @returns Un tableau d'objets BreakdownPeriod contenant toutes les périodes générées.
- */
 function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const allPeriods: BreakdownPeriod[] = [];
 
@@ -200,82 +180,62 @@ function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string,
   return allPeriods;
 }
 
-/**
- * Vérifie si toutes les valeurs non vides sont numériques pour un breakdown spécifique.
- * @param values Un objet contenant les valeurs des périodes.
- * @param breakdownPeriods Un tableau des périodes pour le breakdown.
- * @param activePeriods Un objet indiquant quelles périodes sont actives.
- * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
- * @returns Vrai si toutes les valeurs non vides sont numériques, faux sinon.
- */
 function areAllValuesNumericForBreakdown(
-  values: { [key: string]: string },
-  breakdownPeriods: BreakdownPeriod[],
-  activePeriods: { [key: string]: boolean },
+  tactique: any,
+  breakdownId: string,
   isDefaultBreakdown: boolean
 ): boolean {
-  const breakdownValues = breakdownPeriods
-    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false)
-    .map(period => values[period.id] || '')
-    .filter(value => value.trim() !== '');
+  // CORRIGÉ: Vérifie s'il y a au moins une valeur numérique, pas toutes
+  return hasAtLeastOneNumericValue(tactique, breakdownId, isDefaultBreakdown);
+}
 
-  if (breakdownValues.length === 0) return false;
+/**
+ * Nouvelle fonction : vérifie s'il y a au moins une valeur numérique valide
+ */
+function hasAtLeastOneNumericValue(
+  tactique: any,
+  breakdownId: string,
+  isDefaultBreakdown: boolean
+): boolean {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return false;
+  }
 
-  return breakdownValues.every(value => {
-    const trimmedValue = value.trim();
-    const numericRegex = /^[-+]?(\d+([.,]\d*)?|\.\d+)$/;
+  const breakdown = tactique.breakdowns[breakdownId];
+  const periods = Object.values(breakdown) as any[];
+  
+  const relevantPeriods = periods.filter(period => 
+    !isDefaultBreakdown || period.isToggled
+  );
 
-    if (!numericRegex.test(trimmedValue)) {
-      return false;
-    }
+  if (relevantPeriods.length === 0) {
+    return false;
+  }
 
-    const numValue = parseFloat(trimmedValue.replace(',', '.'));
+  // Retourne true s'il y a au moins une valeur numérique valide
+  return relevantPeriods.some(period => {
+    const value = period.value?.trim();
+    if (!value) return false;
+    
+    const numValue = parseFloat(value);
     return !isNaN(numValue) && isFinite(numValue);
   });
 }
 
-/**
- * Calcule le total des valeurs numériques pour un breakdown spécifique.
- * @param values Un objet contenant les valeurs des périodes.
- * @param breakdownPeriods Un tableau des périodes pour le breakdown.
- * @param activePeriods Un objet indiquant quelles périodes sont actives.
- * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
- * @returns Le total des valeurs numériques pour le breakdown.
- */
 function calculateTotalForBreakdown(
-  values: { [key: string]: string },
-  breakdownPeriods: BreakdownPeriod[],
-  activePeriods: { [key: string]: boolean },
+  tactique: any,
+  breakdownId: string,
   isDefaultBreakdown: boolean
 ): number {
-  return breakdownPeriods
-    .filter(period => !isDefaultBreakdown || activePeriods[period.id] !== false)
-    .map(period => values[period.id] || '')
-    .filter(value => value.trim() !== '')
-    .reduce((sum, value) => {
-      const numValue = parseFloat(value.trim());
-      return !isNaN(numValue) ? sum + numValue : sum;
-    }, 0);
+  return calculateTactiqueBreakdownTotal(tactique, breakdownId, isDefaultBreakdown);
 }
 
-/**
- * Calcule le pourcentage d'une valeur par rapport au total du breakdown.
- * @param value La valeur à convertir en pourcentage.
- * @param total Le total par rapport auquel calculer le pourcentage.
- * @returns Le pourcentage de la valeur.
- */
 function calculatePercentageForBreakdown(value: string, total: number): number {
   if (total === 0) return 0;
   const numValue = parseFloat(value.trim());
   return !isNaN(numValue) ? (numValue / total) * 100 : 0;
 }
 
-/**
- * Obtient les dates complètes formatées pour affichage.
- * @param tactiqueStartDate La date de début de la tactique.
- * @param tactiqueEndDate La date de fin de la tactique.
- * @returns Un objet contenant les dates de début et de fin formatées.
- */
 function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string): { startDateFormatted: string; endDateFormatted: string } {
   if (!tactiqueStartDate || !tactiqueEndDate) {
     return { startDateFormatted: '', endDateFormatted: '' };
@@ -303,14 +263,6 @@ function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string)
   };
 }
 
-/**
- * Distribue équitablement un montant sur les périodes actives d'un breakdown.
- * @param totalAmount Le montant total à distribuer.
- * @param breakdownPeriods Un tableau des périodes pour le breakdown.
- * @param activePeriods Un objet indiquant quelles périodes sont actives.
- * @param isDefaultBreakdown Un booléen indiquant si c'est un breakdown par défaut.
- * @returns Un objet où les clés sont les IDs des périodes et les valeurs sont les montants distribués.
- */
 function distributeAmountEqually(
   totalAmount: number,
   breakdownPeriods: BreakdownPeriod[],
@@ -333,11 +285,6 @@ function distributeAmountEqually(
   return result;
 }
 
-/**
- * Obtient l'icône correspondante à un type de breakdown.
- * @param type Le type de breakdown ('Hebdomadaire', 'Mensuel', 'Custom').
- * @returns L'icône React correspondante.
- */
 function getBreakdownIcon(type: string) {
   switch (type) {
     case 'Hebdomadaire':
@@ -360,9 +307,7 @@ export default function TactiqueFormRepartition({
 }: TactiqueFormRepartitionProps) {
 
   const [periods, setPeriods] = useState<BreakdownPeriod[]>([]);
-  const [periodValues, setPeriodValues] = useState<{ [key: string]: string }>({});
-  const [activePeriods, setActivePeriods] = useState<{ [key: string]: boolean }>({});
-
+  const [localBreakdownData, setLocalBreakdownData] = useState<any>({}); // État local pour les données de breakdown
   const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
     isOpen: false,
     breakdownId: null,
@@ -371,8 +316,101 @@ export default function TactiqueFormRepartition({
   });
 
   /**
-   * Effet de bord pour générer les périodes lorsque les breakdowns ou les dates de la tactique changent.
-   * Il initialise également les valeurs des périodes et leur état d'activation.
+   * SUPPRIMÉ: Plus besoin de getBreakdownFieldName car on évite les champs plats
+   */
+
+  /**
+   * Crée l'objet breakdowns structuré à partir de l'état local
+   */
+  const createBreakdownsObject = useCallback(() => {
+    const breakdownsObj: any = {};
+    
+    // Grouper les périodes par breakdown pour construire la structure
+    const periodsByBreakdown = periods.reduce((acc, period) => {
+      if (!acc[period.breakdownId]) {
+        acc[period.breakdownId] = [];
+      }
+      acc[period.breakdownId].push(period);
+      return acc;
+    }, {} as { [key: string]: BreakdownPeriod[] });
+
+    Object.entries(periodsByBreakdown).forEach(([breakdownId, breakdownPeriods]) => {
+      const breakdown = breakdowns.find(b => b.id === breakdownId);
+      if (!breakdown) return;
+
+      breakdownsObj[breakdownId] = {
+        name: breakdown.name,
+        type: breakdown.type,
+        periods: {}
+      };
+
+      breakdownPeriods.forEach(period => {
+        // Utiliser l'état local au lieu des champs plats
+        const periodData = localBreakdownData[period.id] || { value: '', isToggled: true };
+        
+        // Extraire l'ID de période original (sans le préfixe breakdown)
+        const originalPeriodId = period.id.replace(`${breakdownId}_`, '');
+        
+        breakdownsObj[breakdownId].periods[originalPeriodId] = {
+          name: period.label,
+          value: periodData.value,
+          isToggled: periodData.isToggled,
+          order: 0
+        };
+      });
+    });
+    
+    return breakdownsObj;
+  }, [periods, localBreakdownData, breakdowns]);
+
+  /**
+   * Initialise l'état local à partir des données existantes de breakdown
+   */
+  const initializeLocalBreakdownData = useCallback(() => {
+    const initialData: any = {};
+    
+    periods.forEach(period => {
+      // Lire depuis l'objet breakdowns existant si disponible
+      const existingBreakdowns = formData.breakdowns || {};
+      const breakdown = existingBreakdowns[period.breakdownId];
+      
+      if (breakdown && breakdown.periods) {
+        const originalPeriodId = period.id.replace(`${period.breakdownId}_`, '');
+        const existingPeriod = breakdown.periods[originalPeriodId];
+        
+        if (existingPeriod) {
+          initialData[period.id] = {
+            value: existingPeriod.value || '',
+            isToggled: existingPeriod.isToggled !== undefined ? existingPeriod.isToggled : true
+          };
+          return;
+        }
+      }
+      
+      // Valeurs par défaut
+      const breakdown_def = breakdowns.find(b => b.id === period.breakdownId);
+      let initialValue = '';
+      
+      if (breakdown_def?.isDefault) {
+        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
+        if (period.isFirst && startDateFormatted) {
+          initialValue = startDateFormatted;
+        } else if (period.isLast && endDateFormatted) {
+          initialValue = endDateFormatted;
+        }
+      }
+      
+      initialData[period.id] = {
+        value: initialValue,
+        isToggled: true
+      };
+    });
+    
+    setLocalBreakdownData(initialData);
+  }, [periods, formData.breakdowns, formData.TC_StartDate, formData.TC_EndDate, breakdowns]);
+
+  /**
+   * Effet pour générer les périodes et initialiser l'état local
    */
   useEffect(() => {
     if (breakdowns.length > 0) {
@@ -382,105 +420,98 @@ export default function TactiqueFormRepartition({
         formData.TC_EndDate
       );
       setPeriods(allPeriods);
-
-      const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
-
-      const initialValues: { [key: string]: string } = {};
-      const initialActivePeriods: { [key: string]: boolean } = {};
-
-      allPeriods.forEach(period => {
-        const fieldName = `TC_Breakdown_${period.id}`;
-        let initialValue = (formData as any)[fieldName] || '';
-
-        const breakdown = breakdowns.find(b => b.id === period.breakdownId);
-        if (breakdown?.isDefault && !initialValue) {
-          if (period.isFirst && startDateFormatted) {
-            initialValue = startDateFormatted;
-          } else if (period.isLast && endDateFormatted) {
-            initialValue = endDateFormatted;
-          }
-        }
-
-        initialValues[period.id] = initialValue;
-
-        const activeFieldName = `TC_Breakdown_Active_${period.id}`;
-
-        if (breakdown?.isDefault) {
-          initialActivePeriods[period.id] = (formData as any)[activeFieldName] !== undefined
-            ? (formData as any)[activeFieldName]
-            : true;
-        }
-      });
-
-      setPeriodValues(initialValues);
-      setActivePeriods(initialActivePeriods);
     } else {
       setPeriods([]);
-      setPeriodValues({});
-      setActivePeriods({});
+      setLocalBreakdownData({});
     }
   }, [breakdowns, formData.TC_StartDate, formData.TC_EndDate]);
 
   /**
-   * Gère le changement de la valeur d'une période.
-   * @param periodId L'identifiant de la période.
-   * @param value La nouvelle valeur de la période.
+   * Effet pour initialiser l'état local quand les périodes changent
+   */
+  useEffect(() => {
+    if (periods.length > 0) {
+      initializeLocalBreakdownData();
+    }
+  }, [periods, initializeLocalBreakdownData]);
+
+  /**
+   * Synchronise l'objet breakdowns avec le formulaire parent (sans champs plats)
+   */
+  useEffect(() => {
+    if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
+      const breakdownsObj = createBreakdownsObject();
+      
+      // Mettre à jour SEULEMENT l'objet breakdowns
+      const syntheticEvent = {
+        target: {
+          name: 'breakdowns',
+          value: breakdownsObj,
+          type: 'object'
+        }
+      } as any;
+      onChange(syntheticEvent);
+    }
+  }, [localBreakdownData, periods, createBreakdownsObject]);
+
+  /**
+   * Gère le changement de valeur d'une période (utilise l'état local)
    */
   const handlePeriodValueChange = (periodId: string, value: string) => {
-    const breakdown = breakdowns.find(b => periods.find(p => p.id === periodId)?.breakdownId === b.id);
-    if (breakdown?.isDefault && !activePeriods[periodId]) {
+    const period = periods.find(p => p.id === periodId);
+    if (!period) return;
+
+    const breakdown = breakdowns.find(b => b.id === period.breakdownId);
+    
+    // Vérifier si la période est active (pour les breakdowns par défaut)
+    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true };
+    if (breakdown?.isDefault && !currentData.isToggled) {
       return;
     }
 
-    setPeriodValues(prev => ({
+    // Mettre à jour l'état local
+    setLocalBreakdownData(prev => ({
       ...prev,
-      [periodId]: value
-    }));
-
-    const fieldName = `TC_Breakdown_${periodId}`;
-    const syntheticEvent = {
-      target: {
-        name: fieldName,
-        value: value,
-        type: 'text'
+      [periodId]: {
+        ...currentData,
+        value: value
       }
-    } as React.ChangeEvent<HTMLInputElement>;
-
-    onChange(syntheticEvent);
+    }));
   };
 
   /**
-   * Gère le changement d'état d'activation (coché/décoché) d'une période.
-   * @param periodId L'identifiant de la période.
-   * @param isActive Le nouvel état d'activation (vrai si actif, faux si inactif).
+   * Gère le changement d'état d'activation d'une période (utilise l'état local)
    */
   const handlePeriodActiveChange = (periodId: string, isActive: boolean) => {
-    setActivePeriods(prev => ({
+    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true };
+
+    // Mettre à jour l'état local
+    setLocalBreakdownData(prev => ({
       ...prev,
-      [periodId]: isActive
-    }));
-
-    if (!isActive) {
-      handlePeriodValueChange(periodId, '');
-    }
-
-    const activeFieldName = `TC_Breakdown_Active_${periodId}`;
-    const syntheticEvent = {
-      target: {
-        name: activeFieldName,
-        value: isActive.toString(),
-        type: 'checkbox',
-        checked: isActive
+      [periodId]: {
+        value: isActive ? currentData.value : '',
+        isToggled: isActive
       }
-    } as unknown as React.ChangeEvent<HTMLInputElement>;
-
-    onChange(syntheticEvent);
+    }));
   };
 
   /**
-   * Ouvre le modal de distribution pour un breakdown spécifique.
-   * @param breakdownId L'identifiant du breakdown pour lequel ouvrir le modal.
+   * Obtient la valeur d'une période depuis l'état local
    */
+  const getPeriodValue = (periodId: string, breakdownId: string): string => {
+    const data = localBreakdownData[periodId];
+    return data?.value || '';
+  };
+
+  /**
+   * Obtient le statut d'activation d'une période depuis l'état local
+   */
+  const getPeriodActiveStatus = (periodId: string, breakdownId: string): boolean => {
+    const data = localBreakdownData[periodId];
+    return data?.isToggled !== undefined ? data.isToggled : true;
+  };
+
+  // Modales et autres handlers (inchangés)
   const handleOpenDistributionModal = (breakdownId: string) => {
     setDistributionModal({
       isOpen: true,
@@ -490,9 +521,6 @@ export default function TactiqueFormRepartition({
     });
   };
 
-  /**
-   * Ferme le modal de distribution.
-   */
   const handleCloseDistributionModal = () => {
     setDistributionModal({
       isOpen: false,
@@ -502,10 +530,6 @@ export default function TactiqueFormRepartition({
     });
   };
 
-  /**
-   * Confirme la distribution d'un montant sur les périodes actives du breakdown sélectionné.
-   * Le montant est distribué équitablement.
-   */
   const handleConfirmDistribution = () => {
     if (!distributionModal.breakdownId || !distributionModal.totalAmount) return;
 
@@ -517,6 +541,12 @@ export default function TactiqueFormRepartition({
 
     const breakdownPeriods = periods.filter(p => p.breakdownId === breakdown.id);
     const isDefaultBreakdown = breakdown.isDefault;
+
+    // Construire l'objet activePeriods à partir de l'état local
+    const activePeriods: { [key: string]: boolean } = {};
+    breakdownPeriods.forEach(period => {
+      activePeriods[period.id] = getPeriodActiveStatus(period.id, breakdown.id);
+    });
 
     const distributedValues = distributeAmountEqually(
       totalAmount,
@@ -598,16 +628,16 @@ export default function TactiqueFormRepartition({
               const breakdownPeriods = periodsByBreakdown[breakdown.id] || [];
               const isDefaultBreakdown = breakdown.isDefault;
 
-              const showCalculationsForBreakdown = areAllValuesNumericForBreakdown(
-                periodValues,
-                breakdownPeriods,
-                activePeriods,
+              // Utiliser l'objet breakdowns pour les calculs
+              const currentBreakdowns = formData.breakdowns || {};
+              const showCalculationsForBreakdown = hasAtLeastOneNumericValue(
+                { breakdowns: currentBreakdowns },
+                breakdown.id,
                 isDefaultBreakdown
               );
               const totalValueForBreakdown = showCalculationsForBreakdown ? calculateTotalForBreakdown(
-                periodValues,
-                breakdownPeriods,
-                activePeriods,
+                { breakdowns: currentBreakdowns },
+                breakdown.id,
                 isDefaultBreakdown
               ) : 0;
 
@@ -662,13 +692,13 @@ export default function TactiqueFormRepartition({
                   <div className="p-6">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {breakdownPeriods.map(period => {
-                        const currentValue = periodValues[period.id] || '';
+                        const currentValue = getPeriodValue(period.id, period.breakdownId);
                         const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0
                           ? calculatePercentageForBreakdown(currentValue, totalValueForBreakdown)
                           : 0;
 
                         const isDefaultBreakdown = breakdown.isDefault;
-                        const isActive = isDefaultBreakdown ? (activePeriods[period.id] ?? true) : true;
+                        const isActive = getPeriodActiveStatus(period.id, period.breakdownId);
 
                         return (
                           <div key={period.id} className={`rounded-lg transition-all duration-200 ${
@@ -708,7 +738,8 @@ export default function TactiqueFormRepartition({
                                 }`}
                               />
 
-                              {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && (
+                              {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && 
+                               !isNaN(parseFloat(currentValue.trim())) && (
                                 <div className="mt-2 text-center space-y-1">
                                   <div className="text-sm font-medium text-indigo-600">
                                     {percentage.toFixed(1)}%
