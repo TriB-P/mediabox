@@ -201,14 +201,13 @@ export default function TactiquesTimelineView({
                 value={selectedBreakdownId}
                 onChange={(e) => handleBreakdownChange(e.target.value)}
                 disabled={editMode && loading}
-                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="pl-3 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
                 {breakdowns && Array.isArray(breakdowns) && breakdowns.map((breakdown) => {
                   const Icon = getBreakdownIcon(breakdown.type);
                   return (
                     <option key={breakdown.id} value={breakdown.id}>
                       {breakdown.name} ({breakdown.type})
-                      {breakdown.isDefault ? ' - Par défaut' : ''}
                     </option>
                   );
                 })}
@@ -239,16 +238,7 @@ export default function TactiquesTimelineView({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Bouton d'export */}
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-              disabled={loading}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-              Exporter
-            </button>
-
+            
             {/* Bouton mode édition */}
             <button
               onClick={handleToggleEditMode}
@@ -318,29 +308,6 @@ export default function TactiquesTimelineView({
         </div>
       )}
 
-      {/* Statistiques en bas */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <span className="font-medium text-gray-700">Sections :</span>
-            <span className="ml-2 text-gray-600">
-              {Object.keys(tactiquesGroupedBySection).length}
-            </span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-700">Tactiques :</span>
-            <span className="ml-2 text-gray-600">
-              {tactiques.length}
-            </span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-700">Budget total :</span>
-            <span className="ml-2 text-gray-600">
-              {formatCurrency(tactiques.reduce((sum, t) => sum + (t.TC_Budget || 0), 0))}
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
