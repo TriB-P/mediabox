@@ -1,27 +1,42 @@
+// Fichier: components/ui/ClientDropdown.js
+// Chemin: src/components/ui/ClientDropdown.js
+
 /**
  * Ce fichier définit le composant ClientDropdown.
  * Son rôle est d'afficher un menu déroulant qui permet à l'utilisateur de sélectionner
  * un "client" parmi une liste. Il récupère les données via le hook `useClient`,
- * gère un état de chargement, et affiche le nom et le logo du client sélectionné.
+ * gère un état de chargement, affiche le nom et le logo du client sélectionné,
+ * et inclut un outil de recherche pour filtrer les clients.
+ * Les clients sont affichés par ordre alphabétique.
  */
 
 'use client';
 
-
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 import { useClient } from '../../contexts/ClientContext';
 
 /**
  * Affiche un menu déroulant permettant à l'utilisateur de sélectionner un client.
  * Le composant gère son propre état (chargement, liste de clients, client sélectionné)
- * en utilisant le contexte `ClientContext`.
+ * en utilisant le contexte `ClientContext`. Inclut une fonction de recherche et
+ * tri alphabétique des clients.
  * @returns {JSX.Element} Le composant JSX du menu déroulant.
  */
 export default function ClientDropdown() {
   const { availableClients, selectedClient, setSelectedClient, loading } =
     useClient();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fonction pour filtrer et trier les clients
+  const getFilteredAndSortedClients = () => {
+    return availableClients
+      .filter((client) =>
+        client.CL_Name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => a.CL_Name.localeCompare(b.CL_Name));
+  };
 
   if (loading) {
     return <div className="text-sm text-gray-500">Chargement...</div>;
@@ -30,6 +45,8 @@ export default function ClientDropdown() {
   if (availableClients.length === 0) {
     return <div className="text-sm text-gray-500">Aucun client disponible</div>;
   }
+
+  const filteredClients = getFilteredAndSortedClients();
 
   const displayText = selectedClient ? (
     <div className="flex items-center gap-2 truncate">
@@ -69,36 +86,63 @@ export default function ClientDropdown() {
       >
         <Menu.Items className="absolute left-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <div className="py-1">
-            {availableClients.map((client) => (
-              <Menu.Item key={client.clientId}>
-                {({ active }) => (
-                  <button
-                    onClick={() => setSelectedClient(client)}
-                    className={`
-                      ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
-                      ${
-                        client.clientId === selectedClient?.clientId
-                          ? 'bg-gray-50'
-                          : ''
-                      }
-                      flex items-center gap-2 w-full px-4 py-2 text-sm
-                    `}
-                  >
-                    {client.CL_Logo && (
-                      <img
-                        src={client.CL_Logo}
-                        alt={client.CL_Name}
-                        className="h-5 w-5 rounded-full object-cover"
-                      />
+            {/* Champ de recherche */}
+            <div className="px-3 py-2 border-b border-gray-100">
+              <div className="relative">
+                <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un client..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+
+            {/* Liste des clients filtrés */}
+            <div className="max-h-60 overflow-y-auto">
+              {filteredClients.length === 0 ? (
+                <div className="px-4 py-2 text-sm text-gray-500">
+                  Aucun client trouvé
+                </div>
+              ) : (
+                filteredClients.map((client) => (
+                  <Menu.Item key={client.clientId}>
+                    {({ active }) => (
+                      <button
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setSearchTerm(''); // Réinitialiser la recherche après sélection
+                        }}
+                        className={`
+                          ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'}
+                          ${
+                            client.clientId === selectedClient?.clientId
+                              ? 'bg-gray-50'
+                              : ''
+                          }
+                          flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100
+                        `}
+                      >
+                        {client.CL_Logo && (
+                          <img
+                            src={client.CL_Logo}
+                            alt={client.CL_Name}
+                            className="h-5 w-5 rounded-full object-cover"
+                          />
+                        )}
+                        <span className="truncate">{client.CL_Name}</span>
+                        {client.clientId === selectedClient?.clientId && (
+                          <span className="ml-auto text-indigo-600 flex-shrink-0">✓</span>
+                        )}
+                      </button>
                     )}
-                    <span>{client.CL_Name}</span>
-                    {client.clientId === selectedClient?.clientId && (
-                      <span className="ml-auto text-indigo-600">✓</span>
-                    )}
-                  </button>
-                )}
-              </Menu.Item>
-            ))}
+                  </Menu.Item>
+                ))
+              )}
+            </div>
           </div>
         </Menu.Items>
       </Transition>

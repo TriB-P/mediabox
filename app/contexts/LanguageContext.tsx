@@ -18,45 +18,7 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-// Fichier de traductions intégré
-const translations = {
-  fr: {
-    admin: {
-      title: "Administration",
-      subtitle: "Gérer les utilisateurs et les permissions",
-      tabs: {
-        users: "Utilisateurs",
-        permissions: "Permissions"
-      }
-    },
-    common: {
-      loading: "Chargement...",
-      save: "Sauvegarder",
-      cancel: "Annuler",
-      delete: "Supprimer",
-      edit: "Modifier",
-      close: "Fermer"
-    }
-  },
-  en: {
-    admin: {
-      title: "Administration",
-      subtitle: "Manage users and permissions",
-      tabs: {
-        users: "Users",
-        permissions: "Permissions"
-      }
-    },
-    common: {
-      loading: "Loading...",
-      save: "Save",
-      cancel: "Cancel",
-      delete: "Delete",
-      edit: "Edit",
-      close: "Close"
-    }
-  }
-};
+import { translations } from '../locales/translations';
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 

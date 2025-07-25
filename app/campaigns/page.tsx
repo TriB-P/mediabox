@@ -1,3 +1,4 @@
+// app/campaigns/page.tsx
 /**
  * @file Ce fichier définit le composant de la page principale pour la gestion des campagnes publicitaires.
  * @description Ce composant React permet aux utilisateurs de visualiser la liste des campagnes associées au client actuellement sélectionné.
@@ -12,6 +13,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../contexts/LanguageContext';
 import { Campaign, CampaignFormData } from '../types/campaign';
 import { BreakdownFormData } from '../types/breakdown';
 import { getCampaigns, createCampaign, updateCampaign } from '../lib/campaignService';
@@ -25,6 +27,7 @@ import CampaignTable from '../components/Campaigns/CampaignTable';
 export default function CampaignsPage() {
   const { selectedClient } = useClient();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,7 @@ export default function CampaignsPage() {
       setCampaigns(data);
     } catch (err) {
       console.error('Erreur lors du chargement des campagnes:', err);
-      setError('Erreur lors du chargement des campagnes');
+      setError(t('campaigns.loadingError'));
     } finally {
       setLoading(false);
     }
@@ -145,10 +148,10 @@ export default function CampaignsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Aucun client sélectionné
+            {t('campaigns.noClientSelected')}
           </h2>
           <p className="text-gray-600">
-            Veuillez sélectionner un client pour voir ses campagnes.
+            {t('campaigns.noClientMessage')}
           </p>
         </div>
       </div>
@@ -162,10 +165,10 @@ export default function CampaignsPage() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Campagnes
+                {t('campaigns.title')}
               </h1>
               <p className="text-sm text-gray-600">
-                Client: {selectedClient.CL_Name}
+                {t('campaigns.client')} {selectedClient.CL_Name}
               </p>
             </div>
             
@@ -175,7 +178,7 @@ export default function CampaignsPage() {
                   {campaigns.length}
                 </div>
                 <div className="text-xs text-gray-600">
-                  Campagnes totales
+                  {t('campaigns.totalCampaigns')}
                 </div>
               </div>
               <div className="bg-white rounded-lg shadow p-3 text-center w-40">
@@ -188,7 +191,7 @@ export default function CampaignsPage() {
                   }).format(totalBudget)}
                 </div>
                 <div className="text-xs text-gray-600">
-                  Budget total
+                  {t('campaigns.totalBudget')}
                 </div>
               </div>
             </div>
@@ -196,7 +199,7 @@ export default function CampaignsPage() {
 
           <div className="flex justify-between items-end">
             <div className="w-full max-w-md">
-              <label htmlFor="search" className="sr-only">Rechercher une campagne</label>
+              <label htmlFor="search" className="sr-only">{t('campaigns.searchLabel')}</label>
               <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -206,7 +209,7 @@ export default function CampaignsPage() {
                       id="search"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Rechercher par nom ou identifiant..."
+                      placeholder={t('campaigns.searchPlaceholder')}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   />
               </div>
@@ -217,7 +220,7 @@ export default function CampaignsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
-              Nouvelle campagne
+              {t('campaigns.newCampaign')}
             </button>
           </div>
         </div>
@@ -229,7 +232,7 @@ export default function CampaignsPage() {
               onClick={loadCampaigns}
               className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
             >
-              Réessayer
+              {t('campaigns.retry')}
             </button>
           </div>
         )}
