@@ -1,8 +1,9 @@
+// app/layout.tsx
 /**
  * Ce fichier est le layout racine de l'application Next.js.
  * Il définit la structure globale de chaque page et enveloppe l'application avec les fournisseurs de contexte nécessaires.
- * Ces fournisseurs (AuthContext, ClientContext, PermissionsContext, SelectionContext)
- * rendent les données d'authentification, les informations client, les permissions et les sélections disponibles
+ * Ces fournisseurs (AuthContext, ClientContext, PermissionsContext, SelectionContext, LanguageContext)
+ * rendent les données d'authentification, les informations client, les permissions, les sélections et la langue disponibles
  * à tous les composants enfants de l'application.
  */
 import './globals.css';
@@ -11,6 +12,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ClientProvider } from './contexts/ClientContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { SelectionProvider } from './contexts/SelectionContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 export const metadata: Metadata = {
   title: 'MediaBox',
@@ -33,15 +35,17 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="min-h-screen bg-gray-50">
-        <AuthProvider>
-          <ClientProvider>
-            <PermissionsProvider>
-              <SelectionProvider>
-                {children}
-              </SelectionProvider>
-            </PermissionsProvider>
-          </ClientProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ClientProvider>
+              <PermissionsProvider>
+                <SelectionProvider>
+                  {children}
+                </SelectionProvider>
+              </PermissionsProvider>
+            </ClientProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

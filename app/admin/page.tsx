@@ -1,3 +1,4 @@
+// app/admin/page.tsx
 /**
  * Ce fichier définit le composant principal de la page d'administration.
  * Il gère l'affichage des différents onglets (Utilisateurs, Permissions)
@@ -9,6 +10,7 @@
 
 import { useState } from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
+import { useTranslation } from '../contexts/LanguageContext';
 import { redirect } from 'next/navigation';
 import Navigation from '../components/Others/Navigation';
 import UsersTab from '../components/Admin/UsersTab';
@@ -26,6 +28,7 @@ import { Users, Shield } from 'lucide-react';
 
 export default function AdminPage() {
   const { userRole, loading } = usePermissions();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'users' | 'permissions'>('users');
 
   const isAdmin = userRole === 'admin';
@@ -47,12 +50,12 @@ export default function AdminPage() {
   const tabs = [
     {
       id: 'users' as const,
-      name: 'Utilisateurs',
+      name: t('admin.tabs.users'),
       icon: Users,
     },
     {
       id: 'permissions' as const,
-      name: 'Permissions',
+      name: t('admin.tabs.permissions'),
       icon: Shield,
     },
   ];
@@ -64,9 +67,9 @@ export default function AdminPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="px-6 py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Administration</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('admin.title')}</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Gérer les utilisateurs et les permissions
+              {t('admin.subtitle')}
             </p>
           </div>
           
