@@ -1,20 +1,22 @@
+// app/tactiques/layout.tsx
+
 /**
  * Ce fichier définit le layout principal pour la section "Tactiques" de l'application.
- * Il assure que l'utilisateur est authentifié et protégé via des routes spécifiques,
- * et enveloppe les composants enfants avec le contexte du partenaire.
+ * Il assure que l'utilisateur est authentifié et protégé via des routes spécifiques.
+ * 
+ * VERSION 2024 : PartnerProvider supprimé car TC_Publisher utilise maintenant le cache localStorage
  */
 'use client';
 
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
-import { PartnerProvider } from '../contexts/PartnerContext';
 
 /**
  * Composant de layout pour la section des tactiques.
  *
  * @param {object} props - Les propriétés du composant.
  * @param {React.ReactNode} props.children - Les éléments enfants à rendre dans ce layout.
- * @returns {JSX.Element} Le layout avec les protections de route, le layout authentifié et le fournisseur de contexte partenaire.
+ * @returns {JSX.Element} Le layout avec les protections de route et le layout authentifié.
  */
 export default function TactiquesLayout({
   children,
@@ -24,9 +26,7 @@ export default function TactiquesLayout({
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <PartnerProvider>
-          {children}
-        </PartnerProvider>
+        {children}
       </AuthenticatedLayout>
     </ProtectedRoute>
   );

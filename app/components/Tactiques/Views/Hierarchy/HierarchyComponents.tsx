@@ -1,9 +1,12 @@
+// app/components/Tactiques/Views/Hierarchy/HierarchyComponents.tsx
+
 /**
  * Ce fichier contient les composants React pour afficher la hiérarchie des tactiques, placements et créatifs.
  * Il gère l'affichage des éléments glissables et déposables (Draggable, Droppable) pour permettre la réorganisation.
  * Les composants affichent les informations pertinentes pour chaque niveau (nom, budget, nombre d'éléments enfants, logos de partenaires)
  * et gèrent les interactions utilisateur comme l'édition, l'expansion/réduction et la sélection.
  * Il inclut également la logique pour afficher les indicateurs de taxonomie et les menus contextuels associés.
+ * 
  */
 'use client';
 
@@ -17,10 +20,12 @@ import {
   Bars3Icon
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
-import { usePartners } from '../../../../contexts/PartnerContext';
 import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
+
+// NOUVEAU : Import des fonctions de cache
+import { getCachedAllShortcodes, ShortcodeItem } from '../../../../lib/cacheService';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
@@ -468,6 +473,7 @@ interface TactiqueItemProps extends BaseItemProps {
  * Composant pour afficher un élément de tactique dans la hiérarchie.
  * Permet le glisser-déposer, l'expansion/réduction pour afficher les placements enfants, l'édition et la sélection.
  * Gère également l'affichage du logo partenaire, l'ajout de nouveaux placements et le budget.
+ * VERSION 2024 : Utilise le cache localStorage pour les logos partenaires
  * @param {TactiqueItemProps} props - Les propriétés du composant.
  * @returns {React.FC<TactiqueItemProps>} Le composant TactiqueItem.
  */
@@ -501,25 +507,33 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
 
-  const { partners } = usePartners();
-
   const [partnerImageUrl, setPartnerImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   /**
-   * Charge l'image du partenaire depuis Firebase Storage ou une URL directe.
-   * Si le chemin de l'image commence par 'gs://', elle est récupérée depuis Firebase Storage.
-   * Sinon, l'URL est utilisée directement.
-   * Met à jour l'état de l'URL de l'image, du chargement et des erreurs.
+   * MODIFIÉ : Charge l'image du partenaire depuis le cache localStorage.
+   * Récupère d'abord les shortcodes du cache, trouve le partenaire correspondant,
+   * puis charge son logo depuis Firebase Storage ou URL directe.
    * @returns {Promise<void>}
    */
   useEffect(() => {
-    const loadPartnerImage = async () => {
+    const loadPartnerImageFromCache = async () => {
       if (!tactique.TC_Publisher) return;
 
-      const partner = partners.find(p => p.id === tactique.TC_Publisher);
-      if (!partner?.SH_Logo) return;
+      // 1. Récupérer tous les shortcodes depuis le cache
+      const allShortcodes = getCachedAllShortcodes();
+      if (!allShortcodes) {
+        console.warn('[CACHE] Aucun shortcode en cache pour charger le logo partenaire');
+        return;
+      }
+
+      // 2. Chercher le partenaire dans les shortcodes
+      const partner = allShortcodes[tactique.TC_Publisher];
+      if (!partner?.SH_Logo) {
+        console.log(`[CACHE] Aucun logo trouvé pour le partenaire ${tactique.TC_Publisher}`);
+        return;
+      }
 
       setImageLoading(true);
       setImageError(false);
@@ -528,23 +542,40 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
         const storage = getStorage();
 
         if (partner.SH_Logo.startsWith('gs://')) {
-          console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerImage - Path: partners/${partner.id}/logo");
+          console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerImageFromCache - Path: partners/${partner.id}/logo");
           const storageRef = ref(storage, partner.SH_Logo);
           const url = await getDownloadURL(storageRef);
           setPartnerImageUrl(url);
         } else {
           setPartnerImageUrl(partner.SH_Logo);
         }
+        
+        console.log(`[CACHE] ✅ Logo chargé pour partenaire ${partner.SH_Display_Name_FR}`);
       } catch (error) {
-        console.error('Erreur chargement logo partenaire:', error);
+        console.error('[CACHE] Erreur chargement logo partenaire:', error);
         setImageError(true);
       } finally {
         setImageLoading(false);
       }
     };
 
-    loadPartnerImage();
-  }, [tactique.TC_Publisher, partners]);
+    loadPartnerImageFromCache();
+  }, [tactique.TC_Publisher]);
+
+  /**
+   * MODIFIÉ : Récupère les informations du partenaire depuis le cache pour l'affichage de fallback
+   * @returns {ShortcodeItem | null} Le partenaire trouvé ou null
+   */
+  const getPartnerFromCache = (): ShortcodeItem | null => {
+    if (!tactique.TC_Publisher) return null;
+    
+    const allShortcodes = getCachedAllShortcodes();
+    if (!allShortcodes) return null;
+    
+    return allShortcodes[tactique.TC_Publisher] || null;
+  };
+
+  const partner = getPartnerFromCache();
 
   return (
     <Draggable
@@ -585,7 +616,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
               )}
 
-              {/* Logo partenaire - carré plus gros */}
+              {/* Logo partenaire - carré plus gros - MODIFIÉ pour utiliser le cache */}
               <div className="flex items-center mr-3">
                 {imageLoading ? (
                   <div className="w-10 h-10 bg-gray-200 rounded animate-pulse"></div>
@@ -596,9 +627,9 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                     className="w-10 h-10 object-contain rounded"
                     onError={() => setImageError(true)}
                   />
-                ) : tactique.TC_Publisher ? (
+                ) : tactique.TC_Publisher && partner ? (
                   <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
-                    {partners.find(p => p.id === tactique.TC_Publisher)?.SH_Display_Name_FR?.charAt(0) || '?'}
+                    {partner.SH_Display_Name_FR?.charAt(0) || '?'}
                   </div>
                 ) : null}
               </div>

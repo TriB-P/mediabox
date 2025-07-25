@@ -1,4 +1,5 @@
-// components/TactiqueFormStrategie.tsx
+// app/components/Tactiques/Tactiques/TactiqueFormStrategie.tsx
+
 /**
  * Ce fichier contient le composant React TactiqueFormStrategie.
  * Il s'agit d'un formulaire qui permet de configurer les aspects stratégiques et de ciblage d'une tactique média.
@@ -6,7 +7,6 @@
  * diverses descriptions textuelles (marché, ciblage, produit, format, emplacement), la fréquence, le marché et la langue.
  * Il gère également l'affichage conditionnel de champs personnalisés et des informations relatives à la production.
  *
- * Ce composant reçoit ses données et gestionnaires d'événements via les props, ce qui le rend réutilisable.
  */
 'use client';
 
@@ -69,9 +69,9 @@ interface TactiqueFormStrategieProps {
   dynamicLists: { [key: string]: ListItem[] };
   visibleFields: VisibleFields;
   customDimensions: ClientCustomDimensions;
-  publishersOptions: { id: string; label: string }[];
+  publishersOptions: { id: string; label: string }[]; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
   loading?: boolean;
-  isPublishersLoading?: boolean;
+  isPublishersLoading?: boolean; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
 }
 
 /**
@@ -84,9 +84,9 @@ interface TactiqueFormStrategieProps {
  * @param {object} props.dynamicLists - Les listes dynamiques utilisées pour les sélections.
  * @param {object} props.visibleFields - Un objet indiquant quels champs doivent être visibles.
  * @param {object} props.customDimensions - Les noms des dimensions personnalisées du client.
- * @param {Array} props.publishersOptions - Les options pour le champ "Partenaire".
+ * @param {Array} props.publishersOptions - DEPRECATED: Plus utilisé (TC_Publisher via dynamicLists maintenant).
  * @param {boolean} [props.loading=false] - Indique si le formulaire est en état de chargement global.
- * @param {boolean} [props.isPublishersLoading=false] - Indique si les options de partenaires sont en cours de chargement.
+ * @param {boolean} [props.isPublishersLoading=false] - DEPRECATED: Plus utilisé.
  * @returns {JSX.Element} Le composant de formulaire de stratégie média.
  */
 const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
@@ -96,9 +96,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
   dynamicLists,
   visibleFields,
   customDimensions,
-  publishersOptions,
+  publishersOptions, // DEPRECATED: Plus utilisé
   loading = false,
-  isPublishersLoading = false
+  isPublishersLoading = false // DEPRECATED: Plus utilisé
 }) => {
   const isDisabled = loading;
 
@@ -149,32 +149,38 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
-        {(!isPublishersLoading && publishersOptions.length > 0) && (
+        {(dynamicLists.TC_Publisher && dynamicLists.TC_Publisher.length > 0) && (
           <SmartSelect
             id="TC_Publisher"
             name="TC_Publisher"
             value={formData.TC_Publisher || ''}
             onChange={onChange}
-            options={publishersOptions}
+            options={dynamicLists.TC_Publisher?.map(item => ({
+              id: item.id,
+              label: item.SH_Display_Name_FR
+            })) || []}
             placeholder="Sélectionner un partenaire..."
             label={createLabelWithHelp(
               'Partenaire',
-              'Liste des partenaires pré-chargée',
+              'Liste des partenaires depuis le cache localStorage',
               onTooltipChange
             )}
           />
         )}
-        {(!isPublishersLoading && publishersOptions.length > 0) && (
+        {(dynamicLists.TC_Inventory && dynamicLists.TC_Inventory.length > 0) && (
           <SmartSelect
             id="TC_Inventory"
             name="TC_Inventory"
             value={formData.TC_Inventory || ''}
             onChange={onChange}
-            options={publishersOptions}
+            options={dynamicLists.TC_Inventory?.map(item => ({
+              id: item.id,
+              label: item.SH_Display_Name_FR
+            })) || []}
             placeholder="Sélectionner un inventaire..."
             label={createLabelWithHelp(
               'Inventaire',
-              'Masquer si aucune liste trouvée',
+              'Liste des inventaires depuis le cache localStorage',
               onTooltipChange
             )}
           />

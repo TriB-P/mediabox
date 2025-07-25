@@ -1,3 +1,5 @@
+// app/components/Partenaires/PartnersTitle.tsx
+
 /**
  * @file Ce fichier définit le composant React `PartnersTitle`.
  * Ce composant a pour rôle d'afficher le titre principal de la page des partenaires.
@@ -7,17 +9,30 @@
 
 'use client';
 
-import { usePartners } from '../../contexts/PartnerContext';
+interface Partner {
+  id: string;
+  SH_Code: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
+
+interface PartnersTitleProps {
+  partners: Partner[];
+  filteredPartners: Partner[];
+}
 
 /**
  * Affiche le titre de la section des partenaires ainsi qu'un badge
  * indiquant le nombre de partenaires affichés par rapport au total.
- * Les données des partenaires proviennent du hook `usePartners`.
+ * VERSION 2024 : Reçoit les données des partenaires via props du composant parent.
+ * @param {PartnersTitleProps} props - Les propriétés reçues du parent
  * @returns {JSX.Element} Le composant JSX représentant le titre.
  */
-export default function PartnersTitle() {
-  const { partners, filteredPartners } = usePartners();
-
+export default function PartnersTitle({ partners, filteredPartners }: PartnersTitleProps) {
   const totalCount = partners?.length || 0;
   const filteredCount = filteredPartners?.length || 0;
   const isFiltered = totalCount !== filteredCount && filteredCount > 0;

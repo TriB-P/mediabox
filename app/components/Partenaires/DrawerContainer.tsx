@@ -1,30 +1,49 @@
+// app/components/Partenaires/DrawerContainer.tsx
+
 /**
  * @file DrawerContainer.tsx
  * @description Ce fichier définit le composant conteneur pour le tiroir (drawer) des partenaires.
- * Son rôle est de récupérer l'état global lié aux partenaires (comme le partenaire sélectionné et l'état d'ouverture du tiroir)
- * via le hook `usePartners` et de le transmettre au composant de présentation `PartnerDrawer`.
- * Il gère également la logique de fermeture du tiroir.
+ * Reçoit les props nécessaires du composant parent via props drilling.
  */
 
 'use client';
 
-import { usePartners } from '../../contexts/PartnerContext';
 import PartnerDrawer from './PartnerDrawer';
+
+interface Partner {
+  id: string;
+  SH_Code: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
+
+interface DrawerContainerProps {
+  selectedPartner: Partner | null;
+  isDrawerOpen: boolean;
+  onCloseDrawer: () => void;
+  onUpdatePartner?: (partnerId: string, updatedData: Partial<Partner>) => Promise<void>;
+}
 
 /**
  * @function DrawerContainer
  * @description Un composant conteneur qui affiche le tiroir de détails d'un partenaire.
- * Il utilise le contexte `usePartners` pour déterminer si le tiroir doit être ouvert,
- * quel partenaire afficher, et pour fournir la fonction de fermeture.
+ * @param {DrawerContainerProps} props - Les propriétés reçues du parent
  * @returns {JSX.Element} Le composant PartnerDrawer configuré avec les bonnes props.
  */
-export default function DrawerContainer() {
-  const { selectedPartner, isDrawerOpen, setIsDrawerOpen } = usePartners();
-  
+export default function DrawerContainer({
+  selectedPartner,
+  isDrawerOpen,
+  onCloseDrawer,
+  onUpdatePartner
+}: DrawerContainerProps) {
   return (
     <PartnerDrawer
       isOpen={isDrawerOpen}
-      onClose={() => setIsDrawerOpen(false)}
+      onClose={onCloseDrawer}
       partner={selectedPartner}
     />
   );

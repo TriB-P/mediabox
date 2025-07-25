@@ -1,9 +1,12 @@
+// app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx
+
 /**
  * Ce composant affiche une vue de tableau avancée pour gérer les tactiques,
  * placements et créatifs d'une campagne. Il permet l'édition en ligne des données,
  * la gestion des niveaux d'affichage (section, tactique, placement, créatif)
  * et intègre des listes dynamiques (comme les éditeurs ou les dimensions personnalisées)
  * pour enrichir les options de sélection dans le tableau.
+ * 
  */
 'use client';
 
@@ -15,7 +18,6 @@ import { useTableNavigation } from './EditableTableCell';
 import { getColumnsForLevel, TactiqueSubCategory } from './tableColumns.config';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../../hooks/useCampaignSelection';
-import { usePartners } from '../../../../contexts/PartnerContext';
 import {
   getDynamicList,
   getClientCustomDimensions,
@@ -25,6 +27,14 @@ import {
   ClientCustomDimensions,
   CampaignBucket,
 } from '../../../../lib/tactiqueListService';
+
+// NOUVEAU : Import des fonctions de cache
+import {
+  getListForClient,
+  getCachedAllShortcodes,
+  getCachedOptimizedLists,
+  ShortcodeItem
+} from '../../../../lib/cacheService';
 
 export type TableLevel = 'section' | 'tactique' | 'placement' | 'creatif';
 
@@ -87,8 +97,83 @@ interface TactiquesAdvancedTableViewProps {
 }
 
 /**
+ * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
+ * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher', 'TC_LoB')
+ * @param clientId - L'identifiant du client
+ * @returns Promise<ListItem[]> - La liste des éléments
+ */
+const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
+  try {
+    console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
+    
+    // Essayer d'abord le cache
+    const cachedList = getListForClient(fieldId, clientId);
+    
+    if (cachedList && cachedList.length > 0) {
+      console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
+      
+      // Convertir ShortcodeItem[] vers ListItem[] (structures identiques)
+      return cachedList.map(item => ({
+        id: item.id,
+        SH_Code: item.SH_Code,
+        SH_Display_Name_FR: item.SH_Display_Name_FR,
+        SH_Display_Name_EN: item.SH_Display_Name_EN,
+        SH_Default_UTM: item.SH_Default_UTM,
+        SH_Logo: item.SH_Logo,
+        SH_Type: item.SH_Type,
+        SH_Tags: item.SH_Tags
+      }));
+    }
+    
+    // Fallback sur Firebase si pas de cache
+    console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
+    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+    return await getDynamicList(fieldId, clientId);
+    
+  } catch (error) {
+    console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
+    
+    // En cas d'erreur, fallback sur Firebase
+    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    return await getDynamicList(fieldId, clientId);
+  }
+};
+
+/**
+ * NOUVEAU : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
+ * @param fieldId - L'identifiant du champ
+ * @param clientId - L'identifiant du client
+ * @returns Promise<boolean> - true si la liste existe
+ */
+const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<boolean> => {
+  try {
+    // Essayer d'abord le cache
+    const cachedList = getListForClient(fieldId, clientId);
+    
+    if (cachedList !== null) {
+      const hasItems = cachedList.length > 0;
+      console.log(`[CACHE] ${fieldId} existe dans le cache: ${hasItems}`);
+      return hasItems;
+    }
+    
+    // Fallback sur Firebase
+    console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
+    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+    return await hasDynamicList(fieldId, clientId);
+    
+  } catch (error) {
+    console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
+    
+    // En cas d'erreur, fallback sur Firebase
+    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    return await hasDynamicList(fieldId, clientId);
+  }
+};
+
+/**
  * Composant principal de la vue de tableau avancée des tactiques.
  * Gère l'affichage, l'édition et la sauvegarde des données de campagne.
+ * VERSION 2024 : TC_Publisher traité via le cache localStorage
  *
  * @param {TactiquesAdvancedTableViewProps} props Les propriétés du composant incluant les données et les fonctions de mise à jour.
  * @returns {JSX.Element} Le composant de la vue de tableau avancée.
@@ -107,7 +192,6 @@ export default function TactiquesAdvancedTableView({
 
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
-  const { getPublishersForSelect, isPublishersLoading } = usePartners();
 
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
@@ -117,7 +201,8 @@ export default function TactiquesAdvancedTableView({
 
   /**
    * Charge toutes les données dynamiques nécessaires pour les listes de sélection
-   * du tableau (dimensions personnalisées, listes dynamiques de champs, buckets de campagne, éditeurs).
+   * du tableau (dimensions personnalisées, listes dynamiques de champs, buckets de campagne).
+   * VERSION 2024 : TC_Publisher chargé via le cache comme les autres listes
    *
    * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
    */
@@ -129,13 +214,16 @@ export default function TactiquesAdvancedTableView({
     setListsLoading(true);
 
     try {
+      console.log(`[CACHE] 🚀 Début chargement données avec cache pour TactiquesAdvancedTableView`);
+      
       console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/customDimensions");
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       setCustomDimensions(clientDimensions);
 
+      // MODIFIÉ : TC_Publisher ajouté dans la liste des champs dynamiques
       const dynamicListFields = [
-        'TC_LoB', 'TC_Media_Type', 'TC_Buying_Method', 'TC_Custom_Dim_1',
-        'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Market', 'TC_Language',
+        'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
+        'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language',
         'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
       ];
 
@@ -147,40 +235,26 @@ export default function TactiquesAdvancedTableView({
 
       const newDynamicLists: { [key: string]: ListItem[] } = {};
       
+      // MODIFIÉ : Traiter tous les champs via le cache (incluant TC_Publisher)
       for (const field of dynamicListFields) {
         if (field.startsWith('TC_Custom_Dim_') && !newVisibleFields[field]) {
           continue;
         }
         
         try {
-          console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clientDynamicLists/${selectedClient.clientId}/[field]");
-          const hasListResult = await hasDynamicList(field, selectedClient.clientId);
+          console.log(`[CACHE] Vérification existence de ${field}`);
+          const hasListResult = await hasCachedOrFirebaseList(field, selectedClient.clientId);
           newVisibleFields[field] = hasListResult;
           
           if (hasListResult) {
-            console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clientDynamicLists/${selectedClient.clientId}/[field]");
-            const list = await getDynamicList(field, selectedClient.clientId);
+            console.log(`[CACHE] Chargement de ${field}`);
+            const list = await getCachedOrFirebaseList(field, selectedClient.clientId);
             newDynamicLists[field] = list;
           }
         } catch (fieldError) {
           console.warn(`⚠️ Erreur chargement ${field}:`, fieldError);
           newVisibleFields[field] = false;
         }
-      }
-
-      const publishersOptions = getPublishersForSelect();
-      if (!isPublishersLoading && publishersOptions.length > 0) {
-        newVisibleFields.TC_Publisher = true;
-        newVisibleFields.TC_Inventory = true;
-
-        const publishersAsListItems = publishersOptions.map(p => ({
-          id: p.id,
-          SH_Code: p.id,
-          SH_Display_Name_FR: p.label,
-        } as ListItem));
-
-        newDynamicLists.TC_Publisher = publishersAsListItems;
-        newDynamicLists.TC_Inventory = publishersAsListItems;
       }
 
       setDynamicLists(newDynamicLists);
@@ -199,12 +273,14 @@ export default function TactiquesAdvancedTableView({
         setBuckets([]);
       }
 
+      console.log(`[CACHE] ✅ Chargement terminé avec cache pour TactiquesAdvancedTableView`);
+
     } catch (error) {
       console.error('❌ Erreur lors du chargement des listes dynamiques:', error);
     } finally {
       setListsLoading(false);
     }
-  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, getPublishersForSelect]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
   /**
    * Effet de bord qui déclenche le chargement des données dynamiques
@@ -212,7 +288,7 @@ export default function TactiquesAdvancedTableView({
    */
   useEffect(() => {
     loadAllDynamicData();
-  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, isPublishersLoading, loadAllDynamicData]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, loadAllDynamicData]);
 
   /**
    * Effet de bord qui réinitialise les états des listes dynamiques
@@ -228,7 +304,8 @@ export default function TactiquesAdvancedTableView({
 
   /**
    * Enrichit les colonnes de tableau de base avec des options de listes dynamiques
-   * (buckets, listes dynamiques des champs, éditeurs, inventaire).
+   * (buckets, listes dynamiques des champs, partenaires via cache).
+   * VERSION 2024 : TC_Publisher traité comme les autres listes dynamiques
    *
    * @param {TableLevel} level Le niveau actuel du tableau (section, tactique, placement, créatif).
    * @param {TactiqueSubCategory} [tactiqueSubCategory] La sous-catégorie de tactique, si applicable.
@@ -249,19 +326,20 @@ export default function TactiquesAdvancedTableView({
             }));
             break;
 
+          // MODIFIÉ : TC_Publisher traité comme les autres listes dynamiques
           case 'TC_LoB':
           case 'TC_Media_Type':
+          case 'TC_Publisher':
           case 'TC_Buying_Method':
           case 'TC_Custom_Dim_1':
           case 'TC_Custom_Dim_2':
           case 'TC_Custom_Dim_3':
+          case 'TC_Inventory':
           case 'TC_Market':
           case 'TC_Language':
           case 'TC_Media_Objective':
           case 'TC_Kpi':
           case 'TC_Unit_Type':
-          case 'TC_Publisher':
-          case 'TC_Inventory':
             const listData = dynamicLists[column.key] || [];
             enrichedColumn.options = listData.map(item => ({
               id: item.id,

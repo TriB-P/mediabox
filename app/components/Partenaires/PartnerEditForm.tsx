@@ -1,22 +1,43 @@
+// app/components/Partenaires/PartnerEditForm.tsx
+
 /**
  * Ce fichier définit le composant PartnerEditForm, qui est utilisé pour afficher et modifier les détails
  * d'un partenaire (stakeholder). Le composant possède deux états : un mode de visualisation pour afficher
- * les informations et un mode d'édition pour les modifier via un formulaire. Il interagit avec le
- * PartnerContext pour accéder aux données du partenaire sélectionné et pour déclencher les mises à jour.
+ * les informations et un mode d'édition pour les modifier via un formulaire.
  */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePartners } from '../../contexts/PartnerContext';
+
+interface Partner {
+  id: string;
+  SH_Code: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
+
+interface PartnerEditFormProps {
+  selectedPartner: Partner | null;
+  onUpdatePartner: (partnerId: string, updatedData: Partial<Partner>) => Promise<void>;
+  onCloseDrawer: () => void;
+}
 
 /**
  * Le composant PartnerEditForm gère l'affichage et la modification des détails d'un partenaire.
  * Il utilise l'état local pour gérer le mode (édition ou visualisation) et les données du formulaire.
- * Les données du partenaire proviennent du `PartnerContext`.
+ * VERSION 2024 : Reçoit les données du partenaire et les fonctions de mise à jour via props.
+ * @param {PartnerEditFormProps} props - Les propriétés reçues du parent
  * @returns {JSX.Element | null} Le JSX pour le formulaire d'édition ou la vue détaillée, ou null si aucun partenaire n'est sélectionné.
  */
-export default function PartnerEditForm() {
-  const { selectedPartner, updateSelectedPartner, setIsDrawerOpen } = usePartners();
+export default function PartnerEditForm({
+  selectedPartner,
+  onUpdatePartner,
+  onCloseDrawer
+}: PartnerEditFormProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -59,8 +80,8 @@ export default function PartnerEditForm() {
 
   /**
    * Gère la soumission du formulaire d'édition.
-   * Calcule les champs qui ont été modifiés, puis appelle la fonction `updateSelectedPartner`
-   * du contexte pour enregistrer les changements dans Firebase.
+   * Calcule les champs qui ont été modifiés, puis appelle la fonction `onUpdatePartner`
+   * reçue via props pour enregistrer les changements.
    * @param {React.FormEvent} e - L'événement de soumission du formulaire.
    */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,7 +106,7 @@ export default function PartnerEditForm() {
       }
 
       console.log(`FIREBASE: [ÉCRITURE] - Fichier: PartnerEditForm.tsx - Fonction: handleSubmit - Path: stakeholders/${selectedPartner.id}`);
-      await updateSelectedPartner(updatedFields);
+      await onUpdatePartner(selectedPartner.id, updatedFields);
       setIsEditing(false);
     } catch (error: any) {
       setError(error.message || 'Une erreur est survenue lors de la mise à jour du partenaire');

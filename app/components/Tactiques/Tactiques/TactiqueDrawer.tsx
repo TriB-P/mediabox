@@ -43,7 +43,6 @@ import {
   CampaignBucket,
 } from '../../../lib/tactiqueListService';
 import { getBreakdowns } from '../../../lib/breakdownService';
-import { usePartners } from '../../../contexts/PartnerContext';
 import { useAsyncTaxonomyUpdate } from '../../../hooks/useAsyncTaxonomyUpdate';
 import TaxonomyUpdateBanner from '../../Others/TaxonomyUpdateBanner';
 
@@ -257,7 +256,6 @@ export default function TactiqueDrawer({
 }: TactiqueDrawerProps) {
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
-  const { getPublishersForSelect, isPublishersLoading } = usePartners();
   const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
 
   const [activeTab, setActiveTab] = useState('info');
@@ -299,15 +297,12 @@ export default function TactiqueDrawer({
     { id: 'admin', name: 'Admin', icon: CogIcon },
   ], []);
 
+  // MODIFIÉ : TC_Publisher ajouté dans la liste des champs dynamiques
   const dynamicListFields = useMemo(() => [
-    'TC_LoB', 'TC_Media_Type', 'TC_Buying_Method', 'TC_Custom_Dim_1',
-    'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Market', 'TC_Language',
+    'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
+    'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language',
     'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);
-
-  const publishersOptions = useMemo(() =>
-    getPublishersForSelect(), [getPublishersForSelect]
-  );
 
   useEffect(() => {
     if (tactique) {
@@ -354,6 +349,7 @@ export default function TactiqueDrawer({
 
   /**
    * MODIFIÉE : Charge toutes les données avec priorité sur le cache localStorage
+   * VERSION 2024 : TC_Publisher traité comme toute autre liste
    */
   const loadAllData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
@@ -375,7 +371,7 @@ export default function TactiqueDrawer({
         TC_Custom_Dim_3: !!clientDimensions.Custom_Dim_CA_3,
       };
 
-      // 2. MODIFIÉ : Vérifier l'existence des listes via le cache
+      // 2. MODIFIÉ : Vérifier l'existence des listes via le cache (incluant TC_Publisher)
       for (const field of dynamicListFields) {
         if (field.startsWith('TC_Custom_Dim_') && !newVisibleFields[field]) {
           continue;
@@ -386,9 +382,7 @@ export default function TactiqueDrawer({
         newVisibleFields[field] = hasListResult;
       }
 
-      newVisibleFields.TC_Publisher = !isPublishersLoading && publishersOptions.length > 0;
-
-      // 3. MODIFIÉ : Charger les listes via le cache
+      // 3. MODIFIÉ : Charger les listes via le cache (incluant TC_Publisher)
       const newDynamicLists: { [key: string]: ListItem[] } = {};
       for (const field of dynamicListFields) {
         if (newVisibleFields[field]) {
@@ -449,8 +443,7 @@ export default function TactiqueDrawer({
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, isPublishersLoading, publishersOptions.length]);
-
+  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields]);
 
   /**
    * Gestionnaire générique pour mettre à jour l'état du formulaire lors d'un changement d'input.
@@ -622,9 +615,9 @@ export default function TactiqueDrawer({
             dynamicLists={dynamicLists}
             visibleFields={visibleFields}
             customDimensions={customDimensions}
-            publishersOptions={publishersOptions}
+            publishersOptions={[]} // SUPPRIMÉ : Plus d'options spéciales pour publishers
             loading={loading}
-            isPublishersLoading={isPublishersLoading}
+            isPublishersLoading={false} // SUPPRIMÉ : Plus de loading spécial pour publishers
           />
         );
 

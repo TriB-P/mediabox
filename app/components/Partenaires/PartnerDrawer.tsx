@@ -1,3 +1,5 @@
+// app/components/Partenaires/PartnerDrawer.tsx
+
 /**
  * @file Ce fichier contient le composant PartnerDrawer, qui est un panneau latéral (drawer).
  * Il sert à afficher les informations détaillées d'un partenaire, à les modifier,
@@ -25,7 +27,6 @@ import ContactList from './ContactList';
 import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
-import { updatePartner } from '../../lib/shortcodeService';
 
 interface Partner {
   id: string;
@@ -42,6 +43,7 @@ interface PartnerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   partner: Partner | null;
+  onUpdatePartner?: (partnerId: string, updatedData: Partial<Partner>) => Promise<void>;
 }
 
 /**
@@ -50,9 +52,10 @@ interface PartnerDrawerProps {
  * @param {boolean} props.isOpen - Indique si le panneau est ouvert.
  * @param {() => void} props.onClose - Fonction pour fermer le panneau.
  * @param {Partner | null} props.partner - L'objet partenaire à afficher.
+ * @param {Function} [props.onUpdatePartner] - Fonction optionnelle pour mettre à jour le partenaire.
  * @returns {JSX.Element} Le composant de panneau latéral.
  */
-export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawerProps) {
+export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartner }: PartnerDrawerProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -366,10 +369,11 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
   };
 
   /**
-   * Sauvegarde les modifications apportées au partenaire dans la base de données.
+   * Sauvegarde les modifications apportées au partenaire.
+   * VERSION 2024 : Utilise la fonction onUpdatePartner reçue via props au lieu du contexte.
    */
   const handleSavePartner = async () => {
-    if (!partner) return;
+    if (!partner || !onUpdatePartner) return;
 
     try {
       setIsSavingPartner(true);
@@ -377,7 +381,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
       formattedData.SH_Tags = partnerTags;
 
       console.log(`FIREBASE: ÉCRITURE - Fichier: PartnerDrawer.tsx - Fonction: handleSavePartner - Path: partners/${partner.id}`);
-      await updatePartner(partner.id, formattedData);
+      await onUpdatePartner(partner.id, formattedData);
       setIsEditingPartner(false);
       onClose();
     } catch (error) {
@@ -632,13 +636,15 @@ export default function PartnerDrawer({ isOpen, onClose, partner }: PartnerDrawe
                                       <div className="flex-1 text-center sm:text-left">
                                         <div className="flex justify-between items-center">
                                           <h2 className="text-2xl font-bold text-gray-900">{partner.SH_Display_Name_FR}</h2>
-                                          <button
-                                            type="button"
-                                            onClick={initPartnerForm}
-                                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
-                                          >
-                                            Modifier
-                                          </button>
+                                          {onUpdatePartner && (
+                                            <button
+                                              type="button"
+                                              onClick={initPartnerForm}
+                                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                                            >
+                                              Modifier
+                                            </button>
+                                          )}
                                         </div>
                                         {partner.SH_Display_Name_EN && (
                                           <p className="mt-1 text-lg text-gray-600">{partner.SH_Display_Name_EN}</p>

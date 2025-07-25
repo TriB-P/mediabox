@@ -1,50 +1,54 @@
+// app/components/Partenaires/PartenairesGrid.tsx
+
 /**
  * Ce fichier définit le composant PartenairesGrid.
  * Son rôle est d'afficher une grille de logos de partenaires.
- * Il récupère la liste des partenaires via le contexte `usePartners`,
- * charge les logos depuis Firebase Storage, et gère l'affichage d'un
- * placeholder si un logo est manquant. Au clic sur un partenaire,
- * il ouvre un panneau latéral (drawer) avec les détails du partenaire.
+ * Charge les logos depuis Firebase Storage et gère l'affichage d'un placeholder si manquant.
+ * Au clic sur un partenaire, déclenche l'ouverture du panneau latéral via une fonction callback.
  */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePartners } from '../../contexts/PartnerContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+
+interface Partner {
+  id: string;
+  SH_Code: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
+
+interface PartenairesGridProps {
+  filteredPartners: Partner[];
+  isLoading: boolean;
+  onPartnerClick: (partner: Partner) => void;
+}
 
 /**
  * Composant principal qui affiche la grille des partenaires.
  * Il gère l'état de chargement, l'affichage des partenaires ou d'un message si aucun partenaire n'est trouvé.
+ * @param {PartenairesGridProps} props - Les propriétés reçues du parent
  * @returns {JSX.Element} Le composant React représentant la grille des partenaires.
  */
-export default function PartenairesGrid() {
-  const {
-    filteredPartners,
-    setSelectedPartner,
-    setIsDrawerOpen,
-    isLoading
-  } = usePartners();
-
+export default function PartenairesGrid({
+  filteredPartners,
+  isLoading,
+  onPartnerClick
+}: PartenairesGridProps) {
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
   const [loadingImages, setLoadingImages] = useState(false);
 
   /**
-   * Gère le clic sur la carte d'un partenaire.
-   * Met à jour le partenaire sélectionné dans le contexte et ouvre le panneau de détails.
-   * @param {any} partner - L'objet partenaire sur lequel l'utilisateur a cliqué.
-   */
-  const handlePartnerClick = (partner: any) => {
-    setSelectedPartner(partner);
-    setIsDrawerOpen(true);
-  };
-
-  /**
    * Affiche un placeholder pour les partenaires qui n'ont pas de logo.
    * Le placeholder est un cercle gris contenant la première lettre du nom du partenaire.
-   * @param {any} partner - L'objet partenaire pour lequel afficher le placeholder.
+   * @param {Partner} partner - L'objet partenaire pour lequel afficher le placeholder.
    * @returns {JSX.Element} Le composant React du placeholder.
    */
-  const renderPlaceholder = (partner: any) => (
+  const renderPlaceholder = (partner: Partner) => (
     <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
       {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
     </div>
@@ -116,7 +120,7 @@ export default function PartenairesGrid() {
         <div
           key={partner.id}
           className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => handlePartnerClick(partner)}
+          onClick={() => onPartnerClick(partner)}
         >
           <div className="h-24 w-full flex items-center justify-center mb-3">
             {imageUrls[partner.id] ? (
