@@ -1,11 +1,9 @@
-// app/components/Tactiques/TactiqueDrawer.tsx
+// app/components/Tactiques/Tactiques/TactiqueDrawer.tsx
 
 /**
- * Ce fichier définit le composant `TactiqueDrawer`, une interface sous forme de panneau latéral (drawer)
- * pour créer et modifier une "tactique" de campagne. Le composant est structuré en plusieurs onglets
- * (Info, Stratégie, KPI, Budget, etc.) pour organiser les différents champs. Il gère la récupération
- * des données de configuration depuis Firebase (listes dynamiques, dimensions personnalisées, etc.)
- * et la soumission des données du formulaire.
+ * Ce fichier définit le composant `TactiqueDrawer` avec intégration du système de cache localStorage.
+ * VERSION MODIFIÉE : Utilise le cache en priorité pour les listes dynamiques et shortcodes,
+ * avec fallback sur Firebase si le cache n'est pas disponible.
  */
 'use client';
 
@@ -49,6 +47,14 @@ import { usePartners } from '../../../contexts/PartnerContext';
 import { useAsyncTaxonomyUpdate } from '../../../hooks/useAsyncTaxonomyUpdate';
 import TaxonomyUpdateBanner from '../../Others/TaxonomyUpdateBanner';
 
+// NOUVEAU : Import des fonctions de cache
+import {
+  getListForClient,
+  getCachedAllShortcodes,
+  getCachedOptimizedLists,
+  ShortcodeItem
+} from '../../../lib/cacheService';
+
 interface TactiqueDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -81,9 +87,81 @@ interface VisibleFields {
 }
 
 /**
+ * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
+ * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher', 'TC_LoB')
+ * @param clientId - L'identifiant du client
+ * @returns Promise<ListItem[]> - La liste des éléments
+ */
+const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
+  try {
+    console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
+    
+    // Essayer d'abord le cache
+    const cachedList = getListForClient(fieldId, clientId);
+    
+    if (cachedList && cachedList.length > 0) {
+      console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
+      
+      // Convertir ShortcodeItem[] vers ListItem[] (structures identiques)
+      return cachedList.map(item => ({
+        id: item.id,
+        SH_Code: item.SH_Code,
+        SH_Display_Name_FR: item.SH_Display_Name_FR,
+        SH_Display_Name_EN: item.SH_Display_Name_EN,
+        SH_Default_UTM: item.SH_Default_UTM,
+        SH_Logo: item.SH_Logo,
+        SH_Type: item.SH_Type,
+        SH_Tags: item.SH_Tags
+      }));
+    }
+    
+    // Fallback sur Firebase si pas de cache
+    console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
+    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+    return await getDynamicList(fieldId, clientId);
+    
+  } catch (error) {
+    console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
+    
+    // En cas d'erreur, fallback sur Firebase
+    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    return await getDynamicList(fieldId, clientId);
+  }
+};
+
+/**
+ * NOUVEAU : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
+ * @param fieldId - L'identifiant du champ
+ * @param clientId - L'identifiant du client
+ * @returns Promise<boolean> - true si la liste existe
+ */
+const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<boolean> => {
+  try {
+    // Essayer d'abord le cache
+    const cachedList = getListForClient(fieldId, clientId);
+    
+    if (cachedList !== null) {
+      const hasItems = cachedList.length > 0;
+      console.log(`[CACHE] ${fieldId} existe dans le cache: ${hasItems}`);
+      return hasItems;
+    }
+    
+    // Fallback sur Firebase
+    console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
+    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+    return await hasDynamicList(fieldId, clientId);
+    
+  } catch (error) {
+    console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
+    
+    // En cas d'erreur, fallback sur Firebase
+    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    return await hasDynamicList(fieldId, clientId);
+  }
+};
+
+/**
  * Convertit un objet tactique provenant de Firestore en un format adapté au formulaire (`TactiqueFormData`).
- * @param {any} tactique - L'objet tactique brut de Firestore.
- * @returns {TactiqueFormData} - Les données formatées pour le formulaire.
  */
 const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
   const baseData = {
@@ -138,7 +216,6 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     )
   };
 
-  // NOUVEAU : Gérer la structure de breakdowns
   if (tactique.breakdowns) {
     baseData.breakdowns = tactique.breakdowns;
   }
@@ -147,13 +224,10 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
 };
 
 /**
- * Convertit les données du formulaire (`TactiqueFormData`) vers un format prêt à être enregistré dans Firestore.
- * @param {TactiqueFormData} formData - Les données actuelles du formulaire.
- * @returns {any} - Un objet prêt pour la sauvegarde dans Firestore.
+ * Convertit les données du formulaire vers un format prêt à être enregistré dans Firestore.
  */
 const mapFormToTactique = (formData: TactiqueFormData): any => {
   const formDataAny = formData as any;
-
   return {
     ...formData,
     TC_Budget: formDataAny.TC_Client_Budget || formData.TC_Budget || 0,
@@ -162,7 +236,6 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
 
 /**
  * Retourne un objet `TactiqueFormData` avec des valeurs par défaut pour une nouvelle tactique.
- * @returns {TactiqueFormData} L'objet de données par défaut.
  */
 const getDefaultFormData = (): TactiqueFormData => ({
   TC_Label: '',
@@ -173,14 +246,7 @@ const getDefaultFormData = (): TactiqueFormData => ({
 });
 
 /**
- * Composant principal `TactiqueDrawer` qui gère l'état et la logique du formulaire de tactique.
- * @param {TactiqueDrawerProps} props - Les propriétés du composant.
- * @param {boolean} props.isOpen - Indique si le drawer est ouvert.
- * @param {() => void} props.onClose - Fonction pour fermer le drawer.
- * @param {Tactique | null} [props.tactique] - La tactique à modifier, ou null pour une nouvelle tactique.
- * @param {string} props.sectionId - L'ID de la section à laquelle la tactique appartient.
- * @param {(tactiqueData: TactiqueFormData) => Promise<void>} props.onSave - Fonction pour sauvegarder les données.
- * @returns {React.ReactElement} Le composant de drawer.
+ * Composant principal `TactiqueDrawer` MODIFIÉ pour utiliser le cache localStorage.
  */
 export default function TactiqueDrawer({
   isOpen,
@@ -265,7 +331,6 @@ export default function TactiqueDrawer({
 
       setUseInheritedBilling(!tactique.TC_Billing_ID);
       setUseInheritedPO(!tactique.TC_PO);
-
       setActiveTab('info');
       setIsDirty(false);
     } else {
@@ -288,8 +353,7 @@ export default function TactiqueDrawer({
   }, [isOpen, selectedClient, selectedCampaign, selectedVersion]);
 
   /**
-   * Charge toutes les données asynchrones nécessaires au fonctionnement du formulaire
-   * (listes, dimensions, buckets, etc.) depuis Firebase.
+   * MODIFIÉE : Charge toutes les données avec priorité sur le cache localStorage
    */
   const loadAllData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
@@ -298,6 +362,9 @@ export default function TactiqueDrawer({
     setError(null);
 
     try {
+      console.log(`[CACHE] 🚀 Début chargement données avec cache pour TactiqueDrawer`);
+      
+      // 1. Dimensions personnalisées (pas encore cachées, reste Firebase)
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/config/dimensions`);
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       setCustomDimensions(clientDimensions);
@@ -308,22 +375,25 @@ export default function TactiqueDrawer({
         TC_Custom_Dim_3: !!clientDimensions.Custom_Dim_CA_3,
       };
 
+      // 2. MODIFIÉ : Vérifier l'existence des listes via le cache
       for (const field of dynamicListFields) {
         if (field.startsWith('TC_Custom_Dim_') && !newVisibleFields[field]) {
           continue;
         }
-        console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: dynamic_lists/${field}`);
-        const hasListResult = await hasDynamicList(field, selectedClient.clientId);
+        
+        console.log(`[CACHE] Vérification existence de ${field}`);
+        const hasListResult = await hasCachedOrFirebaseList(field, selectedClient.clientId);
         newVisibleFields[field] = hasListResult;
       }
 
       newVisibleFields.TC_Publisher = !isPublishersLoading && publishersOptions.length > 0;
 
+      // 3. MODIFIÉ : Charger les listes via le cache
       const newDynamicLists: { [key: string]: ListItem[] } = {};
       for (const field of dynamicListFields) {
         if (newVisibleFields[field]) {
-          console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: dynamic_lists/${field}`);
-          const list = await getDynamicList(field, selectedClient.clientId);
+          console.log(`[CACHE] Chargement de ${field}`);
+          const list = await getCachedOrFirebaseList(field, selectedClient.clientId);
           newDynamicLists[field] = list;
         }
       }
@@ -331,6 +401,7 @@ export default function TactiqueDrawer({
       setDynamicLists(newDynamicLists);
       setVisibleFields(newVisibleFields);
 
+      // 4. Autres données (pas encore cachées, reste Firebase)
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/buckets`);
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}`);
       const [campaignBuckets, adminValues] = await Promise.all([
@@ -370,6 +441,8 @@ export default function TactiqueDrawer({
         setExchangeRates({});
       }
 
+      console.log(`[CACHE] ✅ Chargement terminé avec cache`);
+
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
       setError('Erreur lors du chargement des données. Veuillez réessayer.');
@@ -377,6 +450,7 @@ export default function TactiqueDrawer({
       setLoading(false);
     }
   }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, isPublishersLoading, publishersOptions.length]);
+
 
   /**
    * Gestionnaire générique pour mettre à jour l'état du formulaire lors d'un changement d'input.

@@ -130,12 +130,7 @@ export default function LoadingScreen({
           ))}
         </div>
 
-        {/* Message d'information */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500">
-            Cette initialisation ne prend que quelques secondes...
-          </p>
-        </div>
+
 
       </div>
     </div>

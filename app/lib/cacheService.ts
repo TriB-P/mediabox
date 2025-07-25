@@ -48,6 +48,7 @@ const CACHE_DURATION_MS = 48 * 60 * 60 * 1000; // 48 heures
 const LIST_TYPES = [
   'CA_Division',
   'TC_Publisher', 
+  'TC_Media_Type',
   'CA_Custom_Dim_1',
   'CA_Custom_Dim_2',
   'CA_Custom_Dim_3',
