@@ -13,6 +13,7 @@ import CampaignActions from './CampaignActions';
 import CampaignVersions from './CampaignVersions';
 import { useClient } from '../../contexts/ClientContext';
 import { getClientList, ShortcodeItem } from '../../lib/listService';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface CampaignTableProps {
@@ -40,6 +41,7 @@ export default function CampaignTable({
   loading = false
 }: CampaignTableProps) {
   const { selectedClient } = useClient();
+  const { t, language } = useTranslation();
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
@@ -57,7 +59,7 @@ export default function CampaignTable({
 
         setDivisions(divisionsData);
       } catch (error) {
-        console.warn('Impossible de charger les divisions:', error);
+        console.warn(`${t('campaigns.table.divisionsLoadingError')}:`, error);
       }
     };
 
@@ -71,7 +73,8 @@ export default function CampaignTable({
    * @returns {string} Le montant formaté en devise (ex: "1 234 $").
    */
   const formatCurrency = (amount: number, currency: string = 'CAD') => {
-    return new Intl.NumberFormat('fr-CA', {
+    const locale = language === 'fr' ? 'fr-CA' : 'en-CA';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
@@ -86,7 +89,8 @@ export default function CampaignTable({
    */
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('fr-CA', {
+    const locale = language === 'fr' ? 'fr-CA' : 'en-CA';
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -137,10 +141,10 @@ export default function CampaignTable({
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-12 text-center">
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Aucune campagne
+            {t('campaigns.table.noCampaignsTitle')}
           </h3>
           <p className="text-gray-500">
-            Commencez par créer votre première campagne.
+            {t('campaigns.table.noCampaignsMessage')}
           </p>
         </div>
       </div>
@@ -155,19 +159,19 @@ export default function CampaignTable({
             <tr>
               <th className="w-12"></th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Nom / Identifiant
+                {t('campaigns.table.nameIdentifier')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Période
+                {t('campaigns.table.period')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Budget
+                {t('campaigns.table.budget')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dates
+                {t('campaigns.table.dates')}
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                {t('campaigns.table.actions')}
               </th>
             </tr>
           </thead>
@@ -267,7 +271,7 @@ export default function CampaignTable({
                   </div>
 
                   <div className="text-xs text-gray-500">
-                    ID: {campaign.CA_Campaign_Identifier}
+                    {t('campaigns.table.identifierShort')}: {campaign.CA_Campaign_Identifier}
                   </div>
                 </div>
               </div>
