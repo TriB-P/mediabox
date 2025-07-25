@@ -1,6 +1,7 @@
 // app/components/Tactiques/Tactiques/TactiqueFormRepartition.tsx
 /**
  * CORRIGÉ: Problème de réinitialisation des valeurs dans le drawer de tactique
+ * NOUVEAU: IDs de périodes standardisés compatibles avec la timeline
  */
 
 'use client';
@@ -45,7 +46,7 @@ interface DistributionModalState {
   distributionMode: 'equal' | 'weighted';
 }
 
-// Fonctions de génération de périodes (inchangées)
+// CORRIGÉ: Fonctions de génération de périodes avec IDs standardisés (identiques à timelinePeriodsUtils.ts)
 function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -68,9 +69,11 @@ function generateMonthlyPeriods(breakdown: Breakdown, tactiqueStartDate?: string
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
 
-    // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
+    // CORRIGÉ: ID standardisé avec préfixe breakdown pour éviter les collisions
+    const periodId = `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`;
+
     periods.push({
-      id: `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`,
+      id: periodId, // CORRIGÉ: Avec préfixe breakdown pour unicité
       label: `${monthLabel} ${yearSuffix}`,
       value: '',
       breakdownId: breakdown.id,
@@ -96,15 +99,16 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
-
-    const dayOfWeek = startDate.getDay();
-    if (dayOfWeek !== 1) {
-      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      startDate.setDate(startDate.getDate() - daysToSubtract);
-    }
   } else {
     startDate = new Date(breakdown.startDate);
     endDate = new Date(breakdown.endDate);
+  }
+
+  // CORRIGÉ: Toujours ajuster au lundi pour TOUS les breakdowns hebdomadaires
+  const dayOfWeek = startDate.getDay();
+  if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - daysToSubtract);
   }
 
   const current = new Date(startDate);
@@ -115,9 +119,11 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
       'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const month = monthNames[current.getMonth()];
 
-    // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
+    // CORRIGÉ: ID standardisé avec préfixe breakdown pour éviter les collisions
+    const periodId = `${breakdown.id}_week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
+
     periods.push({
-      id: `${breakdown.id}_week_${current.getTime()}`,
+      id: periodId, // CORRIGÉ: Avec préfixe breakdown pour unicité
       label: `${day} ${month}`,
       value: '',
       breakdownId: breakdown.id,
@@ -142,9 +148,9 @@ function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
     breakdown.customPeriods
       .sort((a, b) => a.order - b.order)
       .forEach((period) => {
-        // CORRIGÉ: Inclure l'ID du breakdown pour éviter les collisions
+        // CORRIGÉ: ID standardisé avec préfixe breakdown pour éviter les collisions
         periods.push({
-          id: `${breakdown.id}_${period.id}`,
+          id: `${breakdown.id}_${period.id}`, // CORRIGÉ: Avec préfixe breakdown pour unicité
           label: period.name,
           value: '',
           breakdownId: breakdown.id,
@@ -316,10 +322,6 @@ export default function TactiqueFormRepartition({
   });
 
   /**
-   * SUPPRIMÉ: Plus besoin de getBreakdownFieldName car on évite les champs plats
-   */
-
-  /**
    * Crée l'objet breakdowns structuré à partir de l'état local
    */
   const createBreakdownsObject = useCallback(() => {
@@ -348,8 +350,8 @@ export default function TactiqueFormRepartition({
         // Utiliser l'état local au lieu des champs plats
         const periodData = localBreakdownData[period.id] || { value: '', isToggled: true };
         
-        // Extraire l'ID de période original (sans le préfixe breakdown)
-        const originalPeriodId = period.id.replace(`${breakdownId}_`, '');
+        // CORRIGÉ: Extraire l'ID de période original (sans le préfixe breakdown)
+        const originalPeriodId = period.id.replace(`${period.breakdownId}_`, '');
         
         breakdownsObj[breakdownId].periods[originalPeriodId] = {
           name: period.label,
@@ -365,6 +367,7 @@ export default function TactiqueFormRepartition({
 
   /**
    * Initialise l'état local à partir des données existantes de breakdown
+   * CORRIGÉ: Évite la boucle infinie de clignotement
    */
   const initializeLocalBreakdownData = useCallback(() => {
     const initialData: any = {};
@@ -375,6 +378,7 @@ export default function TactiqueFormRepartition({
       const breakdown = existingBreakdowns[period.breakdownId];
       
       if (breakdown && breakdown.periods) {
+        // CORRIGÉ: Extraire l'ID de période original pour chercher dans Firebase
         const originalPeriodId = period.id.replace(`${period.breakdownId}_`, '');
         const existingPeriod = breakdown.periods[originalPeriodId];
         
@@ -387,11 +391,12 @@ export default function TactiqueFormRepartition({
         }
       }
       
-      // Valeurs par défaut
+      // CORRIGÉ: Valeurs par défaut seulement si pas encore initialisées
       const breakdown_def = breakdowns.find(b => b.id === period.breakdownId);
       let initialValue = '';
       
-      if (breakdown_def?.isDefault) {
+      // CORRIGÉ: Ne remplir les dates automatiquement que si pas de valeur existante dans l'état local
+      if (breakdown_def?.isDefault && !localBreakdownData[period.id]?.value) {
         const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
         if (period.isFirst && startDateFormatted) {
           initialValue = startDateFormatted;
@@ -406,8 +411,17 @@ export default function TactiqueFormRepartition({
       };
     });
     
-    setLocalBreakdownData(initialData);
-  }, [periods, formData.breakdowns, formData.TC_StartDate, formData.TC_EndDate, breakdowns]);
+    // CORRIGÉ: Ne mettre à jour que si les données ont réellement changé
+    const hasChanged = periods.some(period => {
+      const existing = localBreakdownData[period.id];
+      const newData = initialData[period.id];
+      return !existing || existing.value !== newData.value || existing.isToggled !== newData.isToggled;
+    });
+    
+    if (hasChanged) {
+      setLocalBreakdownData(initialData);
+    }
+  }, [periods, formData.breakdowns, formData.TC_StartDate, formData.TC_EndDate, breakdowns]); // CORRIGÉ: Retiré localBreakdownData des dépendances
 
   /**
    * Effet pour générer les périodes et initialiser l'état local
@@ -428,31 +442,81 @@ export default function TactiqueFormRepartition({
 
   /**
    * Effet pour initialiser l'état local quand les périodes changent
+   * CORRIGÉ: Évite la réinitialisation excessive
    */
   useEffect(() => {
-    if (periods.length > 0) {
+    if (periods.length > 0 && Object.keys(localBreakdownData).length === 0) {
+      // CORRIGÉ: Seulement initialiser si l'état local est vide
       initializeLocalBreakdownData();
     }
   }, [periods, initializeLocalBreakdownData]);
 
   /**
+   * NOUVEAU: Effet séparé pour gérer les changements de dates sur le breakdown par défaut
+   * CORRIGÉ: Réinitialise complètement quand les dates changent
+   */
+  useEffect(() => {
+    if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
+      // Mettre à jour seulement les périodes du breakdown par défaut quand les dates changent
+      const defaultBreakdown = breakdowns.find(b => b.isDefault);
+      if (defaultBreakdown && (formData.TC_StartDate || formData.TC_EndDate)) {
+        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
+        
+        const defaultPeriods = periods.filter(p => p.breakdownId === defaultBreakdown.id);
+        const updatedData = { ...localBreakdownData };
+        let hasUpdates = false;
+        
+        // CORRIGÉ: Réinitialiser complètement toutes les périodes du breakdown par défaut
+        defaultPeriods.forEach(period => {
+          let newValue = '';
+          
+          // Définir les nouvelles valeurs par défaut
+          if (period.isFirst && startDateFormatted) {
+            newValue = startDateFormatted;
+          } else if (period.isLast && endDateFormatted) {
+            newValue = endDateFormatted;
+          }
+          
+          // CORRIGÉ: Réinitialiser complètement (pas seulement si différent)
+          updatedData[period.id] = { 
+            value: newValue, 
+            isToggled: true // Toujours réactiver les cases
+          };
+          hasUpdates = true;
+        });
+        
+        if (hasUpdates) {
+          setLocalBreakdownData(updatedData);
+        }
+      }
+    }
+  }, [formData.TC_StartDate, formData.TC_EndDate, periods, breakdowns]); // CORRIGÉ: Dependencies spécifiques pour éviter la boucle
+
+  /**
    * Synchronise l'objet breakdowns avec le formulaire parent (sans champs plats)
+   * CORRIGÉ: Évite les mises à jour excessives
    */
   useEffect(() => {
     if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
       const breakdownsObj = createBreakdownsObject();
       
-      // Mettre à jour SEULEMENT l'objet breakdowns
-      const syntheticEvent = {
-        target: {
-          name: 'breakdowns',
-          value: breakdownsObj,
-          type: 'object'
-        }
-      } as any;
-      onChange(syntheticEvent);
+      // CORRIGÉ: Vérifier si l'objet a réellement changé avant de mettre à jour
+      const currentBreakdowns = formData.breakdowns || {};
+      const hasReallyChanged = JSON.stringify(currentBreakdowns) !== JSON.stringify(breakdownsObj);
+      
+      if (hasReallyChanged) {
+        // Mettre à jour SEULEMENT l'objet breakdowns
+        const syntheticEvent = {
+          target: {
+            name: 'breakdowns',
+            value: breakdownsObj,
+            type: 'object'
+          }
+        } as any;
+        onChange(syntheticEvent);
+      }
     }
-  }, [localBreakdownData, periods, createBreakdownsObject]);
+  }, [localBreakdownData, periods]); // CORRIGÉ: Simplified dependencies
 
   /**
    * Gère le changement de valeur d'une période (utilise l'état local)

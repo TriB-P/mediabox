@@ -3,6 +3,7 @@
  * Utilitaires pour générer les périodes d'affichage selon les breakdowns.
  * MODIFIÉ: Utilise les nouvelles fonctions du service breakdown pour lire 
  * les données stockées dans l'objet breakdowns des tactiques.
+ * CORRIGÉ: IDs de périodes standardisés et stables
  */
 
 import { Breakdown } from '../../../../types/breakdown';
@@ -26,6 +27,7 @@ export interface TimelinePeriod {
 
 /**
  * Génère les périodes pour un breakdown mensuel.
+ * CORRIGÉ: IDs standardisés basés sur année-mois
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown, 
@@ -55,12 +57,14 @@ export function generateMonthlyPeriods(
 
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
-    const periodId = `${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`;
+    
+    // CORRIGÉ: ID standardisé avec préfixe breakdown pour éviter les collisions
+    const periodId = `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`;
 
     const fullPeriodId = `${breakdown.id}_${periodId}`;
     
     periods.push({
-      id: periodId, // ID simple pour la nouvelle structure
+      id: periodId, // ID avec préfixe breakdown
       label: `${monthLabel} ${yearSuffix}`,
       fieldName: `TC_Breakdown_${fullPeriodId}`, // Conservé pour compatibilité
       breakdownId: breakdown.id,
@@ -82,6 +86,7 @@ export function generateMonthlyPeriods(
 
 /**
  * Génère les périodes pour un breakdown hebdomadaire.
+ * CORRIGÉ: IDs standardisés basés sur date de début de semaine
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown, 
@@ -116,8 +121,8 @@ export function generateWeeklyPeriods(
       'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const month = monthNames[current.getMonth()];
     
-    // ID simple basé sur le timestamp pour identifier la période de manière unique
-    const periodId = `week_${current.getTime()}`;
+    // CORRIGÉ: ID standardisé basé sur la date de début de semaine (YYYY-MM-DD)
+    const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
     
     periods.push({
       id: periodId,
@@ -154,7 +159,7 @@ export function generateCustomPeriods(breakdown: Breakdown): TimelinePeriod[] {
     .sort((a, b) => a.order - b.order)
     .forEach((period, index) => {
       periods.push({
-        id: period.id, // Utilise l'ID de la période custom directement
+        id: `${breakdown.id}_${period.id}`, // CORRIGÉ: Avec préfixe breakdown pour unicité
         label: period.name,
         fieldName: `TC_Breakdown_${breakdown.id}_${period.id}`, // Conservé pour compatibilité
         breakdownId: breakdown.id,

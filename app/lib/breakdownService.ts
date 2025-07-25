@@ -8,6 +8,7 @@
  * 
  * NOUVEAU: Gestion des données de breakdown stockées directement sur les tactiques
  * sous forme d'objet structuré au lieu de champs plats.
+ * CORRIGÉ: Lecture correcte des statuts d'activation
  */
 import {
   collection,
@@ -461,9 +462,10 @@ export async function ensureDefaultBreakdownExists(
 /**
  * Lit les données de breakdown d'une tactique selon la nouvelle structure.
  * NOUVELLE STRUCTURE: breakdown.periods[periodId] = { name, value, isToggled, order }
+ * NOUVEAU: Support des IDs avec préfixe breakdown
  * @param tactique - L'objet tactique contenant les données de breakdown
  * @param breakdownId - L'ID du breakdown à lire
- * @param periodId - L'ID de la période à lire (sans préfixe breakdown)
+ * @param periodId - L'ID de la période à lire (avec ou sans préfixe breakdown)
  * @returns Les données de la période ou undefined si non trouvée
  */
 export function getTactiqueBreakdownPeriod(
@@ -476,11 +478,22 @@ export function getTactiqueBreakdownPeriod(
   }
   
   const breakdown = tactique.breakdowns[breakdownId];
-  if (!breakdown.periods || !breakdown.periods[periodId]) {
+  if (!breakdown.periods) {
     return undefined;
   }
   
-  const period = breakdown.periods[periodId];
+  // NOUVEAU: Essayer d'abord avec l'ID direct, puis en retirant le préfixe breakdown
+  let period = breakdown.periods[periodId];
+  if (!period && periodId.startsWith(`${breakdownId}_`)) {
+    // Essayer sans le préfixe breakdown
+    const originalPeriodId = periodId.replace(`${breakdownId}_`, '');
+    period = breakdown.periods[originalPeriodId];
+  }
+  
+  if (!period) {
+    return undefined;
+  }
+  
   return {
     value: period.value || '',
     isToggled: period.isToggled !== undefined ? period.isToggled : true,
@@ -491,9 +504,10 @@ export function getTactiqueBreakdownPeriod(
 /**
  * Lit la valeur d'une période de breakdown depuis une tactique.
  * MODIFIÉ: Utilise la nouvelle structure periods
+ * NOUVEAU: Support des IDs avec préfixe breakdown
  * @param tactique - L'objet tactique
  * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période (sans préfixe breakdown)
+ * @param periodId - L'ID de la période (avec ou sans préfixe breakdown)
  * @returns La valeur de la période ou chaîne vide si non trouvée
  */
 export function getTactiqueBreakdownValue(
@@ -507,10 +521,11 @@ export function getTactiqueBreakdownValue(
 
 /**
  * Lit le statut d'activation d'une période de breakdown depuis une tactique.
- * MODIFIÉ: Utilise la nouvelle structure periods
+ * CORRIGÉ: Gestion améliorée des valeurs par défaut et debugging
+ * NOUVEAU: Support des IDs avec préfixe breakdown
  * @param tactique - L'objet tactique
  * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période (sans préfixe breakdown)
+ * @param periodId - L'ID de la période (avec ou sans préfixe breakdown)
  * @returns Le statut d'activation ou true par défaut
  */
 export function getTactiqueBreakdownToggleStatus(
@@ -518,8 +533,43 @@ export function getTactiqueBreakdownToggleStatus(
   breakdownId: string,
   periodId: string
 ): boolean {
-  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
-  return period?.isToggled ?? true;
+  // CORRIGÉ: Ajout de debugging pour comprendre le problème
+  console.log(`Lecture statut pour tactique ${tactique.id}, breakdown ${breakdownId}, period ${periodId}`);
+  
+  if (!tactique.breakdowns) {
+    console.log('Pas de breakdowns sur la tactique');
+    return true; // Par défaut à true pour les nouvelles tactiques
+  }
+  
+  if (!tactique.breakdowns[breakdownId]) {
+    console.log(`Breakdown ${breakdownId} non trouvé`);
+    return true; // Par défaut à true pour un nouveau breakdown
+  }
+  
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    console.log('Pas de periods dans le breakdown');
+    return true; // Par défaut à true pour les nouvelles périodes
+  }
+  
+  // NOUVEAU: Essayer d'abord avec l'ID direct, puis en retirant le préfixe breakdown
+  let period = breakdown.periods[periodId];
+  if (!period && periodId.startsWith(`${breakdownId}_`)) {
+    // Essayer sans le préfixe breakdown
+    const originalPeriodId = periodId.replace(`${breakdownId}_`, '');
+    period = breakdown.periods[originalPeriodId];
+    console.log(`Essai avec ID original: ${originalPeriodId}`);
+  }
+  
+  if (!period) {
+    console.log(`Period ${periodId} non trouvée`);
+    return true; // Par défaut à true pour une nouvelle période
+  }
+  
+  const status = period.isToggled !== undefined ? period.isToggled : true;
+  console.log(`Statut trouvé: ${status}`);
+  
+  return status;
 }
 
 /**
@@ -575,6 +625,9 @@ export function updateTactiqueBreakdownData(
     if (order !== undefined) {
       period.order = order;
     }
+    
+    // CORRIGÉ: Log des modifications pour debug
+    console.log(`Mise à jour période ${periodId}: value=${value}, isToggled=${isToggled}`);
   });
 
   return updatedTactique;

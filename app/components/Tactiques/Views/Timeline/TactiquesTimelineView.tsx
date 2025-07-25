@@ -4,6 +4,7 @@
  * Permet de changer de breakdown, voir les périodes correspondantes et éditer les valeurs directement.
  * Inclut les fonctionnalités d'édition en ligne avec copier-coller et gestion des périodes actives.
  * CORRIGÉ: Consolidation des boutons d'édition
+ * FINAL: Corrections finales
  */
 
 'use client';
@@ -32,8 +33,8 @@ interface TactiquesTimelineViewProps {
   // Nouvelles props pour les breakdowns
   breakdowns: Breakdown[];
   onUpdateTactique: (
+    sectionId: string,
     tactiqueId: string, 
-    sectionId: string, 
     updates: Partial<Tactique>
   ) => Promise<void>;
 }
@@ -181,9 +182,9 @@ export default function TactiquesTimelineView({
   }
 
   return (
-    <div className="space-y-4 w-full max-w-full">
+    <div className="space-y-4">
       {/* Header avec contrôles */}
-      <div className="bg-white rounded-lg shadow p-4 overflow-hidden">
+      <div className="bg-white rounded-lg shadow p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Sélecteur de breakdown */}
@@ -268,22 +269,19 @@ export default function TactiquesTimelineView({
 
       {/* Tableau des répartitions avec scroll horizontal */}
       {selectedBreakdown ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden w-full">
-          {/* C'est ici que j'ai ajouté la classe overflow-x-auto */}
-          <div className="overflow-x-auto">
-              <TactiquesTimelineTable
-              tactiques={Object.values(tactiquesGroupedBySection).flat()}
-              sectionNames={sectionNames}
-              selectedBreakdown={selectedBreakdown}
-              editMode={editMode}
-              campaignStartDate={campaignStartDate}
-              campaignEndDate={campaignEndDate}
-              formatCurrency={formatCurrency}
-              onUpdateTactique={onUpdateTactique}
-              onSaveComplete={handleSaveComplete}
-              onCancelEdit={handleCancelEdit}
-            />
-          </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <TactiquesTimelineTable
+            tactiques={Object.values(tactiquesGroupedBySection).flat()}
+            sectionNames={sectionNames}
+            selectedBreakdown={selectedBreakdown}
+            editMode={editMode}
+            campaignStartDate={campaignStartDate}
+            campaignEndDate={campaignEndDate}
+            formatCurrency={formatCurrency}
+            onUpdateTactique={onUpdateTactique}
+            onSaveComplete={handleSaveComplete}
+            onCancelEdit={handleCancelEdit}
+          />
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-6 text-center">

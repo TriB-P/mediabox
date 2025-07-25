@@ -3,6 +3,7 @@
  * Tableau d'édition des répartitions temporelles des tactiques.
  * CORRIGÉ: Bugs de sauvegarde Firebase et cases à cocher
  * NOUVEAU: Scroll horizontal et position fixe des checkboxes
+ * FINAL: Corrections UI et TypeScript
  */
 
 'use client';
@@ -37,8 +38,8 @@ interface TactiquesTimelineTableProps {
   campaignEndDate: string;
   formatCurrency: (amount: number) => string;
   onUpdateTactique: (
+    sectionId: string,
     tactiqueId: string, 
-    sectionId: string, 
     updates: Partial<Tactique>
   ) => Promise<void>;
   onSaveComplete?: () => void;
@@ -222,7 +223,7 @@ export default function TactiquesTimelineTable({
     if (!editMode) return;
 
     // CORRIGÉ: Empêcher la propagation si le clic vient d'une case à cocher
-    if (event && (event.target as HTMLElement).type === 'checkbox') {
+    if (event && (event.target as HTMLInputElement).type === 'checkbox') {
       return;
     }
 
@@ -409,12 +410,10 @@ export default function TactiquesTimelineTable({
             updatesByTactique[tactiqueId]
           );
           
-          // CORRIGÉ: S'assurer que nous utilisons l'ID correct de la tactique
+          // CORRIGÉ: Ordre des paramètres (sectionId, tactiqueId)
           console.log(`Mise à jour de la tactique ${tactiqueId} dans la section ${tactique.TC_SectionId}`);
           
-          await onUpdateTactique(tactique.TC_SectionId, tactiqueId, {
-            breakdowns: updatedTactiqueData.breakdowns
-          });
+          await onUpdateTactique(tactique.TC_SectionId, tactiqueId, updatedTactiqueData as Partial<Tactique>);
         } catch (tactiqueError: any) {
           console.error(`Erreur lors de la mise à jour de la tactique ${tactiqueId}:`, tactiqueError);
           
@@ -511,24 +510,22 @@ export default function TactiquesTimelineTable({
         </div>
       )}
 
-      {/* Conteneur principal pour le tableau */}
-      {/* Ajusté pour correspondre au style du composant qui fonctionne */}
+      {/* Conteneur principal pour le tableau - CORRIGÉ: Largeur max réduite pour scroll plus précoce */}
       <div 
         className="overflow-auto mx-auto max-w-full"
         style={{
-          maxHeight: '75vh', // Limite la hauteur du conteneur et ajoute un scroll vertical si nécessaire
+          maxHeight: '75vh',
           width: '100%',
-          maxWidth: 'calc(100vw - 220px)', // Ajustez si vous avez des barres latérales fixes
+          maxWidth: '(100vw - 700px)', // CORRIGÉ: Réduit de 220px à 350px pour scroll plus précoce
         }}
       >
         <table 
           className="divide-y divide-gray-200" 
           ref={tableRef}
-          style={{ width: 'max-content', minWidth: '100%' }} // La clé du défilement horizontal !
+          style={{ width: 'max-content', minWidth: '100%' }}
         >
-          <thead className="bg-gray-50 sticky top-0 z-10"> {/* Rendre l'en-tête sticky verticalement */}
+          <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
-              {/* Les min-w sont toujours utiles sur les th pour donner une largeur de base aux colonnes */}
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
                 Section / Tactique
               </th>
@@ -600,14 +597,20 @@ export default function TactiquesTimelineTable({
                                     disabled={!editMode}
                                   />
                                 )}
+                                {/* CORRIGÉ: Input plus petit et grisé quand inactive */}
                                 <input
                                   type="text"
                                   value={editableCells[cellIndex]?.value || ''}
                                   onChange={(e) => handleCellChange(cellIndex, e.target.value)}
-                                  className="flex-1 p-1 border border-indigo-500 rounded text-sm text-center"
+                                  className={`p-1 border rounded text-sm text-center ${
+                                    isDefaultBreakdown && !isActive 
+                                      ? 'w-12 bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' // CORRIGÉ: Plus petit et grisé
+                                      : 'flex-1 border-indigo-500'
+                                  }`}
                                   style={{ fontSize: 'inherit' }}
                                   onClick={(e) => e.stopPropagation()}
                                   disabled={isDefaultBreakdown && !isActive}
+                                  placeholder={isDefaultBreakdown && !isActive ? '' : undefined}
                                 />
                               </div>
                             </td>
@@ -632,9 +635,16 @@ export default function TactiquesTimelineTable({
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               )}
-                              <div className={`flex-1 ${!isActive ? 'opacity-50' : ''}`}>
-                                {currentValue || '—'}
-                              </div>
+                              {/* CORRIGÉ: Affichage conditionnel selon l'état actif */}
+                              {isDefaultBreakdown && !isActive ? (
+                                <div className="w-12 h-6 bg-gray-100 border border-gray-200 rounded text-gray-400 text-xs flex items-center justify-center">
+                                  —
+                                </div>
+                              ) : (
+                                <div className="flex-1">
+                                  {currentValue || '—'}
+                                </div>
+                              )}
                             </div>
                           </td>
                         );
