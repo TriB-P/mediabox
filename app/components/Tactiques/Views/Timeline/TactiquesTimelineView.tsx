@@ -3,6 +3,7 @@
  * Vue timeline rénovée pour visualiser et éditer les répartitions des tactiques selon les breakdowns.
  * Permet de changer de breakdown, voir les périodes correspondantes et éditer les valeurs directement.
  * Inclut les fonctionnalités d'édition en ligne avec copier-coller et gestion des périodes actives.
+ * CORRIGÉ: Consolidation des boutons d'édition
  */
 
 'use client';
@@ -124,21 +125,14 @@ export default function TactiquesTimelineView({
   };
 
   /**
-   * Active ou désactive le mode édition.
+   * Active le mode édition.
    */
-  const handleToggleEditMode = () => {
-    if (editMode) {
-      const confirmExit = confirm(
-        'Êtes-vous sûr de vouloir quitter le mode édition ? Les modifications non sauvegardées seront perdues.'
-      );
-      if (!confirmExit) return;
-    }
-    
-    setEditMode(!editMode);
+  const handleStartEdit = () => {
+    setEditMode(true);
   };
 
   /**
-   * Gère la sauvegarde complète après édition.
+   * NOUVEAU: Gère la sauvegarde complète après édition.
    */
   const handleSaveComplete = () => {
     setEditMode(false);
@@ -147,7 +141,7 @@ export default function TactiquesTimelineView({
   };
 
   /**
-   * Gère l'annulation de l'édition.
+   * NOUVEAU: Gère l'annulation de l'édition (appelé depuis le tableau).
    */
   const handleCancelEdit = () => {
     setEditMode(false);
@@ -187,9 +181,9 @@ export default function TactiquesTimelineView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full">
       {/* Header avec contrôles */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-lg shadow p-4 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Sélecteur de breakdown */}
@@ -238,29 +232,17 @@ export default function TactiquesTimelineView({
           </div>
 
           <div className="flex items-center space-x-2">
-            
-            {/* Bouton mode édition */}
-            <button
-              onClick={handleToggleEditMode}
-              className={`flex items-center px-4 py-2 text-sm rounded-md font-medium ${
-                editMode
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-              }`}
-              disabled={loading}
-            >
-              {editMode ? (
-                <>
-                  <XMarkIcon className="h-4 w-4 mr-1" />
-                  Quitter l'édition
-                </>
-              ) : (
-                <>
-                  <PencilIcon className="h-4 w-4 mr-1" />
-                  Mode édition
-                </>
-              )}
-            </button>
+            {/* CORRIGÉ: Bouton mode édition seulement si pas en mode édition */}
+            {!editMode && (
+              <button
+                onClick={handleStartEdit}
+                className="flex items-center px-4 py-2 text-sm rounded-md font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                disabled={loading}
+              >
+                <PencilIcon className="h-4 w-4 mr-1" />
+                Mode édition
+              </button>
+            )}
           </div>
         </div>
 
@@ -284,21 +266,24 @@ export default function TactiquesTimelineView({
         )}
       </div>
 
-      {/* Tableau des répartitions */}
+      {/* Tableau des répartitions avec scroll horizontal */}
       {selectedBreakdown ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <TactiquesTimelineTable
-            tactiques={Object.values(tactiquesGroupedBySection).flat()}
-            sectionNames={sectionNames}
-            selectedBreakdown={selectedBreakdown}
-            editMode={editMode}
-            campaignStartDate={campaignStartDate}
-            campaignEndDate={campaignEndDate}
-            formatCurrency={formatCurrency}
-            onUpdateTactique={onUpdateTactique}
-            onSaveComplete={handleSaveComplete}
-            onCancelEdit={handleCancelEdit}
-          />
+        <div className="bg-white rounded-lg shadow overflow-hidden w-full">
+          {/* C'est ici que j'ai ajouté la classe overflow-x-auto */}
+          <div className="overflow-x-auto">
+              <TactiquesTimelineTable
+              tactiques={Object.values(tactiquesGroupedBySection).flat()}
+              sectionNames={sectionNames}
+              selectedBreakdown={selectedBreakdown}
+              editMode={editMode}
+              campaignStartDate={campaignStartDate}
+              campaignEndDate={campaignEndDate}
+              formatCurrency={formatCurrency}
+              onUpdateTactique={onUpdateTactique}
+              onSaveComplete={handleSaveComplete}
+              onCancelEdit={handleCancelEdit}
+            />
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-6 text-center">

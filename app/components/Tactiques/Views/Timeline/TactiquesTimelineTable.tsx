@@ -2,6 +2,7 @@
 /**
  * Tableau d'édition des répartitions temporelles des tactiques.
  * CORRIGÉ: Bugs de sauvegarde Firebase et cases à cocher
+ * NOUVEAU: Scroll horizontal et position fixe des checkboxes
  */
 
 'use client';
@@ -411,7 +412,7 @@ export default function TactiquesTimelineTable({
           // CORRIGÉ: S'assurer que nous utilisons l'ID correct de la tactique
           console.log(`Mise à jour de la tactique ${tactiqueId} dans la section ${tactique.TC_SectionId}`);
           
-          await onUpdateTactique(tactique.TC_SectionId,tactiqueId, {
+          await onUpdateTactique(tactique.TC_SectionId, tactiqueId, {
             breakdowns: updatedTactiqueData.breakdowns
           });
         } catch (tactiqueError: any) {
@@ -510,12 +511,25 @@ export default function TactiquesTimelineTable({
         </div>
       )}
 
-      {/* Tableau principal */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200" ref={tableRef}>
-          <thead className="bg-gray-50">
+      {/* Conteneur principal pour le tableau */}
+      {/* Ajusté pour correspondre au style du composant qui fonctionne */}
+      <div 
+        className="overflow-auto mx-auto max-w-full"
+        style={{
+          maxHeight: '75vh', // Limite la hauteur du conteneur et ajoute un scroll vertical si nécessaire
+          width: '100%',
+          maxWidth: 'calc(100vw - 220px)', // Ajustez si vous avez des barres latérales fixes
+        }}
+      >
+        <table 
+          className="divide-y divide-gray-200" 
+          ref={tableRef}
+          style={{ width: 'max-content', minWidth: '100%' }} // La clé du défilement horizontal !
+        >
+          <thead className="bg-gray-50 sticky top-0 z-10"> {/* Rendre l'en-tête sticky verticalement */}
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+              {/* Les min-w sont toujours utiles sur les th pour donner une largeur de base aux colonnes */}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
                 Section / Tactique
               </th>
               {periods.map((period) => (
@@ -526,7 +540,7 @@ export default function TactiquesTimelineTable({
                   {period.label}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                 Total
               </th>
             </tr>
@@ -538,7 +552,7 @@ export default function TactiquesTimelineTable({
                 <tr className="bg-indigo-50">
                   <td 
                     colSpan={periods.length + 2} 
-                    className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10"
+                    className="px-4 py-2 text-sm font-medium text-indigo-900"
                   >
                     {sectionNames[sectionId] || 'Section sans nom'}
                   </td>
@@ -553,8 +567,7 @@ export default function TactiquesTimelineTable({
 
                   return (
                     <tr key={tactique.id} className="hover:bg-gray-50">
-                      {/* Colonne tactique */}
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 sticky left-0 bg-white z-10">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-2">
                           <span>{tactique.TC_Label}</span>
                         </div>
@@ -577,13 +590,13 @@ export default function TactiquesTimelineTable({
 
                           return (
                             <td key={period.id} className={cellClasses}>
-                              <div className="relative">
+                              <div className="flex items-center space-x-2">
                                 {isDefaultBreakdown && (
                                   <input
                                     type="checkbox"
                                     checked={editableCells[cellIndex]?.isToggled ?? true}
                                     onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked, e)}
-                                    className="absolute top-0 left-0 h-3 w-3"
+                                    className="h-3 w-3 flex-shrink-0"
                                     disabled={!editMode}
                                   />
                                 )}
@@ -591,9 +604,7 @@ export default function TactiquesTimelineTable({
                                   type="text"
                                   value={editableCells[cellIndex]?.value || ''}
                                   onChange={(e) => handleCellChange(cellIndex, e.target.value)}
-                                  className={`w-full p-1 border border-indigo-500 rounded text-sm text-center ${
-                                    isDefaultBreakdown ? 'mt-4' : ''
-                                  }`}
+                                  className="flex-1 p-1 border border-indigo-500 rounded text-sm text-center"
                                   style={{ fontSize: 'inherit' }}
                                   onClick={(e) => e.stopPropagation()}
                                   disabled={isDefaultBreakdown && !isActive}
@@ -610,18 +621,18 @@ export default function TactiquesTimelineTable({
                             onClick={(e) => handleCellClick(rowIndex, selectedBreakdown.id, period.id, e)}
                             onDoubleClick={() => handleCellDoubleClick(tactique, selectedBreakdown.id, period.id, rowIndex)}
                           >
-                            <div className="relative">
+                            <div className="flex items-center space-x-2">
                               {isDefaultBreakdown && (
                                 <input
                                   type="checkbox"
                                   checked={isActive}
                                   onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked, e)}
-                                  className="absolute top-0 left-0 h-3 w-3"
+                                  className="h-3 w-3 flex-shrink-0"
                                   disabled={!editMode}
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               )}
-                              <div className={`${isDefaultBreakdown ? 'mt-4' : ''} ${!isActive ? 'opacity-50' : ''}`}>
+                              <div className={`flex-1 ${!isActive ? 'opacity-50' : ''}`}>
                                 {currentValue || '—'}
                               </div>
                             </div>
