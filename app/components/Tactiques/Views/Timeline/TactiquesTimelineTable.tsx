@@ -1,8 +1,7 @@
 // app/components/Tactiques/Views/Timeline/TactiquesTimelineTable.tsx
 /**
  * Tableau d'édition des répartitions temporelles des tactiques.
- * MODIFIÉ: Utilise la nouvelle structure de données de breakdown avec objet imbriqué
- * au lieu des champs plats sur les tactiques.
+ * CORRIGÉ: Bugs de sauvegarde Firebase et cases à cocher
  */
 
 'use client';
@@ -218,8 +217,13 @@ export default function TactiquesTimelineTable({
   /**
    * Gère la sélection d'une cellule.
    */
-  const handleCellClick = (rowIndex: number, breakdownId: string, periodId: string) => {
+  const handleCellClick = (rowIndex: number, breakdownId: string, periodId: string, event?: React.MouseEvent) => {
     if (!editMode) return;
+
+    // CORRIGÉ: Empêcher la propagation si le clic vient d'une case à cocher
+    if (event && (event.target as HTMLElement).type === 'checkbox') {
+      return;
+    }
 
     if (isShiftKeyPressed && selectionStart) {
       const startRow = Math.min(selectionStart.rowIndex, rowIndex);
@@ -288,15 +292,19 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Gère le changement d'état d'activation d'une période.
+   * CORRIGÉ: Gère le changement d'état d'activation d'une période.
    */
   const handleToggleChange = (
     tactique: Tactique, 
     breakdownId: string, 
     periodId: string, 
-    isToggled: boolean
+    isToggled: boolean,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     if (!editMode) return;
+
+    // CORRIGÉ: Empêcher la propagation pour éviter le conflit avec la sélection de cellule
+    event.stopPropagation();
 
     const existingCellIndex = editableCells.findIndex(
       cell => cell.tactiqueId === tactique.id && 
@@ -361,7 +369,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Sauvegarde toutes les modifications avec la nouvelle structure de données.
+   * CORRIGÉ: Sauvegarde toutes les modifications avec gestion d'erreur améliorée.
    */
   const handleSaveChanges = async () => {
     if (editableCells.length === 0) return;
@@ -382,22 +390,42 @@ export default function TactiquesTimelineTable({
           periodId: cell.periodId,
           value: cell.value,
           isToggled: cell.isToggled,
-          order: 0 // Vous pouvez ajuster selon vos besoins
+          order: 0
         });
       });
 
-      // Sauvegarder chaque tactique avec la nouvelle structure
+      // CORRIGÉ: Sauvegarder chaque tactique avec vérification d'existence
       for (const tactiqueId of Object.keys(updatesByTactique)) {
         const tactique = flatTactiques.find(t => t.id === tactiqueId);
-        if (tactique) {
+        if (!tactique) {
+          console.error(`Tactique introuvable avec l'ID: ${tactiqueId}`);
+          continue;
+        }
+
+        try {
           const updatedTactiqueData = updateTactiqueBreakdownData(
             tactique, 
             updatesByTactique[tactiqueId]
           );
           
-          await onUpdateTactique(tactiqueId, tactique.TC_SectionId, {
+          // CORRIGÉ: S'assurer que nous utilisons l'ID correct de la tactique
+          console.log(`Mise à jour de la tactique ${tactiqueId} dans la section ${tactique.TC_SectionId}`);
+          
+          await onUpdateTactique(tactique.TC_SectionId,tactiqueId, {
             breakdowns: updatedTactiqueData.breakdowns
           });
+        } catch (tactiqueError: any) {
+          console.error(`Erreur lors de la mise à jour de la tactique ${tactiqueId}:`, tactiqueError);
+          
+          // CORRIGÉ: Afficher une erreur plus spécifique
+          if (tactiqueError.code === 'not-found') {
+            alert(`La tactique "${tactique.TC_Label}" n'a pas été trouvée. Elle a peut-être été supprimée par un autre utilisateur.`);
+          } else {
+            alert(`Erreur lors de la sauvegarde de la tactique "${tactique.TC_Label}": ${tactiqueError.message}`);
+          }
+          
+          // Continuer avec les autres tactiques
+          continue;
         }
       }
 
@@ -407,8 +435,8 @@ export default function TactiquesTimelineTable({
       
       onSaveComplete?.();
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      alert('Une erreur est survenue lors de la sauvegarde.');
+      console.error('Erreur générale lors de la sauvegarde:', error);
+      alert('Une erreur générale est survenue lors de la sauvegarde.');
     } finally {
       setIsSaving(false);
     }
@@ -554,7 +582,7 @@ export default function TactiquesTimelineTable({
                                   <input
                                     type="checkbox"
                                     checked={editableCells[cellIndex]?.isToggled ?? true}
-                                    onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked)}
+                                    onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked, e)}
                                     className="absolute top-0 left-0 h-3 w-3"
                                     disabled={!editMode}
                                   />
@@ -579,7 +607,7 @@ export default function TactiquesTimelineTable({
                           <td
                             key={period.id}
                             className={cellClasses}
-                            onClick={() => handleCellClick(rowIndex, selectedBreakdown.id, period.id)}
+                            onClick={(e) => handleCellClick(rowIndex, selectedBreakdown.id, period.id, e)}
                             onDoubleClick={() => handleCellDoubleClick(tactique, selectedBreakdown.id, period.id, rowIndex)}
                           >
                             <div className="relative">
@@ -587,9 +615,10 @@ export default function TactiquesTimelineTable({
                                 <input
                                   type="checkbox"
                                   checked={isActive}
-                                  onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked)}
+                                  onChange={(e) => handleToggleChange(tactique, selectedBreakdown.id, period.id, e.target.checked, e)}
                                   className="absolute top-0 left-0 h-3 w-3"
                                   disabled={!editMode}
+                                  onClick={(e) => e.stopPropagation()}
                                 />
                               )}
                               <div className={`${isDefaultBreakdown ? 'mt-4' : ''} ${!isActive ? 'opacity-50' : ''}`}>
