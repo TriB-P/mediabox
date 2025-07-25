@@ -249,7 +249,7 @@ export function distributeAmountEqually(
   periods: TimelinePeriod[],
   activePeriods: { [periodId: string]: boolean } = {},
   isDefaultBreakdown: boolean = false
-): { [periodId: string]: { value: string; isToggled: boolean } } {
+): { [periodId: string]: { value: string; isToggled: boolean; order: number } } {
   const relevantPeriods = periods.filter(period => {
     if (!isDefaultBreakdown) return true;
     return activePeriods[period.id] !== false;
@@ -258,12 +258,13 @@ export function distributeAmountEqually(
   if (relevantPeriods.length === 0) return {};
 
   const amountPerPeriod = totalAmount / relevantPeriods.length;
-  const result: { [periodId: string]: { value: string; isToggled: boolean } } = {};
+  const result: { [periodId: string]: { value: string; isToggled: boolean; order: number } } = {};
 
   relevantPeriods.forEach(period => {
     result[period.id] = {
       value: amountPerPeriod.toFixed(2),
-      isToggled: true
+      isToggled: true,
+      order: period.order // NOUVEAU: Inclure l'ordre de la période
     };
   });
 

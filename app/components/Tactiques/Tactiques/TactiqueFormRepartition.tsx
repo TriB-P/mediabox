@@ -406,7 +406,48 @@ export default function TactiqueFormRepartition({
         periods: {}
       };
 
-      breakdownPeriods.forEach(period => {
+      // NOUVEAU: Trier les périodes selon leur ordre naturel avant de les sauvegarder
+      const sortedPeriods = [...breakdownPeriods].sort((a, b) => {
+        // Déterminer l'ordre selon le type de breakdown
+        if (breakdown.type === 'Custom' && breakdown.customPeriods) {
+          // Pour les breakdowns personnalisés, utiliser l'ordre des customPeriods
+          const aCustomPeriod = breakdown.customPeriods.find(p => a.id.endsWith(p.id));
+          const bCustomPeriod = breakdown.customPeriods.find(p => b.id.endsWith(p.id));
+          const aOrder = aCustomPeriod ? aCustomPeriod.order : 0;
+          const bOrder = bCustomPeriod ? bCustomPeriod.order : 0;
+          return aOrder - bOrder;
+        } else if (breakdown.type === 'Mensuel') {
+          // Pour les breakdowns mensuels, extraire l'année/mois pour tri chronologique
+          const aMatch = a.id.match(/(\d{4})_(\d{2})$/);
+          const bMatch = b.id.match(/(\d{4})_(\d{2})$/);
+          if (aMatch && bMatch) {
+            const aYear = parseInt(aMatch[1]);
+            const aMonth = parseInt(aMatch[2]);
+            const bYear = parseInt(bMatch[1]);
+            const bMonth = parseInt(bMatch[2]);
+            return (aYear * 100 + aMonth) - (bYear * 100 + bMonth);
+          }
+          return 0;
+        } else if (breakdown.type === 'Hebdomadaire') {
+          // Pour les breakdowns hebdomadaires, extraire la date pour tri chronologique
+          const aMatch = a.id.match(/week_(\d{4})_(\d{2})_(\d{2})$/);
+          const bMatch = b.id.match(/week_(\d{4})_(\d{2})_(\d{2})$/);
+          if (aMatch && bMatch) {
+            const aYear = parseInt(aMatch[1]);
+            const aMonth = parseInt(aMatch[2]); 
+            const aDay = parseInt(aMatch[3]);
+            const bYear = parseInt(bMatch[1]);
+            const bMonth = parseInt(bMatch[2]);
+            const bDay = parseInt(bMatch[3]);
+            return (aYear * 10000 + aMonth * 100 + aDay) - (bYear * 10000 + bMonth * 100 + bDay);
+          }
+          return 0;
+        }
+        return 0;
+      });
+
+      // NOUVEAU: Ajouter chaque période avec son ordre calculé
+      sortedPeriods.forEach((period, index) => {
         // Utiliser l'état local au lieu des champs plats
         const periodData = localBreakdownData[period.id] || { value: '', isToggled: true };
         
@@ -417,7 +458,7 @@ export default function TactiqueFormRepartition({
           name: period.label,
           value: periodData.value,
           isToggled: periodData.isToggled,
-          order: 0
+          order: index // NOUVEAU: Ajouter l'ordre calculé basé sur la position triée
         };
       });
     });
