@@ -273,9 +273,39 @@ function distributeAmountEqually(
   totalAmount: number,
   breakdownPeriods: BreakdownPeriod[],
   activePeriods: { [key: string]: boolean },
-  isDefaultBreakdown: boolean
+  isDefaultBreakdown: boolean,
+  tactiqueStartDate?: string,
+  tactiqueEndDate?: string
 ): { [key: string]: string } {
-  const activePeriodsList = breakdownPeriods.filter(period =>
+  // NOUVEAU: Filtrer les périodes selon les dates de la tactique
+  let relevantPeriods = breakdownPeriods;
+  
+  if (tactiqueStartDate && tactiqueEndDate) {
+    const tactiqueStart = new Date(tactiqueStartDate);
+    const tactiqueEnd = new Date(tactiqueEndDate);
+    
+    relevantPeriods = breakdownPeriods.filter(period => {
+      // Extraire la date de début de période depuis l'ID
+      const periodStartDate = extractPeriodStartDate(period);
+      if (!periodStartDate) return true; // Garder si on ne peut pas déterminer
+      
+      // Vérifier si la période intersecte avec les dates de tactique
+      const periodEnd = new Date(periodStartDate);
+      if (period.id.includes('week_')) {
+        // Pour les semaines, ajouter 6 jours
+        periodEnd.setDate(periodEnd.getDate() + 6);
+      } else if (period.id.match(/^\w+_\d{4}_\d{2}$/)) {
+        // Pour les mois, aller au dernier jour du mois
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        periodEnd.setDate(0);
+      }
+      
+      // Intersecte si : début période <= fin tactique ET fin période >= début tactique
+      return periodStartDate <= tactiqueEnd && periodEnd >= tactiqueStart;
+    });
+  }
+  
+  const activePeriodsList = relevantPeriods.filter(period =>
     !isDefaultBreakdown || activePeriods[period.id] !== false
   );
 
@@ -289,6 +319,36 @@ function distributeAmountEqually(
   });
 
   return result;
+}
+
+/**
+ * NOUVEAU: Extrait la date de début d'une période depuis son ID
+ */
+function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
+  try {
+    // Retirer le préfixe breakdown de l'ID
+    const cleanId = period.id.replace(`${period.breakdownId}_`, '');
+    
+    if (cleanId.includes('week_')) {
+      // Format: week_2025_04_21
+      const match = cleanId.match(/week_(\d{4})_(\d{2})_(\d{2})/);
+      if (match) {
+        const [, year, month, day] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+    } else if (cleanId.match(/^\d{4}_\d{2}$/)) {
+      // Format: 2025_04 (mensuel)
+      const match = cleanId.match(/^(\d{4})_(\d{2})$/);
+      if (match) {
+        const [, year, month] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, 1);
+      }
+    }
+  } catch (error) {
+    console.warn('Impossible d\'extraire la date de la période:', period.id);
+  }
+  
+  return null;
 }
 
 function getBreakdownIcon(type: string) {
@@ -534,7 +594,7 @@ export default function TactiqueFormRepartition({
     }
 
     // Mettre à jour l'état local
-    setLocalBreakdownData(prev => ({
+    setLocalBreakdownData((prev: any) => ({
       ...prev,
       [periodId]: {
         ...currentData,
@@ -550,7 +610,7 @@ export default function TactiqueFormRepartition({
     const currentData = localBreakdownData[periodId] || { value: '', isToggled: true };
 
     // Mettre à jour l'état local
-    setLocalBreakdownData(prev => ({
+    setLocalBreakdownData((prev: any) => ({
       ...prev,
       [periodId]: {
         value: isActive ? currentData.value : '',
@@ -612,11 +672,14 @@ export default function TactiqueFormRepartition({
       activePeriods[period.id] = getPeriodActiveStatus(period.id, breakdown.id);
     });
 
+    // CORRIGÉ: Passer les dates de la tactique pour limiter la distribution
     const distributedValues = distributeAmountEqually(
       totalAmount,
       breakdownPeriods,
       activePeriods,
-      isDefaultBreakdown
+      isDefaultBreakdown,
+      formData.TC_StartDate, // NOUVEAU: Date de début tactique
+      formData.TC_EndDate    // NOUVEAU: Date de fin tactique
     );
 
     Object.entries(distributedValues).forEach(([periodId, value]) => {
@@ -846,12 +909,12 @@ export default function TactiqueFormRepartition({
                   type="number"
                   step="0.01"
                   value={distributionModal.totalAmount}
-                  onChange={(e) => setDistributionModal(prev => ({ ...prev, totalAmount: e.target.value }))}
+                  onChange={(e) => setDistributionModal((prev: DistributionModalState) => ({ ...prev, totalAmount: e.target.value }))}
                   placeholder="Ex: 10000"
                   className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                 />
                 <p className="text-sm text-slate-500 mt-2">
-                  Le montant sera distribué équitablement sur toutes les périodes actives.
+                  Le montant sera distribué équitablement sur les périodes actives qui intersectent avec les dates de la tactique ({formData.TC_StartDate || 'Non définie'} → {formData.TC_EndDate || 'Non définie'}).
                 </p>
               </div>
             </div>

@@ -100,16 +100,16 @@ export function generateWeeklyPeriods(
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
-
-    // Ajuster au lundi le plus proche pour les breakdowns hebdomadaires
-    const dayOfWeek = startDate.getDay();
-    if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
-      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      startDate.setDate(startDate.getDate() - daysToSubtract);
-    }
   } else {
     startDate = new Date(breakdown.startDate);
     endDate = new Date(breakdown.endDate);
+  }
+
+  // CORRIGÉ: Ajuster au lundi le plus proche pour TOUS les breakdowns hebdomadaires
+  const dayOfWeek = startDate.getDay();
+  if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - daysToSubtract);
   }
 
   const current = new Date(startDate);

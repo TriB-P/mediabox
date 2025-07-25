@@ -95,6 +95,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_StartDate: tactique.TC_StartDate || '',
     TC_EndDate: tactique.TC_EndDate || '',
     TC_Bucket: tactique.TC_Bucket || '',
+    breakdowns: tactique.TC_Bucket || '',
     TC_LoB: tactique.TC_LoB || '',
     TC_Media_Type: tactique.TC_Media_Type || '',
     TC_Publisher: tactique.TC_Publisher || '',
