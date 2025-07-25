@@ -516,7 +516,6 @@ export default function TactiquesTimelineTable({
         style={{
           maxHeight: '75vh',
           width: '100%',
-          maxWidth: '(100vw - 700px)', // CORRIGÉ: Réduit de 220px à 350px pour scroll plus précoce
         }}
       >
         <table 

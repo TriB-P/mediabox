@@ -182,7 +182,12 @@ export default function TactiquesTimelineView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4"
+            style={{
+            width: '80%',
+
+            }}>
+              
       {/* Header avec contrôles */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex items-center justify-between">
@@ -269,7 +274,12 @@ export default function TactiquesTimelineView({
 
       {/* Tableau des répartitions avec scroll horizontal */}
       {selectedBreakdown ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden"
+            style={{
+            maxHeight: '75vh',
+            width: '100%',
+            maxWidth: '100%', 
+            }}>
           <TactiquesTimelineTable
             tactiques={Object.values(tactiquesGroupedBySection).flat()}
             sectionNames={sectionNames}
