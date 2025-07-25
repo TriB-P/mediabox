@@ -13,7 +13,7 @@ import { getOnglets, getSections, getTactiques } from '../../lib/tactiqueService
 import { getBreakdowns } from '../../lib/breakdownService';
 
 interface UseBreakdownDataReturn {
-  extractBreakdownData: (clientId: string, campaignId: string, versionId: string) => Promise<void>;
+  extractBreakdownData: (clientId: string, campaignId: string, versionId: string) => Promise<string[][] | null>; // Modifié ici
   loading: boolean;
   error: string | null;
   data: string[][] | null;
@@ -257,14 +257,14 @@ export function useBreakdownData(): UseBreakdownDataReturn {
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
    * @param {string} versionId L'ID de la version.
-   * @returns {Promise<void>} Une promesse qui se résout une fois l'extraction terminée.
+   * @returns {Promise<string[][] | null>} Une promesse qui se résout avec le tableau de données, ou null en cas d'erreur. // Modifié ici
    * @throws {Error} Si l'utilisateur n'est pas authentifié ou si une erreur survient.
    */
   const extractBreakdownData = useCallback(async (
     clientId: string, 
     campaignId: string, 
     versionId: string
-  ): Promise<void> => {
+  ): Promise<string[][] | null> => { // Modifié ici
     if (!user) {
       throw new Error('Utilisateur non authentifié');
     }
@@ -286,13 +286,14 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       // 4. Transformer en tableau 2D
       const table = transformToTable(flattenedData);
 
-      // 5. Sauvegarder le résultat
+      // 5. Sauvegarder le résultat (pour le hook local)
       setData(table);
-
+      return table; // Retourne les données extraites
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'extraction des breakdowns';
       console.error('❌ Erreur:', errorMessage);
       setError(errorMessage);
+      return null; // Retourne null en cas d'erreur
     } finally {
       setLoading(false);
     }

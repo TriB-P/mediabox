@@ -7,6 +7,7 @@ import { useGenerateDoc } from '../hooks/documents/useGenerateDoc';
 import { useCleanDocData } from '../hooks/documents/useCleanDocData';
 import { useBreakdownData } from '../hooks/documents/useBreakdownData';
 import { useCampaignDataDoc } from '../hooks/documents/useCampaignDataDoc';
+import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport'; //
 
 import { FileText, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
 
@@ -21,11 +22,16 @@ export default function DocumentsPage() {
     success: boolean;
     message: string;
   } | null>(null);
+  const [combinedExportResult, setCombinedExportResult] = useState<{ //
+    success: boolean; //
+    message: string; //
+  } | null>(null); //
 
   const { generateDocument, loading, error } = useGenerateDoc();
   const { cleanData, loading: cleanLoading, error: cleanError, data: cleanedData } = useCleanDocData();
   const { extractBreakdownData, loading: breakdownLoading, error: breakdownError, data: breakdownData } = useBreakdownData();
   const { extractCampaignData, loading: campaignLoading, error: campaignError, data: campaignData } = useCampaignDataDoc();
+  const { exportCombinedData, loading: combinedLoading, error: combinedError } = useCombinedDocExport(); //
 
 
   const TEST_CONFIG = {
@@ -36,7 +42,9 @@ export default function DocumentsPage() {
   const CLEAN_TEST_CONFIG = {
     clientId: '46bc9dd4',
     campaignId: 'YuRAhYKqKiTvUQOfXPwd',
-    versionId: 'hShB62xJQhyG978FqBXZ'
+    versionId: 'hShB62xJQhyG978FqBXZ',
+    // Ajoutez ici l'URL de votre feuille de calcul Google Sheets pour l'exportation combinée
+    combinedSheetUrl: 'https://docs.google.com/spreadsheets/d/1mt_vSmoZOb0_8YYHPzGB02f0Aby3IbiUdBf3eAbvTFk/edit',
   };
 
   /**
@@ -116,11 +124,47 @@ export default function DocumentsPage() {
       await extractCampaignData(
         CLEAN_TEST_CONFIG.clientId,
         CLEAN_TEST_CONFIG.campaignId
-              );
+      );
     } catch (err) {
       console.error('Erreur lors de l\'extraction des données de campagne:', err);
     }
   };
+
+  /**
+   * Gère le test d'exportation combinée.
+   * Déclenche la fonction `exportCombinedData` avec les paramètres de test.
+   * @returns {Promise<void>}
+   */
+  const handleCombinedExportTest = async () => { //
+    setCombinedExportResult(null); //
+    try { //
+      const success = await exportCombinedData( //
+        CLEAN_TEST_CONFIG.clientId, //
+        CLEAN_TEST_CONFIG.campaignId, //
+        CLEAN_TEST_CONFIG.versionId, //
+        CLEAN_TEST_CONFIG.combinedSheetUrl //
+      ); //
+
+      if (success) { //
+        setCombinedExportResult({ //
+          success: true, //
+          message: '✅ Exportation combinée des données réussie !' //
+        }); //
+      } else { //
+        setCombinedExportResult({ //
+          success: false, //
+          message: '❌ L\'exportation combinée a échoué.' //
+        }); //
+      } //
+    } catch (err) { //
+      console.error('Erreur lors de l\'exportation combinée:', err); //
+      setCombinedExportResult({ //
+        success: false, //
+        message: `❌ Erreur lors de l'exportation combinée: ${err instanceof Error ? err.message : 'Erreur inconnue'}` //
+      }); //
+    } //
+  }; //
+
 
   return (
     <ProtectedRoute>
@@ -416,6 +460,58 @@ export default function DocumentsPage() {
             </div>
           </div>
 
+          {/* ==================== CONFIGURATION TEST EXPORTATION COMBINÉE ==================== */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Test Exportation Combinée</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Extrait et exporte les données de campagne, de hiérarchie nettoyées et de breakdown vers Google Sheets.
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL Google Sheets (pour export combiné)
+                </label>
+                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono break-all">
+                  {CLEAN_TEST_CONFIG.combinedSheetUrl}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleCombinedExportTest} //
+                  disabled={combinedLoading} //
+                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${ //
+                    combinedLoading //
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' //
+                      : 'text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' //
+                  }`}
+                >
+                  {combinedLoading ? ( //
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> {/* */}
+                      Exportation combinée en cours... {/* */}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-3" /> {/* */}
+                      Exporter Données Combinées {/* */}
+                    </>
+                  )}
+                </button>
+
+                {combinedLoading && ( //
+                  <div className="flex items-center text-sm text-gray-500"> {/* */}
+                    <div className="animate-pulse">Préparation de l'export...</div> {/* */}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+
           {/* ==================== AFFICHAGE DU TABLEAU NETTOYÉ ==================== */}
           {cleanedData && (
             <div className="bg-white shadow rounded-lg">
@@ -512,9 +608,9 @@ export default function DocumentsPage() {
           {campaignData && (
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Données Breakdown Aplaties</h2>
+                <h2 className="text-lg font-medium text-gray-900">Données Campaign Aplaties</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Tableau 2D des breakdowns par tactique ({campaignData.length} lignes × {campaignData[0]?.length || 0} colonnes)
+                  Tableau 2D des données de campagne ({campaignData.length} lignes × {campaignData[0]?.length || 0} colonnes)
                 </p>
               </div>
 
@@ -584,8 +680,37 @@ export default function DocumentsPage() {
             </div>
           )}
 
+          {/* ==================== RÉSULTATS EXPORTATION COMBINÉE ==================== */}
+          {combinedExportResult && ( //
+            <div className={`rounded-lg p-4 ${ //
+              combinedExportResult.success //
+                ? 'bg-green-50 border border-green-200' //
+                : 'bg-red-50 border border-red-200' //
+            }`}>
+              <div className="flex items-start space-x-3"> {/* */}
+                {combinedExportResult.success ? ( //
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" /> //
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" /> //
+                )}
+                <div> {/* */}
+                  <h3 className={`text-sm font-medium ${ //
+                    combinedExportResult.success ? 'text-green-800' : 'text-red-800' //
+                  }`}>
+                    {combinedExportResult.success ? 'Succès Exportation Combinée' : 'Erreur Exportation Combinée'} {/* */}
+                  </h3>
+                  <p className={`mt-1 text-sm ${ //
+                    combinedExportResult.success ? 'text-green-700' : 'text-red-700' //
+                  }`}>
+                    {combinedExportResult.message} {/* */}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ==================== ERREURS GLOBALES ==================== */}
-          {(error || cleanError || breakdownError || campaignError) && (
+          {(error || cleanError || breakdownError || campaignError || combinedError) && ( //
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -594,7 +719,7 @@ export default function DocumentsPage() {
                     Erreur
                   </h3>
                   <p className="mt-1 text-sm text-red-700">
-                    {error || cleanError || breakdownError || campaignError}
+                    {error || cleanError || breakdownError || campaignError || combinedError} {/* */}
                   </p>
                 </div>
               </div>
@@ -609,6 +734,8 @@ export default function DocumentsPage() {
                 <li>Créer le hook useCleanDocData dans app/hooks/documents/useCleanDocData.ts ✅</li>
                 <li>Créer le hook useBreakdownData dans app/hooks/documents/useBreakdownData.ts ✅</li>
                 <li>Créer la configuration de mapping dans app/config/documentMapping.ts ✅</li>
+                <li>Créer le hook useCombinedDocExport dans app/hooks/documents/useCombinedDocExport.ts ✅</li>
+                <li>Mettre à jour app/documents/page.tsx avec le nouveau bouton d'exportation combinée ✅</li>
                 <li>Tester avec les IDs hard-codés puis permettre la sélection dynamique</li>
                 <li>Optimiser les appels Firebase pour éviter les requêtes redondantes</li>
                 <li>Combiner les deux tableaux en un export unifié</li>

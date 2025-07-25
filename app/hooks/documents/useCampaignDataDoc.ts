@@ -13,7 +13,7 @@ import { getCampaigns } from '../../lib/campaignService';
 import type { Campaign } from '../../types/campaign';
 
 interface UseCampaignDataDocReturn {
-  extractCampaignData: (clientId: string, campaignId: string) => Promise<void>;
+  extractCampaignData: (clientId: string, campaignId: string) => Promise<string[][] | null>; // Modifié ici
   loading: boolean;
   error: string | null;
   data: string[][] | null;
@@ -41,7 +41,7 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
     campaignId: string
   ): Promise<Campaign | null> => {
     try {
-      console.log("FIREBASE: LECTURE - Fichier: useCampaignDataDoc.ts - Fonction: fetchCampaignData - Path: clients/${clientId}/campaigns");
+      console.log("FIREBASE: LECTURE - Fichier: useCampaignDataDoc.ts - Fonction: fetchCampaignData - Path: clients/${clientId}/campaigns/${campaignId}");
       const campaigns = await getCampaigns(clientId);
       
       const campaign = campaigns.find(c => c.id === campaignId);
@@ -129,13 +129,13 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
    * Elle orchestre la récupération de la campagne et sa transformation en tableau 2D.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
-   * @returns {Promise<void>} Une promesse qui se résout une fois l'extraction terminée.
+   * @returns {Promise<string[][] | null>} Une promesse qui se résout avec le tableau de données, ou null en cas d'erreur. // Modifié ici
    * @throws {Error} Si l'utilisateur n'est pas authentifié ou si une erreur survient.
    */
   const extractCampaignData = useCallback(async (
     clientId: string, 
     campaignId: string
-  ): Promise<void> => {
+  ): Promise<string[][] | null> => { // Modifié ici
     if (!user) {
       throw new Error('Utilisateur non authentifié');
     }
@@ -149,19 +149,21 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
       const campaign = await fetchCampaignData(clientId, campaignId);
 
       if (!campaign) {
-        throw new Error('Campagne non trouvée');
+        setError('Campagne non trouvée'); // Ajouté pour gérer l'erreur interne
+        return null; // Retourne null si la campagne n'est pas trouvée
       }
 
       // 2. Transformer en tableau 2D
       const table = transformCampaignToTable(campaign);
 
-      // 3. Sauvegarder le résultat
+      // 3. Sauvegarder le résultat (pour le hook local)
       setData(table);
-
+      return table; // Retourne les données extraites
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'extraction de la campagne';
       console.error('❌ Erreur:', errorMessage);
       setError(errorMessage);
+      return null; // Retourne null en cas d'erreur
     } finally {
       setLoading(false);
     }

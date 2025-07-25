@@ -16,6 +16,8 @@ import {
 import { Campaign } from '../../types/campaign';
 import { deleteCampaign, duplicateCampaign } from '../../lib/campaignService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../contexts/LanguageContext';
+
 
 interface CampaignActionsProps {
   campaign: Campaign;
@@ -44,6 +46,8 @@ export default function CampaignActions({
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const { t } = useTranslation();
+
 
   /**
    * Appelle la fonction onEdit passée en props avec la campagne actuelle
@@ -139,7 +143,7 @@ export default function CampaignActions({
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               <PencilIcon className="h-4 w-4" />
-              Modifier
+              {t('common.edit')}
             </button>
             <button
               onClick={handleDuplicate}
@@ -147,7 +151,7 @@ export default function CampaignActions({
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               <DocumentDuplicateIcon className="h-4 w-4" />
-              Dupliquer
+              {t('common.duplicate')}
             </button>
             <button
               onClick={handleDelete}
@@ -155,7 +159,7 @@ export default function CampaignActions({
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
             >
               <TrashIcon className="h-4 w-4" />
-              Supprimer
+              {t('common.delete')}
             </button>
           </div>
         )}
