@@ -2,9 +2,9 @@
 
 /**
  * Ce hook gère la duplication des templates Google Sheets/Docs via l'API Google Drive.
- * Il authentifie l'utilisateur avec les permissions Google Drive, duplique le template
- * sélectionné, le renomme selon le choix de l'utilisateur et optionnellement le déplace
- * dans le dossier Drive par défaut du client.
+ * Version simplifiée inspirée du hook GenerateDoc qui fonctionne correctement.
+ * Il authentifie l'utilisateur avec les permissions Google Drive nécessaires,
+ * duplique le template et le renomme selon le choix de l'utilisateur.
  */
 'use client';
 
@@ -64,7 +64,19 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
   }, []);
 
   /**
-   * Obtient un token d'accès Google avec les permissions Drive via Firebase Auth.
+   * Extrait l'ID du dossier depuis l'URL du dossier Google Drive.
+   * @param folderUrl L'URL du dossier Google Drive.
+   * @returns L'ID du dossier ou undefined si non trouvé.
+   */
+  const extractFolderId = useCallback((folderUrl: string): string | undefined => {
+    const folderRegex = /\/folders\/([a-zA-Z0-9-_]+)/;
+    const match = folderUrl.match(folderRegex);
+    return match ? match[1] : undefined;
+  }, []);
+
+  /**
+   * Obtient un token d'accès Google avec les permissions Drive.
+   * Utilise la même approche que GenerateDoc mais avec les scopes Drive.
    * @returns Le token d'accès Google ou null si échec.
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
@@ -72,54 +84,48 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       throw new Error('Utilisateur non authentifié');
     }
 
-    try {
-      console.log(`[DRIVE AUTH] Utilisateur Firebase: ${user.email}`);
-      
-      // Nettoyer tous les caches de tokens pour éviter les conflits
+    // Vérifier le cache d'abord (comme GenerateDoc)
+    const cachedToken = localStorage.getItem('google_drive_token');
+    const cachedTime = localStorage.getItem('google_drive_token_time');
+
+    if (cachedToken && cachedTime) {
+      const tokenAge = Date.now() - parseInt(cachedTime);
+      // Token valide pendant 50 minutes
+      if (tokenAge < 50 * 60 * 1000) {
+        console.log('[DRIVE AUTH] Utilisation du token en cache');
+        return cachedToken;
+      }
+      // Nettoyer le cache expiré
       localStorage.removeItem('google_drive_token');
       localStorage.removeItem('google_drive_token_time');
-      localStorage.removeItem('google_sheets_token');
-      localStorage.removeItem('google_sheets_token_time');
+    }
 
-      console.log('[DRIVE AUTH] Demande de nouveaux tokens avec permissions complètes...');
+    try {
+      console.log('[DRIVE AUTH] Demande de nouveau token pour:', user.email);
 
-      // Obtenir un nouveau token via Firebase Auth avec tous les scopes nécessaires
       const { getAuth, GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
       const auth = getAuth();
 
       const provider = new GoogleAuthProvider();
-      // Ajouter tous les scopes nécessaires dans l'ordre correct
+      // Utiliser le scope drive complet pour accéder aux fichiers existants
       provider.addScope('https://www.googleapis.com/auth/drive');
-      provider.addScope('https://www.googleapis.com/auth/drive.file');
-      provider.addScope('https://www.googleapis.com/auth/spreadsheets');
       
-      // Forcer l'utilisateur à utiliser le même compte que Firebase
+      // Optionnel: suggérer l'email de l'utilisateur actuel
       provider.setCustomParameters({
-        login_hint: user.email,
-        prompt: 'consent' // Force la demande de permissions même si déjà accordées
+        login_hint: user.email
       });
 
-      console.log(`[DRIVE AUTH] Demande d'authentification pour: ${user.email}`);
       console.log("FIREBASE: AUTHENTICATION - Fichier: useDuplicateTemplate.ts - Fonction: getAccessToken - Path: N/A");
       
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
 
-      // Vérifier que l'utilisateur connecté est le bon
-      if (result.user.email !== user.email) {
-        throw new Error(`Compte Google incorrect. Connecté avec: ${result.user.email}, attendu: ${user.email}. Veuillez vous reconnecter avec le bon compte.`);
-      }
-
       if (credential?.accessToken) {
         console.log('[DRIVE AUTH] Token récupéré avec succès');
-        console.log(`[DRIVE AUTH] Compte utilisé: ${result.user.email}`);
-        console.log(`[DRIVE AUTH] Scopes demandés: drive, drive.file, spreadsheets`);
         
-        // Mettre en cache le token pour les deux services
+        // Mettre en cache le token
         localStorage.setItem('google_drive_token', credential.accessToken);
         localStorage.setItem('google_drive_token_time', Date.now().toString());
-        localStorage.setItem('google_sheets_token', credential.accessToken);
-        localStorage.setItem('google_sheets_token_time', Date.now().toString());
         
         return credential.accessToken;
       }
@@ -130,58 +136,9 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       // Nettoyer le cache en cas d'erreur
       localStorage.removeItem('google_drive_token');
       localStorage.removeItem('google_drive_token_time');
-      localStorage.removeItem('google_sheets_token');
-      localStorage.removeItem('google_sheets_token_time');
       throw err;
     }
   }, [user]);
-
-  /**
-   * Vérifie l'accès en lecture sur un fichier avant de tenter la duplication.
-   * @param fileId L'ID du fichier à vérifier.
-   * @param accessToken Le token d'accès Google Drive.
-   * @returns True si l'accès est possible, sinon lance une erreur explicite.
-   */
-  const verifyFileAccess = useCallback(async (
-    fileId: string,
-    accessToken: string
-  ): Promise<boolean> => {
-    console.log(`[DRIVE API] Vérification de l'accès au fichier ${fileId}...`);
-    
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,permissions`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 403) {
-        throw new Error(`Accès refusé au template. Le fichier n'est pas partagé avec votre compte Google ou vous n'avez pas les permissions de lecture.`);
-      } else if (response.status === 404) {
-        throw new Error(`Template non trouvé. Vérifiez que l'URL du template est correcte et que le fichier existe toujours.`);
-      } else {
-        throw new Error(`Impossible de vérifier l'accès au template (${response.status})`);
-      }
-    }
-
-    const fileData = await response.json();
-    console.log(`[DRIVE API] Accès vérifié pour: ${fileData.name} (${fileData.mimeType})`);
-    return true;
-  }, []);
-
-  /**
-   * Extrait l'ID du dossier depuis l'URL du dossier Google Drive par défaut du client.
-   * @param folderUrl L'URL du dossier Google Drive.
-   * @returns L'ID du dossier ou undefined si non trouvé.
-   */
-  const extractFolderId = useCallback((folderUrl: string): string | undefined => {
-    const folderRegex = /\/folders\/([a-zA-Z0-9-_]+)/;
-    const match = folderUrl.match(folderRegex);
-    return match ? match[1] : undefined;
-  }, []);
 
   /**
    * Duplique un fichier Google Drive via l'API.
@@ -209,8 +166,6 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       console.log(`[DRIVE API] Dossier de destination: ${targetFolderId}`);
     }
 
-    console.log(`[DRIVE API] Corps de la requête:`, duplicateBody);
-
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}/copy`,
       {
@@ -223,28 +178,14 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       }
     );
 
-    console.log(`[DRIVE API] Réponse: ${response.status} ${response.statusText}`);
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error(`[DRIVE API] Erreur détaillée:`, errorData);
+      console.error(`[DRIVE API] Erreur ${response.status}:`, errorData);
       
       if (response.status === 403) {
-        // Diagnostics supplémentaires pour 403
-        console.error(`[DRIVE API] Diagnostic 403:`);
-        console.error(`- File ID: ${fileId}`);
-        console.error(`- Token présent: ${!!accessToken}`);
-        console.error(`- Token (premiers chars): ${accessToken.substring(0, 20)}...`);
-        
-        throw new Error(`Permissions insuffisantes pour dupliquer le fichier. 
-        Détails: ${errorData.error?.message || 'Aucun détail'}
-        
-        Solutions possibles:
-        1. Vérifiez que le template est bien partagé en lecture
-        2. Essayez de vous déconnecter/reconnecter à Google
-        3. Contactez l'administrateur du template`);
+        throw new Error('Permissions insuffisantes pour dupliquer le fichier. Vérifiez que le template est bien partagé avec votre compte Google.');
       } else if (response.status === 404) {
-        throw new Error(`Template non trouvé. Vérifiez l'URL du template: ${fileId}`);
+        throw new Error('Template non trouvé. Vérifiez l\'URL du template.');
       } else {
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
         throw new Error(`Erreur API Drive: ${errorMessage}`);
@@ -266,32 +207,34 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
     fileId: string,
     accessToken: string
   ): Promise<string> => {
-    // Récupérer les métadonnées du fichier pour déterminer le type
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
+    try {
+      // Récupérer les métadonnées du fichier pour déterminer le type
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const fileData = await response.json();
+        const mimeType = fileData.mimeType;
+
+        // Générer l'URL appropriée selon le type de fichier
+        if (mimeType === 'application/vnd.google-apps.spreadsheet') {
+          return `https://docs.google.com/spreadsheets/d/${fileId}/edit`;
+        } else if (mimeType === 'application/vnd.google-apps.document') {
+          return `https://docs.google.com/document/d/${fileId}/edit`;
+        }
       }
-    );
-
-    if (!response.ok) {
-      // Fallback: générer une URL générique
-      return `https://drive.google.com/file/d/${fileId}/edit`;
+    } catch (err) {
+      console.warn('Impossible de récupérer le type de fichier, utilisation de l\'URL générique');
     }
 
-    const fileData = await response.json();
-    const mimeType = fileData.mimeType;
-
-    // Générer l'URL appropriée selon le type de fichier
-    if (mimeType === 'application/vnd.google-apps.spreadsheet') {
-      return `https://docs.google.com/spreadsheets/d/${fileId}/edit`;
-    } else if (mimeType === 'application/vnd.google-apps.document') {
-      return `https://docs.google.com/document/d/${fileId}/edit`;
-    } else {
-      return `https://drive.google.com/file/d/${fileId}/edit`;
-    }
+    // Fallback: générer une URL générique
+    return `https://drive.google.com/file/d/${fileId}/edit`;
   }, []);
 
   /**
@@ -316,6 +259,8 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
     try {
       setLoading(true);
       setError(null);
+
+      console.log(`[DUPLICATE] Début de la duplication: ${templateUrl} → ${newName}`);
 
       // 1. Extraire l'ID du template
       const templateFileId = extractFileId(templateUrl);
@@ -344,10 +289,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
         };
       }
 
-      // 4. Vérifier l'accès au fichier avant de tenter la duplication
-      await verifyFileAccess(templateFileId, accessToken);
-
-      // 5. Dupliquer le fichier
+      // 4. Dupliquer le fichier
       const duplicatedFileId = await duplicateFile(
         templateFileId,
         newName,
@@ -355,7 +297,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
         accessToken
       );
 
-      // 6. Générer l'URL du fichier dupliqué
+      // 5. Générer l'URL du fichier dupliqué
       const duplicatedUrl = await generateFileUrl(duplicatedFileId, accessToken);
 
       console.log(`✅ Template dupliqué avec succès: ${templateUrl} → ${duplicatedUrl}`);
@@ -383,7 +325,6 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
     extractFileId,
     extractFolderId,
     getAccessToken,
-    verifyFileAccess,
     duplicateFile,
     generateFileUrl
   ]);

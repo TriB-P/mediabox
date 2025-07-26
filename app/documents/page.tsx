@@ -1,6 +1,8 @@
+// app/documents/page.tsx
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import CreateDocumentModal from '../components/Others/CreateDocumentModal';
@@ -65,6 +67,11 @@ export default function DocumentsPage() {
     reset: resetSelection
   } = useCampaignVersionSelector();
 
+  // Refs pour éviter les boucles de synchronisation
+  const isInitializing = useRef(true);
+  const lastSyncedCampaignId = useRef<string | null>(null);
+  const lastSyncedVersionId = useRef<string | null>(null);
+
   /**
    * Charge les campagnes du client sélectionné.
    */
@@ -79,11 +86,12 @@ export default function DocumentsPage() {
       const clientCampaigns = await getCampaigns(selectedClient.clientId);
       setCampaigns(clientCampaigns);
 
-      // Restaurer la sélection depuis le contexte
-      if (selectedCampaignId) {
+      // Restaurer la sélection depuis le contexte SEULEMENT lors de l'initialisation
+      if (isInitializing.current && selectedCampaignId) {
         const campaign = clientCampaigns.find(c => c.id === selectedCampaignId);
         if (campaign) {
           handleCampaignChange(campaign);
+          lastSyncedCampaignId.current = selectedCampaignId;
         }
       }
     } catch (err) {
@@ -106,11 +114,12 @@ export default function DocumentsPage() {
       const campaignVersions = await getVersions(selectedClient.clientId, selectedCampaign.id);
       setVersions(campaignVersions);
 
-      // Restaurer la sélection depuis le contexte
-      if (selectedVersionId) {
+      // Restaurer la sélection depuis le contexte SEULEMENT lors de l'initialisation
+      if (isInitializing.current && selectedVersionId) {
         const version = campaignVersions.find(v => v.id === selectedVersionId);
         if (version) {
           handleVersionChange(version);
+          lastSyncedVersionId.current = selectedVersionId;
         }
       }
     } catch (err) {
@@ -162,18 +171,36 @@ export default function DocumentsPage() {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Synchroniser avec le contexte de sélection
+  // Synchroniser avec le contexte de sélection (uniquement pour les changements utilisateur)
   useEffect(() => {
-    if (selectedCampaign) {
+    if (selectedCampaign && selectedCampaign.id !== lastSyncedCampaignId.current) {
       setSelectedCampaignId(selectedCampaign.id);
+      lastSyncedCampaignId.current = selectedCampaign.id;
     }
   }, [selectedCampaign, setSelectedCampaignId]);
 
   useEffect(() => {
-    if (selectedVersion) {
+    if (selectedVersion && selectedVersion.id !== lastSyncedVersionId.current) {
       setSelectedVersionId(selectedVersion.id);
+      lastSyncedVersionId.current = selectedVersion.id;
     }
   }, [selectedVersion, setSelectedVersionId]);
+
+  // Marquer la fin de l'initialisation après le premier chargement complet
+  useEffect(() => {
+    if (selectedClient && campaigns.length > 0) {
+      isInitializing.current = false;
+    }
+  }, [selectedClient, campaigns]);
+
+  // Réinitialiser les flags lors du changement de client
+  useEffect(() => {
+    if (selectedClient) {
+      isInitializing.current = true;
+      lastSyncedCampaignId.current = null;
+      lastSyncedVersionId.current = null;
+    }
+  }, [selectedClient]);
 
   /**
    * Ouvre le modal de création de document.
