@@ -14,6 +14,7 @@ import {
   FormSection
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CampaignFormAdminProps {
   formData: CampaignFormData;
@@ -38,13 +39,14 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
   onTooltipChange,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const isDisabled = loading;
 
   return (
     <div className="p-8 space-y-6">
       <FormSection
-        title="Administration"
-        description="Informations administratives et de facturation"
+        title={t('campaigns.formAdmin.title')}
+        description={t('campaigns.formAdmin.description')}
       >
         <div className="space-y-6">
           <FormInput
@@ -53,10 +55,10 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
             value={formData.CA_Client_Ext_Id || ''}
             onChange={onChange}
             type="text"
-            placeholder="Ex: CLI-2024-001"
+            placeholder={t('campaigns.formAdmin.extClientIdPlaceholder')}
             label={createLabelWithHelp(
-              'ID externe client',
-              'Identifiant du client dans vos systèmes externes (CRM, ERP, etc.)',
+              t('campaigns.formAdmin.extClientId'),
+              t('campaigns.formAdmin.extClientIdHelp'),
               onTooltipChange
             )}
           />
@@ -67,10 +69,10 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
             value={formData.CA_PO || ''}
             onChange={onChange}
             type="text"
-            placeholder="Ex: PO-2024-12345"
+            placeholder={t('campaigns.formAdmin.poNumberPlaceholder')}
             label={createLabelWithHelp(
-              'Numéro de PO',
-              'Numéro de bon de commande (Purchase Order) associé à cette campagne',
+              t('campaigns.formAdmin.poNumber'),
+              t('campaigns.formAdmin.poNumberHelp'),
               onTooltipChange
             )}
           />
@@ -81,10 +83,10 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
             value={formData.CA_Billing_ID || ''}
             onChange={onChange}
             type="text"
-            placeholder="Ex: BILL-2024-789"
+            placeholder={t('campaigns.formAdmin.billingIdPlaceholder')}
             label={createLabelWithHelp(
-              'ID Facturation',
-              'Identifiant de facturation pour cette campagne dans votre système comptable',
+              t('campaigns.formAdmin.billingId'),
+              t('campaigns.formAdmin.billingIdHelp'),
               onTooltipChange
             )}
           />
@@ -93,11 +95,9 @@ const CampaignFormAdmin = memo<CampaignFormAdminProps>(({
       </FormSection>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">💡 Conseil</h4>
+        <h4 className="font-medium text-blue-900 mb-2">{t('campaigns.formAdmin.tipTitle')}</h4>
         <p className="text-sm text-blue-700">
-          Ces informations administratives sont optionnelles mais recommandées pour faciliter
-          le suivi et la facturation de vos campagnes. Elles peuvent être définies au niveau
-          du client et héritées par les tactiques.
+          {t('campaigns.formAdmin.tipText')}
         </p>
       </div>
     </div>

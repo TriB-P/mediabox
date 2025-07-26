@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getVersions,
@@ -42,6 +43,7 @@ export default function CampaignVersions({
   officialVersionId,
   onVersionChange,
 }: CampaignVersionsProps) {
+  const { t, language } = useTranslation();
   const { user } = useAuth();
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,7 @@ export default function CampaignVersions({
       onVersionChange?.();
     } catch (error) {
       console.error('Erreur lors de la création de la version:', error);
-      alert('Erreur lors de la création de la version. Veuillez réessayer.');
+      alert(t('campaigns.versions.createError'));
     } finally {
       setCreating(false);
     }
@@ -109,7 +111,7 @@ export default function CampaignVersions({
       onVersionChange?.();
     } catch (error) {
       console.error('Erreur lors du changement de version officielle:', error);
-      alert('Erreur lors du changement de version officielle. Veuillez réessayer.');
+      alert(t('campaigns.versions.officialError'));
     }
   };
 
@@ -120,21 +122,11 @@ export default function CampaignVersions({
    */
   const handleDeleteVersion = async (version: Version) => {
     if (version.isOfficial) {
-      alert('Impossible de supprimer la version officielle.');
+      alert(t('campaigns.versions.deleteOfficialError'));
       return;
     }
 
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer la version "${version.name}" ?
-
-⚠️ ATTENTION : Cette action est irréversible et supprimera :
-• Toutes les tactiques de cette version
-• Tous les créatifs associés
-• Tous les placements associés
-• Toutes les autres données liées à cette version
-
-Voulez-vous vraiment continuer ?`;
-
-    if (!confirm(confirmMessage)) {
+    if (!confirm(t('campaigns.versions.deleteConfirmMessage', { name: version.name }))) {
       return;
     }
 
@@ -144,10 +136,10 @@ Voulez-vous vraiment continuer ?`;
       await deleteVersion(clientId, campaignId, version.id);
       await loadVersions();
       onVersionChange?.();
-      alert('Version supprimée avec succès.');
+      alert(t('campaigns.versions.deleteSuccess'));
     } catch (error: any) {
       console.error('Erreur lors de la suppression de la version:', error);
-      alert(error.message || 'Erreur lors de la suppression de la version. Veuillez réessayer.');
+      alert(error.message || t('campaigns.versions.deleteError'));
     } finally {
       setDeletingVersionId(null);
     }
@@ -156,7 +148,7 @@ Voulez-vous vraiment continuer ?`;
   if (loading) {
     return (
       <div className="pl-8 py-2 text-sm text-gray-500">
-        Chargement des versions...
+        {t('campaigns.versions.loading')}
       </div>
     );
   }
@@ -164,14 +156,14 @@ Voulez-vous vraiment continuer ?`;
   return (
     <div className="bg-gray-50 px-6 py-4">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-medium text-gray-900">Versions</h3>
+        <h3 className="text-sm font-medium text-gray-900">{t('campaigns.versions.title')}</h3>
         <button
           onClick={() => setCreating(true)}
           disabled={creating}
           className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
         >
           <PlusIcon className="h-4 w-4" />
-          Nouvelle version
+          {t('campaigns.versions.newVersion')}
         </button>
       </div>
 
@@ -187,8 +179,8 @@ Voulez-vous vraiment continuer ?`;
                 className="focus:outline-none"
                 title={
                   version.isOfficial
-                    ? 'Version officielle'
-                    : 'Définir comme version officielle'
+                    ? t('campaigns.versions.isOfficialTitle')
+                    : t('campaigns.versions.setOfficialTitle')
                 }
               >
                 {version.isOfficial ? (
@@ -204,13 +196,15 @@ Voulez-vous vraiment continuer ?`;
                   </span>
                   {version.isOfficial && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                      Officielle
+                      {t('campaigns.versions.official')}
                     </span>
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
-                  Créée par {version.createdBy} le{' '}
-                  {new Date(version.createdAt).toLocaleDateString()}
+                  {t('campaigns.versions.createdBy', { 
+                    user: version.createdBy, 
+                    date: new Date(version.createdAt).toLocaleDateString(language === 'fr' ? 'fr-CA' : 'en-CA') 
+                  })}
                 </div>
               </div>
             </div>
@@ -221,7 +215,7 @@ Voulez-vous vraiment continuer ?`;
                   onClick={() => handleDeleteVersion(version)}
                   disabled={deletingVersionId === version.id}
                   className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
-                  title="Supprimer cette version"
+                  title={t('campaigns.versions.deleteVersionTitle')}
                 >
                   {deletingVersionId === version.id ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
@@ -240,7 +234,7 @@ Voulez-vous vraiment continuer ?`;
               type="text"
               value={newVersionName}
               onChange={(e) => setNewVersionName(e.target.value)}
-              placeholder="Nom de la version"
+              placeholder={t('campaigns.versions.namePlaceholder')}
               className="flex-1 text-sm border-none focus:ring-0"
               autoFocus
               onKeyPress={(e) => {
@@ -257,7 +251,7 @@ Voulez-vous vraiment continuer ?`;
               disabled={!newVersionName.trim() || creating}
               className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
             >
-              Créer
+              {t('common.create')}
             </button>
             <button
               onClick={() => {
@@ -267,14 +261,14 @@ Voulez-vous vraiment continuer ?`;
               disabled={creating}
               className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
           </div>
         )}
 
         {versions.length === 0 && !creating && (
           <div className="text-center py-4 text-sm text-gray-500">
-            Aucune version créée pour cette campagne.
+            {t('campaigns.versions.noVersions')}
           </div>
         )}
       </div>

@@ -15,7 +15,7 @@ export type Language = 'fr' | 'en';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, options?: { [key: string]: string | number }) => string;
 }
 
 import { translations } from '../locales/translations';
@@ -55,34 +55,45 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   };
 
   /**
-   * Fonction de traduction avec fallback
+   * Récupère et interpole une chaîne de traduction pour une langue donnée.
+   */
+  const getTranslation = (
+    lang: Language,
+    key: string,
+    options?: { [key: string]: string | number }
+  ): string | null => {
+    const keys = key.split('.');
+    let value: any = translations[lang];
+
+    for (const k of keys) {
+      if (value === undefined || value === null) {
+        return null;
+      }
+      value = value[k];
+    }
+
+    if (typeof value === 'string') {
+      let translated = value;
+      if (options) {
+        Object.keys(options).forEach(optKey => {
+          translated = translated.replace(new RegExp(`{{${optKey}}}`, 'g'), String(options[optKey]));
+        });
+      }
+      return translated;
+    }
+
+    return null;
+  };
+
+  /**
+   * Fonction de traduction avec fallback et interpolation
    * @param key - Clé de traduction (ex: "admin.title")
+   * @param options - Valeurs à interpoler (ex: { name: "John" })
    * @returns Le texte traduit ou la clé si traduction manquante
    */
-  const t = (key: string): string => {
-    const keys = key.split('.');
-    let value: any = translations[language];
-
-    // Naviguer dans l'objet de traductions
-    for (const k of keys) {
-      value = value?.[k];
-    }
-
-    // Si traduction trouvée, la retourner
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    // Fallback vers le français
-    if (language !== 'fr') {
-      let fallbackValue: any = translations.fr;
-      for (const k of keys) {
-        fallbackValue = fallbackValue?.[k];
-      }
-      if (typeof fallbackValue === 'string') {
-        return fallbackValue;
-      }
-    }
+  const t = (key: string, options?: { [key: string]: string | number }): string => {
+    const translated = getTranslation(language, key, options) ?? getTranslation('fr', key, options);
+    if (translated !== null) return translated;
 
     // Si aucune traduction trouvée, retourner la clé
     console.warn(`Traduction manquante pour la clé: ${key}`);

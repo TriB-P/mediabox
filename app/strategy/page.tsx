@@ -12,6 +12,7 @@ import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import BudgetBucket from '../components/Others/BudgetBucket';
+import { useTranslation } from '../contexts/LanguageContext';
 import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
@@ -51,6 +52,7 @@ interface Bucket {
  */
 export default function StrategiePage() {
   const { selectedClient } = useClient();
+  const { t } = useTranslation();
   const {
     campaigns,
     versions,
@@ -179,7 +181,7 @@ export default function StrategiePage() {
         const data = doc.data();
         bucketsData.push({
           id: doc.id,
-          name: data.name || 'Sans nom',
+          name: data.name || t('strategy.unnamedBucket'),
           description: data.description || '',
           target: data.target || 0,
           actual: data.actual || 0,
@@ -192,7 +194,7 @@ export default function StrategiePage() {
       setBuckets(bucketsData);
     } catch (err) {
       console.error('Erreur lors du chargement des buckets:', err);
-      setError('Erreur lors du chargement des buckets');
+      setError(t('strategy.loadingError'));
     } finally {
       setLoading(false);
     }
@@ -274,8 +276,8 @@ export default function StrategiePage() {
       );
       
       const newBucket = {
-        name: 'Nouveau bucket',
-        description: 'Description du bucket',
+        name: t('strategy.newBucketName'),
+        description: t('strategy.newBucketDescription'),
         target: 0,
         actual: 0,
         percentage: 0,
@@ -290,7 +292,7 @@ export default function StrategiePage() {
       await loadBuckets(selectedVersion.id);
     } catch (err) {
       console.error('Erreur lors de la création du bucket:', err);
-      setError('Erreur lors de la création du bucket');
+      setError(t('strategy.creationError'));
     } finally {
       setLoading(false);
     }
@@ -326,7 +328,7 @@ export default function StrategiePage() {
       await loadBuckets(selectedVersion.id);
     } catch (err) {
       console.error('Erreur lors de la suppression du bucket:', err);
-      setError('Erreur lors de la suppression du bucket');
+      setError(t('strategy.deleteError'));
     } finally {
       setLoading(false);
     }
@@ -366,7 +368,7 @@ export default function StrategiePage() {
       ));
     } catch (err) {
       console.error('Erreur lors de la mise à jour du bucket:', err);
-      setError('Erreur lors de la mise à jour du bucket');
+      setError(t('strategy.updateError'));
     } finally {
       setLoading(false);
     }
@@ -448,14 +450,14 @@ export default function StrategiePage() {
         <div className="space-y-6">
           
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Stratégie</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('strategy.title')}</h1>
             {selectedCampaign && selectedVersion && (
               <div className="text-right text-sm text-gray-500">
-                <div>Campagne: <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
-                <div>Version: <span className="font-medium">{selectedVersion.name}</span></div>
+                <div>{t('strategy.campaign')} <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
+                <div>{t('strategy.version')} <span className="font-medium">{selectedVersion.name}</span></div>
                 {loadingAssignments && (
                   <div className="text-xs text-blue-500 mt-1">
-                    📊 Calcul des budgets assignés...
+                    {t('strategy.calculatingAssignedBudgets')}
                   </div>
                 )}
               </div>
@@ -488,16 +490,14 @@ export default function StrategiePage() {
                 }`}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
-                Nouvelle enveloppe
+                {t('strategy.newBucket')}
               </button>
             </div>
           </div>
           
           <div className="bg-white p-4 rounded-lg shadow mb-6 text-sm text-gray-600">
             <p>
-              Les enveloppes budgétaires sont un outil pour les équipes de planification qui permet d'utiliser MediaBox pour faire de la planification à très
-              haut niveau. Vous pouvez créer autant d'enveloppe que vous le souhaitez et assigner une portion du budget de la campagne dans ses
-              enveloppes. Le montant "Assigné dans MediaBox" reflète automatiquement le budget total (incluant les frais) des tactiques assignées à chaque enveloppe.
+              {t('strategy.description')}
             </p>
           </div>
           
@@ -505,7 +505,7 @@ export default function StrategiePage() {
             <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                <div className="text-sm text-gray-500">Chargement en cours...</div>
+                <div className="text-sm text-gray-500">{t('common.loading')}</div>
               </div>
             </div>
           )}
@@ -528,15 +528,15 @@ export default function StrategiePage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center">
-                      <p className="text-sm text-blue-700 font-medium mr-2">Budget total:</p>
+                      <p className="text-sm text-blue-700 font-medium mr-2">{t('strategy.totalBudget')}</p>
                       <p className="text-md font-bold text-blue-800">{formatCurrency(totalBudget)}</p>
                     </div>
                     <div className="flex items-center">
-                      <p className="text-sm text-blue-700 font-medium mr-2">Budget alloué:</p>
+                      <p className="text-sm text-blue-700 font-medium mr-2">{t('strategy.allocatedBudget')}</p>
                       <p className="text-md font-bold text-blue-800">{formatCurrency(totalBudget - remainingBudget)}</p>
                     </div>
                     <div className="flex items-center">
-                      <p className="text-sm text-blue-700 font-medium mr-2">Budget restant:</p>
+                      <p className="text-sm text-blue-700 font-medium mr-2">{t('strategy.remainingBudget')}</p>
                       <p className={`text-md font-bold ${remainingBudget < 0 ? 'text-red-600' : 'text-blue-800'}`}>
                         {formatCurrency(remainingBudget)}
                       </p>
@@ -554,7 +554,7 @@ export default function StrategiePage() {
               {!selectedCampaign && (
                 <div className="bg-white p-8 rounded-lg shadow text-center">
                   <p className="text-gray-500">
-                    Veuillez sélectionner une campagne et une version pour voir les enveloppes budgétaires.
+                    {t('strategy.selectCampaignAndVersion')}
                   </p>
                 </div>
               )}
@@ -562,7 +562,7 @@ export default function StrategiePage() {
               {selectedCampaign && !selectedVersion && (
                 <div className="bg-white p-8 rounded-lg shadow text-center">
                   <p className="text-gray-500">
-                    Veuillez sélectionner une version pour voir les enveloppes budgétaires.
+                    {t('strategy.selectVersion')}
                   </p>
                 </div>
               )}
@@ -588,14 +588,14 @@ export default function StrategiePage() {
                   {buckets.length === 0 && (
                     <div className="col-span-full bg-gray-50 p-8 rounded-lg border border-gray-200 text-center">
                       <p className="text-gray-500">
-                        Aucune enveloppe budgétaire n'a été créée pour cette version.
+                        {t('strategy.noBuckets')}
                       </p>
                       <button
                         onClick={handleAddBucket}
                         className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                       >
                         <PlusIcon className="h-5 w-5 mr-2" />
-                        Créer une enveloppe
+                        {t('strategy.createBucket')}
                       </button>
                     </div>
                   )}

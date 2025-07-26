@@ -63,7 +63,7 @@ export default function CampaignActions({
    * Met à jour l'état de chargement et rafraîchit la liste des campagnes en cas de succès.
    */
   const handleDelete = async () => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaign.CA_Name}" ?\n\nCette action est irréversible et supprimera également toutes les tactiques, versions et autres données associées.`)) {
+    if (!confirm(t('campaigns.actions.deleteConfirm', { name: campaign.CA_Name }))) {
       return;
     }
 
@@ -74,7 +74,7 @@ export default function CampaignActions({
       onRefresh();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression de la campagne. Veuillez réessayer.');
+      alert(t('campaigns.actions.deleteError'));
     } finally {
       setIsLoading(false);
       setShowMenu(false);
@@ -88,7 +88,7 @@ export default function CampaignActions({
    */
   const handleDuplicate = async () => {
     if (!user?.email) {
-      alert('Utilisateur non connecté.');
+      alert(t('campaigns.actions.userNotConnected'));
       return;
     }
 
@@ -99,10 +99,10 @@ export default function CampaignActions({
       console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignActions.tsx - Fonction: handleDuplicate - Path: clients/${clientId}/campaigns/${campaign.id}`);
       await duplicateCampaign(clientId, campaign.id, user.email, newName);
       onRefresh();
-      alert('Campagne dupliquée avec succès !');
+      alert(t('campaigns.actions.duplicateSuccess'));
     } catch (error) {
       console.error('Erreur lors de la duplication:', error);
-      alert('Erreur lors de la duplication de la campagne. Veuillez réessayer.');
+      alert(t('campaigns.actions.duplicateError'));
     } finally {
       setIsLoading(false);
       setShowMenu(false);
@@ -170,7 +170,7 @@ export default function CampaignActions({
           onClick={handleEdit}
           disabled={isLoading}
           className="p-2 text-gray-400 hover:text-indigo-600 disabled:opacity-50 transition-colors"
-          title="Modifier la campagne"
+          title={t('campaigns.actions.editTitle')}
         >
           <PencilIcon className="h-4 w-4" />
         </button>
@@ -179,7 +179,7 @@ export default function CampaignActions({
           onClick={handleDuplicate}
           disabled={isLoading}
           className="p-2 text-gray-400 hover:text-blue-600 disabled:opacity-50 transition-colors"
-          title="Dupliquer la campagne"
+          title={t('campaigns.actions.duplicateTitle')}
         >
           <DocumentDuplicateIcon className="h-4 w-4" />
         </button>
@@ -188,7 +188,7 @@ export default function CampaignActions({
           onClick={handleDelete}
           disabled={isLoading}
           className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
-          title="Supprimer la campagne"
+          title={t('campaigns.actions.deleteTitle')}
         >
           <TrashIcon className="h-4 w-4" />
         </button>

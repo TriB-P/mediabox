@@ -12,6 +12,7 @@ import {
   FormSection
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CampaignFormDatesProps {
   formData: CampaignFormData;
@@ -35,6 +36,7 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
   onTooltipChange,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const isDisabled = loading;
 
   /**
@@ -48,7 +50,7 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
     const endDate = new Date(formData.CA_End_Date);
 
     if (endDate <= startDate) {
-      return 'La date de fin doit être postérieure à la date de début';
+      return t('campaigns.formDates.validationError');
     }
 
     return null;
@@ -59,8 +61,8 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
   return (
     <div className="p-8 space-y-6">
       <FormSection
-        title="Planification temporelle"
-        description="Définissez la période d'exécution de votre campagne"
+        title={t('campaigns.formDates.title')}
+        description={t('campaigns.formDates.description')}
       >
         <div className="space-y-6">
           <FormInput
@@ -71,8 +73,8 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
             type="date"
             required={!isDisabled}
             label={createLabelWithHelp(
-              'Date de début *',
-              'Date de lancement officiel de la campagne',
+              t('campaigns.formDates.startDateLabel'),
+              t('campaigns.formDates.startDateHelp'),
               onTooltipChange
             )}
           />
@@ -85,8 +87,8 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
             type="date"
             required={!isDisabled}
             label={createLabelWithHelp(
-              'Date de fin *',
-              'Date de fin prévue de la campagne',
+              t('campaigns.formDates.endDateLabel'),
+              t('campaigns.formDates.endDateHelp'),
               onTooltipChange
             )}
           />
@@ -100,8 +102,8 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'Période de sprint (automatique)',
-                'Ce champ est généré automatiquement à partir des dates de début et de fin.',
+                t('campaigns.formDates.sprintPeriodLabel'),
+                t('campaigns.formDates.sprintPeriodHelp'),
                 onTooltipChange
               )}
             </div>
@@ -109,7 +111,7 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
               {formData.CA_Sprint_Dates ? (
                 <p className="font-mono text-sm">{formData.CA_Sprint_Dates}</p>
               ) : (
-                <p className="text-sm text-gray-400 italic">Généré avec les dates</p>
+                <p className="text-sm text-gray-400 italic">{t('campaigns.formDates.sprintPeriodGenerated')}</p>
               )}
             </div>
           </div>
@@ -117,12 +119,12 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
           {formData.CA_Start_Date && formData.CA_End_Date && !dateValidationError && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
               <p className="text-sm">
-                <strong>Durée de la campagne :</strong> {
-                  Math.ceil(
+                <strong>{t('campaigns.formDates.campaignDuration')}</strong> {
+                  t('campaigns.formDates.days', { count: Math.ceil(
                     (new Date(formData.CA_End_Date).getTime() - new Date(formData.CA_Start_Date).getTime())
                     / (1000 * 60 * 60 * 24)
-                  )
-                } jours
+                  )})
+                }
               </p>
             </div>
           )}

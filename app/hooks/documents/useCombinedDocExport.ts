@@ -1,3 +1,4 @@
+// app/hooks/documents/useCombinedDocExport.ts
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -5,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCleanDocData } from './useCleanDocData';
 import { useBreakdownData } from './useBreakdownData';
 import { useCampaignDataDoc } from './useCampaignDataDoc';
+import { useConvertShortcodesDoc } from './useConvertShortcodesDoc';
 
 interface UseCombinedDocExportReturn {
   exportCombinedData: (clientId: string, campaignId: string, versionId: string, sheetUrl: string) => Promise<boolean>;
@@ -15,6 +17,7 @@ interface UseCombinedDocExportReturn {
 /**
  * Hook personnalisé pour extraire diverses données d'une campagne et les exporter vers Google Sheets.
  * Il combine les fonctionnalités de plusieurs hooks d'extraction de données et du hook de génération de document.
+ * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue d'exportation du client.
  * @returns {UseCombinedDocExportReturn} Un objet contenant la fonction exportCombinedData,
  * les états de chargement et d'erreur.
  */
@@ -26,6 +29,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   const { cleanData, loading: cleanLoading, error: cleanError } = useCleanDocData();
   const { extractBreakdownData, loading: breakdownLoading, error: breakdownError } = useBreakdownData();
   const { extractCampaignData, loading: campaignLoading, error: campaignError } = useCampaignDataDoc();
+  const { convertShortcodes, loading: convertLoading, error: convertError } = useConvertShortcodesDoc();
 
   /**
    * Extrait l'ID unique d'un Google Sheet à partir de son URL complète.
@@ -182,9 +186,9 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     }
   }, [getAccessToken]);
 
-
   /**
    * Fonction principale pour extraire et exporter les données combinées vers Google Sheets.
+   * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue du client.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
    * @param {string} versionId L'ID de la version.
@@ -217,16 +221,15 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       await clearSheetRange(sheetId, 'MB_Data', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Data
       await clearSheetRange(sheetId, 'MB_Splits', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Splits
 
-
-      // 1. Extraire les données de campagne et les capturer directement
+      // 1. Extraire les données de campagne
       const campaignDataResult = await extractCampaignData(clientId, campaignId);
       if (campaignError) throw new Error(campaignError);
 
-      // 2. Extraire les données de breakdown et les capturer directement
+      // 2. Extraire les données de breakdown
       const breakdownDataResult = await extractBreakdownData(clientId, campaignId, versionId);
       if (breakdownError) throw new Error(breakdownError);
 
-      // 3. Extraire les données de hiérarchie nettoyées et les capturer directement
+      // 3. Extraire les données de hiérarchie nettoyées
       const cleanedDataResult = await cleanData(clientId, campaignId, versionId);
       if (cleanError) throw new Error(cleanError);
 
@@ -235,16 +238,33 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         throw new Error('Données manquantes après extraction.');
       }
 
-      // 4. Écrire les données dans Google Sheets
+      console.log('[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes...');
+
+      // 4. Convertir les shortcodes dans les données de campagne
+      const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId);
+      if (convertError) throw new Error(convertError);
+      if (!convertedCampaignData) throw new Error('Erreur lors de la conversion des shortcodes de campagne.');
+
+      // 5. Convertir les shortcodes dans les données de hiérarchie
+      const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId);
+      if (convertError) throw new Error(convertError);
+      if (!convertedCleanedData) throw new Error('Erreur lors de la conversion des shortcodes de hiérarchie.');
+
+      // Note: Les données de breakdown ne contiennent généralement pas de shortcodes,
+      // donc on les garde telles quelles
+
+      console.log('[COMBINED EXPORT] Conversion des shortcodes terminée, écriture vers Google Sheets...');
+
+      // 6. Écrire les données converties dans Google Sheets
       const writePromises = [];
 
-      // Données de campagne dans MB_Data, cellule A1
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', campaignDataResult));
+      // Données de campagne converties dans MB_Data, cellule A1
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', convertedCampaignData));
 
-      // Données nettoyées dans MB_Data, cellule A4
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', cleanedDataResult));
+      // Données nettoyées converties dans MB_Data, cellule A4
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', convertedCleanedData));
 
-      // Données de breakdown dans MB_Splits, cellule A1
+      // Données de breakdown dans MB_Splits, cellule A1 (non converties)
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Splits', 'A1', breakdownDataResult));
 
       const results = await Promise.all(writePromises);
@@ -254,6 +274,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         throw new Error('Une ou plusieurs écritures dans Google Sheets ont échoué.');
       }
 
+      console.log('[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès (shortcodes convertis)');
       return true;
 
     } catch (err) {
@@ -269,11 +290,12 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     cleanData, cleanError,
     extractBreakdownData, breakdownError,
     extractCampaignData, campaignError,
+    convertShortcodes, convertError,
     extractSheetId, writeToGoogleSheet, clearSheetRange
   ]);
 
-  const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading;
-  const overallError = error || cleanError || breakdownError || campaignError;
+  const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading;
+  const overallError = error || cleanError || breakdownError || campaignError || convertError;
 
   return {
     exportCombinedData,

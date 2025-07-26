@@ -16,6 +16,7 @@ import {
   FormSection 
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CampaignFormBudgetProps {
   formData: CampaignFormData;
@@ -46,6 +47,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   clientConfig, 
   loading = false
 }) => {
+  const { t, language } = useTranslation();
   const isDisabled = loading;
 
   const currencyOptions = [
@@ -77,15 +79,15 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
   return (
     <div className="p-8 space-y-6">
       <FormSection
-        title="Budget et coûts"
-        description="Définissez le budget principal et les frais additionnels"
+        title={t('campaigns.formBudget.title')}
+        description={t('campaigns.formBudget.description')}
       >
         <div className="space-y-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'Budget principal *', 
-                'Budget principal alloué à cette campagne', 
+                t('campaigns.formBudget.mainBudgetLabel'), 
+                t('campaigns.formBudget.mainBudgetHelp'), 
                 onTooltipChange
               )}
             </div>
@@ -111,8 +113,8 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'Devise', 
-                'Devise utilisée pour cette campagne', 
+                t('campaigns.formBudget.currencyLabel'), 
+                t('campaigns.formBudget.currencyHelp'), 
                 onTooltipChange
               )}
             </div>
@@ -134,8 +136,8 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
       </FormSection>
 
       <FormSection
-        title="Frais personnalisés"
-        description="Ajoutez des frais additionnels spécifiques à votre campagne"
+        title={t('campaigns.formBudget.customFeesTitle')}
+        description={t('campaigns.formBudget.customFeesDescription')}
       >
         <div className="space-y-6">
           {[1, 2, 3].map((num) => {
@@ -150,7 +152,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                   <div className="flex items-center gap-3 mb-2">
                     {createLabelWithHelp(
                       customLabel, 
-                      `Frais additionnel #${num}`, 
+                      t('campaigns.formBudget.customFeeHelp', { num }), 
                       onTooltipChange
                     )}
                   </div>
@@ -180,12 +182,12 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
 
       {(mainBudget > 0 || totalCustomFees > 0) && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Récapitulatif budgétaire</h4>
+          <h4 className="font-medium text-gray-900 mb-3">{t('campaigns.formBudget.summaryTitle')}</h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Budget principal :</span>
+              <span className="text-gray-600">{t('campaigns.formBudget.summaryMainBudget')}</span>
               <span className="font-medium">
-                {new Intl.NumberFormat('fr-CA', {
+                {new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
                   style: 'currency',
                   currency: formData.CA_Currency || 'CAD',
                 }).format(mainBudget)}
@@ -194,9 +196,9 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
             
             {totalCustomFees > 0 && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Total frais personnalisés :</span>
+                <span className="text-gray-600">{t('campaigns.formBudget.summaryCustomFees')}</span>
                 <span className="font-medium">
-                  {new Intl.NumberFormat('fr-CA', {
+                  {new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
                     style: 'currency',
                     currency: formData.CA_Currency || 'CAD',
                   }).format(totalCustomFees)}
@@ -205,9 +207,9 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
             )}
             
             <div className="flex justify-between pt-2 border-t border-gray-300">
-              <span className="font-medium text-gray-900">Budget total :</span>
+              <span className="font-medium text-gray-900">{t('campaigns.formBudget.summaryTotalBudget')}</span>
               <span className="font-bold text-lg text-indigo-600">
-                {new Intl.NumberFormat('fr-CA', {
+                {new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
                   style: 'currency',
                   currency: formData.CA_Currency || 'CAD',
                 }).format(totalBudget)}

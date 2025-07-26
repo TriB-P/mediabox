@@ -16,6 +16,7 @@ import {
 } from '../Tactiques/Tactiques/TactiqueFormComponents';
 import { CampaignFormData } from '../../types/campaign';
 import { ShortcodeItem } from '../../lib/listService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 
 interface CampaignFormInfoProps {
@@ -79,13 +80,14 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
   loadingCustomDims,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const isDisabled = loading;
 
   return (
     <div className="p-8 space-y-6">
       <FormSection
-        title="Informations générales"
-        description="Configuration de base de la campagne"
+        title={t('campaigns.formInfo.title')}
+        description={t('campaigns.formInfo.description')}
       >
         <div className="space-y-6">
           <FormInput
@@ -94,11 +96,11 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             value={formData.CA_Name}
             onChange={onChange}
             type="text"
-            placeholder="Ex: Lancement estival"
+            placeholder={t('campaigns.formInfo.namePlaceholder')}
             required={!isDisabled}
             label={createLabelWithHelp(
-              'Nom de la campagne *', 
-              'Nom d\'affichage principal de la campagne.', 
+              t('campaigns.formInfo.nameLabel'), 
+              t('campaigns.formInfo.nameHelp'), 
               onTooltipChange
             )}
           />
@@ -109,11 +111,11 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             value={formData.CA_Campaign_Identifier}
             onChange={onChange}
             type="text"
-            placeholder="Ex: BISTRO-2024-PROMOTION"
+            placeholder={t('campaigns.formInfo.identifierPlaceholder')}
             required={!isDisabled}
             label={createLabelWithHelp(
-              'Identifiant de campagne *', 
-              'Identifiant unique utilisé dans les taxonomies.', 
+              t('campaigns.formInfo.identifierLabel'), 
+              t('campaigns.formInfo.identifierHelp'), 
               onTooltipChange
             )}
           />
@@ -124,26 +126,26 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             value={formData.CA_Creative_Folder || ''}
             onChange={onChange}
             type="text"
-            placeholder="Lien vers le dossier des créatifs"
+            placeholder={t('campaigns.formInfo.creativeFolderPlaceholder')}
             label={createLabelWithHelp(
-              'Dossier créatifs',
-              'Lien vers le dossier contenant les créatifs pour cette campagne',
+              t('campaigns.formInfo.creativeFolderLabel'),
+              t('campaigns.formInfo.creativeFolderHelp'),
               onTooltipChange
             )}
           />
 
           <div>
             <div className="flex items-center gap-3 mb-2">
-              {createLabelWithHelp('Division', 'Division ou unité d\'affaires', onTooltipChange)}
+              {createLabelWithHelp(t('campaigns.formInfo.divisionLabel'), t('campaigns.formInfo.divisionHelp'), onTooltipChange)}
             </div>
-            {loadingDivisions ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+            {loadingDivisions ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
                 id="CA_Division"
                 name="CA_Division"
                 value={formData.CA_Division || ''}
                 onChange={onChange}
                 options={divisions.map(d => ({ id: d.id, label: d.SH_Display_Name_FR }))}
-                placeholder="Sélectionner une division"
+                placeholder={t('campaigns.formInfo.divisionPlaceholder')}
                 label=""
               />
             )}
@@ -151,16 +153,16 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
 
           <div>
             <div className="flex items-center gap-3 mb-2">
-              {createLabelWithHelp('Trimestre *', 'Période fiscale de la campagne', onTooltipChange)}
+              {createLabelWithHelp(t('campaigns.formInfo.quarterLabel'), t('campaigns.formInfo.quarterHelp'), onTooltipChange)}
             </div>
-            {loadingQuarters ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+            {loadingQuarters ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
                 id="CA_Quarter"
                 name="CA_Quarter"
                 value={formData.CA_Quarter|| ''}
                 onChange={onChange}
                 options={quarters.map(q => ({ id: q.id, label: q.SH_Display_Name_FR }))}
-                placeholder="Sélectionner un trimestre"
+                placeholder={t('campaigns.formInfo.quarterPlaceholder')}
                 label=""
               />
             )}
@@ -168,16 +170,16 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
           
           <div>
             <div className="flex items-center gap-3 mb-2">
-              {createLabelWithHelp('Année *', 'Année fiscale de la campagne', onTooltipChange)}
+              {createLabelWithHelp(t('campaigns.formInfo.yearLabel'), t('campaigns.formInfo.yearHelp'), onTooltipChange)}
             </div>
-            {loadingYears ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+            {loadingYears ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
                 id="CA_Year"
                 name="CA_Year"
                 value={formData.CA_Year}
                 onChange={onChange}
                 options={years.map(y => ({ id: y.id, label: y.SH_Display_Name_FR }))}
-                placeholder="Sélectionner une année"
+                placeholder={t('campaigns.formInfo.yearPlaceholder')}
                 label=""
               />
             )}
@@ -186,9 +188,9 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
           {clientConfig.CA_Custom_Dim_1 && (
             <div>
               <div className="flex items-center gap-3 mb-2">
-                {createLabelWithHelp(clientConfig.CA_Custom_Dim_1, `Dimension: ${clientConfig.CA_Custom_Dim_1}`, onTooltipChange)}
+                {createLabelWithHelp(clientConfig.CA_Custom_Dim_1, t('campaigns.formInfo.customDimHelp', { name: clientConfig.CA_Custom_Dim_1 }), onTooltipChange)}
               </div>
-              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
                 customDim1List.length > 0 ? (
                   <SmartSelect
                     id="CA_Custom_Dim_1"
@@ -196,7 +198,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_1 || ''}
                     onChange={onChange}
                     options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_1}`}
+                    placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_1 })}
                     label=""
                   />
                 ) : (
@@ -206,7 +208,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_1 || ''}
                     onChange={onChange}
                     type="text"
-                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_1}`}
+                    placeholder={t('campaigns.formInfo.customDimInputPlaceholder', { name: clientConfig.CA_Custom_Dim_1 })}
                     label=""
                   />
                 )
@@ -217,9 +219,9 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
           {clientConfig.CA_Custom_Dim_2 && (
             <div>
               <div className="flex items-center gap-3 mb-2">
-                {createLabelWithHelp(clientConfig.CA_Custom_Dim_2, `Dimension: ${clientConfig.CA_Custom_Dim_2}`, onTooltipChange)}
+                {createLabelWithHelp(clientConfig.CA_Custom_Dim_2, t('campaigns.formInfo.customDimHelp', { name: clientConfig.CA_Custom_Dim_2 }), onTooltipChange)}
               </div>
-              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
                 customDim2List.length > 0 ? (
                   <SmartSelect
                     id="CA_Custom_Dim_2"
@@ -227,7 +229,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_2 || ''}
                     onChange={onChange}
                     options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_2}`}
+                    placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_2 })}
                     label=""
                   />
                 ) : (
@@ -237,7 +239,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_2 || ''}
                     onChange={onChange}
                     type="text"
-                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_2}`}
+                    placeholder={t('campaigns.formInfo.customDimInputPlaceholder', { name: clientConfig.CA_Custom_Dim_2 })}
                     label=""
                   />
                 )
@@ -248,9 +250,9 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
           {clientConfig.CA_Custom_Dim_3 && (
             <div>
               <div className="flex items-center gap-3 mb-2">
-                {createLabelWithHelp(clientConfig.CA_Custom_Dim_3, `Dimension: ${clientConfig.CA_Custom_Dim_3}`, onTooltipChange)}
+                {createLabelWithHelp(clientConfig.CA_Custom_Dim_3, t('campaigns.formInfo.customDimHelp', { name: clientConfig.CA_Custom_Dim_3 }), onTooltipChange)}
               </div>
-              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">Chargement...</div> : (
+              {loadingCustomDims ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
                 customDim3List.length > 0 ? (
                   <SmartSelect
                     id="CA_Custom_Dim_3"
@@ -258,7 +260,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_3 || ''}
                     onChange={onChange}
                     options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
-                    placeholder={`Sélectionner ${clientConfig.CA_Custom_Dim_3}`}
+                    placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_3 })}
                     label=""
                   />
                 ) : (
@@ -268,7 +270,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     value={formData.CA_Custom_Dim_3 || ''}
                     onChange={onChange}
                     type="text"
-                    placeholder={`Saisir ${clientConfig.CA_Custom_Dim_3}`}
+                    placeholder={t('campaigns.formInfo.customDimInputPlaceholder', { name: clientConfig.CA_Custom_Dim_3 })}
                     label=""
                   />
                 )

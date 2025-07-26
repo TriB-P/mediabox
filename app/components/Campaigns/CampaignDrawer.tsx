@@ -32,6 +32,7 @@ import {
   getClientInfo,
 } from '../../lib/listService';
 import { useAsyncTaxonomyUpdate } from '../../hooks/useAsyncTaxonomyUpdate';
+import { useTranslation } from '../../contexts/LanguageContext';
 import TaxonomyUpdateBanner from '../Others/TaxonomyUpdateBanner';
 
 interface CampaignDrawerProps {
@@ -70,6 +71,7 @@ export default function CampaignDrawer({
   campaign,
   onSave,
 }: CampaignDrawerProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { status, updateTaxonomiesAsync, dismissNotification } =
     useAsyncTaxonomyUpdate();
@@ -108,13 +110,13 @@ export default function CampaignDrawer({
 
   const tabs: FormTab[] = useMemo(
     () => [
-      { id: 'info', name: 'Informations', icon: DocumentTextIcon },
-      { id: 'dates', name: 'Dates', icon: CalendarIcon },
-      { id: 'budget', name: 'Budget', icon: BanknotesIcon },
-      { id: 'breakdown', name: 'Répartition', icon: ClockIcon },
-      { id: 'admin', name: 'Administration', icon: CogIcon },
+      { id: 'info', name: t('campaigns.drawer.tabs.info'), icon: DocumentTextIcon },
+      { id: 'dates', name: t('campaigns.drawer.tabs.dates'), icon: CalendarIcon },
+      { id: 'budget', name: t('campaigns.drawer.tabs.budget'), icon: BanknotesIcon },
+      { id: 'breakdown', name: t('campaigns.drawer.tabs.breakdown'), icon: ClockIcon },
+      { id: 'admin', name: t('campaigns.drawer.tabs.admin'), icon: CogIcon },
     ],
-    []
+    [t]
   );
 
   useEffect(() => {
@@ -429,7 +431,7 @@ export default function CampaignDrawer({
                       <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                         <div className="flex items-center justify-between">
                           <Dialog.Title className="text-lg font-medium text-white">
-                            {campaign ? 'Modifier la campagne' : 'Nouvelle campagne'}
+                            {campaign ? t('campaigns.drawer.editTitle') : t('campaigns.drawer.createTitle')}
                           </Dialog.Title>
                           <div className="ml-3 flex h-7 items-center">
                             <button
@@ -437,7 +439,7 @@ export default function CampaignDrawer({
                               className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white"
                               onClick={onClose}
                             >
-                              <span className="sr-only">Fermer</span>
+                              <span className="sr-only">{t('campaigns.drawer.closeSr')}</span>
                               <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                             </button>
                           </div>
@@ -463,7 +465,7 @@ export default function CampaignDrawer({
                               disabled={loading}
                               className="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
                             >
-                              Annuler
+                              {t('common.cancel')}
                             </button>
                             <button
                               type="submit"
@@ -471,10 +473,10 @@ export default function CampaignDrawer({
                               className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                             >
                               {loading
-                                ? 'Enregistrement...'
+                                ? t('campaigns.drawer.buttons.saving')
                                 : campaign
-                                ? 'Mettre à jour'
-                                : 'Créer'}
+                                ? t('common.update')
+                                : t('common.create')}
                             </button>
                           </div>
                         </div>

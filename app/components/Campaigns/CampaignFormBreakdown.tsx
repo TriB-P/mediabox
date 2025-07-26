@@ -42,6 +42,7 @@ import {
   getFirstOfMonth
 } from '../../lib/breakdownService';
 
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CampaignFormBreakdownProps {
   clientId: string;
@@ -72,6 +73,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   onBreakdownsChange,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
   const [additionalBreakdowns, setAdditionalBreakdowns] = useState<BreakdownFormData[]>([]);
   const [editingBreakdown, setEditingBreakdown] = useState<BreakdownEditData | null>(null);
@@ -166,7 +168,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       setBreakdowns(data);
     } catch (err) {
       console.error('Erreur lors du chargement des breakdowns:', err);
-      setError('Erreur lors du chargement des planifications');
+      setError(t('campaigns.formBreakdown.loadingError'));
     } finally {
       setLocalLoading(false);
     }
@@ -177,12 +179,12 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
    */
   const handleCreateBreakdown = () => {
     if (!campaignStartDate || !campaignEndDate) {
-      setError('Les dates de campagne doivent être définies avant de créer une répartition');
+      setError(t('campaigns.formBreakdown.datesNotDefinedError'));
       return;
     }
 
     if (breakdowns.length >= 3) {
-      setError('Maximum 3 répartitions autorisées');
+      setError(t('campaigns.formBreakdown.maxBreakdownsError'));
       return;
     }
 
@@ -203,7 +205,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
    */
   const handleEditBreakdown = (breakdown: Breakdown) => {
     if (breakdown.isDefault) {
-      setError('Le breakdown par défaut "Calendrier" ne peut pas être modifié. Ses dates sont automatiquement synchronisées avec les dates de la campagne.');
+      setError(t('campaigns.formBreakdown.defaultBreakdownModifyError'));
       return;
     }
 
@@ -282,7 +284,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       setIsCreating(false);
     } catch (err: any) {
       console.error('Erreur lors de la sauvegarde:', err);
-      setError(err.message || 'Erreur lors de la sauvegarde');
+      setError(err.message || t('campaigns.formBreakdown.saveError'));
     } finally {
       setLocalLoading(false);
     }
@@ -297,11 +299,11 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
     const breakdown = breakdowns.find(b => b.id === breakdownId);
     if (breakdown?.isDefault) {
-      setError('Impossible de supprimer la planification par défaut');
+      setError(t('campaigns.formBreakdown.defaultDeleteError'));
       return;
     }
 
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette planification ?')) {
+    if (!confirm(t('campaigns.formBreakdown.deleteConfirm'))) {
       return;
     }
 
@@ -313,7 +315,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       await loadBreakdowns();
     } catch (err: any) {
       console.error('Erreur lors de la suppression:', err);
-      setError(err.message || 'Erreur lors de la suppression');
+      setError(err.message || t('campaigns.formBreakdown.deleteError'));
     } finally {
       setLocalLoading(false);
     }
@@ -370,7 +372,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
     const currentPeriods = editingBreakdown.customPeriods || [];
     if (currentPeriods.length <= 1) {
-      setError('Au moins une période doit être définie');
+      setError(t('campaigns.formBreakdown.atLeastOnePeriodError'));
       return;
     }
 
@@ -481,14 +483,14 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   return (
     <div className="p-8 space-y-6">
       <FormSection
-        title="Répartition temporelle"
-        description="Définissez comment sera divisée votre campagne dans le temps"
+        title={t('campaigns.formBreakdown.title')}
+        description={t('campaigns.formBreakdown.description')}
       >
         {(!campaignStartDate || !campaignEndDate) && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
             <p className="text-sm">
-              <strong>Dates requises :</strong> Veuillez définir les dates de début et de fin de la campagne
-              dans l'onglet "Dates" avant de configurer les répartitions.
+              <strong>{t('campaigns.formBreakdown.datesRequiredTitle')}</strong>{' '}
+              {t('campaigns.formBreakdown.datesRequiredText')}
             </p>
           </div>
         )}
@@ -500,7 +502,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               onClick={() => setError(null)}
               className="ml-2 text-red-600 hover:text-red-800 underline text-sm"
             >
-              Fermer
+              {t('common.close')}
             </button>
           </div>
         )}
@@ -529,7 +531,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                           {breakdown.name}
                           {breakdown.isDefault && (
                             <span className="text-xs text-indigo-600 font-normal">
-                              (Par défaut - Synchronisé avec les dates de campagne)
+                              {t('campaigns.formBreakdown.defaultBreakdownLabel')}
                             </span>
                           )}
                         </h4>
@@ -539,10 +541,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                             <> • {breakdown.startDate} → {breakdown.endDate}</>
                           )}
                           {breakdown.type === 'Custom' && breakdown.customPeriods && (
-                            <> • {breakdown.customPeriods.length} période(s)</>
+                            <> • {t('campaigns.formBreakdown.periodsCount', { count: breakdown.customPeriods.length })}</>
                           )}
                           {breakdown.isDefault && (
-                            <> • Mis à jour automatiquement</>
+                            <> • {t('campaigns.formBreakdown.updatedAutomatically')}</>
                           )}
                         </p>
                         {breakdown.type === 'Custom' && breakdown.customPeriods && (
@@ -566,7 +568,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                             disabled={isDisabled}
                             className="text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
                           >
-                            Modifier
+                            {t('common.edit')}
                           </button>
                           <button
                             type="button"
@@ -581,7 +583,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                       {breakdown.isDefault && (
                         <div className="text-xs text-gray-500 flex items-center gap-1">
                           <LockClosedIcon className="h-3 w-3" />
-                          Non modifiable
+                          {t('campaigns.formBreakdown.notEditable')}
                         </div>
                       )}
                     </div>
@@ -600,7 +602,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
           >
             <PlusIcon className="h-6 w-6 mx-auto mb-2" />
             <span className="block text-sm font-medium">
-              Ajouter une répartition
+              {t('campaigns.formBreakdown.addBreakdown')}
             </span>
             <span className="block text-xs">
               ({breakdowns.length}/3)
@@ -611,8 +613,8 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         {(campaignStartDate && campaignEndDate) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              <strong>📅 Breakdown par défaut :</strong> Le breakdown "Calendrier" est automatiquement créé et
-              synchronisé avec les dates de votre campagne. Il commence toujours un lundi et ne peut pas être modifié manuellement.
+              <strong>{t('campaigns.formBreakdown.defaultBreakdownInfoTitle')}</strong>{' '}
+              {t('campaigns.formBreakdown.defaultBreakdownInfoText')}
             </p>
           </div>
         )}
@@ -623,7 +625,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
-                {isCreating ? 'Nouvelle répartition' : 'Modifier la répartition'}
+                {isCreating ? t('campaigns.formBreakdown.modal.newTitle') : t('campaigns.formBreakdown.modal.editTitle')}
               </h3>
             </div>
 
@@ -631,11 +633,11 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <HelpIcon
-                    tooltip="Nom descriptif de cette répartition temporelle"
+                    tooltip={t('campaigns.formBreakdown.modal.nameHelp')}
                     onTooltipChange={onTooltipChange}
                   />
                   <label className="block text-sm font-medium text-gray-700">
-                    Nom *
+                    {t('campaigns.formBreakdown.modal.nameLabel')}
                   </label>
                 </div>
                 <input
@@ -647,18 +649,18 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   })}
                   disabled={editingBreakdown.isDefault}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg disabled:bg-gray-100"
-                  placeholder="Ex: Sprint 1, Phase initiale..."
+                  placeholder={t('campaigns.formBreakdown.modal.namePlaceholder')}
                 />
               </div>
 
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <HelpIcon
-                    tooltip="Type de répartition : Hebdomadaire (début lundi), Mensuel (début 1er du mois) ou Personnalisé (périodes multiples)"
+                    tooltip={t('campaigns.formBreakdown.modal.typeHelp')}
                     onTooltipChange={onTooltipChange}
                   />
                   <label className="block text-sm font-medium text-gray-700">
-                    Type *
+                    {t('campaigns.formBreakdown.modal.typeLabel')}
                   </label>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -688,14 +690,15 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <HelpIcon
-                        tooltip={`Date de début de la répartition${editingBreakdown.type === 'Hebdomadaire' ? ' (doit être un lundi)' :
-                            editingBreakdown.type === 'Mensuel' ? ' (doit être le 1er du mois)' :
-                              ''
-                          }`}
+                        tooltip={
+                          editingBreakdown.type === 'Hebdomadaire' ? t('campaigns.formBreakdown.modal.startDateHelpWeekly') :
+                          editingBreakdown.type === 'Mensuel' ? t('campaigns.formBreakdown.modal.startDateHelpMonthly') :
+                          t('campaigns.formBreakdown.modal.startDateHelpCustom')
+                        }
                         onTooltipChange={onTooltipChange}
                       />
                       <label className="block text-sm font-medium text-gray-700">
-                        Date de début *
+                        {t('campaigns.formBreakdown.modal.startDateLabel')}
                       </label>
                     </div>
                     <input
@@ -717,11 +720,11 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <HelpIcon
-                        tooltip="Date de fin de la répartition"
+                        tooltip={t('campaigns.formBreakdown.modal.endDateHelp')}
                         onTooltipChange={onTooltipChange}
                       />
                       <label className="block text-sm font-medium text-gray-700">
-                        Date de fin *
+                        {t('campaigns.formBreakdown.modal.endDateLabel')}
                       </label>
                     </div>
                     <input
@@ -735,8 +738,8 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                     />
                     {editingBreakdown.endDate && editingBreakdown.startDate &&
                       new Date(editingBreakdown.endDate) <= new Date(editingBreakdown.startDate) && (
-                        <p className="text-red-600 text-xs mt-1">
-                          La date de fin doit être postérieure à la date de début
+                        <p className="text-red-600 text-xs mt-1">                          
+                          {t('campaigns.formBreakdown.modal.endDateAfterStartError')}
                         </p>
                       )}
                   </div>
@@ -748,11 +751,11 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <HelpIcon
-                        tooltip="Définissez autant de périodes que nécessaire (ex: Q1, Q2, Phase 1, etc.). Seuls les noms sont requis."
+                        tooltip={t('campaigns.formBreakdown.modal.customPeriodsHelp')}
                         onTooltipChange={onTooltipChange}
                       />
                       <label className="block text-sm font-medium text-gray-700">
-                        Périodes personnalisées *
+                        {t('campaigns.formBreakdown.modal.customPeriodsLabel')}
                       </label>
                     </div>
                     <button
@@ -761,7 +764,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                       className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700"
                     >
                       <PlusIcon className="h-4 w-4" />
-                      Ajouter une période
+                      {t('campaigns.formBreakdown.modal.addPeriod')}
                     </button>
                   </div>
 
@@ -774,7 +777,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         <div key={index} className={`border rounded-lg p-4 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-gray-700">
-                              Période {index + 1}
+                              {t('campaigns.formBreakdown.modal.period', { number: index + 1 })}
                             </span>
                             {(editingBreakdown.customPeriods || []).length > 1 && (
                               <button
@@ -790,14 +793,14 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                           <div className="grid grid-cols-1 gap-3">
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Nom de la période *
+                                {t('campaigns.formBreakdown.modal.periodNameLabel')}
                               </label>
                               <input
                                 type="text"
                                 value={period.name}
                                 onChange={(e) => handleUpdateCustomPeriod(index, 'name', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                                placeholder="Ex: Q1, Phase 1, Sprint 1..."
+                                placeholder={t('campaigns.formBreakdown.modal.periodNamePlaceholder')}
                               />
                             </div>
                           </div>
@@ -835,7 +838,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                 disabled={isDisabled}
                 className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -843,7 +846,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                 disabled={isDisabled || !isFormValid()}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
-                {isDisabled ? 'Sauvegarde...' : 'Sauvegarder'}
+                {isDisabled ? t('campaigns.formBreakdown.modal.saving') : t('common.save')}
               </button>
             </div>
           </div>

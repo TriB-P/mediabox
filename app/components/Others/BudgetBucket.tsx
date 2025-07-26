@@ -9,6 +9,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Bucket {
   id: string;
@@ -68,6 +69,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
   publisherLogos,
   formatCurrency
 }) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(bucket.name);
   const [editDescription, setEditDescription] = useState(bucket.description);
@@ -196,12 +198,14 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                   <button 
                     onClick={handleEditSave}
                     className="text-green-600 hover:text-green-800"
+                    title={t('common.save')}
                   >
                     <CheckIcon className="h-5 w-5" />
                   </button>
                   <button 
                     onClick={handleEditCancel}
                     className="text-red-600 hover:text-red-800"
+                    title={t('common.cancel')}
                   >
                     <XMarkIcon className="h-5 w-5" />
                   </button>
@@ -211,6 +215,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                   <button 
                     onClick={() => setIsEditing(true)}
                     className="text-gray-500 hover:text-gray-700"
+                    title={t('common.edit')}
                   >
                     <PencilIcon className="h-5 w-5" />
                   </button>
@@ -220,6 +225,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                         onDelete();
                     }}
                     className="text-gray-500 hover:text-red-600"
+                    title={t('common.delete')}
                   >
                     <TrashIcon className="h-5 w-5" />
                   </button>
@@ -249,7 +255,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                   className="w-4 h-4 rounded-full mr-1 inline-block border border-gray-300" 
                   style={{ backgroundColor: bucket.color }}
                 ></span>
-                Changer la couleur
+                {t('budgetBucket.changeColor')}
               </button>
               
               {isColorPickerOpen && (
@@ -280,7 +286,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
         
         <div className="p-4 border-b border-gray-100 bg-gray-50">
           <div className="flex justify-between items-center mb-2">
-            <label className="text-sm font-medium text-gray-700">Budget planifié</label>
+            <label className="text-sm font-medium text-gray-700">{t('budgetBucket.plannedBudget')}</label>
             <div className="text-right">
               {isEditing ? (
                 <input
@@ -295,7 +301,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
                 <span className="text-lg font-bold text-gray-900">{formattedTarget}</span>
               )}
               <div className="text-xs text-gray-500">
-                {isEditing ? `${editPercentage}% du budget` : `${bucket.percentage}% du budget`}
+              {isEditing ? editPercentage : bucket.percentage } {t('budgetBucket.percentageOfBudget')}
               </div>
             </div>
           </div>
@@ -323,7 +329,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
         
         <div className="p-4 border-b border-gray-100">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">Assigné dans MediaBox</span>
+            <span className="text-sm font-medium text-gray-700">{t('budgetBucket.assignedInMediaBox')}</span>
             <div className="text-right">
               <span className="text-sm font-medium">{formattedActual}</span>
               <div className={`text-xs ${isDifferencePositive ? 'text-red-600' : 'text-green-600'}`}>
@@ -347,7 +353,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             
             {bucketPublishers.length > 3 && (
               <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700 border border-gray-300">
-                +{bucketPublishers.length - 3}
+                {t('budgetBucket.morePublishers', { count: bucketPublishers.length - 3 })}
               </div>
             )}
           </div>
