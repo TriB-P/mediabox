@@ -9,7 +9,7 @@ import { useCampaignDataDoc } from './useCampaignDataDoc';
 import { useConvertShortcodesDoc } from './useConvertShortcodesDoc';
 
 interface UseCombinedDocExportReturn {
-  exportCombinedData: (clientId: string, campaignId: string, versionId: string, sheetUrl: string) => Promise<boolean>;
+  exportCombinedData: (clientId: string, campaignId: string, versionId: string, sheetUrl: string, exportLanguage?: 'FR' | 'EN') => Promise<boolean>;
   loading: boolean;
   error: string | null;
 }
@@ -17,7 +17,7 @@ interface UseCombinedDocExportReturn {
 /**
  * Hook personnalisé pour extraire diverses données d'une campagne et les exporter vers Google Sheets.
  * Il combine les fonctionnalités de plusieurs hooks d'extraction de données et du hook de génération de document.
- * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue d'exportation du client.
+ * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
  * @returns {UseCombinedDocExportReturn} Un objet contenant la fonction exportCombinedData,
  * les états de chargement et d'erreur.
  */
@@ -188,18 +188,20 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * Fonction principale pour extraire et exporter les données combinées vers Google Sheets.
-   * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue du client.
+   * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
    * @param {string} versionId L'ID de la version.
    * @param {string} sheetUrl L'URL du Google Sheet cible.
+   * @param {'FR' | 'EN'} exportLanguage La langue pour la conversion des shortcodes (optionnel, par défaut FR).
    * @returns {Promise<boolean>} Vrai si l'exportation a réussi, faux sinon.
    */
   const exportCombinedData = useCallback(async (
     clientId: string,
     campaignId: string,
     versionId: string,
-    sheetUrl: string
+    sheetUrl: string,
+    exportLanguage: 'FR' | 'EN' = 'FR'
   ): Promise<boolean> => {
     if (!user) {
       setError('Utilisateur non authentifié. Veuillez vous connecter.');
@@ -238,22 +240,22 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         throw new Error('Données manquantes après extraction.');
       }
 
-      console.log('[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes...');
+      console.log(`[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes en ${exportLanguage}...`);
 
-      // 4. Convertir les shortcodes dans les données de campagne
-      const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId);
+      // 4. Convertir les shortcodes dans les données de campagne avec la langue spécifiée
+      const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId, exportLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCampaignData) throw new Error('Erreur lors de la conversion des shortcodes de campagne.');
 
-      // 5. Convertir les shortcodes dans les données de hiérarchie
-      const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId);
+      // 5. Convertir les shortcodes dans les données de hiérarchie avec la langue spécifiée
+      const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId, exportLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCleanedData) throw new Error('Erreur lors de la conversion des shortcodes de hiérarchie.');
 
       // Note: Les données de breakdown ne contiennent généralement pas de shortcodes,
       // donc on les garde telles quelles
 
-      console.log('[COMBINED EXPORT] Conversion des shortcodes terminée, écriture vers Google Sheets...');
+      console.log(`[COMBINED EXPORT] Conversion des shortcodes terminée en ${exportLanguage}, écriture vers Google Sheets...`);
 
       // 6. Écrire les données converties dans Google Sheets
       const writePromises = [];
@@ -274,7 +276,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         throw new Error('Une ou plusieurs écritures dans Google Sheets ont échoué.');
       }
 
-      console.log('[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès (shortcodes convertis)');
+      console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès (shortcodes convertis en ${exportLanguage})`);
       return true;
 
     } catch (err) {

@@ -7,7 +7,7 @@
  */
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useClient } from './ClientContext';
 
@@ -50,23 +50,19 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
   });
 
   /**
-   * Génère une clé unique pour le stockage local basée sur l'e-mail de l'utilisateur et l'ID du client sélectionné.
-   *
-   * @returns {string | null} La clé de stockage ou null si l'utilisateur ou le client ne sont pas définis.
-   */
-  const getStorageKey = () => {
-    if (!user?.email || !selectedClient?.clientId) return null;
-    return `${STORAGE_KEY}-${user.email}-${selectedClient.clientId}`;
-  };
-
-  /**
    * Effet de bord pour charger les sélections depuis le localStorage lors du montage du composant
    * ou lorsque l'utilisateur ou le client sélectionné changent.
    *
    * @returns {void}
    */
   useEffect(() => {
+    const getStorageKey = () => {
+      if (!user?.email || !selectedClient?.clientId) return null;
+      return `${STORAGE_KEY}-${user.email}-${selectedClient.clientId}`;
+    };
+
     const loadSelections = () => {
+      setLoading(true);
       const storageKey = getStorageKey();
       if (!storageKey) {
         setSelectionState({
@@ -74,7 +70,7 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
           selectedVersionId: null,
           selectedOngletId: null,
         });
-        setLoading(false);
+        setLoading(false); // Important de le mettre ici aussi
         return;
       }
 
@@ -92,10 +88,8 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Erreur lors du chargement des sélections:', error);
-        const storageKey = getStorageKey();
-        if (storageKey) {
-          localStorage.removeItem(storageKey);
-        }
+        // En cas d'erreur de parsing, on nettoie le localStorage
+        if (storageKey) localStorage.removeItem(storageKey);
         setSelectionState({
           selectedCampaignId: null,
           selectedVersionId: null,
@@ -105,18 +99,8 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     };
-
-    if (user && selectedClient) {
-      loadSelections();
-    } else {
-      setSelectionState({
-        selectedCampaignId: null,
-        selectedVersionId: null,
-        selectedOngletId: null,
-      });
-      setLoading(false);
-    }
-  }, [user, selectedClient]);
+    loadSelections();
+  }, [user?.email, selectedClient?.clientId]);
 
   /**
    * Sauvegarde l'état actuel des sélections dans le localStorage.
@@ -125,6 +109,10 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
    * @returns {void}
    */
   const saveSelections = (newState: SelectionState) => {
+    const getStorageKey = () => {
+      if (!user?.email || !selectedClient?.clientId) return null;
+      return `${STORAGE_KEY}-${user.email}-${selectedClient.clientId}`;
+    };
     const storageKey = getStorageKey();
     if (!storageKey) return;
 

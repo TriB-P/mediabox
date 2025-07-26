@@ -1,747 +1,491 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
-import { useGenerateDoc } from '../hooks/documents/useGenerateDoc';
-import { useCleanDocData } from '../hooks/documents/useCleanDocData';
-import { useBreakdownData } from '../hooks/documents/useBreakdownData';
-import { useCampaignDataDoc } from '../hooks/documents/useCampaignDataDoc';
-import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport'; //
+import CreateDocumentModal from '../components/Others/CreateDocumentModal';
+import CampaignVersionSelector, { useCampaignVersionSelector } from '../components/Others/CampaignVersionSelector';
+import { useClient } from '../contexts/ClientContext';
+import { useSelection } from '../contexts/SelectionContext';
+import { getDocumentsByVersion } from '../lib/documentService';
+import { getCampaigns } from '../lib/campaignService';
+import { getVersions } from '../lib/versionService';
+import { 
+  PlusIcon, 
+  DocumentTextIcon, 
+  LinkIcon,
+  ClockIcon,
+  UserIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  XCircleIcon
+} from '@heroicons/react/24/outline';
+import { Document, DocumentStatus, DocumentCreationResult } from '../types/document';
+import { Campaign } from '../types/campaign';
 
-import { FileText, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
+interface Version {
+  id: string;
+  name: string;
+  isOfficial: boolean;
+  createdAt: string;
+  createdBy: string;
+}
 
 /**
- * Composant principal pour la page des documents.
- * Permet de déclencher et d'afficher les résultats des tests de génération et de nettoyage de documents.
+ * Page principale de gestion des documents.
+ * Permet de créer de nouveaux documents à partir de templates et de naviguer
+ * entre les documents existants par campagne/version.
  * @returns {JSX.Element} Le composant de la page des documents.
  */
 export default function DocumentsPage() {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-  const [combinedExportResult, setCombinedExportResult] = useState<{ //
-    success: boolean; //
-    message: string; //
-  } | null>(null); //
+  const { selectedClient } = useClient();
+  const { 
+    selectedCampaignId, 
+    selectedVersionId,
+    setSelectedCampaignId,
+    setSelectedVersionId 
+  } = useSelection();
 
-  const { generateDocument, loading, error } = useGenerateDoc();
-  const { cleanData, loading: cleanLoading, error: cleanError, data: cleanedData } = useCleanDocData();
-  const { extractBreakdownData, loading: breakdownLoading, error: breakdownError, data: breakdownData } = useBreakdownData();
-  const { extractCampaignData, loading: campaignLoading, error: campaignError, data: campaignData } = useCampaignDataDoc();
-  const { exportCombinedData, loading: combinedLoading, error: combinedError } = useCombinedDocExport(); //
+  // États du modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-
-  const TEST_CONFIG = {
-    sheetUrl: 'https://docs.google.com/spreadsheets/d/1mt_vSmoZOb0_8YYHPzGB02f0Aby3IbiUdBf3eAbvTFk/edit',
-    sheetName: 'Test'
-  };
-
-  const CLEAN_TEST_CONFIG = {
-    clientId: '46bc9dd4',
-    campaignId: 'YuRAhYKqKiTvUQOfXPwd',
-    versionId: 'hShB62xJQhyG978FqBXZ',
-    // Ajoutez ici l'URL de votre feuille de calcul Google Sheets pour l'exportation combinée
-    combinedSheetUrl: 'https://docs.google.com/spreadsheets/d/1mt_vSmoZOb0_8YYHPzGB02f0Aby3IbiUdBf3eAbvTFk/edit',
-  };
+  // États des données
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Hook pour la sélection campagne/version
+  const {
+    selectedCampaign,
+    selectedVersion,
+    handleCampaignChange,
+    handleVersionChange,
+    reset: resetSelection
+  } = useCampaignVersionSelector();
 
   /**
-   * Gère le test de génération de document.
-   * Déclenche la fonction `generateDocument` avec des paramètres de test et met à jour l'état du résultat.
-   * @returns {Promise<void>}
+   * Charge les campagnes du client sélectionné.
    */
-  const handleGenerateTest = async () => {
+  const loadCampaigns = useCallback(async () => {
+    if (!selectedClient) {
+      setCampaigns([]);
+      return;
+    }
+
     try {
-      setIsGenerating(true);
-      setResult(null);
+      setError(null);
+      const clientCampaigns = await getCampaigns(selectedClient.clientId);
+      setCampaigns(clientCampaigns);
 
-      const success = await generateDocument(
-        TEST_CONFIG.sheetUrl,
-        TEST_CONFIG.sheetName
-      );
-
-      if (success) {
-        setResult({
-          success: true,
-          message: `✅ "TEST" a été écrit avec succès dans la cellule A1 de l'onglet "${TEST_CONFIG.sheetName}"`
-        });
-      } else {
-        setResult({
-          success: false,
-          message: '❌ Erreur lors de l\'écriture dans Google Sheets'
-        });
+      // Restaurer la sélection depuis le contexte
+      if (selectedCampaignId) {
+        const campaign = clientCampaigns.find(c => c.id === selectedCampaignId);
+        if (campaign) {
+          handleCampaignChange(campaign);
+        }
       }
     } catch (err) {
-      console.error('Erreur lors de la génération:', err);
-      setResult({
-        success: false,
-        message: `❌ Erreur: ${err instanceof Error ? err.message : 'Erreur inconnue'}`
-      });
+      console.error('Erreur lors du chargement des campagnes:', err);
+      setError('Impossible de charger les campagnes.');
+    }
+  }, [selectedClient, selectedCampaignId, handleCampaignChange]);
+
+  /**
+   * Charge les versions d'une campagne sélectionnée.
+   */
+  const loadVersions = useCallback(async () => {
+    if (!selectedClient || !selectedCampaign) {
+      setVersions([]);
+      return;
+    }
+
+    try {
+      setError(null);
+      const campaignVersions = await getVersions(selectedClient.clientId, selectedCampaign.id);
+      setVersions(campaignVersions);
+
+      // Restaurer la sélection depuis le contexte
+      if (selectedVersionId) {
+        const version = campaignVersions.find(v => v.id === selectedVersionId);
+        if (version) {
+          handleVersionChange(version);
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des versions:', err);
+      setError('Impossible de charger les versions.');
+    }
+  }, [selectedClient, selectedCampaign, selectedVersionId, handleVersionChange]);
+
+  /**
+   * Charge les documents d'une version sélectionnée.
+   */
+  const loadDocuments = useCallback(async () => {
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      setDocuments([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const versionDocuments = await getDocumentsByVersion(
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id
+      );
+      
+      setDocuments(versionDocuments);
+    } catch (err) {
+      console.error('Erreur lors du chargement des documents:', err);
+      setError('Impossible de charger les documents.');
     } finally {
-      setIsGenerating(false);
+      setLoading(false);
     }
-  };
+  }, [selectedClient, selectedCampaign, selectedVersion]);
+
+  // Charger les campagnes au changement de client
+  useEffect(() => {
+    loadCampaigns();
+  }, [loadCampaigns]);
+
+  // Charger les versions au changement de campagne
+  useEffect(() => {
+    loadVersions();
+  }, [loadVersions]);
+
+  // Charger les documents au changement de version
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  // Synchroniser avec le contexte de sélection
+  useEffect(() => {
+    if (selectedCampaign) {
+      setSelectedCampaignId(selectedCampaign.id);
+    }
+  }, [selectedCampaign, setSelectedCampaignId]);
+
+  useEffect(() => {
+    if (selectedVersion) {
+      setSelectedVersionId(selectedVersion.id);
+    }
+  }, [selectedVersion, setSelectedVersionId]);
 
   /**
-   * Gère le test de nettoyage des données.
-   * Déclenche la fonction `cleanData` avec des paramètres de test.
-   * @returns {Promise<void>}
+   * Ouvre le modal de création de document.
    */
-  const handleCleanDataTest = async () => {
-    try {
-      await cleanData(
-        CLEAN_TEST_CONFIG.clientId,
-        CLEAN_TEST_CONFIG.campaignId,
-        CLEAN_TEST_CONFIG.versionId
-      );
-    } catch (err) {
-      console.error('Erreur lors du nettoyage:', err);
-    }
-  };
+  const handleCreateDocument = useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
 
   /**
-   * Gère le test d'extraction des données de breakdown.
-   * Déclenche la fonction `extractBreakdownData` avec des paramètres de test.
-   * @returns {Promise<void>}
+   * Ferme le modal de création de document.
    */
-  const handleBreakdownDataTest = async () => {
-    try {
-      await extractBreakdownData(
-        CLEAN_TEST_CONFIG.clientId,
-        CLEAN_TEST_CONFIG.campaignId,
-        CLEAN_TEST_CONFIG.versionId
-      );
-    } catch (err) {
-      console.error('Erreur lors de l\'extraction des breakdowns:', err);
-    }
-  };
-
-
-  const handleCampaignDataTest = async () => {
-    try {
-      await extractCampaignData(
-        CLEAN_TEST_CONFIG.clientId,
-        CLEAN_TEST_CONFIG.campaignId
-      );
-    } catch (err) {
-      console.error('Erreur lors de l\'extraction des données de campagne:', err);
-    }
-  };
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
 
   /**
-   * Gère le test d'exportation combinée.
-   * Déclenche la fonction `exportCombinedData` avec les paramètres de test.
-   * @returns {Promise<void>}
+   * Gère la création réussie d'un document.
+   * @param result Le résultat de la création.
    */
-  const handleCombinedExportTest = async () => { //
-    setCombinedExportResult(null); //
-    try { //
-      const success = await exportCombinedData( //
-        CLEAN_TEST_CONFIG.clientId, //
-        CLEAN_TEST_CONFIG.campaignId, //
-        CLEAN_TEST_CONFIG.versionId, //
-        CLEAN_TEST_CONFIG.combinedSheetUrl //
-      ); //
+  const handleDocumentCreated = useCallback((result: DocumentCreationResult) => {
+    if (result.success) {
+      // Recharger la liste des documents
+      loadDocuments();
+    }
+  }, [loadDocuments]);
 
-      if (success) { //
-        setCombinedExportResult({ //
-          success: true, //
-          message: '✅ Exportation combinée des données réussie !' //
-        }); //
-      } else { //
-        setCombinedExportResult({ //
-          success: false, //
-          message: '❌ L\'exportation combinée a échoué.' //
-        }); //
-      } //
-    } catch (err) { //
-      console.error('Erreur lors de l\'exportation combinée:', err); //
-      setCombinedExportResult({ //
-        success: false, //
-        message: `❌ Erreur lors de l'exportation combinée: ${err instanceof Error ? err.message : 'Erreur inconnue'}` //
-      }); //
-    } //
-  }; //
+  /**
+   * Formate une date en format lisible.
+   * @param dateString La date en format ISO string.
+   * @returns La date formatée.
+   */
+  const formatDate = useCallback((dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Date invalide';
+    }
+  }, []);
 
+  /**
+   * Retourne l'icône appropriée selon le statut du document.
+   * @param status Le statut du document.
+   * @returns L'élément icône.
+   */
+  const getStatusIcon = useCallback((status: DocumentStatus) => {
+    switch (status) {
+      case DocumentStatus.COMPLETED:
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+      case DocumentStatus.ERROR:
+        return <XCircleIcon className="h-5 w-5 text-red-500" />;
+      case DocumentStatus.CREATING:
+        return <ClockIcon className="h-5 w-5 text-yellow-500 animate-pulse" />;
+      default:
+        return <DocumentTextIcon className="h-5 w-5 text-gray-500" />;
+    }
+  }, []);
+
+  /**
+   * Retourne le texte du statut en français.
+   * @param status Le statut du document.
+   * @returns Le texte du statut.
+   */
+  const getStatusText = useCallback((status: DocumentStatus): string => {
+    switch (status) {
+      case DocumentStatus.COMPLETED:
+        return 'Terminé';
+      case DocumentStatus.ERROR:
+        return 'Erreur';
+      case DocumentStatus.CREATING:
+        return 'En création...';
+      default:
+        return 'Inconnu';
+    }
+  }, []);
 
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div className="space-y-6">
 
-          {/* ==================== EN-TÊTE ==================== */}
+          {/* En-tête */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <FileText className="h-8 w-8 text-indigo-600" />
+              <DocumentTextIcon className="h-8 w-8 text-indigo-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
                 <p className="text-sm text-gray-500">
-                  Génération et gestion des documents
+                  Création et gestion des documents basés sur des templates
                 </p>
               </div>
             </div>
+            <button
+              onClick={handleCreateDocument}
+              disabled={!selectedClient}
+              className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                selectedClient
+                  ? 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+              title={!selectedClient ? "Sélectionnez un client pour créer un document" : ""}
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Nouveau document
+            </button>
           </div>
 
-          {/* ==================== DESCRIPTION ==================== */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
-                <p className="text-blue-800 font-medium mb-1">Module Documents - Version Test</p>
-                <p className="text-blue-700">
-                  Cette version de test permet de vérifier la connexion avec l'API Google Sheets,
-                  le nettoyage des données depuis Firebase, et l'extraction des breakdowns.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* ==================== CONFIGURATION TEST GOOGLE SHEETS ==================== */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test Google Sheets</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Paramètres hard-codés pour le test d'écriture
-              </p>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  URL Google Sheets
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono break-all">
-                  {TEST_CONFIG.sheetUrl}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom de l'onglet
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600">
-                  {TEST_CONFIG.sheetName}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleGenerateTest}
-                  disabled={isGenerating || loading}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${
-                    isGenerating || loading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                  }`}
-                >
-                  {isGenerating || loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Génération en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-5 w-5 mr-3" />
-                      Générer Document Test
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ==================== CONFIGURATION TEST NETTOYAGE DONNÉES ==================== */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test Nettoyage des Données</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Extraction et nettoyage des données depuis Firebase
-              </p>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Client ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.clientId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Campaign ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.campaignId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Version ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.versionId}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleCleanDataTest}
-                  disabled={cleanLoading}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${
-                    cleanLoading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
-                  }`}
-                >
-                  {cleanLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Nettoyage en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Database className="h-5 w-5 mr-3" />
-                      Test Nettoyage Données
-                    </>
-                  )}
-                </button>
-
-                {cleanLoading && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <div className="animate-pulse">Extraction des données Firebase...</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ==================== CONFIGURATION TEST BREAKDOWN DATA ==================== */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test Extraction Breakdown Data</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Extraction et aplatissement des données de breakdown des tactiques
-              </p>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Client ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.clientId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Campaign ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.campaignId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Version ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.versionId}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleBreakdownDataTest}
-                  disabled={breakdownLoading}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${
-                    breakdownLoading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
-                  }`}
-                >
-                  {breakdownLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Extraction en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Database className="h-5 w-5 mr-3" />
-                      Test Breakdown Data
-                    </>
-                  )}
-                </button>
-
-                {breakdownLoading && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <div className="animate-pulse">Extraction des breakdowns...</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-
-            {/* ==================== CONFIGURATION CAMPAIGN DATA ==================== */}
-            <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test Extraction Campaign Data</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Extraction et aplatissement des données de campagne
-              </p>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Client ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.clientId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Campaign ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.campaignId}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Version ID
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono">
-                  {CLEAN_TEST_CONFIG.versionId}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleCampaignDataTest}
-                  disabled={campaignLoading}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${
-                    campaignLoading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
-                  }`}
-                >
-                  {campaignLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Extraction en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Database className="h-5 w-5 mr-3" />
-                      Test Campaign Data
-                    </>
-                  )}
-                </button>
-
-                {campaignLoading && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <div className="animate-pulse">Extraction des données de campagne...</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ==================== CONFIGURATION TEST EXPORTATION COMBINÉE ==================== */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Test Exportation Combinée</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Extrait et exporte les données de campagne, de hiérarchie nettoyées et de breakdown vers Google Sheets.
-              </p>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  URL Google Sheets (pour export combiné)
-                </label>
-                <div className="bg-gray-50 px-3 py-2 rounded-md text-sm text-gray-600 font-mono break-all">
-                  {CLEAN_TEST_CONFIG.combinedSheetUrl}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleCombinedExportTest} //
-                  disabled={combinedLoading} //
-                  className={`inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium ${ //
-                    combinedLoading //
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' //
-                      : 'text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' //
-                  }`}
-                >
-                  {combinedLoading ? ( //
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> {/* */}
-                      Exportation combinée en cours... {/* */}
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-5 w-5 mr-3" /> {/* */}
-                      Exporter Données Combinées {/* */}
-                    </>
-                  )}
-                </button>
-
-                {combinedLoading && ( //
-                  <div className="flex items-center text-sm text-gray-500"> {/* */}
-                    <div className="animate-pulse">Préparation de l'export...</div> {/* */}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-
-          {/* ==================== AFFICHAGE DU TABLEAU NETTOYÉ ==================== */}
-          {cleanedData && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Données Nettoyées</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Tableau 2D prêt pour l'export ({cleanedData.length} lignes × {cleanedData[0]?.length || 0} colonnes)
-                </p>
-              </div>
-
-              <div className="px-6 py-4">
-                <div className="overflow-x-auto max-h-96 border border-gray-200 rounded-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        {cleanedData[0]?.map((header: string, index: number) => (
-                          <th
-                            key={index}
-                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0"
-                          >
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {cleanedData.slice(1).map((row: string[], rowIndex: number) => (
-                        <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          {row.map((cell: string, cellIndex: number) => (
-                            <td
-                              key={cellIndex}
-                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 max-w-xs truncate"
-                              title={cell}
-                            >
-                              {cell || '-'}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== AFFICHAGE DU TABLEAU BREAKDOWN DATA ==================== */}
-          {breakdownData && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Données Breakdown Aplaties</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Tableau 2D des breakdowns par tactique ({breakdownData.length} lignes × {breakdownData[0]?.length || 0} colonnes)
-                </p>
-              </div>
-
-              <div className="px-6 py-4">
-                <div className="overflow-x-auto max-h-96 border border-gray-200 rounded-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-purple-50 sticky top-0">
-                      <tr>
-                        {breakdownData[0]?.map((header: string, index: number) => (
-                          <th
-                            key={index}
-                            className="px-3 py-2 text-left text-xs font-medium text-purple-700 uppercase tracking-wider border-r border-purple-200 last:border-r-0"
-                          >
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {breakdownData.slice(1).map((row: string[], rowIndex: number) => (
-                        <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-purple-25'}>
-                          {row.map((cell: string, cellIndex: number) => (
-                            <td
-                              key={cellIndex}
-                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 max-w-xs truncate"
-                              title={cell}
-                            >
-                              {cell || '-'}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== AFFICHAGE DU TABLEAU Campaign DATA ==================== */}
-          {campaignData && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Données Campaign Aplaties</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Tableau 2D des données de campagne ({campaignData.length} lignes × {campaignData[0]?.length || 0} colonnes)
-                </p>
-              </div>
-
-              <div className="px-6 py-4">
-                <div className="overflow-x-auto max-h-96 border border-gray-200 rounded-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-purple-50 sticky top-0">
-                      <tr>
-                        {campaignData[0]?.map((header: string, index: number) => (
-                          <th
-                            key={index}
-                            className="px-3 py-2 text-left text-xs font-medium text-purple-700 uppercase tracking-wider border-r border-purple-200 last:border-r-0"
-                          >
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {campaignData.slice(1).map((row: string[], rowIndex: number) => (
-                        <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-purple-25'}>
-                          {row.map((cell: string, cellIndex: number) => (
-                            <td
-                              key={cellIndex}
-                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 max-w-xs truncate"
-                              title={cell}
-                            >
-                              {cell || '-'}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-
-          {/* ==================== RÉSULTATS ==================== */}
-          {result && (
-            <div className={`rounded-lg p-4 ${
-              result.success
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
-            }`}>
+          {/* Message si pas de client sélectionné */}
+          {!selectedClient && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
-                {result.success ? (
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
+                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className={`text-sm font-medium ${
-                    result.success ? 'text-green-800' : 'text-red-800'
-                  }`}>
-                    {result.success ? 'Succès' : 'Erreur'}
-                  </h3>
-                  <p className={`mt-1 text-sm ${
-                    result.success ? 'text-green-700' : 'text-red-700'
-                  }`}>
-                    {result.message}
+                  <p className="text-sm font-medium text-amber-800">Aucun client sélectionné</p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Veuillez sélectionner un client dans la barre de navigation pour gérer ses documents.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ==================== RÉSULTATS EXPORTATION COMBINÉE ==================== */}
-          {combinedExportResult && ( //
-            <div className={`rounded-lg p-4 ${ //
-              combinedExportResult.success //
-                ? 'bg-green-50 border border-green-200' //
-                : 'bg-red-50 border border-red-200' //
-            }`}>
-              <div className="flex items-start space-x-3"> {/* */}
-                {combinedExportResult.success ? ( //
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" /> //
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" /> //
-                )}
-                <div> {/* */}
-                  <h3 className={`text-sm font-medium ${ //
-                    combinedExportResult.success ? 'text-green-800' : 'text-red-800' //
-                  }`}>
-                    {combinedExportResult.success ? 'Succès Exportation Combinée' : 'Erreur Exportation Combinée'} {/* */}
-                  </h3>
-                  <p className={`mt-1 text-sm ${ //
-                    combinedExportResult.success ? 'text-green-700' : 'text-red-700' //
-                  }`}>
-                    {combinedExportResult.message} {/* */}
-                  </p>
+          {/* Interface principale */}
+          {selectedClient && (
+            <>
+              {/* Sélecteur campagne/version */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">
+                  Navigation par campagne et version
+                </h2>
+                <CampaignVersionSelector
+                  campaigns={campaigns}
+                  versions={versions}
+                  selectedCampaign={selectedCampaign}
+                  selectedVersion={selectedVersion}
+                  loading={loading}
+                  error={error}
+                  onCampaignChange={handleCampaignChange}
+                  onVersionChange={handleVersionChange}
+                  className="space-y-4"
+                />
+              </div>
+
+              {/* Liste des documents */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-medium text-gray-900">
+                      Documents
+                      {selectedCampaign && selectedVersion && (
+                        <span className="text-sm font-normal text-gray-500 ml-2">
+                          {selectedCampaign.CA_Name} - {selectedVersion.name}
+                        </span>
+                      )}
+                    </h2>
+                    {documents.length > 0 && (
+                      <span className="text-sm text-gray-500">
+                        {documents.length} document{documents.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="px-6 py-4">
+                  {/* États de chargement et d'erreur */}
+                  {loading && (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                      <span className="ml-3 text-gray-600">Chargement des documents...</span>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-3">
+                        <XCircleIcon className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message si pas de sélection */}
+                  {!selectedCampaign && !loading && !error && (
+                    <div className="text-center py-8 text-gray-500">
+                      <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">Sélectionnez une campagne</p>
+                      <p className="text-sm mt-1">
+                        Choisissez une campagne et une version pour voir les documents associés.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Message si pas de version */}
+                  {selectedCampaign && !selectedVersion && !loading && !error && (
+                    <div className="text-center py-8 text-gray-500">
+                      <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">Sélectionnez une version</p>
+                      <p className="text-sm mt-1">
+                        Choisissez une version pour voir les documents associés.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Liste des documents */}
+                  {selectedCampaign && selectedVersion && !loading && !error && (
+                    <>
+                      {documents.length === 0 ? (
+                        <div className="text-center py-8">
+                          <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg font-medium text-gray-900">Aucun document</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Cette version ne contient pas encore de documents.
+                          </p>
+                          <button
+                            onClick={handleCreateDocument}
+                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mt-4"
+                          >
+                            <PlusIcon className="h-4 w-4 mr-2" />
+                            Créer le premier document
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {documents.map((document) => (
+                            <div
+                              key={document.id}
+                              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-3">
+                                    {getStatusIcon(document.status)}
+                                    <h3 className="text-lg font-medium text-gray-900">
+                                      {document.name}
+                                    </h3>
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      document.status === DocumentStatus.COMPLETED
+                                        ? 'bg-green-100 text-green-800'
+                                        : document.status === DocumentStatus.ERROR
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {getStatusText(document.status)}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
+                                    <div className="flex items-center space-x-1">
+                                      <DocumentTextIcon className="h-4 w-4" />
+                                      <span>Template: {document.template.name}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <UserIcon className="h-4 w-4" />
+                                      <span>{document.createdBy.userDisplayName}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <ClockIcon className="h-4 w-4" />
+                                      <span>{formatDate(document.createdAt)}</span>
+                                    </div>
+                                  </div>
+
+                                  {document.errorMessage && (
+                                    <div className="mt-2 text-sm text-red-600">
+                                      Erreur: {document.errorMessage}
+                                    </div>
+                                  )}
+
+                                  {document.lastDataSync && (
+                                    <div className="mt-2 text-xs text-gray-400">
+                                      Dernière sync: {formatDate(document.lastDataSync.syncedAt)} 
+                                      {document.lastDataSync.success ? '' : ' (échec)'}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center space-x-2">
+                                  {document.status === DocumentStatus.COMPLETED && (
+                                    <a
+                                      href={document.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                      <LinkIcon className="h-4 w-4 mr-1" />
+                                      Ouvrir
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* ==================== ERREURS GLOBALES ==================== */}
-          {(error || cleanError || breakdownError || campaignError || combinedError) && ( //
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-red-800">
-                    Erreur
-                  </h3>
-                  <p className="mt-1 text-sm text-red-700">
-                    {error || cleanError || breakdownError || campaignError || combinedError} {/* */}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== INSTRUCTIONS DÉVELOPPEUR ==================== */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-600 space-y-2">
-              <p className="font-medium text-gray-800">📝 Instructions pour le développeur :</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Créer le hook useCleanDocData dans app/hooks/documents/useCleanDocData.ts ✅</li>
-                <li>Créer le hook useBreakdownData dans app/hooks/documents/useBreakdownData.ts ✅</li>
-                <li>Créer la configuration de mapping dans app/config/documentMapping.ts ✅</li>
-                <li>Créer le hook useCombinedDocExport dans app/hooks/documents/useCombinedDocExport.ts ✅</li>
-                <li>Mettre à jour app/documents/page.tsx avec le nouveau bouton d'exportation combinée ✅</li>
-                <li>Tester avec les IDs hard-codés puis permettre la sélection dynamique</li>
-                <li>Optimiser les appels Firebase pour éviter les requêtes redondantes</li>
-                <li>Combiner les deux tableaux en un export unifié</li>
-              </ul>
-            </div>
-          </div>
+          {/* Modal de création */}
+          <CreateDocumentModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            onDocumentCreated={handleDocumentCreated}
+          />
         </div>
       </AuthenticatedLayout>
     </ProtectedRoute>
