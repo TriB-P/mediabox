@@ -3,8 +3,11 @@
 /**
  * Fonctions utilitaires pour DynamicTableStructure
  * Contient toute la logique d'enrichissement, formatage et traitement des données
+ * Version complète avec toutes les fonctions nécessaires
  */
 
+import React from 'react';
+import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import { formatColumnValue, TactiqueSubCategory } from './tableColumns.config';
 
@@ -238,6 +241,75 @@ export function getHierarchyLabel(row: TableRow): string {
 }
 
 /**
+ * Gère les sélections multiples avec Ctrl/Cmd+clic et Shift+clic
+ */
+export function handleMultipleSelection(
+  rowId: string,
+  isChecked: boolean,
+  nativeEvent: MouseEvent,
+  processedRows: TableRow[],
+  currentSelection: Set<string>
+): Set<string> {
+  const newSelection = new Set(currentSelection);
+
+  if (nativeEvent.ctrlKey || nativeEvent.metaKey) {
+    // Ctrl/Cmd + clic : ajouter/retirer de la sélection
+    if (isChecked) {
+      newSelection.add(rowId);
+    } else {
+      newSelection.delete(rowId);
+    }
+  } else if (nativeEvent.shiftKey && currentSelection.size > 0) {
+    // Shift + clic : sélectionner une plage
+    const lastSelected = Array.from(currentSelection)[currentSelection.size - 1];
+    const currentIndex = processedRows.findIndex(row => row.id === rowId);
+    const lastIndex = processedRows.findIndex(row => row.id === lastSelected);
+
+    if (currentIndex !== -1 && lastIndex !== -1) {
+      const start = Math.min(currentIndex, lastIndex);
+      const end = Math.max(currentIndex, lastIndex);
+
+      for (let i = start; i <= end; i++) {
+        if (processedRows[i].isEditable) {
+          newSelection.add(processedRows[i].id);
+        }
+      }
+    }
+  } else {
+    // Clic normal : sélection unique
+    if (isChecked) {
+      newSelection.add(rowId);
+    } else {
+      newSelection.delete(rowId);
+    }
+  }
+
+  return newSelection;
+}
+
+/**
+ * Gère le tri des colonnes
+ */
+export function handleSort(
+  columnKey: string,
+  currentSortConfig: SortConfig | null
+): SortConfig {
+  if (currentSortConfig?.key === columnKey) {
+    // Si on clique sur la même colonne, inverser la direction
+    return {
+      key: columnKey,
+      direction: currentSortConfig.direction === 'asc' ? 'desc' : 'asc'
+    };
+  } else {
+    // Nouvelle colonne, commencer par ordre ascendant
+    return {
+      key: columnKey,
+      direction: 'asc'
+    };
+  }
+}
+
+/**
  * Récupère les styles CSS en fonction du type de niveau
  */
 export function getTypeStyles(type: TableLevel): string {
@@ -286,4 +358,46 @@ export function getRowStyles(
   }
 
   return classes;
+}
+
+/**
+ * Détermine l'état de convergence budgétaire (pour indicateurs visuels)
+ */
+export function getBudgetConvergenceStatus(
+  convergenceInfo?: { hasConverged: boolean; finalDifference: number }
+): { 
+  status: 'converged' | 'warning' | 'error';
+  message: string;
+  color: string;
+} {
+  if (!convergenceInfo) {
+    return {
+      status: 'converged',
+      message: 'Calcul standard',
+      color: 'text-gray-600'
+    };
+  }
+
+  if (convergenceInfo.hasConverged) {
+    return {
+      status: 'converged',
+      message: 'Calcul convergé',
+      color: 'text-green-600'
+    };
+  }
+
+  const absError = Math.abs(convergenceInfo.finalDifference);
+  if (absError < 1) {
+    return {
+      status: 'warning',
+      message: `Approximation (écart: ${absError.toFixed(2)}$)`,
+      color: 'text-yellow-600'
+    };
+  }
+
+  return {
+    status: 'error',
+    message: `Non convergé (écart: ${absError.toFixed(2)}$)`,
+    color: 'text-red-600'
+  };
 }

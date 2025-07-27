@@ -1,10 +1,8 @@
 // app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
 
 /**
- * Ce composant affiche une table dynamique pour visualiser et éditer les données liées aux sections, tactiques, placements et créatifs.
- * Il gère le tri, le filtrage, la recherche, l'édition de cellules, la sélection multiple et les opérations de copier-coller.
- * Il intègre également une barre d'outils pour naviguer entre les niveaux de données et affiner l'affichage.
- * MODIFIÉ: Ajout du support pour les buckets et listes dynamiques
+ * Version refactorisée du composant table dynamique
+ * Utilise les helpers de façon plus simple et pratique
  */
 'use client';
 
@@ -13,21 +11,24 @@ import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import {
   getColumnsWithHierarchy,
-  formatColumnValue,
   getTactiqueSubCategories,
   TactiqueSubCategory
 } from './tableColumns.config';
+import {
+  enrichColumnsWithData,
+  processTableRows,
+  getHierarchyLabel,
+  getRowStyles,
+  getTypeStyles,
+  getTypeLabel,
+  handleMultipleSelection,
+  handleSort as handleSortFromHelper,
+  formatDisplayValue
+} from './DynamicTableHelpers';
 
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
-}
-
-interface CopyOperation {
-  sourceRowId: string;
-  sourceField: string;
-  sourceValue: any;
-  targetRowIds: string[];
 }
 
 interface CampaignBucket {
@@ -60,17 +61,12 @@ interface DynamicTableStructureProps {
     placements: number;
     creatifs: number;
   };
-  // NOUVEAU: Données pour enrichir les colonnes
   buckets: CampaignBucket[];
   dynamicLists: { [key: string]: ListItem[] };
 }
 
 /**
- * Composant principal pour la structure de la table dynamique.
- * MODIFIÉ: Ajout du support pour buckets et listes dynamiques
- *
- * @param {DynamicTableStructureProps} props Les propriétés du composant.
- * @returns {JSX.Element} Le JSX pour la table dynamique.
+ * Composant principal refactorisé pour la structure de la table dynamique
  */
 export default function DynamicTableStructure({
   tableRows,
@@ -87,6 +83,8 @@ export default function DynamicTableStructure({
   buckets,
   dynamicLists
 }: DynamicTableStructureProps) {
+  
+  // États locaux
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hideChildrenLevels, setHideChildrenLevels] = useState(false);
@@ -97,328 +95,114 @@ export default function DynamicTableStructure({
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
   /**
-   * NOUVEAU: Enrichit les colonnes avec les données dynamiques (buckets, listes)
-   * ET filtre les colonnes qui n'ont pas de données (comme dans le drawer)
-   */
-  const enrichColumns = useCallback((baseColumns: DynamicColumn[]) => {
-    return baseColumns
-      .map(column => {
-        const enrichedColumn = { ...column };
-
-        if (column.type === 'select') {
-          switch (column.key) {
-            case 'TC_Bucket':
-              enrichedColumn.options = buckets.map(bucket => ({
-                id: bucket.id,
-                label: bucket.name
-              }));
-              break;
-
-            case 'TC_LoB':
-            case 'TC_Media_Type':
-            case 'TC_Publisher':
-            case 'TC_Buying_Method':
-            case 'TC_Custom_Dim_1':
-            case 'TC_Custom_Dim_2':
-            case 'TC_Custom_Dim_3':
-            case 'TC_Inventory':
-            case 'TC_Market':
-            case 'TC_Language':
-            case 'TC_Media_Objective':
-            case 'TC_Kpi':
-            case 'TC_Unit_Type':
-              const listData = dynamicLists[column.key] || [];
-              enrichedColumn.options = listData.map(item => ({
-                id: item.id,
-                label: item.SH_Display_Name_FR
-              }));
-              break;
-
-            default:
-              break;
-          }
-        }
-
-        return enrichedColumn;
-      })
-      .filter(column => {
-        // NOUVEAU: Filtrer les colonnes qui n'ont pas de données (comme dans le drawer)
-        
-        // Toujours garder la colonne de hiérarchie
-        if (column.key === '_hierarchy') {
-          return true;
-        }
-
-        // Toujours garder les champs non-select (text, number, etc.)
-        if (column.type !== 'select') {
-          return true;
-        }
-
-        // Pour TC_Bucket, garder seulement s'il y a des buckets
-        if (column.key === 'TC_Bucket') {
-          return buckets.length > 0;
-        }
-
-        // Pour les listes dynamiques, garder seulement s'il y a des données
-        if (dynamicLists[column.key]) {
-          return dynamicLists[column.key].length > 0;
-        }
-
-        // Pour les autres colonnes select sans données dynamiques, les masquer
-        if (column.type === 'select' && (!column.options || column.options.length === 0)) {
-          return false;
-        }
-
-        // Garder par défaut
-        return true;
-      });
-  }, [buckets, dynamicLists]);
-
-  /**
-   * Calcule les colonnes à afficher en fonction du niveau sélectionné et de la sous-catégorie de tactique.
-   * MODIFIÉ: Utilise maintenant enrichColumns pour ajouter les options dynamiques
+   * Calcule les colonnes enrichies avec les données dynamiques
    */
   const columns = useMemo(() => {
     const baseColumns = getColumnsWithHierarchy(selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
-    return enrichColumns(baseColumns);
-  }, [selectedLevel, selectedTactiqueSubCategory, enrichColumns]);
+    return enrichColumnsWithData(baseColumns, buckets, dynamicLists);
+  }, [selectedLevel, selectedTactiqueSubCategory, buckets, dynamicLists]);
 
   /**
-   * Traite les lignes du tableau en appliquant les filtres (masquer les niveaux inférieurs, recherche) et le tri.
-   *
-   * @returns {TableRow[]} Un tableau de lignes de table filtrées et triées.
+   * Traite les lignes avec filtrage et tri
    */
   const processedRows = useMemo(() => {
-    let filtered = tableRows;
-
-    if (hideChildrenLevels) {
-      filtered = tableRows.filter(row => row.type === selectedLevel);
-    }
-
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(row => {
-        const data = row.data as any;
-
-        const searchFields = [];
-
-        switch (row.type) {
-          case 'section':
-            searchFields.push(data.SECTION_Name);
-            break;
-          case 'tactique':
-            searchFields.push(data.TC_Label, data.TC_Publisher, data.TC_Media_Type);
-            break;
-          case 'placement':
-            searchFields.push(data.PL_Label, data.TAX_Product, data.TAX_Location);
-            break;
-          case 'creatif':
-            searchFields.push(data.CR_Label, data.CR_CTA, data.CR_Offer);
-            break;
-        }
-
-        return searchFields.some(field =>
-          field && String(field).toLowerCase().includes(searchLower)
-        );
-      });
-    }
-
-    if (sortConfig) {
-      filtered.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        if (sortConfig.key === '_hierarchy') {
-          aValue = getHierarchyLabel(a);
-          bValue = getHierarchyLabel(b);
-        } else {
-          aValue = (a.data as any)[sortConfig.key];
-          bValue = (b.data as any)[sortConfig.key];
-        }
-
-        if (aValue == null && bValue == null) return 0;
-        if (aValue == null) return 1;
-        if (bValue == null) return -1;
-
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
-        }
-
-        const aStr = String(aValue).toLowerCase();
-        const bStr = String(bValue).toLowerCase();
-
-        if (sortConfig.direction === 'asc') {
-          return aStr.localeCompare(bStr, 'fr');
-        } else {
-          return bStr.localeCompare(aStr, 'fr');
-        }
-      });
-    }
-
-    return filtered;
-  }, [tableRows, searchTerm, sortConfig, hideChildrenLevels, selectedLevel]);
+    return processTableRows(
+      tableRows,
+      hideChildrenLevels,
+      selectedLevel,
+      searchTerm,
+      sortConfig,
+      getHierarchyLabel
+    );
+  }, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig]);
 
   /**
-   * Récupère le libellé de hiérarchie pour une ligne donnée.
-   *
-   * @param {TableRow} row La ligne pour laquelle récupérer le libellé.
-   * @returns {string} Le libellé de hiérarchie.
+   * Calcule les statistiques de sélection
    */
-  const getHierarchyLabel = (row: TableRow): string => {
-    const data = row.data as any;
-
-    switch (row.type) {
-      case 'section':
-        return data.SECTION_Name || 'Section sans nom';
-      case 'tactique':
-        return data.TC_Label || 'Tactique sans nom';
-      case 'placement':
-        return data.PL_Label || 'Placement sans nom';
-      case 'creatif':
-        return data.CR_Label || 'Créatif sans nom';
-      default:
-        return 'Élément sans nom';
-    }
-  };
+  const selectionStats = useMemo(() => {
+    const editableRows = processedRows.filter(row => row.isEditable);
+    const selectedEditableRows = editableRows.filter(row => selectedRows.has(row.id));
+    return {
+      editableRows,
+      selectedEditableRows,
+      isSelectAllChecked: editableRows.length > 0 && selectedEditableRows.length === editableRows.length,
+      isSelectAllIndeterminate: selectedEditableRows.length > 0 && selectedEditableRows.length < editableRows.length
+    };
+  }, [processedRows, selectedRows]);
 
   /**
-   * Récupère la valeur d'une cellule, en tenant compte des modifications en attente.
-   *
-   * @param {TableRow} row La ligne de la cellule.
-   * @param {string} columnKey La clé de la colonne.
-   * @returns {any} La valeur de la cellule.
+   * Récupère la valeur d'une cellule avec les modifications en attente
    */
-  const getCellValue = (row: TableRow, columnKey: string): any => {
+  const getCellValue = useCallback((row: TableRow, columnKey: string): any => {
     const pendingChange = pendingChanges.get(row.id);
     if (pendingChange && pendingChange[columnKey] !== undefined) {
       return pendingChange[columnKey];
     }
     return (row.data as any)[columnKey];
-  };
+  }, [pendingChanges]);
 
   /**
-   * Génère les classes CSS pour une ligne du tableau en fonction de son état (éditable, sélectionnée, modifications en attente).
-   *
-   * @param {TableRow} row La ligne pour laquelle générer les styles.
-   * @returns {string} Les classes CSS à appliquer.
+   * Gère le changement de niveau
    */
-  const getRowStyles = (row: TableRow): string => {
-    let classes = 'hover:bg-gray-50 transition-colors';
-
-    if (row.isEditable) {
-      classes += ' bg-white';
-    } else {
-      classes += ' bg-gray-50 text-gray-500';
+  const handleLevelChange = useCallback((level: TableLevel) => {
+    onLevelChange(level);
+    if (level !== 'tactique') {
+      setSelectedTactiqueSubCategory('info');
     }
-
-    if (selectedRows.has(row.id)) {
-      classes += ' bg-indigo-50 border-l-4 border-indigo-500';
-    } else if (pendingChanges.has(row.id)) {
-      classes += ' border-l-4 border-orange-400';
-    }
-
-    return classes;
-  };
+  }, [onLevelChange]);
 
   /**
-   * Gère le changement d'état d'une case à cocher pour la sélection des lignes.
-   * Prend en charge les sélections multiples avec Ctrl/Cmd+clic et Shift+clic.
-   *
-   * @param {string} rowId L'ID de la ligne associée à la case à cocher.
-   * @param {React.ChangeEvent<HTMLInputElement>} event L'événement de changement.
+   * Gère le tri des colonnes
    */
-  const handleCheckboxChange = (rowId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSort = useCallback((columnKey: string) => {
+    setSortConfig(prev => handleSortFromHelper(columnKey, prev));
+  }, []);
+
+  /**
+   * Gère la sélection des lignes
+   */
+  const handleCheckboxChange = useCallback((rowId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = event.target.checked;
     const nativeEvent = event.nativeEvent as MouseEvent;
 
-    setSelectedRows(prev => {
-      const newSelection = new Set(prev);
-
-      if (nativeEvent.ctrlKey || nativeEvent.metaKey) {
-        if (isChecked) {
-          newSelection.add(rowId);
-        } else {
-          newSelection.delete(rowId);
-        }
-      } else if (nativeEvent.shiftKey && prev.size > 0) {
-        const lastSelected = Array.from(prev)[prev.size - 1];
-        const currentIndex = processedRows.findIndex(row => row.id === rowId);
-        const lastIndex = processedRows.findIndex(row => row.id === lastSelected);
-
-        if (currentIndex !== -1 && lastIndex !== -1) {
-          const start = Math.min(currentIndex, lastIndex);
-          const end = Math.max(currentIndex, lastIndex);
-
-          for (let i = start; i <= end; i++) {
-            if (processedRows[i].isEditable) {
-              newSelection.add(processedRows[i].id);
-            }
-          }
-        }
-      } else {
-        if (isChecked) {
-          newSelection.add(rowId);
-        } else {
-          newSelection.delete(rowId);
-        }
-      }
-
-      return newSelection;
-    });
-  };
+    setSelectedRows(prev => handleMultipleSelection(
+      rowId,
+      isChecked,
+      nativeEvent,
+      processedRows,
+      prev
+    ));
+  }, [processedRows]);
 
   /**
-   * Gère la sélection ou la désélection de toutes les lignes éditables.
-   *
-   * @param {React.ChangeEvent<HTMLInputElement>} event L'événement de changement.
+   * Gère la sélection globale
    */
-  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectAll = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = event.target.checked;
-
     if (isChecked) {
-      const editableRowIds = processedRows
-        .filter(row => row.isEditable)
-        .map(row => row.id);
+      const editableRowIds = selectionStats.editableRows.map(row => row.id);
       setSelectedRows(new Set(editableRowIds));
     } else {
       setSelectedRows(new Set());
     }
-  };
+  }, [selectionStats.editableRows]);
 
   /**
-   * Efface la sélection de toutes les lignes et désactive le mode copie.
+   * Gère le mode copie
    */
-  const clearSelection = () => {
-    setSelectedRows(new Set());
-    setCopyMode({ active: false });
-  };
-
-  const editableRows = processedRows.filter(row => row.isEditable);
-  const selectedEditableRows = editableRows.filter(row => selectedRows.has(row.id));
-  const isSelectAllChecked = editableRows.length > 0 && selectedEditableRows.length === editableRows.length;
-  const isSelectAllIndeterminate = selectedEditableRows.length > 0 && selectedEditableRows.length < editableRows.length;
-
-  /**
-   * Active le mode copie avec la valeur de la cellule source.
-   *
-   * @param {string} sourceRowId L'ID de la ligne source.
-   * @param {string} fieldKey La clé du champ source.
-   */
-  const handleStartCopy = (sourceRowId: string, fieldKey: string) => {
+  const handleStartCopy = useCallback((sourceRowId: string, fieldKey: string) => {
     const sourceValue = getCellValue(processedRows.find(r => r.id === sourceRowId)!, fieldKey);
     setCopyMode({
       active: true,
       sourceCell: `${sourceRowId}_${fieldKey}`,
       sourceValue
     });
-  };
+  }, [getCellValue, processedRows]);
 
   /**
-   * Colle la valeur copiée dans toutes les cellules des lignes sélectionnées pour la colonne donnée.
-   *
-   * @param {string} fieldKey La clé du champ où coller la valeur.
+   * Gère le collage
    */
-  const handlePasteCopy = (fieldKey: string) => {
+  const handlePasteCopy = useCallback((fieldKey: string) => {
     if (!copyMode.active || selectedRows.size === 0) return;
 
     const targetRows = Array.from(selectedRows);
@@ -429,66 +213,20 @@ export default function DynamicTableStructure({
     });
 
     setCopyMode({ active: false });
-  };
+  }, [copyMode, selectedRows, onCellChange]);
 
   /**
-   * Annule le mode copie.
+   * Efface la sélection
    */
-  const cancelCopy = () => {
+  const clearSelection = useCallback(() => {
+    setSelectedRows(new Set());
     setCopyMode({ active: false });
-  };
-
-  /**
-   * Gère le tri des colonnes.
-   *
-   * @param {string} columnKey La clé de la colonne sur laquelle trier.
-   */
-  const handleSort = (columnKey: string) => {
-    setSortConfig(prev => {
-      if (prev?.key === columnKey) {
-        return {
-          key: columnKey,
-          direction: prev.direction === 'asc' ? 'desc' : 'asc'
-        };
-      } else {
-        return {
-          key: columnKey,
-          direction: 'asc'
-        };
-      }
-    });
-  };
-
-  /**
-   * Gère le changement de niveau de la table.
-   * Réinitialise la sous-catégorie de tactique si le niveau n'est plus 'tactique'.
-   *
-   * @param {TableLevel} level Le nouveau niveau de la table.
-   */
-  const handleLevelChange = useCallback((level: TableLevel) => {
-    onLevelChange(level);
-    if (level !== 'tactique') {
-      setSelectedTactiqueSubCategory('info');
-    }
-  }, [onLevelChange]);
-
-  /**
-   * Gère le changement de sous-catégorie pour les tactiques.
-   *
-   * @param {TactiqueSubCategory} subCategory La nouvelle sous-catégorie de tactique.
-   */
-  const handleTactiqueSubCategoryChange = useCallback((subCategory: TactiqueSubCategory) => {
-    setSelectedTactiqueSubCategory(subCategory);
   }, []);
 
   /**
-   * Rend la cellule de hiérarchie pour une ligne donnée.
-   * Inclut l'icône d'expansion pour les sections et l'indicateur de modifications.
-   *
-   * @param {TableRow} row La ligne à rendre.
-   * @returns {JSX.Element} Le JSX pour la cellule de hiérarchie.
+   * Rend la cellule de hiérarchie
    */
-  const renderHierarchyCell = (row: TableRow) => {
+  const renderHierarchyCell = useCallback((row: TableRow) => {
     const label = getHierarchyLabel(row);
     const hasChanges = pendingChanges.has(row.id);
 
@@ -517,74 +255,12 @@ export default function DynamicTableStructure({
         </span>
       </div>
     );
-  };
+  }, [pendingChanges, onToggleSection, expandedSections]);
 
   /**
-   * Récupère les styles CSS en fonction du type de niveau (section, tactique, etc.).
-   *
-   * @param {TableLevel} type Le type de niveau.
-   * @returns {string} Les classes CSS.
+   * Rend la cellule de données
    */
-  const getTypeStyles = (type: TableLevel): string => {
-    switch (type) {
-      case 'section': return 'bg-blue-100 text-blue-800';
-      case 'tactique': return 'bg-green-100 text-green-800';
-      case 'placement': return 'bg-purple-100 text-purple-800';
-      case 'creatif': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  /**
-   * Récupère le libellé abrégé pour un type de niveau.
-   *
-   * @param {TableLevel} type Le type de niveau.
-   * @returns {string} Le libellé abrégé.
-   */
-  const getTypeLabel = (type: TableLevel): string => {
-    switch (type) {
-      case 'section': return 'SEC';
-      case 'tactique': return 'TAC';
-      case 'placement': return 'PLA';
-      case 'creatif': return 'CRE';
-      default: return 'UNK';
-    }
-  };
-
-  /**
-   * NOUVEAU: Formate une valeur pour l'affichage en mode lecture
-   */
-  const formatDisplayValue = (columnKey: string, value: any) => {
-    // Cas spécial pour TC_Bucket : afficher le nom au lieu de l'ID
-    if (columnKey === 'TC_Bucket' && value) {
-      const bucket = buckets.find(b => b.id === value);
-      return bucket ? bucket.name : value;
-    }
-
-    // Cas spéciaux pour les listes dynamiques : afficher le label au lieu de l'ID
-    if (value && dynamicLists[columnKey]) {
-      const item = dynamicLists[columnKey].find(item => item.id === value);
-      return item ? item.SH_Display_Name_FR : value;
-    }
-
-    // Formatage standard pour les autres types
-    return formatColumnValue(
-      selectedLevel,
-      columnKey,
-      value,
-      selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
-    );
-  };
-
-  /**
-   * Rend la cellule de données pour une ligne et une colonne données.
-   * Gère les modes d'affichage (lecture seule, édition), le formatage des valeurs et les boutons de copie.
-   *
-   * @param {TableRow} row La ligne de la cellule.
-   * @param {DynamicColumn} column La colonne de la cellule.
-   * @returns {JSX.Element} Le JSX pour la cellule de données.
-   */
-  const renderDataCell = (row: TableRow, column: DynamicColumn) => {
+  const renderDataCell = useCallback((row: TableRow, column: DynamicColumn) => {
     const cellKey = `${row.id}_${column.key}`;
     const value = getCellValue(row, column.key);
     const isEditing = editingCells.has(cellKey);
@@ -592,7 +268,7 @@ export default function DynamicTableStructure({
     const isCopySource = copyMode.sourceCell === cellKey;
 
     if (column.type === 'readonly' || !row.isEditable) {
-      const formattedValue = formatDisplayValue(column.key, value);
+      const formattedValue = formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
       return (
         <span className={!row.isEditable ? 'text-gray-400' : 'text-gray-900'}>
           {formattedValue || '-'}
@@ -659,7 +335,7 @@ export default function DynamicTableStructure({
                 isCopySource ? 'bg-green-100 border border-green-300' : ''
               }`}
             >
-              {formatDisplayValue(column.key, value) || (
+              {formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined) || (
                 <span className="text-gray-400 italic">Cliquer pour modifier</span>
               )}
             </button>
@@ -695,37 +371,39 @@ export default function DynamicTableStructure({
         )}
       </div>
     );
-  };
+  }, [getCellValue, editingCells, hoveredCell, copyMode, buckets, dynamicLists, selectedLevel, selectedTactiqueSubCategory, onCellChange, onEndEdit, onStartEdit, selectedRows, handleStartCopy, handlePasteCopy]);
 
   return (
     <div className="space-y-3">
+      {/* Barre d'outils */}
       <div className="flex items-center justify-between gap-4">
+        {/* Sélecteurs de niveau */}
         <div className="flex space-x-1">
           {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
-            <div key={level} className="relative">
-              <button
-                onClick={() => handleLevelChange(level)}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedLevel === level
-                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <span className="capitalize">{level}s</span>
-                <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
-                  {entityCounts[level + 's' as keyof typeof entityCounts]}
-                </span>
-              </button>
-            </div>
+            <button
+              key={level}
+              onClick={() => handleLevelChange(level)}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedLevel === level
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span className="capitalize">{level}s</span>
+              <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
+                {entityCounts[level + 's' as keyof typeof entityCounts]}
+              </span>
+            </button>
           ))}
         </div>
 
+        {/* Sous-catégories de tactiques */}
         {selectedLevel === 'tactique' && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
             {getTactiqueSubCategories().map(subCategory => (
               <button
                 key={subCategory.id}
-                onClick={() => handleTactiqueSubCategoryChange(subCategory.id)}
+                onClick={() => setSelectedTactiqueSubCategory(subCategory.id)}
                 className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                   selectedTactiqueSubCategory === subCategory.id
                     ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
@@ -738,6 +416,7 @@ export default function DynamicTableStructure({
           </div>
         )}
 
+        {/* Barre de recherche */}
         <div className="flex-1 max-w-sm">
           <input
             type="text"
@@ -748,6 +427,7 @@ export default function DynamicTableStructure({
           />
         </div>
 
+        {/* Contrôles */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setHideChildrenLevels(!hideChildrenLevels)}
@@ -806,6 +486,7 @@ export default function DynamicTableStructure({
         </div>
       </div>
 
+      {/* Barre d'action pour sélection/copie */}
       {(selectedRows.size > 0 || copyMode.active) && (
         <div className="bg-indigo-50 border border-indigo-200 rounded p-2">
           <div className="flex items-center justify-between">
@@ -835,7 +516,7 @@ export default function DynamicTableStructure({
 
               {copyMode.active && (
                 <button
-                  onClick={cancelCopy}
+                  onClick={() => setCopyMode({ active: false })}
                   className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-white"
                 >
                   Annuler copie
@@ -846,6 +527,7 @@ export default function DynamicTableStructure({
         </div>
       )}
 
+      {/* Tableau */}
       <div className="bg-white border border-gray-200 rounded-lg">
         <div
           className="overflow-auto"
@@ -861,9 +543,9 @@ export default function DynamicTableStructure({
                 <th className="px-3 py-2 text-left whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
                   <input
                     type="checkbox"
-                    checked={isSelectAllChecked}
+                    checked={selectionStats.isSelectAllChecked}
                     ref={(el) => {
-                      if (el) el.indeterminate = isSelectAllIndeterminate;
+                      if (el) el.indeterminate = selectionStats.isSelectAllIndeterminate;
                     }}
                     onChange={handleSelectAll}
                     className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -902,7 +584,7 @@ export default function DynamicTableStructure({
                 processedRows.map(row => (
                   <tr
                     key={row.id}
-                    className={getRowStyles(row)}
+                    className={getRowStyles(row, selectedRows, pendingChanges)}
                   >
                     <td className="px-3 py-2 text-sm whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
                       {row.isEditable && (
@@ -921,7 +603,7 @@ export default function DynamicTableStructure({
                         className="px-3 py-2 text-sm whitespace-nowrap"
                         style={{ width: column.width || 150, minWidth: column.width || 150 }}
                       >
-                        {column.key === '_hierarchy'
+                        {column.key === '_hierarchy' 
                           ? renderHierarchyCell(row)
                           : renderDataCell(row, column)
                         }
