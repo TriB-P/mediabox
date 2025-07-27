@@ -1,7 +1,10 @@
+// app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
+
 /**
  * Ce composant affiche une table dynamique pour visualiser et éditer les données liées aux sections, tactiques, placements et créatifs.
  * Il gère le tri, le filtrage, la recherche, l'édition de cellules, la sélection multiple et les opérations de copier-coller.
  * Il intègre également une barre d'outils pour naviguer entre les niveaux de données et affiner l'affichage.
+ * MODIFIÉ: Ajout du support pour les buckets et listes dynamiques
  */
 'use client';
 
@@ -27,6 +30,19 @@ interface CopyOperation {
   targetRowIds: string[];
 }
 
+interface CampaignBucket {
+  id: string;
+  name: string;
+  description?: string;
+  target: number;
+  color?: string;
+}
+
+interface ListItem {
+  id: string;
+  SH_Display_Name_FR: string;
+}
+
 interface DynamicTableStructureProps {
   tableRows: TableRow[];
   selectedLevel: TableLevel;
@@ -44,10 +60,14 @@ interface DynamicTableStructureProps {
     placements: number;
     creatifs: number;
   };
+  // NOUVEAU: Données pour enrichir les colonnes
+  buckets: CampaignBucket[];
+  dynamicLists: { [key: string]: ListItem[] };
 }
 
 /**
  * Composant principal pour la structure de la table dynamique.
+ * MODIFIÉ: Ajout du support pour buckets et listes dynamiques
  *
  * @param {DynamicTableStructureProps} props Les propriétés du composant.
  * @returns {JSX.Element} Le JSX pour la table dynamique.
@@ -63,7 +83,9 @@ export default function DynamicTableStructure({
   onEndEdit,
   onToggleSection,
   onLevelChange,
-  entityCounts
+  entityCounts,
+  buckets,
+  dynamicLists
 }: DynamicTableStructureProps) {
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,13 +97,91 @@ export default function DynamicTableStructure({
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
   /**
+   * NOUVEAU: Enrichit les colonnes avec les données dynamiques (buckets, listes)
+   * ET filtre les colonnes qui n'ont pas de données (comme dans le drawer)
+   */
+  const enrichColumns = useCallback((baseColumns: DynamicColumn[]) => {
+    return baseColumns
+      .map(column => {
+        const enrichedColumn = { ...column };
+
+        if (column.type === 'select') {
+          switch (column.key) {
+            case 'TC_Bucket':
+              enrichedColumn.options = buckets.map(bucket => ({
+                id: bucket.id,
+                label: bucket.name
+              }));
+              break;
+
+            case 'TC_LoB':
+            case 'TC_Media_Type':
+            case 'TC_Publisher':
+            case 'TC_Buying_Method':
+            case 'TC_Custom_Dim_1':
+            case 'TC_Custom_Dim_2':
+            case 'TC_Custom_Dim_3':
+            case 'TC_Inventory':
+            case 'TC_Market':
+            case 'TC_Language':
+            case 'TC_Media_Objective':
+            case 'TC_Kpi':
+            case 'TC_Unit_Type':
+              const listData = dynamicLists[column.key] || [];
+              enrichedColumn.options = listData.map(item => ({
+                id: item.id,
+                label: item.SH_Display_Name_FR
+              }));
+              break;
+
+            default:
+              break;
+          }
+        }
+
+        return enrichedColumn;
+      })
+      .filter(column => {
+        // NOUVEAU: Filtrer les colonnes qui n'ont pas de données (comme dans le drawer)
+        
+        // Toujours garder la colonne de hiérarchie
+        if (column.key === '_hierarchy') {
+          return true;
+        }
+
+        // Toujours garder les champs non-select (text, number, etc.)
+        if (column.type !== 'select') {
+          return true;
+        }
+
+        // Pour TC_Bucket, garder seulement s'il y a des buckets
+        if (column.key === 'TC_Bucket') {
+          return buckets.length > 0;
+        }
+
+        // Pour les listes dynamiques, garder seulement s'il y a des données
+        if (dynamicLists[column.key]) {
+          return dynamicLists[column.key].length > 0;
+        }
+
+        // Pour les autres colonnes select sans données dynamiques, les masquer
+        if (column.type === 'select' && (!column.options || column.options.length === 0)) {
+          return false;
+        }
+
+        // Garder par défaut
+        return true;
+      });
+  }, [buckets, dynamicLists]);
+
+  /**
    * Calcule les colonnes à afficher en fonction du niveau sélectionné et de la sous-catégorie de tactique.
-   *
-   * @returns {DynamicColumn[]} Un tableau d'objets DynamicColumn.
+   * MODIFIÉ: Utilise maintenant enrichColumns pour ajouter les options dynamiques
    */
   const columns = useMemo(() => {
-    return getColumnsWithHierarchy(selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
-  }, [selectedLevel, selectedTactiqueSubCategory]);
+    const baseColumns = getColumnsWithHierarchy(selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
+    return enrichColumns(baseColumns);
+  }, [selectedLevel, selectedTactiqueSubCategory, enrichColumns]);
 
   /**
    * Traite les lignes du tableau en appliquant les filtres (masquer les niveaux inférieurs, recherche) et le tri.
@@ -452,6 +552,31 @@ export default function DynamicTableStructure({
   };
 
   /**
+   * NOUVEAU: Formate une valeur pour l'affichage en mode lecture
+   */
+  const formatDisplayValue = (columnKey: string, value: any) => {
+    // Cas spécial pour TC_Bucket : afficher le nom au lieu de l'ID
+    if (columnKey === 'TC_Bucket' && value) {
+      const bucket = buckets.find(b => b.id === value);
+      return bucket ? bucket.name : value;
+    }
+
+    // Cas spéciaux pour les listes dynamiques : afficher le label au lieu de l'ID
+    if (value && dynamicLists[columnKey]) {
+      const item = dynamicLists[columnKey].find(item => item.id === value);
+      return item ? item.SH_Display_Name_FR : value;
+    }
+
+    // Formatage standard pour les autres types
+    return formatColumnValue(
+      selectedLevel,
+      columnKey,
+      value,
+      selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
+    );
+  };
+
+  /**
    * Rend la cellule de données pour une ligne et une colonne données.
    * Gère les modes d'affichage (lecture seule, édition), le formatage des valeurs et les boutons de copie.
    *
@@ -467,12 +592,7 @@ export default function DynamicTableStructure({
     const isCopySource = copyMode.sourceCell === cellKey;
 
     if (column.type === 'readonly' || !row.isEditable) {
-      const formattedValue = formatColumnValue(
-        selectedLevel,
-        column.key,
-        value,
-        selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
-      );
+      const formattedValue = formatDisplayValue(column.key, value);
       return (
         <span className={!row.isEditable ? 'text-gray-400' : 'text-gray-900'}>
           {formattedValue || '-'}
@@ -539,12 +659,7 @@ export default function DynamicTableStructure({
                 isCopySource ? 'bg-green-100 border border-green-300' : ''
               }`}
             >
-              {formatColumnValue(
-                selectedLevel,
-                column.key,
-                value,
-                selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
-              ) || (
+              {formatDisplayValue(column.key, value) || (
                 <span className="text-gray-400 italic">Cliquer pour modifier</span>
               )}
             </button>

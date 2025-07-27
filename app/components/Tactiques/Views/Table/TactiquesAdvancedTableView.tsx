@@ -475,6 +475,8 @@ export default function TactiquesAdvancedTableView({
         onToggleSection={toggleSectionExpansion}
         onLevelChange={handleLevelChange}
         entityCounts={entityCounts}
+        buckets={buckets}
+        dynamicLists={dynamicLists}
       />
 
       <div className="flex items-center justify-between text-sm text-gray-500 py-2">
