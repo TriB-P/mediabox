@@ -8,10 +8,12 @@ import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import CreateDocumentModal from '../components/Others/CreateDocumentModal';
 import CampaignVersionSelector, { useCampaignVersionSelector } from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useSelection } from '../contexts/SelectionContext';
-import { getDocumentsByVersion } from '../lib/documentService';
+import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync } from '../lib/documentService';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
+import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport';
 import { 
   PlusIcon, 
   DocumentTextIcon, 
@@ -20,7 +22,9 @@ import {
   UserIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  TrashIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus, DocumentCreationResult } from '../types/document';
 import { Campaign } from '../types/campaign';
@@ -41,12 +45,16 @@ interface Version {
  */
 export default function DocumentsPage() {
   const { selectedClient } = useClient();
+  const { user } = useAuth();
   const { 
     selectedCampaignId, 
     selectedVersionId,
     setSelectedCampaignId,
     setSelectedVersionId 
   } = useSelection();
+
+  // Hook pour l'export combiné (utilisé pour le refresh)
+  const { exportCombinedData, loading: exportLoading } = useCombinedDocExport();
 
   // États du modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,6 +65,8 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [refreshingDocumentId, setRefreshingDocumentId] = useState<string | null>(null);
   
   // Hook pour la sélection campagne/version
   const {
@@ -283,6 +293,138 @@ export default function DocumentsPage() {
     }
   }, []);
 
+  /**
+   * Gère la suppression d'un document avec confirmation.
+   * @param document Le document à supprimer.
+   */
+  const handleDeleteDocument = useCallback(async (document: Document) => {
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer le document "${document.name}" ?\n\nCette action supprimera :\n- L'entrée de la base de données\n- Le fichier Google Drive associé\n\nCette action est irréversible.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      setError('Informations de contexte manquantes pour la suppression.');
+      return;
+    }
+
+    try {
+      setDeletingDocumentId(document.id);
+      setError(null);
+
+      await deleteDocumentWithDrive(
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id,
+        document.id
+      );
+
+      // Recharger la liste des documents
+      await loadDocuments();
+      
+      console.log(`✅ Document "${document.name}" supprimé avec succès`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la suppression';
+      console.error('❌ Erreur suppression document:', errorMessage);
+      setError(`Erreur lors de la suppression: ${errorMessage}`);
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  }, [selectedClient, selectedCampaign, selectedVersion, loadDocuments]);
+
+  /**
+   * Gère l'actualisation des données d'un document.
+   * @param document Le document à actualiser.
+   */
+  const handleRefreshDocument = useCallback(async (document: Document) => {
+   
+
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      setError('Informations de contexte manquantes pour l\'actualisation.');
+      return;
+    }
+
+    if (document.status !== DocumentStatus.COMPLETED) {
+      setError('Seuls les documents terminés peuvent être actualisés.');
+      return;
+    }
+
+    try {
+      setRefreshingDocumentId(document.id);
+      setError(null);
+
+      // Déterminer la langue d'export selon le template
+      const templateLanguage = document.template.name.includes('EN') || document.template.name.includes('Anglais') ? 'EN' : 'FR';
+
+      // Utiliser le hook d'export combiné pour repousser les données
+      const success = await exportCombinedData(
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id,
+        document.url,
+        templateLanguage
+      );
+
+      if (success) {
+        // Mettre à jour l'horodatage de synchronisation
+        await updateDocumentDataSync(
+          selectedClient.clientId,
+          selectedCampaign.id,
+          selectedVersion.id,
+          document.id,
+          user?.email || 'Utilisateur',
+          true
+        );
+
+        // Recharger la liste des documents pour voir la mise à jour
+        await loadDocuments();
+        
+        console.log(`✅ Document "${document.name}" actualisé avec succès`);
+      } else {
+        throw new Error('Échec de l\'actualisation des données');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'actualisation';
+      console.error('❌ Erreur actualisation document:', errorMessage);
+      
+      // Enregistrer l'échec de synchronisation
+      try {
+        await updateDocumentDataSync(
+          selectedClient.clientId,
+          selectedCampaign.id,
+          selectedVersion.id,
+          document.id,
+          user?.email || 'Utilisateur',
+          false,
+          errorMessage
+        );
+      } catch (syncError) {
+        console.error('Erreur lors de l\'enregistrement de l\'échec de sync:', syncError);
+      }
+
+      setError(`Erreur lors de l'actualisation: ${errorMessage}`);
+    } finally {
+      setRefreshingDocumentId(null);
+    }
+  }, [selectedClient, selectedCampaign, selectedVersion, exportCombinedData, loadDocuments]);
+
+  /**
+   * Groupe les documents par nom de template.
+   * @param documents La liste des documents à grouper.
+   * @returns Un objet avec les templates comme clés et les documents correspondants comme valeurs.
+   */
+  const groupDocumentsByTemplate = useCallback((documents: Document[]): { [templateName: string]: Document[] } => {
+    return documents.reduce((groups, document) => {
+      const templateName = document.template.name || 'Template inconnu';
+      if (!groups[templateName]) {
+        groups[templateName] = [];
+      }
+      groups[templateName].push(document);
+      return groups;
+    }, {} as { [templateName: string]: Document[] });
+  }, []);
+
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
@@ -291,12 +433,9 @@ export default function DocumentsPage() {
           {/* En-tête */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <DocumentTextIcon className="h-8 w-8 text-indigo-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
-                <p className="text-sm text-gray-500">
-                  Création et gestion des documents basés sur des templates
-                </p>
+            
               </div>
             </div>
             <button
@@ -333,42 +472,24 @@ export default function DocumentsPage() {
           {selectedClient && (
             <>
               {/* Sélecteur campagne/version */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">
-                  Navigation par campagne et version
-                </h2>
-                <CampaignVersionSelector
-                  campaigns={campaigns}
-                  versions={versions}
-                  selectedCampaign={selectedCampaign}
-                  selectedVersion={selectedVersion}
-                  loading={loading}
-                  error={error}
-                  onCampaignChange={handleCampaignChange}
-                  onVersionChange={handleVersionChange}
-                  className="space-y-4"
-                />
-              </div>
+                <div className="flex-1 max-w-4xl">
+                  <CampaignVersionSelector
+                    campaigns={campaigns}
+                    versions={versions}
+                    selectedCampaign={selectedCampaign}
+                    selectedVersion={selectedVersion}
+                    loading={loading}
+                    error={error}
+                    onCampaignChange={handleCampaignChange}
+                    onVersionChange={handleVersionChange}
+                    className="mb-0"
+                  />
+                </div>
+  
 
               {/* Liste des documents */}
               <div className="bg-white shadow rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-medium text-gray-900">
-                      Documents
-                      {selectedCampaign && selectedVersion && (
-                        <span className="text-sm font-normal text-gray-500 ml-2">
-                          {selectedCampaign.CA_Name} - {selectedVersion.name}
-                        </span>
-                      )}
-                    </h2>
-                    {documents.length > 0 && (
-                      <span className="text-sm text-gray-500">
-                        {documents.length} document{documents.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                </div>
+
 
                 <div className="px-6 py-4">
                   {/* États de chargement et d'erreur */}
@@ -410,7 +531,7 @@ export default function DocumentsPage() {
                     </div>
                   )}
 
-                  {/* Liste des documents */}
+                  {/* Liste des documents organisés par template */}
                   {selectedCampaign && selectedVersion && !loading && !error && (
                     <>
                       {documents.length === 0 ? (
@@ -429,72 +550,124 @@ export default function DocumentsPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          {documents.map((document) => (
-                            <div
-                              key={document.id}
-                              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-3">
-                                    {getStatusIcon(document.status)}
-                                    <h3 className="text-lg font-medium text-gray-900">
-                                      {document.name}
-                                    </h3>
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      document.status === DocumentStatus.COMPLETED
-                                        ? 'bg-green-100 text-green-800'
-                                        : document.status === DocumentStatus.ERROR
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                      {getStatusText(document.status)}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
-                                    <div className="flex items-center space-x-1">
-                                      <DocumentTextIcon className="h-4 w-4" />
-                                      <span>Template: {document.template.name}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                      <UserIcon className="h-4 w-4" />
-                                      <span>{document.createdBy.userDisplayName}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                      <ClockIcon className="h-4 w-4" />
-                                      <span>{formatDate(document.createdAt)}</span>
-                                    </div>
-                                  </div>
-
-                                  {document.errorMessage && (
-                                    <div className="mt-2 text-sm text-red-600">
-                                      Erreur: {document.errorMessage}
-                                    </div>
-                                  )}
-
-                                  {document.lastDataSync && (
-                                    <div className="mt-2 text-xs text-gray-400">
-                                      Dernière sync: {formatDate(document.lastDataSync.syncedAt)} 
-                                      {document.lastDataSync.success ? '' : ' (échec)'}
-                                    </div>
-                                  )}
-                                </div>
-
+                        <div className="space-y-8">
+                          {Object.entries(groupDocumentsByTemplate(documents)).map(([templateName, templateDocuments]) => (
+                            <div key={templateName} className="space-y-4">
+                              {/* En-tête de section par template */}
+                              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                                 <div className="flex items-center space-x-2">
-                                  {document.status === DocumentStatus.COMPLETED && (
-                                    <a
-                                      href={document.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                    >
-                                      <LinkIcon className="h-4 w-4 mr-1" />
-                                      Ouvrir
-                                    </a>
-                                  )}
+                                  <DocumentTextIcon className="h-5 w-5 text-indigo-600" />
+                                  <h3 className="text-lg font-medium text-gray-900">{templateName}</h3>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    {templateDocuments.length} document{templateDocuments.length > 1 ? 's' : ''}
+                                  </span>
                                 </div>
+                              </div>
+
+                              {/* Documents de ce template */}
+                              <div className="space-y-3">
+                                {templateDocuments.map((document) => (
+                                  <div
+                                    key={document.id}
+                                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center space-x-3">
+                                          {getStatusIcon(document.status)}
+                                          <h4 className="text-lg font-medium text-gray-900">
+                                            {document.name}
+                                          </h4>
+                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            document.status === DocumentStatus.COMPLETED
+                                              ? 'bg-green-100 text-green-800'
+                                              : document.status === DocumentStatus.ERROR
+                                                ? 'bg-red-100 text-red-800'
+                                                : 'bg-yellow-100 text-yellow-800'
+                                          }`}>
+                                            {getStatusText(document.status)}
+                                          </span>
+                                        </div>
+                                        
+                                        <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
+                                          <div className="flex items-center space-x-1">
+                                            <UserIcon className="h-4 w-4" />
+                                            <span>{document.createdBy.userDisplayName}</span>
+                                          </div>
+                                          <div className="flex items-center space-x-1">
+                                            <ClockIcon className="h-4 w-4" />
+                                            <span>{formatDate(document.createdAt)}</span>
+                                          </div>
+                                          {document.lastDataSync && (
+                                            <div className="flex items-center space-x-1">
+                                              <span className="text-gray-400">•</span>
+                                              <span className="text-gray-400">
+                                                Sync: {formatDate(document.lastDataSync.syncedAt)}
+                                                {document.lastDataSync.success ? '' : ' (échec)'}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {document.errorMessage && (
+                                          <div className="mt-2 text-sm text-red-600">
+                                            Erreur: {document.errorMessage}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center space-x-2">
+                                        {document.status === DocumentStatus.COMPLETED && (
+                                          <>
+                                            <a
+                                              href={document.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            >
+                                              <LinkIcon className="h-4 w-4 mr-1" />
+                                              Ouvrir
+                                            </a>
+                                            
+                                            <button
+                                              onClick={() => handleRefreshDocument(document)}
+                                              disabled={refreshingDocumentId === document.id || exportLoading}
+                                              className={`inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                                                refreshingDocumentId === document.id || exportLoading
+                                                  ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                                  : 'text-blue-700 bg-white hover:bg-blue-50'
+                                              }`}
+                                              title="Actualiser les données du document"
+                                            >
+                                              {refreshingDocumentId === document.id ? (
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
+                                              ) : (
+                                                <ArrowPathIcon className="h-4 w-4" />
+                                              )}
+                                            </button>
+                                          </>
+                                        )}
+                                        
+                                        <button
+                                          onClick={() => handleDeleteDocument(document)}
+                                          disabled={deletingDocumentId === document.id}
+                                          className={`inline-flex items-center px-3 py-2 border border-red-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                                            deletingDocumentId === document.id
+                                              ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                              : 'text-red-700 bg-white hover:bg-red-50'
+                                          }`}
+                                          title="Supprimer le document et le fichier Google Drive"
+                                        >
+                                          {deletingDocumentId === document.id ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />
+                                          ) : (
+                                            <TrashIcon className="h-4 w-4" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           ))}

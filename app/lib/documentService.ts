@@ -327,9 +327,185 @@ import {
       throw error;
     }
   }
+
+  /**
+   * Extrait l'ID d'un fichier Google Drive depuis son URL.
+   * @param url L'URL du document Google Drive.
+   * @returns L'ID du fichier ou null si non trouvé.
+   */
+  function extractGoogleDriveFileId(url: string): string | null {
+    // Pattern pour Google Sheets
+    const sheetsRegex = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const sheetsMatch = url.match(sheetsRegex);
+    if (sheetsMatch) {
+      return sheetsMatch[1];
+    }
+
+    // Pattern pour Google Docs
+    const docsRegex = /\/document\/d\/([a-zA-Z0-9-_]+)/;
+    const docsMatch = url.match(docsRegex);
+    if (docsMatch) {
+      return docsMatch[1];
+    }
+
+    // Pattern générique pour /file/d/
+    const fileRegex = /\/file\/d\/([a-zA-Z0-9-_]+)/;
+    const fileMatch = url.match(fileRegex);
+    if (fileMatch) {
+      return fileMatch[1];
+    }
+
+    return null;
+  }
+
+  /**
+   * Obtient un token d'accès Google Drive.
+   * @returns Le token d'accès ou null si échec.
+   */
+  async function getDriveAccessToken(): Promise<string | null> {
+    // Vérifier le cache d'abord
+    const cachedToken = localStorage.getItem('google_drive_token');
+    const cachedTime = localStorage.getItem('google_drive_token_time');
+
+    if (cachedToken && cachedTime) {
+      const tokenAge = Date.now() - parseInt(cachedTime);
+      // Token valide pendant 50 minutes
+      if (tokenAge < 50 * 60 * 1000) {
+        return cachedToken;
+      }
+      // Nettoyer le cache expiré
+      localStorage.removeItem('google_drive_token');
+      localStorage.removeItem('google_drive_token_time');
+    }
+
+    try {
+      const { getAuth, GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+      const auth = getAuth();
+
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/drive');
+      
+      console.log("FIREBASE: AUTHENTICATION - Fichier: documentService.ts - Fonction: getDriveAccessToken - Path: N/A");
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+
+      if (credential?.accessToken) {
+        // Mettre en cache le token
+        localStorage.setItem('google_drive_token', credential.accessToken);
+        localStorage.setItem('google_drive_token_time', Date.now().toString());
+        
+        return credential.accessToken;
+      }
+
+      throw new Error('Token d\'accès non récupéré depuis Firebase Auth');
+    } catch (err) {
+      console.error('Erreur lors de l\'authentification Google Drive:', err);
+      localStorage.removeItem('google_drive_token');
+      localStorage.removeItem('google_drive_token_time');
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime un fichier de Google Drive via l'API.
+   * @param fileId L'ID du fichier à supprimer.
+   * @param accessToken Le token d'accès Google Drive.
+   * @returns Une promesse qui résout une fois le fichier supprimé.
+   */
+  async function deleteGoogleDriveFile(fileId: string, accessToken: string): Promise<void> {
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      if (response.status === 403) {
+        throw new Error('Permissions insuffisantes pour supprimer le fichier Google Drive.');
+      } else if (response.status === 404) {
+        console.warn('Fichier Google Drive déjà supprimé ou non trouvé.');
+        // Ne pas faire échouer la suppression si le fichier n'existe plus
+        return;
+      } else {
+        const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
+        throw new Error(`Erreur API Drive lors de la suppression: ${errorMessage}`);
+      }
+    }
+  }
   
   /**
-   * Supprime un document.
+   * Supprime un document et son fichier Google Drive associé.
+   * @param clientId L'ID du client.
+   * @param campaignId L'ID de la campagne.
+   * @param versionId L'ID de la version.
+   * @param documentId L'ID du document.
+   * @returns Une promesse qui résout une fois la suppression terminée.
+   */
+  export async function deleteDocumentWithDrive(
+    clientId: string,
+    campaignId: string,
+    versionId: string,
+    documentId: string
+  ): Promise<void> {
+    try {
+      // 1. Récupérer le document pour obtenir l'URL Google Drive
+      const document = await getDocumentById(clientId, campaignId, versionId, documentId);
+      
+      if (!document) {
+        throw new Error('Document non trouvé');
+      }
+
+      // 2. Extraire l'ID du fichier Google Drive
+      const driveFileId = extractGoogleDriveFileId(document.url);
+      
+      if (driveFileId) {
+        try {
+          // 3. Obtenir le token d'accès Google Drive
+          const accessToken = await getDriveAccessToken();
+          
+          if (accessToken) {
+            // 4. Supprimer le fichier de Google Drive
+            await deleteGoogleDriveFile(driveFileId, accessToken);
+            console.log(`✅ Fichier Google Drive supprimé: ${driveFileId}`);
+          } else {
+            console.warn('⚠️ Impossible d\'obtenir le token Google Drive, suppression Firebase uniquement');
+          }
+        } catch (driveError) {
+          console.error('❌ Erreur lors de la suppression Google Drive:', driveError);
+          // Continuer avec la suppression Firebase même si Google Drive échoue
+        }
+      } else {
+        console.warn('⚠️ ID de fichier Google Drive non trouvé dans l\'URL:', document.url);
+      }
+
+      // 5. Supprimer l'entrée Firebase
+      const documentRef = doc(
+        db, 
+        'clients', clientId, 
+        'campaigns', campaignId, 
+        'versions', versionId, 
+        'documents', documentId
+      );
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: documentService.ts - Fonction: deleteDocumentWithDrive - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/documents/${documentId}`);
+      await deleteDoc(documentRef);
+
+      console.log(`✅ Document supprimé avec succès: ${document.name}`);
+    } catch (error) {
+      console.error('Erreur lors de la suppression du document:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime un document (version originale, Firebase uniquement).
    * @param clientId L'ID du client.
    * @param campaignId L'ID de la campagne.
    * @param versionId L'ID de la version.

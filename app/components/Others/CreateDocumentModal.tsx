@@ -3,7 +3,8 @@
 /**
  * Ce composant affiche un modal pour créer un nouveau document.
  * Il permet à l'utilisateur de sélectionner un template, donner un nom au document,
- * choisir une campagne et une version, puis lance le processus de création complet.
+ * puis lance le processus de création complet en utilisant la campagne et version
+ * déjà sélectionnées dans le contexte de l'application.
  * Le modal affiche la progression en temps réel et gère les états d'erreur.
  */
 'use client';
@@ -11,22 +12,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon, DocumentTextIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../../contexts/ClientContext';
+import { useSelection } from '../../contexts/SelectionContext';
 import { useCreateDocument } from '../../hooks/documents/useCreateDocument';
 import { getTemplatesByClient } from '../../lib/templateService';
 import { getCampaigns } from '../../lib/campaignService';
 import { getVersions } from '../../lib/versionService';
-import CampaignVersionSelector, { useCampaignVersionSelector } from './CampaignVersionSelector';
 import { Template } from '../../types/template';
-import { Campaign } from '../../types/campaign';
 import { DocumentFormData, DocumentCreationResult } from '../../types/document';
-
-interface Version {
-  id: string;
-  name: string;
-  isOfficial: boolean;
-  createdAt: string;
-  createdBy: string;
-}
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -46,6 +38,7 @@ export default function CreateDocumentModal({
   onDocumentCreated
 }: CreateDocumentModalProps) {
   const { selectedClient } = useClient();
+  const { selectedCampaignId, selectedVersionId } = useSelection();
   const { createDocument, loading: createLoading, error: createError, progress } = useCreateDocument();
   
   // États du formulaire
@@ -55,19 +48,12 @@ export default function CreateDocumentModal({
   
   // États des données
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [versions, setVersions] = useState<Version[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   
-  // Hook pour la sélection campagne/version
-  const {
-    selectedCampaign,
-    selectedVersion,
-    handleCampaignChange,
-    handleVersionChange,
-    reset: resetSelection
-  } = useCampaignVersionSelector();
+  // États pour afficher les informations de campagne/version
+  const [campaignName, setCampaignName] = useState<string>('');
+  const [versionName, setVersionName] = useState<string>('');
 
   // États de progression
   const [creationResult, setCreationResult] = useState<DocumentCreationResult | null>(null);
@@ -94,50 +80,39 @@ export default function CreateDocumentModal({
   }, [selectedClient]);
 
   /**
-   * Charge les campagnes du client sélectionné.
+   * Charge les informations de la campagne et version sélectionnées pour affichage.
    */
-  const loadCampaigns = useCallback(async () => {
-    if (!selectedClient) return;
-
-    try {
-      const clientCampaigns = await getCampaigns(selectedClient.clientId);
-      setCampaigns(clientCampaigns);
-    } catch (err) {
-      console.error('Erreur lors du chargement des campagnes:', err);
-      setDataError('Impossible de charger les campagnes du client.');
-    }
-  }, [selectedClient]);
-
-  /**
-   * Charge les versions d'une campagne sélectionnée.
-   */
-  const loadVersions = useCallback(async () => {
-    if (!selectedClient || !selectedCampaign) {
-      setVersions([]);
+  const loadCampaignVersionInfo = useCallback(async () => {
+    if (!selectedClient || !selectedCampaignId || !selectedVersionId) {
+      setCampaignName('');
+      setVersionName('');
       return;
     }
 
     try {
-      const campaignVersions = await getVersions(selectedClient.clientId, selectedCampaign.id);
-      setVersions(campaignVersions);
+      // Charger les informations de la campagne
+      const campaigns = await getCampaigns(selectedClient.clientId);
+      const campaign = campaigns.find(c => c.id === selectedCampaignId);
+      setCampaignName(campaign?.CA_Name || 'Campagne inconnue');
+
+      // Charger les informations de la version
+      const versions = await getVersions(selectedClient.clientId, selectedCampaignId);
+      const version = versions.find(v => v.id === selectedVersionId);
+      setVersionName(version?.name || 'Version inconnue');
     } catch (err) {
-      console.error('Erreur lors du chargement des versions:', err);
-      setDataError('Impossible de charger les versions de la campagne.');
+      console.error('Erreur lors du chargement des informations:', err);
+      setCampaignName('Erreur de chargement');
+      setVersionName('Erreur de chargement');
     }
-  }, [selectedClient, selectedCampaign]);
+  }, [selectedClient, selectedCampaignId, selectedVersionId]);
 
   // Charger les données initiales
   useEffect(() => {
     if (isOpen && selectedClient) {
       loadTemplates();
-      loadCampaigns();
+      loadCampaignVersionInfo();
     }
-  }, [isOpen, selectedClient, loadTemplates, loadCampaigns]);
-
-  // Charger les versions quand une campagne est sélectionnée
-  useEffect(() => {
-    loadVersions();
-  }, [loadVersions]);
+  }, [isOpen, selectedClient, loadTemplates, loadCampaignVersionInfo]);
 
   /**
    * Réinitialise tous les états du modal.
@@ -148,8 +123,7 @@ export default function CreateDocumentModal({
     setFormError(null);
     setCreationResult(null);
     setShowSuccess(false);
-    resetSelection();
-  }, [resetSelection]);
+  }, []);
 
   /**
    * Ferme le modal et réinitialise les états.
@@ -178,18 +152,18 @@ export default function CreateDocumentModal({
       return false;
     }
 
-    if (!selectedCampaign) {
-      setFormError('Veuillez sélectionner une campagne.');
+    if (!selectedCampaignId) {
+      setFormError('Aucune campagne sélectionnée. Veuillez sélectionner une campagne depuis la page principale.');
       return false;
     }
 
-    if (!selectedVersion) {
-      setFormError('Veuillez sélectionner une version.');
+    if (!selectedVersionId) {
+      setFormError('Aucune version sélectionnée. Veuillez sélectionner une version depuis la page principale.');
       return false;
     }
 
     return true;
-  }, [documentName, selectedTemplate, selectedCampaign, selectedVersion]);
+  }, [documentName, selectedTemplate, selectedCampaignId, selectedVersionId]);
 
   /**
    * Gère la soumission du formulaire et lance la création du document.
@@ -204,8 +178,8 @@ export default function CreateDocumentModal({
     const formData: DocumentFormData = {
       name: documentName.trim(),
       templateId: selectedTemplate!.id,
-      campaignId: selectedCampaign!.id,
-      versionId: selectedVersion!.id
+      campaignId: selectedCampaignId!,
+      versionId: selectedVersionId!
     };
 
     try {
@@ -225,7 +199,7 @@ export default function CreateDocumentModal({
     } catch (err) {
       console.error('Erreur lors de la création du document:', err);
     }
-  }, [selectedClient, validateForm, documentName, selectedTemplate, selectedCampaign, selectedVersion, createDocument, onDocumentCreated, handleClose]);
+  }, [selectedClient, validateForm, documentName, selectedTemplate, selectedCampaignId, selectedVersionId, createDocument, onDocumentCreated, handleClose]);
 
   // Ne pas afficher le modal si pas de client sélectionné
   if (!selectedClient) {
@@ -319,6 +293,41 @@ export default function CreateDocumentModal({
                 </div>
               )}
 
+              {/* Informations sur la campagne et version sélectionnées */}
+              {selectedCampaignId && selectedVersionId && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+           
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-blue-700 font-medium">Campagne : </span>
+                      <span className="text-blue-600">{campaignName}</span>
+                    </div>
+                    <div>
+                      <span className="text-blue-700 font-medium">Version : </span>
+                      <span className="text-blue-600">{versionName}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Pour changer, retournez à la page principale.
+                  </p>
+                </div>
+              )}
+
+              {/* Message d'erreur si pas de sélection */}
+              {(!selectedCampaignId || !selectedVersionId) && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md">
+                  <div className="flex">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-400 mr-2" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Sélection manquante</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Veuillez sélectionner une campagne et une version depuis la page principale avant de créer un document.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Formulaire */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 
@@ -333,9 +342,9 @@ export default function CreateDocumentModal({
                     value={documentName}
                     onChange={(e) => setDocumentName(e.target.value)}
                     placeholder="Ex: Plan Média Q1 2024"
-                    disabled={createLoading || dataLoading}
+                    disabled={createLoading || dataLoading || !selectedCampaignId || !selectedVersionId}
                     className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
-                      createLoading || dataLoading ? 'bg-gray-100 cursor-not-allowed' : ''
+                      createLoading || dataLoading || !selectedCampaignId || !selectedVersionId ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
                     required
                   />
@@ -355,9 +364,9 @@ export default function CreateDocumentModal({
                         const template = templates.find(t => t.id === e.target.value);
                         setSelectedTemplate(template || null);
                       }}
-                      disabled={createLoading}
+                      disabled={createLoading || !selectedCampaignId || !selectedVersionId}
                       className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
-                        createLoading ? 'bg-gray-100 cursor-not-allowed' : ''
+                        createLoading || !selectedCampaignId || !selectedVersionId ? 'bg-gray-100 cursor-not-allowed' : ''
                       }`}
                       required
                     >
@@ -374,25 +383,6 @@ export default function CreateDocumentModal({
                   </p>
                 </div>
 
-                {/* Sélection campagne/version */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campagne et Version *
-                  </label>
-                  <CampaignVersionSelector
-                    campaigns={campaigns}
-                    versions={versions}
-                    selectedCampaign={selectedCampaign}
-                    selectedVersion={selectedVersion}
-                    loading={dataLoading}
-                    error={dataError}
-                    onCampaignChange={handleCampaignChange}
-                    onVersionChange={handleVersionChange}
-                    disabled={createLoading}
-                    className="space-y-3"
-                  />
-                </div>
-
                 {/* Boutons d'action */}
                 <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                   <button
@@ -407,9 +397,9 @@ export default function CreateDocumentModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={createLoading || dataLoading || showSuccess}
+                    disabled={createLoading || dataLoading || showSuccess || !selectedCampaignId || !selectedVersionId}
                     className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                      createLoading || dataLoading || showSuccess
+                      createLoading || dataLoading || showSuccess || !selectedCampaignId || !selectedVersionId
                         ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                     }`}

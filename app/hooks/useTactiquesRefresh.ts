@@ -72,7 +72,6 @@ export function useTactiquesRefresh({
     setIsRefreshing(true);
     try {
       await Promise.resolve(onRefresh());
-      showNotification('✅ Données actualisées');
     } catch (error) {
       console.error('❌ Erreur refresh manuel:', error);
       showNotification('❌ Erreur lors de l\'actualisation', 'error');
