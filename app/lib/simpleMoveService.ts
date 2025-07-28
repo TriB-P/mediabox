@@ -156,7 +156,6 @@ export async function loadCampaigns(clientId: string): Promise<CascadeItem[]> {
       return {
         id: doc.id,
         name: data.CA_Name || 'Campagne sans nom',
-        description: `${data.CA_Status || 'Statut inconnu'} • Budget: ${data.CA_Budget || 0}€`
       };
     });
 
@@ -188,7 +187,7 @@ export async function loadVersions(clientId: string, campaignId: string): Promis
       return {
         id: doc.id,
         name: data.name || 'Version sans nom',
-        description: data.isOfficial ? '✓ Version officielle' : '📝 Brouillon'
+        description: data.isOfficial ? '✓ Version officielle' : '📝 Version alternative'
       };
     });
 
@@ -227,7 +226,6 @@ export async function loadOnglets(
       return {
         id: doc.id,
         name: data.ONGLET_Name || 'Onglet sans nom',
-        description: `Ordre: ${data.ONGLET_Order || 0}`
       };
     });
 
@@ -269,7 +267,6 @@ export async function loadSections(
       return {
         id: doc.id,
         name: data.SECTION_Name || 'Section sans nom',
-        description: `Budget: ${data.SECTION_Budget || 0}€`
       };
     });
 
@@ -313,7 +310,6 @@ export async function loadTactiques(
       return {
         id: doc.id,
         name: data.TC_Label || 'Tactique sans nom',
-        description: `Budget: ${data.TC_Budget || 0}€`
       };
     });
 
@@ -359,7 +355,6 @@ export async function loadPlacements(
       return {
         id: doc.id,
         name: data.PL_Label || 'Placement sans nom',
-        description: `Ordre: ${data.PL_Order || 0}`
       };
     });
 

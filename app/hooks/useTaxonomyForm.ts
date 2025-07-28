@@ -1,3 +1,5 @@
+// app/hooks/useTaxonomyForm.ts - CORRECTION DÉDUPLICATION
+
 /**
  * Ce hook gère la logique complexe des formulaires de taxonomie pour les créatifs et les placements.
  * Il s'occupe du chargement des données de taxonomie depuis Firebase,
@@ -127,19 +129,33 @@ export function useTaxonomyForm({
 
   /**
    * Mémoise les variables manuelles filtrées en fonction du type de formulaire.
+   * 🔥 CORRECTION: Déduplique par nom de variable pour éviter les doublons avec différents formats.
    * @returns Un tableau de variables de taxonomie analysées qui sont considérées comme manuelles.
    */
   const manualVariables = useMemo(() => {
+    let filteredVariables;
+    
     if (formType === 'creatif') {
-      return parsedVariables.filter(variable => isCreatifVariable(variable.variable));
+      filteredVariables = parsedVariables.filter(variable => isCreatifVariable(variable.variable));
     } else {
-      return parsedVariables.filter(variable => {
+      filteredVariables = parsedVariables.filter(variable => {
         const isCreatif = isCreatifVariable(variable.variable);
         const isPlacement = isPlacementVariable(variable.variable);
         const isManual = isManualVariable(variable.variable);
         return isPlacement || (isManual && !isCreatif);
       });
     }
+    
+    // 🔥 NOUVEAU: Déduplicquer par nom de variable (garder seulement la première occurrence)
+    const uniqueByVariable = new Map<string, ParsedTaxonomyVariable>();
+    
+    filteredVariables.forEach(variable => {
+      if (!uniqueByVariable.has(variable.variable)) {
+        uniqueByVariable.set(variable.variable, variable);
+      }
+    });
+    
+    return Array.from(uniqueByVariable.values());
   }, [parsedVariables, formType]);
 
   const hasLoadingFields = Object.values(fieldStates).some(fs => fs.isLoading);

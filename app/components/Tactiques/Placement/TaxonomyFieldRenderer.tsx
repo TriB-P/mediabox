@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
-import { getSourceColor, formatRequiresShortcode } from '../../../config/taxonomyFields';
+import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
 import type { ParsedTaxonomyVariable, TaxonomyValues, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -44,7 +44,11 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     const fieldState = fieldStates[fieldKey];
     const currentValue = formData[fieldKey] || '';
     
-    const hasShortcodeList = variable.formats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
+    // 🔥 CORRECTION: Utiliser getVariableConfig pour obtenir les formats autorisés
+    const variableConfig = getVariableConfig(variable.variable);
+    const allowedFormats = variableConfig?.allowedFormats || [];
+    
+    const hasShortcodeList = allowedFormats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
     
     // 🔥 CORRECTION: Vérifier si la valeur actuelle correspond à un ID d'option
     let isValueInOptions = false;
@@ -73,7 +77,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             onChange={(e) => {
               const selectedId = e.target.value;
               const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
-              const primaryFormat = variable.formats.find(f => formatRequiresShortcode(f)) || 'code';
+              const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
               console.log(`🔄 SmartSelect ${fieldKey} changé:`, { selectedId, selectedOption, primaryFormat });
               onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
             }}
