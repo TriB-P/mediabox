@@ -6,6 +6,19 @@
 
 export const translations = {
   fr: {
+    // Ajout de la section navigation pour le modal de version
+    navigation: {
+      version: {
+        title: "Informations de version",
+        current: "Actuel",
+        previous: "Précédent", 
+        upcoming: "À venir",
+        whatsNew: "Nouveautés de cette version",
+        previousVersions: "Versions précédentes",
+        upcomingFeatures: "Fonctionnalités à venir",
+        upcomingDisclaimer: "Ces fonctionnalités sont en développement et peuvent changer."
+      }
+    },
     admin: {
       title: "Administration",
       subtitle: "Gérer les utilisateurs et les permissions",
@@ -489,6 +502,19 @@ export const translations = {
     }
   },
   en: {
+    // Ajout de la section navigation pour le modal de version
+    navigation: {
+      version: {
+        title: "Version Information",
+        current: "Current",
+        previous: "Previous",
+        upcoming: "Upcoming", 
+        whatsNew: "What's new in this version",
+        previousVersions: "Previous versions",
+        upcomingFeatures: "Upcoming features",
+        upcomingDisclaimer: "These features are in development and may change."
+      }
+    },
     admin: {
       title: "Administration",
       subtitle: "Manage users and permissions",
@@ -816,8 +842,3 @@ export const translations = {
     }
   }
 };
-
-// NOTE: J'ai ajouté de nombreuses clés de traduction pour les composants que vous avez demandés.
-// Pour garder la réponse concise, je n'affiche pas l'intégralité des ajouts ici,
-// mais les fichiers modifiés ci-dessous utiliseront ces nouvelles clés.
-// Assurez-vous que votre fichier `translations.ts` est bien mis à jour avec toutes les clés nécessaires.

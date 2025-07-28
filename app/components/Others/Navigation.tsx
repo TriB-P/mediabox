@@ -1,3 +1,4 @@
+// app/components/Others/Navigation.tsx
 /**
  * @file Ce fichier contient le composant de la barre de navigation latérale de l'application.
  * @summary Ce composant affiche les liens de navigation principaux. Il s'adapte en fonction de l'utilisateur connecté et de ses permissions (par exemple, en affichant un lien "Admin" uniquement pour les administrateurs). Il gère également la mise en surbrillance du lien correspondant à la page actuellement consultée.
@@ -8,6 +9,7 @@
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import ClientDropdown from './ClientDropdown';
+import Version from './Version';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -65,47 +67,50 @@ export default function Navigation() {
 
   return (
     <div className="w-[210px] bg-white border-r border-gray-200 flex flex-col h-full">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center mb-4">
-          <div className="w-10 h-10 flex items-center justify-center rounded overflow-hidden mr-2">
-            <Image
-              src="/MediaBox_Logo.png"  
-              alt="MediaBox Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-            />
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center mb-4">
+            <div className="w-10 h-10 flex items-center justify-center rounded overflow-hidden mr-2">
+              <Image
+                src="/MediaBox_Logo.png"  
+                alt="MediaBox Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+            </div>
+            <span className="font-medium text-gray-900">MediaBox</span>
           </div>
-          <span className="font-medium text-gray-900">MediaBox</span>
+          
+          <div className="mb-2">
+            <ClientDropdown />
+          </div>
         </div>
         
-        <div className="mb-2">
-          <ClientDropdown />
-        </div>
+        <nav className="flex-1 overflow-y-auto pt-2">
+          <ul className="space-y-1">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.name}>
+                  <Link 
+                    href={item.href}
+                    className={`flex items-center px-4 py-3 text-sm ${
+                      isActive(item.href)
+                        ? 'text-indigo-700 bg-indigo-50 font-medium border-l-4 border-indigo-500 pl-3'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 mr-3 ${isActive(item.href) ? 'text-indigo-500' : 'text-gray-400'}`} />
+                    {item.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Composant Version */}
+        <Version />
       </div>
-      
-      <nav className="flex-1 overflow-y-auto pt-2">
-        <ul className="space-y-1">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.name}>
-                <Link 
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 text-sm ${
-                    isActive(item.href)
-                      ? 'text-indigo-700 bg-indigo-50 font-medium border-l-4 border-indigo-500 pl-3'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 mr-3 ${isActive(item.href) ? 'text-indigo-500' : 'text-gray-400'}`} />
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </div>
   );
 }
