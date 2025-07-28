@@ -6,13 +6,13 @@
  * Il prend en charge l'ouverture et la fermeture du modal, le chargement des options de destination
  * depuis Firebase, la sélection de la destination, la validation et l'exécution du déplacement.
  * Il assure également un rafraîchissement de l'interface après un déplacement réussi.
- * NOUVEAU : Il met automatiquement à jour les taxonomies des éléments déplacés.
+ * ✅ MODIFIÉ : Il force maintenant une régénération complète des taxonomies des éléments déplacés.
  */
 import { useState, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { SelectionValidationResult } from './useSelectionValidation';
-import { useUpdateTaxonomies } from './useUpdateTaxonomies';
+import { useUpdateTaxonomiesAfterMove } from './useUpdateTaxonomiesAfterMove';
 import * as MoveService from '../lib/simpleMoveService';
 
 export interface MoveModalState {
@@ -57,7 +57,7 @@ export interface MoveModalState {
 export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
-  const { updateTaxonomies } = useUpdateTaxonomies();
+  const { updateTaxonomiesAfterMove } = useUpdateTaxonomiesAfterMove();
 
   const onRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -433,7 +433,8 @@ export function useSimpleMoveModal() {
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
   /**
-   * Met à jour les taxonomies des éléments déplacés après un déplacement réussi.
+   * ✅ MODIFIÉ : Met à jour les taxonomies des éléments déplacés après un déplacement réussi.
+   * Force maintenant une régénération complète des taxonomies basée sur le nouveau contexte hiérarchique.
    * Détermine automatiquement les éléments qui nécessitent une mise à jour taxonomique
    * en fonction du type et niveau de déplacement effectué.
    * @param {MoveService.MoveResult} moveResult Le résultat du déplacement.
@@ -441,22 +442,30 @@ export function useSimpleMoveModal() {
    * @param {MoveService.MoveDestination} destination La destination du déplacement.
    * @returns {Promise<void>} Une promesse qui se résout une fois les taxonomies mises à jour.
    */
-  const updateTaxonomiesAfterMove = useCallback(async (
+  const updateTaxonomiesAfterMoveFunc = useCallback(async (
     moveResult: MoveService.MoveResult,
     moveLevel: string,
     destination: MoveService.MoveDestination
   ) => {
+    console.log('🔥 [DEBUG] updateTaxonomiesAfterMoveFunc appelée');
+    console.log('🔥 [DEBUG] moveResult.success:', moveResult.success);
+    console.log('🔥 [DEBUG] selectedClient?.clientId:', selectedClient?.clientId);
+    console.log('🔥 [DEBUG] moveLevel:', moveLevel);
+    console.log('🔥 [DEBUG] destination:', destination);
+    
     if (!moveResult.success || !selectedClient?.clientId) {
+      console.log('❌ [DEBUG] Conditions non remplies, sortie de la fonction');
       return;
     }
 
     const clientId = selectedClient.clientId;
 
     try {
-      console.log('🔄 Mise à jour des taxonomies après déplacement...');
+      console.log('🔄 Régénération forcée des taxonomies après déplacement...');
 
-      // Pour les déplacements de sections : mettre à jour toutes les tactiques et leurs enfants
+      // Pour les déplacements de sections : régénérer toutes les taxonomies de la campagne destination
       if (moveLevel === 'section') {
+        console.log('📁 [DEBUG] Traitement des sections...');
         // Les sections déplacées ont une nouvelle campagne parente
         const campaignData = {
           id: destination.campaignId!,
@@ -464,13 +473,16 @@ export function useSimpleMoveModal() {
           clientId: clientId,
         };
 
+        console.log('🔄 [DEBUG] Appel updateTaxonomiesAfterMove pour campaign:', campaignData);
         // Déclencher la mise à jour pour la campagne destination
         // Cela mettra à jour toutes les tactiques, placements et créatifs de ces sections
-        await updateTaxonomies('campaign', campaignData);
+        await updateTaxonomiesAfterMove('campaign', campaignData);
+        console.log('✅ [DEBUG] updateTaxonomiesAfterMove campaign terminé');
       }
       
-      // Pour les déplacements de tactiques : mettre à jour leurs placements et créatifs
+      // Pour les déplacements de tactiques : régénérer leurs placements et créatifs
       else if (moveLevel === 'tactique') {
+        console.log('🎯 [DEBUG] Traitement des tactiques...');
         for (const tactiqueId of modalState.selectedItemIds) {
           const tactiqueData = {
             id: tactiqueId,
@@ -479,12 +491,15 @@ export function useSimpleMoveModal() {
             campaignId: destination.campaignId!,
           };
 
-          await updateTaxonomies('tactic', tactiqueData);
+          console.log('🔄 [DEBUG] Appel updateTaxonomiesAfterMove pour tactic:', tactiqueData);
+          await updateTaxonomiesAfterMove('tactic', tactiqueData);
+          console.log('✅ [DEBUG] updateTaxonomiesAfterMove tactic terminé pour:', tactiqueId);
         }
       }
       
-      // Pour les déplacements de placements : mettre à jour leurs créatifs
+      // Pour les déplacements de placements : régénérer leurs créatifs
       else if (moveLevel === 'placement') {
+        console.log('📍 [DEBUG] Traitement des placements...');
         for (const placementId of modalState.selectedItemIds) {
           const placementData = {
             id: placementId,
@@ -493,18 +508,37 @@ export function useSimpleMoveModal() {
             campaignId: destination.campaignId!,
           };
 
-          await updateTaxonomies('placement', placementData);
+          console.log('🔄 [DEBUG] Appel updateTaxonomiesAfterMove pour placement:', placementData);
+          await updateTaxonomiesAfterMove('placement', placementData);
+          console.log('✅ [DEBUG] updateTaxonomiesAfterMove placement terminé pour:', placementId);
         }
       }
+      
+      // ✅ NOUVEAU : Pour les déplacements de créatifs : régénérer leurs taxonomies
+      else if (moveLevel === 'creatif') {
+        console.log('🎨 [DEBUG] Traitement des créatifs...');
+        // Pour les créatifs, on met à jour le placement parent qui va automatiquement
+        // régénérer les taxonomies des créatifs qu'il contient
+        const placementData = {
+          id: destination.placementId!,
+          name: destination.placementName!,
+          clientId: clientId,
+          campaignId: destination.campaignId!,
+        };
 
-      console.log('✅ Taxonomies mises à jour avec succès après déplacement');
+        console.log('🔄 [DEBUG] Appel updateTaxonomiesAfterMove pour placement parent:', placementData);
+        await updateTaxonomiesAfterMove('placement', placementData);
+        console.log('✅ [DEBUG] updateTaxonomiesAfterMove placement parent terminé');
+      }
+
+      console.log('✅ Taxonomies régénérées avec succès après déplacement');
 
     } catch (error) {
-      console.error('❌ Erreur lors de la mise à jour des taxonomies après déplacement:', error);
+      console.error('❌ Erreur lors de la régénération des taxonomies après déplacement:', error);
       // On ne fait pas échouer le déplacement si la mise à jour des taxonomies échoue
       // L'utilisateur peut toujours les mettre à jour manuellement plus tard
     }
-  }, [selectedClient?.clientId, modalState.selectedItemIds, updateTaxonomies]);
+  }, [selectedClient?.clientId, modalState.selectedItemIds, updateTaxonomiesAfterMove]);
 
   /**
    * Confirme et exécute le déplacement des éléments sélectionnés vers la destination choisie.
@@ -561,12 +595,18 @@ export function useSimpleMoveModal() {
       const result = await MoveService.performMove(operation);
 
       if (result.success) {
+        console.log('✅ Déplacement réussi, début mise à jour taxonomies...');
+        console.log('📊 MoveLevel:', modalState.validationResult.moveLevel);
+        console.log('📍 Destination:', modalState.destination);
+        
         // Mise à jour des taxonomies après le déplacement réussi
-        await updateTaxonomiesAfterMove(
+        await updateTaxonomiesAfterMoveFunc(
           result,
           modalState.validationResult.moveLevel!,
           modalState.destination as MoveService.MoveDestination
         );
+        
+        console.log('✅ Mise à jour taxonomies terminée');
 
         // Rafraîchissement des données
         if (onRefreshRef.current) {
@@ -618,7 +658,7 @@ export function useSimpleMoveModal() {
     selectedCampaignId,
     selectedVersionId,
     selectedOngletId,
-    updateTaxonomiesAfterMove
+    updateTaxonomiesAfterMoveFunc
   ]);
 
   /**
