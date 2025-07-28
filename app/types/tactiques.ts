@@ -1,8 +1,11 @@
 // app/types/tactiques.ts
 
-// Types pour le module de tactiques
+// ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
-// ==================== TYPES EXISTANTS (INCHANGÉS) ====================
+import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
+export type { TaxonomyFormat, FieldSource };
+
+// ==================== INTERFACE SECTION CORRIGÉE ====================
 
 export interface Section {
   id: string;
@@ -10,7 +13,11 @@ export interface Section {
   SECTION_Order: number;
   SECTION_Color?: string;
   SECTION_Budget?: number; // Calculé à partir de la somme des budgets des tactiques
+  isExpanded?: boolean; // 🔥 AJOUTÉ : État d'expansion pour l'UI
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
+
+// ==================== TYPES EXISTANTS (INCHANGÉS) ====================
 
 export interface Tactique {
   id: string;
@@ -19,10 +26,10 @@ export interface Tactique {
   TC_Order: number;
   TC_SectionId: string; // Référence à la section parente
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
-  
+
   // Champs Info
   TC_Bucket?: string; // Référence à l'enveloppe budgétaire
-  
+
   // Champs Stratégie - Section principale
   TC_LoB?: string; // Ligne d'affaire
   TC_Media_Type?: string; // Type média
@@ -36,20 +43,20 @@ export interface Tactique {
   TC_Market?: string; // Marché (liste dynamique)
   TC_Language?: string; // Langue
   TC_Format_Open?: string; // Description du format
-  
+
   // Champs Stratégie - Champs personnalisés
   TC_Buying_Method?: string; // Méthode d'achat
   TC_Custom_Dim_1?: string; // Dimension personnalisée 1
   TC_Custom_Dim_2?: string; // Dimension personnalisée 2
   TC_Custom_Dim_3?: string; // Dimension personnalisée 3
-  
+
   // Champs Stratégie - Production
   TC_NumberCreatives?: string; // Nombre de créatifs suggérés
   TC_AssetDate?: string; // Date de livraison des créatifs
-  
+
   // Champs KPI
   TC_Media_Objective?: string; // Objectif média
-  
+
   // KPIs multiples (jusqu'à 5)
   TC_Kpi?: string; // KPI principal
   TC_Kpi_CostPer?: number; // Coût par principal
@@ -66,11 +73,11 @@ export interface Tactique {
   TC_Kpi_5?: string; // KPI 5
   TC_Kpi_CostPer_5?: number; // Coût par 5
   TC_Kpi_Volume_5?: number; // Volume 5
-  
+
   // Champs Admin
   TC_Billing_ID?: string; // Numéro de facturation
   TC_PO?: string; // PO
-  
+
   // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string; // Placement média
   TC_Format?: string; // Format utilisé
@@ -86,97 +93,108 @@ export interface Tactique {
   TC_Has_Bonus?: boolean;         // Inclut bonification
   TC_Real_Value?: number;         // Valeur réelle payée
   TC_Bonus_Value?: number;        // Bonification calculée
+
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
-// ==================== NOUVEAUX TYPES POUR LES TAXONOMIES ====================
+// ==================== TYPES TAXONOMIE ====================
 
-/**
- * Format des valeurs de variables utilisées dans les taxonomies
- */
-export type TaxonomyVariableFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom';
+export type TaxonomyVariableFormat = TaxonomyFormat;
+export type TaxonomyVariableSource = FieldSource;
 
-/**
- * Source d'une valeur de variable
- */
-export type TaxonomyVariableSource = 'campaign' | 'tactique' | 'manual';
-
-/**
- * Valeur d'une variable de taxonomie avec ses métadonnées
- */
 export interface TaxonomyVariableValue {
-  value: string;                          // Valeur finale utilisée
-  source: TaxonomyVariableSource;         // Source de la valeur
-  format: TaxonomyVariableFormat;         // Format utilisé
+  value: string;
+  source: TaxonomyVariableSource;
+  format: TaxonomyFormat;
+  shortcodeId?: string;
+  openValue?: string;
 }
 
-/**
- * Collection des valeurs de toutes les variables utilisées dans les taxonomies
- */
 export interface TaxonomyValues {
   [variableName: string]: TaxonomyVariableValue;
 }
 
-/**
- * Chaînes taxonomiques générées pour les différents systèmes
- */
 export interface GeneratedTaxonomies {
-  tags?: string;       // Taxonomie complète pour tags
-  platform?: string;  // Taxonomie complète pour platform  
-  mediaocean?: string; // Taxonomie complète pour mediaocean
+  tags?: string;
+  platform?: string;
+  mediaocean?: string;
 }
 
-/**
- * Variable parsée depuis une structure de taxonomie
- */
 export interface ParsedTaxonomyVariable {
-  variable: string;                   // Nom de la variable (ex: "TC_Publisher")
-  format: TaxonomyVariableFormat;     // Format demandé (ex: "code")
-  source: TaxonomyVariableSource;     // Source déterminée automatiquement
-  level: number;                      // Niveau dans la taxonomie (1-4)
-  isValid: boolean;                   // Indique si la variable/format est valide
-  errorMessage?: string;              // Message d'erreur si invalide
+  variable: string;
+  formats: TaxonomyFormat[];
+  source: TaxonomyVariableSource;
+  label?: string;
+  level: number;
+  isValid: boolean;
+  errorMessage?: string;
 }
 
-/**
- * Structure de taxonomie parsée complète
- */
 export interface ParsedTaxonomyStructure {
-  variables: ParsedTaxonomyVariable[]; // Variables trouvées dans la structure
-  isValid: boolean;                    // Indique si toute la structure est valide
-  errors: string[];                    // Liste des erreurs trouvées
+  variables: ParsedTaxonomyVariable[];
+  isValid: boolean;
+  errors: string[];
 }
 
-// ==================== PLACEMENT AVEC TAXONOMIES ====================
+// ==================== PLACEMENT AVEC CHAMPS DE PLACEMENT ====================
 
 export interface Placement {
   id: string;
   PL_Label: string;
-  PL_Format?: string;
-  PL_Budget: number;
   PL_Order: number;
-  PL_TactiqueId: string; // Référence à la tactique parente
-  
-  // Champs de taxonomie existants (pour compatibilité)
-  PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
-  PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
-  PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
-  
-  // NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
-  PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
-  PL_Generated_Taxonomies?: GeneratedTaxonomies; // Chaînes taxonomiques générées
-  
+  PL_TactiqueId: string;
+
+  PL_Taxonomy_Tags?: string;
+  PL_Taxonomy_Platform?: string;
+  PL_Taxonomy_MediaOcean?: string;
+
+  // Champs de placement
+  TAX_Product?: string;
+  TAX_Audience_Demographics?: string;
+  TAX_Location?: string;
+  TAX_Device?: string;
+  TAX_Targeting?: string;
+
+  PL_Taxonomy_Values?: TaxonomyValues;
+  PL_Generated_Taxonomies?: GeneratedTaxonomies;
+
   createdAt?: string;
   updatedAt?: string;
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
+
+// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
 
 export interface Creatif {
   id: string;
   CR_Label: string;
-  CR_URL?: string;
   CR_Order: number;
-  CR_PlacementId: string; // Référence au placement parent
+  CR_PlacementId: string;
+
+  // Taxonomies créatifs (niveaux 5-6)
+  CR_Taxonomy_Tags?: string;
+  CR_Taxonomy_Platform?: string;
+  CR_Taxonomy_MediaOcean?: string;
+
+  // 10 champs spécifiques aux créatifs
+  CR_Start_Date?: string;           // Date de début créatif
+  CR_End_Date?: string;             // Date de fin créatif
+  CR_Rotation_Weight?: string;      // Poids de rotation
+  CR_CTA?: string;                  // Call-to-Action
+  CR_Format_Details?: string;       // Détails du format
+  CR_Offer?: string;                // Offre
+  CR_Plateform_Name?: string;       // Nom de plateforme
+  CR_Primary_Product?: string;      // Produit principal
+  CR_URL?: string;                  // URL du créatif
+  CR_Version?: string;              // Version du créatif
+
+  // Stockage des valeurs taxonomie et générations
+  CR_Taxonomy_Values?: TaxonomyValues;
+  CR_Generated_Taxonomies?: GeneratedTaxonomies;
+
   createdAt?: string;
   updatedAt?: string;
+  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
 export interface Onglet {
@@ -193,36 +211,33 @@ export interface Version {
   createdBy: string;
 }
 
-// Type pour les sections avec tactiques et état d'expansion
-export interface SectionWithTactiques extends Section {
-  tactiques: Tactique[];
-  isExpanded: boolean;
-}
+// ==================== STRUCTURES HIÉRARCHIQUES POUR L'AFFICHAGE ====================
 
-// Type pour les tactiques avec placements
-export interface TactiqueWithPlacements extends Tactique {
-  placements: PlacementWithCreatifs[];
-}
-
-// Type pour les placements avec créatifs
+// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
 export interface PlacementWithCreatifs extends Placement {
   creatifs: Creatif[];
 }
 
-// ==================== TYPES DE FORMULAIRES AVEC TAXONOMIES ====================
+// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
+export interface TactiqueWithPlacements extends Tactique {
+  placements: PlacementWithCreatifs[];
+}
 
-// Types pour les formulaires
+// 🔥 CORRECTION : Utilisation de TactiqueWithPlacements pour le tableau imbriqué
+export interface SectionWithTactiques extends Section {
+  tactiques: TactiqueWithPlacements[];
+  // isExpanded héritée de Section - plus besoin de la redéfinir
+}
+
+// ==================== TYPES DE FORMULAIRES ====================
+
 export interface TactiqueFormData {
   TC_Label: string;
   TC_Budget: number;
   TC_Order: number;
   TC_SectionId: string;
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
-  
-  // Champs Info
   TC_Bucket?: string;
-  
-  // Champs Stratégie - Section principale
   TC_LoB?: string;
   TC_Media_Type?: string;
   TC_Publisher?: string;
@@ -235,21 +250,13 @@ export interface TactiqueFormData {
   TC_Market?: string;
   TC_Language?: string;
   TC_Format_Open?: string;
-  
-  // Champs Stratégie - Champs personnalisés
   TC_Buying_Method?: string;
   TC_Custom_Dim_1?: string;
   TC_Custom_Dim_2?: string;
   TC_Custom_Dim_3?: string;
-  
-  // Champs Stratégie - Production
   TC_NumberCreatives?: string;
   TC_AssetDate?: string;
-  
-  // Champs KPI
   TC_Media_Objective?: string;
-  
-  // KPIs multiples (jusqu'à 5)
   TC_Kpi?: string;
   TC_Kpi_CostPer?: number;
   TC_Kpi_Volume?: number;
@@ -265,86 +272,94 @@ export interface TactiqueFormData {
   TC_Kpi_5?: string;
   TC_Kpi_CostPer_5?: number;
   TC_Kpi_Volume_5?: number;
-  
-  // Champs Admin
   TC_Billing_ID?: string;
   TC_PO?: string;
-  
-  // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string;
   TC_Format?: string;
   TC_StartDate?: string;
   TC_EndDate?: string;
 }
 
-/**
- * Données de formulaire pour les placements avec support des taxonomies
- */
 export interface PlacementFormData {
   PL_Label: string;
-  PL_Format?: string;
-  PL_Budget: number;
   PL_Order: number;
   PL_TactiqueId: string;
-  
-  // Champs de taxonomie existants (pour compatibilité)
-  PL_Taxonomy_Tags?: string; // Taxonomie pour les tags
-  PL_Taxonomy_Platform?: string; // Taxonomie pour la plateforme
-  PL_Taxonomy_MediaOcean?: string; // Taxonomie pour MediaOcean
-  
-  // NOUVEAUX CHAMPS POUR LES TAXONOMIES DYNAMIQUES
-  PL_Taxonomy_Values?: TaxonomyValues;        // Valeurs des variables configurées
-  PL_Generated_Taxonomies?: GeneratedTaxonomies; // Chaînes taxonomiques générées
+
+  PL_Taxonomy_Tags?: string;
+  PL_Taxonomy_Platform?: string;
+  PL_Taxonomy_MediaOcean?: string;
+
+  // Champs de placement
+  TAX_Product?: string;
+  TAX_Location?: string;
+  TAX_Audience_Demographics?: string;
+  TAX_Device?: string;
+  TAX_Targeting?: string;
+
+  PL_Taxonomy_Values?: TaxonomyValues;
+  PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
+
+// ==================== FORMULAIRE CRÉATIF COMPLET ====================
 
 export interface CreatifFormData {
   CR_Label: string;
-  CR_URL?: string;
   CR_Order: number;
   CR_PlacementId: string;
+
+  // Sélection des taxonomies (niveaux 5-6)
+  CR_Taxonomy_Tags?: string;
+  CR_Taxonomy_Platform?: string;
+  CR_Taxonomy_MediaOcean?: string;
+
+  // 10 champs spécifiques aux créatifs
+  CR_Start_Date?: string;           // Date de début créatif
+  CR_End_Date?: string;             // Date de fin créatif
+  CR_Rotation_Weight?: string;      // Poids de rotation
+  CR_CTA?: string;                  // Call-to-Action
+  CR_Format_Details?: string;       // Détails du format
+  CR_Offer?: string;                // Offre
+  CR_Plateform_Name?: string;       // Nom de plateforme
+  CR_Primary_Product?: string;      // Produit principal
+  CR_URL?: string;                  // URL du créatif
+  CR_Version?: string;              // Version du créatif
+
+  // Stockage des valeurs taxonomie
+  CR_Taxonomy_Values?: TaxonomyValues;
+  CR_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
 // ==================== TYPES UTILITAIRES POUR LES TAXONOMIES ====================
 
-/**
- * Interface pour les données contextuelles nécessaires au parsing des taxonomies
- */
 export interface TaxonomyContext {
-  campaign?: any;     // Données de campagne
-  tactique?: any;     // Données de tactique  
-  placement?: any;    // Données de placement
-  clientId: string;   // ID du client pour les listes dynamiques
+  campaign?: any;
+  tactique?: any;
+  placement?: any;
+  clientId: string;
 }
 
-/**
- * Résultat du parsing et de la génération des taxonomies
- */
 export interface TaxonomyProcessingResult {
-  variables: ParsedTaxonomyVariable[];     // Variables identifiées
-  values: TaxonomyValues;                  // Valeurs résolues
-  generated: GeneratedTaxonomies;          // Chaînes générées
-  errors: string[];                        // Erreurs rencontrées
-  warnings: string[];                      // Avertissements
+  variables: ParsedTaxonomyVariable[];
+  values: TaxonomyValues;
+  generated: GeneratedTaxonomies;
+  errors: string[];
+  warnings: string[];
 }
 
-/**
- * Configuration pour un champ de saisie de taxonomie
- */
 export interface TaxonomyFieldConfig {
-  variable: string;                    // Nom de la variable
-  source: TaxonomyVariableSource;      // Source de la donnée
-  format: TaxonomyVariableFormat;      // Format requis
-  isRequired: boolean;                 // Champ obligatoire
-  hasCustomList: boolean;              // Possède une liste dynamique
-  currentValue?: string;               // Valeur actuelle
-  placeholder?: string;                // Placeholder à afficher
+  variable: string;
+  source: FieldSource;
+  formats: TaxonomyFormat[];
+  isRequired: boolean;
+  hasCustomList: boolean;
+  currentValue?: string;
+  placeholder?: string;
+  requiresShortcode?: boolean;
+  allowsUserInput?: boolean;
 }
 
-/**
- * Props pour le highlight bidirectionnel
- */
 export interface HighlightState {
-  activeField?: string;               // Champ actuellement mis en surbrillance
-  activeVariable?: string;            // Variable actuellement mise en surbrillance
-  mode: 'field' | 'preview' | 'none'; // Mode de highlight actuel
+  activeField?: string;
+  activeVariable?: string;
+  mode: 'field' | 'preview' | 'none';
 }
