@@ -112,90 +112,117 @@ function formatShortcodeValue(shortcodeData: any, customCode: string | null, for
  * basées sur le nouveau contexte hiérarchique après un déplacement.
  */
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
-  const source = getFieldSource(variableName);
-  let rawValue: any = null;
-
-  // ✅ Si forceRegeneration est false, on utilise la logique normale (valeurs manuelles en priorité)
-  if (!context.forceRegeneration) {
-    if (isCreatif) {
-      const manualValue = context.creatifData?.CR_Taxonomy_Values?.[variableName];
-      if (manualValue) {
-        if (manualValue.format === 'open') return manualValue.openValue || '';
-        if (manualValue.shortcodeId) {
-          const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
-          if (shortcodeData) {
-            const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
-            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-            return formattedValue;
+    const source = getFieldSource(variableName);
+    let rawValue: any = null;
+  
+    // ✅ 1. Gestion des valeurs manuelles (seulement si forceRegeneration est false)
+    if (!context.forceRegeneration) {
+      if (isCreatif) {
+        const manualValue = context.creatifData?.CR_Taxonomy_Values?.[variableName];
+        if (manualValue) {
+          if (manualValue.format === 'open') return manualValue.openValue || '';
+          if (manualValue.shortcodeId) {
+            const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
+            if (shortcodeData) {
+              const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
+              const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+              return formattedValue;
+            }
           }
-        }
-        return manualValue.value || '';
-      }
-    } else {
-      const manualValue = context.placementData.PL_Taxonomy_Values?.[variableName];
-      if (manualValue) {
-        if (manualValue.format === 'open') return manualValue.openValue || '';
-        if (manualValue.shortcodeId) {
-          const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
-          if (shortcodeData) {
-            const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
-            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-            return formattedValue;
-          }
-        }
-        return manualValue.value || '';
-      }
-    }
-  }
-
-  // ✅ Résolution directe basée sur les données de contexte (campagne, tactique, placement)
-  if (source === 'campaign' && context.campaignData) {
-    rawValue = context.campaignData[variableName];
-  } else if (source === 'tactique' && context.tactiqueData) {
-    rawValue = context.tactiqueData[variableName];
-  } else if (source === 'placement' && context.placementData) {
-    if (isPlacementVariable(variableName) && !context.forceRegeneration && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-      const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-
-      if (format === 'open' && taxonomyValue.openValue) {
-        rawValue = taxonomyValue.openValue;
-      } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-        const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-        if (shortcodeData) {
-          const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          return formattedValue;
+          return manualValue.value || '';
         }
       } else {
-        rawValue = taxonomyValue.value;
+        const manualValue = context.placementData.PL_Taxonomy_Values?.[variableName];
+        if (manualValue) {
+          if (manualValue.format === 'open') return manualValue.openValue || '';
+          if (manualValue.shortcodeId) {
+            const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
+            if (shortcodeData) {
+              const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
+              const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+              return formattedValue;
+            }
+          }
+          return manualValue.value || '';
+        }
       }
-    } else {
-      rawValue = context.placementData[variableName];
     }
-  } else if (source === 'manual') {
-    if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
-      rawValue = context.creatifData[variableName];
-    } else {
-      rawValue = context.placementData[variableName];
+  
+    // ✅ 2. Résolution selon la source de la variable (TOUJOURS respectée)
+    switch (source) {
+      case 'campaign':
+        if (context.campaignData) {
+          rawValue = context.campaignData[variableName];
+        }
+        break;
+  
+      case 'tactique':
+        if (context.tactiqueData) {
+          rawValue = context.tactiqueData[variableName];
+        }
+        break;
+  
+      case 'placement':
+        if (context.placementData) {
+          // ✅ CORRECTION : Toujours vérifier PL_Taxonomy_Values en premier pour les variables de placement
+          // car ces valeurs restent valides même après un déplacement
+          if (isPlacementVariable(variableName) && 
+              context.placementData.PL_Taxonomy_Values && 
+              context.placementData.PL_Taxonomy_Values[variableName]) {
+            
+            const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
+  
+            if (format === 'open' && taxonomyValue.openValue) {
+              rawValue = taxonomyValue.openValue;
+            } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+              const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
+              if (shortcodeData) {
+                const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
+                const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+                return formattedValue;
+              }
+            } else {
+              rawValue = taxonomyValue.value;
+            }
+          } else {
+            // ✅ Fallback : chercher directement dans les données de placement
+            rawValue = context.placementData[variableName];
+          }
+        }
+        break;
+  
+      case 'manual':
+        // ✅ Variables manuelles : chercher selon le contexte (créatif vs placement)
+        if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
+          rawValue = context.creatifData[variableName];
+        } else if (context.placementData) {
+          rawValue = context.placementData[variableName];
+        }
+        break;
+  
+      default:
+        console.warn(`Source inconnue pour variable ${variableName}: ${source}`);
+        break;
     }
-  }
-
-  if (rawValue === null || rawValue === undefined || rawValue === '') {
-    return '';
-  }
-
-  if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-    const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
-    if (shortcodeData) {
-      const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-      const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      return formattedValue;
+  
+    // ✅ 3. Gestion des valeurs vides
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      return '';
     }
+  
+    // ✅ 4. Formatage des shortcodes si nécessaire
+    if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+      const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+      if (shortcodeData) {
+        const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+        return formattedValue;
+      }
+    }
+  
+    const finalValue = String(rawValue);
+    return finalValue;
   }
-
-  const finalValue = String(rawValue);
-  return finalValue;
-}
 
 /**
  * Génère une chaîne de caractères de taxonomie en résolvant les variables et les groupes.
