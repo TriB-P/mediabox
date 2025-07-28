@@ -6,7 +6,7 @@
  * la gestion des niveaux d'affichage (section, tactique, placement, créatif)
  * et intègre des listes dynamiques (comme les éditeurs ou les dimensions personnalisées)
  * pour enrichir les options de sélection dans le tableau.
- * 
+ * VERSION BUDGET : Ajoute le support pour les calculs budgétaires automatiques
  */
 'use client';
 
@@ -23,9 +23,14 @@ import {
   getClientCustomDimensions,
   getCampaignBuckets,
   hasDynamicList,
+  getClientFees,
+  getCampaignCurrency,
+  getExchangeRates,
   ListItem,
   ClientCustomDimensions,
   CampaignBucket,
+  Fee,
+  FeeOption,
 } from '../../../../lib/tactiqueListService';
 
 // NOUVEAU : Import des fonctions de cache
@@ -98,21 +103,16 @@ interface TactiquesAdvancedTableViewProps {
 
 /**
  * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
- * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher', 'TC_LoB')
- * @param clientId - L'identifiant du client
- * @returns Promise<ListItem[]> - La liste des éléments
  */
 const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
   try {
     console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
     
-    // Essayer d'abord le cache
     const cachedList = getListForClient(fieldId, clientId);
     
     if (cachedList && cachedList.length > 0) {
       console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
       
-      // Convertir ShortcodeItem[] vers ListItem[] (structures identiques)
       return cachedList.map(item => ({
         id: item.id,
         SH_Code: item.SH_Code,
@@ -125,15 +125,12 @@ const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
       }));
     }
     
-    // Fallback sur Firebase si pas de cache
     console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
     console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
     return await getDynamicList(fieldId, clientId);
     
   } catch (error) {
     console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
-    
-    // En cas d'erreur, fallback sur Firebase
     console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
     return await getDynamicList(fieldId, clientId);
   }
@@ -141,13 +138,9 @@ const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
 
 /**
  * NOUVEAU : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
- * @param fieldId - L'identifiant du champ
- * @param clientId - L'identifiant du client
- * @returns Promise<boolean> - true si la liste existe
  */
 const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<boolean> => {
   try {
-    // Essayer d'abord le cache
     const cachedList = getListForClient(fieldId, clientId);
     
     if (cachedList !== null) {
@@ -156,15 +149,12 @@ const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
       return hasItems;
     }
     
-    // Fallback sur Firebase
     console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
     console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
     return await hasDynamicList(fieldId, clientId);
     
   } catch (error) {
     console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
-    
-    // En cas d'erreur, fallback sur Firebase
     console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
     return await hasDynamicList(fieldId, clientId);
   }
@@ -172,11 +162,7 @@ const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
 
 /**
  * Composant principal de la vue de tableau avancée des tactiques.
- * Gère l'affichage, l'édition et la sauvegarde des données de campagne.
- * VERSION 2024 : TC_Publisher traité via le cache localStorage
- *
- * @param {TactiquesAdvancedTableViewProps} props Les propriétés du composant incluant les données et les fonctions de mise à jour.
- * @returns {JSX.Element} Le composant de la vue de tableau avancée.
+ * VERSION BUDGET : Supporte maintenant les calculs budgétaires automatiques
  */
 export default function TactiquesAdvancedTableView({
   sections,
@@ -193,18 +179,22 @@ export default function TactiquesAdvancedTableView({
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
 
+  // États existants
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
   const [customDimensions, setCustomDimensions] = useState<ClientCustomDimensions>({});
   const [visibleFields, setVisibleFields] = useState<VisibleFields>({});
   const [listsLoading, setListsLoading] = useState(false);
 
+// NOUVEAU : États pour les données budget
+  const [clientFees, setClientFees] = useState<Fee[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
+  const [campaignCurrency, setCampaignCurrency] = useState<string>('CAD');
+  const [budgetDataLoading, setBudgetDataLoading] = useState(false);
+
   /**
-   * Charge toutes les données dynamiques nécessaires pour les listes de sélection
-   * du tableau (dimensions personnalisées, listes dynamiques de champs, buckets de campagne).
-   * VERSION 2024 : TC_Publisher chargé via le cache comme les autres listes
-   *
-   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
+   * MODIFIÉ : Charge toutes les données dynamiques incluant les données budget
+   * VERSION BUDGET : Ajoute le chargement des frais client, taux de change et devise de campagne
    */
   const loadAllDynamicData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
@@ -212,15 +202,48 @@ export default function TactiquesAdvancedTableView({
     }
 
     setListsLoading(true);
+    setBudgetDataLoading(true);
 
     try {
-      console.log(`[CACHE] 🚀 Début chargement données avec cache pour TactiquesAdvancedTableView`);
+      console.log(`[BUDGET] 🚀 Début chargement données avec budget pour TactiquesAdvancedTableView`);
       
+      // Chargement des dimensions client
       console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/customDimensions");
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       setCustomDimensions(clientDimensions);
 
-      // MODIFIÉ : TC_Publisher ajouté dans la liste des champs dynamiques
+      // NOUVEAU : Chargement des données budget séparément pour éviter les problèmes de types
+      try {
+        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/fees");
+        const budgetClientFees = await getClientFees(selectedClient.clientId);
+        setClientFees(budgetClientFees);
+        console.log(`[BUDGET] ✅ Frais client chargés: ${Array.isArray(budgetClientFees) ? budgetClientFees.length : 0} frais`);
+      } catch (error) {
+        console.warn('Erreur chargement frais client:', error);
+        setClientFees([]);
+      }
+
+      try {
+        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/currencies");
+        const budgetExchangeRates = await getExchangeRates(selectedClient.clientId);
+        setExchangeRates(budgetExchangeRates);
+        console.log(`[BUDGET] ✅ Taux de change chargés: ${Object.keys(budgetExchangeRates).length} taux`);
+      } catch (error) {
+        console.warn('Erreur chargement taux de change:', error);
+        setExchangeRates({});
+      }
+
+      try {
+        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}");
+        const budgetCampaignCurrency = await getCampaignCurrency(selectedClient.clientId, selectedCampaign.id);
+        setCampaignCurrency(budgetCampaignCurrency);
+        console.log(`[BUDGET] ✅ Devise campagne chargée: ${budgetCampaignCurrency}`);
+      } catch (error) {
+        console.warn('Erreur chargement devise campagne:', error);
+        setCampaignCurrency('CAD');
+      }
+
+      // Chargement des listes dynamiques (logique existante)
       const dynamicListFields = [
         'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
         'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language',
@@ -235,7 +258,6 @@ export default function TactiquesAdvancedTableView({
 
       const newDynamicLists: { [key: string]: ListItem[] } = {};
       
-      // MODIFIÉ : Traiter tous les champs via le cache (incluant TC_Publisher)
       for (const field of dynamicListFields) {
         if (field.startsWith('TC_Custom_Dim_') && !newVisibleFields[field]) {
           continue;
@@ -260,6 +282,7 @@ export default function TactiquesAdvancedTableView({
       setDynamicLists(newDynamicLists);
       setVisibleFields(newVisibleFields);
 
+      // Chargement des buckets
       try {
         console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/buckets");
         const campaignBuckets = await getCampaignBuckets(
@@ -273,43 +296,39 @@ export default function TactiquesAdvancedTableView({
         setBuckets([]);
       }
 
-      console.log(`[CACHE] ✅ Chargement terminé avec cache pour TactiquesAdvancedTableView`);
+      console.log(`[BUDGET] ✅ Chargement terminé avec données budget pour TactiquesAdvancedTableView`);
 
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des listes dynamiques:', error);
+      console.error('❌ Erreur lors du chargement des listes dynamiques et données budget:', error);
     } finally {
       setListsLoading(false);
+      setBudgetDataLoading(false);
     }
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
   /**
-   * Effet de bord qui déclenche le chargement des données dynamiques
-   * chaque fois que le client, la campagne ou la version sélectionnée change.
+   * Effet de bord qui déclenche le chargement des données dynamiques et budget
    */
   useEffect(() => {
     loadAllDynamicData();
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, loadAllDynamicData]);
 
   /**
-   * Effet de bord qui réinitialise les états des listes dynamiques
-   * lorsque le contexte (client, campagne, version) change,
-   * assurant que les anciennes données ne persistent pas avant le rechargement.
+   * Effet de bord qui réinitialise tous les états lors du changement de contexte
    */
   useEffect(() => {
     setDynamicLists({});
     setBuckets([]);
     setCustomDimensions({});
     setVisibleFields({});
+    // NOUVEAU : Réinitialiser les données budget
+    setClientFees([]);
+    setExchangeRates({});
+    setCampaignCurrency('CAD');
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
   /**
-   * Enrichit les colonnes de tableau de base avec des options de listes dynamiques
-   * (buckets, listes dynamiques des champs, partenaires via cache).
-   * VERSION 2024 : TC_Publisher traité comme les autres listes dynamiques
-   *
-   * @param {TableLevel} level Le niveau actuel du tableau (section, tactique, placement, créatif).
-   * @param {TactiqueSubCategory} [tactiqueSubCategory] La sous-catégorie de tactique, si applicable.
-   * @returns {DynamicColumn[]} Les colonnes enrichies avec les options dynamiques.
+   * Enrichit les colonnes de tableau avec des options de listes dynamiques
    */
   const enrichedColumns = useCallback((level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory) => {
     const baseColumns = getColumnsForLevel(level, tactiqueSubCategory);
@@ -326,7 +345,6 @@ export default function TactiquesAdvancedTableView({
             }));
             break;
 
-          // MODIFIÉ : TC_Publisher traité comme les autres listes dynamiques
           case 'TC_LoB':
           case 'TC_Media_Type':
           case 'TC_Publisher':
@@ -388,21 +406,10 @@ export default function TactiquesAdvancedTableView({
   const columns = useMemo(() => enrichedColumns(selectedLevel), [enrichedColumns, selectedLevel]);
   const navigate = useTableNavigation(tableRows, columns, editingCells, startEdit);
 
-  /**
-   * Gère le changement de niveau d'affichage du tableau.
-   *
-   * @param {TableLevel} level Le nouveau niveau d'affichage à appliquer.
-   */
   const handleLevelChange = (level: TableLevel) => {
     setSelectedLevel(level);
   };
 
-  /**
-   * Gère la sauvegarde de toutes les modifications en attente.
-   * Affiche un message de succès ou d'erreur selon le résultat.
-   *
-   * @returns {Promise<void>} Une promesse qui se résout après la tentative de sauvegarde.
-   */
   const handleSaveAllChanges = async () => {
     try {
       await saveAllChanges();
@@ -413,10 +420,6 @@ export default function TactiquesAdvancedTableView({
     }
   };
 
-  /**
-   * Gère l'annulation de toutes les modifications en attente.
-   * Demande une confirmation à l'utilisateur si des modifications existent.
-   */
   const handleCancelAllChanges = () => {
     if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
       return;
@@ -454,11 +457,14 @@ export default function TactiquesAdvancedTableView({
         </div>
       )}
 
-      {listsLoading && (
+      {(listsLoading || budgetDataLoading) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-sm text-blue-700">Chargement des listes dynamiques...</span>
+            <span className="text-sm text-blue-700">
+              Chargement des {listsLoading && budgetDataLoading ? 'listes dynamiques et données budget' : 
+                              listsLoading ? 'listes dynamiques' : 'données budget'}...
+            </span>
           </div>
         </div>
       )}
@@ -477,6 +483,10 @@ export default function TactiquesAdvancedTableView({
         entityCounts={entityCounts}
         buckets={buckets}
         dynamicLists={dynamicLists}
+        // NOUVEAU : Ajout des props budget
+        clientFees={clientFees}
+        exchangeRates={exchangeRates}
+        campaignCurrency={campaignCurrency}
       />
 
       <div className="flex items-center justify-between text-sm text-gray-500 py-2">
@@ -511,6 +521,13 @@ export default function TactiquesAdvancedTableView({
               ✓ Listes chargées ({Object.keys(dynamicLists).length})
             </span>
           )}
+
+          {/* NOUVEAU : Indicateur de données budget */}
+          {!budgetDataLoading && clientFees.length > 0 && (
+            <span className="text-blue-600 text-xs">
+              ✓ Budget ({clientFees.length} frais, {campaignCurrency})
+            </span>
+          )}
           
           <span>Mode: <strong className="capitalize">{selectedLevel}</strong></span>
         </div>
@@ -528,6 +545,11 @@ export default function TactiquesAdvancedTableView({
             <p><strong>Lists Loading:</strong> {listsLoading ? 'Oui' : 'Non'}</p>
             <p><strong>Dynamic Lists:</strong> {Object.keys(dynamicLists).join(', ') || 'Aucune'}</p>
             <p><strong>Buckets:</strong> {buckets.length}</p>
+            {/* NOUVEAU : Debug info budget */}
+            <p><strong>Budget Data Loading:</strong> {budgetDataLoading ? 'Oui' : 'Non'}</p>
+            <p><strong>Client Fees:</strong> {clientFees.length}</p>
+            <p><strong>Exchange Rates:</strong> {Object.keys(exchangeRates).length}</p>
+            <p><strong>Campaign Currency:</strong> {campaignCurrency}</p>
             <p><strong>Is Saving:</strong> {isSaving ? 'Oui' : 'Non'}</p>
           </div>
         </details>

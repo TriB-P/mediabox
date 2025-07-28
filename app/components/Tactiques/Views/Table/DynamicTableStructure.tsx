@@ -3,6 +3,7 @@
 /**
  * Version refactorisée du composant table dynamique
  * Utilise les helpers de façon plus simple et pratique
+ * VERSION BUDGET : Intègre les cellules budget spécialisées avec calculs automatiques
  */
 'use client';
 
@@ -25,6 +26,10 @@ import {
   handleSort as handleSortFromHelper,
   formatDisplayValue
 } from './DynamicTableHelpers';
+// NOUVEAU : Import du composant cellule budget
+import TableBudgetCell from './TableBudgetCell';
+// NOUVEAU : Import des types depuis le service
+import { Fee } from '../../../../lib/tactiqueListService';
 
 interface SortConfig {
   key: string;
@@ -63,10 +68,38 @@ interface DynamicTableStructureProps {
   };
   buckets: CampaignBucket[];
   dynamicLists: { [key: string]: ListItem[] };
+  // NOUVEAU : Props pour les calculs budget
+  clientFees: Fee[];
+  exchangeRates: { [key: string]: number };
+  campaignCurrency: string;
 }
+
+// NOUVEAU : Liste des champs qui utilisent les calculs budget
+const BUDGET_FIELDS = [
+  'TC_Budget_Mode',
+  'TC_Budget',
+  'TC_Currency',
+  'TC_Unit_Type',
+  'TC_Cost_Per_Unit',
+  'TC_Unit_Volume',
+  'TC_Has_Bonus',
+  'TC_Real_Value',
+  'TC_Bonus_Value',
+  'TC_Media_Budget',
+  'TC_Client_Budget',
+  'TC_Total_Fees'
+];
+
+/**
+ * NOUVEAU : Détermine si un champ doit utiliser TableBudgetCell
+ */
+const isBudgetField = (fieldKey: string): boolean => {
+  return BUDGET_FIELDS.includes(fieldKey);
+};
 
 /**
  * Composant principal refactorisé pour la structure de la table dynamique
+ * VERSION BUDGET : Supporte maintenant les cellules budget avec calculs automatiques
  */
 export default function DynamicTableStructure({
   tableRows,
@@ -81,7 +114,11 @@ export default function DynamicTableStructure({
   onLevelChange,
   entityCounts,
   buckets,
-  dynamicLists
+  dynamicLists,
+  // NOUVEAU : Props budget
+  clientFees,
+  exchangeRates,
+  campaignCurrency
 }: DynamicTableStructureProps) {
   
   // États locaux
@@ -140,6 +177,16 @@ export default function DynamicTableStructure({
     }
     return (row.data as any)[columnKey];
   }, [pendingChanges]);
+
+  /**
+   * NOUVEAU : Gère les changements calculés automatiquement (pour les cellules budget)
+   */
+  const handleCalculatedChange = useCallback((entityId: string, updates: { [key: string]: any }) => {
+    // Appliquer tous les changements calculés en une fois
+    Object.entries(updates).forEach(([fieldKey, value]) => {
+      onCellChange(entityId, fieldKey, value);
+    });
+  }, [onCellChange]);
 
   /**
    * Gère le changement de niveau
@@ -258,7 +305,7 @@ export default function DynamicTableStructure({
   }, [pendingChanges, onToggleSection, expandedSections]);
 
   /**
-   * Rend la cellule de données
+   * MODIFIÉ : Rend la cellule de données avec support des cellules budget
    */
   const renderDataCell = useCallback((row: TableRow, column: DynamicColumn) => {
     const cellKey = `${row.id}_${column.key}`;
@@ -267,6 +314,29 @@ export default function DynamicTableStructure({
     const isHovered = hoveredCell === cellKey;
     const isCopySource = copyMode.sourceCell === cellKey;
 
+    // NOUVEAU : Utiliser TableBudgetCell pour les champs budget
+    if (isBudgetField(column.key)) {
+      return (
+        <TableBudgetCell
+          entityId={row.id}
+          fieldKey={column.key}
+          value={value}
+          column={column}
+          rowData={row.data}
+          isEditable={row.isEditable}
+          isEditing={isEditing}
+          clientFees={clientFees}
+          exchangeRates={exchangeRates}
+          campaignCurrency={campaignCurrency}
+          onChange={onCellChange}
+          onCalculatedChange={handleCalculatedChange}
+          onStartEdit={onStartEdit}
+          onEndEdit={onEndEdit}
+        />
+      );
+    }
+
+    // Logique existante pour les cellules non-budget
     if (column.type === 'readonly' || !row.isEditable) {
       const formattedValue = formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
       return (
@@ -371,7 +441,27 @@ export default function DynamicTableStructure({
         )}
       </div>
     );
-  }, [getCellValue, editingCells, hoveredCell, copyMode, buckets, dynamicLists, selectedLevel, selectedTactiqueSubCategory, onCellChange, onEndEdit, onStartEdit, selectedRows, handleStartCopy, handlePasteCopy]);
+  }, [
+    getCellValue, 
+    editingCells, 
+    hoveredCell, 
+    copyMode, 
+    buckets, 
+    dynamicLists, 
+    selectedLevel, 
+    selectedTactiqueSubCategory, 
+    onCellChange, 
+    onEndEdit, 
+    onStartEdit, 
+    selectedRows, 
+    handleStartCopy, 
+    handlePasteCopy,
+    // NOUVEAU : Props budget
+    clientFees,
+    exchangeRates,
+    campaignCurrency,
+    handleCalculatedChange
+  ]);
 
   return (
     <div className="space-y-3">
@@ -459,6 +549,8 @@ export default function DynamicTableStructure({
                   {selectedLevel === 'tactique' && (
                     <div><strong>Tactiques :</strong> Utilisez les onglets Info/Stratégie/Budget/Admin pour voir les colonnes</div>
                   )}
+                  {/* NOUVEAU : Aide pour les cellules budget */}
+                  <div><strong>Budget :</strong> Les champs avec ✓ sont calculés automatiquement</div>
                 </div>
                 <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -562,6 +654,12 @@ export default function DynamicTableStructure({
                   >
                     <div className="flex items-center space-x-1">
                       <span>{column.label}</span>
+                      {/* NOUVEAU : Indicateur pour les champs budget */}
+                      {isBudgetField(column.key) && (
+                        <span className="text-green-600 text-xs" title="Champ budget avec calculs automatiques">
+                          💰
+                        </span>
+                      )}
                       {sortConfig?.key === column.key && (
                         <span className="text-indigo-600 font-bold">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
