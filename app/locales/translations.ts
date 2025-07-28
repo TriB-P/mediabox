@@ -499,7 +499,16 @@ export const translations = {
       percentageOfBudget: "% du budget",
       assignedInMediaBox: "Assigné dans MediaBox",
       morePublishers: "+{count}"
-    }
+    },
+    cache: {
+      refreshCache: "Codes et listes",
+      refreshing: "Actualisation...",
+      refreshSuccess: "Mise à jour complétée",
+      refreshError: "Erreur d'actualisation",
+      refreshCacheTooltip: "Forcer le rafraîchissement du cache des données (shortcodes et listes)",
+      refreshSuccessMessage: "Mise à jour complétée",
+      refreshErrorMessage: "Erreur lors de l'actualisation du cache"
+    },
   },
   en: {
     // Ajout de la section navigation pour le modal de version
@@ -839,6 +848,15 @@ export const translations = {
       percentageOfBudget: "% of budget",
       assignedInMediaBox: "Assigned in MediaBox",
       morePublishers: "+{count}"
-    }
+    },
+    cache: {
+      refreshCache: "Refresh shortcodes",
+      refreshing: "Refreshing...",
+      refreshSuccess: "Shortcodes Refreshed",
+      refreshError: "Refresh Error",
+      refreshCacheTooltip: "Force refresh the data cache (shortcodes and lists)",
+      refreshSuccessMessage: "Cache has been successfully refreshed",
+      refreshErrorMessage: "Error while refreshing the cache"
+    },
   }
 };

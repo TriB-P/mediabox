@@ -10,6 +10,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import ClientDropdown from './ClientDropdown';
 import Version from './Version';
+import CacheRefreshButton from './CacheRefreshButton';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -66,8 +68,8 @@ export default function Navigation() {
   };
 
   return (
-    <div className="w-[210px] bg-white border-r border-gray-200 flex flex-col h-full">
-        <div className="p-4 border-b border-gray-200">
+<div className="w-[210px] bg-white border-r border-gray-200 flex flex-col h-full pb-10">
+<div className="p-4 border-b border-gray-200">
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 flex items-center justify-center rounded overflow-hidden mr-2">
               <Image
@@ -110,7 +112,12 @@ export default function Navigation() {
         </nav>
 
         {/* Composant Version */}
+
+        <CacheRefreshButton />
+
         <Version />
+
+
       </div>
   );
 }

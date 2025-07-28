@@ -1,14 +1,18 @@
+// app/hooks/useSimpleMoveModal.ts
+
 /**
  * Ce hook gère la logique d'un modal simple pour le déplacement d'éléments entre différentes structures
  * de campagne (campagnes, versions, onglets, sections, tactiques, placements).
  * Il prend en charge l'ouverture et la fermeture du modal, le chargement des options de destination
  * depuis Firebase, la sélection de la destination, la validation et l'exécution du déplacement.
  * Il assure également un rafraîchissement de l'interface après un déplacement réussi.
+ * NOUVEAU : Il met automatiquement à jour les taxonomies des éléments déplacés.
  */
 import { useState, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { SelectionValidationResult } from './useSelectionValidation';
+import { useUpdateTaxonomies } from './useUpdateTaxonomies';
 import * as MoveService from '../lib/simpleMoveService';
 
 export interface MoveModalState {
@@ -53,6 +57,7 @@ export interface MoveModalState {
 export function useSimpleMoveModal() {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
+  const { updateTaxonomies } = useUpdateTaxonomies();
 
   const onRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -428,9 +433,83 @@ export function useSimpleMoveModal() {
   }, [modalState.destination, loadVersions, loadOnglets, loadSections, loadTactiques, loadPlacements]);
 
   /**
+   * Met à jour les taxonomies des éléments déplacés après un déplacement réussi.
+   * Détermine automatiquement les éléments qui nécessitent une mise à jour taxonomique
+   * en fonction du type et niveau de déplacement effectué.
+   * @param {MoveService.MoveResult} moveResult Le résultat du déplacement.
+   * @param {string} moveLevel Le niveau d'éléments déplacés ('section', 'tactique', 'placement', 'creatif').
+   * @param {MoveService.MoveDestination} destination La destination du déplacement.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les taxonomies mises à jour.
+   */
+  const updateTaxonomiesAfterMove = useCallback(async (
+    moveResult: MoveService.MoveResult,
+    moveLevel: string,
+    destination: MoveService.MoveDestination
+  ) => {
+    if (!moveResult.success || !selectedClient?.clientId) {
+      return;
+    }
+
+    const clientId = selectedClient.clientId;
+
+    try {
+      console.log('🔄 Mise à jour des taxonomies après déplacement...');
+
+      // Pour les déplacements de sections : mettre à jour toutes les tactiques et leurs enfants
+      if (moveLevel === 'section') {
+        // Les sections déplacées ont une nouvelle campagne parente
+        const campaignData = {
+          id: destination.campaignId!,
+          name: destination.campaignName!,
+          clientId: clientId,
+        };
+
+        // Déclencher la mise à jour pour la campagne destination
+        // Cela mettra à jour toutes les tactiques, placements et créatifs de ces sections
+        await updateTaxonomies('campaign', campaignData);
+      }
+      
+      // Pour les déplacements de tactiques : mettre à jour leurs placements et créatifs
+      else if (moveLevel === 'tactique') {
+        for (const tactiqueId of modalState.selectedItemIds) {
+          const tactiqueData = {
+            id: tactiqueId,
+            name: `Tactique ${tactiqueId}`, // Le nom exact n'est pas critique pour la mise à jour
+            clientId: clientId,
+            campaignId: destination.campaignId!,
+          };
+
+          await updateTaxonomies('tactic', tactiqueData);
+        }
+      }
+      
+      // Pour les déplacements de placements : mettre à jour leurs créatifs
+      else if (moveLevel === 'placement') {
+        for (const placementId of modalState.selectedItemIds) {
+          const placementData = {
+            id: placementId,
+            name: `Placement ${placementId}`, // Le nom exact n'est pas critique pour la mise à jour
+            clientId: clientId,
+            campaignId: destination.campaignId!,
+          };
+
+          await updateTaxonomies('placement', placementData);
+        }
+      }
+
+      console.log('✅ Taxonomies mises à jour avec succès après déplacement');
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour des taxonomies après déplacement:', error);
+      // On ne fait pas échouer le déplacement si la mise à jour des taxonomies échoue
+      // L'utilisateur peut toujours les mettre à jour manuellement plus tard
+    }
+  }, [selectedClient?.clientId, modalState.selectedItemIds, updateTaxonomies]);
+
+  /**
    * Confirme et exécute le déplacement des éléments sélectionnés vers la destination choisie.
    * Gère la construction du contexte source, l'appel au service de déplacement,
-   * et le rafraîchissement de l'interface après l'opération.
+   * la mise à jour automatique des taxonomies et le rafraîchissement de l'interface après l'opération.
    * @returns {Promise<void>} Une promesse qui se résout une fois le déplacement terminé.
    */
   const confirmMove = useCallback(async () => {
@@ -481,19 +560,29 @@ export function useSimpleMoveModal() {
       console.log("FIREBASE: ÉCRITURE - Fichier: useSimpleMoveModal.ts - Fonction: confirmMove - Path: MoveService.performMove (multiples chemins)");
       const result = await MoveService.performMove(operation);
 
-      if (result.success && onRefreshRef.current) {
-        setModalState(prev => ({
-          ...prev,
-          processing: true,
-          error: null
-        }));
+      if (result.success) {
+        // Mise à jour des taxonomies après le déplacement réussi
+        await updateTaxonomiesAfterMove(
+          result,
+          modalState.validationResult.moveLevel!,
+          modalState.destination as MoveService.MoveDestination
+        );
 
-        try {
-          await onRefreshRef.current();
-          await new Promise(resolve => setTimeout(resolve, 100));
+        // Rafraîchissement des données
+        if (onRefreshRef.current) {
+          setModalState(prev => ({
+            ...prev,
+            processing: true,
+            error: null
+          }));
 
-        } catch (refreshError) {
-          console.error('❌ Erreur lors du refresh:', refreshError);
+          try {
+            await onRefreshRef.current();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+          } catch (refreshError) {
+            console.error('❌ Erreur lors du refresh:', refreshError);
+          }
         }
       }
 
@@ -528,7 +617,8 @@ export function useSimpleMoveModal() {
     modalState.hierarchyContext,
     selectedCampaignId,
     selectedVersionId,
-    selectedOngletId
+    selectedOngletId,
+    updateTaxonomiesAfterMove
   ]);
 
   /**
