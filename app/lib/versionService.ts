@@ -1,3 +1,4 @@
+// app/lib/versionService.ts
 /**
  * Ce fichier contient des fonctions de service pour interagir avec les données de version
  * dans Firebase Firestore. Il permet de gérer les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
@@ -17,6 +18,7 @@ import {
   where
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { addOnglet } from './tactiqueService'
 
 export interface Version {
   id: string;
@@ -54,6 +56,7 @@ export const getVersions = async (clientId: string, campaignId: string): Promise
 
 /**
  * Crée une nouvelle version pour une campagne spécifique.
+ * Crée également un onglet "General" par défaut dans cette version.
  * @param clientId L'ID du client.
  * @param campaignId L'ID de la campagne.
  * @param formData Les données du formulaire pour la nouvelle version.
@@ -76,6 +79,19 @@ export const createVersion = async (
     }
     console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: createVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions");
     const docRef = await addDoc(versionsRef, newVersion)
+
+    // Créer l'onglet "General" par défaut
+    console.log("FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: createVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${docRef.id}/onglets");
+    await addOnglet(
+      clientId,
+      campaignId,
+      docRef.id,
+      {
+        ONGLET_Name: 'General',
+        ONGLET_Order: 0
+      }
+    );
+
     return docRef.id
   } catch (error) {
     console.error('Erreur lors de la création de la version:', error)

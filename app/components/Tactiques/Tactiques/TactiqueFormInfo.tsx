@@ -87,7 +87,7 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           required={!isDisabled}
           label={createLabelWithHelp(
             'Étiquette *',
-            'Open string. Pas de contraintes',
+            "C'est le nom de votre tactique. Assurez-vous de mettre une description claire et concise.",
             onTooltipChange
           )}
         />
@@ -105,7 +105,7 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
             placeholder="Sélectionner une enveloppe..."
             label={createLabelWithHelp(
               'Enveloppe',
-              'Liste des buckets dans la campagne. Une sélection possible',
+              "Les enveloppes sont un outil de planification haut niveau. Elles vous permettent de regrouper des tactiques similaires et de suivre leur budget global dans l'onglet 'Stratégie'",
               onTooltipChange
             )}
           />

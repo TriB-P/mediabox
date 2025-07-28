@@ -84,7 +84,7 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
           placeholder="Sélectionner un type d'unité..."
           label={createLabelWithHelp(
             'Type d\'unité', 
-            'Type d\'unité utilisé pour cette tactique (ex: CPM, CPC, CPV). Masqué si aucune liste dynamique n\'est trouvée.', 
+            "Unité d'achat. Ne pas confondre avec les KPI. C'est l'unité dans laquelle on achète cette tactique. Habituellement : Impressions", 
             onTooltipChange
           )}
         />

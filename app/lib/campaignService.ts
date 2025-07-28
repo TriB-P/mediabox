@@ -1,3 +1,4 @@
+// app/lib/campaignService.ts
 /**
  * Ce fichier gère toutes les opérations CRUD (Création, Lecture, Mise à jour, Suppression)
  * liées aux campagnes dans Firebase Firestore.
@@ -25,10 +26,12 @@ import {
 import {
   duplicateCompleteCampaign
 } from './campaignDuplicationUtils';
+import { addOnglet } from './tactiqueService';
 
 /**
  * Crée une version "Originale" pour une campagne donnée dans Firebase.
  * Cette version est marquée comme officielle et enregistre l'utilisateur et la date de création.
+ * Crée également un onglet "General" par défaut dans cette version.
  * @param CA_Client L'identifiant du client.
  * @param campaignId L'identifiant de la campagne.
  * @param userEmail L'e-mail de l'utilisateur qui crée la version.
@@ -49,9 +52,23 @@ async function createOriginalVersion(
       createdBy: userEmail,
     };
     const docRef = await addDoc(versionsRef, originalVersion);
+    
     console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createOriginalVersion - Path: clients/${CA_Client}/campaigns/${campaignId}");
     const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     await updateDoc(campaignRef, { officialVersionId: docRef.id });
+
+    // Créer l'onglet "General" par défaut
+    console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createOriginalVersion - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${docRef.id}/onglets");
+    await addOnglet(
+      CA_Client,
+      campaignId,
+      docRef.id,
+      {
+        ONGLET_Name: 'General',
+        ONGLET_Order: 0
+      }
+    );
+
     return docRef.id;
   } catch (error) {
     console.error('Erreur lors de la création de la version originale:', error);

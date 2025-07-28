@@ -130,7 +130,7 @@ const KPIItem = memo<{
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
                 'KPI', 
-                'Masquer si aucune liste trouvée', 
+                "Indicateur de performance clé",
                 onTooltipChange
               )}
             </div>
@@ -166,7 +166,7 @@ const KPIItem = memo<{
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
               'Coût par', 
-              'Champs libre', 
+              "C'est le coût pour une unité du KPI sélectionné. Par exemple, pour un KPI de type 'CPC', c'est le coût par clic.",
               onTooltipChange
             )}
           </div>
@@ -190,7 +190,7 @@ const KPIItem = memo<{
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
               'Volume', 
-              'Champs libre', 
+              "C'est le volume anticipé du KPI sélectionné.",
               onTooltipChange
             )}
           </div>
@@ -272,7 +272,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           placeholder="Sélectionner un objectif média..."
           label={createLabelWithHelp(
             'Objectif média', 
-            'Masquer si aucune liste trouvée', 
+            "Objectif média principal de la tactique",
             onTooltipChange
           )}
         />

@@ -126,7 +126,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner une ligne d'affaire..."
             label={createLabelWithHelp(
               'Ligne d\'affaire',
-              'Masquer si aucune liste trouvée',
+              'Liste personalisée pour votre client',
               onTooltipChange
             )}
           />
@@ -144,7 +144,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner un type de média..."
             label={createLabelWithHelp(
               'Type média',
-              'Masquer si aucune liste trouvée',
+              'C\'est la catégorisation la plus importante. Cette caractéristique affectera le comportement de la tactique à plusieurs niveaux',
               onTooltipChange
             )}
           />
@@ -162,7 +162,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner un partenaire..."
             label={createLabelWithHelp(
               'Partenaire',
-              'Liste des partenaires depuis le cache localStorage',
+              'IMPORTANT : C\'est l\'entité administrative qui envera la facture.',
               onTooltipChange
             )}
           />
@@ -180,7 +180,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner un inventaire..."
             label={createLabelWithHelp(
               'Inventaire',
-              'Liste des inventaires depuis le cache localStorage',
+              "Cette valeur est facultative. Il s'agit d'un sous-partenaire ou d'une propriété du partenaire (Ex : Pelmorex > Meteomedia",
               onTooltipChange
             )}
           />
@@ -194,7 +194,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Ex: Canada, Québec, Montréal"
           label={createLabelWithHelp(
             'Description du marché',
-            'Open string. Pas de contraintes',
+            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
             onTooltipChange
           )}
         />
@@ -207,7 +207,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Décrivez le ciblage de cette tactique..."
           label={createLabelWithHelp(
             'Description de l\'audience',
-            'Open string. Pas de contraintes',
+            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
             onTooltipChange
           )}
         />
@@ -220,7 +220,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Ex: iPhone 15 Pro"
           label={createLabelWithHelp(
             'Description du produit',
-            'Open string. Pas de contraintes',
+            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
             onTooltipChange
           )}
         />
@@ -233,7 +233,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Décrivez le format utilisé..."
           label={createLabelWithHelp(
             'Description du format',
-            'Open string. Pas de contraintes',
+            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
             onTooltipChange
           )}
         />
@@ -246,7 +246,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Décrivez l'emplacement"
           label={createLabelWithHelp(
             'Description de l\'emplacement',
-            'Open string. Pas de contraintes',
+            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
             onTooltipChange
           )}
         />
@@ -259,7 +259,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Ex: 3 fois par semaine"
           label={createLabelWithHelp(
             'Fréquence',
-            'Open string. Pas de contraintes',
+            "Ex : 2x par semaine",
             onTooltipChange
           )}
         />
@@ -276,7 +276,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner un marché..."
             label={createLabelWithHelp(
               'Marché',
-              'Masquer si aucune liste trouvée',
+              "Champs fermé utilisé dans certaines taxonomies",
               onTooltipChange
             )}
           />
@@ -294,7 +294,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner une langue..."
             label={createLabelWithHelp(
               'Langue',
-              'Masquer si aucune liste trouvée',
+              "Champs fermé utilisé dans certaines taxonomies",
               onTooltipChange
             )}
           />
@@ -319,7 +319,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                 placeholder="Sélectionner une méthode d'achat..."
                 label={createLabelWithHelp(
                   'Méthode d\'achat',
-                  'Masquer si aucune liste trouvée',
+                  "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
               />
@@ -337,7 +337,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                 placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_1}...`}
                 label={createLabelWithHelp(
                   customDimensions.Custom_Dim_CA_1 || 'Dimension personnalisée 1',
-                  'Afficher seulement si Custom_Dim_CA_1 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée.',
+                  "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
               />
@@ -355,7 +355,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                 placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_2}...`}
                 label={createLabelWithHelp(
                   customDimensions.Custom_Dim_CA_2 || 'Dimension personnalisée 2',
-                  'Afficher seulement si Custom_Dim_CA_2 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée.',
+                  "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
               />
@@ -373,7 +373,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                 placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_3}...`}
                 label={createLabelWithHelp(
                   customDimensions.Custom_Dim_CA_3 || 'Dimension personnalisée 3',
-                  'Afficher seulement si Custom_Dim_CA_3 (dans la collection du client) est rempli. Champs ouvert si aucune liste est trouvée.',
+                  "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
               />
@@ -393,7 +393,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           placeholder="Ex: 5 bannières + 2 vidéos"
           label={createLabelWithHelp(
             'Nombre de créatifs suggérés',
-            'Open string. Pas de contraintes',
+            "Facultatif - Nombre de créatifs suggéré à produire pour l'agence de création",
             onTooltipChange
           )}
         />
@@ -405,7 +405,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           type="date"
           label={createLabelWithHelp(
             'Date de livraison des créatifs',
-            'Open date. Pas de contraintes',
+            'Facultatif - Date de livraison souhaitée pour assurer une mise en ligne à temps.',
             onTooltipChange
           )}
         />
