@@ -4,6 +4,7 @@
  * CORRIGÉ: Bugs de sauvegarde Firebase et cases à cocher
  * NOUVEAU: Scroll horizontal et position fixe des checkboxes
  * FINAL: Corrections UI et TypeScript
+ * NOUVEAU: Support du type PEBs avec 3 cellules superposées (unitCost, volume, total calculé)
  */
 
 'use client';
@@ -17,10 +18,13 @@ import {
 } from './timelinePeriodsUtils';
 import {
   getTactiqueBreakdownValue,
+  getTactiqueBreakdownUnitCost,
+  getTactiqueBreakdownTotal,
   getTactiqueBreakdownToggleStatus,
   updateTactiqueBreakdownData,
   calculateTactiqueBreakdownTotal,
   areAllTactiqueBreakdownValuesNumeric,
+  calculatePEBsTotal,
   BreakdownUpdateData
 } from '../../../../lib/breakdownService';
 import {
@@ -52,6 +56,8 @@ interface EditableCell {
   periodId: string;
   value: string;
   isToggled?: boolean;
+  unitCost?: string; // NOUVEAU: Support PEBs
+  total?: string;    // NOUVEAU: Support PEBs
 }
 
 interface SelectedCell {
@@ -94,6 +100,7 @@ export default function TactiquesTimelineTable({
   });
 
   const tableRef = useRef<HTMLTableElement>(null);
+  const isPEBs = selectedBreakdown.type === 'PEBs'; // NOUVEAU: Détection PEBs
 
   // Génération des périodes pour le breakdown sélectionné
   const periods = useMemo(() => {
@@ -183,9 +190,15 @@ export default function TactiquesTimelineTable({
   }, [selectedCells, flatTactiques, editMode, copiedValue]);
 
   /**
-   * Obtient la valeur d'une période pour une tactique en considérant les modifications en cours.
+   * NOUVEAU: Obtient la valeur d'une période pour une tactique en considérant les modifications en cours.
+   * Support des champs PEBs (unitCost, value, total)
    */
-  const getPeriodValueForTactique = (tactique: Tactique, breakdownId: string, periodId: string): string => {
+  const getPeriodValueForTactique = (
+    tactique: Tactique, 
+    breakdownId: string, 
+    periodId: string, 
+    field: 'value' | 'unitCost' | 'total' = 'value'
+  ): string => {
     const editedCell = editableCells.find(
       cell => cell.tactiqueId === tactique.id && 
                cell.breakdownId === breakdownId && 
@@ -193,9 +206,18 @@ export default function TactiquesTimelineTable({
     );
     
     if (editedCell) {
+      if (field === 'unitCost') return editedCell.unitCost || '';
+      if (field === 'total') return editedCell.total || '';
       return editedCell.value;
     }
     
+    // Lire depuis les données sauvegardées
+    if (field === 'unitCost') {
+      return getTactiqueBreakdownUnitCost(tactique, breakdownId, periodId);
+    }
+    if (field === 'total') {
+      return getTactiqueBreakdownTotal(tactique, breakdownId, periodId);
+    }
     return getTactiqueBreakdownValue(tactique, breakdownId, periodId);
   };
 
@@ -265,7 +287,9 @@ export default function TactiquesTimelineTable({
     );
 
     if (!isAlreadyEditing) {
-      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId);
+      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId, 'value');
+      const currentUnitCost = getPeriodValueForTactique(tactique, breakdownId, periodId, 'unitCost');
+      const currentTotal = getPeriodValueForTactique(tactique, breakdownId, periodId, 'total');
       const currentToggle = getPeriodToggleForTactique(tactique, breakdownId, periodId);
       
       setEditableCells(prev => [
@@ -275,6 +299,8 @@ export default function TactiquesTimelineTable({
           breakdownId, 
           periodId, 
           value: currentValue,
+          unitCost: currentUnitCost, // NOUVEAU: Support PEBs
+          total: currentTotal,       // NOUVEAU: Support PEBs
           isToggled: currentToggle
         }
       ]);
@@ -285,11 +311,30 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Met à jour la valeur d'une cellule en cours d'édition.
+   * NOUVEAU: Met à jour la valeur d'une cellule en cours d'édition avec support PEBs.
    */
-  const handleCellChange = (index: number, value: string) => {
+  const handleCellChange = (
+    index: number, 
+    value: string, 
+    field: 'value' | 'unitCost' = 'value'
+  ) => {
     const newEditableCells = [...editableCells];
-    newEditableCells[index].value = value;
+    const cell = newEditableCells[index];
+    
+    // Mettre à jour le champ demandé
+    if (field === 'unitCost') {
+      cell.unitCost = value;
+    } else {
+      cell.value = value;
+    }
+    
+    // NOUVEAU: Pour PEBs, recalculer automatiquement le total
+    if (isPEBs) {
+      const unitCost = cell.unitCost || '';
+      const volume = cell.value || '';
+      cell.total = calculatePEBsTotal(unitCost, volume);
+    }
+    
     setEditableCells(newEditableCells);
   };
 
@@ -319,10 +364,15 @@ export default function TactiquesTimelineTable({
       newEditableCells[existingCellIndex].isToggled = isToggled;
       if (!isToggled) {
         newEditableCells[existingCellIndex].value = '';
+        newEditableCells[existingCellIndex].unitCost = ''; // NOUVEAU: Reset PEBs
+        newEditableCells[existingCellIndex].total = '';    // NOUVEAU: Reset PEBs
       }
       setEditableCells(newEditableCells);
     } else {
-      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId);
+      const currentValue = getPeriodValueForTactique(tactique, breakdownId, periodId, 'value');
+      const currentUnitCost = getPeriodValueForTactique(tactique, breakdownId, periodId, 'unitCost');
+      const currentTotal = getPeriodValueForTactique(tactique, breakdownId, periodId, 'total');
+      
       setEditableCells(prev => [
         ...prev,
         { 
@@ -330,6 +380,8 @@ export default function TactiquesTimelineTable({
           breakdownId, 
           periodId, 
           value: isToggled ? currentValue : '',
+          unitCost: isToggled ? currentUnitCost : '', // NOUVEAU: Support PEBs
+          total: isToggled ? currentTotal : '',       // NOUVEAU: Support PEBs
           isToggled 
         }
       ]);
@@ -354,16 +406,32 @@ export default function TactiquesTimelineTable({
       );
 
       if (existingCellIndex >= 0) {
-        newEditableCells[existingCellIndex].value = copiedValue;
+        if (isPEBs) {
+          // Pour PEBs, coller dans le volume et recalculer
+          newEditableCells[existingCellIndex].value = copiedValue;
+          const unitCost = newEditableCells[existingCellIndex].unitCost || '';
+          newEditableCells[existingCellIndex].total = calculatePEBsTotal(unitCost, copiedValue);
+        } else {
+          newEditableCells[existingCellIndex].value = copiedValue;
+        }
       } else {
         const currentToggle = getPeriodToggleForTactique(tactique, cell.breakdownId, cell.periodId);
-        newEditableCells.push({
+        const currentUnitCost = getPeriodValueForTactique(tactique, cell.breakdownId, cell.periodId, 'unitCost');
+        
+        const newCell: EditableCell = {
           tactiqueId: tactique.id,
           breakdownId: cell.breakdownId,
           periodId: cell.periodId,
           value: copiedValue,
           isToggled: currentToggle
-        });
+        };
+        
+        if (isPEBs) {
+          newCell.unitCost = currentUnitCost;
+          newCell.total = calculatePEBsTotal(currentUnitCost, copiedValue);
+        }
+        
+        newEditableCells.push(newCell);
       }
     });
 
@@ -387,13 +455,21 @@ export default function TactiquesTimelineTable({
           updatesByTactique[cell.tactiqueId] = [];
         }
         
-        updatesByTactique[cell.tactiqueId].push({
+        const updateData: BreakdownUpdateData = {
           breakdownId: cell.breakdownId,
           periodId: cell.periodId,
           value: cell.value,
           isToggled: cell.isToggled,
           order: 0
-        });
+        };
+        
+        // NOUVEAU: Ajouter les champs PEBs si nécessaire
+        if (isPEBs) {
+          updateData.unitCost = cell.unitCost;
+          updateData.total = cell.total;
+        }
+        
+        updatesByTactique[cell.tactiqueId].push(updateData);
       });
 
       // CORRIGÉ: Sauvegarder chaque tactique avec vérification d'existence
@@ -531,7 +607,9 @@ export default function TactiquesTimelineTable({
               {periods.map((period) => (
                 <th
                   key={period.id}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]"
+                  className={`px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    isPEBs ? 'min-w-[100px]' : 'min-w-[120px]' // CORRIGÉ: Largeur réduite pour PEBs
+                  }`}
                 >
                   {period.label}
                 </th>
@@ -558,8 +636,18 @@ export default function TactiquesTimelineTable({
                 {tactiquesGroupedBySection[sectionId].map((tactique, tactiqueIndex) => {
                   const rowIndex = flatTactiques.findIndex(t => t.id === tactique.id);
                   const isDefaultBreakdown = selectedBreakdown.isDefault;
-                  const total = calculateTactiqueBreakdownTotal(tactique, selectedBreakdown.id, isDefaultBreakdown);
-                  const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(tactique, selectedBreakdown.id, isDefaultBreakdown);
+                  const total = calculateTactiqueBreakdownTotal(
+                    tactique, 
+                    selectedBreakdown.id, 
+                    isDefaultBreakdown, 
+                    selectedBreakdown.type
+                  );
+                  const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(
+                    tactique, 
+                    selectedBreakdown.id, 
+                    isDefaultBreakdown, 
+                    selectedBreakdown.type
+                  );
 
                   return (
                     <tr key={tactique.id} className="hover:bg-gray-50">
@@ -571,7 +659,9 @@ export default function TactiquesTimelineTable({
 
                       {/* Colonnes des périodes */}
                       {periods.map((period) => {
-                        const currentValue = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id);
+                        const currentValue = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
+                        const currentUnitCost = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'unitCost');
+                        const currentTotal = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
                         const isActive = getPeriodToggleForTactique(tactique, selectedBreakdown.id, period.id);
                         const cellClasses = `px-2 py-2 whitespace-nowrap text-sm text-center ${
                           isCellSelected(rowIndex, selectedBreakdown.id, period.id) ? 'bg-indigo-100' : ''
@@ -596,21 +686,68 @@ export default function TactiquesTimelineTable({
                                     disabled={!editMode}
                                   />
                                 )}
-                                {/* CORRIGÉ: Input plus petit et grisé quand inactive */}
-                                <input
-                                  type="text"
-                                  value={editableCells[cellIndex]?.value || ''}
-                                  onChange={(e) => handleCellChange(cellIndex, e.target.value)}
-                                  className={`p-1 border rounded text-sm text-center ${
-                                    isDefaultBreakdown && !isActive 
-                                      ? 'w-12 bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' // CORRIGÉ: Plus petit et grisé
-                                      : 'flex-1 border-indigo-500'
-                                  }`}
-                                  style={{ fontSize: 'inherit' }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  disabled={isDefaultBreakdown && !isActive}
-                                  placeholder={isDefaultBreakdown && !isActive ? '' : undefined}
-                                />
+                                
+                                {isPEBs ? (
+                                  // NOUVEAU: Interface PEBs avec 3 inputs superposés (largeur fixe)
+                                  <div className="w-20 space-y-1">
+                                    {/* Coût par unité */}
+                                    <input
+                                      type="text"
+                                      value={editableCells[cellIndex]?.unitCost || ''}
+                                      onChange={(e) => handleCellChange(cellIndex, e.target.value, 'unitCost')}
+                                      className={`w-full p-1 border rounded text-xs text-center ${
+                                        isDefaultBreakdown && !isActive 
+                                          ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                          : 'border-blue-300 focus:border-blue-500'
+                                      }`}
+                                      placeholder="Coût"
+                                      disabled={isDefaultBreakdown && !isActive}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    
+                                    {/* Volume */}
+                                    <input
+                                      type="text"
+                                      value={editableCells[cellIndex]?.value || ''}
+                                      onChange={(e) => handleCellChange(cellIndex, e.target.value, 'value')}
+                                      className={`w-full p-1 border rounded text-xs text-center ${
+                                        isDefaultBreakdown && !isActive 
+                                          ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                          : 'border-green-300 focus:border-green-500'
+                                      }`}
+                                      placeholder="Vol"
+                                      disabled={isDefaultBreakdown && !isActive}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    
+                                    {/* Total calculé (grisé) */}
+                                    <input
+                                      type="text"
+                                      value={editableCells[cellIndex]?.total || ''}
+                                      className="w-full p-1 border rounded text-xs text-center bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
+                                      placeholder="Total"
+                                      disabled={true}
+                                      readOnly={true}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+                                ) : (
+                                  // Interface normale pour les autres types
+                                  <input
+                                    type="text"
+                                    value={editableCells[cellIndex]?.value || ''}
+                                    onChange={(e) => handleCellChange(cellIndex, e.target.value, 'value')}
+                                    className={`p-1 border rounded text-sm text-center ${
+                                      isDefaultBreakdown && !isActive 
+                                        ? 'w-12 bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                        : 'flex-1 border-indigo-500'
+                                    }`}
+                                    style={{ fontSize: 'inherit' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={isDefaultBreakdown && !isActive}
+                                    placeholder={isDefaultBreakdown && !isActive ? '' : undefined}
+                                  />
+                                )}
                               </div>
                             </td>
                           );
@@ -634,15 +771,37 @@ export default function TactiquesTimelineTable({
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               )}
-                              {/* CORRIGÉ: Affichage conditionnel selon l'état actif */}
-                              {isDefaultBreakdown && !isActive ? (
-                                <div className="w-12 h-6 bg-gray-100 border border-gray-200 rounded text-gray-400 text-xs flex items-center justify-center">
-                                  —
-                                </div>
+                              
+                              {isPEBs ? (
+                                // NOUVEAU: Affichage PEBs avec 3 valeurs superposées
+                                isDefaultBreakdown && !isActive ? (
+                                  <div className="w-16 h-12 bg-gray-100 border border-gray-200 rounded text-gray-400 text-xs flex items-center justify-center">
+                                    —
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 space-y-1 text-xs">
+                                    <div className="bg-blue-50 px-1 rounded">
+                                      {currentUnitCost || '—'}
+                                    </div>
+                                    <div className="bg-green-50 px-1 rounded">
+                                      {currentValue || '—'}
+                                    </div>
+                                    <div className="bg-gray-100 px-1 rounded text-gray-600">
+                                      {currentTotal || '—'}
+                                    </div>
+                                  </div>
+                                )
                               ) : (
-                                <div className="flex-1">
-                                  {currentValue || '—'}
-                                </div>
+                                // Affichage normal pour les autres types
+                                isDefaultBreakdown && !isActive ? (
+                                  <div className="w-12 h-6 bg-gray-100 border border-gray-200 rounded text-gray-400 text-xs flex items-center justify-center">
+                                    —
+                                  </div>
+                                ) : (
+                                  <div className="flex-1">
+                                    {currentValue || '—'}
+                                  </div>
+                                )
                               )}
                             </div>
                           </td>

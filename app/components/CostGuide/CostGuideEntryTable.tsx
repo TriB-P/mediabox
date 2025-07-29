@@ -1,3 +1,4 @@
+// app/components/CostGuide/CostGuideEntryTable.tsx
 /**
  * Ce fichier définit le composant `CostGuideEntryTable`, une interface interactive pour afficher et gérer les entrées d'un guide de coûts.
  * Il permet aux utilisateurs de visualiser les données sous forme de tableau, de les trier, et si les permissions le permettent, de les modifier.
@@ -28,7 +29,6 @@ import {
 interface CostGuideEntryTableProps {
   guideId: string;
   entries: CostGuideEntry[];
-  partners: any[];
   onEntriesUpdated: () => void;
   readOnly?: boolean;
 }
@@ -49,7 +49,6 @@ type SelectedCell = {
  * @param {CostGuideEntryTableProps} props - Les propriétés du composant.
  * @param {string} props.guideId - L'ID du guide de coûts parent.
  * @param {CostGuideEntry[]} props.entries - La liste des entrées à afficher.
- * @param {any[]} props.partners - La liste des partenaires disponibles pour la sélection.
  * @param {() => void} props.onEntriesUpdated - Une fonction de rappel pour rafraîchir les données après une mise à jour.
  * @param {boolean} [props.readOnly=false] - Si vrai, le tableau est en mode lecture seule.
  * @returns {JSX.Element} Le composant de tableau des entrées du guide de coûts.
@@ -57,12 +56,11 @@ type SelectedCell = {
 export default function CostGuideEntryTable({
   guideId,
   entries,
-  partners,
   onEntriesUpdated,
   readOnly = false,
 }: CostGuideEntryTableProps) {
   const [editMode, setEditMode] = useState(false);
-  const [sortField, setSortField] = useState<keyof CostGuideEntry>('partnerName');
+  const [sortField, setSortField] = useState<keyof CostGuideEntry>('level1');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editableCells, setEditableCells] = useState<EditableCell[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -73,10 +71,10 @@ export default function CostGuideEntryTable({
   const [isShiftKeyPressed, setIsShiftKeyPressed] = useState(false);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [newRowData, setNewRowData] = useState<Partial<CostGuideEntryFormData>>({
-    partnerId: '',
     level1: '',
     level2: '',
     level3: '',
+    level4: '',
     purchaseUnit: 'CPM',
     unitPrice: '',
     comment: ''
@@ -193,7 +191,7 @@ export default function CostGuideEntryTable({
   const handleCellDoubleClick = (entry: CostGuideEntry, field: keyof CostGuideEntry, rowIndex: number) => {
     if (!editMode || readOnly) return;
 
-    const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
+    const editableFields: (keyof CostGuideEntry)[] = ['level1', 'level2', 'level3', 'level4', 'purchaseUnit', 'unitPrice', 'comment'];
     if (!editableFields.includes(field)) return;
 
     const isAlreadyEditing = editableCells.some(
@@ -220,7 +218,7 @@ export default function CostGuideEntryTable({
   const handleCellClick = (rowIndex: number, field: keyof CostGuideEntry) => {
     if (!editMode || readOnly) return;
 
-    const editableFields: (keyof CostGuideEntry)[] = ['partnerId', 'level1', 'level2', 'level3', 'purchaseUnit', 'unitPrice', 'comment'];
+    const editableFields: (keyof CostGuideEntry)[] = ['level1', 'level2', 'level3', 'level4', 'purchaseUnit', 'unitPrice', 'comment'];
     if (!editableFields.includes(field)) return;
 
     if (isShiftKeyPressed && selectionStart) {
@@ -333,37 +331,33 @@ export default function CostGuideEntryTable({
   const handleAddRow = async () => {
     if (readOnly) return;
 
-    if (!newRowData.partnerId || !newRowData.level1 || !newRowData.level2 || !newRowData.level3 || !newRowData.unitPrice) {
+    if (!newRowData.level1 || !newRowData.level2 || !newRowData.level3 || !newRowData.level4 || !newRowData.unitPrice) {
       alert('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     try {
       setIsSaving(true);
-
-      const selectedPartner = partners.find(p => p.id === newRowData.partnerId);
-      const partnerName = selectedPartner ? selectedPartner.SH_Display_Name_FR : '';
       
       console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleAddRow - Path: costGuides/${guideId}/entries`);
       await addCostGuideEntry(
         guideId,
         {
-          partnerId: newRowData.partnerId || '',
           level1: newRowData.level1 || '',
           level2: newRowData.level2 || '',
           level3: newRowData.level3 || '',
+          level4: newRowData.level4 || '',
           purchaseUnit: newRowData.purchaseUnit as PurchaseUnit || 'CPM',
           unitPrice: newRowData.unitPrice || '0',
           comment: newRowData.comment || ''
-        },
-        partnerName
+        }
       );
 
       setNewRowData({
-        partnerId: '',
         level1: '',
         level2: '',
         level3: '',
+        level4: '',
         purchaseUnit: 'CPM',
         unitPrice: '',
         comment: ''
@@ -439,20 +433,20 @@ export default function CostGuideEntryTable({
     if (entries.length === 0) return;
 
     const headers = [
-      'Partenaire',
       'Niveau 1',
       'Niveau 2',
       'Niveau 3',
+      'Niveau 4',
       'Unité d\'achat',
       'Prix unitaire',
       'Commentaire'
     ];
 
     const rows = entries.map(entry => [
-      entry.partnerName,
       entry.level1,
       entry.level2,
       entry.level3,
+      entry.level4,
       entry.purchaseUnit,
       entry.unitPrice.toString(),
       entry.comment || ''
@@ -535,28 +529,7 @@ export default function CostGuideEntryTable({
         cell => cell.entryId === entry.id && cell.field === field
       );
 
-      if (field === 'partnerId') {
-        return (
-          <td
-            className={cellClasses}
-            onClick={() => handleCellClick(rowIndex, field)}
-          >
-            <select
-              value={editableCells[cellIndex].value}
-              onChange={(e) => handleCellChange(cellIndex, e.target.value)}
-              className="w-full p-1 border border-indigo-500 rounded text-sm"
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontSize: 'inherit' }}
-            >
-              {partners.map((partner) => (
-                <option key={partner.id} value={partner.id}>
-                  {partner.SH_Display_Name_FR}
-                </option>
-              ))}
-            </select>
-          </td>
-        );
-      } else if (field === 'purchaseUnit') {
+      if (field === 'purchaseUnit') {
         return (
           <td
             className={cellClasses}
@@ -618,16 +591,6 @@ export default function CostGuideEntryTable({
           onDoubleClick={() => handleCellDoubleClick(entry, field, rowIndex)}
         >
           {formatCurrency(entry[field] as number)}
-        </td>
-      );
-    } else if (field === 'partnerId') {
-      return (
-        <td
-          className={cellClasses}
-          onClick={() => handleCellClick(rowIndex, field)}
-          onDoubleClick={() => handleCellDoubleClick(entry, field, rowIndex)}
-        >
-          {entry.partnerName}
         </td>
       );
     }
@@ -732,27 +695,7 @@ export default function CostGuideEntryTable({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
-            <div>
-              <label htmlFor="partnerId" className="block text-sm font-medium text-gray-700">
-                Partenaire *
-              </label>
-              <select
-                id="partnerId"
-                name="partnerId"
-                value={newRowData.partnerId}
-                onChange={handleNewRowChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option value="">Sélectionner un partenaire</option>
-                {partners.map((partner) => (
-                  <option key={partner.id} value={partner.id}>
-                    {partner.SH_Display_Name_FR}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
                 Niveau 1 *
@@ -782,7 +725,7 @@ export default function CostGuideEntryTable({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="level3" className="block text-sm font-medium text-gray-700">
                 Niveau 3 *
@@ -797,6 +740,22 @@ export default function CostGuideEntryTable({
               />
             </div>
 
+            <div>
+              <label htmlFor="level4" className="block text-sm font-medium text-gray-700">
+                Niveau 4 *
+              </label>
+              <input
+                type="text"
+                id="level4"
+                name="level4"
+                value={newRowData.level4}
+                onChange={handleNewRowChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="purchaseUnit" className="block text-sm font-medium text-gray-700">
                 Unité d'achat *
@@ -877,10 +836,10 @@ export default function CostGuideEntryTable({
               <thead className="bg-gray-50">
                 <tr>
                   {[
-                    { key: 'partnerId', label: 'Partenaire' },
                     { key: 'level1', label: 'Niveau 1' },
                     { key: 'level2', label: 'Niveau 2' },
                     { key: 'level3', label: 'Niveau 3' },
+                    { key: 'level4', label: 'Niveau 4' },
                     { key: 'purchaseUnit', label: 'Unité d\'achat' },
                     { key: 'unitPrice', label: 'Prix unitaire' },
                     { key: 'comment', label: 'Commentaire' },
@@ -911,10 +870,10 @@ export default function CostGuideEntryTable({
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedEntries.map((entry, rowIndex) => (
                   <tr key={entry.id} className={`hover:bg-gray-50 ${editMode && !readOnly ? 'cursor-pointer' : ''}`}>
-                    {renderCell(entry, 'partnerId', rowIndex)}
                     {renderCell(entry, 'level1', rowIndex)}
                     {renderCell(entry, 'level2', rowIndex)}
                     {renderCell(entry, 'level3', rowIndex)}
+                    {renderCell(entry, 'level4', rowIndex)}
                     {renderCell(entry, 'purchaseUnit', rowIndex)}
                     {renderCell(entry, 'unitPrice', rowIndex)}
                     {renderCell(entry, 'comment', rowIndex)}

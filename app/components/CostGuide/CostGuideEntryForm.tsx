@@ -1,3 +1,4 @@
+// app/components/CostGuide/CostGuideEntryForm.tsx
 /**
  * Ce fichier contient le formulaire qui permet d'ajouter ou de modifier une entrée dans un guide de coûts.
  * Il gère les champs du formulaire, vérifie que les données sont correctes avant de les envoyer,
@@ -16,11 +17,11 @@ import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 interface CostGuideEntryFormProps {
   guideId: string;
   entry: CostGuideEntry | null;
-  partners: any[];
   preset?: {
-    partnerId?: string;
     level1?: string;
     level2?: string;
+    level3?: string;
+    level4?: string;
   };
   onCancel: () => void;
   onSuccess: () => void;
@@ -31,7 +32,6 @@ interface CostGuideEntryFormProps {
  * @param {CostGuideEntryFormProps} props - Les propriétés du composant.
  * @param {string} props.guideId - L'ID du guide de coûts auquel l'entrée appartient.
  * @param {CostGuideEntry | null} props.entry - L'entrée à modifier. Si null, le formulaire est en mode création.
- * @param {any[]} props.partners - La liste des partenaires à afficher dans le sélecteur.
  * @param {object} [props.preset] - Valeurs prédéfinies pour certains champs du formulaire.
  * @param {() => void} props.onCancel - Fonction appelée lorsque l'utilisateur annule.
  * @param {() => void} props.onSuccess - Fonction appelée après une soumission réussie.
@@ -40,16 +40,15 @@ interface CostGuideEntryFormProps {
 export default function CostGuideEntryForm({
   guideId,
   entry,
-  partners,
   preset = {},
   onCancel,
   onSuccess,
 }: CostGuideEntryFormProps) {
   const [formData, setFormData] = useState<CostGuideEntryFormData>({
-    partnerId: '',
     level1: '',
     level2: '',
     level3: '',
+    level4: '',
     purchaseUnit: 'CPM',
     unitPrice: '',
     comment: '',
@@ -62,10 +61,10 @@ export default function CostGuideEntryForm({
   useEffect(() => {
     if (entry) {
       setFormData({
-        partnerId: entry.partnerId,
         level1: entry.level1,
         level2: entry.level2,
         level3: entry.level3,
+        level4: entry.level4,
         purchaseUnit: entry.purchaseUnit,
         unitPrice: entry.unitPrice.toString(),
         comment: entry.comment || '',
@@ -73,9 +72,10 @@ export default function CostGuideEntryForm({
     } else if (preset && Object.keys(preset).length > 0) {
       setFormData(prev => ({
         ...prev,
-        partnerId: preset.partnerId || prev.partnerId,
         level1: preset.level1 || prev.level1,
         level2: preset.level2 || prev.level2,
+        level3: preset.level3 || prev.level3,
+        level4: preset.level4 || prev.level4,
       }));
     }
   }, [entry, preset]);
@@ -110,10 +110,6 @@ export default function CostGuideEntryForm({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.partnerId) {
-      newErrors.partnerId = 'Le partenaire est requis';
-    }
-
     if (!formData.level1) {
       newErrors.level1 = 'L\'information de niveau 1 est requise';
     }
@@ -124,6 +120,10 @@ export default function CostGuideEntryForm({
 
     if (!formData.level3) {
       newErrors.level3 = 'L\'information de niveau 3 est requise';
+    }
+
+    if (!formData.level4) {
+      newErrors.level4 = 'L\'information de niveau 4 est requise';
     }
 
     if (!formData.unitPrice) {
@@ -151,15 +151,12 @@ export default function CostGuideEntryForm({
     try {
       setSubmitting(true);
 
-      const selectedPartner = partners.find(p => p.id === formData.partnerId);
-      const partnerName = selectedPartner ? selectedPartner.SH_Display_Name_FR : '';
-
       if (entry) {
         console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries/${entry.id}`);
-        await updateCostGuideEntry(guideId, entry.id, formData, partnerName);
+        await updateCostGuideEntry(guideId, entry.id, formData);
       } else {
         console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries`);
-        await addCostGuideEntry(guideId, formData, partnerName);
+        await addCostGuideEntry(guideId, formData);
       }
 
       setSuccess(true);
@@ -198,34 +195,7 @@ export default function CostGuideEntryForm({
           </button>
         </div>
 
-        <div>
-          <label htmlFor="partnerId" className="block text-sm font-medium text-gray-700">
-            Partenaire *
-          </label>
-          <select
-            id="partnerId"
-            name="partnerId"
-            value={formData.partnerId}
-            onChange={handleChange}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-              errors.partnerId
-                ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-            }`}
-          >
-            <option value="">Sélectionner un partenaire</option>
-            {partners.map((partner) => (
-              <option key={partner.id} value={partner.id}>
-                {partner.SH_Display_Name_FR}
-              </option>
-            ))}
-          </select>
-          {errors.partnerId && (
-            <p className="mt-1 text-sm text-red-600">{errors.partnerId}</p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
               Niveau 1 *
@@ -267,7 +237,9 @@ export default function CostGuideEntryForm({
               <p className="mt-1 text-sm text-red-600">{errors.level2}</p>
             )}
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="level3" className="block text-sm font-medium text-gray-700">
               Niveau 3 *
@@ -286,6 +258,27 @@ export default function CostGuideEntryForm({
             />
             {errors.level3 && (
               <p className="mt-1 text-sm text-red-600">{errors.level3}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="level4" className="block text-sm font-medium text-gray-700">
+              Niveau 4 *
+            </label>
+            <input
+              type="text"
+              id="level4"
+              name="level4"
+              value={formData.level4}
+              onChange={handleChange}
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                errors.level4
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+              }`}
+            />
+            {errors.level4 && (
+              <p className="mt-1 text-sm text-red-600">{errors.level4}</p>
             )}
           </div>
         </div>

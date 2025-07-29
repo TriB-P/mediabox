@@ -1,10 +1,12 @@
+// app/types/breakdown.ts
 /**
  * Ce fichier définit les types de données et les interfaces utilisés pour gérer les "breakdowns"
  * dans l'application. Un breakdown représente une manière de découper une période de temps
- * (par exemple, mensuellement, hebdomadairement ou avec des périodes personnalisées).
+ * (par exemple, mensuellement, hebdomadairement, avec des périodes personnalisées ou PEBs).
  * Il inclut également des utilitaires pour la validation des périodes personnalisées.
+ * NOUVEAU: Support du type PEBs (Périodes d'Estimation par Blocs)
  */
-export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom';
+export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
 
 /**
  * Structure pour une période personnalisée utilisée dans un breakdown de type 'Custom'.
@@ -92,6 +94,7 @@ export interface CustomPeriodValidationResult {
 export const BREAKDOWN_TYPES: { value: BreakdownType; label: string }[] = [
   { value: 'Hebdomadaire', label: 'Hebdomadaire' },
   { value: 'Mensuel', label: 'Mensuel' },
+  { value: 'PEBs', label: 'PEBs' },
   { value: 'Custom', label: 'Personnalisé' },
 ];
 

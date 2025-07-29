@@ -1,8 +1,9 @@
 /**
  * @file Ce fichier contient le composant React `CampaignFormBreakdown`, qui gère la section "Répartition temporelle"
  * du formulaire de création ou d'édition d'une campagne. Il permet aux utilisateurs de définir comment la campagne est
- * divisée dans le temps (hebdomadairement, mensuellement, ou en périodes personnalisées).
+ * divisée dans le temps (hebdomadairement, mensuellement, en périodes personnalisées ou PEBs).
  * Le composant interagit avec Firebase pour sauvegarder et charger ces répartitions (breakdowns).
+ * NOUVEAU: Support du type PEBs (Périodes d'Estimation par Blocs)
  */
 
 'use client';
@@ -14,6 +15,7 @@ import {
   CalendarIcon,
   ClockIcon,
   Cog6ToothIcon,
+  CalculatorIcon,
   XMarkIcon,
   LockClosedIcon
 } from '@heroicons/react/24/outline';
@@ -324,6 +326,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   /**
    * Gère le changement de type de répartition dans le formulaire d'édition.
    * Ajuste automatiquement la date de début et la structure des données.
+   * NOUVEAU: PEBs utilise la même logique que Hebdomadaire (getClosestMonday)
    * @param {BreakdownType} newType - Le nouveau type de répartition sélectionné.
    */
   const handleTypeChange = (newType: BreakdownType) => {
@@ -332,7 +335,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     let adjustedStartDate = editingBreakdown.startDate;
     let updatedBreakdown = { ...editingBreakdown };
 
-    if (newType === 'Hebdomadaire') {
+    if (newType === 'Hebdomadaire' || newType === 'PEBs') {
       adjustedStartDate = getClosestMonday(editingBreakdown.startDate);
       updatedBreakdown.customPeriods = undefined;
     } else if (newType === 'Mensuel') {
@@ -462,6 +465,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Retourne le composant icône approprié pour un type de répartition donné.
+   * NOUVEAU: Support de l'icône CalculatorIcon pour PEBs
    * @param {BreakdownType} type - Le type de répartition.
    * @returns {React.ElementType} Le composant icône.
    */
@@ -471,6 +475,8 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         return CalendarIcon;
       case 'Mensuel':
         return ClockIcon;
+      case 'PEBs':
+        return CalculatorIcon;
       case 'Custom':
         return Cog6ToothIcon;
       default:
@@ -663,7 +669,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                     {t('campaigns.formBreakdown.modal.typeLabel')}
                   </label>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {BREAKDOWN_TYPES.map((type) => {
                     const TypeIcon = getTypeIcon(type.value);
                     return (
@@ -691,8 +697,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                     <div className="flex items-center gap-3 mb-2">
                       <HelpIcon
                         tooltip={
-                          editingBreakdown.type === 'Hebdomadaire' ? t('campaigns.formBreakdown.modal.startDateHelpWeekly') :
-                          editingBreakdown.type === 'Mensuel' ? t('campaigns.formBreakdown.modal.startDateHelpMonthly') :
+                          editingBreakdown.type === 'Hebdomadaire' || editingBreakdown.type === 'PEBs' ? 
+                            t('campaigns.formBreakdown.modal.startDateHelpWeekly') :
+                          editingBreakdown.type === 'Mensuel' ? 
+                            t('campaigns.formBreakdown.modal.startDateHelpMonthly') :
                           t('campaigns.formBreakdown.modal.startDateHelpCustom')
                         }
                         onTooltipChange={onTooltipChange}

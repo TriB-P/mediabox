@@ -9,6 +9,7 @@
  * NOUVEAU: Gestion des données de breakdown stockées directement sur les tactiques
  * sous forme d'objet structuré au lieu de champs plats.
  * CORRIGÉ: Lecture correcte des statuts d'activation
+ * NOUVEAU: Support du type PEBs avec coût par unité, volume et total calculé
  */
 import {
   collection,
@@ -39,11 +40,14 @@ import {
 
 /**
  * Structure d'une période de breakdown sur une tactique
+ * NOUVEAU: Support des champs unitCost et total pour les PEBs
  */
 export interface TactiqueBreakdownPeriod {
-  value: string;
+  value: string;        // Volume d'unité pour PEBs, valeur unique pour autres types
   isToggled: boolean;
   order: number;
+  unitCost?: string;    // NOUVEAU: Coût par unité (PEBs uniquement)
+  total?: string;       // NOUVEAU: Total calculé (PEBs uniquement)
 }
 
 /**
@@ -57,6 +61,7 @@ export interface TactiqueBreakdownData {
 
 /**
  * Données de breakdown à sauvegarder pour une tactique
+ * NOUVEAU: Support des champs PEBs
  */
 export interface BreakdownUpdateData {
   breakdownId: string;
@@ -64,14 +69,17 @@ export interface BreakdownUpdateData {
   value: string;
   isToggled?: boolean;
   order?: number;
+  unitCost?: string;    // NOUVEAU: Pour PEBs
+  total?: string;       // NOUVEAU: Pour PEBs (calculé automatiquement)
 }
 
 // ============================================================================
-// FONCTIONS DE VALIDATION EXISTANTES (inchangées)
+// FONCTIONS DE VALIDATION EXISTANTES (étendues pour PEBs)
 // ============================================================================
 
 /**
  * Valide une date selon le type de breakdown.
+ * NOUVEAU: PEBs utilise la même validation que Hebdomadaire
  */
 export function validateBreakdownDate(
   date: string,
@@ -95,11 +103,12 @@ export function validateBreakdownDate(
   const dayOfWeek = dateObj.getDay();
   switch (type) {
     case 'Hebdomadaire':
+    case 'PEBs': // NOUVEAU: PEBs utilise la même validation que Hebdomadaire
       if (isStartDate) {
         if (dayOfWeek !== 1) {
           return {
             isValid: false,
-            error: `La date de début doit être un lundi pour un breakdown hebdomadaire. Date fournie: ${date} (jour ${dayOfWeek})`
+            error: `La date de début doit être un lundi pour un breakdown ${type}. Date fournie: ${date} (jour ${dayOfWeek})`
           };
         }
       }
@@ -164,7 +173,7 @@ function processCustomPeriods(periods: CustomPeriodFormData[]): CustomPeriod[] {
 }
 
 // ============================================================================
-// FONCTIONS CRUD POUR LES BREAKDOWNS (inchangées)
+// FONCTIONS CRUD POUR LES BREAKDOWNS (étendues pour PEBs)
 // ============================================================================
 
 export async function getBreakdowns(
@@ -461,8 +470,9 @@ export async function ensureDefaultBreakdownExists(
 
 /**
  * Lit les données de breakdown d'une tactique selon la nouvelle structure.
- * NOUVELLE STRUCTURE: breakdown.periods[periodId] = { name, value, isToggled, order }
+ * NOUVELLE STRUCTURE: breakdown.periods[periodId] = { name, value, isToggled, order, unitCost?, total? }
  * NOUVEAU: Support des IDs avec préfixe breakdown
+ * NOUVEAU: Support des champs PEBs (unitCost, total)
  * @param tactique - L'objet tactique contenant les données de breakdown
  * @param breakdownId - L'ID du breakdown à lire
  * @param periodId - L'ID de la période à lire (avec ou sans préfixe breakdown)
@@ -497,7 +507,9 @@ export function getTactiqueBreakdownPeriod(
   return {
     value: period.value || '',
     isToggled: period.isToggled !== undefined ? period.isToggled : true,
-    order: period.order || 0
+    order: period.order || 0,
+    unitCost: period.unitCost || '', // NOUVEAU: Support PEBs
+    total: period.total || ''         // NOUVEAU: Support PEBs
   };
 }
 
@@ -517,6 +529,56 @@ export function getTactiqueBreakdownValue(
 ): string {
   const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
   return period?.value || '';
+}
+
+/**
+ * NOUVEAU: Lit le coût par unité d'une période PEBs depuis une tactique.
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param periodId - L'ID de la période
+ * @returns Le coût par unité ou chaîne vide si non trouvé
+ */
+export function getTactiqueBreakdownUnitCost(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.unitCost || '';
+}
+
+/**
+ * NOUVEAU: Lit le total calculé d'une période PEBs depuis une tactique.
+ * @param tactique - L'objet tactique
+ * @param breakdownId - L'ID du breakdown
+ * @param periodId - L'ID de la période
+ * @returns Le total calculé ou chaîne vide si non trouvé
+ */
+export function getTactiqueBreakdownTotal(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.total || '';
+}
+
+/**
+ * NOUVEAU: Calcule automatiquement le total pour une période PEBs.
+ * @param unitCost - Coût par unité
+ * @param volume - Volume d'unités
+ * @returns Le total calculé ou chaîne vide si calcul impossible
+ */
+export function calculatePEBsTotal(unitCost: string, volume: string): string {
+  const unitCostNum = parseFloat(unitCost.trim());
+  const volumeNum = parseFloat(volume.trim());
+  
+  if (isNaN(unitCostNum) || isNaN(volumeNum)) {
+    return '';
+  }
+  
+  const total = unitCostNum * volumeNum;
+  return total.toFixed(2);
 }
 
 /**
@@ -574,7 +636,8 @@ export function getTactiqueBreakdownToggleStatus(
 
 /**
  * Met à jour les données de breakdown d'une tactique avec la nouvelle structure.
- * MODIFIÉ: Utilise la structure breakdown.periods[periodId] = { name, value, isToggled, order }
+ * MODIFIÉ: Utilise la structure breakdown.periods[periodId] = { name, value, isToggled, order, unitCost?, total? }
+ * NOUVEAU: Support des champs PEBs
  * @param currentTactiqueData - Les données actuelles de la tactique
  * @param updates - Tableau des mises à jour à appliquer
  * @returns Les données de tactique mises à jour
@@ -592,7 +655,7 @@ export function updateTactiqueBreakdownData(
 
   // Appliquer chaque mise à jour
   updates.forEach(update => {
-    const { breakdownId, periodId, value, isToggled, order } = update;
+    const { breakdownId, periodId, value, isToggled, order, unitCost, total } = update;
     
     // Initialiser le breakdown s'il n'existe pas
     if (!updatedTactique.breakdowns[breakdownId]) {
@@ -626,8 +689,16 @@ export function updateTactiqueBreakdownData(
       period.order = order;
     }
     
+    // NOUVEAU: Support des champs PEBs
+    if (unitCost !== undefined) {
+      period.unitCost = unitCost;
+    }
+    if (total !== undefined) {
+      period.total = total;
+    }
+    
     // CORRIGÉ: Log des modifications pour debug
-    console.log(`Mise à jour période ${periodId}: value=${value}, isToggled=${isToggled}`);
+    console.log(`Mise à jour période ${periodId}: value=${value}, isToggled=${isToggled}, unitCost=${unitCost}, total=${total}`);
   });
 
   return updatedTactique;
@@ -636,15 +707,18 @@ export function updateTactiqueBreakdownData(
 /**
  * Calcule le total des valeurs pour un breakdown spécifique d'une tactique.
  * MODIFIÉ: Utilise la structure breakdown.periods
+ * NOUVEAU: Support des PEBs (utilise le champ total au lieu de value)
  * @param tactique - L'objet tactique
  * @param breakdownId - L'ID du breakdown
  * @param onlyToggled - Si true, ne compte que les périodes activées
+ * @param breakdownType - Type de breakdown pour déterminer quel champ utiliser
  * @returns Le total des valeurs numériques
  */
 export function calculateTactiqueBreakdownTotal(
   tactique: any,
   breakdownId: string,
-  onlyToggled: boolean = true
+  onlyToggled: boolean = true,
+  breakdownType?: string
 ): number {
   if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
     return 0;
@@ -659,7 +733,9 @@ export function calculateTactiqueBreakdownTotal(
 
   Object.values(breakdown.periods).forEach((period: any) => {
     if (!onlyToggled || period.isToggled) {
-      const numValue = parseFloat(period.value || '0');
+      // NOUVEAU: Pour PEBs, utiliser le champ total, sinon utiliser value
+      const valueToSum = breakdownType === 'PEBs' ? period.total : period.value;
+      const numValue = parseFloat(valueToSum || '0');
       if (!isNaN(numValue)) {
         total += numValue;
       }
@@ -672,15 +748,18 @@ export function calculateTactiqueBreakdownTotal(
 /**
  * Vérifie si toutes les valeurs d'un breakdown sont numériques.
  * MODIFIÉ: Utilise la structure breakdown.periods
+ * NOUVEAU: Support des PEBs (vérifie unitCost, value et total)
  * @param tactique - L'objet tactique
  * @param breakdownId - L'ID du breakdown
  * @param onlyToggled - Si true, ne vérifie que les périodes activées
+ * @param breakdownType - Type de breakdown pour déterminer quels champs vérifier
  * @returns True si toutes les valeurs sont numériques
  */
 export function areAllTactiqueBreakdownValuesNumeric(
   tactique: any,
   breakdownId: string,
-  onlyToggled: boolean = true
+  onlyToggled: boolean = true,
+  breakdownType?: string
 ): boolean {
   if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
     return false;
@@ -702,10 +781,25 @@ export function areAllTactiqueBreakdownValuesNumeric(
   }
 
   return relevantPeriods.every(period => {
-    const value = period.value?.trim();
-    if (!value) return false;
-    
-    const numValue = parseFloat(value);
-    return !isNaN(numValue) && isFinite(numValue);
+    if (breakdownType === 'PEBs') {
+      // NOUVEAU: Pour PEBs, vérifier unitCost et value (volume)
+      const unitCostValue = period.unitCost?.trim();
+      const volumeValue = period.value?.trim();
+      
+      if (!unitCostValue || !volumeValue) return false;
+      
+      const unitCostNum = parseFloat(unitCostValue);
+      const volumeNum = parseFloat(volumeValue);
+      
+      return !isNaN(unitCostNum) && isFinite(unitCostNum) && 
+             !isNaN(volumeNum) && isFinite(volumeNum);
+    } else {
+      // Pour les autres types, vérifier seulement value
+      const value = period.value?.trim();
+      if (!value) return false;
+      
+      const numValue = parseFloat(value);
+      return !isNaN(numValue) && isFinite(numValue);
+    }
   });
 }

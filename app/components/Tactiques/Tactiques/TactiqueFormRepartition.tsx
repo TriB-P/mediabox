@@ -2,6 +2,7 @@
 /**
  * CORRIGÉ: Problème de réinitialisation des valeurs dans le drawer de tactique
  * NOUVEAU: IDs de périodes standardisés compatibles avec la timeline
+ * NOUVEAU: Support du type PEBs avec 3 inputs (coût/unité, volume, total calculé)
  */
 
 'use client';
@@ -13,12 +14,15 @@ import {
   FormSection
 } from './TactiqueFormComponents';
 import { Breakdown } from '../../../types/breakdown';
-import { CalendarIcon, ClockIcon, Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, Cog6ToothIcon, CalculatorIcon, PlusIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import {
   getTactiqueBreakdownValue,
+  getTactiqueBreakdownUnitCost,
+  getTactiqueBreakdownTotal,
   getTactiqueBreakdownToggleStatus,
   calculateTactiqueBreakdownTotal,
-  areAllTactiqueBreakdownValuesNumeric
+  areAllTactiqueBreakdownValuesNumeric,
+  calculatePEBsTotal
 } from '../../../lib/breakdownService';
 
 interface TactiqueFormRepartitionProps {
@@ -44,6 +48,9 @@ interface DistributionModalState {
   breakdownId: string | null;
   totalAmount: string;
   distributionMode: 'equal' | 'weighted';
+  startDate: string; // NOUVEAU: Date de début personnalisable
+  endDate: string;   // NOUVEAU: Date de fin personnalisable
+  pebsField: 'unitCost' | 'value'; // NOUVEAU: Champ à distribuer pour PEBs
 }
 
 // CORRIGÉ: Fonctions de génération de périodes avec IDs standardisés (identiques à timelinePeriodsUtils.ts)
@@ -141,6 +148,57 @@ function generateWeeklyPeriods(breakdown: Breakdown, tactiqueStartDate?: string,
   return periods;
 }
 
+// NOUVEAU: Génération de périodes PEBs (identique aux périodes hebdomadaires)
+function generatePEBsPeriods(breakdown: Breakdown, tactiqueStartDate?: string, tactiqueEndDate?: string): BreakdownPeriod[] {
+  const periods: BreakdownPeriod[] = [];
+
+  let startDate: Date, endDate: Date;
+
+  if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
+    startDate = new Date(tactiqueStartDate);
+    endDate = new Date(tactiqueEndDate);
+  } else {
+    startDate = new Date(breakdown.startDate);
+    endDate = new Date(breakdown.endDate);
+  }
+
+  // Ajuster au lundi pour TOUS les breakdowns PEBs
+  const dayOfWeek = startDate.getDay();
+  if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - daysToSubtract);
+  }
+
+  const current = new Date(startDate);
+
+  while (current <= endDate) {
+    const day = current.getDate().toString().padStart(2, '0');
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const month = monthNames[current.getMonth()];
+
+    // ID standardisé identique aux périodes hebdomadaires
+    const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
+
+    periods.push({
+      id: periodId,
+      label: `${day} ${month}`,
+      value: '',
+      breakdownId: breakdown.id,
+      breakdownName: breakdown.name
+    });
+
+    current.setDate(current.getDate() + 7);
+  }
+
+  if (periods.length > 0) {
+    periods[0].isFirst = true;
+    periods[periods.length - 1].isLast = true;
+  }
+
+  return periods;
+}
+
 function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -175,6 +233,9 @@ function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string,
       case 'Hebdomadaire':
         periods = generateWeeklyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
         break;
+      case 'PEBs': // NOUVEAU: Support du type PEBs
+        periods = generatePEBsPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+        break;
       case 'Custom':
         periods = generateCustomPeriods(breakdown);
         break;
@@ -189,26 +250,29 @@ function generateAllPeriods(breakdowns: Breakdown[], tactiqueStartDate?: string,
 function areAllValuesNumericForBreakdown(
   tactique: any,
   breakdownId: string,
-  isDefaultBreakdown: boolean
+  isDefaultBreakdown: boolean,
+  breakdownType?: string
 ): boolean {
   // CORRIGÉ: Vérifie s'il y a au moins une valeur numérique, pas toutes
-  return hasAtLeastOneNumericValue(tactique, breakdownId, isDefaultBreakdown);
+  return hasAtLeastOneNumericValue(tactique, breakdownId, isDefaultBreakdown, breakdownType);
 }
 
 /**
  * Nouvelle fonction : vérifie s'il y a au moins une valeur numérique valide
+ * MODIFIÉ: Support du type PEBs
  */
 function hasAtLeastOneNumericValue(
   tactique: any,
   breakdownId: string,
-  isDefaultBreakdown: boolean
+  isDefaultBreakdown: boolean,
+  breakdownType?: string
 ): boolean {
   if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
     return false;
   }
 
   const breakdown = tactique.breakdowns[breakdownId];
-  const periods = Object.values(breakdown) as any[];
+  const periods = Object.values(breakdown.periods) as any[];
   
   const relevantPeriods = periods.filter(period => 
     !isDefaultBreakdown || period.isToggled
@@ -218,7 +282,22 @@ function hasAtLeastOneNumericValue(
     return false;
   }
 
-  // Retourne true s'il y a au moins une valeur numérique valide
+  // NOUVEAU: Pour PEBs, vérifier unitCost et value (volume)
+  if (breakdownType === 'PEBs') {
+    return relevantPeriods.some(period => {
+      const unitCost = period.unitCost?.trim();
+      const volume = period.value?.trim();
+      
+      if (!unitCost || !volume) return false;
+      
+      const unitCostNum = parseFloat(unitCost);
+      const volumeNum = parseFloat(volume);
+      return !isNaN(unitCostNum) && isFinite(unitCostNum) && 
+             !isNaN(volumeNum) && isFinite(volumeNum);
+    });
+  }
+
+  // Pour les autres types, vérifier seulement value
   return relevantPeriods.some(period => {
     const value = period.value?.trim();
     if (!value) return false;
@@ -231,9 +310,10 @@ function hasAtLeastOneNumericValue(
 function calculateTotalForBreakdown(
   tactique: any,
   breakdownId: string,
-  isDefaultBreakdown: boolean
+  isDefaultBreakdown: boolean,
+  breakdownType?: string
 ): number {
-  return calculateTactiqueBreakdownTotal(tactique, breakdownId, isDefaultBreakdown);
+  return calculateTactiqueBreakdownTotal(tactique, breakdownId, isDefaultBreakdown, breakdownType);
 }
 
 function calculatePercentageForBreakdown(value: string, total: number): number {
@@ -275,7 +355,8 @@ function distributeAmountEqually(
   activePeriods: { [key: string]: boolean },
   isDefaultBreakdown: boolean,
   tactiqueStartDate?: string,
-  tactiqueEndDate?: string
+  tactiqueEndDate?: string,
+  breakdownType?: string
 ): { [key: string]: string } {
   // NOUVEAU: Filtrer les périodes selon les dates de la tactique
   let relevantPeriods = breakdownPeriods;
@@ -311,12 +392,24 @@ function distributeAmountEqually(
 
   if (activePeriodsList.length === 0) return {};
 
-  const amountPerPeriod = totalAmount / activePeriodsList.length;
   const result: { [key: string]: string } = {};
 
-  activePeriodsList.forEach(period => {
-    result[period.id] = amountPerPeriod.toFixed(2);
-  });
+  if (breakdownType === 'PEBs') {
+    // NOUVEAU: Pour PEBs, distribuer le montant total sur les périodes
+    // et laisser l'utilisateur définir comment répartir entre unitCost et volume
+    const amountPerPeriod = totalAmount / activePeriodsList.length;
+    
+    activePeriodsList.forEach(period => {
+      result[period.id] = amountPerPeriod.toFixed(2);
+    });
+  } else {
+    // Pour les autres types, distribution normale sur value
+    const amountPerPeriod = totalAmount / activePeriodsList.length;
+    
+    activePeriodsList.forEach(period => {
+      result[period.id] = amountPerPeriod.toFixed(2);
+    });
+  }
 
   return result;
 }
@@ -357,6 +450,8 @@ function getBreakdownIcon(type: string) {
       return CalendarIcon;
     case 'Mensuel':
       return ClockIcon;
+    case 'PEBs':
+      return CalculatorIcon; // NOUVEAU: Icône pour PEBs
     case 'Custom':
       return Cog6ToothIcon;
     default:
@@ -374,11 +469,15 @@ export default function TactiqueFormRepartition({
 
   const [periods, setPeriods] = useState<BreakdownPeriod[]>([]);
   const [localBreakdownData, setLocalBreakdownData] = useState<any>({}); // État local pour les données de breakdown
+  const [collapsedBreakdowns, setCollapsedBreakdowns] = useState<{ [key: string]: boolean }>({}); // NOUVEAU: État collapse/expand
   const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
     isOpen: false,
     breakdownId: null,
     totalAmount: '',
-    distributionMode: 'equal'
+    distributionMode: 'equal',
+    startDate: '', // NOUVEAU: Initialisé vide
+    endDate: '',   // NOUVEAU: Initialisé vide
+    pebsField: 'unitCost' // NOUVEAU: Par défaut sur coût/unité
   });
 
   /**
@@ -428,8 +527,8 @@ export default function TactiqueFormRepartition({
             return (aYear * 100 + aMonth) - (bYear * 100 + bMonth);
           }
           return 0;
-        } else if (breakdown.type === 'Hebdomadaire') {
-          // Pour les breakdowns hebdomadaires, extraire la date pour tri chronologique
+        } else if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+          // Pour les breakdowns hebdomadaires et PEBs, extraire la date pour tri chronologique
           const aMatch = a.id.match(/week_(\d{4})_(\d{2})_(\d{2})$/);
           const bMatch = b.id.match(/week_(\d{4})_(\d{2})_(\d{2})$/);
           if (aMatch && bMatch) {
@@ -449,7 +548,12 @@ export default function TactiqueFormRepartition({
       // NOUVEAU: Ajouter chaque période avec son ordre calculé
       sortedPeriods.forEach((period, index) => {
         // Utiliser l'état local au lieu des champs plats
-        const periodData = localBreakdownData[period.id] || { value: '', isToggled: true };
+        const periodData = localBreakdownData[period.id] || { 
+          value: '', 
+          isToggled: true, 
+          unitCost: '', // NOUVEAU: Support PEBs
+          total: ''     // NOUVEAU: Support PEBs
+        };
         
         // CORRIGÉ: Extraire l'ID de période original (sans le préfixe breakdown)
         const originalPeriodId = period.id.replace(`${period.breakdownId}_`, '');
@@ -458,7 +562,9 @@ export default function TactiqueFormRepartition({
           name: period.label,
           value: periodData.value,
           isToggled: periodData.isToggled,
-          order: index // NOUVEAU: Ajouter l'ordre calculé basé sur la position triée
+          order: index, // NOUVEAU: Ajouter l'ordre calculé basé sur la position triée
+          unitCost: periodData.unitCost || '', // NOUVEAU: Support PEBs
+          total: periodData.total || ''         // NOUVEAU: Support PEBs
         };
       });
     });
@@ -486,7 +592,9 @@ export default function TactiqueFormRepartition({
         if (existingPeriod) {
           initialData[period.id] = {
             value: existingPeriod.value || '',
-            isToggled: existingPeriod.isToggled !== undefined ? existingPeriod.isToggled : true
+            isToggled: existingPeriod.isToggled !== undefined ? existingPeriod.isToggled : true,
+            unitCost: existingPeriod.unitCost || '', // NOUVEAU: Support PEBs
+            total: existingPeriod.total || ''         // NOUVEAU: Support PEBs
           };
           return;
         }
@@ -508,7 +616,9 @@ export default function TactiqueFormRepartition({
       
       initialData[period.id] = {
         value: initialValue,
-        isToggled: true
+        isToggled: true,
+        unitCost: '', // NOUVEAU: Support PEBs
+        total: ''     // NOUVEAU: Support PEBs
       };
     });
     
@@ -516,7 +626,8 @@ export default function TactiqueFormRepartition({
     const hasChanged = periods.some(period => {
       const existing = localBreakdownData[period.id];
       const newData = initialData[period.id];
-      return !existing || existing.value !== newData.value || existing.isToggled !== newData.isToggled;
+      return !existing || existing.value !== newData.value || existing.isToggled !== newData.isToggled ||
+             existing.unitCost !== newData.unitCost || existing.total !== newData.total;
     });
     
     if (hasChanged) {
@@ -581,7 +692,9 @@ export default function TactiqueFormRepartition({
           // CORRIGÉ: Réinitialiser complètement (pas seulement si différent)
           updatedData[period.id] = { 
             value: newValue, 
-            isToggled: true // Toujours réactiver les cases
+            isToggled: true, // Toujours réactiver les cases
+            unitCost: '', // NOUVEAU: Réinitialiser PEBs
+            total: ''     // NOUVEAU: Réinitialiser PEBs
           };
           hasUpdates = true;
         });
@@ -621,26 +734,37 @@ export default function TactiqueFormRepartition({
 
   /**
    * Gère le changement de valeur d'une période (utilise l'état local)
+   * NOUVEAU: Support PEBs avec recalcul automatique du total
    */
-  const handlePeriodValueChange = (periodId: string, value: string) => {
+  const handlePeriodValueChange = (periodId: string, value: string, field: 'value' | 'unitCost' = 'value') => {
     const period = periods.find(p => p.id === periodId);
     if (!period) return;
 
     const breakdown = breakdowns.find(b => b.id === period.breakdownId);
     
     // Vérifier si la période est active (pour les breakdowns par défaut)
-    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true };
+    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true, unitCost: '', total: '' };
     if (breakdown?.isDefault && !currentData.isToggled) {
       return;
     }
 
     // Mettre à jour l'état local
+    const updatedData = {
+      ...currentData,
+      [field]: value
+    };
+
+    // NOUVEAU: Pour PEBs, recalculer automatiquement le total
+    if (breakdown?.type === 'PEBs') {
+      const unitCost = field === 'unitCost' ? value : currentData.unitCost;
+      const volume = field === 'value' ? value : currentData.value;
+      
+      updatedData.total = calculatePEBsTotal(unitCost, volume);
+    }
+
     setLocalBreakdownData((prev: any) => ({
       ...prev,
-      [periodId]: {
-        ...currentData,
-        value: value
-      }
+      [periodId]: updatedData
     }));
   };
 
@@ -648,13 +772,15 @@ export default function TactiqueFormRepartition({
    * Gère le changement d'état d'activation d'une période (utilise l'état local)
    */
   const handlePeriodActiveChange = (periodId: string, isActive: boolean) => {
-    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true };
+    const currentData = localBreakdownData[periodId] || { value: '', isToggled: true, unitCost: '', total: '' };
 
     // Mettre à jour l'état local
     setLocalBreakdownData((prev: any) => ({
       ...prev,
       [periodId]: {
         value: isActive ? currentData.value : '',
+        unitCost: isActive ? currentData.unitCost : '', // NOUVEAU: Support PEBs
+        total: isActive ? currentData.total : '',       // NOUVEAU: Support PEBs
         isToggled: isActive
       }
     }));
@@ -663,9 +789,9 @@ export default function TactiqueFormRepartition({
   /**
    * Obtient la valeur d'une période depuis l'état local
    */
-  const getPeriodValue = (periodId: string, breakdownId: string): string => {
+  const getPeriodValue = (periodId: string, breakdownId: string, field: 'value' | 'unitCost' | 'total' = 'value'): string => {
     const data = localBreakdownData[periodId];
-    return data?.value || '';
+    return data?.[field] || '';
   };
 
   /**
@@ -676,13 +802,16 @@ export default function TactiqueFormRepartition({
     return data?.isToggled !== undefined ? data.isToggled : true;
   };
 
-  // Modales et autres handlers (inchangés)
+  // Modales et autres handlers
   const handleOpenDistributionModal = (breakdownId: string) => {
     setDistributionModal({
       isOpen: true,
       breakdownId,
       totalAmount: '',
-      distributionMode: 'equal'
+      distributionMode: 'equal',
+      startDate: formData.TC_StartDate || '', // NOUVEAU: Pré-remplir avec dates tactique
+      endDate: formData.TC_EndDate || '',     // NOUVEAU: Pré-remplir avec dates tactique
+      pebsField: 'unitCost' // NOUVEAU: Par défaut sur coût/unité
     });
   };
 
@@ -691,12 +820,99 @@ export default function TactiqueFormRepartition({
       isOpen: false,
       breakdownId: null,
       totalAmount: '',
-      distributionMode: 'equal'
+      distributionMode: 'equal',
+      startDate: '',
+      endDate: '',
+      pebsField: 'unitCost'
     });
   };
 
+  // NOUVEAU: Fonction pour toggle l'état collapse/expand d'un breakdown
+  const toggleBreakdownCollapse = (breakdownId: string) => {
+    setCollapsedBreakdowns(prev => ({
+      ...prev,
+      [breakdownId]: !prev[breakdownId]
+    }));
+  };
+
+  // NOUVEAU: Calcule la différence avec le budget média pour PEBs
+  const calculateBudgetDifference = (totalValue: number): { difference: number; percentage: number; isOverBudget: boolean } => {
+    const mediaBudget = parseFloat(formData.TC_Media_Budget || '0');
+    if (mediaBudget === 0) {
+      return { difference: 0, percentage: 0, isOverBudget: false };
+    }
+
+    const difference = totalValue - mediaBudget;
+    const percentage = (difference / mediaBudget) * 100;
+    const isOverBudget = difference > 0;
+
+    return { difference, percentage, isOverBudget };
+  };
+
+  // NOUVEAU: Calcule les périodes concernées par les dates de distribution
+  const getPeriodsForDistribution = (
+    breakdownId: string, 
+    startDate: string, 
+    endDate: string
+  ): BreakdownPeriod[] => {
+    if (!startDate || !endDate) return [];
+
+    const breakdownPeriods = periods.filter(p => p.breakdownId === breakdownId);
+    const distributionStart = new Date(startDate);
+    const distributionEnd = new Date(endDate);
+
+    return breakdownPeriods.filter(period => {
+      const periodStartDate = extractPeriodStartDate(period);
+      if (!periodStartDate) return true; // Garder si on ne peut pas déterminer
+
+      // Calculer la fin de période
+      const periodEnd = new Date(periodStartDate);
+      if (period.id.includes('week_')) {
+        // Pour les semaines, ajouter 6 jours
+        periodEnd.setDate(periodEnd.getDate() + 6);
+      } else if (period.id.match(/^\w+_\d{4}_\d{2}$/)) {
+        // Pour les mois, aller au dernier jour du mois
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        periodEnd.setDate(0);
+      }
+
+      // Intersecte si : début période <= fin distribution ET fin période >= début distribution
+      return periodStartDate <= distributionEnd && periodEnd >= distributionStart;
+    });
+  };
+
+  // NOUVEAU: Calcule la valeur par période pour l'affichage
+  const getDistributionPreview = (): { periodsCount: number; valuePerPeriod: number } => {
+    if (!distributionModal.breakdownId || !distributionModal.totalAmount || 
+        !distributionModal.startDate || !distributionModal.endDate) {
+      return { periodsCount: 0, valuePerPeriod: 0 };
+    }
+
+    const totalAmount = parseFloat(distributionModal.totalAmount);
+    if (isNaN(totalAmount)) return { periodsCount: 0, valuePerPeriod: 0 };
+
+    const concernedPeriods = getPeriodsForDistribution(
+      distributionModal.breakdownId,
+      distributionModal.startDate,
+      distributionModal.endDate
+    );
+
+    // Filtrer selon les périodes actives pour le breakdown par défaut
+    const breakdown = breakdowns.find(b => b.id === distributionModal.breakdownId);
+    const activePeriods = concernedPeriods.filter(period => {
+      if (!breakdown?.isDefault) return true;
+      return getPeriodActiveStatus(period.id, period.breakdownId);
+    });
+
+    const periodsCount = activePeriods.length;
+    const valuePerPeriod = periodsCount > 0 ? totalAmount / periodsCount : 0;
+
+    return { periodsCount, valuePerPeriod };
+  };
+
   const handleConfirmDistribution = () => {
-    if (!distributionModal.breakdownId || !distributionModal.totalAmount) return;
+    if (!distributionModal.breakdownId || !distributionModal.totalAmount || 
+        !distributionModal.startDate || !distributionModal.endDate) return;
 
     const totalAmount = parseFloat(distributionModal.totalAmount);
     if (isNaN(totalAmount)) return;
@@ -704,27 +920,45 @@ export default function TactiqueFormRepartition({
     const breakdown = breakdowns.find(b => b.id === distributionModal.breakdownId);
     if (!breakdown) return;
 
-    const breakdownPeriods = periods.filter(p => p.breakdownId === breakdown.id);
+    // NOUVEAU: Utiliser les périodes calculées selon les dates personnalisées
+    const concernedPeriods = getPeriodsForDistribution(
+      distributionModal.breakdownId,
+      distributionModal.startDate,
+      distributionModal.endDate
+    );
+
     const isDefaultBreakdown = breakdown.isDefault;
+    const isPEBs = breakdown.type === 'PEBs';
 
     // Construire l'objet activePeriods à partir de l'état local
     const activePeriods: { [key: string]: boolean } = {};
-    breakdownPeriods.forEach(period => {
+    concernedPeriods.forEach(period => {
       activePeriods[period.id] = getPeriodActiveStatus(period.id, breakdown.id);
     });
 
-    // CORRIGÉ: Passer les dates de la tactique pour limiter la distribution
-    const distributedValues = distributeAmountEqually(
-      totalAmount,
-      breakdownPeriods,
-      activePeriods,
-      isDefaultBreakdown,
-      formData.TC_StartDate, // NOUVEAU: Date de début tactique
-      formData.TC_EndDate    // NOUVEAU: Date de fin tactique
+    // Filtrer les périodes actives
+    const activePeriodsList = concernedPeriods.filter(period =>
+      !isDefaultBreakdown || activePeriods[period.id] !== false
     );
 
-    Object.entries(distributedValues).forEach(([periodId, value]) => {
-      handlePeriodValueChange(periodId, value);
+    if (activePeriodsList.length === 0) return;
+
+    const amountPerPeriod = totalAmount / activePeriodsList.length;
+
+    // NOUVEAU: Distribution selon le type et le champ choisi
+    activePeriodsList.forEach(period => {
+      if (isPEBs) {
+        if (distributionModal.pebsField === 'unitCost') {
+          // Distribuer sur le coût/unité, garder le volume existant
+          handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'unitCost');
+        } else {
+          // Distribuer sur le volume, garder le coût/unité existant
+          handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'value');
+        }
+      } else {
+        // Pour les autres types, distribuer sur value
+        handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'value');
+      }
     });
 
     handleCloseDistributionModal();
@@ -795,25 +1029,46 @@ export default function TactiqueFormRepartition({
               const Icon = getBreakdownIcon(breakdown.type);
               const breakdownPeriods = periodsByBreakdown[breakdown.id] || [];
               const isDefaultBreakdown = breakdown.isDefault;
+              const isPEBs = breakdown.type === 'PEBs'; // NOUVEAU: Détection PEBs
+              const isCollapsed = collapsedBreakdowns[breakdown.id] || false; // NOUVEAU: État collapse
 
               // Utiliser l'objet breakdowns pour les calculs
               const currentBreakdowns = formData.breakdowns || {};
               const showCalculationsForBreakdown = hasAtLeastOneNumericValue(
                 { breakdowns: currentBreakdowns },
                 breakdown.id,
-                isDefaultBreakdown
+                isDefaultBreakdown,
+                breakdown.type
               );
               const totalValueForBreakdown = showCalculationsForBreakdown ? calculateTotalForBreakdown(
                 { breakdowns: currentBreakdowns },
                 breakdown.id,
-                isDefaultBreakdown
+                isDefaultBreakdown,
+                breakdown.type
               ) : 0;
+
+              // NOUVEAU: Calcul de la différence avec le budget média pour PEBs
+              const budgetDiff = isPEBs && showCalculationsForBreakdown ? 
+                calculateBudgetDifference(totalValueForBreakdown) : null;
 
               return (
                 <div key={breakdown.id} className="bg-white rounded-xl shadow-sm">
                   <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
+                        {/* NOUVEAU: Bouton collapse/expand */}
+                        <button
+                          type="button"
+                          onClick={() => toggleBreakdownCollapse(breakdown.id)}
+                          className="p-1 rounded-md hover:bg-white/50 transition-colors"
+                        >
+                          {isCollapsed ? (
+                            <ChevronRightIcon className="h-5 w-5 text-slate-600" />
+                          ) : (
+                            <ChevronDownIcon className="h-5 w-5 text-slate-600" />
+                          )}
+                        </button>
+
                         <div className="p-2 bg-white rounded-lg shadow-sm">
                           <Icon className="h-5 w-5 text-slate-600" />
                         </div>
@@ -839,8 +1094,23 @@ export default function TactiqueFormRepartition({
 
                       <div className="flex items-center gap-3">
                         {showCalculationsForBreakdown && totalValueForBreakdown > 0 && (
-                          <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
-                            Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                          <div className="text-right">
+                            <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
+                              Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </div>
+                            {/* NOUVEAU: Affichage de la différence pour PEBs */}
+                            {budgetDiff && formData.TC_Media_Budget && (
+                              <div className={`mt-1 px-3 py-1 rounded text-xs font-medium ${
+                                budgetDiff.isOverBudget 
+                                  ? 'bg-red-50 text-red-700' 
+                                  : 'bg-green-50 text-green-700'
+                              }`}>
+                                {budgetDiff.isOverBudget ? '+' : ''}
+                                {budgetDiff.difference.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                {' '}({budgetDiff.percentage > 0 ? '+' : ''}{budgetDiff.percentage.toFixed(1)}%)
+                                <div className="text-xs opacity-75">vs Budget: {parseFloat(formData.TC_Media_Budget).toLocaleString('fr-CA')}</div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -857,15 +1127,21 @@ export default function TactiqueFormRepartition({
                     </div>
                   </div>
 
-                  <div className="p-6">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {/* NOUVEAU: Contenu collapsible */}
+                  {!isCollapsed && (
+                    <div className="p-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {breakdownPeriods.map(period => {
-                        const currentValue = getPeriodValue(period.id, period.breakdownId);
+                        const currentValue = getPeriodValue(period.id, period.breakdownId, 'value');
+                        const currentUnitCost = getPeriodValue(period.id, period.breakdownId, 'unitCost');
+                        const currentTotal = getPeriodValue(period.id, period.breakdownId, 'total');
+                        
+                        // NOUVEAU: Pour PEBs, calculer le pourcentage basé sur le total
+                        const valueForPercentage = isPEBs ? currentTotal : currentValue;
                         const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0
-                          ? calculatePercentageForBreakdown(currentValue, totalValueForBreakdown)
+                          ? calculatePercentageForBreakdown(valueForPercentage, totalValueForBreakdown)
                           : 0;
 
-                        const isDefaultBreakdown = breakdown.isDefault;
                         const isActive = getPeriodActiveStatus(period.id, period.breakdownId);
 
                         return (
@@ -893,21 +1169,64 @@ export default function TactiqueFormRepartition({
                             </div>
 
                             <div className="px-3 pb-3">
-                              <input
-                                type="text"
-                                value={currentValue}
-                                onChange={(e) => handlePeriodValueChange(period.id, e.target.value)}
-                                disabled={loading || (isDefaultBreakdown && !isActive)}
-                                placeholder="Valeur"
-                                className={`w-full px-3 py-2 text-sm rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
-                                  isDefaultBreakdown && !isActive
-                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
-                                    : 'bg-white border-0 shadow-sm focus:shadow-md'
-                                }`}
-                              />
+                              {isPEBs ? (
+                                // NOUVEAU: Interface PEBs avec 3 inputs superposés
+                                <div className="space-y-2">
+                                  {/* Coût par unité */}
+                                  <input
+                                    type="text"
+                                    value={currentUnitCost}
+                                    onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'unitCost')}
+                                    disabled={loading || (isDefaultBreakdown && !isActive)}
+                                    placeholder="Coût/unité"
+                                    className={`w-full px-2 py-1 text-xs rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
+                                      isDefaultBreakdown && !isActive
+                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
+                                        : 'bg-white border-0 shadow-sm focus:shadow-md'
+                                    }`}
+                                  />
+                                  
+                                  {/* Volume */}
+                                  <input
+                                    type="text"
+                                    value={currentValue}
+                                    onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'value')}
+                                    disabled={loading || (isDefaultBreakdown && !isActive)}
+                                    placeholder="Volume"
+                                    className={`w-full px-2 py-1 text-xs rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
+                                      isDefaultBreakdown && !isActive
+                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
+                                        : 'bg-white border-0 shadow-sm focus:shadow-md'
+                                    }`}
+                                  />
+                                  
+                                  {/* Total calculé (grisé) */}
+                                  <input
+                                    type="text"
+                                    value={currentTotal}
+                                    disabled={true}
+                                    placeholder="Total"
+                                    className="w-full px-2 py-1 text-xs rounded-md text-center bg-slate-100 border border-slate-200 text-slate-600 cursor-not-allowed"
+                                  />
+                                </div>
+                              ) : (
+                                // Interface normale pour les autres types
+                                <input
+                                  type="text"
+                                  value={currentValue}
+                                  onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'value')}
+                                  disabled={loading || (isDefaultBreakdown && !isActive)}
+                                  placeholder="Valeur"
+                                  className={`w-full px-3 py-2 text-sm rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
+                                    isDefaultBreakdown && !isActive
+                                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
+                                      : 'bg-white border-0 shadow-sm focus:shadow-md'
+                                  }`}
+                                />
+                              )}
 
-                              {showCalculationsForBreakdown && currentValue.trim() !== '' && isActive && 
-                               !isNaN(parseFloat(currentValue.trim())) && (
+                              {showCalculationsForBreakdown && valueForPercentage.trim() !== '' && isActive && 
+                               !isNaN(parseFloat(valueForPercentage.trim())) && (
                                 <div className="mt-2 text-center space-y-1">
                                   <div className="text-sm font-medium text-indigo-600">
                                     {percentage.toFixed(1)}%
@@ -920,6 +1239,7 @@ export default function TactiqueFormRepartition({
                       })}
                     </div>
                   </div>
+                )}
                 </div>
               );
             })}
@@ -936,12 +1256,72 @@ export default function TactiqueFormRepartition({
 
       {distributionModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Distribuer le montant
             </h3>
 
             <div className="space-y-4">
+              {/* Dates de distribution */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Date de début
+                  </label>
+                  <input
+                    type="date"
+                    value={distributionModal.startDate}
+                    onChange={(e) => setDistributionModal(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Date de fin
+                  </label>
+                  <input
+                    type="date"
+                    value={distributionModal.endDate}
+                    onChange={(e) => setDistributionModal(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Choix du champ pour PEBs */}
+              {distributionModal.breakdownId && breakdowns.find(b => b.id === distributionModal.breakdownId)?.type === 'PEBs' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Distribuer sur
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDistributionModal(prev => ({ ...prev, pebsField: 'unitCost' }))}
+                      className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+                        distributionModal.pebsField === 'unitCost'
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-300 hover:border-slate-400'
+                      }`}
+                    >
+                      Coût / unité
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDistributionModal(prev => ({ ...prev, pebsField: 'value' }))}
+                      className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+                        distributionModal.pebsField === 'value'
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-300 hover:border-slate-400'
+                      }`}
+                    >
+                      Volume
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Montant total */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Montant total à distribuer
@@ -950,14 +1330,37 @@ export default function TactiqueFormRepartition({
                   type="number"
                   step="0.01"
                   value={distributionModal.totalAmount}
-                  onChange={(e) => setDistributionModal((prev: DistributionModalState) => ({ ...prev, totalAmount: e.target.value }))}
+                  onChange={(e) => setDistributionModal(prev => ({ ...prev, totalAmount: e.target.value }))}
                   placeholder="Ex: 10000"
                   className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                 />
-                <p className="text-sm text-slate-500 mt-2">
-                  Le montant sera distribué équitablement sur les périodes actives qui intersectent avec les dates de la tactique ({formData.TC_StartDate || 'Non définie'} → {formData.TC_EndDate || 'Non définie'}).
-                </p>
               </div>
+
+              {/* Aperçu de la distribution */}
+              {(() => {
+                const preview = getDistributionPreview();
+                return preview.periodsCount > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-blue-700 font-medium">
+                        Sera divisé sur {preview.periodsCount} période{preview.periodsCount > 1 ? 's' : ''}
+                      </span>
+                      <span className="text-blue-600 font-semibold">
+                        {preview.valuePerPeriod.toLocaleString('fr-CA', { 
+                          minimumFractionDigits: 2, 
+                          maximumFractionDigits: 2 
+                        })} / période
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <p className="text-sm text-slate-500">
+                La distribution se fera uniquement sur les périodes qui intersectent avec les dates choisies
+                {distributionModal.breakdownId && breakdowns.find(b => b.id === distributionModal.breakdownId)?.isDefault && 
+                  ' et qui sont activées (cochées)'}.
+              </p>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -969,7 +1372,7 @@ export default function TactiqueFormRepartition({
               </button>
               <button
                 onClick={handleConfirmDistribution}
-                disabled={!distributionModal.totalAmount}
+                disabled={!distributionModal.totalAmount || !distributionModal.startDate || !distributionModal.endDate}
                 className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Distribuer

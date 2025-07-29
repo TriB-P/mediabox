@@ -1,3 +1,4 @@
+// app/types/costGuide.ts
 /**
  * Ce fichier contient les définitions de types TypeScript pour le module de guide de coûts.
  * Il inclut les interfaces pour les guides de coûts, les entrées de guide de coûts,
@@ -20,11 +21,10 @@ export type PurchaseUnit = 'PEB' | 'CPM' | 'Unitaire';
 export interface CostGuideEntry {
   id: string;
   guideId: string;
-  partnerId: string;
-  partnerName: string;
   level1: string;
   level2: string;
   level3: string;
+  level4: string;
   purchaseUnit: PurchaseUnit;
   unitPrice: number;
   comment: string;
@@ -38,10 +38,10 @@ export interface CostGuideFormData {
 }
 
 export interface CostGuideEntryFormData {
-  partnerId: string;
   level1: string;
   level2: string;
   level3: string;
+  level4: string;
   purchaseUnit: PurchaseUnit;
   unitPrice: number | string;
   comment: string;

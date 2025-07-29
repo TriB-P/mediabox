@@ -5,6 +5,7 @@
  * Inclut les fonctionnalités d'édition en ligne avec copier-coller et gestion des périodes actives.
  * CORRIGÉ: Consolidation des boutons d'édition
  * FINAL: Corrections finales
+ * NOUVEAU: Support du type PEBs avec icône calculatrice
  */
 
 'use client';
@@ -17,6 +18,7 @@ import {
   CalendarIcon, 
   ClockIcon, 
   Cog6ToothIcon,
+  CalculatorIcon,
   PencilIcon,
   CheckIcon,
   XMarkIcon,
@@ -74,6 +76,7 @@ export default function TactiquesTimelineView({
 
   /**
    * Obtient l'icône correspondante à un type de breakdown.
+   * NOUVEAU: Support de l'icône CalculatorIcon pour PEBs
    */
   const getBreakdownIcon = (type: string) => {
     switch (type) {
@@ -81,6 +84,8 @@ export default function TactiquesTimelineView({
         return CalendarIcon;
       case 'Mensuel':
         return ClockIcon;
+      case 'PEBs':
+        return CalculatorIcon; // NOUVEAU: Icône pour PEBs
       case 'Custom':
         return Cog6ToothIcon;
       default:
@@ -222,6 +227,12 @@ export default function TactiquesTimelineView({
                     className: "h-4 w-4"
                   })}
                   <span>{selectedBreakdown.type}</span>
+                  {/* NOUVEAU: Indication spéciale pour PEBs */}
+                  {selectedBreakdown.type === 'PEBs' && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium ml-2">
+                      3 valeurs
+                    </span>
+                  )}
                 </div>
                 {selectedBreakdown.type !== 'Custom' && (
                   <span>
@@ -265,6 +276,7 @@ export default function TactiquesTimelineView({
                   Vous pouvez maintenant modifier les valeurs des répartitions. 
                   Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller.
                   {selectedBreakdown?.isDefault && " Cochez/décochez les cases pour activer/désactiver les périodes."}
+                  {selectedBreakdown?.type === 'PEBs' && " Pour PEBs : modifiez le coût/unité et le volume, le total se calcule automatiquement."}
                 </p>
               </div>
             </div>
