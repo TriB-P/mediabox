@@ -135,15 +135,30 @@ export default function CostGuideModal({
   /**
    * Navigation retour dans le cost guide
    */
-  const handleCostGuideBack = () => {
-    setModalState(prev => ({
-      ...prev,
-      currentLevel: Math.max(1, prev.currentLevel - 1) as (1 | 2 | 3 | 4),
-      // Réinitialiser la sélection du niveau actuel selon le retour
-      ...(prev.currentLevel === 2 && { level1Selection: '' }),
-      ...(prev.currentLevel === 3 && { level2Selection: '' }),
-      ...(prev.currentLevel === 4 && { level3Selection: '' })
-    }));
+  const handleCostGuideBack = (e?: React.MouseEvent) => {
+    console.log('=== DEBUGGING handleCostGuideBack ===');
+    console.log('Niveau actuel:', modalState.currentLevel);
+    console.log('Event:', e);
+    
+    // Empêcher toute propagation d'événement
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('Avant setState...');
+    
+    setModalState(prev => {
+      const newLevel = Math.max(1, prev.currentLevel - 1) as (1 | 2 | 3 | 4);
+      console.log('Changement de niveau:', prev.currentLevel, '->', newLevel);
+      
+      return {
+        ...prev,
+        currentLevel: newLevel
+      };
+    });
+    
+    console.log('Après setState...');
   };
 
   /**
@@ -220,14 +235,25 @@ export default function CostGuideModal({
         </div>
 
         {/* Bouton retour */}
+
+
+
+
         {modalState.currentLevel > 1 && (
-          <button
-            onClick={handleCostGuideBack}
-            className="mb-4 px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
-          >
-            ← Retour
-          </button>
-        )}
+  <button
+    type="button"
+    onClick={(e) => {
+      handleCostGuideBack(e);
+    }}
+    onMouseDown={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }}
+    className="mb-4 px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+  >
+    ← Retour
+  </button>
+)}
 
         {/* Contenu selon le niveau actuel */}
         <div className="space-y-2">
