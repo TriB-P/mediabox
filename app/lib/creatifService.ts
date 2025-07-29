@@ -252,7 +252,8 @@ async function generateLevelString(structure: string, context: ResolutionContext
 /**
  * Prépare les données du créatif pour le stockage dans Firestore.
  * Cela inclut la résolution des variables de taxonomie pour générer
- * les chaînes de niveau 5 et 6 pour les tags, plateformes et Media Ocean.
+ * les chaînes de niveau 5 et 6 pour les tags, plateformes et Media Ocean,
+ * ainsi que la gestion des nouveaux champs specs.
  * @param creatifData Les données du formulaire du créatif.
  * @param clientId L'ID du client.
  * @param campaignData Les données de la campagne associée.
@@ -318,6 +319,23 @@ async function prepareDataForFirestore(
         }
     });
 
+    // NOUVEAU: Gestion des champs specs
+    const specFields = {
+        CR_Spec_PartnerId: creatifData.CR_Spec_PartnerId || '',
+        CR_Spec_SelectedSpecId: creatifData.CR_Spec_SelectedSpecId || '',
+        CR_Spec_Name: creatifData.CR_Spec_Name || '',
+        CR_Spec_Format: creatifData.CR_Spec_Format || '',
+        CR_Spec_Ratio: creatifData.CR_Spec_Ratio || '',
+        CR_Spec_FileType: creatifData.CR_Spec_FileType || '',
+        CR_Spec_MaxWeight: creatifData.CR_Spec_MaxWeight || '',
+        CR_Spec_Weight: creatifData.CR_Spec_Weight || '',
+        CR_Spec_Animation: creatifData.CR_Spec_Animation || '',
+        CR_Spec_Title: creatifData.CR_Spec_Title || '',
+        CR_Spec_Text: creatifData.CR_Spec_Text || '',
+        CR_Spec_SpecSheetLink: creatifData.CR_Spec_SpecSheetLink || '',
+        CR_Spec_Notes: creatifData.CR_Spec_Notes || '',
+    };
+
     const firestoreData = {
         CR_Label: creatifData.CR_Label || '',
         CR_Order: creatifData.CR_Order || 0,
@@ -333,6 +351,7 @@ async function prepareDataForFirestore(
         },
         ...creatifFields,
         ...taxonomyChains,
+        ...specFields, // NOUVEAU: Ajout des champs specs
         updatedAt: new Date().toISOString(),
         ...(!isUpdate && { createdAt: new Date().toISOString() })
     };
@@ -346,7 +365,6 @@ async function prepareDataForFirestore(
 
     return firestoreData;
 }
-
 /**
  * Crée un nouveau créatif dans la base de données Firestore.
  * Les données du créatif sont préparées, incluant la résolution des taxonomies,

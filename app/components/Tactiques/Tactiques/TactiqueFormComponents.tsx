@@ -301,7 +301,7 @@ export const FormSection = memo<FormSectionProps>(({
   children,
   className = '',
 }) => (
-  <div className={`border-t border-gray-200 pt-8 ${className}`}>
+  <div className={`${className}`}>
     <div className="border-b border-gray-200 pb-4 mb-6">
       <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
       {description && (

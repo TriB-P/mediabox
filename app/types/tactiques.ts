@@ -163,7 +163,7 @@ export interface Placement {
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
-// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS ====================
+// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS + SPECS ====================
 
 export interface Creatif {
   id: string;
@@ -187,6 +187,21 @@ export interface Creatif {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // NOUVEAUX CHAMPS SPECS - AJOUTÉS
+  CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
+  CR_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
+  CR_Spec_Name?: string;            // Nom de la spécification
+  CR_Spec_Format?: string;          // Format (ex: 300x250)
+  CR_Spec_Ratio?: string;           // Ratio (ex: 16:9)
+  CR_Spec_FileType?: string;        // Type de fichier (ex: JPG, PNG, GIF)
+  CR_Spec_MaxWeight?: string;       // Poids maximal
+  CR_Spec_Weight?: string;          // Poids maximal HTML5
+  CR_Spec_Animation?: string;       // Animation (Autorisée/Non autorisée)
+  CR_Spec_Title?: string;           // Contraintes titre
+  CR_Spec_Text?: string;            // Contraintes texte
+  CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
+  CR_Spec_Notes?: string;           // Notes additionnelles
 
   // Stockage des valeurs taxonomie et générations
   CR_Taxonomy_Values?: TaxonomyValues;
@@ -300,7 +315,7 @@ export interface PlacementFormData {
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
-// ==================== FORMULAIRE CRÉATIF COMPLET ====================
+// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS ====================
 
 export interface CreatifFormData {
   CR_Label: string;
@@ -323,6 +338,21 @@ export interface CreatifFormData {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // NOUVEAUX CHAMPS SPECS - AJOUTÉS
+  CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
+  CR_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
+  CR_Spec_Name?: string;            // Nom de la spécification
+  CR_Spec_Format?: string;          // Format (ex: 300x250)
+  CR_Spec_Ratio?: string;           // Ratio (ex: 16:9)
+  CR_Spec_FileType?: string;        // Type de fichier (ex: JPG, PNG, GIF)
+  CR_Spec_MaxWeight?: string;       // Poids maximal
+  CR_Spec_Weight?: string;          // Poids maximal HTML5
+  CR_Spec_Animation?: string;       // Animation (Autorisée/Non autorisée)
+  CR_Spec_Title?: string;           // Contraintes titre
+  CR_Spec_Text?: string;            // Contraintes texte
+  CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
+  CR_Spec_Notes?: string;           // Notes additionnelles
 
   // Stockage des valeurs taxonomie
   CR_Taxonomy_Values?: TaxonomyValues;

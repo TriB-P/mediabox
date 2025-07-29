@@ -1,7 +1,17 @@
+interface ListItem {
+  id: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}// app/components/Tactiques/Creatif/CreatifDrawer.tsx
+
 /**
  * Ce fichier définit le composant CreatifDrawer, qui est un tiroir (drawer) de formulaire
  * utilisé pour créer ou modifier un "Créatif". Le tiroir contient une navigation par onglets
- * pour séparer les champs d'information générale de ceux liés à la taxonomie.
+ * pour séparer les champs d'information générale de ceux liés à la taxonomie et aux specs.
  * Il gère l'état du formulaire et communique avec le composant parent via la prop `onSave`
  * pour persister les données.
  */
@@ -12,12 +22,19 @@ import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import CreatifFormInfo from './CreatifFormInfo';
 import CreatifFormTaxonomy from './CreatifFormTaxonomy';
+import CreatifFormSpecs from './CreatifFormSpecs';
 import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
-import { DocumentTextIcon, TagIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, TagIcon, CogIcon } from '@heroicons/react/24/outline';
 import { Creatif, CreatifFormData, Tactique, Placement } from '../../../types/tactiques';
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import { createEmptyCreatifFieldsObject, extractCreatifFieldsFromData } from '../../../config/taxonomyFields';
+
+// NOUVEAU : Import des fonctions de cache
+import {
+  getListForClient,
+  ShortcodeItem
+} from '../../../lib/cacheService';
 
 interface CreatifDrawerProps {
   isOpen: boolean;
@@ -55,6 +72,7 @@ export default function CreatifDrawer({
 
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
 
   const [formData, setFormData] = useState<CreatifFormData>(() => {
     const emptyCreatifFields = createEmptyCreatifFieldsObject();
@@ -67,9 +85,106 @@ export default function CreatifDrawer({
       CR_Taxonomy_MediaOcean: '',
       CR_Taxonomy_Values: {},
       CR_Generated_Taxonomies: {},
+      // Nouveaux champs pour les specs
+      CR_Spec_PartnerId: '',
+      CR_Spec_SelectedSpecId: '',
+      CR_Spec_Name: '',
+      CR_Spec_Format: '',
+      CR_Spec_Ratio: '',
+      CR_Spec_FileType: '',
+      CR_Spec_MaxWeight: '',
+      CR_Spec_Weight: '',
+      CR_Spec_Animation: '',
+      CR_Spec_Title: '',
+      CR_Spec_Text: '',
+      CR_Spec_SpecSheetLink: '',
+      CR_Spec_Notes: '',
       ...emptyCreatifFields,
     };
   });
+
+  /**
+   * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
+   * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher')
+   * @param clientId - L'identifiant du client
+   * @returns Promise<ListItem[]> - La liste des éléments
+   */
+  const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
+    try {
+      console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
+      
+      // Essayer d'abord le cache
+      const cachedList = getListForClient(fieldId, clientId);
+      
+      if (cachedList && cachedList.length > 0) {
+        console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
+        
+        // Convertir ShortcodeItem[] vers ListItem[] (structures identiques)
+        return cachedList.map(item => ({
+          id: item.id,
+          SH_Code: item.SH_Code,
+          SH_Display_Name_FR: item.SH_Display_Name_FR,
+          SH_Display_Name_EN: item.SH_Display_Name_EN,
+          SH_Default_UTM: item.SH_Default_UTM,
+          SH_Logo: item.SH_Logo,
+          SH_Type: item.SH_Type,
+          SH_Tags: item.SH_Tags
+        }));
+      }
+      
+      // Fallback sur Firebase si pas de cache
+      console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
+      console.log(`FIREBASE: LECTURE - Fichier: CreatifDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+      
+      // Import dynamique pour éviter les dépendances circulaires
+      const { getDynamicList } = await import('../../../lib/tactiqueListService');
+      return await getDynamicList(fieldId, clientId);
+      
+    } catch (error) {
+      console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
+      
+      // En cas d'erreur, fallback sur Firebase
+      console.log(`FIREBASE: LECTURE - Fichier: CreatifDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+      const { getDynamicList } = await import('../../../lib/tactiqueListService');
+      return await getDynamicList(fieldId, clientId);
+    }
+  };
+
+  /**
+   * Charge toutes les listes dynamiques nécessaires avec priorité sur le cache
+   */
+  const loadAllData = useCallback(async () => {
+    if (!selectedClient) return;
+
+    try {
+      console.log(`[CACHE] 🚀 Début chargement données avec cache pour CreatifDrawer`);
+      
+      // Charger TC_Publisher via le cache
+      console.log(`[CACHE] Chargement de TC_Publisher`);
+      const publishersList = await getCachedOrFirebaseList('TC_Publisher', selectedClient.clientId);
+      
+      const newDynamicLists: { [key: string]: ListItem[] } = {
+        TC_Publisher: publishersList
+      };
+
+      setDynamicLists(newDynamicLists);
+      
+      console.log(`[CACHE] ✅ Chargement terminé avec cache pour CreatifDrawer`);
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+      setDynamicLists({});
+    }
+  }, [selectedClient]);
+
+  /**
+   * Effet pour charger les données au montage du composant
+   */
+  useEffect(() => {
+    if (isOpen && selectedClient) {
+      loadAllData();
+    }
+  }, [isOpen, selectedClient, loadAllData]);
 
   /**
    * Effet pour initialiser ou mettre à jour les données du formulaire.
@@ -89,6 +204,20 @@ export default function CreatifDrawer({
         CR_Taxonomy_MediaOcean: creatif.CR_Taxonomy_MediaOcean || '',
         CR_Taxonomy_Values: creatif.CR_Taxonomy_Values || {},
         CR_Generated_Taxonomies: creatif.CR_Generated_Taxonomies || {},
+        // Champs specs depuis le créatif existant
+        CR_Spec_PartnerId: (creatif as any).CR_Spec_PartnerId || '',
+        CR_Spec_SelectedSpecId: (creatif as any).CR_Spec_SelectedSpecId || '',
+        CR_Spec_Name: (creatif as any).CR_Spec_Name || '',
+        CR_Spec_Format: (creatif as any).CR_Spec_Format || '',
+        CR_Spec_Ratio: (creatif as any).CR_Spec_Ratio || '',
+        CR_Spec_FileType: (creatif as any).CR_Spec_FileType || '',
+        CR_Spec_MaxWeight: (creatif as any).CR_Spec_MaxWeight || '',
+        CR_Spec_Weight: (creatif as any).CR_Spec_Weight || '',
+        CR_Spec_Animation: (creatif as any).CR_Spec_Animation || '',
+        CR_Spec_Title: (creatif as any).CR_Spec_Title || '',
+        CR_Spec_Text: (creatif as any).CR_Spec_Text || '',
+        CR_Spec_SpecSheetLink: (creatif as any).CR_Spec_SpecSheetLink || '',
+        CR_Spec_Notes: (creatif as any).CR_Spec_Notes || '',
         ...emptyCreatifFields,
         ...creatifFieldsFromCreatif,
       });
@@ -102,6 +231,20 @@ export default function CreatifDrawer({
         CR_Taxonomy_MediaOcean: '',
         CR_Taxonomy_Values: {},
         CR_Generated_Taxonomies: {},
+        // Champs specs vides pour nouveau créatif
+        CR_Spec_PartnerId: '',
+        CR_Spec_SelectedSpecId: '',
+        CR_Spec_Name: '',
+        CR_Spec_Format: '',
+        CR_Spec_Ratio: '',
+        CR_Spec_FileType: '',
+        CR_Spec_MaxWeight: '',
+        CR_Spec_Weight: '',
+        CR_Spec_Animation: '',
+        CR_Spec_Title: '',
+        CR_Spec_Text: '',
+        CR_Spec_SpecSheetLink: '',
+        CR_Spec_Notes: '',
         ...emptyCreatifFields,
       });
     }
@@ -109,7 +252,8 @@ export default function CreatifDrawer({
 
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
-    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon }
+    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon },
+    { id: 'specs', name: 'Specs', icon: CogIcon }
   ];
 
   /**
@@ -174,6 +318,18 @@ export default function CreatifDrawer({
             campaignData={selectedCampaign || undefined}
             tactiqueData={tactiqueData}
             placementData={placementData}
+          />
+        );
+
+      case 'specs':
+        if (!selectedClient) return null;
+        return (
+          <CreatifFormSpecs
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={handleTooltipChange}
+            publishersList={dynamicLists.TC_Publisher || []}
+            clientId={selectedClient.clientId}
           />
         );
 
