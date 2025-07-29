@@ -659,6 +659,7 @@ export default function TactiqueDrawer({
             onTooltipChange={setActiveTooltip}
             breakdowns={breakdowns}
             loading={loading}
+            clientId={selectedClient?.clientId || ''}
           />
         );
 
