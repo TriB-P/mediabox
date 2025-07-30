@@ -5,8 +5,9 @@
  * 1. Validation des données et récupération des métadonnées
  * 2. Duplication du template via Google Drive API
  * 3. Création de l'entrée Firebase avec statut "creating"
- * 4. Injection des données de campagne/version dans le document
- * 5. Mise à jour du statut final (completed/error)
+ * 4. Duplication des onglets si TE_Duplicate = TRUE
+ * 5. Injection des données de campagne/version dans le document
+ * 6. Mise à jour du statut final (completed/error)
  * 
  * IMPORTANT: Les shortcodes sont convertis selon la langue du template (TE_Language)
  * et non selon la langue d'exportation du client.
@@ -18,6 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useDuplicateTemplate } from './useDuplicateTemplate';
 import { useCombinedDocExport } from './useCombinedDocExport';
 import { useConvertShortcodesDoc } from './useConvertShortcodesDoc';
+import { useDuplicateTabsDoc } from './useDuplicateTabsDoc';
 import { 
   createDocument, 
   updateDocumentStatus, 
@@ -64,6 +66,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
 
   const { duplicateTemplate, loading: duplicateLoading } = useDuplicateTemplate();
   const { exportCombinedData, loading: exportLoading } = useCombinedDocExport();
+  const { duplicateAndManageTabs, loading: tabsLoading } = useDuplicateTabsDoc();
 
   /**
    * Met à jour l'état de progression du processus.
@@ -72,6 +75,17 @@ export function useCreateDocument(): UseCreateDocumentReturn {
    */
   const updateProgress = useCallback((step: string, details: string) => {
     setProgress({ step, details });
+  }, []);
+
+  /**
+   * Extrait l'ID d'un Google Sheet depuis son URL.
+   * @param url L'URL complète du Google Sheet.
+   * @returns L'ID du sheet ou null si non trouvé.
+   */
+  const extractSheetId = useCallback((url: string): string | null => {
+    const regex = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
   }, []);
 
   /**
@@ -136,6 +150,61 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       clientInfo
     };
   }, [updateProgress]);
+
+  /**
+   * Gère la duplication des onglets si le template l'exige.
+   * @param template Le template avec ses propriétés.
+   * @param documentUrl L'URL du document dupliqué.
+   * @param context Le contexte de création.
+   * @returns Le résultat de la duplication des onglets.
+   */
+  const handleTabsDuplication = useCallback(async (
+    template: any,
+    documentUrl: string,
+    context: DocumentCreationContext
+  ) => {
+    // Vérifier si le template nécessite la duplication d'onglets
+    if (!template.TE_Duplicate) {
+      console.log('[CREATE] Template ne nécessite pas de duplication d\'onglets');
+      return { success: true };
+    }
+
+    updateProgress('Onglets', 'Duplication des onglets selon la structure de campagne...');
+
+    // Extraire l'ID du sheet
+    const sheetId = extractSheetId(documentUrl);
+    if (!sheetId) {
+      return {
+        success: false,
+        errorMessage: 'Impossible d\'extraire l\'ID du Google Sheet pour la duplication des onglets'
+      };
+    }
+
+    try {
+      const success = await duplicateAndManageTabs(
+        'creation',
+        sheetId,
+        context.clientId,
+        context.formData.campaignId,
+        context.formData.versionId
+      );
+
+      if (!success) {
+        return {
+          success: false,
+          errorMessage: 'Échec de la duplication des onglets'
+        };
+      }
+
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur durant la duplication des onglets';
+      return {
+        success: false,
+        errorMessage
+      };
+    }
+  }, [updateProgress, extractSheetId, duplicateAndManageTabs]);
 
   /**
    * Injecte les données dans le document dupliqué via le hook combiné.
@@ -280,7 +349,33 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         }
       );
 
-      // 5. INJECTION DES DONNÉES
+      // 5. DUPLICATION DES ONGLETS (SI NÉCESSAIRE)
+      const tabsResult = await handleTabsDuplication(
+        template,
+        duplicationResult.duplicatedUrl,
+        context
+      );
+
+      if (!tabsResult.success) {
+        // Mettre à jour le statut d'erreur
+        await updateDocumentStatus(
+          clientId,
+          formData.campaignId,
+          formData.versionId,
+          documentId,
+          DocumentStatus.ERROR,
+          tabsResult.errorMessage
+        );
+
+        return {
+          success: false,
+          duplicationResult,
+          errorMessage: tabsResult.errorMessage || 'Échec de la duplication des onglets',
+          failedStep: 'duplication'
+        };
+      }
+
+      // 6. INJECTION DES DONNÉES
       updateProgress('Injection', 'Injection des données dans le document...');
       
       const injectionResult = await injectDataIntoDocument(
@@ -289,7 +384,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         template.TE_Language // Utilisation de la langue du template
       );
 
-      // 6. MISE À JOUR DU STATUT FINAL
+      // 7. MISE À JOUR DU STATUT FINAL
       if (injectionResult.success) {
         await updateDocumentStatus(
           clientId,
@@ -330,7 +425,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         );
       }
 
-      // 7. CONSTRUIRE LE DOCUMENT FINAL
+      // 8. CONSTRUIRE LE DOCUMENT FINAL
       const finalDocument = {
         id: documentId,
         name: formData.name,
@@ -385,11 +480,12 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     user, 
     validateAndFetchData, 
     duplicateTemplate, 
+    handleTabsDuplication,
     injectDataIntoDocument, 
     updateProgress
   ]);
 
-  const overallLoading = loading || duplicateLoading || exportLoading;
+  const overallLoading = loading || duplicateLoading || exportLoading || tabsLoading;
 
   return {
     createDocument: createDocumentComplete,

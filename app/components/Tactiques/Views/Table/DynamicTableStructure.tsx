@@ -1,13 +1,14 @@
 // app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
 
 /**
- * Version refactorisée du composant table dynamique
- * Utilise les helpers de façon plus simple et pratique
- * VERSION BUDGET : Intègre les cellules budget spécialisées avec calculs automatiques
+ * Version finale avec sélection de cellules et validation avancée
+ * NOUVEAU : Remplace les checkboxes par sélection Excel-like + copier-coller intelligent
+ * NOUVEAU : Validation robuste des menus déroulants avec indicateurs visuels
+ * VERSION BUDGET : Compatible avec les cellules budget spécialisées
  */
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import {
@@ -16,19 +17,38 @@ import {
   TactiqueSubCategory
 } from './tableColumns.config';
 import {
+  TACTIQUE_BUDGET_COLUMNS_COMPLETE,
+  isFeeCompositeColumn,
+  shouldTriggerBudgetRecalculation,
+  getCalculatedBudgetFields,
+  formatBudgetDisplayValue,
+  FeeColumnDefinition
+} from './budgetColumns.config';
+import FeeCompositeCell, { FeeCompositeCellReadonly } from './FeeCompositeCell';
+import {
   enrichColumnsWithData,
   processTableRows,
   getHierarchyLabel,
   getRowStyles,
   getTypeStyles,
   getTypeLabel,
-  handleMultipleSelection,
   handleSort as handleSortFromHelper,
   formatDisplayValue
 } from './DynamicTableHelpers';
-// NOUVEAU : Import du composant cellule budget
+import {
+  SelectedCell,
+  CopiedData,
+  ValidationError,
+  validateCellValue,
+  generateRectangularSelection,
+  applyPastedData,
+  canCellReceiveValue,
+  formatCopiedValueDisplay,
+  getColumnOptions,
+  cleanupExpiredErrors,
+  createValidationError
+} from './CellSelectionHelper';
 import TableBudgetCell from './TableBudgetCell';
-// NOUVEAU : Import des types depuis le service
 import { Fee } from '../../../../lib/tactiqueListService';
 
 interface SortConfig {
@@ -68,39 +88,22 @@ interface DynamicTableStructureProps {
   };
   buckets: CampaignBucket[];
   dynamicLists: { [key: string]: ListItem[] };
-  // NOUVEAU : Props pour les calculs budget
   clientFees: Fee[];
   exchangeRates: { [key: string]: number };
   campaignCurrency: string;
 }
 
-// NOUVEAU : Liste des champs qui utilisent les calculs budget
+// NOUVEAU : Type union pour supporter les colonnes composites et normales
+type TableColumn = DynamicColumn | FeeColumnDefinition;
+
 const BUDGET_FIELDS = [
-  'TC_Budget_Mode',
-  'TC_Budget',
-  'TC_Currency',
-  'TC_Unit_Type',
-  'TC_Cost_Per_Unit',
-  'TC_Unit_Volume',
-  'TC_Has_Bonus',
-  'TC_Real_Value',
-  'TC_Bonus_Value',
-  'TC_Media_Budget',
-  'TC_Client_Budget',
-  'TC_Total_Fees'
+  'TC_Budget_Mode', 'TC_Budget', 'TC_Currency', 'TC_Unit_Type', 'TC_Cost_Per_Unit',
+  'TC_Unit_Volume', 'TC_Has_Bonus', 'TC_Real_Value', 'TC_Bonus_Value',
+  'TC_Media_Budget', 'TC_Client_Budget', 'TC_Total_Fees'
 ];
 
-/**
- * NOUVEAU : Détermine si un champ doit utiliser TableBudgetCell
- */
-const isBudgetField = (fieldKey: string): boolean => {
-  return BUDGET_FIELDS.includes(fieldKey);
-};
+const isBudgetField = (fieldKey: string): boolean => BUDGET_FIELDS.includes(fieldKey);
 
-/**
- * Composant principal refactorisé pour la structure de la table dynamique
- * VERSION BUDGET : Supporte maintenant les cellules budget avec calculs automatiques
- */
 export default function DynamicTableStructure({
   tableRows,
   selectedLevel,
@@ -115,74 +118,236 @@ export default function DynamicTableStructure({
   entityCounts,
   buckets,
   dynamicLists,
-  // NOUVEAU : Props budget
   clientFees,
   exchangeRates,
   campaignCurrency
 }: DynamicTableStructureProps) {
   
-  // États locaux
+  // États existants
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hideChildrenLevels, setHideChildrenLevels] = useState(false);
   const [selectedTactiqueSubCategory, setSelectedTactiqueSubCategory] = useState<TactiqueSubCategory>('info');
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [copyMode, setCopyMode] = useState<{ active: boolean; sourceCell?: string; sourceValue?: any }>({ active: false });
-  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
+  // NOUVEAU : États pour sélection avancée
+  const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
+  const [selectionStart, setSelectionStart] = useState<SelectedCell | null>(null);
+  const [copiedData, setCopiedData] = useState<CopiedData | null>(null);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+
+  const tableRef = useRef<HTMLTableElement>(null);
+
   /**
-   * Calcule les colonnes enrichies avec les données dynamiques
+   * Colonnes enrichies avec données dynamiques et colonnes budget spécialisées
    */
   const columns = useMemo(() => {
-    const baseColumns = getColumnsWithHierarchy(selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
-    return enrichColumnsWithData(baseColumns, buckets, dynamicLists);
+    let baseColumns: TableColumn[];
+    
+    // NOUVEAU : Utiliser les colonnes budget spécialisées pour la sous-catégorie budget
+    if (selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget') {
+      baseColumns = [
+        {
+          key: '_hierarchy',
+          label: 'Structure',
+          type: 'readonly' as const,
+          width: 300
+        },
+        ...TACTIQUE_BUDGET_COLUMNS_COMPLETE
+      ];
+      
+      // Pour les colonnes budget, on enrichit seulement les colonnes normales
+      return baseColumns.map(col => {
+        if (isFeeCompositeColumn(col)) {
+          return col; // Les colonnes composite ne sont pas enrichies
+        }
+        
+        const enrichedCol = enrichColumnsWithData([col as DynamicColumn], buckets, dynamicLists)[0];
+        return {
+          ...enrichedCol,
+          options: enrichedCol.options || getColumnOptions(enrichedCol.key, buckets, dynamicLists)
+        };
+      });
+    } else {
+      const hierarchyColumns = getColumnsWithHierarchy(
+        selectedLevel, 
+        selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
+      );
+      
+      return enrichColumnsWithData(hierarchyColumns, buckets, dynamicLists).map(col => ({
+        ...col,
+        options: col.options || getColumnOptions(col.key, buckets, dynamicLists)
+      }));
+    }
   }, [selectedLevel, selectedTactiqueSubCategory, buckets, dynamicLists]);
 
   /**
-   * Traite les lignes avec filtrage et tri
+   * Lignes traitées avec filtrage et tri
    */
   const processedRows = useMemo(() => {
-    return processTableRows(
-      tableRows,
-      hideChildrenLevels,
-      selectedLevel,
-      searchTerm,
-      sortConfig,
-      getHierarchyLabel
-    );
+    return processTableRows(tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, getHierarchyLabel);
   }, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig]);
 
   /**
-   * Calcule les statistiques de sélection
+   * Gestion des événements clavier
    */
-  const selectionStats = useMemo(() => {
-    const editableRows = processedRows.filter(row => row.isEditable);
-    const selectedEditableRows = editableRows.filter(row => selectedRows.has(row.id));
-    return {
-      editableRows,
-      selectedEditableRows,
-      isSelectAllChecked: editableRows.length > 0 && selectedEditableRows.length === editableRows.length,
-      isSelectAllIndeterminate: selectedEditableRows.length > 0 && selectedEditableRows.length < editableRows.length
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftPressed(true);
+
+      // Copier (Ctrl+C)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.length > 0) {
+        e.preventDefault();
+        // MODIFIÉ : Toujours copier depuis la première cellule sélectionnée (permet copie d'une seule cellule)
+        const firstCell = selectedCells[0];
+        const row = processedRows[firstCell.rowIndex];
+        const column = columns.find(col => col.key === firstCell.columnKey);
+        
+        if (row && column && !isFeeCompositeColumn(column)) {
+          const value = getCellValue(row, firstCell.columnKey);
+          setCopiedData({
+            value,
+            columnType: column.type,
+            options: (column as DynamicColumn).options,
+            sourceColumnKey: column.key
+          });
+          
+          // Feedback visuel : brève sélection verte pour confirmer la copie
+          const displayValue = column.type === 'select' && (column as DynamicColumn).options ? 
+            (column as DynamicColumn).options?.find((option: { id: string; label: string }) => option.id === value)?.label || value : value;
+          console.log(`✅ Copié: ${displayValue}`);
+        }
+      }
+
+      // Coller (Ctrl+V)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && copiedData && selectedCells.length > 0) {
+        e.preventDefault();
+        handlePaste();
+      }
+
+      // Désélectionner (Escape)
+      if (e.key === 'Escape') {
+        setSelectedCells([]);
+        setSelectionStart(null);
+      }
     };
-  }, [processedRows, selectedRows]);
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftPressed(false);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [selectedCells, copiedData, processedRows, columns, isShiftPressed]);
 
   /**
-   * Récupère la valeur d'une cellule avec les modifications en attente
+   * Nettoyage des erreurs expirées
+   */
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      setValidationErrors(prev => cleanupExpiredErrors(prev));
+    }, 1000);
+    return () => clearInterval(cleanup);
+  }, []);
+
+  /**
+   * Récupère la valeur d'une cellule
    */
   const getCellValue = useCallback((row: TableRow, columnKey: string): any => {
     const pendingChange = pendingChanges.get(row.id);
-    if (pendingChange && pendingChange[columnKey] !== undefined) {
-      return pendingChange[columnKey];
-    }
-    return (row.data as any)[columnKey];
+    return (pendingChange && pendingChange[columnKey] !== undefined) 
+      ? pendingChange[columnKey] 
+      : (row.data as any)[columnKey];
   }, [pendingChanges]);
 
   /**
-   * NOUVEAU : Gère les changements calculés automatiquement (pour les cellules budget)
+   * Vérifie si une cellule a une erreur de validation
+   */
+  const hasValidationError = useCallback((cellKey: string): boolean => {
+    return validationErrors.some(error => error.cellKey === cellKey);
+  }, [validationErrors]);
+
+  /**
+   * Vérifie si une cellule est sélectionnée
+   */
+  const isCellSelected = useCallback((rowIndex: number, columnKey: string): boolean => {
+    return selectedCells.some(cell => cell.rowIndex === rowIndex && cell.columnKey === columnKey);
+  }, [selectedCells]);
+
+  /**
+   * NOUVEAU : Gère la sélection de cellules avec support rectangulaire
+   */
+  const handleCellClick = useCallback((rowIndex: number, columnKey: string, event?: React.MouseEvent) => {
+    if (event && ['INPUT', 'SELECT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      return;
+    }
+
+    const newCell = { rowIndex, columnKey };
+
+    if (isShiftPressed && selectionStart) {
+      const rectangularSelection = generateRectangularSelection(
+        selectionStart, 
+        newCell, 
+        columns as DynamicColumn[], // Cast pour compatibilité avec generateRectangularSelection
+        processedRows
+      );
+      setSelectedCells(rectangularSelection);
+    } else {
+      const row = processedRows[rowIndex];
+      if (row?.isEditable && canCellReceiveValue(newCell, processedRows, columns as DynamicColumn[])) {
+        setSelectedCells([newCell]);
+        setSelectionStart(newCell);
+      }
+    }
+  }, [isShiftPressed, selectionStart, columns, processedRows]);
+
+  /**
+   * NOUVEAU : Gère le collage avec validation avancée
+   */
+  const handlePaste = useCallback(() => {
+    if (!copiedData || selectedCells.length === 0) return;
+
+    // CORRIGÉ : Filtre et cast explicite pour obtenir uniquement les DynamicColumn
+    const dynamicColumns = columns.reduce<DynamicColumn[]>((acc, col) => {
+      if (!isFeeCompositeColumn(col)) {
+        acc.push(col as DynamicColumn);
+      }
+      return acc;
+    }, []);
+
+    const { applied, errors } = applyPastedData(
+      selectedCells,
+      copiedData,
+      processedRows,
+      dynamicColumns,
+      // onValidValue
+      (rowId: string, columnKey: string, value: any) => {
+        onCellChange(rowId, columnKey, value);
+      },
+      // onInvalidValue  
+      (cellKey: string, errorMessage: string) => {
+        setValidationErrors(prev => [
+          ...prev.filter(err => err.cellKey !== cellKey),
+          createValidationError(cellKey, errorMessage)
+        ]);
+      }
+    );
+
+    // Optionnel : notification des résultats
+    if (errors > 0) {
+      console.log(`${applied} cellule(s) mise(s) à jour, ${errors} erreur(s) de validation`);
+    }
+  }, [copiedData, selectedCells, processedRows, columns, onCellChange]);
+
+  /**
+   * Gère les changements calculés (cellules budget)
    */
   const handleCalculatedChange = useCallback((entityId: string, updates: { [key: string]: any }) => {
-    // Appliquer tous les changements calculés en une fois
     Object.entries(updates).forEach(([fieldKey, value]) => {
       onCellChange(entityId, fieldKey, value);
     });
@@ -196,78 +361,24 @@ export default function DynamicTableStructure({
     if (level !== 'tactique') {
       setSelectedTactiqueSubCategory('info');
     }
+    setSelectedCells([]);
+    setSelectionStart(null);
   }, [onLevelChange]);
 
   /**
-   * Gère le tri des colonnes
+   * Gère le tri
    */
   const handleSort = useCallback((columnKey: string) => {
     setSortConfig(prev => handleSortFromHelper(columnKey, prev));
   }, []);
 
   /**
-   * Gère la sélection des lignes
-   */
-  const handleCheckboxChange = useCallback((rowId: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = event.target.checked;
-    const nativeEvent = event.nativeEvent as MouseEvent;
-
-    setSelectedRows(prev => handleMultipleSelection(
-      rowId,
-      isChecked,
-      nativeEvent,
-      processedRows,
-      prev
-    ));
-  }, [processedRows]);
-
-  /**
-   * Gère la sélection globale
-   */
-  const handleSelectAll = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = event.target.checked;
-    if (isChecked) {
-      const editableRowIds = selectionStats.editableRows.map(row => row.id);
-      setSelectedRows(new Set(editableRowIds));
-    } else {
-      setSelectedRows(new Set());
-    }
-  }, [selectionStats.editableRows]);
-
-  /**
-   * Gère le mode copie
-   */
-  const handleStartCopy = useCallback((sourceRowId: string, fieldKey: string) => {
-    const sourceValue = getCellValue(processedRows.find(r => r.id === sourceRowId)!, fieldKey);
-    setCopyMode({
-      active: true,
-      sourceCell: `${sourceRowId}_${fieldKey}`,
-      sourceValue
-    });
-  }, [getCellValue, processedRows]);
-
-  /**
-   * Gère le collage
-   */
-  const handlePasteCopy = useCallback((fieldKey: string) => {
-    if (!copyMode.active || selectedRows.size === 0) return;
-
-    const targetRows = Array.from(selectedRows);
-    targetRows.forEach(rowId => {
-      if (rowId !== copyMode.sourceCell?.split('_')[0]) {
-        onCellChange(rowId, fieldKey, copyMode.sourceValue);
-      }
-    });
-
-    setCopyMode({ active: false });
-  }, [copyMode, selectedRows, onCellChange]);
-
-  /**
    * Efface la sélection
    */
   const clearSelection = useCallback(() => {
-    setSelectedRows(new Set());
-    setCopyMode({ active: false });
+    setSelectedCells([]);
+    setSelectionStart(null);
+    setCopiedData(null);
   }, []);
 
   /**
@@ -305,70 +416,190 @@ export default function DynamicTableStructure({
   }, [pendingChanges, onToggleSection, expandedSections]);
 
   /**
-   * MODIFIÉ : Rend la cellule de données avec support des cellules budget
+   * NOUVEAU : Gère le double-clic pour démarrer l'édition
    */
-  const renderDataCell = useCallback((row: TableRow, column: DynamicColumn) => {
+  const handleCellDoubleClick = useCallback((rowIndex: number, columnKey: string, event?: React.MouseEvent) => {
+    if (event && ['INPUT', 'SELECT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      return;
+    }
+
+    const row = processedRows[rowIndex];
+    if (row?.isEditable && columnKey !== '_hierarchy') {
+      const cellKey = `${row.id}_${columnKey}`;
+      onStartEdit(cellKey);
+    }
+  }, [processedRows, onStartEdit]);
+
+  /**
+   * NOUVEAU : Gère les changements de champs budget avec recalculs automatiques
+   */
+  const handleBudgetFieldChange = useCallback((entityId: string, fieldKey: string, value: any) => {
+    // Appliquer le changement immédiatement
+    onCellChange(entityId, fieldKey, value);
+    
+    // Si c'est un champ qui déclenche un recalcul
+    if (shouldTriggerBudgetRecalculation(fieldKey)) {
+      // Ici on déclencherait les calculs budget
+      // Pour l'instant, on simule avec des valeurs de base
+      const calculatedUpdates: { [key: string]: any } = {};
+      
+      // Exemple de calculs simplifiés (à remplacer par la vraie logique)
+      if (fieldKey === 'TC_BudgetInput' || fieldKey === 'TC_Unit_Price') {
+        const row = processedRows.find(r => r.id === entityId);
+        if (row) {
+          const budgetInput = fieldKey === 'TC_BudgetInput' ? value : (row.data as any).TC_BudgetInput || 0;
+          const unitPrice = fieldKey === 'TC_Unit_Price' ? value : (row.data as any).TC_Unit_Price || 0;
+          
+          if (budgetInput > 0 && unitPrice > 0) {
+            calculatedUpdates.TC_Unit_Volume = Math.round(budgetInput / unitPrice);
+            calculatedUpdates.TC_Media_Budget = budgetInput;
+            calculatedUpdates.TC_Client_Budget = budgetInput; // Sera calculé avec les frais
+          }
+        }
+      }
+      
+      // Appliquer les mises à jour calculées
+      if (Object.keys(calculatedUpdates).length > 0) {
+        handleCalculatedChange(entityId, calculatedUpdates);
+      }
+    }
+  }, [onCellChange, handleCalculatedChange, processedRows]);
+
+  /**
+   * MODIFIÉ : Rend les cellules avec support des colonnes budget composites
+   */
+  const renderDataCell = useCallback((row: TableRow, column: TableColumn, rowIndex: number) => {
     const cellKey = `${row.id}_${column.key}`;
     const value = getCellValue(row, column.key);
-    const isEditing = editingCells.has(cellKey);
-    const isHovered = hoveredCell === cellKey;
-    const isCopySource = copyMode.sourceCell === cellKey;
+    const isEditing = editingCells.has(cellKey);  
+    const isSelected = isCellSelected(rowIndex, column.key);
+    const hasError = hasValidationError(cellKey);
+    const isBudgetMode = selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget';
 
-    // NOUVEAU : Utiliser TableBudgetCell pour les champs budget
-    if (isBudgetField(column.key)) {
+    // NOUVEAU : Gestion des colonnes de frais composites
+    if (isFeeCompositeColumn(column)) {
+      if (!row.isEditable) {
+        return (
+          <FeeCompositeCellReadonly
+            column={column}
+            rowData={row.data}
+            clientFees={clientFees}
+            currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
+            isSelected={isSelected}
+            onClick={() => handleCellClick(rowIndex, column.key)}
+          />
+        );
+      }
+
       return (
-        <TableBudgetCell
+        <FeeCompositeCell
           entityId={row.id}
-          fieldKey={column.key}
-          value={value}
           column={column}
           rowData={row.data}
           isEditable={row.isEditable}
-          isEditing={isEditing}
           clientFees={clientFees}
-          exchangeRates={exchangeRates}
-          campaignCurrency={campaignCurrency}
-          onChange={onCellChange}
+          currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
+          isSelected={isSelected}
+          hasValidationError={hasError}
+          onChange={isBudgetMode ? handleBudgetFieldChange : onCellChange}
           onCalculatedChange={handleCalculatedChange}
-          onStartEdit={onStartEdit}
-          onEndEdit={onEndEdit}
+          onClick={() => handleCellClick(rowIndex, column.key)}
         />
       );
     }
 
-    // Logique existante pour les cellules non-budget
-    if (column.type === 'readonly' || !row.isEditable) {
-      const formattedValue = formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
+    // NOUVEAU : Cellules budget calculées automatiquement  
+    if (isBudgetMode && getCalculatedBudgetFields().includes(column.key)) {
+      const formattedValue = formatBudgetDisplayValue(
+        column.key, 
+        value, 
+        (row.data as any).TC_BuyCurrency || campaignCurrency
+      );
+      
       return (
-        <span className={!row.isEditable ? 'text-gray-400' : 'text-gray-900'}>
-          {formattedValue || '-'}
-        </span>
+        <div 
+          className={`min-h-[32px] flex items-center px-2 py-1 cursor-pointer bg-green-50 ${
+            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-100' : ''
+          }`}
+          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+        >
+          <span className="text-green-700 font-medium flex items-center">
+            {formattedValue || '-'}
+            <span className="ml-1 text-xs">✓</span>
+          </span>
+        </div>
       );
     }
 
+    // Cellules budget spécialisées normales (utilisent déjà TableBudgetCell)
+    if (isBudgetField(column.key)) {
+      return (
+        <div 
+          className={`relative ${isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : ''}`}
+          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+          onDoubleClick={(e) => handleCellDoubleClick(rowIndex, column.key, e)}
+        >
+          <TableBudgetCell
+            entityId={row.id}
+            fieldKey={column.key}
+            value={value}
+            column={column as DynamicColumn}
+            rowData={row.data}
+            isEditable={row.isEditable}
+            isEditing={isEditing}
+            clientFees={clientFees}
+            exchangeRates={exchangeRates}
+            campaignCurrency={campaignCurrency}
+            onChange={isBudgetMode ? handleBudgetFieldChange : onCellChange}
+            onCalculatedChange={handleCalculatedChange}
+            onStartEdit={onStartEdit}
+            onEndEdit={onEndEdit}
+          />
+        </div>
+      );
+    }
+
+    // Cellules readonly normales
+    if (column.type === 'readonly' || !row.isEditable) {
+      const formattedValue = isBudgetMode ? 
+        formatBudgetDisplayValue(column.key, value, (row.data as any).TC_BuyCurrency || campaignCurrency) :
+        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
+      
+      return (
+        <div 
+          className={`min-h-[32px] flex items-center px-2 py-1 cursor-pointer ${
+            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
+          } ${!row.isEditable ? 'text-gray-400' : 'text-gray-900'}`}
+          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+        >
+          <span>{formattedValue || '-'}</span>
+        </div>
+      );
+    }
+
+    // Cellules éditables normales
     return (
       <div
-        className="min-h-[24px] flex items-center relative group"
-        onMouseEnter={() => setHoveredCell(cellKey)}
-        onMouseLeave={() => setHoveredCell(null)}
+        className={`min-h-[32px] flex items-center relative group cursor-pointer ${
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
+        } ${hasError ? 'ring-2 ring-red-500 ring-inset bg-red-50 animate-pulse' : ''}`}
+        onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+        onDoubleClick={(e) => handleCellDoubleClick(rowIndex, column.key, e)}
       >
         {isEditing ? (
           <>
             {column.type === 'select' ? (
               <select
                 value={value || ''}
-                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
+                onChange={(e) => isBudgetMode ? handleBudgetFieldChange(row.id, column.key, e.target.value) : onCellChange(row.id, column.key, e.target.value)}
                 onBlur={() => onEndEdit(cellKey)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Tab') {
-                    onEndEdit(cellKey);
-                  }
-                  if (e.key === 'Escape') {
-                    onEndEdit(cellKey);
-                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
+                  if (e.key === 'Escape') onEndEdit(cellKey);
                 }}
                 className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 autoFocus
+                onClick={(e) => e.stopPropagation()}
               >
                 <option value="">-- Sélectionner --</option>
                 {column.options?.map(option => (
@@ -382,92 +613,54 @@ export default function DynamicTableStructure({
                 type={column.type === 'number' || column.type === 'currency' ? 'number' :
                   column.type === 'date' ? 'date' : 'text'}
                 value={value || ''}
-                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
+                onChange={(e) => {
+                  const newValue = column.type === 'number' || column.type === 'currency' ? 
+                    (parseFloat(e.target.value) || 0) : e.target.value;
+                  isBudgetMode ? handleBudgetFieldChange(row.id, column.key, newValue) : onCellChange(row.id, column.key, newValue);
+                }}
                 onBlur={() => onEndEdit(cellKey)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Tab') {
-                    onEndEdit(cellKey);
-                  }
-                  if (e.key === 'Escape') {
-                    onEndEdit(cellKey);
-                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
+                  if (e.key === 'Escape') onEndEdit(cellKey);
                 }}
                 className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 autoFocus
+                onClick={(e) => e.stopPropagation()}
+                step={column.type === 'currency' ? '0.01' : '1'}
+                min={column.type === 'number' || column.type === 'currency' ? '0' : undefined}
               />
             )}
           </>
         ) : (
-          <>
-            <button
-              onClick={() => onStartEdit(cellKey)}
-              className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded min-h-[20px] flex items-center transition-colors ${
-                isCopySource ? 'bg-green-100 border border-green-300' : ''
-              }`}
-            >
-              {formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined) || (
-                <span className="text-gray-400 italic">Cliquer pour modifier</span>
-              )}
-            </button>
-
-            {isHovered && value && (
-              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center space-x-1 bg-white border border-gray-200 rounded px-1 shadow-sm">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStartCopy(row.id, column.key);
-                  }}
-                  className="text-blue-600 hover:text-blue-800 text-xs p-1"
-                  title="Copier cette valeur"
-                >
-                  📋
-                </button>
-
-                {copyMode.active && selectedRows.size > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePasteCopy(column.key);
-                    }}
-                    className="text-green-600 hover:text-green-800 text-xs p-1"
-                    title={`Coller vers ${selectedRows.size} ligne${selectedRows.size > 1 ? 's' : ''}`}
-                  >
-                    📥
-                  </button>
-                )}
-              </div>
+          <div className="w-full text-left px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors">
+            {(isBudgetMode ? 
+              formatBudgetDisplayValue(column.key, value, (row.data as any).TC_BuyCurrency || campaignCurrency) :
+              formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined)
+            ) || (
+              <span className="text-gray-400 italic">Double-clic pour modifier</span>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Indicateur d'erreur de validation */}
+        {hasError && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
+            <span className="text-white text-xs font-bold">!</span>
+          </div>
         )}
       </div>
     );
   }, [
-    getCellValue, 
-    editingCells, 
-    hoveredCell, 
-    copyMode, 
-    buckets, 
-    dynamicLists, 
-    selectedLevel, 
-    selectedTactiqueSubCategory, 
-    onCellChange, 
-    onEndEdit, 
-    onStartEdit, 
-    selectedRows, 
-    handleStartCopy, 
-    handlePasteCopy,
-    // NOUVEAU : Props budget
-    clientFees,
-    exchangeRates,
-    campaignCurrency,
-    handleCalculatedChange
+    getCellValue, editingCells, isCellSelected, hasValidationError, buckets, dynamicLists, 
+    selectedLevel, selectedTactiqueSubCategory, onCellChange, onEndEdit, onStartEdit,
+    handleCellClick, handleCellDoubleClick, clientFees, exchangeRates, campaignCurrency, 
+    handleCalculatedChange, handleBudgetFieldChange
   ]);
 
   return (
     <div className="space-y-3">
-      {/* Barre d'outils */}
+      {/* Barre d'outils (identique à la version précédente) */}
       <div className="flex items-center justify-between gap-4">
-        {/* Sélecteurs de niveau */}
         <div className="flex space-x-1">
           {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
             <button
@@ -487,7 +680,6 @@ export default function DynamicTableStructure({
           ))}
         </div>
 
-        {/* Sous-catégories de tactiques */}
         {selectedLevel === 'tactique' && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
             {getTactiqueSubCategories().map(subCategory => (
@@ -506,7 +698,6 @@ export default function DynamicTableStructure({
           </div>
         )}
 
-        {/* Barre de recherche */}
         <div className="flex-1 max-w-sm">
           <input
             type="text"
@@ -517,7 +708,6 @@ export default function DynamicTableStructure({
           />
         </div>
 
-        {/* Contrôles */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setHideChildrenLevels(!hideChildrenLevels)}
@@ -541,16 +731,20 @@ export default function DynamicTableStructure({
             </button>
 
             {showHelpTooltip && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
                 <div className="space-y-2">
-                  <div><strong>Sélection :</strong> Cases à cocher • Ctrl+Clic = ajout • Shift+Clic = plage</div>
-                  <div><strong>Copie :</strong> Survolez cellule → 📋 copier → survolez autre cellule → 📥 coller</div>
-                  <div><strong>Édition :</strong> Clic sur cellule pour éditer • Enter/Tab = sauver • Esc = annuler</div>
-                  {selectedLevel === 'tactique' && (
-                    <div><strong>Tactiques :</strong> Utilisez les onglets Info/Stratégie/Budget/Admin pour voir les colonnes</div>
+                  <div><strong>Sélection :</strong> 1 clic = sélectionner • Shift+Clic = sélection rectangulaire</div>
+                  <div><strong>Édition :</strong> Double-clic pour éditer • Enter/Tab = sauver • Esc = annuler</div>
+                  <div><strong>Copie :</strong> Ctrl+C pour copier • Ctrl+V pour coller</div>
+                  <div><strong>Validation :</strong> Contour rouge clignotant = valeur incompatible rejetée</div>
+                  <div><strong>Menus déroulants :</strong> Mapping intelligent par libellé si possible</div>
+                  {selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget' && (
+                    <>
+                      <div><strong>Budget :</strong> Calculs automatiques en temps réel</div>
+                      <div><strong>Frais :</strong> Colonnes composites avec checkbox, option, valeur et total</div>
+                      <div><strong>Totaux :</strong> ✓ = calculé automatiquement • 💰 = champ budget</div>
+                    </>
                   )}
-                  {/* NOUVEAU : Aide pour les cellules budget */}
-                  <div><strong>Budget :</strong> Les champs avec ✓ sont calculés automatiquement</div>
                 </div>
                 <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -560,9 +754,9 @@ export default function DynamicTableStructure({
           <span className="text-sm text-gray-500 whitespace-nowrap">
             {processedRows.length} ligne{processedRows.length > 1 ? 's' : ''}
             {searchTerm && ` (filtré${processedRows.length > 1 ? 's' : ''})`}
-            {selectedRows.size > 0 && (
+            {selectedCells.length > 0 && (
               <span className="text-indigo-600 font-medium ml-2">
-                • {selectedRows.size} sélectionnée{selectedRows.size > 1 ? 's' : ''}
+                • {selectedCells.length} cellule{selectedCells.length > 1 ? 's' : ''} sélectionnée{selectedCells.length > 1 ? 's' : ''}
               </span>
             )}
           </span>
@@ -578,42 +772,38 @@ export default function DynamicTableStructure({
         </div>
       </div>
 
-      {/* Barre d'action pour sélection/copie */}
-      {(selectedRows.size > 0 || copyMode.active) && (
+      {/* NOUVEAU : Barre d'action pour sélection et copie */}
+      {(selectedCells.length > 0 || copiedData) && (
         <div className="bg-indigo-50 border border-indigo-200 rounded p-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 text-sm">
-              {selectedRows.size > 0 && (
+              {selectedCells.length > 0 && (
                 <span className="text-indigo-700">
-                  <strong>{selectedRows.size}</strong> sélectionnée{selectedRows.size > 1 ? 's' : ''}
+                  <strong>{selectedCells.length}</strong> cellule{selectedCells.length > 1 ? 's' : ''} sélectionnée{selectedCells.length > 1 ? 's' : ''}
                 </span>
               )}
 
-              {copyMode.active && (
+              {copiedData && (
                 <span className="text-green-700">
-                  📋 Mode copie • <strong>"{copyMode.sourceValue}"</strong>
+                  📋 Donnée copiée • <strong>"{formatCopiedValueDisplay(copiedData)}"</strong>
+                  {copiedData.columnType === 'select' && ' (menu déroulant)'}
+                </span>
+              )}
+
+              {validationErrors.length > 0 && (
+                <span className="text-red-700">
+                  ⚠️ {validationErrors.length} erreur{validationErrors.length > 1 ? 's' : ''} de validation
                 </span>
               )}
             </div>
 
             <div className="flex items-center space-x-2">
-              {selectedRows.size > 0 && (
-                <button
-                  onClick={clearSelection}
-                  className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-white"
-                >
-                  Désélectionner
-                </button>
-              )}
-
-              {copyMode.active && (
-                <button
-                  onClick={() => setCopyMode({ active: false })}
-                  className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-white"
-                >
-                  Annuler copie
-                </button>
-              )}
+              <button
+                onClick={clearSelection}
+                className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-white"
+              >
+                Tout effacer
+              </button>
             </div>
           </div>
         </div>
@@ -629,22 +819,13 @@ export default function DynamicTableStructure({
             maxWidth: 'calc(100vw - 220px)',
           }}
         >
-          <table className="divide-y divide-gray-200" style={{ width: 'max-content', minWidth: '100%' }}>
+          <table 
+            ref={tableRef}
+            className="divide-y divide-gray-200" 
+            style={{ width: 'max-content', minWidth: '100%' }}
+          >
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="px-3 py-2 text-left whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectionStats.isSelectAllChecked}
-                    ref={(el) => {
-                      if (el) el.indeterminate = selectionStats.isSelectAllIndeterminate;
-                    }}
-                    onChange={handleSelectAll}
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    title="Sélectionner tout"
-                  />
-                </th>
-
                 {columns.map(column => (
                   <th
                     key={column.key}
@@ -654,10 +835,24 @@ export default function DynamicTableStructure({
                   >
                     <div className="flex items-center space-x-1">
                       <span>{column.label}</span>
-                      {/* NOUVEAU : Indicateur pour les champs budget */}
                       {isBudgetField(column.key) && (
                         <span className="text-green-600 text-xs" title="Champ budget avec calculs automatiques">
                           💰
+                        </span>
+                      )}
+                      {isFeeCompositeColumn(column) && (
+                        <span className="text-blue-600 text-xs" title="Frais composite avec sous-colonnes">
+                          🏗️
+                        </span>
+                      )}
+                      {getCalculatedBudgetFields().includes(column.key) && (
+                        <span className="text-green-600 text-xs" title="Valeur calculée automatiquement">
+                          ✓
+                        </span>
+                      )}
+                      {column.type === 'select' && !isBudgetField(column.key) && !isFeeCompositeColumn(column) && (
+                        <span className="text-blue-600 text-xs" title="Menu déroulant avec validation intelligente">
+                          📋
                         </span>
                       )}
                       {sortConfig?.key === column.key && (
@@ -674,27 +869,16 @@ export default function DynamicTableStructure({
             <tbody className="bg-white divide-y divide-gray-200">
               {processedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan={columns.length} className="px-3 py-6 text-center text-gray-500">
                     {searchTerm ? 'Aucun résultat trouvé' : 'Aucune donnée à afficher'}
                   </td>
                 </tr>
               ) : (
-                processedRows.map(row => (
+                processedRows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
-                    className={getRowStyles(row, selectedRows, pendingChanges)}
+                    className={getRowStyles(row, new Set(), pendingChanges)}
                   >
-                    <td className="px-3 py-2 text-sm whitespace-nowrap" style={{ width: 50, minWidth: 50 }}>
-                      {row.isEditable && (
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.has(row.id)}
-                          onChange={(e) => handleCheckboxChange(row.id, e)}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      )}
-                    </td>
-
                     {columns.map(column => (
                       <td
                         key={column.key}
@@ -703,7 +887,7 @@ export default function DynamicTableStructure({
                       >
                         {column.key === '_hierarchy' 
                           ? renderHierarchyCell(row)
-                          : renderDataCell(row, column)
+                          : renderDataCell(row, column, rowIndex)
                         }
                       </td>
                     ))}

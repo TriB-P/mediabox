@@ -7,6 +7,8 @@ import { useCleanDocData } from './useCleanDocData';
 import { useBreakdownData } from './useBreakdownData';
 import { useCampaignDataDoc } from './useCampaignDataDoc';
 import { useConvertShortcodesDoc } from './useConvertShortcodesDoc';
+import { useDuplicateTabsDoc } from './useDuplicateTabsDoc';
+import { getDocumentById } from '../../lib/documentService';
 
 interface UseCombinedDocExportReturn {
   exportCombinedData: (clientId: string, campaignId: string, versionId: string, sheetUrl: string, exportLanguage?: 'FR' | 'EN') => Promise<boolean>;
@@ -18,6 +20,7 @@ interface UseCombinedDocExportReturn {
  * Hook personnalisé pour extraire diverses données d'une campagne et les exporter vers Google Sheets.
  * Il combine les fonctionnalités de plusieurs hooks d'extraction de données et du hook de génération de document.
  * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
+ * Les onglets sont synchronisés si le template original a TE_Duplicate = TRUE.
  * @returns {UseCombinedDocExportReturn} Un objet contenant la fonction exportCombinedData,
  * les états de chargement et d'erreur.
  */
@@ -30,6 +33,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   const { extractBreakdownData, loading: breakdownLoading, error: breakdownError } = useBreakdownData();
   const { extractCampaignData, loading: campaignLoading, error: campaignError } = useCampaignDataDoc();
   const { convertShortcodes, loading: convertLoading, error: convertError } = useConvertShortcodesDoc();
+  const { duplicateAndManageTabs, loading: tabsLoading } = useDuplicateTabsDoc();
 
   /**
    * Extrait l'ID unique d'un Google Sheet à partir de son URL complète.
@@ -187,8 +191,96 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   }, [getAccessToken]);
 
   /**
+   * Recherche et récupère les informations du template depuis un document existant.
+   * @param clientId L'ID du client.
+   * @param campaignId L'ID de la campagne.
+   * @param versionId L'ID de la version.
+   * @param sheetUrl L'URL du Google Sheet pour trouver le document correspondant.
+   * @returns Les informations du template ou null si non trouvé.
+   */
+  const findTemplateFromDocument = useCallback(async (
+    clientId: string,
+    campaignId: string,
+    versionId: string,
+    sheetUrl: string
+  ): Promise<any | null> => {
+    try {
+      // Récupérer tous les documents de la version
+      const { getDocumentsByVersion } = await import('../../lib/documentService');
+      const documents = await getDocumentsByVersion(clientId, campaignId, versionId);
+      
+      // Trouver le document qui correspond à cette URL
+      const currentDocument = documents.find(doc => doc.url === sheetUrl);
+      if (!currentDocument) {
+        console.warn('[EXPORT] Document non trouvé pour cette URL, impossible de vérifier TE_Duplicate');
+        return null;
+      }
+
+      // Récupérer les informations du template
+      const { getTemplateById } = await import('../../lib/templateService');
+      const template = await getTemplateById(clientId, currentDocument.template.id);
+      
+      return template;
+    } catch (err) {
+      console.warn('[EXPORT] Erreur lors de la récupération du template:', err);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Gère la synchronisation des onglets si le template l'exige.
+   * @param template Le template avec ses propriétés.
+   * @param sheetId L'ID du Google Sheet.
+   * @param clientId L'ID du client.
+   * @param campaignId L'ID de la campagne.
+   * @param versionId L'ID de la version.
+   * @returns Le résultat de la synchronisation des onglets.
+   */
+  const handleTabsRefresh = useCallback(async (
+    template: any,
+    sheetId: string,
+    clientId: string,
+    campaignId: string,
+    versionId: string
+  ) => {
+    // Vérifier si le template nécessite la synchronisation d'onglets
+    if (!template || !template.TE_Duplicate) {
+      console.log('[EXPORT] Template ne nécessite pas de synchronisation d\'onglets');
+      return { success: true };
+    }
+
+    console.log('[EXPORT] Synchronisation des onglets selon la structure de campagne...');
+
+    try {
+      const success = await duplicateAndManageTabs(
+        'refresh',
+        sheetId,
+        clientId,
+        campaignId,
+        versionId
+      );
+
+      if (!success) {
+        return {
+          success: false,
+          errorMessage: 'Échec de la synchronisation des onglets'
+        };
+      }
+
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur durant la synchronisation des onglets';
+      return {
+        success: false,
+        errorMessage
+      };
+    }
+  }, [duplicateAndManageTabs]);
+
+  /**
    * Fonction principale pour extraire et exporter les données combinées vers Google Sheets.
    * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
+   * Les onglets sont synchronisés si le template original a TE_Duplicate = TRUE.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
    * @param {string} versionId L'ID de la version.
@@ -219,7 +311,19 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     }
 
     try {
-      // 0. Vider les feuilles cibles avant d'écrire
+      // 0.1. Récupérer les informations du template pour vérifier TE_Duplicate
+      const template = await findTemplateFromDocument(clientId, campaignId, versionId, sheetUrl);
+
+      // 0.2. Synchroniser les onglets si nécessaire (AVANT de vider les feuilles)
+      if (template) {
+        const tabsResult = await handleTabsRefresh(template, sheetId, clientId, campaignId, versionId);
+        if (!tabsResult.success) {
+          console.warn('[EXPORT] Échec synchronisation onglets, poursuite de l\'exportation:', tabsResult.errorMessage);
+          // Ne pas faire échouer l'export entier, juste logger l'avertissement
+        }
+      }
+
+      // 0.3. Vider les feuilles cibles après synchronisation des onglets
       await clearSheetRange(sheetId, 'MB_Data', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Data
       await clearSheetRange(sheetId, 'MB_Splits', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Splits
 
@@ -293,10 +397,11 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     extractBreakdownData, breakdownError,
     extractCampaignData, campaignError,
     convertShortcodes, convertError,
-    extractSheetId, writeToGoogleSheet, clearSheetRange
+    extractSheetId, writeToGoogleSheet, clearSheetRange,
+    findTemplateFromDocument, handleTabsRefresh
   ]);
 
-  const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading;
+  const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading || tabsLoading;
   const overallError = error || cleanError || breakdownError || campaignError || convertError;
 
   return {

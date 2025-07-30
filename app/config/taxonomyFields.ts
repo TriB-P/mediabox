@@ -107,11 +107,6 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
     label: 'Version du créatif',
     allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
   },
-  'TAX_Product_Legacy': {
-    source: 'manual',
-    label: 'Produit',
-    allowedFormats: ['open', 'code', 'display_fr', 'custom_utm', 'utm', 'custom_code']
-  },
   'TAX_Location_Legacy': {
     source: 'manual',
     label: 'Emplacement',
