@@ -644,10 +644,13 @@ export default function TactiqueDrawer({
             clientFees={clientFees}
             campaignCurrency={campaignCurrency}
             exchangeRates={exchangeRates}
+            clientId={selectedClient?.clientId || ''} 
+
             onChange={handleChange}
             onCalculatedChange={handleBudgetChange}
             onTooltipChange={setActiveTooltip}
             loading={loading}
+            
           />
         );
 

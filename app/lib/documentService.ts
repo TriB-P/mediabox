@@ -567,6 +567,78 @@ import {
     }
   }
   
+
+
+  /**
+   * Crée un nouveau document dissocié dans Firebase avec toutes ses métadonnées.
+   * @param clientId L'ID du client.
+   * @param campaignId L'ID de la campagne.
+   * @param versionId L'ID de la version.
+   * @param documentData Les données du document dissocié.
+   * @param user L'utilisateur créateur.
+   * @returns Une promesse qui résout en l'ID du document créé.
+   */
+  export async function createUnlinkedDocument(
+    clientId: string,
+    campaignId: string,
+    versionId: string,
+    documentData: {
+      name: string;
+      url: string;
+      originalDocumentId: string;
+      template: Document['template'];
+      campaign: Document['campaign'];
+      version: Document['version'];
+    },
+    user: {
+      id: string;
+      email: string;
+      displayName: string;
+    }
+  ): Promise<string> {
+    try {
+      const now = new Date().toISOString();
+
+      const unlinkedDocument: Omit<Document, 'id'> = {
+        name: documentData.name,
+        url: documentData.url,
+        status: DocumentStatus.COMPLETED, // Les documents dissociés sont immédiatement prêts
+        isUnlinked: true,
+        originalDocumentId: documentData.originalDocumentId,
+        template: documentData.template,
+        campaign: documentData.campaign,
+        version: documentData.version,
+        createdBy: {
+          userId: user.id,
+          userEmail: user.email,
+          userDisplayName: user.displayName
+        },
+        createdAt: now,
+        lastUpdated: now
+      };
+
+      const documentsRef = collection(
+        db, 
+        'clients', clientId, 
+        'campaigns', campaignId, 
+        'versions', versionId, 
+        'documents'
+      );
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: documentService.ts - Fonction: createUnlinkedDocument - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/documents`);
+      const docRef = await addDoc(documentsRef, {
+        ...unlinkedDocument,
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error('Erreur lors de la création du document dissocié:', error);
+      throw error;
+    }
+  }
+
   /**
    * Vérifie si un document avec le même nom existe déjà pour cette version.
    * @param clientId L'ID du client.

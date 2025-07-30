@@ -6,6 +6,7 @@
  * CORRIGÉ: Consolidation des boutons d'édition
  * FINAL: Corrections finales
  * NOUVEAU: Support du type PEBs avec icône calculatrice
+ * CORRIGÉ: Contraintes de largeur pour éviter le double scroll horizontal
  */
 
 'use client';
@@ -187,11 +188,10 @@ export default function TactiquesTimelineView({
   }
 
   return (
-    <div className="space-y-4"
-            style={{
-            width: '80%',
-
-            }}>
+    <div 
+  className="space-y-4 w-full max-w-full overflow-hidden"
+  style={{ width: '100%', maxWidth: '70vw' }}
+>
               
       {/* Header avec contrôles */}
       <div className="bg-white rounded-lg shadow p-4">
@@ -276,7 +276,6 @@ export default function TactiquesTimelineView({
                   Vous pouvez maintenant modifier les valeurs des répartitions. 
                   Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller.
                   {selectedBreakdown?.isDefault && " Cochez/décochez les cases pour activer/désactiver les périodes."}
-                  {selectedBreakdown?.type === 'PEBs' && " Pour PEBs : modifiez le coût/unité et le volume, le total se calcule automatiquement."}
                 </p>
               </div>
             </div>
@@ -284,14 +283,9 @@ export default function TactiquesTimelineView({
         )}
       </div>
 
-      {/* Tableau des répartitions avec scroll horizontal */}
+      {/* Tableau des répartitions avec scroll horizontal contraint */}
       {selectedBreakdown ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden"
-            style={{
-            maxHeight: '75vh',
-            width: '100%',
-            maxWidth: '100%', 
-            }}>
+        <div className="bg-white rounded-lg shadow w-full overflow-hidden">
           <TactiquesTimelineTable
             tactiques={Object.values(tactiquesGroupedBySection).flat()}
             sectionNames={sectionNames}

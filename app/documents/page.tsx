@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import CreateDocumentModal from '../components/Others/CreateDocumentModal';
+import UnlinkDocumentModal from '../components/Others/UnlinkDocumentModal';
 import CampaignVersionSelector, { useCampaignVersionSelector } from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,10 +15,12 @@ import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync 
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
 import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport';
+import { useUnlinkDoc } from '../hooks/documents/useUnlinkDoc';
 import { 
   PlusIcon, 
   DocumentTextIcon, 
   LinkIcon,
+  LinkSlashIcon,
   ClockIcon,
   UserIcon,
   ExclamationTriangleIcon,
@@ -56,8 +59,13 @@ export default function DocumentsPage() {
   // Hook pour l'export combiné (utilisé pour le refresh)
   const { exportCombinedData, loading: exportLoading } = useCombinedDocExport();
 
+  // Hook pour la dissociation des documents
+  const { unlinkDocument, loading: unlinkLoading, error: unlinkError } = useUnlinkDoc();
+
   // États du modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
+  const [documentToUnlink, setDocumentToUnlink] = useState<Document | null>(null);
 
   // États des données
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -227,6 +235,23 @@ export default function DocumentsPage() {
   }, []);
 
   /**
+   * Ouvre le modal de dissociation pour un document.
+   * @param document Le document à dissocier.
+   */
+  const handleOpenUnlinkModal = useCallback((document: Document) => {
+    setDocumentToUnlink(document);
+    setIsUnlinkModalOpen(true);
+  }, []);
+
+  /**
+   * Ferme le modal de dissociation.
+   */
+  const handleCloseUnlinkModal = useCallback(() => {
+    setIsUnlinkModalOpen(false);
+    setDocumentToUnlink(null);
+  }, []);
+
+  /**
    * Gère la création réussie d'un document.
    * @param result Le résultat de la création.
    */
@@ -236,6 +261,47 @@ export default function DocumentsPage() {
       loadDocuments();
     }
   }, [loadDocuments]);
+
+  /**
+   * Gère la confirmation de dissociation d'un document.
+   * @param document Le document à dissocier.
+   * @param newName Le nouveau nom pour le document dissocié.
+   * @returns Le résultat de la dissociation.
+   */
+  const handleUnlinkConfirm = useCallback(async (document: Document, newName: string) => {
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      return {
+        success: false,
+        errorMessage: 'Informations de contexte manquantes pour la dissociation.'
+      };
+    }
+
+    try {
+      const result = await unlinkDocument(
+        document,
+        newName,
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id
+      );
+
+      if (result.success) {
+        // Recharger la liste des documents pour voir le nouveau document dissocié
+        await loadDocuments();
+        console.log(`✅ Document "${document.name}" dissocié avec succès`);
+      }
+
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la dissociation';
+      console.error('❌ Erreur dissociation document:', errorMessage);
+      
+      return {
+        success: false,
+        errorMessage
+      };
+    }
+  }, [selectedClient, selectedCampaign, selectedVersion, unlinkDocument, loadDocuments]);
 
   /**
    * Formate une date en format lisible.
@@ -338,8 +404,6 @@ export default function DocumentsPage() {
    * @param document Le document à actualiser.
    */
   const handleRefreshDocument = useCallback(async (document: Document) => {
-   
-
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
       setError('Informations de contexte manquantes pour l\'actualisation.');
       return;
@@ -407,7 +471,7 @@ export default function DocumentsPage() {
     } finally {
       setRefreshingDocumentId(null);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, exportCombinedData, loadDocuments]);
+  }, [selectedClient, selectedCampaign, selectedVersion, exportCombinedData, loadDocuments, user]);
 
   /**
    * Groupe les documents par nom de template.
@@ -587,6 +651,12 @@ export default function DocumentsPage() {
                                           }`}>
                                             {getStatusText(document.status)}
                                           </span>
+                                          {document.isUnlinked && (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                              <LinkSlashIcon className="h-3 w-3 mr-1" />
+                                              Dissocié
+                                            </span>
+                                          )}
                                         </div>
                                         
                                         <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
@@ -629,22 +699,39 @@ export default function DocumentsPage() {
                                               Ouvrir
                                             </a>
                                             
-                                            <button
-                                              onClick={() => handleRefreshDocument(document)}
-                                              disabled={refreshingDocumentId === document.id || exportLoading}
-                                              className={`inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                                                refreshingDocumentId === document.id || exportLoading
-                                                  ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                                  : 'text-blue-700 bg-white hover:bg-blue-50'
-                                              }`}
-                                              title="Actualiser les données du document"
-                                            >
-                                              {refreshingDocumentId === document.id ? (
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
-                                              ) : (
-                                                <ArrowPathIcon className="h-4 w-4" />
-                                              )}
-                                            </button>
+                                            {!document.isUnlinked && (
+                                              <>
+                                                <button
+                                                  onClick={() => handleRefreshDocument(document)}
+                                                  disabled={refreshingDocumentId === document.id || exportLoading}
+                                                  className={`inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                                                    refreshingDocumentId === document.id || exportLoading
+                                                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                                      : 'text-blue-700 bg-white hover:bg-blue-50'
+                                                  }`}
+                                                  title="Actualiser les données du document"
+                                                >
+                                                  {refreshingDocumentId === document.id ? (
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
+                                                  ) : (
+                                                    <ArrowPathIcon className="h-4 w-4" />
+                                                  )}
+                                                </button>
+
+                                                <button
+                                                  onClick={() => handleOpenUnlinkModal(document)}
+                                                  disabled={unlinkLoading}
+                                                  className={`inline-flex items-center px-3 py-2 border border-orange-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 ${
+                                                    unlinkLoading
+                                                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                                      : 'text-orange-700 bg-white hover:bg-orange-50'
+                                                  }`}
+                                                  title="Dissocier le document (créer une copie statique)"
+                                                >
+                                                  <LinkSlashIcon className="h-4 w-4" />
+                                                </button>
+                                              </>
+                                            )}
                                           </>
                                         )}
                                         
@@ -685,6 +772,15 @@ export default function DocumentsPage() {
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             onDocumentCreated={handleDocumentCreated}
+          />
+
+          {/* Modal de dissociation */}
+          <UnlinkDocumentModal
+            isOpen={isUnlinkModalOpen}
+            onClose={handleCloseUnlinkModal}
+            document={documentToUnlink}
+            onConfirm={handleUnlinkConfirm}
+            loading={unlinkLoading}
           />
         </div>
       </AuthenticatedLayout>

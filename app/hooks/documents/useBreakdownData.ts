@@ -27,6 +27,8 @@ interface BreakdownDataRow {
   periodId: string;
   periodName: string;
   value: string;
+  unitCost: string;    
+  total: string;       
   isToggled: boolean;
   order: number;
   breakdownOrder: number;
@@ -182,8 +184,10 @@ export function useBreakdownData(): UseBreakdownDataReturn {
             periodId: periodId,
             periodName: periodData.name || periodId,
             value: periodData.value || '',
+            unitCost: periodData.unitCost || '',     // NOUVEAU: Extraire unitCost
+            total: periodData.total || '',           // NOUVEAU: Extraire total
             isToggled: periodData.isToggled !== undefined ? periodData.isToggled : true,
-            order: periodData.order || 0, // NOUVEAU: Inclure l'ordre stocké sur Firebase
+            order: periodData.order || 0,
             breakdownOrder: breakdownOrder,
             periodOrder: periodOrder
           });
@@ -228,8 +232,10 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       'Breakdown Name', 
       'Type',
       'Period Name',
-      'Order', // NOUVEAU: Colonne Order
+      'Order',
       'Value',
+      'Unit Cost',   
+      'Total',        
       'isToggled'
     ];
     table.push(headers);
@@ -243,6 +249,8 @@ export function useBreakdownData(): UseBreakdownDataReturn {
         row.periodName,
         row.order.toString(), // NOUVEAU: Inclure l'ordre
         row.value,
+        row.unitCost,       
+        row.total,   
         row.isToggled.toString()
       ]);
     });

@@ -48,6 +48,7 @@ interface TactiqueFormBudgetProps {
   clientFees: ClientFee[];
   campaignCurrency: string;
   exchangeRates: { [key: string]: number };
+  clientId?: string;
   
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onCalculatedChange: (updates: any) => void;
@@ -64,6 +65,7 @@ interface TactiqueFormBudgetProps {
  * @param {ClientFee[]} props.clientFees - Un tableau des frais configurés pour le client.
  * @param {string} props.campaignCurrency - La devise par défaut de la campagne.
  * @param {object} props.exchangeRates - Les taux de change disponibles.
+ * @param {string} [props.clientId] - L'identifiant du client pour récupérer le guide de coûts.
  * @param {Function} props.onChange - Callback déclenché lors d'un changement sur un champ de formulaire standard.
  * @param {Function} props.onCalculatedChange - Callback pour remonter les données calculées et formatées au parent.
  * @param {Function} props.onTooltipChange - Callback pour afficher des infobulles d'aide.
@@ -76,6 +78,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   clientFees,
   campaignCurrency,
   exchangeRates,
+  clientId,
   onChange,
   onCalculatedChange,
   onTooltipChange,
@@ -446,6 +449,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             id: item.id, 
             label: item.SH_Display_Name_FR 
           }))}
+          clientId={clientId}
           onChange={handleFormChange}
           onTooltipChange={onTooltipChange}
           onCalculatedChange={handleFieldChange}

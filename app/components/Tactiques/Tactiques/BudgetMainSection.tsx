@@ -13,8 +13,12 @@
  */
 'use client';
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
+import CostGuideModal from './CostGuideModal';
+import { CostGuideEntry } from '../../../types/costGuide';
+import { getClientInfo } from '../../../lib/clientService';
+import { getCostGuideEntries } from '../../../lib/costGuideService';
 
 interface BudgetMainSectionProps {
   formData: {
@@ -29,6 +33,7 @@ interface BudgetMainSectionProps {
   };
   totalFees: number;
   unitTypeOptions: Array<{ id: string; label: string }>;
+  clientId?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   onCalculatedChange: (field: string, value: number) => void;
@@ -100,6 +105,7 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
  * @param props.formData - Les données actuelles du formulaire.
  * @param props.totalFees - Le montant total des frais calculés en externe.
  * @param props.unitTypeOptions - La liste des types d'unités possibles pour les libellés dynamiques.
+ * @param props.clientId - L'identifiant du client pour récupérer le guide de coûts.
  * @param props.onChange - Callback pour gérer les changements sur les champs de saisie contrôlés.
  * @param props.onTooltipChange - Callback pour afficher une infobulle dans un composant parent.
  * @param props.onCalculatedChange - Callback pour mettre à jour des champs calculés dans l'état parent.
@@ -110,11 +116,61 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   formData,
   totalFees,
   unitTypeOptions = [],
+  clientId,
   onChange,
   onTooltipChange,
   onCalculatedChange,
   disabled = false
 }) => {
+  
+  // État local pour le modal du guide de coûts et les données
+  const [isCostGuideModalOpen, setIsCostGuideModalOpen] = useState(false);
+  const [costGuideEntries, setCostGuideEntries] = useState<CostGuideEntry[]>([]);
+  const [clientHasCostGuide, setClientHasCostGuide] = useState<boolean>(false);
+  const [costGuideLoading, setCostGuideLoading] = useState<boolean>(false);
+
+  // Vérifier si le client a un cost guide
+  useEffect(() => {
+    const checkClientCostGuide = async () => {
+      if (!clientId) {
+        console.log('BudgetMainSection: Pas de clientId fourni');
+        setClientHasCostGuide(false);
+        return;
+      }
+      
+      try {
+        setCostGuideLoading(true);
+        console.log('BudgetMainSection: Vérification du cost guide pour client:', clientId);
+        
+        const clientInfo = await getClientInfo(clientId);
+        console.log('BudgetMainSection: Infos client récupérées:', clientInfo);
+        console.log('BudgetMainSection: CL_Cost_Guide_ID:', clientInfo.CL_Cost_Guide_ID);
+        
+        const costGuideId = clientInfo.CL_Cost_Guide_ID;
+        const hasCostGuide = !!(costGuideId && costGuideId.trim());
+        
+        console.log('BudgetMainSection: Client a cost guide?', hasCostGuide);
+        setClientHasCostGuide(hasCostGuide);
+        
+        if (hasCostGuide && costGuideId) {
+          console.log('BudgetMainSection: Chargement des entrées du cost guide...');
+          const entries = await getCostGuideEntries(costGuideId);
+          console.log('BudgetMainSection: Entrées chargées:', entries.length);
+          setCostGuideEntries(entries);
+        } else {
+          setCostGuideEntries([]);
+        }
+      } catch (error) {
+        console.error('BudgetMainSection: Erreur lors de la vérification du cost guide:', error);
+        setClientHasCostGuide(false);
+        setCostGuideEntries([]);
+      } finally {
+        setCostGuideLoading(false);
+      }
+    };
+
+    checkClientCostGuide();
+  }, [clientId]);
   
   const budget = formData.TC_Budget || 0;
   const costPerUnit = formData.TC_Cost_Per_Unit || 0;
@@ -165,6 +221,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budget, totalFees, budgetMode]);
 
+  // Vérifier si le guide de coûts est disponible
+  const isCostGuideAvailable = useMemo(() => {
+    return clientHasCostGuide && costGuideEntries.length > 0;
+  }, [clientHasCostGuide, costGuideEntries]);
+
   const handleBudgetChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e);
   }, [onChange]);
@@ -172,6 +233,20 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   const handleCostChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newCost = parseFloat(e.target.value) || 0;
     onCalculatedChange('TC_Cost_Per_Unit', newCost);
+  }, [onCalculatedChange]);
+
+  // Handlers pour le modal du guide de coûts
+  const handleOpenCostGuideModal = useCallback(() => {
+    setIsCostGuideModalOpen(true);
+  }, []);
+
+  const handleCloseCostGuideModal = useCallback(() => {
+    setIsCostGuideModalOpen(false);
+  }, []);
+
+  const handleCostGuideSelection = useCallback((unitPrice: number) => {
+    onCalculatedChange('TC_Cost_Per_Unit', unitPrice);
+    setIsCostGuideModalOpen(false);
   }, [onCalculatedChange]);
 
   const calculationStatus = useMemo(() => {
@@ -285,22 +360,45 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               onTooltipChange
             )}
           </div>
-          <div className="relative rounded-lg shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm font-medium">{currency}</span>
+          <div className="space-y-2">
+            <div className="relative rounded-lg shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-gray-500 sm:text-sm font-medium">{currency}</span>
+              </div>
+              <input
+                type="number"
+                value={costPerUnit || ''}
+                onChange={handleCostChange}
+                min="0"
+                step="0.0001"
+                disabled={disabled}
+                required
+                className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
+                placeholder={dynamicLabels.costPlaceholder}
+              />
             </div>
-            <input
-              type="number"
-              value={costPerUnit || ''}
-              onChange={handleCostChange}
-              min="0"
-              step="0.0001"
-              disabled={disabled}
-              required
-              className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
-              placeholder={dynamicLabels.costPlaceholder}
-            />
+            
+            {/* Bouton guide de coûts */}
+            <button
+              type="button"
+              onClick={handleOpenCostGuideModal}
+              disabled={disabled || !isCostGuideAvailable || costGuideLoading}
+              className={`w-full px-3 py-2 text-sm border rounded-lg transition-colors ${
+                disabled || !isCostGuideAvailable || costGuideLoading
+                  ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                  : 'border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300'
+              }`}
+            >
+              {costGuideLoading ? (
+                '⏳ Chargement du guide...'
+              ) : isCostGuideAvailable ? (
+                '📋 Utiliser le guide de coût'
+              ) : (
+                '📋 Guide de coût non disponible'
+              )}
+            </button>
           </div>
+          
           {costPerUnit > 0 && (
             <div className="mt-1 text-xs text-gray-500">
               Formaté : {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
@@ -366,6 +464,15 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </p>
         </div>
       )}
+
+      {/* Modal du guide de coûts */}
+      <CostGuideModal
+        isOpen={isCostGuideModalOpen}
+        onClose={handleCloseCostGuideModal}
+        onSelect={handleCostGuideSelection}
+        costGuideEntries={costGuideEntries}
+        title="Sélectionner un coût du guide"
+      />
     </div>
   );
 });
