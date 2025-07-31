@@ -78,7 +78,7 @@ interface VisibleFields {
   TC_Custom_Dim_3?: boolean;
   TC_Inventory?: boolean;
   TC_Market?: boolean;
-  TC_Language?: boolean;
+  TC_Language_Open?: boolean;
   TC_Media_Objective?: boolean;
   TC_Kpi?: boolean;
   TC_Unit_Type?: boolean;
@@ -169,8 +169,8 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Order: tactique.TC_Order || 0,
     TC_SectionId: tactique.TC_SectionId || '',
     TC_Status: tactique.TC_Status || 'Planned',
-    TC_StartDate: tactique.TC_StartDate || '',
-    TC_EndDate: tactique.TC_EndDate || '',
+    TC_Start_Date: tactique.TC_Start_Date || '',
+    TC_End_Date: tactique.TC_End_Date || '',
     TC_Bucket: tactique.TC_Bucket || '',
     breakdowns: tactique.TC_Bucket || '',
     TC_LoB: tactique.TC_LoB || '',
@@ -185,11 +185,11 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Targeting_Open: tactique.TC_Targeting_Open || '',
     TC_Market_Open: tactique.TC_Market_Open || '',
     TC_Frequence: tactique.TC_Frequence || '',
-    TC_Location: tactique.TC_Location || '',
+    TC_Location_Open: tactique.TC_Location_Open || '',
     TC_Market: tactique.TC_Market || '',
-    TC_Language: tactique.TC_Language || '',
+    TC_Language_Open: tactique.TC_Language_Open || '',
     TC_Format_Open: tactique.TC_Format_Open || '',
-    TC_NumberCreatives: tactique.TC_NumberCreatives || '',
+    TC_NumberCreative: tactique.TC_NumberCreative || '',
     TC_AssetDate: tactique.TC_AssetDate || '',
     TC_Media_Objective: tactique.TC_Media_Objective || '',
     TC_Billing_ID: tactique.TC_Billing_ID || '',
@@ -300,7 +300,7 @@ export default function TactiqueDrawer({
   // MODIFIÉ : TC_Publisher ajouté dans la liste des champs dynamiques
   const dynamicListFields = useMemo(() => [
     'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
-    'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language',
+    'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language_Open',
     'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);
 

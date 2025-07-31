@@ -160,7 +160,7 @@ export function useBreakdownLocalData(
       let initialValue = '';
       
       if (breakdown_def?.isDefault && !localBreakdownData[period.id]?.value) {
-        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
+        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
         if (period.isFirst && startDateFormatted) {
           initialValue = startDateFormatted;
         } else if (period.isLast && endDateFormatted) {
@@ -186,7 +186,7 @@ export function useBreakdownLocalData(
     if (hasChanged) {
       setLocalBreakdownData(initialData);
     }
-  }, [periods, formData.breakdowns, formData.TC_StartDate, formData.TC_EndDate, breakdowns]);
+  }, [periods, formData.breakdowns, formData.TC_Start_Date, formData.TC_End_Date, breakdowns]);
 
   // Effet pour initialiser l'état local quand les périodes changent
   useEffect(() => {
@@ -199,8 +199,8 @@ export function useBreakdownLocalData(
   useEffect(() => {
     if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
       const defaultBreakdown = breakdowns.find(b => b.isDefault);
-      if (defaultBreakdown && (formData.TC_StartDate || formData.TC_EndDate)) {
-        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_StartDate, formData.TC_EndDate);
+      if (defaultBreakdown && (formData.TC_Start_Date || formData.TC_End_Date)) {
+        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
         
         const defaultPeriods = periods.filter(p => p.breakdownId === defaultBreakdown.id);
         const updatedData = { ...localBreakdownData };
@@ -229,7 +229,7 @@ export function useBreakdownLocalData(
         }
       }
     }
-  }, [formData.TC_StartDate, formData.TC_EndDate, periods, breakdowns]);
+  }, [formData.TC_Start_Date, formData.TC_End_Date, periods, breakdowns]);
 
   // Synchronise l'objet breakdowns avec le formulaire parent
   useEffect(() => {

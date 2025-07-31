@@ -346,7 +346,7 @@ export function getColumnOptions(
     case 'TC_Custom_Dim_3':
     case 'TC_Inventory':
     case 'TC_Market':
-    case 'TC_Language':
+    case 'TC_Language_Open':
     case 'TC_Media_Objective':
     case 'TC_Kpi':
     case 'TC_Unit_Type':

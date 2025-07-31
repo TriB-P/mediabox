@@ -40,7 +40,7 @@ interface VisibleFields {
   TC_Custom_Dim_3?: boolean;
   TC_Inventory?: boolean;
   TC_Market?: boolean;
-  TC_Language?: boolean;
+  TC_Language_Open?: boolean;
 }
 
 interface TactiqueFormStrategieProps {
@@ -53,15 +53,15 @@ interface TactiqueFormStrategieProps {
     TC_Targeting_Open?: string;
     TC_Market_Open?: string;
     TC_Frequence?: string;
-    TC_Location?: string;
+    TC_Location_Open?: string;
     TC_Market?: string;
-    TC_Language?: string;
+    TC_Language_Open?: string;
     TC_Format_Open?: string;
     TC_Buying_Method?: string;
     TC_Custom_Dim_1?: string;
     TC_Custom_Dim_2?: string;
     TC_Custom_Dim_3?: string;
-    TC_NumberCreatives?: string;
+    TC_NumberCreative?: string;
     TC_AssetDate?: string;
   };
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -238,9 +238,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           )}
         />
         <FormInput
-          id="TC_Location"
-          name="TC_Location"
-          value={formData.TC_Location || ''}
+          id="TC_Location_Open"
+          name="TC_Location_Open"
+          value={formData.TC_Location_Open || ''}
           onChange={onChange}
           type="text"
           placeholder="Décrivez l'emplacement"
@@ -281,13 +281,13 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
-        {(dynamicLists.TC_Language && dynamicLists.TC_Language.length > 0) && (
+        {(dynamicLists.TC_Language_Open && dynamicLists.TC_Language_Open.length > 0) && (
           <SmartSelect
-            id="TC_Language"
-            name="TC_Language"
-            value={formData.TC_Language || ''}
+            id="TC_Language_Open"
+            name="TC_Language_Open"
+            value={formData.TC_Language_Open || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Language?.map(item => ({
+            options={dynamicLists.TC_Language_Open?.map(item => ({
               id: item.id,
               label: item.SH_Display_Name_FR
             })) || []}
@@ -385,9 +385,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
         description="Gestion des créatifs et des livrables"
       >
         <FormInput
-          id="TC_NumberCreatives"
-          name="TC_NumberCreatives"
-          value={formData.TC_NumberCreatives || ''}
+          id="TC_NumberCreative"
+          name="TC_NumberCreative"
+          value={formData.TC_NumberCreative || ''}
           onChange={onChange}
           type="text"
           placeholder="Ex: 5 bannières + 2 vidéos"

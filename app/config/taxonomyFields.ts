@@ -40,7 +40,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Objective': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Inventory': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Market': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Language': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
+  'TC_Language_Open': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Media_Objective': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Kpi': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
   'TC_Unit_Type': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },

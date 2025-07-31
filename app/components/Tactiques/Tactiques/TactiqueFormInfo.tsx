@@ -28,8 +28,8 @@ interface TactiqueFormInfoProps {
     TC_Budget?: number;
     TC_Order?: number;
     TC_Status?: string;
-    TC_StartDate?: string;
-    TC_EndDate?: string;
+    TC_Start_Date?: string;
+    TC_End_Date?: string;
     TC_Bucket?: string;
   };
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;

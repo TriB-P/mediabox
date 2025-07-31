@@ -4,12 +4,13 @@
  * Fonctions utilitaires pour DynamicTableStructure
  * Contient toute la logique d'enrichissement, formatage et traitement des données
  * Version complète avec toutes les fonctions nécessaires
+ * MODIFIÉ : Support des sous-catégories placement
  */
 
 import React from 'react';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { formatColumnValue, TactiqueSubCategory } from './tableColumns.config';
+import { formatColumnValue, TactiqueSubCategory, PlacementSubCategory } from './tableColumns.config';
 
 interface CampaignBucket {
   id: string;
@@ -59,7 +60,7 @@ export function enrichColumnsWithData(
           case 'TC_Custom_Dim_3':
           case 'TC_Inventory':
           case 'TC_Market':
-          case 'TC_Language':
+          case 'TC_Language_Open':
           case 'TC_Media_Objective':
           case 'TC_Kpi':
           case 'TC_Unit_Type':
@@ -68,6 +69,14 @@ export function enrichColumnsWithData(
               id: item.id,
               label: item.SH_Display_Name_FR
             }));
+            break;
+
+          // NOUVEAU : Support des taxonomies de placement
+          case 'PL_Taxonomy_Tags':
+          case 'PL_Taxonomy_Platform':
+          case 'PL_Taxonomy_MediaOcean':
+            // Ces options seront enrichies dynamiquement avec les taxonomies du client
+            // dans TactiquesAdvancedTableView.tsx
             break;
 
           default:
@@ -93,6 +102,11 @@ export function enrichColumnsWithData(
         return buckets.length > 0;
       }
 
+      // Pour les taxonomies de placement, toujours garder (seront enrichies ailleurs)
+      if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(column.key)) {
+        return true;
+      }
+
       // Pour les listes dynamiques, garder seulement s'il y a des données
       if (dynamicLists[column.key]) {
         return dynamicLists[column.key].length > 0;
@@ -109,7 +123,7 @@ export function enrichColumnsWithData(
 }
 
 /**
- * Formate une valeur pour l'affichage en mode lecture
+ * MODIFIÉ : Formate une valeur pour l'affichage en mode lecture avec support des sous-catégories placement
  */
 export function formatDisplayValue(
   columnKey: string,
@@ -117,7 +131,7 @@ export function formatDisplayValue(
   buckets: CampaignBucket[],
   dynamicLists: { [key: string]: ListItem[] },
   selectedLevel: TableLevel,
-  selectedTactiqueSubCategory?: TactiqueSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory
 ): string {
   // Cas spécial pour TC_Bucket : afficher le nom au lieu de l'ID
   if (columnKey === 'TC_Bucket' && value) {
@@ -131,13 +145,14 @@ export function formatDisplayValue(
     return item ? item.SH_Display_Name_FR : value;
   }
 
+  // NOUVEAU : Cas spéciaux pour les taxonomies de placement (affichage des IDs pour l'instant)
+  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(columnKey) && value) {
+    // TODO: Enrichir avec les noms des taxonomies une fois qu'elles seront chargées
+    return value;
+  }
+
   // Formatage standard pour les autres types
-  return formatColumnValue(
-    selectedLevel,
-    columnKey,
-    value,
-    selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined
-  );
+  return formatColumnValue(selectedLevel, columnKey, value, subCategory);
 }
 
 /**

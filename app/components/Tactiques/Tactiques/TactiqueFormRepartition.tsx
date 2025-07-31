@@ -86,14 +86,14 @@ export default function TactiqueFormRepartition({
     if (breakdowns.length > 0) {
       const allPeriods = generateAllPeriods(
         breakdowns,
-        formData.TC_StartDate,
-        formData.TC_EndDate
+        formData.TC_Start_Date,
+        formData.TC_End_Date
       );
       setPeriods(allPeriods);
     } else {
       setPeriods([]);
     }
-  }, [breakdowns, formData.TC_StartDate, formData.TC_EndDate]);
+  }, [breakdowns, formData.TC_Start_Date, formData.TC_End_Date]);
 
   // Fonction pour toggle l'état collapse/expand d'un breakdown
   const toggleBreakdownCollapse = (breakdownId: string) => {
@@ -124,8 +124,8 @@ export default function TactiqueFormRepartition({
       breakdownId,
       totalAmount: '',
       distributionMode: 'equal',
-      startDate: formData.TC_StartDate || '',
-      endDate: formData.TC_EndDate || '',
+      startDate: formData.TC_Start_Date || '',
+      endDate: formData.TC_End_Date || '',
       pebsField: 'unitCost'
     });
   };
@@ -252,8 +252,8 @@ export default function TactiqueFormRepartition({
               </div>
               <input
                 type="date"
-                name="TC_StartDate"
-                value={formData.TC_StartDate || ''}
+                name="TC_Start_Date"
+                value={formData.TC_Start_Date || ''}
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
@@ -272,8 +272,8 @@ export default function TactiqueFormRepartition({
               </div>
               <input
                 type="date"
-                name="TC_EndDate"
-                value={formData.TC_EndDate || ''}
+                name="TC_End_Date"
+                value={formData.TC_End_Date || ''}
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
@@ -342,7 +342,7 @@ export default function TactiqueFormRepartition({
                           </div>
                           <p className="text-sm text-slate-500 mt-1">
                             {breakdown.type}
-                            {breakdown.isDefault && formData.TC_StartDate && formData.TC_EndDate ? (
+                            {breakdown.isDefault && formData.TC_Start_Date && formData.TC_End_Date ? (
                               <> • Basé sur les dates de la tactique</>
                             ) : (
                               <> • {breakdown.startDate} → {breakdown.endDate}</>

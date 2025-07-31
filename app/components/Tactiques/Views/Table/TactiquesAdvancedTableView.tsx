@@ -82,7 +82,7 @@ interface VisibleFields {
   TC_Custom_Dim_3?: boolean;
   TC_Inventory?: boolean;
   TC_Market?: boolean;
-  TC_Language?: boolean;
+  TC_Language_Open?: boolean;
   TC_Media_Objective?: boolean;
   TC_Kpi?: boolean;
   TC_Unit_Type?: boolean;
@@ -246,7 +246,7 @@ export default function TactiquesAdvancedTableView({
       // Chargement des listes dynamiques (logique existante)
       const dynamicListFields = [
         'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
-        'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language',
+        'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language_Open',
         'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
       ];
 
@@ -354,7 +354,7 @@ export default function TactiquesAdvancedTableView({
           case 'TC_Custom_Dim_3':
           case 'TC_Inventory':
           case 'TC_Market':
-          case 'TC_Language':
+          case 'TC_Language_Open':
           case 'TC_Media_Objective':
           case 'TC_Kpi':
           case 'TC_Unit_Type':

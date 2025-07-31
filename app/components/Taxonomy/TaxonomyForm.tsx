@@ -21,7 +21,7 @@ const DYNAMIC_VARIABLES = [
   'UTM_TC_Publisher',
   'UTM_CR_Format_Details',
   'CR_Plateform_Name',
-  'UTM_TC_Language',
+  'UTM_TC_Language_Open',
   'TC_Billing_ID',
   'TC_Targeting',
   'TC_Media_Type'

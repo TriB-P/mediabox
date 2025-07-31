@@ -39,9 +39,9 @@ export interface Tactique {
   TC_Targeting_Open?: string; // Description de l'audience
   TC_Market_Open?: string; // Description du marché
   TC_Frequence?: string; // Fréquence
-  TC_Location?: string; // Description de l'emplacement
+  TC_Location_Open?: string; // Description de l'emplacement
   TC_Market?: string; // Marché (liste dynamique)
-  TC_Language?: string; // Langue
+  TC_Language_Open?: string; // Langue
   TC_Format_Open?: string; // Description du format
 
   // Champs Stratégie - Champs personnalisés
@@ -51,7 +51,7 @@ export interface Tactique {
   TC_Custom_Dim_3?: string; // Dimension personnalisée 3
 
   // Champs Stratégie - Production
-  TC_NumberCreatives?: string; // Nombre de créatifs suggérés
+  TC_NumberCreative?: string; // Nombre de créatifs suggérés
   TC_AssetDate?: string; // Date de livraison des créatifs
 
   // Champs KPI
@@ -81,8 +81,8 @@ export interface Tactique {
   // Champs legacy (à conserver pour compatibilité)
   TC_Placement?: string; // Placement média
   TC_Format?: string; // Format utilisé
-  TC_StartDate?: string; // Date de début
-  TC_EndDate?: string; // Date de fin
+  TC_Start_Date?: string; // Date de début
+  TC_End_Date?: string; // Date de fin
 
   // Nouveaux champs Budget
   TC_Currency?: string;           // Devise d'achat (CAD, USD, EUR...)
@@ -261,15 +261,15 @@ export interface TactiqueFormData {
   TC_Targeting_Open?: string;
   TC_Market_Open?: string;
   TC_Frequence?: string;
-  TC_Location?: string;
+  TC_Location_Open?: string;
   TC_Market?: string;
-  TC_Language?: string;
+  TC_Language_Open?: string;
   TC_Format_Open?: string;
   TC_Buying_Method?: string;
   TC_Custom_Dim_1?: string;
   TC_Custom_Dim_2?: string;
   TC_Custom_Dim_3?: string;
-  TC_NumberCreatives?: string;
+  TC_NumberCreative?: string;
   TC_AssetDate?: string;
   TC_Media_Objective?: string;
   TC_Kpi?: string;
@@ -291,8 +291,8 @@ export interface TactiqueFormData {
   TC_PO?: string;
   TC_Placement?: string;
   TC_Format?: string;
-  TC_StartDate?: string;
-  TC_EndDate?: string;
+  TC_Start_Date?: string;
+  TC_End_Date?: string;
 }
 
 export interface PlacementFormData {
