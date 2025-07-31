@@ -489,71 +489,8 @@ export default function TactiquesAdvancedTableView({
         campaignCurrency={campaignCurrency}
       />
 
-      <div className="flex items-center justify-between text-sm text-gray-500 py-2">
-        <div className="flex items-center space-x-4">
-          <span>{tableRows.length} ligne{tableRows.length > 1 ? 's' : ''} affichée{tableRows.length > 1 ? 's' : ''}</span>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={expandAllSections}
-              className="text-xs text-gray-600 hover:text-gray-800 px-1 py-1 rounded hover:bg-gray-100"
-            >
-              Tout étendre
-            </button>
-            <button
-              onClick={collapseAllSections}
-              className="text-xs text-gray-600 hover:text-gray-800 px-1 py-1 rounded hover:bg-gray-100"
-            >
-              Tout replier
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {hasUnsavedChanges && (
-            <span className="text-orange-600 font-medium">
-              {pendingChanges.size} modification{pendingChanges.size > 1 ? 's' : ''} non sauvegardée{pendingChanges.size > 1 ? 's' : ''}
-            </span>
-          )}
-          
-          {!listsLoading && Object.keys(dynamicLists).length > 0 && (
-            <span className="text-green-600 text-xs">
-              ✓ Listes chargées ({Object.keys(dynamicLists).length})
-            </span>
-          )}
 
-          {/* NOUVEAU : Indicateur de données budget */}
-          {!budgetDataLoading && clientFees.length > 0 && (
-            <span className="text-blue-600 text-xs">
-              ✓ Budget ({clientFees.length} frais, {campaignCurrency})
-            </span>
-          )}
-          
-          <span>Mode: <strong className="capitalize">{selectedLevel}</strong></span>
-        </div>
-      </div>
 
-      {process.env.NODE_ENV === 'development' && (
-        <details className="bg-gray-50 p-3 rounded text-xs text-gray-600">
-          <summary className="cursor-pointer font-medium">Debug Info</summary>
-          <div className="mt-2 space-y-1">
-            <p><strong>Selected Level:</strong> {selectedLevel}</p>
-            <p><strong>Entity Counts:</strong> {JSON.stringify(entityCounts)}</p>
-            <p><strong>Expanded Sections:</strong> {Array.from(expandedSections).join(', ') || 'Aucune'}</p>
-            <p><strong>Editing Cells:</strong> {Array.from(editingCells).join(', ') || 'Aucune'}</p>
-            <p><strong>Pending Changes:</strong> {pendingChanges.size}</p>
-            <p><strong>Lists Loading:</strong> {listsLoading ? 'Oui' : 'Non'}</p>
-            <p><strong>Dynamic Lists:</strong> {Object.keys(dynamicLists).join(', ') || 'Aucune'}</p>
-            <p><strong>Buckets:</strong> {buckets.length}</p>
-            {/* NOUVEAU : Debug info budget */}
-            <p><strong>Budget Data Loading:</strong> {budgetDataLoading ? 'Oui' : 'Non'}</p>
-            <p><strong>Client Fees:</strong> {clientFees.length}</p>
-            <p><strong>Exchange Rates:</strong> {Object.keys(exchangeRates).length}</p>
-            <p><strong>Campaign Currency:</strong> {campaignCurrency}</p>
-            <p><strong>Is Saving:</strong> {isSaving ? 'Oui' : 'Non'}</p>
-          </div>
-        </details>
-      )}
     </div>
   );
 }

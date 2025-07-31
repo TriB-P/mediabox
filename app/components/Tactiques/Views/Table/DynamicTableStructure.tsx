@@ -1,7 +1,8 @@
 // app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
 
 /**
- * CORRIGÉ : Version finale avec headers dynamiques, limitation aux tactiques et checkbox fonctionnels
+ * Version mise à jour avec les composants budget réactifs
+ * Utilise les nouveaux helpers de calculs et composants spécialisés
  */
 'use client';
 
@@ -15,14 +16,9 @@ import {
 } from './tableColumns.config';
 import {
   createBudgetColumnsComplete,
-  shouldShowBudgetColumns,
   isFeeCompositeColumn,
-  shouldTriggerBudgetRecalculation,
-  getCalculatedBudgetFields,
-  formatBudgetDisplayValue,
   FeeColumnDefinition
 } from './budgetColumns.config';
-import FeeCompositeCell, { FeeCompositeCellReadonly } from './FeeCompositeCell';
 import {
   enrichColumnsWithData,
   processTableRows,
@@ -46,7 +42,15 @@ import {
   cleanupExpiredErrors,
   createValidationError
 } from './CellSelectionHelper';
-import TableBudgetCell from './TableBudgetCell';
+
+// NOUVEAUX IMPORTS pour les composants réactifs
+import ReactiveBudgetCell from './ReactiveBudgetCell';
+import ReactiveFeeComposite, { ReactiveFeeCompositeReadonly } from './ReactiveFeeComposite';
+import { 
+  BudgetRowData, 
+  shouldRecalculate 
+} from './TableBudgetCalculations';
+
 import { Fee } from '../../../../lib/tactiqueListService';
 
 interface SortConfig {
@@ -91,16 +95,24 @@ interface DynamicTableStructureProps {
   campaignCurrency: string;
 }
 
-// Type union pour supporter les colonnes composites et normales
 type TableColumn = DynamicColumn | FeeColumnDefinition;
 
+// Champs budget qui déclenchent des recalculs
 const BUDGET_FIELDS = [
-  'TC_Budget_Mode', 'TC_Budget', 'TC_Currency', 'TC_Unit_Type', 'TC_Cost_Per_Unit',
-  'TC_Unit_Volume', 'TC_Has_Bonus', 'TC_Real_Value', 'TC_Bonus_Value',
-  'TC_Media_Budget', 'TC_Client_Budget', 'TC_Total_Fees'
+  'TC_BudgetChoice', 'TC_BudgetInput', 'TC_Unit_Price', 'TC_Unit_Type', 
+  'TC_BuyCurrency', 'TC_Media_Value'
 ];
 
-const isBudgetField = (fieldKey: string): boolean => BUDGET_FIELDS.includes(fieldKey);
+// Champs calculés automatiquement
+const CALCULATED_FIELDS = [
+  'TC_Unit_Volume', 'TC_Media_Budget', 'TC_Client_Budget', 
+  'TC_Bonification', 'TC_Total_Fees'
+];
+
+function isBudgetField(fieldKey: string): boolean {
+  return BUDGET_FIELDS.includes(fieldKey) || CALCULATED_FIELDS.includes(fieldKey) || 
+         fieldKey.includes('Fee_') || shouldRecalculate(fieldKey);
+}
 
 export default function DynamicTableStructure({
   tableRows,
@@ -138,12 +150,11 @@ export default function DynamicTableStructure({
   const tableRef = useRef<HTMLTableElement>(null);
 
   /**
-   * CORRIGÉ : Colonnes enrichies avec noms dynamiques des frais et limitation aux tactiques
+   * Colonnes enrichies avec noms dynamiques des frais
    */
   const columns = useMemo(() => {
     let baseColumns: TableColumn[];
     
-    // CORRIGÉ : Pour la sous-catégorie budget, utiliser les colonnes avec noms dynamiques
     if (selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget') {
       baseColumns = [
         {
@@ -152,13 +163,18 @@ export default function DynamicTableStructure({
           type: 'readonly' as const,
           width: 300
         },
-        ...createBudgetColumnsComplete(clientFees) // CORRIGÉ : Utiliser la nouvelle fonction
+        ...createBudgetColumnsComplete(clientFees).map(col => {
+          // Élargir les colonnes de frais pour plus d'espace
+          if (isFeeCompositeColumn(col)) {
+            return { ...col, width: 320 }; // Augmenté de 280 à 320
+          }
+          return col;
+        })
       ];
       
-      // Pour les colonnes budget, on enrichit seulement les colonnes normales
       return baseColumns.map(col => {
         if (isFeeCompositeColumn(col)) {
-          return col; // Les colonnes composite gardent leurs noms dynamiques
+          return col;
         }
         
         const enrichedCol = enrichColumnsWithData([col as DynamicColumn], buckets, dynamicLists)[0];
@@ -194,7 +210,6 @@ export default function DynamicTableStructure({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') setIsShiftPressed(true);
 
-      // Copier (Ctrl+C)
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.length > 0) {
         e.preventDefault();
         const firstCell = selectedCells[0];
@@ -216,13 +231,11 @@ export default function DynamicTableStructure({
         }
       }
 
-      // Coller (Ctrl+V)
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && copiedData && selectedCells.length > 0) {
         e.preventDefault();
         handlePaste();
       }
 
-      // Désélectionner (Escape)
       if (e.key === 'Escape') {
         setSelectedCells([]);
         setSelectionStart(null);
@@ -276,7 +289,7 @@ export default function DynamicTableStructure({
   }, [selectedCells]);
 
   /**
-   * Gère la sélection de cellules avec support rectangulaire
+   * Gère la sélection de cellules (1 clic = sélection)
    */
   const handleCellClick = useCallback((rowIndex: number, columnKey: string, event?: React.MouseEvent) => {
     if (event && ['INPUT', 'SELECT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
@@ -337,15 +350,14 @@ export default function DynamicTableStructure({
   }, [copiedData, selectedCells, processedRows, columns, onCellChange]);
 
   /**
-   * Gère les changements calculés (cellules budget)
+   * NOUVEAU : Gère les changements calculés (utilise le nouveau système)
    */
   const handleCalculatedChange = useCallback((entityId: string, updates: { [key: string]: any }) => {
-    console.log('=== handleCalculatedChange appelé ===');
+    console.log('=== handleCalculatedChange ===');
     console.log('EntityId:', entityId);
     console.log('Updates:', updates);
     
     Object.entries(updates).forEach(([fieldKey, value]) => {
-      console.log('Appel onCellChange pour:', fieldKey, '=', value);
       onCellChange(entityId, fieldKey, value);
     });
   }, [onCellChange]);
@@ -428,47 +440,7 @@ export default function DynamicTableStructure({
   }, [processedRows, onStartEdit]);
 
   /**
-   * Gère les changements de champs budget avec recalculs automatiques
-   */
-  const handleBudgetFieldChange = useCallback((entityId: string, fieldKey: string, value: any) => {
-    console.log('=== handleBudgetFieldChange appelé ===');
-    console.log('EntityId:', entityId);
-    console.log('FieldKey:', fieldKey);
-    console.log('Value:', value);
-    console.log('Appel onCellChange...');
-    
-    onCellChange(entityId, fieldKey, value);
-    
-    console.log('onCellChange appelé, vérification pendingChanges après 50ms...');
-    setTimeout(() => {
-      const currentChanges = pendingChanges.get(entityId);
-      console.log('=== VÉRIFICATION pendingChanges ===');
-      console.log('Changements pour', entityId, ':', currentChanges);
-      console.log('Valeur pour', fieldKey, ':', currentChanges?.[fieldKey]);
-    }, 50);
-    
-    if (shouldTriggerBudgetRecalculation(fieldKey)) {
-      const row = processedRows.find(r => r.id === entityId);
-      if (row) {
-        const budgetInput = fieldKey === 'TC_BudgetInput' ? value : (row.data as any).TC_BudgetInput || 0;
-        const unitPrice = fieldKey === 'TC_Unit_Price' ? value : (row.data as any).TC_Unit_Price || 0;
-        
-        if (budgetInput > 0 && unitPrice > 0) {
-          const calculatedUpdates: { [key: string]: any } = {};
-          calculatedUpdates.TC_Unit_Volume = Math.round(budgetInput / unitPrice);
-          calculatedUpdates.TC_Media_Budget = budgetInput;
-          calculatedUpdates.TC_Client_Budget = budgetInput;
-          
-          if (Object.keys(calculatedUpdates).length > 0) {
-            handleCalculatedChange(entityId, calculatedUpdates);
-          }
-        }
-      }
-    }
-  }, [onCellChange, handleCalculatedChange, processedRows, pendingChanges]);
-
-  /**
-   * CORRIGÉ : Rend les cellules avec limitation aux lignes tactiques pour les colonnes budget
+   * NOUVEAU : Rend les cellules avec les composants réactifs
    */
   const renderDataCell = useCallback((row: TableRow, column: TableColumn, rowIndex: number) => {
     const cellKey = `${row.id}_${column.key}`;
@@ -478,7 +450,7 @@ export default function DynamicTableStructure({
     const hasError = hasValidationError(cellKey);
     const isBudgetMode = selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget';
 
-    // NOUVEAU : Si c'est une colonne budget mais pas une ligne tactique, ne rien afficher
+    // Si c'est une colonne budget mais pas une ligne tactique, ne rien afficher
     if (isBudgetMode && row.type !== 'tactique' && (isBudgetField(column.key) || isFeeCompositeColumn(column))) {
       return (
         <div 
@@ -492,83 +464,89 @@ export default function DynamicTableStructure({
       );
     }
 
-    // Gestion des colonnes de frais composites
+    // NOUVEAU : Gestion des colonnes de frais composites avec le nouveau composant
     if (isFeeCompositeColumn(column)) {
+      const rowDataWithPending: BudgetRowData = {
+        ...row.data,
+        ...pendingChanges.get(row.id)
+      };
+
       if (!row.isEditable) {
         return (
-          <FeeCompositeCellReadonly
-            column={column}
-            rowData={row.data}
-            clientFees={clientFees}
-            currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
-            isSelected={isSelected}
-            onClick={() => handleCellClick(rowIndex, column.key)}
-            pendingChanges={pendingChanges.get(row.id) || {}}
-          />
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCellClick(rowIndex, column.key, e);
+            }}
+          >
+            <ReactiveFeeCompositeReadonly
+              column={column}
+              rowData={rowDataWithPending}
+              clientFees={clientFees}
+              currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
+              isSelected={isSelected}
+              onClick={() => {}} // Pas besoin de onClick ici
+              pendingChanges={pendingChanges.get(row.id) || {}}
+            />
+          </div>
         );
       }
 
       return (
-        <FeeCompositeCell
-          entityId={row.id}
-          column={column}
-          rowData={row.data}
-          isEditable={row.isEditable}
-          clientFees={clientFees}
-          currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
-          isSelected={isSelected}
-          hasValidationError={hasError}
-          onChange={isBudgetMode ? handleBudgetFieldChange : onCellChange}
-          onCalculatedChange={handleCalculatedChange}
-          onClick={() => handleCellClick(rowIndex, column.key)}
-          pendingChanges={pendingChanges.get(row.id) || {}}
-        />
-      );
-    }
-
-    // Cellules budget calculées automatiquement  
-    if (isBudgetMode && getCalculatedBudgetFields().includes(column.key)) {
-      const formattedValue = formatBudgetDisplayValue(
-        column.key, 
-        value, 
-        (row.data as any).TC_BuyCurrency || campaignCurrency
-      );
-      
-      return (
-        <div 
-          className={`min-h-[32px] flex items-center px-2 py-1 cursor-pointer bg-green-50 ${
-            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-100' : ''
-          }`}
-          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCellClick(rowIndex, column.key, e);
+          }}
         >
-          <span className="text-green-700 font-medium flex items-center">
-            {formattedValue || '-'}
-            <span className="ml-1 text-xs">✓</span>
-          </span>
+          <ReactiveFeeComposite
+            entityId={row.id}
+            column={column}
+            rowData={rowDataWithPending}
+            isEditable={row.isEditable}
+            clientFees={clientFees}
+            currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
+            isSelected={isSelected}
+            hasValidationError={hasError}
+            onChange={onCellChange}
+            onCalculatedChange={handleCalculatedChange}
+            onClick={() => {}} // Pas besoin de onClick ici
+            pendingChanges={pendingChanges.get(row.id) || {}}
+          />
         </div>
       );
     }
 
-    // Cellules budget spécialisées normales
-    if (isBudgetField(column.key)) {
+    // NOUVEAU : Cellules budget avec le nouveau composant réactif
+    if (isBudgetMode && isBudgetField(column.key)) {
+      const rowDataWithPending: BudgetRowData = {
+        ...row.data,
+        ...pendingChanges.get(row.id)
+      };
+      
       return (
         <div 
           className={`relative ${isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : ''}`}
-          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
-          onDoubleClick={(e) => handleCellDoubleClick(rowIndex, column.key, e)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCellClick(rowIndex, column.key, e);
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            handleCellDoubleClick(rowIndex, column.key, e);
+          }}
         >
-          <TableBudgetCell
+          <ReactiveBudgetCell
             entityId={row.id}
             fieldKey={column.key}
             value={value}
             column={column as DynamicColumn}
-            rowData={row.data}
+            rowData={rowDataWithPending}
             isEditable={row.isEditable}
             isEditing={isEditing}
             clientFees={clientFees}
-            exchangeRates={exchangeRates}
             campaignCurrency={campaignCurrency}
-            onChange={isBudgetMode ? handleBudgetFieldChange : onCellChange}
+            onChange={onCellChange}
             onCalculatedChange={handleCalculatedChange}
             onStartEdit={onStartEdit}
             onEndEdit={onEndEdit}
@@ -580,36 +558,45 @@ export default function DynamicTableStructure({
     // Cellules readonly normales
     if (column.type === 'readonly' || !row.isEditable) {
       const formattedValue = isBudgetMode ? 
-        formatBudgetDisplayValue(column.key, value, (row.data as any).TC_BuyCurrency || campaignCurrency) :
+        value : // Pas de formatage spécial pour les valeurs simples
         formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined);
       
       return (
         <div 
-          className={`min-h-[32px] flex items-center px-2 py-1 cursor-pointer ${
+          className={`min-h-[32px] flex items-center justify-center px-2 py-1 cursor-pointer ${
             isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
           } ${!row.isEditable ? 'text-gray-400' : 'text-gray-900'}`}
-          onClick={(e) => handleCellClick(rowIndex, column.key, e)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCellClick(rowIndex, column.key, e);
+          }}
         >
           <span>{formattedValue || '-'}</span>
         </div>
       );
     }
 
-    // Cellules éditables normales
+    // Cellules éditables normales (non-budget)
     return (
       <div
         className={`min-h-[32px] flex items-center relative group cursor-pointer ${
           isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
         } ${hasError ? 'ring-2 ring-red-500 ring-inset bg-red-50 animate-pulse' : ''}`}
-        onClick={(e) => handleCellClick(rowIndex, column.key, e)}
-        onDoubleClick={(e) => handleCellDoubleClick(rowIndex, column.key, e)}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCellClick(rowIndex, column.key, e);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleCellDoubleClick(rowIndex, column.key, e);
+        }}
       >
         {isEditing ? (
           <>
             {column.type === 'select' ? (
               <select
                 value={value || ''}
-                onChange={(e) => isBudgetMode ? handleBudgetFieldChange(row.id, column.key, e.target.value) : onCellChange(row.id, column.key, e.target.value)}
+                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
                 onBlur={() => onEndEdit(cellKey)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
@@ -620,7 +607,7 @@ export default function DynamicTableStructure({
                 onClick={(e) => e.stopPropagation()}
               >
                 <option value="">-- Sélectionner --</option>
-                {column.options?.map(option => (
+                {(column as DynamicColumn).options?.map(option => (
                   <option key={option.id} value={option.id}>
                     {option.label}
                   </option>
@@ -634,27 +621,28 @@ export default function DynamicTableStructure({
                 onChange={(e) => {
                   const newValue = column.type === 'number' || column.type === 'currency' ? 
                     (parseFloat(e.target.value) || 0) : e.target.value;
-                  isBudgetMode ? handleBudgetFieldChange(row.id, column.key, newValue) : onCellChange(row.id, column.key, newValue);
+                  onCellChange(row.id, column.key, newValue);
                 }}
                 onBlur={() => onEndEdit(cellKey)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
                   if (e.key === 'Escape') onEndEdit(cellKey);
                 }}
-                className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={`w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                  column.type === 'number' || column.type === 'currency' ? 'text-center' : 'text-left'
+                }`}
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
-                step={column.type === 'currency' ? '0.01' : '1'}
+                step="0.01"
                 min={column.type === 'number' || column.type === 'currency' ? '0' : undefined}
               />
             )}
           </>
         ) : (
-          <div className="w-full text-left px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors">
-            {(isBudgetMode ? 
-              formatBudgetDisplayValue(column.key, value, (row.data as any).TC_BuyCurrency || campaignCurrency) :
-              formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined)
-            ) || (
+          <div className={`w-full px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors ${
+            column.type === 'number' || column.type === 'currency' ? 'justify-center' : 'justify-start'
+          }`}>
+            {formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, selectedLevel === 'tactique' ? selectedTactiqueSubCategory : undefined) || (
               <span className="text-gray-400 italic">Double-clic pour modifier</span>
             )}
           </div>
@@ -670,8 +658,8 @@ export default function DynamicTableStructure({
   }, [
     getCellValue, editingCells, isCellSelected, hasValidationError, buckets, dynamicLists, 
     selectedLevel, selectedTactiqueSubCategory, onCellChange, onEndEdit, onStartEdit,
-    handleCellClick, handleCellDoubleClick, clientFees, exchangeRates, campaignCurrency, 
-    handleCalculatedChange, handleBudgetFieldChange
+    handleCellClick, handleCellDoubleClick, clientFees, campaignCurrency, 
+    handleCalculatedChange, pendingChanges
   ]);
 
   return (
@@ -754,12 +742,11 @@ export default function DynamicTableStructure({
                   <div><strong>Édition :</strong> Double-clic pour éditer • Enter/Tab = sauver • Esc = annuler</div>
                   <div><strong>Copie :</strong> Ctrl+C pour copier • Ctrl+V pour coller</div>
                   <div><strong>Validation :</strong> Contour rouge clignotant = valeur incompatible rejetée</div>
-                  <div><strong>Menus déroulants :</strong> Mapping intelligent par libellé si possible</div>
                   {selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget' && (
                     <>
                       <div><strong>Budget :</strong> Calculs automatiques en temps réel • Limité aux tactiques</div>
-                      <div><strong>Frais :</strong> Headers dynamiques • Checkbox fonctionnel • Colonnes composites</div>
-                      <div><strong>Totaux :</strong> ✓ = calculé automatiquement • 💰 = champ budget</div>
+                      <div><strong>Frais :</strong> Composants réactifs • Checkbox fonctionnel • Calculs instantanés</div>
+                      <div><strong>Totaux :</strong> ✓ = calculé automatiquement • Fond vert = champ calculé</div>
                     </>
                   )}
                 </div>
@@ -770,12 +757,7 @@ export default function DynamicTableStructure({
 
           <span className="text-sm text-gray-500 whitespace-nowrap">
             {processedRows.length} ligne{processedRows.length > 1 ? 's' : ''}
-            {searchTerm && ` (filtré${processedRows.length > 1 ? 's' : ''})`}
-            {selectedCells.length > 0 && (
-              <span className="text-indigo-600 font-medium ml-2">
-                • {selectedCells.length} cellule{selectedCells.length > 1 ? 's' : ''} sélectionnée{selectedCells.length > 1 ? 's' : ''}
-              </span>
-            )}
+
           </span>
 
           {sortConfig && (
@@ -795,14 +777,14 @@ export default function DynamicTableStructure({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 text-sm">
               {selectedCells.length > 0 && (
-                <span className="text-indigo-700">
+                <span className="text-indigo-700 pl-2">
                   <strong>{selectedCells.length}</strong> cellule{selectedCells.length > 1 ? 's' : ''} sélectionnée{selectedCells.length > 1 ? 's' : ''}
                 </span>
               )}
 
               {copiedData && (
-                <span className="text-green-700">
-                  📋 Donnée copiée • <strong>"{formatCopiedValueDisplay(copiedData)}"</strong>
+                <span className="text-black-700 pl-3">
+                  📋  <strong>"{formatCopiedValueDisplay(copiedData)}"</strong>
                   {copiedData.columnType === 'select' && ' (menu déroulant)'}
                 </span>
               )}
@@ -852,24 +834,9 @@ export default function DynamicTableStructure({
                   >
                     <div className="flex items-center space-x-1">
                       <span>{column.label}</span>
-                      {isBudgetField(column.key) && (
-                        <span className="text-green-600 text-xs" title="Champ budget avec calculs automatiques">
-                          💰
-                        </span>
-                      )}
                       {isFeeCompositeColumn(column) && (
-                        <span className="text-blue-600 text-xs" title="Frais composite avec sous-colonnes">
-                          🏗️
-                        </span>
-                      )}
-                      {getCalculatedBudgetFields().includes(column.key) && (
-                        <span className="text-green-600 text-xs" title="Valeur calculée automatiquement">
-                          ✓
-                        </span>
-                      )}
-                      {column.type === 'select' && !isBudgetField(column.key) && !isFeeCompositeColumn(column) && (
-                        <span className="text-blue-600 text-xs" title="Menu déroulant avec validation intelligente">
-                          📋
+                        <span className="text-blue-600 text-xs" title="Frais composite réactif">
+                          🔧
                         </span>
                       )}
                       {sortConfig?.key === column.key && (

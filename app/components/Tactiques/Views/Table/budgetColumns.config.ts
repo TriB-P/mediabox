@@ -96,20 +96,8 @@ export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
     width: 120
   },
   {
-    key: 'TC_Media_Value',
-    label: 'Valeur réelle',
-    type: 'currency',
-    width: 120
-  },
-  {
     key: 'TC_Unit_Volume',
     label: 'Volume d\'unité',
-    type: 'readonly',
-    width: 110
-  },
-  {
-    key: 'TC_Bonification',
-    label: 'Bonification',
     type: 'readonly',
     width: 110
   }
