@@ -1,10 +1,7 @@
 // app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
 
 /**
- * Version finale avec sélection de cellules et validation avancée
- * NOUVEAU : Remplace les checkboxes par sélection Excel-like + copier-coller intelligent
- * NOUVEAU : Validation robuste des menus déroulants avec indicateurs visuels
- * VERSION BUDGET : Compatible avec les cellules budget spécialisées
+ * CORRIGÉ : Version finale avec headers dynamiques, limitation aux tactiques et checkbox fonctionnels
  */
 'use client';
 
@@ -17,7 +14,8 @@ import {
   TactiqueSubCategory
 } from './tableColumns.config';
 import {
-  TACTIQUE_BUDGET_COLUMNS_COMPLETE,
+  createBudgetColumnsComplete,
+  shouldShowBudgetColumns,
   isFeeCompositeColumn,
   shouldTriggerBudgetRecalculation,
   getCalculatedBudgetFields,
@@ -93,7 +91,7 @@ interface DynamicTableStructureProps {
   campaignCurrency: string;
 }
 
-// NOUVEAU : Type union pour supporter les colonnes composites et normales
+// Type union pour supporter les colonnes composites et normales
 type TableColumn = DynamicColumn | FeeColumnDefinition;
 
 const BUDGET_FIELDS = [
@@ -130,7 +128,7 @@ export default function DynamicTableStructure({
   const [selectedTactiqueSubCategory, setSelectedTactiqueSubCategory] = useState<TactiqueSubCategory>('info');
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
-  // NOUVEAU : États pour sélection avancée
+  // États pour sélection avancée
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [selectionStart, setSelectionStart] = useState<SelectedCell | null>(null);
   const [copiedData, setCopiedData] = useState<CopiedData | null>(null);
@@ -140,12 +138,12 @@ export default function DynamicTableStructure({
   const tableRef = useRef<HTMLTableElement>(null);
 
   /**
-   * Colonnes enrichies avec données dynamiques et colonnes budget spécialisées
+   * CORRIGÉ : Colonnes enrichies avec noms dynamiques des frais et limitation aux tactiques
    */
   const columns = useMemo(() => {
     let baseColumns: TableColumn[];
     
-    // NOUVEAU : Utiliser les colonnes budget spécialisées pour la sous-catégorie budget
+    // CORRIGÉ : Pour la sous-catégorie budget, utiliser les colonnes avec noms dynamiques
     if (selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget') {
       baseColumns = [
         {
@@ -154,13 +152,13 @@ export default function DynamicTableStructure({
           type: 'readonly' as const,
           width: 300
         },
-        ...TACTIQUE_BUDGET_COLUMNS_COMPLETE
+        ...createBudgetColumnsComplete(clientFees) // CORRIGÉ : Utiliser la nouvelle fonction
       ];
       
       // Pour les colonnes budget, on enrichit seulement les colonnes normales
       return baseColumns.map(col => {
         if (isFeeCompositeColumn(col)) {
-          return col; // Les colonnes composite ne sont pas enrichies
+          return col; // Les colonnes composite gardent leurs noms dynamiques
         }
         
         const enrichedCol = enrichColumnsWithData([col as DynamicColumn], buckets, dynamicLists)[0];
@@ -180,7 +178,7 @@ export default function DynamicTableStructure({
         options: col.options || getColumnOptions(col.key, buckets, dynamicLists)
       }));
     }
-  }, [selectedLevel, selectedTactiqueSubCategory, buckets, dynamicLists]);
+  }, [selectedLevel, selectedTactiqueSubCategory, buckets, dynamicLists, clientFees]);
 
   /**
    * Lignes traitées avec filtrage et tri
@@ -199,7 +197,6 @@ export default function DynamicTableStructure({
       // Copier (Ctrl+C)
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.length > 0) {
         e.preventDefault();
-        // MODIFIÉ : Toujours copier depuis la première cellule sélectionnée (permet copie d'une seule cellule)
         const firstCell = selectedCells[0];
         const row = processedRows[firstCell.rowIndex];
         const column = columns.find(col => col.key === firstCell.columnKey);
@@ -213,7 +210,6 @@ export default function DynamicTableStructure({
             sourceColumnKey: column.key
           });
           
-          // Feedback visuel : brève sélection verte pour confirmer la copie
           const displayValue = column.type === 'select' && (column as DynamicColumn).options ? 
             (column as DynamicColumn).options?.find((option: { id: string; label: string }) => option.id === value)?.label || value : value;
           console.log(`✅ Copié: ${displayValue}`);
@@ -280,7 +276,7 @@ export default function DynamicTableStructure({
   }, [selectedCells]);
 
   /**
-   * NOUVEAU : Gère la sélection de cellules avec support rectangulaire
+   * Gère la sélection de cellules avec support rectangulaire
    */
   const handleCellClick = useCallback((rowIndex: number, columnKey: string, event?: React.MouseEvent) => {
     if (event && ['INPUT', 'SELECT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
@@ -293,7 +289,7 @@ export default function DynamicTableStructure({
       const rectangularSelection = generateRectangularSelection(
         selectionStart, 
         newCell, 
-        columns as DynamicColumn[], // Cast pour compatibilité avec generateRectangularSelection
+        columns as DynamicColumn[],
         processedRows
       );
       setSelectedCells(rectangularSelection);
@@ -307,12 +303,11 @@ export default function DynamicTableStructure({
   }, [isShiftPressed, selectionStart, columns, processedRows]);
 
   /**
-   * NOUVEAU : Gère le collage avec validation avancée
+   * Gère le collage avec validation avancée
    */
   const handlePaste = useCallback(() => {
     if (!copiedData || selectedCells.length === 0) return;
 
-    // CORRIGÉ : Filtre et cast explicite pour obtenir uniquement les DynamicColumn
     const dynamicColumns = columns.reduce<DynamicColumn[]>((acc, col) => {
       if (!isFeeCompositeColumn(col)) {
         acc.push(col as DynamicColumn);
@@ -325,11 +320,9 @@ export default function DynamicTableStructure({
       copiedData,
       processedRows,
       dynamicColumns,
-      // onValidValue
       (rowId: string, columnKey: string, value: any) => {
         onCellChange(rowId, columnKey, value);
       },
-      // onInvalidValue  
       (cellKey: string, errorMessage: string) => {
         setValidationErrors(prev => [
           ...prev.filter(err => err.cellKey !== cellKey),
@@ -338,7 +331,6 @@ export default function DynamicTableStructure({
       }
     );
 
-    // Optionnel : notification des résultats
     if (errors > 0) {
       console.log(`${applied} cellule(s) mise(s) à jour, ${errors} erreur(s) de validation`);
     }
@@ -348,7 +340,12 @@ export default function DynamicTableStructure({
    * Gère les changements calculés (cellules budget)
    */
   const handleCalculatedChange = useCallback((entityId: string, updates: { [key: string]: any }) => {
+    console.log('=== handleCalculatedChange appelé ===');
+    console.log('EntityId:', entityId);
+    console.log('Updates:', updates);
+    
     Object.entries(updates).forEach(([fieldKey, value]) => {
+      console.log('Appel onCellChange pour:', fieldKey, '=', value);
       onCellChange(entityId, fieldKey, value);
     });
   }, [onCellChange]);
@@ -416,7 +413,7 @@ export default function DynamicTableStructure({
   }, [pendingChanges, onToggleSection, expandedSections]);
 
   /**
-   * NOUVEAU : Gère le double-clic pour démarrer l'édition
+   * Gère le double-clic pour démarrer l'édition
    */
   const handleCellDoubleClick = useCallback((rowIndex: number, columnKey: string, event?: React.MouseEvent) => {
     if (event && ['INPUT', 'SELECT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
@@ -431,42 +428,47 @@ export default function DynamicTableStructure({
   }, [processedRows, onStartEdit]);
 
   /**
-   * NOUVEAU : Gère les changements de champs budget avec recalculs automatiques
+   * Gère les changements de champs budget avec recalculs automatiques
    */
   const handleBudgetFieldChange = useCallback((entityId: string, fieldKey: string, value: any) => {
-    // Appliquer le changement immédiatement
+    console.log('=== handleBudgetFieldChange appelé ===');
+    console.log('EntityId:', entityId);
+    console.log('FieldKey:', fieldKey);
+    console.log('Value:', value);
+    console.log('Appel onCellChange...');
+    
     onCellChange(entityId, fieldKey, value);
     
-    // Si c'est un champ qui déclenche un recalcul
+    console.log('onCellChange appelé, vérification pendingChanges après 50ms...');
+    setTimeout(() => {
+      const currentChanges = pendingChanges.get(entityId);
+      console.log('=== VÉRIFICATION pendingChanges ===');
+      console.log('Changements pour', entityId, ':', currentChanges);
+      console.log('Valeur pour', fieldKey, ':', currentChanges?.[fieldKey]);
+    }, 50);
+    
     if (shouldTriggerBudgetRecalculation(fieldKey)) {
-      // Ici on déclencherait les calculs budget
-      // Pour l'instant, on simule avec des valeurs de base
-      const calculatedUpdates: { [key: string]: any } = {};
-      
-      // Exemple de calculs simplifiés (à remplacer par la vraie logique)
-      if (fieldKey === 'TC_BudgetInput' || fieldKey === 'TC_Unit_Price') {
-        const row = processedRows.find(r => r.id === entityId);
-        if (row) {
-          const budgetInput = fieldKey === 'TC_BudgetInput' ? value : (row.data as any).TC_BudgetInput || 0;
-          const unitPrice = fieldKey === 'TC_Unit_Price' ? value : (row.data as any).TC_Unit_Price || 0;
+      const row = processedRows.find(r => r.id === entityId);
+      if (row) {
+        const budgetInput = fieldKey === 'TC_BudgetInput' ? value : (row.data as any).TC_BudgetInput || 0;
+        const unitPrice = fieldKey === 'TC_Unit_Price' ? value : (row.data as any).TC_Unit_Price || 0;
+        
+        if (budgetInput > 0 && unitPrice > 0) {
+          const calculatedUpdates: { [key: string]: any } = {};
+          calculatedUpdates.TC_Unit_Volume = Math.round(budgetInput / unitPrice);
+          calculatedUpdates.TC_Media_Budget = budgetInput;
+          calculatedUpdates.TC_Client_Budget = budgetInput;
           
-          if (budgetInput > 0 && unitPrice > 0) {
-            calculatedUpdates.TC_Unit_Volume = Math.round(budgetInput / unitPrice);
-            calculatedUpdates.TC_Media_Budget = budgetInput;
-            calculatedUpdates.TC_Client_Budget = budgetInput; // Sera calculé avec les frais
+          if (Object.keys(calculatedUpdates).length > 0) {
+            handleCalculatedChange(entityId, calculatedUpdates);
           }
         }
       }
-      
-      // Appliquer les mises à jour calculées
-      if (Object.keys(calculatedUpdates).length > 0) {
-        handleCalculatedChange(entityId, calculatedUpdates);
-      }
     }
-  }, [onCellChange, handleCalculatedChange, processedRows]);
+  }, [onCellChange, handleCalculatedChange, processedRows, pendingChanges]);
 
   /**
-   * MODIFIÉ : Rend les cellules avec support des colonnes budget composites
+   * CORRIGÉ : Rend les cellules avec limitation aux lignes tactiques pour les colonnes budget
    */
   const renderDataCell = useCallback((row: TableRow, column: TableColumn, rowIndex: number) => {
     const cellKey = `${row.id}_${column.key}`;
@@ -476,7 +478,21 @@ export default function DynamicTableStructure({
     const hasError = hasValidationError(cellKey);
     const isBudgetMode = selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget';
 
-    // NOUVEAU : Gestion des colonnes de frais composites
+    // NOUVEAU : Si c'est une colonne budget mais pas une ligne tactique, ne rien afficher
+    if (isBudgetMode && row.type !== 'tactique' && (isBudgetField(column.key) || isFeeCompositeColumn(column))) {
+      return (
+        <div 
+          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+          }`}
+          onClick={() => handleCellClick(rowIndex, column.key)}
+        >
+          -
+        </div>
+      );
+    }
+
+    // Gestion des colonnes de frais composites
     if (isFeeCompositeColumn(column)) {
       if (!row.isEditable) {
         return (
@@ -487,6 +503,7 @@ export default function DynamicTableStructure({
             currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
             isSelected={isSelected}
             onClick={() => handleCellClick(rowIndex, column.key)}
+            pendingChanges={pendingChanges.get(row.id) || {}}
           />
         );
       }
@@ -504,11 +521,12 @@ export default function DynamicTableStructure({
           onChange={isBudgetMode ? handleBudgetFieldChange : onCellChange}
           onCalculatedChange={handleCalculatedChange}
           onClick={() => handleCellClick(rowIndex, column.key)}
+          pendingChanges={pendingChanges.get(row.id) || {}}
         />
       );
     }
 
-    // NOUVEAU : Cellules budget calculées automatiquement  
+    // Cellules budget calculées automatiquement  
     if (isBudgetMode && getCalculatedBudgetFields().includes(column.key)) {
       const formattedValue = formatBudgetDisplayValue(
         column.key, 
@@ -531,7 +549,7 @@ export default function DynamicTableStructure({
       );
     }
 
-    // Cellules budget spécialisées normales (utilisent déjà TableBudgetCell)
+    // Cellules budget spécialisées normales
     if (isBudgetField(column.key)) {
       return (
         <div 
@@ -642,7 +660,6 @@ export default function DynamicTableStructure({
           </div>
         )}
 
-        {/* Indicateur d'erreur de validation */}
         {hasError && (
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
             <span className="text-white text-xs font-bold">!</span>
@@ -659,7 +676,7 @@ export default function DynamicTableStructure({
 
   return (
     <div className="space-y-3">
-      {/* Barre d'outils (identique à la version précédente) */}
+      {/* Barre d'outils */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex space-x-1">
           {(['section', 'tactique', 'placement', 'creatif'] as TableLevel[]).map(level => (
@@ -740,8 +757,8 @@ export default function DynamicTableStructure({
                   <div><strong>Menus déroulants :</strong> Mapping intelligent par libellé si possible</div>
                   {selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget' && (
                     <>
-                      <div><strong>Budget :</strong> Calculs automatiques en temps réel</div>
-                      <div><strong>Frais :</strong> Colonnes composites avec checkbox, option, valeur et total</div>
+                      <div><strong>Budget :</strong> Calculs automatiques en temps réel • Limité aux tactiques</div>
+                      <div><strong>Frais :</strong> Headers dynamiques • Checkbox fonctionnel • Colonnes composites</div>
                       <div><strong>Totaux :</strong> ✓ = calculé automatiquement • 💰 = champ budget</div>
                     </>
                   )}
@@ -772,7 +789,7 @@ export default function DynamicTableStructure({
         </div>
       </div>
 
-      {/* NOUVEAU : Barre d'action pour sélection et copie */}
+      {/* Barre d'action pour sélection et copie */}
       {(selectedCells.length > 0 || copiedData) && (
         <div className="bg-indigo-50 border border-indigo-200 rounded p-2">
           <div className="flex items-center justify-between">

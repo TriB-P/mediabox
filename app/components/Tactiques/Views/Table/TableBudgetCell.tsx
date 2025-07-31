@@ -2,8 +2,7 @@
 
 /**
  * Composant spécialisé pour les cellules budget dans la table
- * Reproduit la logique complexe des calculs budgétaires du drawer
- * Gère automatiquement les recalculs et les dépendances
+ * CORRIGÉ : Suppression des messages d'erreur textuels, validation type d'unité
  */
 'use client';
 
@@ -47,7 +46,7 @@ interface TableBudgetCellProps {
   fieldKey: string;
   value: any;
   column: DynamicColumn;
-  rowData: any; // Toutes les données de la ligne pour les calculs
+  rowData: any;
   isEditable: boolean;
   isEditing: boolean;
   clientFees: ClientFee[];
@@ -89,6 +88,43 @@ const CALCULATED_FIELDS = [
 ];
 
 /**
+ * CORRIGÉ : Validation spécialisée pour les champs budget
+ */
+function validateBudgetField(fieldKey: string, value: any, column: DynamicColumn): boolean {
+  // Valeur vide acceptable pour la plupart des champs
+  if (value === null || value === undefined || value === '') {
+    return true;
+  }
+
+  switch (fieldKey) {
+    case 'TC_Unit_Type':
+    case 'TC_BuyCurrency':
+    case 'TC_BudgetChoice':
+      // Pour les selects, accepter n'importe quelle valeur (sera validée par les options)
+      return true;
+      
+    case 'TC_BudgetInput':
+    case 'TC_Unit_Price':
+    case 'TC_Media_Budget':
+    case 'TC_Client_Budget':
+    case 'TC_Media_Value':
+    case 'TC_Bonification':
+      // Pour les champs monétaires, vérifier que c'est un nombre positif
+      const numValue = Number(value);
+      return !isNaN(numValue) && numValue >= 0;
+      
+    case 'TC_Unit_Volume':
+    case 'TC_Currency_Rate':
+      // Pour les champs numériques, vérifier que c'est un nombre positif
+      const numericValue = Number(value);
+      return !isNaN(numericValue) && numericValue >= 0;
+      
+    default:
+      return true;
+  }
+}
+
+/**
  * Composant de cellule budget spécialisée
  */
 export default function TableBudgetCell({
@@ -110,7 +146,6 @@ export default function TableBudgetCell({
   
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const cellKey = `${entityId}_${fieldKey}`;
   const isCalculatedField = CALCULATED_FIELDS.includes(fieldKey);
@@ -162,20 +197,17 @@ export default function TableBudgetCell({
   }, [budgetData, clientFees, exchangeRates, campaignCurrency, isBudgetField]);
 
   /**
-   * Valide les données budget
-   */
-  const validationResult = useMemo(() => {
-    if (!isBudgetField) return { isValid: true, errors: [] };
-    return validateBudgetData(budgetData);
-  }, [budgetData, isBudgetField]);
-
-  /**
-   * Met à jour la validation
+   * CORRIGÉ : Validation simplifiée sans messages d'erreur
    */
   useEffect(() => {
-    setIsValid(validationResult.isValid);
-    setValidationErrors(validationResult.errors);
-  }, [validationResult]);
+    if (!isBudgetField) {
+      setIsValid(true);
+      return;
+    }
+    
+    const valid = validateBudgetField(fieldKey, localValue, column);
+    setIsValid(valid);
+  }, [localValue, fieldKey, column, isBudgetField]);
 
   /**
    * Gère les changements de valeur avec recalculs automatiques
@@ -292,6 +324,10 @@ export default function TableBudgetCell({
 
     // Formatage standard selon le type de colonne
     switch (column.type) {
+      case 'select':
+        // CORRIGÉ : Pour les selects, afficher le label au lieu de l'ID
+        const selectedOption = column.options?.find(option => option.id === value);
+        return selectedOption ? selectedOption.label : String(value);
       case 'currency':
         return formatBudgetValue(value, 'currency', budgetData.TC_Currency);
       case 'number':
@@ -299,7 +335,7 @@ export default function TableBudgetCell({
       default:
         return String(value);
     }
-  }, [value, fieldKey, isCalculatedField, budgetSummary, column.type, budgetData.TC_Currency]);
+  }, [value, fieldKey, isCalculatedField, budgetSummary, column.type, column.options, budgetData.TC_Currency]);
 
   /**
    * Détermine si la cellule est vraiment éditable
@@ -419,6 +455,7 @@ export default function TableBudgetCell({
       {isEditing ? (
         <>
           {renderEditingField()}
+          {/* CORRIGÉ : Seulement l'indicateur visuel, pas de tooltip */}
           {!isValid && (
             <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
               <span className="text-red-500 text-xs">⚠</span>
@@ -429,12 +466,8 @@ export default function TableBudgetCell({
         renderDisplayValue()
       )}
       
-      {!isValid && !isEditing && validationErrors.length > 0 && (
-        <div className="absolute z-10 top-full left-0 mt-1 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-700 whitespace-nowrap shadow-lg">
-          {validationErrors.join(', ')}
-        </div>
-      )}
-
+      {/* CORRIGÉ : Suppression des tooltips d'erreur */}
+      {/* Garder seulement le tooltip pour les champs calculés */}
       {isCalculatedField && !isEditing && (
         <div className="absolute z-10 top-full left-0 mt-1 p-2 bg-green-100 border border-green-300 rounded text-xs text-green-700 whitespace-nowrap shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
           Valeur calculée automatiquement

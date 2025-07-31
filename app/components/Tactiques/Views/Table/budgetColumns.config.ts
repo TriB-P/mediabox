@@ -2,8 +2,8 @@
 
 /**
  * Configuration spécialisée pour les colonnes budget
- * Reproduit le comportement du drawer avec calculs automatiques
- * Colonnes larges sous-divisées pour les frais
+ * CORRIGÉ : Headers dynamiques basés sur les vrais noms des frais
+ * CORRIGÉ : Fonctions utilitaires pour filtrer par type de ligne
  */
 
 import { DynamicColumn } from './TactiquesAdvancedTableView';
@@ -38,6 +38,24 @@ export interface FeeColumnDefinition extends Omit<DynamicColumn, 'type'> {
     customValue: boolean; // Champ valeur personnalisée
     calculatedAmount: boolean; // Montant calculé (readonly)
   };
+}
+
+/**
+ * Interface pour les frais client (pour typage)
+ */
+export interface ClientFee {
+  id: string;
+  FE_Name: string;
+  FE_Calculation_Type: 'Pourcentage budget' | 'Volume d\'unité' | 'Unités' | 'Frais fixe';
+  FE_Calculation_Mode: 'Directement sur le budget média' | 'Applicable sur les frais précédents';
+  FE_Order: number;
+  options: {
+    id: string;
+    FO_Option: string;
+    FO_Value: number;
+    FO_Buffer: number;
+    FO_Editable: boolean;
+  }[];
 }
 
 /**
@@ -78,88 +96,67 @@ export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
     width: 120
   },
   {
+    key: 'TC_Media_Value',
+    label: 'Valeur réelle',
+    type: 'currency',
+    width: 120
+  },
+  {
     key: 'TC_Unit_Volume',
     label: 'Volume d\'unité',
+    type: 'readonly',
+    width: 110
+  },
+  {
+    key: 'TC_Bonification',
+    label: 'Bonification',
     type: 'readonly',
     width: 110
   }
 ];
 
 /**
- * Configuration des colonnes de frais composites
+ * CORRIGÉ : Fonction pour créer les colonnes de frais avec des noms dynamiques
  */
-export const BUDGET_FEE_COLUMNS: FeeColumnDefinition[] = [
-  {
-    key: 'TC_Fee_1',
-    label: 'Frais 1',
-    type: 'fee-composite',
-    width: 280,
-    feeNumber: 1,
-    subColumns: {
-      enabled: true,
-      option: true, 
-      customValue: true,
-      calculatedAmount: true
-    }
-  },
-  {
-    key: 'TC_Fee_2',
-    label: 'Frais 2', 
-    type: 'fee-composite',
-    width: 280,
-    feeNumber: 2,
-    subColumns: {
-      enabled: true,
-      option: true,
-      customValue: true, 
-      calculatedAmount: true
-    }
-  },
-  {
-    key: 'TC_Fee_3',
-    label: 'Frais 3',
-    type: 'fee-composite',
-    width: 280, 
-    feeNumber: 3,
-    subColumns: {
-      enabled: true,
-      option: true,
-      customValue: true,
-      calculatedAmount: true
-    }
-  },
-  {
-    key: 'TC_Fee_4',
-    label: 'Frais 4',
-    type: 'fee-composite',
-    width: 280,
-    feeNumber: 4, 
-    subColumns: {
-      enabled: true,
-      option: true,
-      customValue: true,
-      calculatedAmount: true
-    }
-  },
-  {
-    key: 'TC_Fee_5',
-    label: 'Frais 5',
-    type: 'fee-composite', 
-    width: 280,
-    feeNumber: 5,
-    subColumns: {
-      enabled: true,
-      option: true,
-      customValue: true,
-      calculatedAmount: true
+export function createFeeColumns(clientFees: ClientFee[]): FeeColumnDefinition[] {
+  const feeColumns: FeeColumnDefinition[] = [];
+  
+  // Créer jusqu'à 5 colonnes de frais basées sur les frais disponibles
+  for (let i = 1; i <= 5; i++) {
+    const associatedFee = clientFees.find(fee => fee.FE_Order === i);
+    const feeLabel = associatedFee ? associatedFee.FE_Name : `Frais ${i}`;
+    
+    // NOUVEAU : Seulement créer la colonne si le frais existe
+    if (associatedFee) {
+      feeColumns.push({
+        key: `TC_Fee_${i}`,
+        label: feeLabel, // CORRIGÉ : Utiliser le vrai nom du frais
+        type: 'fee-composite',
+        width: 280,
+        feeNumber: i,
+        subColumns: {
+          enabled: true,
+          option: true, 
+          customValue: true,
+          calculatedAmount: true
+        }
+      });
     }
   }
-];
+  
+  return feeColumns;
+}
 
 /**
  * Configuration des colonnes de totaux calculés
  */
 export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
+  {
+    key: 'TC_Total_Fees',
+    label: 'Total frais',
+    type: 'readonly',
+    width: 120
+  },
   {
     key: 'TC_Media_Budget',
     label: 'Total média',
@@ -175,14 +172,25 @@ export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
 ];
 
 /**
- * Configuration complète des colonnes budget
- * Combine toutes les colonnes dans l'ordre approprié
+ * CORRIGÉ : Fonction pour créer la configuration complète des colonnes budget
+ * avec des noms de frais dynamiques
  */
-export const TACTIQUE_BUDGET_COLUMNS_COMPLETE: (DynamicColumn | FeeColumnDefinition)[] = [
-  ...BUDGET_BASE_COLUMNS,
-  ...BUDGET_FEE_COLUMNS,
-  ...BUDGET_TOTAL_COLUMNS
-];
+export function createBudgetColumnsComplete(clientFees: ClientFee[]): (DynamicColumn | FeeColumnDefinition)[] {
+  const feeColumns = createFeeColumns(clientFees);
+  
+  return [
+    ...BUDGET_BASE_COLUMNS,
+    ...feeColumns,
+    ...BUDGET_TOTAL_COLUMNS
+  ];
+}
+
+/**
+ * NOUVEAU : Fonction pour vérifier si une ligne doit afficher les colonnes budget
+ */
+export function shouldShowBudgetColumns(rowType: string): boolean {
+  return rowType === 'tactique';
+}
 
 /**
  * Fonction utilitaire pour vérifier si une colonne est un frais composite
@@ -218,7 +226,7 @@ export function shouldTriggerBudgetRecalculation(fieldKey: string): boolean {
     'TC_BudgetChoice',
     'TC_BudgetInput',
     'TC_Unit_Price',
-    'TC_Media_Value', // Bonification
+    'TC_Media_Value', // Valeur réelle pour bonification
     // Frais
     'TC_Fee_1_Enabled', 'TC_Fee_1_Option', 'TC_Fee_1_Volume',
     'TC_Fee_2_Enabled', 'TC_Fee_2_Option', 'TC_Fee_2_Volume', 
@@ -239,6 +247,7 @@ export function getCalculatedBudgetFields(): string[] {
     'TC_Media_Budget', 
     'TC_Client_Budget',
     'TC_Bonification',
+    'TC_Total_Fees',
     'TC_Fee_1_Value',
     'TC_Fee_2_Value',
     'TC_Fee_3_Value', 
@@ -258,7 +267,8 @@ export function formatBudgetDisplayValue(
   if (value === null || value === undefined || value === '') return '';
 
   // Champs monétaires
-  if (fieldKey.includes('Budget') || fieldKey.includes('Price') || fieldKey.includes('Value')) {
+  if (fieldKey.includes('Budget') || fieldKey.includes('Price') || fieldKey.includes('Value') || 
+      fieldKey.includes('Fees') || fieldKey === 'TC_Bonification') {
     const numValue = Number(value);
     if (isNaN(numValue)) return String(value);
     

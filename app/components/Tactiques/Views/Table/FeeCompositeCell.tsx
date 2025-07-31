@@ -1,16 +1,11 @@
 // app/components/Tactiques/Views/Table/FeeCompositeCell.tsx
 
 /**
- * Composant cellule composite pour les frais
- * Affiche une colonne large avec 4 sous-éléments :
- * - Checkbox (activer/désactiver)
- * - Select (option du frais)  
- * - Input (valeur personnalisée si éditable)
- * - Display (montant calculé, readonly)
+ * Version finale complète et fonctionnelle du composant frais
  */
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { FeeColumnDefinition, getFeeFieldKeys } from './budgetColumns.config';
 
 interface ClientFee {
@@ -40,11 +35,9 @@ interface FeeCompositeCellProps {
   onChange: (entityId: string, fieldKey: string, value: any) => void;
   onCalculatedChange: (entityId: string, updates: { [key: string]: any }) => void;
   onClick: () => void;
+  pendingChanges?: Partial<any>;
 }
 
-/**
- * Composant de cellule composite pour les frais
- */
 export default function FeeCompositeCell({
   entityId,
   column,
@@ -56,56 +49,45 @@ export default function FeeCompositeCell({
   hasValidationError,
   onChange,
   onCalculatedChange,
-  onClick
+  onClick,
+  pendingChanges = {}
 }: FeeCompositeCellProps) {
   
   const fieldKeys = getFeeFieldKeys(column.feeNumber);
   
-  // Valeurs actuelles des sous-champs
-  const isEnabled = rowData[fieldKeys.enabled] || false;
-  const selectedOptionId = rowData[fieldKeys.option] || '';
-  const customValue = rowData[fieldKeys.customValue] || 0;
-  const calculatedAmount = rowData[fieldKeys.calculatedAmount] || 0;
+  // Valeurs actuelles (version qui fonctionne)
+  const isEnabled = Boolean(pendingChanges[fieldKeys.enabled] ?? rowData[fieldKeys.enabled] ?? false);
+  const selectedOptionId = pendingChanges[fieldKeys.option] ?? rowData[fieldKeys.option] ?? '';
+  const customValue = Number(pendingChanges[fieldKeys.customValue] ?? rowData[fieldKeys.customValue] ?? 0);
+  const calculatedAmount = Number(pendingChanges[fieldKeys.calculatedAmount] ?? rowData[fieldKeys.calculatedAmount] ?? 0);
 
-  // Trouve le frais correspondant dans la configuration client
+  // Trouve le frais correspondant
   const associatedFee = useMemo(() => {
     return clientFees.find(fee => fee.FE_Order === column.feeNumber);
   }, [clientFees, column.feeNumber]);
 
-  // Options disponibles pour ce frais
+  // Options disponibles
   const availableOptions = associatedFee?.options || [];
-
-  // Option actuellement sélectionnée
-  const selectedOption = useMemo(() => {
-    return availableOptions.find(opt => opt.id === selectedOptionId);
-  }, [availableOptions, selectedOptionId]);
-
-  // Détermine si le champ de valeur personnalisée doit être affiché
+  const selectedOption = availableOptions.find(opt => opt.id === selectedOptionId);
   const showCustomValue = selectedOption?.FO_Editable || false;
 
-  /**
-   * Formate le montant calculé pour l'affichage
-   */
-  const formattedAmount = useMemo(() => {
-    if (!calculatedAmount || calculatedAmount === 0) {
-      return '-';
-    }
-
-    return new Intl.NumberFormat('fr-CA', {
+  // Montant formaté
+  const formattedAmount = calculatedAmount > 0 ? 
+    new Intl.NumberFormat('fr-CA', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(calculatedAmount);
-  }, [calculatedAmount, currency]);
+    }).format(calculatedAmount) : '-';
 
-  /**
-   * Gère l'activation/désactivation du frais
-   */
-  const handleEnabledChange = (enabled: boolean) => {
-    onChange(entityId, fieldKeys.enabled, enabled);
+  // Gestionnaire checkbox (version qui fonctionne)
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const checked = e.target.checked;
     
-    if (!enabled) {
+    onChange(entityId, fieldKeys.enabled, checked);
+    
+    if (!checked) {
       // Si désactivé, vider les autres champs
       onChange(entityId, fieldKeys.option, '');
       onChange(entityId, fieldKeys.customValue, 0);
@@ -115,35 +97,80 @@ export default function FeeCompositeCell({
     }
   };
 
-  /**
-   * Gère le changement d'option de frais
-   */
-  const handleOptionChange = (optionId: string) => {
+  // Gestionnaire pour les options
+  const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    const optionId = e.target.value;
+    
     onChange(entityId, fieldKeys.option, optionId);
     
     if (!optionId) {
-      // Si aucune option, remettre la valeur custom à 0
       onChange(entityId, fieldKeys.customValue, 0);
     }
   };
 
-  /**
-   * Gère le changement de valeur personnalisée
-   */
-  const handleCustomValueChange = (value: number) => {
+  // Gestionnaire pour la valeur personnalisée
+  const handleCustomValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const value = parseFloat(e.target.value) || 0;
+    
     onChange(entityId, fieldKeys.customValue, value);
   };
 
-  // Si pas de frais associé, ne rien afficher
+  // Fonction de calcul du montant des frais
+  const recalculateFeeAmount = useCallback((optionId: string, customVal: number) => {
+    if (!isEnabled || !optionId || !associatedFee) {
+      onCalculatedChange(entityId, {
+        [fieldKeys.calculatedAmount]: 0
+      });
+      return;
+    }
+
+    const option = availableOptions.find(opt => opt.id === optionId);
+    if (!option) {
+      onCalculatedChange(entityId, {
+        [fieldKeys.calculatedAmount]: 0
+      });
+      return;
+    }
+
+    // Utiliser la valeur personnalisée si le frais est éditable, sinon la valeur par défaut
+    const baseValue = option.FO_Editable && customVal > 0 ? customVal : option.FO_Value;
+    
+    // Appliquer le buffer
+    const bufferMultiplier = (100 + option.FO_Buffer) / 100;
+    const finalAmount = baseValue * bufferMultiplier;
+
+    // DEBUG temporaire pour les calculs
+    console.log(`[CALCUL] ${associatedFee.FE_Name} - ${option.FO_Option}: ${baseValue} × ${bufferMultiplier} = ${finalAmount.toFixed(2)}`);
+
+    onCalculatedChange(entityId, {
+      [fieldKeys.calculatedAmount]: Math.round(finalAmount * 100) / 100
+    });
+  }, [isEnabled, associatedFee, availableOptions, entityId, fieldKeys.calculatedAmount, onCalculatedChange]);
+
+  // Effet pour recalculer automatiquement quand les valeurs changent
+  React.useEffect(() => {
+    if (isEnabled && selectedOptionId) {
+      recalculateFeeAmount(selectedOptionId, customValue);
+    } else if (!isEnabled) {
+      // Si désactivé, mettre le montant à 0
+      onCalculatedChange(entityId, {
+        [fieldKeys.calculatedAmount]: 0
+      });
+    }
+  }, [isEnabled, selectedOptionId, customValue, recalculateFeeAmount, entityId, fieldKeys.calculatedAmount, onCalculatedChange]);
+
+  // Si pas de frais associé
   if (!associatedFee) {
     return (
       <div 
         className={`h-12 flex items-center justify-center text-gray-400 text-sm ${
-          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : ''
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
         }`}
         onClick={onClick}
       >
-        Aucun frais configuré
+        Aucun frais
       </div>
     );
   }
@@ -153,25 +180,18 @@ export default function FeeCompositeCell({
       className={`relative border border-gray-200 rounded ${
         isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-white'
       } ${hasValidationError ? 'ring-2 ring-red-500 ring-inset bg-red-50' : ''}`}
-      onClick={onClick}
     >
-      {/* Titre du frais */}
-      <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 truncate">
-        {associatedFee.FE_Name}
-      </div>
-
-      {/* Contenu principal - 4 sous-colonnes */}
-      <div className="flex h-10">
+      <div className="flex h-12">
         
         {/* 1. Checkbox Activer/Désactiver */}
         <div className="flex items-center justify-center w-8 border-r border-gray-200">
           <input
             type="checkbox"
             checked={isEnabled}
-            onChange={(e) => handleEnabledChange(e.target.checked)}
+            onChange={handleCheckboxChange}
             disabled={!isEditable}
             className="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-            onClick={(e) => e.stopPropagation()}
+            title={`${isEnabled ? 'Désactiver' : 'Activer'} ${associatedFee?.FE_Name}`}
           />
         </div>
 
@@ -179,11 +199,12 @@ export default function FeeCompositeCell({
         <div className="flex-1 border-r border-gray-200 min-w-0">
           <select
             value={selectedOptionId}
-            onChange={(e) => handleOptionChange(e.target.value)}
+            onChange={handleOptionChange}
             disabled={!isEditable || !isEnabled}
             className={`w-full h-full px-2 text-xs border-0 focus:ring-0 focus:outline-none ${
               !isEnabled ? 'bg-gray-100 text-gray-400' : 'bg-white'
             }`}
+            title={isEnabled ? 'Sélectionner une option' : 'Activer le frais pour sélectionner'}
             onClick={(e) => e.stopPropagation()}
           >
             <option value="">-- Option --</option>
@@ -200,12 +221,14 @@ export default function FeeCompositeCell({
           {showCustomValue && isEnabled ? (
             <input
               type="number"
-              value={customValue || 0}
-              onChange={(e) => handleCustomValueChange(parseFloat(e.target.value) || 0)}
+              value={customValue || ''}
+              onChange={handleCustomValueChange}
               disabled={!isEditable}
               className="w-full h-full px-1 text-xs border-0 focus:ring-0 focus:outline-none text-center"
               min="0"
               step="0.01"
+              title="Valeur personnalisée"
+              placeholder="0"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
@@ -216,7 +239,11 @@ export default function FeeCompositeCell({
         </div>
 
         {/* 4. Montant calculé (readonly) */}
-        <div className="w-20 flex items-center justify-end px-2">
+        <div 
+          className="w-20 flex items-center justify-end px-2 cursor-pointer hover:bg-gray-50"
+          onClick={onClick}
+          title="Cliquer pour sélectionner la cellule"
+        >
           <span className={`text-xs font-medium ${
             calculatedAmount > 0 ? 'text-green-700' : 'text-gray-400'
           }`}>
@@ -236,23 +263,21 @@ export default function FeeCompositeCell({
   );
 }
 
-/**
- * Composant de cellule simplifiée pour l'affichage en lecture seule
- */
 export function FeeCompositeCellReadonly({
   column,
   rowData,
   clientFees,
   currency,
   isSelected,
-  onClick
+  onClick,
+  pendingChanges = {}
 }: Omit<FeeCompositeCellProps, 'entityId' | 'isEditable' | 'hasValidationError' | 'onChange' | 'onCalculatedChange'>) {
   
   const fieldKeys = getFeeFieldKeys(column.feeNumber);
   
-  const isEnabled = rowData[fieldKeys.enabled] || false;
-  const selectedOptionId = rowData[fieldKeys.option] || '';
-  const calculatedAmount = rowData[fieldKeys.calculatedAmount] || 0;
+  const isEnabled = Boolean(pendingChanges[fieldKeys.enabled] ?? rowData[fieldKeys.enabled] ?? false);
+  const selectedOptionId = pendingChanges[fieldKeys.option] ?? rowData[fieldKeys.option] ?? '';
+  const calculatedAmount = Number(pendingChanges[fieldKeys.calculatedAmount] ?? rowData[fieldKeys.calculatedAmount] ?? 0);
 
   const associatedFee = clientFees.find(fee => fee.FE_Order === column.feeNumber);
   const selectedOption = associatedFee?.options.find(opt => opt.id === selectedOptionId);
@@ -285,11 +310,7 @@ export function FeeCompositeCellReadonly({
       }`}
       onClick={onClick}
     >
-      <div className="px-2 py-1 bg-gray-100 border-b border-gray-200 text-xs font-medium text-gray-500 truncate">
-        {associatedFee.FE_Name}
-      </div>
-
-      <div className="flex h-10 items-center px-2 text-xs text-gray-600">
+      <div className="flex h-12 items-center px-2 text-xs text-gray-600">
         <div className="flex items-center space-x-2">
           <span className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></span>
           <span className="flex-1 truncate">
