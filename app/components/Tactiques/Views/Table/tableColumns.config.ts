@@ -1,3 +1,5 @@
+// app/components/Tactiques/Views/Table/tableColumns.config.ts
+
 /**
  * Ce fichier de configuration définit les options, les règles de validation,
  * les fonctions de formatage et la structure des colonnes pour les tableaux dynamiques
@@ -236,6 +238,7 @@ export interface TactiqueSubCategoryConfig {
 /**
  * Définition des colonnes pour la sous-catégorie 'Info' des tactiques.
  * Ces colonnes sont utilisées pour les informations générales d'une tactique.
+ * MODIFIÉ : Ajout des champs TC_StartDate et TC_EndDate
  */
 const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
   {
@@ -251,6 +254,22 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
     type: 'select',
     width: 180,
     options: []
+  },
+  {
+    key: 'TC_StartDate',
+    label: 'Date de début',
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'TC_EndDate',
+    label: 'Date de fin',
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
   }
 ];
 
@@ -532,29 +551,6 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
       width: 300,
       validation: validateRequired
     },
-    {
-      key: 'SECTION_Color',
-      label: 'Couleur',
-      type: 'select',
-      width: 150,
-      options: COLOR_OPTIONS
-    },
-    {
-      key: 'SECTION_Budget',
-      label: 'Budget',
-      type: 'currency',
-      width: 150,
-      validation: validateBudget,
-      format: formatCurrency
-    },
-    {
-      key: 'SECTION_Order',
-      label: 'Ordre',
-      type: 'number',
-      width: 100,
-      validation: validateNumber,
-      format: formatNumber
-    }
   ],
   tactique: TACTIQUE_INFO_COLUMNS,
   placement: [
@@ -601,7 +597,6 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
       key: 'TAX_Targeting',
       label: 'Ciblage',
       type: 'text',
-    
       width: 140
     }
   ],

@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import {
   getColumnsWithHierarchy,
@@ -738,17 +738,10 @@ export default function DynamicTableStructure({
             {showHelpTooltip && (
               <div className="absolute right-0 top-full mt-2 w-80 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
                 <div className="space-y-2">
-                  <div><strong>Sélection :</strong> 1 clic = sélectionner • Shift+Clic = sélection rectangulaire</div>
+                  <div><strong>Sélection :</strong> 1 clic = sélectionner • Shift+Clic = sélection multiple</div>
                   <div><strong>Édition :</strong> Double-clic pour éditer • Enter/Tab = sauver • Esc = annuler</div>
                   <div><strong>Copie :</strong> Ctrl+C pour copier • Ctrl+V pour coller</div>
-                  <div><strong>Validation :</strong> Contour rouge clignotant = valeur incompatible rejetée</div>
-                  {selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget' && (
-                    <>
-                      <div><strong>Budget :</strong> Calculs automatiques en temps réel • Limité aux tactiques</div>
-                      <div><strong>Frais :</strong> Composants réactifs • Checkbox fonctionnel • Calculs instantanés</div>
-                      <div><strong>Totaux :</strong> ✓ = calculé automatiquement • Fond vert = champ calculé</div>
-                    </>
-                  )}
+                
                 </div>
                 <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -801,7 +794,7 @@ export default function DynamicTableStructure({
                 onClick={clearSelection}
                 className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-white"
               >
-                Tout effacer
+              <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
