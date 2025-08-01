@@ -13,6 +13,7 @@ import { ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { getClientInfo, updateClientInfo, uploadClientLogo } from '../../lib/clientService';
 import { getCostGuides } from '../../lib/costGuideService';
 import type { CostGuide } from '../../types/costGuide';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ClientDetails {
   CL_Logo: string;
@@ -39,6 +40,7 @@ const AGENCIES = ['Jungle Média', 'Mekanism', 'Cossette Media', 'K72', 'Showroo
  * les erreurs et les confirmations de succès.
  */
 const ClientGeneral: React.FC = () => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [clientDetails, setClientDetails] = useState<ClientDetails | null>(null);
@@ -103,7 +105,7 @@ const ClientGeneral: React.FC = () => {
       });
     } catch (err) {
       console.error('Erreur lors du chargement des détails du client:', err);
-      setError('Impossible de charger les détails du client.');
+      setError(t('clientGeneral.messages.error.loadDetailsFailed'));
     } finally {
       setLoading(false);
     }
@@ -130,18 +132,18 @@ const ClientGeneral: React.FC = () => {
           clientDetails.CL_Logo = logoUrl;
         } catch (logoError) {
           console.error('Erreur lors du téléchargement du logo:', logoError);
-          setError('Impossible de télécharger le logo. Les autres informations seront enregistrées.');
+          setError(t('clientGeneral.messages.error.logoUploadFailed'));
         }
       }
       
       console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientGeneral.tsx - Fonction: handleSubmit - Path: clients/${selectedClient.clientId}`);
       await updateClientInfo(selectedClient.clientId, clientDetails);
       
-      setSuccess('Les informations du client ont été mises à jour avec succès.');
+      setSuccess(t('clientGeneral.messages.success.updateSuccess'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour des détails du client:', err);
-      setError('Impossible de mettre à jour les détails du client.');
+      setError(t('clientGeneral.messages.error.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -224,15 +226,15 @@ const ClientGeneral: React.FC = () => {
    * @returns {string} Le nom du guide de coûts ou un message par défaut.
    */
   const getSelectedCostGuideName = () => {
-    if (!clientDetails?.CL_Cost_Guide_ID) return 'Aucun guide sélectionné';
+    if (!clientDetails?.CL_Cost_Guide_ID) return t('clientGeneral.form.costGuide.noGuideSelected');
     const selectedGuide = costGuides.find(guide => guide.id === clientDetails.CL_Cost_Guide_ID);
-    return selectedGuide ? selectedGuide.name : 'Guide non trouvé';
+    return selectedGuide ? selectedGuide.name : t('clientGeneral.form.costGuide.guideNotFound');
   };
 
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour voir ses informations.</p>
+        <p className="text-gray-600">{t('clientGeneral.messages.info.selectClient')}</p>
       </div>
     );
   }
@@ -240,7 +242,7 @@ const ClientGeneral: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Chargement des informations du client...</p>
+        <p className="text-gray-600">{t('clientGeneral.messages.info.loading')}</p>
       </div>
     );
   }
@@ -248,7 +250,7 @@ const ClientGeneral: React.FC = () => {
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Informations générales</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-6">{t('clientGeneral.header.title')}</h2>
         
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
@@ -264,7 +266,7 @@ const ClientGeneral: React.FC = () => {
         
         {!hasClientInfoPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les informations du client.
+            {t('clientGeneral.messages.warning.readOnly')}
           </div>
         )}
         
@@ -272,16 +274,16 @@ const ClientGeneral: React.FC = () => {
           <div className="grid grid-cols-12 gap-6 pb-6">
             <div className="col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Logo du client
+                {t('clientGeneral.form.labels.clientLogo')}
               </label>
               <div className="flex flex-col items-start">
                 <div className="w-24 h-24 border border-gray-300 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 mb-2">
                   {logoPreview ? (
-                    <img src={logoPreview} alt="Aperçu du logo" className="w-full h-full object-cover" />
+                    <img src={logoPreview} alt={t('clientGeneral.form.altText.logoPreview')} className="w-full h-full object-cover" />
                   ) : clientDetails?.CL_Logo ? (
-                    <img src={clientDetails.CL_Logo} alt="Logo du client" className="w-full h-full object-cover" />
+                    <img src={clientDetails.CL_Logo} alt={t('clientGeneral.form.altText.clientLogo')} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-gray-400 text-sm">Aucun logo</span>
+                    <span className="text-gray-400 text-sm">{t('clientGeneral.form.labels.noLogo')}</span>
                   )}
                 </div>
                 <div>
@@ -301,7 +303,7 @@ const ClientGeneral: React.FC = () => {
                         : 'text-gray-500 bg-gray-200 cursor-not-allowed'
                     }`}
                   >
-                    Changer le logo
+                    {t('clientGeneral.buttons.changeLogo')}
                   </label>
                 </div>
               </div>
@@ -310,7 +312,7 @@ const ClientGeneral: React.FC = () => {
             <div className="col-span-9">
               <div className="mb-6">
                 <label htmlFor="CL_Name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom du client
+                  {t('clientGeneral.form.labels.clientName')}
                 </label>
                 <input
                   type="text"
@@ -328,7 +330,7 @@ const ClientGeneral: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID Client
+                  {t('clientGeneral.form.labels.clientId')}
                 </label>
                 <div className="flex items-center">
                   <input
@@ -350,7 +352,7 @@ const ClientGeneral: React.FC = () => {
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  Identifiant unique du client (non modifiable)
+                  {t('clientGeneral.form.helpText.clientId')}
                 </p>
               </div>
             </div>
@@ -362,7 +364,7 @@ const ClientGeneral: React.FC = () => {
             <div className="col-span-3">
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bureaux
+                  {t('clientGeneral.form.labels.offices')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {OFFICES.map((office) => (
@@ -387,7 +389,7 @@ const ClientGeneral: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Langue d'exportation
+                  {t('clientGeneral.form.labels.exportLanguage')}
                 </label>
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center">
@@ -404,7 +406,7 @@ const ClientGeneral: React.FC = () => {
                       disabled={!hasClientInfoPermission}
                     />
                     <label htmlFor="export-fr" className="ml-2 block text-sm text-gray-700">
-                      Français
+                      {t('clientGeneral.form.options.french')}
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -421,7 +423,7 @@ const ClientGeneral: React.FC = () => {
                       disabled={!hasClientInfoPermission}
                     />
                     <label htmlFor="export-en" className="ml-2 block text-sm text-gray-700">
-                      Anglais
+                      {t('clientGeneral.form.options.english')}
                     </label>
                   </div>
                 </div>
@@ -431,7 +433,7 @@ const ClientGeneral: React.FC = () => {
             <div className="col-span-9">
               <div className="mb-6">
                 <label htmlFor="CL_Agency" className="block text-sm font-medium text-gray-700 mb-1">
-                  Agence
+                  {t('clientGeneral.form.labels.agency')}
                 </label>
                 <select
                   id="CL_Agency"
@@ -443,7 +445,7 @@ const ClientGeneral: React.FC = () => {
                   }`}
                   disabled={!hasClientInfoPermission}
                 >
-                  <option value="">Sélectionner une agence</option>
+                  <option value="">{t('clientGeneral.form.options.selectAgency')}</option>
                   {AGENCIES.map((agency) => (
                     <option key={agency} value={agency}>
                       {agency}
@@ -454,7 +456,7 @@ const ClientGeneral: React.FC = () => {
               
               <div className="mb-6">
                 <label htmlFor="CL_Cost_Guide_ID" className="block text-sm font-medium text-gray-700 mb-1">
-                  Guide de coûts
+                  {t('clientGeneral.form.labels.costGuide')}
                 </label>
                 <select
                   id="CL_Cost_Guide_ID"
@@ -466,7 +468,7 @@ const ClientGeneral: React.FC = () => {
                   }`}
                   disabled={!hasClientInfoPermission}
                 >
-                  <option value="">Aucun guide sélectionné</option>
+                  <option value="">{t('clientGeneral.form.costGuide.noGuideSelected')}</option>
                   {costGuides.map((guide) => (
                     <option key={guide.id} value={guide.id}>
                       {guide.name}
@@ -478,7 +480,7 @@ const ClientGeneral: React.FC = () => {
               
               <div>
                 <label htmlFor="CL_Default_Drive_Folder" className="block text-sm font-medium text-gray-700 mb-1">
-                  Dossier Drive par défaut
+                  {t('clientGeneral.form.labels.defaultDriveFolder')}
                 </label>
                 <input
                   type="url"
@@ -499,11 +501,11 @@ const ClientGeneral: React.FC = () => {
           <div className="border-t border-gray-200 my-4"></div>
           
           <div>
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Frais généraux</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">{t('clientGeneral.header.generalFees')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label htmlFor="CL_Custom_Fee_1" className="block text-sm font-medium text-gray-700 mb-1">
-                  Frais personnalisé 1
+                  {t('clientGeneral.form.labels.customFee1')}
                 </label>
                 <input
                   type="text"
@@ -520,7 +522,7 @@ const ClientGeneral: React.FC = () => {
               
               <div>
                 <label htmlFor="CL_Custom_Fee_2" className="block text-sm font-medium text-gray-700 mb-1">
-                  Frais personnalisé 2
+                  {t('clientGeneral.form.labels.customFee2')}
                 </label>
                 <input
                   type="text"
@@ -537,7 +539,7 @@ const ClientGeneral: React.FC = () => {
               
               <div>
                 <label htmlFor="CL_Custom_Fee_3" className="block text-sm font-medium text-gray-700 mb-1">
-                  Frais personnalisé 3
+                  {t('clientGeneral.form.labels.customFee3')}
                 </label>
                 <input
                   type="text"
@@ -563,7 +565,7 @@ const ClientGeneral: React.FC = () => {
                   !hasClientInfoPermission ? 'hidden' : ''
                 }`}
               >
-                Annuler
+                {t('clientGeneral.buttons.cancel')}
               </button>
               <button
                 type="submit"
@@ -574,7 +576,7 @@ const ClientGeneral: React.FC = () => {
                     : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
+                {saving ? t('clientGeneral.buttons.saving') : t('clientGeneral.buttons.save')}
               </button>
             </div>
           </div>

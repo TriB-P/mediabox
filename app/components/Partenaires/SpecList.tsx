@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import { Spec } from '../../lib/specService';
 import { PencilIcon, TrashIcon, DocumentTextIcon, ChevronDownIcon, ChevronUpIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SpecListProps {
   specs: Spec[];
@@ -27,6 +28,7 @@ interface SpecListProps {
  * @returns {React.ReactElement} Le composant JSX affichant la liste des spécifications.
  */
 export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
+  const { t } = useTranslation();
   const [expandedSpec, setExpandedSpec] = useState<string | null>(null);
 
   /**
@@ -45,7 +47,7 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
   if (specs.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500">
-        Aucune spécification n'a été ajoutée pour ce partenaire.
+        {t('specList.emptyState.message')}
       </div>
     );
   }
@@ -72,19 +74,19 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
                   onEdit(spec);
                 }}
                 className="p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                title="Modifier"
+                title={t('specList.actions.edit')}
               >
                 <PencilIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (window.confirm('Êtes-vous sûr de vouloir supprimer cette spécification?')) {
+                  if (window.confirm(t('specList.actions.confirmDelete'))) {
                     onDelete(spec.id);
                   }
                 }}
                 className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100"
-                title="Supprimer"
+                title={t('specList.actions.delete')}
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
@@ -100,27 +102,27 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Format</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.format')}</h4>
                   <p>{spec.format || '-'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Ratio</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.ratio')}</h4>
                   <p>{spec.ratio || '-'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Type de fichier</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.fileType')}</h4>
                   <p>{spec.fileType || '-'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Animation</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.animation')}</h4>
                   <p>{spec.animation || '-'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Poids maximal</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.maxWeight')}</h4>
                   <p>{spec.maxWeight || '-'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Poids</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.weight')}</h4>
                   <p>{spec.weight || '-'}</p>
                 </div>
               </div>
@@ -128,12 +130,12 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
               {(spec.title || spec.text) && (
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <h4 className="font-medium text-gray-700 mb-1">Titre</h4>
+                    <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.title')}</h4>
                     <p>{spec.title || '-'}</p>
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-gray-700 mb-1">Texte</h4>
+                    <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.text')}</h4>
                     <p>{spec.text || '-'}</p>
                   </div>
                 </div>
@@ -141,7 +143,7 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
 
               {spec.specSheetLink && (
                 <div className="mb-4">
-                  <h4 className="font-medium text-gray-700 mb-1">Lien vers feuille de specs</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.specSheetLink')}</h4>
                   <a
                     href={spec.specSheetLink}
                     target="_blank"
@@ -156,13 +158,13 @@ export default function SpecList({ specs, onEdit, onDelete }: SpecListProps) {
 
               {spec.notes && (
                 <div>
-                  <h4 className="font-medium text-gray-700 mb-1">Notes</h4>
+                  <h4 className="font-medium text-gray-700 mb-1">{t('specList.details.notes')}</h4>
                   <p className="whitespace-pre-line">{spec.notes}</p>
                 </div>
               )}
 
               <div className="mt-3 text-xs text-gray-500">
-                Dernière mise à jour: {new Date(spec.updatedAt).toLocaleDateString()}
+                {t('specList.footer.lastUpdated')} {new Date(spec.updatedAt).toLocaleDateString()}
               </div>
             </div>
           )}

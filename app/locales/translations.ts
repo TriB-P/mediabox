@@ -466,6 +466,7 @@ export const translations = {
       success: "Succès",
       info: "Information",
       logout: "Déconnexion",
+      on: "sur",
     },
     errors: {
       generic: "Une erreur inattendue s'est produite",
@@ -779,10 +780,730 @@ export const translations = {
       },
       confirmDelete: "Êtes-vous sûr de vouloir supprimer ce guide de coûts ?"
     },
+    aide: {
+      header: {
+        title: "Comment pouvons-nous vous aider ?",
+        subtitle: "Posez une question ou parcourez les catégories pour trouver des réponses."
+      },
+      search: {
+        placeholder: "Rechercher une question..."
+      },
+      state: {
+        loading: "Chargement des FAQs...",
+        errorTitle: "Erreur !",
+        loadError: "Impossible de charger les FAQs. Veuillez vérifier la connexion ou l'URL du Google Sheet.",
+        errorInstructions: "Veuillez vous assurer que le Google Sheet est correctement publié en CSV et que l'URL est correcte."
+      },
+      categories: {
+        campaigns: "Campagnes",
+        strategy: "Stratégie",
+        tactics: "Tactiques",
+        documents: "Documents",
+        costGuide: "Guide de Coûts",
+        partners: "Partenaires",
+        client: "Client",
+        admin: "Admin"
+      },
+      results: {
+        noneInCategory: "Aucune question ne correspond à votre recherche dans cette catégorie.",
+        emptyCategoryHint: "(La catégorie \"{{categoryName}}\" pourrait être vide dans le Google Sheet ou les résultats filtrés.)",
+        allResultsFor: "Tous les résultats pour \"{{searchTerm}}\"",
+        noneOverall: "Aucun résultat trouvé sur l'ensemble des catégories",
+        noneOverallHint: "Essayez de simplifier vos mots-clés ou de vérifier l'orthographe."
+      },
+      contact: {
+        intro: "pssttt!",
+        prompt: "Vous ne trouvez pas la réponse à vos questions? Écrivez-nous à",
+        tooltipCopy: "Copier l'e-mail",
+        tooltipCopied: "Copié !"
+      },
+      logs: {
+          loadError: "Erreur lors du chargement des FAQs:",
+          csvRowSkipped: "Ligne CSV ignorée en raison de champs manquants ou invalides:",
+          copyError: "Impossible de copier l'e-mail :",
+          httpError: "Erreur HTTP: {{status}} {{statusText}}"
+      }
+    },
+    clientConfig: {
+      header: {
+        title: "Configuration du client"
+      },
+      tabs: {
+        general: "Général",
+        access: "Accès",
+        fees: "Frais",
+        taxonomies: "Taxonomies",
+        templates: "Gabarits",
+        lists: "Listes",
+        dimensions: "Dimensions",
+        customCodes: "Codes personnalisés",
+        currencies: "Devises"
+      }
+    },
+    clientAccess: {
+      title: "Gestion des accès",
+      accessLevels: {
+        editor: "Éditeur",
+        user: "Utilisateur"
+      },
+      errors: {
+        loadData: "Impossible de charger les données.",
+        addUser: "Impossible d'ajouter l'utilisateur.",
+        updateUser: "Impossible de mettre à jour l'accès utilisateur.",
+        removeUser: "Impossible de supprimer l'accès utilisateur."
+      },
+      success: {
+        userAdded: "Utilisateur ajouté avec succès.",
+        userUpdated: "Accès utilisateur mis à jour avec succès.",
+        userRemoved: "Accès utilisateur supprimé avec succès."
+      },
+      confirmations: {
+        removeUser: "Êtes-vous sûr de vouloir supprimer l'accès de cet utilisateur ?"
+      },
+      messages: {
+        selectClient: "Veuillez sélectionner un client pour gérer les accès.",
+        loading: "Chargement des données d'accès...",
+        readOnly: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les accès."
+      },
+      tooltips: {
+        noAccessPermission: "Vous n'avez pas la permission de gérer les accès",
+        noEditPermission: "Vous n'avez pas la permission de modifier les accès",
+        noDeletePermission: "Vous n'avez pas la permission de supprimer les accès"
+      },
+      buttons: {
+        addUser: "Ajouter un utilisateur",
+        cancel: "Annuler",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      },
+      emptyState: {
+        noUsers: "Aucun utilisateur n'a accès à ce client.",
+        getStarted: "Cliquez sur \"Ajouter un utilisateur\" pour commencer."
+      },
+      table: {
+        header: {
+          user: "Utilisateur",
+          accessLevel: "Niveau d'accès",
+          note: "Note",
+          actions: "Actions"
+        }
+      },
+      modal: {
+        title: {
+          edit: "Modifier l'accès utilisateur",
+          add: "Ajouter un utilisateur"
+        },
+        close: "Fermer"
+      },
+      form: {
+        label: {
+          selectUser: "Sélectionner un utilisateur",
+          accessLevel: "Niveau d'accès",
+          note: "Note"
+        },
+        placeholder: {
+          filterUsers: "Filtrer les utilisateurs...",
+          addNote: "Ajoutez une note concernant cet accès..."
+        },
+        option: {
+          selectUser: "Sélectionner un utilisateur"
+        }
+      }
+    },
+    clientCurrencies: {
+      header: {
+        title: "Taux de conversion"
+      },
+      actions: {
+        add: "Ajouter"
+      },
+      filters: {
+        searchPlaceholder: "Rechercher...",
+        allYears: "Toutes les années"
+      },
+      table: {
+        year: "Année",
+        from: "De",
+        to: "Vers",
+        rate: "Taux",
+        actions: "Actions"
+      },
+      messages: {
+        selectClient: "Veuillez sélectionner un client pour voir ses taux de conversion.",
+        loading: "Chargement des taux de conversion...",
+        noRatesConfigured: "Aucun taux de conversion configuré pour ce client.",
+        noFilterResults: "Aucun résultat pour votre recherche."
+      },
+      permissions: {
+        noAddPermission: "Vous n'avez pas la permission d'ajouter des taux de conversion",
+        readOnlyWarning: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les taux de conversion des devises.",
+        noEditPermission: "Vous n'avez pas la permission de modifier les taux",
+        noDeletePermission: "Vous n'avez pas la permission de supprimer les taux"
+      },
+      errors: {
+        loadFailed: "Impossible de charger les devises du client.",
+        addFailed: "Impossible d'ajouter la devise.",
+        updateFailed: "Impossible de mettre à jour la devise.",
+        deleteFailed: "Impossible de supprimer la devise."
+      },
+      confirmations: {
+        delete: "Êtes-vous sûr de vouloir supprimer ce taux de conversion ?"
+      },
+      form: {
+        addTitle: "Ajouter un taux",
+        editTitle: "Modifier le taux"
+      }
+    },
+    clientCustomCodes: {
+      page: {
+        prompt: "Veuillez sélectionner un client pour gérer les codes personnalisés.",
+        title: "Codes personnalisés",
+        searchPlaceholder: "Rechercher par shortcode, code personnalisé ou ID...",
+        loading: "Chargement des codes personnalisés...",
+        noCodesForClient: "Aucun code personnalisé configuré pour ce client.",
+        noSearchResults: "Aucun résultat pour votre recherche."
+      },
+      permissions: {
+        addTooltip: "Vous n'avez pas la permission d'ajouter des codes personnalisés",
+        editTooltip: "Vous n'avez pas la permission de modifier les codes personnalisés",
+        deleteTooltip: "Vous n'avez pas la permission de supprimer les codes personnalisés",
+        readOnlyWarning: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les codes personnalisés."
+      },
+      table: {
+        headerId: "ID Shortcode",
+        headerCode: "Code Shortcode",
+        headerName: "Nom Shortcode",
+        headerCustomCode: "Code Personnalisé",
+        headerActions: "Actions",
+        notAvailable: "N/A",
+        editAction: "Modifier",
+        deleteAction: "Supprimer"
+      },
+      modal: {
+        titleEdit: "Modifier le code personnalisé",
+        titleAdd: "Ajouter un code personnalisé",
+        buttonAdd: "Ajouter un code personnalisé",
+        close: "Fermer",
+        selectShortcode: "Sélectionner un shortcode",
+        searchPlaceholder: "Rechercher par code, nom ou ID...",
+        noShortcodeFound: "Aucun shortcode trouvé",
+        alreadyCustomized: "(Déjà personnalisé)",
+        customCodeLabel: "Code personnalisé",
+        cancel: "Annuler",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      },
+      messages: {
+        errorLoad: "Impossible de charger les données.",
+        successAdd: "Code personnalisé ajouté avec succès.",
+        errorAdd: "Impossible d'ajouter le code personnalisé.",
+        successUpdate: "Code personnalisé mis à jour avec succès.",
+        errorUpdate: "Impossible de mettre à jour le code personnalisé.",
+        confirmDelete: "Êtes-vous sûr de vouloir supprimer ce code personnalisé ?",
+        successDelete: "Code personnalisé supprimé avec succès.",
+        errorDelete: "Impossible de supprimer le code personnalisé."
+      }
+    },
+    clientDimensions: {
+        messages: {
+          loadError: "Impossible de charger les dimensions du client.",
+          updateSuccess: "Les dimensions du client ont été mises à jour avec succès.",
+          updateError: "Impossible de mettre à jour les dimensions du client.",
+          selectClientPrompt: "Veuillez sélectionner un client pour configurer ses dimensions.",
+          loading: "Chargement des dimensions du client...",
+          readOnly: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les dimensions."
+        },
+        headings: {
+          title: "Dimensions personnalisées",
+          campaign: "Campagne",
+          tactic: "Tactique",
+          placement: "Placement",
+          creative: "Créatif"
+        },
+        form: {
+          placeholderDim1: "Dimension 1",
+          placeholderDim2: "Dimension 2",
+          placeholderDim3: "Dimension 3"
+        },
+        buttons: {
+          cancel: "Annuler",
+          saving: "Enregistrement...",
+          save: "Enregistrer"
+        }
+    },
+    clientFees: {
+      title: "Frais du client",
+      placeholders: {
+        selectClient: "Veuillez sélectionner un client pour voir ses frais."
+      },
+      actions: {
+        addFee: "Ajouter un frais",
+        addOption: "Ajouter une option"
+      },
+      tooltips: {
+        noAddPermission: "Vous n'avez pas la permission d'ajouter des frais",
+        noEditPermission: "Vous n'avez pas la permission de modifier les frais",
+        noDeletePermission: "Vous n'avez pas la permission de supprimer les frais",
+        noAddOptionPermission: "Vous n'avez pas la permission d'ajouter des options",
+        moveUp: "Déplacer vers le haut",
+        moveDown: "Déplacer vers le bas"
+      },
+      errors: {
+        loadFailed: "Impossible de charger les frais du client.",
+        moveFailed: "Impossible de déplacer le frais.",
+        addFailed: "Impossible d'ajouter le frais.",
+        updateFailed: "Impossible de mettre à jour le frais.",
+        deleteFailed: "Impossible de supprimer le frais.",
+        addOptionFailed: "Impossible d'ajouter l'option.",
+        updateOptionFailed: "Impossible de mettre à jour l'option.",
+        deleteOptionFailed: "Impossible de supprimer l'option."
+      },
+      success: {
+        feeMovedUp: "Frais déplacé vers le haut.",
+        feeMovedDown: "Frais déplacé vers le bas.",
+        feeAdded: "Frais ajouté avec succès.",
+        feeUpdated: "Frais mis à jour avec succès.",
+        feeDeleted: "Frais supprimé avec succès.",
+        optionAdded: "Option ajoutée avec succès.",
+        optionUpdated: "Option mise à jour avec succès.",
+        optionDeleted: "Option supprimée avec succès."
+      },
+      confirmations: {
+        deleteFee: "Êtes-vous sûr de vouloir supprimer ce frais et toutes ses options ?",
+        deleteOption: "Êtes-vous sûr de vouloir supprimer cette option ?"
+      },
+      notifications: {
+        readOnly: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les frais."
+      },
+      states: {
+        loading: "Chargement des frais...",
+        noFees: "Aucun frais configuré pour ce client.",
+        noOptions: "Aucune option configurée pour ce frais."
+      },
+      options: {
+        title: "Options du frais"
+      },
+      table: {
+        option: "Option",
+        value: "Valeur",
+        buffer: "Buffer",
+        editable: "Éditable",
+        actions: "Actions"
+      },
+      modals: {
+        addFeeTitle: "Ajouter un frais",
+        editFeeTitle: "Modifier le frais",
+        addOptionTitle: "Ajouter une option",
+        editOptionTitle: "Modifier l'option"
+      }
+    },
+    clientGeneral: {
+        header: {
+          title: "Informations générales",
+          generalFees: "Frais généraux"
+        },
+        messages: {
+          info: {
+            selectClient: "Veuillez sélectionner un client pour voir ses informations.",
+            loading: "Chargement des informations du client..."
+          },
+          success: {
+            updateSuccess: "Les informations du client ont été mises à jour avec succès."
+          },
+          error: {
+            loadDetailsFailed: "Impossible de charger les détails du client.",
+            logoUploadFailed: "Impossible de télécharger le logo. Les autres informations seront enregistrées.",
+            updateFailed: "Impossible de mettre à jour les détails du client."
+          },
+          warning: {
+            readOnly: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les informations du client."
+          }
+        },
+        form: {
+          labels: {
+            clientLogo: "Logo du client",
+            noLogo: "Aucun logo",
+            clientName: "Nom du client",
+            clientId: "ID Client",
+            offices: "Bureaux",
+            exportLanguage: "Langue d'exportation",
+            agency: "Agence",
+            costGuide: "Guide de coûts",
+            defaultDriveFolder: "Dossier Drive par défaut",
+            customFee1: "Frais personnalisé 1",
+            customFee2: "Frais personnalisé 2",
+            customFee3: "Frais personnalisé 3"
+          },
+          altText: {
+            logoPreview: "Aperçu du logo",
+            clientLogo: "Logo du client"
+          },
+          helpText: {
+            clientId: "Identifiant unique du client (non modifiable)"
+          },
+          options: {
+            french: "Français",
+            english: "Anglais",
+            selectAgency: "Sélectionner une agence"
+          },
+          costGuide: {
+            noGuideSelected: "Aucun guide sélectionné",
+            guideNotFound: "Guide non trouvé"
+          }
+        },
+        buttons: {
+          changeLogo: "Changer le logo",
+          cancel: "Annuler",
+          saving: "Enregistrement...",
+          save: "Enregistrer"
+        }
+    },
+    clientTemplates: {
+      error: {
+        load: "Une erreur est survenue lors du chargement des gabarits.",
+        save: "Une erreur est survenue lors de la sauvegarde du gabarit.",
+        delete: "Une erreur est survenue lors de la suppression du gabarit."
+      },
+      confirm: {
+        delete: "Êtes-vous sûr de vouloir supprimer ce gabarit ?"
+      },
+      loading: {
+        message: "Chargement des gabarits..."
+      },
+      header: {
+        title: "Gestion des gabarits"
+      },
+      actions: {
+        add: "Ajouter un gabarit"
+      },
+      permissions: {
+        tooltip: {
+          add: "Vous n'avez pas la permission d'ajouter des gabarits",
+          edit: "Vous n'avez pas la permission de modifier les gabarits",
+          delete: "Vous n'avez pas la permission de supprimer les gabarits"
+        },
+        readOnlyWarning: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les gabarits."
+      },
+      emptyState: {
+        selectClient: "Veuillez sélectionner un client pour gérer ses gabarits.",
+        noTemplates: "Aucun gabarit configuré.",
+        callToAction: "Cliquez sur \"Ajouter un gabarit\" pour commencer."
+      },
+      table: {
+        header: {
+          name: "Nom",
+          url: "URL",
+          language: "Langue",
+          duplication: "Duplication d'onglets",
+          actions: "Actions"
+        },
+        body: {
+          yes: "Oui",
+          no: "Non"
+        }
+      }
+    },
+    currencyForm: {
+      labels: {
+        year: "Année",
+        rate: "Taux",
+        from: "Devise source",
+        to: "Devise cible"
+      },
+      buttons: {
+        cancel: "Annuler",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      }
+    },
+    feeOptionForm: {
+      labels: {
+        optionName: "Nom de l'option",
+        value: "Valeur",
+        buffer: "Buffer (%)",
+        editable: "Éditable"
+      },
+      placeholders: {
+        optionName: "Nom de l'option"
+      },
+      buttons: {
+        cancel: "Annuler",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      }
+    },
+    templateForm: {
+      title: {
+        edit: "Modifier le gabarit",
+        add: "Ajouter un gabarit"
+      },
+      fields: {
+        name: {
+          label: "Nom du gabarit",
+          placeholder: "Ex: Gabarit Standard"
+        },
+        url: {
+          label: "URL du gabarit",
+          placeholder: "https://docs.google.com/spreadsheets/d/exemple"
+        },
+        duplicate: {
+          label: "Dupliquer pour chaque onglet",
+          description: "Activer cette option pour créer un onglet séparé par onglet de campagne"
+        },
+        language: {
+          label: "Langue"
+        }
+      },
+      errors: {
+        nameRequired: "Le nom du gabarit est requis",
+        urlRequired: "L'URL du gabarit est requise",
+        urlInvalid: "L'URL doit être valide",
+        languageRequired: "La langue est requise"
+      },
+      buttons: {
+        cancel: "Annuler",
+        update: "Mettre à jour",
+        create: "Créer"
+      }
+    },
+    loadingSpinner: {
+        alt: {
+          loading: "Chargement..."
+        },
+        error: {
+          gifLoadFailed: "Impossible de charger le gif:"
+        },
+        message: {
+          inProgress: "Chargement en cours..."
+        },
+        status: {
+          ready: "Prêt"
+        }
+    },
+    topLoadingIndicator: {
+      messages: {
+        loading: "Chargement...",
+        refreshComplete: "Actualisation terminée",
+        processing: "Traitement...",
+        saving: "Sauvegarde...",
+        errorOccurred: "Une erreur est survenue"
+      }
+    },
+    loadingScreen: {
+      alt: {
+        loading: "Chargement"
+      },
+      title: {
+        initialization: "Initialisation"
+      },
+      subtitle: {
+        preparingData: "Préparation de vos données..."
+      },
+      progressBar: {
+        globalProgress: "Progrès global"
+      }
+    },
+    contactForm: {
+      errors: {
+        firstNameRequired: "Le prénom est requis",
+        lastNameRequired: "Le nom est requis",
+        emailRequired: "L'email est requis",
+        emailInvalid: "Email invalide"
+      },
+      success: {
+        message: "Contact sauvegardé avec succès!"
+      },
+      labels: {
+        firstName: "Prénom *",
+        lastName: "Nom *",
+        email: "Email *",
+        preferredLanguages: "Langues préférées",
+        french: "Français",
+        english: "Anglais",
+        comment: "Commentaire"
+      },
+      placeholders: {
+        additionalInfo: "Informations supplémentaires..."
+      },
+      buttons: {
+        cancel: "Annuler",
+        saving: "Enregistrement...",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      }
+    },
+    contactList: {
+      emptyState: {
+        message: "Aucun contact n'a été ajouté pour ce partenaire."
+      },
+      actions: {
+        edit: "Modifier",
+        delete: "Supprimer",
+        confirmDelete: "Êtes-vous sûr de vouloir supprimer ce contact?"
+      },
+      details: {
+        languages: "Langues",
+        frenchAndEnglish: "Français et Anglais",
+        french: "Français",
+        english: "Anglais",
+        notSpecified: "Non spécifié",
+        createdAt: "Créé le",
+        comment: "Commentaire"
+      }
+    },
+    partnersFilter: {
+      search: {
+        placeholder: "Rechercher un partenaire..."
+      },
+      filter: {
+        label: "Filtrer par type:"
+      }
+    },
+    partnersGrid: {
+      notFound: {
+        title: "Aucun partenaire trouvé",
+        suggestion: "Essayez de modifier vos critères de recherche"
+      }
+    },
+    partnerDrawer: {
+      header: {
+        titleFallback: "Détails du partenaire",
+        close: "Fermer"
+      },
+      tabs: {
+        information: "Informations",
+        contacts: "Contacts",
+        specs: "Specs"
+      },
+      labels: {
+        code: "Code",
+        displayNameFr: "Nom d'affichage (FR)",
+        displayNameEn: "Nom d'affichage (EN)",
+        defaultUtm: "UTM par défaut",
+        type: "Type",
+        logoUrl: "URL du logo",
+        tags: "Tags",
+        technicalInfo: "Informations techniques",
+        partnerId: "ID du partenaire"
+      },
+      placeholders: {
+        addTag: "Ajouter un tag..."
+      },
+      buttons: {
+        add: "Ajouter",
+        cancel: "Annuler",
+        save: "Enregistrer",
+        saving: "Enregistrement...",
+        edit: "Modifier",
+        addContact: "Ajouter un contact",
+        addSpec: "Ajouter une spec"
+      },
+      messages: {
+        noTags: "Aucun tag",
+        loadingContacts: "Chargement des contacts...",
+        loadingSpecs: "Chargement des spécifications..."
+      },
+      sectionTitles: {
+        specs: "Spécifications techniques"
+      }
+    },
+    partnerEditForm: {
+      common: {
+        id: "ID",
+        code: "Code",
+        displayNameFR: "Nom d'affichage (FR)",
+        displayNameEN: "Nom d'affichage (EN)",
+        defaultUTM: "UTM par défaut",
+        type: "Type",
+        logoUrl: "Logo URL"
+      },
+      view: {
+        title: "Détails du partenaire",
+        editButton: "Modifier",
+        logoAlt: "Logo"
+      },
+      edit: {
+        title: "Modifier le partenaire",
+        updateError: "Une erreur est survenue lors de la mise à jour du partenaire",
+        logoPreviewAlt: "Aperçu du logo",
+        cancelButton: "Annuler",
+        saveButton: "Enregistrer",
+        savingButton: "Enregistrement..."
+      }
+    },
+    partners: {
+      title: {
+        main: "Partenaires"
+      }
+    },
+    specForm: {
+      notifications: {
+        saveSuccess: "Spécification sauvegardée avec succès!"
+      },
+      labels: {
+        name: "Nom de la spécification",
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "Type de fichier",
+        animation: "Animation",
+        maxWeight: "Poids maximal",
+        weight: "Poids maximal si HTML 5",
+        title: "Titre",
+        text: "Texte",
+        specSheetLink: "Lien vers feuille de specs",
+        notes: "Notes"
+      },
+      placeholders: {
+        format: "ex: 300x250",
+        ratio: "ex: 16:9",
+        fileType: "ex: JPG, PNG, GIF",
+        animation: "ex: Autorisée, Non autorisée",
+        maxWeight: "ex: 100 Ko",
+        weight: "ex: 80 Ko",
+        title: "ex: Max 50 caractères",
+        text: "ex: Texte court descriptif",
+        specSheetLink: "https://example.com/specs.pdf",
+        notes: "Notes additionnelles"
+      },
+      errors: {
+        nameRequired: "Le nom est requis"
+      },
+      buttons: {
+        cancel: "Annuler",
+        submitting: "Enregistrement...",
+        update: "Mettre à jour",
+        add: "Ajouter"
+      }
+    },
+    specList: {
+      emptyState: {
+        message: "Aucune spécification n'a été ajoutée pour ce partenaire."
+      },
+      actions: {
+        edit: "Modifier",
+        delete: "Supprimer",
+        confirmDelete: "Êtes-vous sûr de vouloir supprimer cette spécification?"
+      },
+      details: {
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "Type de fichier",
+        animation: "Animation",
+        maxWeight: "Poids maximal",
+        weight: "Poids",
+        title: "Titre",
+        text: "Texte",
+        specSheetLink: "Lien vers feuille de specs",
+        notes: "Notes"
+      },
+      footer: {
+        lastUpdated: "Dernière mise à jour:"
+      }
+    },
+    
+    
 
     },
-
-
 
 
   en: {
@@ -1089,6 +1810,7 @@ export const translations = {
       success: "Success",
       info: "Information",
       logout: "Logout",
+      on:"of",
     },
     errors: {
       generic: "An unexpected error occurred",
@@ -1402,6 +2124,730 @@ export const translations = {
       },
       confirmDelete: "Are you sure you want to delete this cost guide?"
     },
+    aide: {
+      header: {
+        title: "How can we help you?",
+        subtitle: "Ask a question or browse the categories to find answers."
+      },
+      search: {
+        placeholder: "Search for a question..."
+      },
+      state: {
+        loading: "Loading FAQs...",
+        errorTitle: "Error!",
+        loadError: "Could not load FAQs. Please check the connection or the Google Sheet URL.",
+        errorInstructions: "Please ensure the Google Sheet is correctly published as a CSV and that the URL is correct."
+      },
+      categories: {
+        campaigns: "Campaigns",
+        strategy: "Strategy",
+        tactics: "Tactics",
+        documents: "Documents",
+        costGuide: "Cost Guide",
+        partners: "Partners",
+        client: "Client",
+        admin: "Admin"
+      },
+      results: {
+        noneInCategory: "No questions match your search in this category.",
+        emptyCategoryHint: "(The \"{{categoryName}}\" category might be empty in the Google Sheet or filtered results.)",
+        allResultsFor: "All results for \"{{searchTerm}}\"",
+        noneOverall: "No results found across all categories",
+        noneOverallHint: "Try simplifying your keywords or checking the spelling."
+      },
+      contact: {
+        intro: "pssttt!",
+        prompt: "Can't find the answer to your questions? Email us at",
+        tooltipCopy: "Copy email",
+        tooltipCopied: "Copied!"
+      },
+      logs: {
+          loadError: "Error loading FAQs:",
+          csvRowSkipped: "Skipped CSV row due to missing or invalid fields:",
+          copyError: "Could not copy email:",
+          httpError: "HTTP Error: {{status}} {{statusText}}"
+      }
+    },
+    clientConfig: {
+      header: {
+        title: "Client Configuration"
+      },
+      tabs: {
+        general: "General",
+        access: "Access",
+        fees: "Fees",
+        taxonomies: "Taxonomies",
+        templates: "Templates",
+        lists: "Lists",
+        dimensions: "Dimensions",
+        customCodes: "Custom Codes",
+        currencies: "Currencies"
+      }
+    },
+    clientAccess: {
+      title: "Access Management",
+      accessLevels: {
+        editor: "Editor",
+        user: "User"
+      },
+      errors: {
+        loadData: "Could not load data.",
+        addUser: "Could not add user.",
+        updateUser: "Could not update user access.",
+        removeUser: "Could not remove user access."
+      },
+      success: {
+        userAdded: "User added successfully.",
+        userUpdated: "User access updated successfully.",
+        userRemoved: "User access removed successfully."
+      },
+      confirmations: {
+        removeUser: "Are you sure you want to remove this user's access?"
+      },
+      messages: {
+        selectClient: "Please select a client to manage access.",
+        loading: "Loading access data...",
+        readOnly: "You are in read-only mode. You do not have the necessary permissions to modify access."
+      },
+      tooltips: {
+        noAccessPermission: "You do not have permission to manage access",
+        noEditPermission: "You do not have permission to edit access",
+        noDeletePermission: "You do not have permission to delete access"
+      },
+      buttons: {
+        addUser: "Add User",
+        cancel: "Cancel",
+        update: "Update",
+        add: "Add"
+      },
+      emptyState: {
+        noUsers: "No users have access to this client.",
+        getStarted: "Click \"Add User\" to begin."
+      },
+      table: {
+        header: {
+          user: "User",
+          accessLevel: "Access Level",
+          note: "Note",
+          actions: "Actions"
+        }
+      },
+      modal: {
+        title: {
+          edit: "Edit User Access",
+          add: "Add User"
+        },
+        close: "Close"
+      },
+      form: {
+        label: {
+          selectUser: "Select a user",
+          accessLevel: "Access Level",
+          note: "Note"
+        },
+        placeholder: {
+          filterUsers: "Filter users...",
+          addNote: "Add a note regarding this access..."
+        },
+        option: {
+          selectUser: "Select a user"
+        }
+      }
+    },
+    clientCurrencies: {
+      header: {
+        title: "Conversion Rates"
+      },
+      actions: {
+        add: "Add"
+      },
+      filters: {
+        searchPlaceholder: "Search...",
+        allYears: "All years"
+      },
+      table: {
+        year: "Year",
+        from: "From",
+        to: "To",
+        rate: "Rate",
+        actions: "Actions"
+      },
+      messages: {
+        selectClient: "Please select a client to see their conversion rates.",
+        loading: "Loading conversion rates...",
+        noRatesConfigured: "No conversion rates configured for this client.",
+        noFilterResults: "No results for your search."
+      },
+      permissions: {
+        noAddPermission: "You do not have permission to add conversion rates",
+        readOnlyWarning: "You are in read-only mode. You do not have the necessary permissions to modify currency conversion rates.",
+        noEditPermission: "You do not have permission to edit rates",
+        noDeletePermission: "You do not have permission to delete rates"
+      },
+      errors: {
+        loadFailed: "Could not load client currencies.",
+        addFailed: "Could not add the currency.",
+        updateFailed: "Could not update the currency.",
+        deleteFailed: "Could not delete the currency."
+      },
+      confirmations: {
+        delete: "Are you sure you want to delete this conversion rate?"
+      },
+      form: {
+        addTitle: "Add Rate",
+        editTitle: "Edit Rate"
+      }
+    },
+    clientCustomCodes: {
+      page: {
+        prompt: "Please select a client to manage custom codes.",
+        title: "Custom Codes",
+        searchPlaceholder: "Search by shortcode, custom code or ID...",
+        loading: "Loading custom codes...",
+        noCodesForClient: "No custom codes configured for this client.",
+        noSearchResults: "No results for your search."
+      },
+      permissions: {
+        addTooltip: "You do not have permission to add custom codes",
+        editTooltip: "You do not have permission to edit custom codes",
+        deleteTooltip: "You do not have permission to delete custom codes",
+        readOnlyWarning: "You are in read-only mode. You do not have the necessary permissions to modify custom codes."
+      },
+      table: {
+        headerId: "Shortcode ID",
+        headerCode: "Shortcode Code",
+        headerName: "Shortcode Name",
+        headerCustomCode: "Custom Code",
+        headerActions: "Actions",
+        notAvailable: "N/A",
+        editAction: "Edit",
+        deleteAction: "Delete"
+      },
+      modal: {
+        titleEdit: "Edit Custom Code",
+        titleAdd: "Add Custom Code",
+        buttonAdd: "Add a custom code",
+        close: "Close",
+        selectShortcode: "Select a shortcode",
+        searchPlaceholder: "Search by code, name or ID...",
+        noShortcodeFound: "No shortcode found",
+        alreadyCustomized: "(Already customized)",
+        customCodeLabel: "Custom Code",
+        cancel: "Cancel",
+        update: "Update",
+        add: "Add"
+      },
+      messages: {
+        errorLoad: "Could not load data.",
+        successAdd: "Custom code added successfully.",
+        errorAdd: "Could not add custom code.",
+        successUpdate: "Custom code updated successfully.",
+        errorUpdate: "Could not update custom code.",
+        confirmDelete: "Are you sure you want to delete this custom code?",
+        successDelete: "Custom code deleted successfully.",
+        errorDelete: "Could not delete custom code."
+      }
+    },
+    clientDimensions: {
+      messages: {
+        loadError: "Could not load client dimensions.",
+        updateSuccess: "Client dimensions have been successfully updated.",
+        updateError: "Could not update client dimensions.",
+        selectClientPrompt: "Please select a client to configure their dimensions.",
+        loading: "Loading client dimensions...",
+        readOnly: "You are in read-only mode. You do not have the necessary permissions to modify the dimensions."
+      },
+      headings: {
+        title: "Custom Dimensions",
+        campaign: "Campaign",
+        tactic: "Tactic",
+        placement: "Placement",
+        creative: "Creative"
+      },
+      form: {
+        placeholderDim1: "Dimension 1",
+        placeholderDim2: "Dimension 2",
+        placeholderDim3: "Dimension 3"
+      },
+      buttons: {
+        cancel: "Cancel",
+        saving: "Saving...",
+        save: "Save"
+      }
+    },
+    clientFees: {
+      title: "Client Fees",
+      placeholders: {
+        selectClient: "Please select a client to see their fees."
+      },
+      actions: {
+        addFee: "Add Fee",
+        addOption: "Add Option"
+      },
+      tooltips: {
+        noAddPermission: "You do not have permission to add fees",
+        noEditPermission: "You do not have permission to edit fees",
+        noDeletePermission: "You do not have permission to delete fees",
+        noAddOptionPermission: "You do not have permission to add options",
+        moveUp: "Move up",
+        moveDown: "Move down"
+      },
+      errors: {
+        loadFailed: "Could not load client fees.",
+        moveFailed: "Could not move the fee.",
+        addFailed: "Could not add the fee.",
+        updateFailed: "Could not update the fee.",
+        deleteFailed: "Could not delete the fee.",
+        addOptionFailed: "Could not add the option.",
+        updateOptionFailed: "Could not update the option.",
+        deleteOptionFailed: "Could not delete the option."
+      },
+      success: {
+        feeMovedUp: "Fee moved up successfully.",
+        feeMovedDown: "Fee moved down successfully.",
+        feeAdded: "Fee added successfully.",
+        feeUpdated: "Fee updated successfully.",
+        feeDeleted: "Fee deleted successfully.",
+        optionAdded: "Option added successfully.",
+        optionUpdated: "Option updated successfully.",
+        optionDeleted: "Option deleted successfully."
+      },
+      confirmations: {
+        deleteFee: "Are you sure you want to delete this fee and all its options?",
+        deleteOption: "Are you sure you want to delete this option?"
+      },
+      notifications: {
+        readOnly: "You are in read-only mode. You do not have the necessary permissions to modify fees."
+      },
+      states: {
+        loading: "Loading fees...",
+        noFees: "No fees configured for this client.",
+        noOptions: "No options configured for this fee."
+      },
+      options: {
+        title: "Fee Options"
+      },
+      table: {
+        option: "Option",
+        value: "Value",
+        buffer: "Buffer",
+        editable: "Editable",
+        actions: "Actions"
+      },
+      modals: {
+        addFeeTitle: "Add Fee",
+        editFeeTitle: "Edit Fee",
+        addOptionTitle: "Add Option",
+        editOptionTitle: "Edit Option"
+      }
+    },
+    clientGeneral: {
+      header: {
+        title: "General Information",
+        generalFees: "General Fees"
+      },
+      messages: {
+        info: {
+          selectClient: "Please select a client to see their information.",
+          loading: "Loading client information..."
+        },
+        success: {
+          updateSuccess: "Client information has been successfully updated."
+        },
+        error: {
+          loadDetailsFailed: "Could not load client details.",
+          logoUploadFailed: "Could not upload the logo. Other information will be saved.",
+          updateFailed: "Could not update client details."
+        },
+        warning: {
+          readOnly: "You are in read-only mode. You do not have the necessary permissions to modify client information."
+        }
+      },
+      form: {
+        labels: {
+          clientLogo: "Client Logo",
+          noLogo: "No logo",
+          clientName: "Client Name",
+          clientId: "Client ID",
+          offices: "Offices",
+          exportLanguage: "Export Language",
+          agency: "Agency",
+          costGuide: "Cost Guide",
+          defaultDriveFolder: "Default Drive Folder",
+          customFee1: "Custom Fee 1",
+          customFee2: "Custom Fee 2",
+          customFee3: "Custom Fee 3"
+        },
+        altText: {
+          logoPreview: "Logo preview",
+          clientLogo: "Client logo"
+        },
+        helpText: {
+          clientId: "Unique client identifier (not modifiable)"
+        },
+        options: {
+          french: "French",
+          english: "English",
+          selectAgency: "Select an agency"
+        },
+        costGuide: {
+          noGuideSelected: "No guide selected",
+          guideNotFound: "Guide not found"
+        }
+      },
+      buttons: {
+        changeLogo: "Change logo",
+        cancel: "Cancel",
+        saving: "Saving...",
+        save: "Save"
+      }
+    },
+    clientTemplates: {
+      error: {
+        load: "An error occurred while loading the templates.",
+        save: "An error occurred while saving the template.",
+        delete: "An error occurred while deleting the template."
+      },
+      confirm: {
+        delete: "Are you sure you want to delete this template?"
+      },
+      loading: {
+        message: "Loading templates..."
+      },
+      header: {
+        title: "Template Management"
+      },
+      actions: {
+        add: "Add a template"
+      },
+      permissions: {
+        tooltip: {
+          add: "You do not have permission to add templates",
+          edit: "You do not have permission to edit templates",
+          delete: "You do not have permission to delete templates"
+        },
+        readOnlyWarning: "You are in read-only mode. You do not have the necessary permissions to modify templates."
+      },
+      emptyState: {
+        selectClient: "Please select a client to manage their templates.",
+        noTemplates: "No templates configured.",
+        callToAction: "Click on \"Add a template\" to get started."
+      },
+      table: {
+        header: {
+          name: "Name",
+          url: "URL",
+          language: "Language",
+          duplication: "Tab Duplication",
+          actions: "Actions"
+        },
+        body: {
+          yes: "Yes",
+          no: "No"
+        }
+      }
+    },
+    currencyForm: {
+      labels: {
+        year: "Year",
+        rate: "Rate",
+        from: "Source currency",
+        to: "Target currency"
+      },
+      buttons: {
+        cancel: "Cancel",
+        update: "Update",
+        add: "Add"
+      }
+    },
+    feeOptionForm: {
+      labels: {
+        optionName: "Option Name",
+        value: "Value",
+        buffer: "Buffer (%)",
+        editable: "Editable"
+      },
+      placeholders: {
+        optionName: "Option Name"
+      },
+      buttons: {
+        cancel: "Cancel",
+        update: "Update",
+        add: "Add"
+      }
+    },
+    templateForm: {
+      title: {
+        edit: "Edit Template",
+        add: "Add Template"
+      },
+      fields: {
+        name: {
+          label: "Template Name",
+          placeholder: "Eg: Standard Template"
+        },
+        url: {
+          label: "Template URL",
+          placeholder: "https://docs.google.com/spreadsheets/d/example"
+        },
+        duplicate: {
+          label: "Duplicate for each tab",
+          description: "Enable this option to create a separate tab for each campaign tab"
+        },
+        language: {
+          label: "Language"
+        }
+      },
+      errors: {
+        nameRequired: "The template name is required",
+        urlRequired: "The template URL is required",
+        urlInvalid: "The URL must be valid",
+        languageRequired: "The language is required"
+      },
+      buttons: {
+        cancel: "Cancel",
+        update: "Update",
+        create: "Create"
+      }
+    },
+    loadingSpinner: {
+      alt: {
+        loading: "Loading..."
+      },
+      error: {
+        gifLoadFailed: "Could not load gif:"
+      },
+      message: {
+        inProgress: "Loading in progress..."
+      },
+      status: {
+        ready: "Ready"
+      }
+    },
+    topLoadingIndicator: {
+      messages: {
+        loading: "Loading...",
+        refreshComplete: "Refresh complete",
+        processing: "Processing...",
+        saving: "Saving...",
+        errorOccurred: "An error occurred"
+      }
+    },
+    loadingScreen: {
+      alt: {
+        loading: "Loading"
+      },
+      title: {
+        initialization: "Initialization"
+      },
+      subtitle: {
+        preparingData: "Preparing your data..."
+      },
+      progressBar: {
+        globalProgress: "Overall progress"
+      }
+    },
+    contactForm: {
+      errors: {
+        firstNameRequired: "First name is required",
+        lastNameRequired: "Last name is required",
+        emailRequired: "Email is required",
+        emailInvalid: "Invalid email"
+      },
+      success: {
+        message: "Contact saved successfully!"
+      },
+      labels: {
+        firstName: "First Name *",
+        lastName: "Last Name *",
+        email: "Email *",
+        preferredLanguages: "Preferred Languages",
+        french: "French",
+        english: "English",
+        comment: "Comment"
+      },
+      placeholders: {
+        additionalInfo: "Additional information..."
+      },
+      buttons: {
+        cancel: "Cancel",
+        saving: "Saving...",
+        update: "Update",
+        add: "Add"
+      }
+    },
+    contactList: {
+      emptyState: {
+        message: "No contacts have been added for this partner yet."
+      },
+      actions: {
+        edit: "Edit",
+        delete: "Delete",
+        confirmDelete: "Are you sure you want to delete this contact?"
+      },
+      details: {
+        languages: "Languages",
+        frenchAndEnglish: "French and English",
+        french: "French",
+        english: "English",
+        notSpecified: "Not specified",
+        createdAt: "Created on",
+        comment: "Comment"
+      }
+    },
+    partnersFilter: {
+      search: {
+        placeholder: "Search for a partner..."
+      },
+      filter: {
+        label: "Filter by type:"
+      }
+    },
+    partnersGrid: {
+      notFound: {
+        title: "No partners found",
+        suggestion: "Try changing your search criteria"
+      }
+    },
+    partnerDrawer: {
+      header: {
+        titleFallback: "Partner Details",
+        close: "Close"
+      },
+      tabs: {
+        information: "Information",
+        contacts: "Contacts",
+        specs: "Specs"
+      },
+      labels: {
+        code: "Code",
+        displayNameFr: "Display Name (FR)",
+        displayNameEn: "Display Name (EN)",
+        defaultUtm: "Default UTM",
+        type: "Type",
+        logoUrl: "Logo URL",
+        tags: "Tags",
+        technicalInfo: "Technical Information",
+        partnerId: "Partner ID"
+      },
+      placeholders: {
+        addTag: "Add a tag..."
+      },
+      buttons: {
+        add: "Add",
+        cancel: "Cancel",
+        save: "Save",
+        saving: "Saving...",
+        edit: "Edit",
+        addContact: "Add contact",
+        addSpec: "Add spec"
+      },
+      messages: {
+        noTags: "No tags",
+        loadingContacts: "Loading contacts...",
+        loadingSpecs: "Loading specifications..."
+      },
+      sectionTitles: {
+        specs: "Technical Specifications"
+      }
+    },
+    partnerEditForm: {
+      common: {
+        id: "ID",
+        code: "Code",
+        displayNameFR: "Display Name (FR)",
+        displayNameEN: "Display Name (EN)",
+        defaultUTM: "Default UTM",
+        type: "Type",
+        logoUrl: "Logo URL"
+      },
+      view: {
+        title: "Partner Details",
+        editButton: "Edit",
+        logoAlt: "Logo"
+      },
+      edit: {
+        title: "Edit Partner",
+        updateError: "An error occurred while updating the partner",
+        logoPreviewAlt: "Logo preview",
+        cancelButton: "Cancel",
+        saveButton: "Save",
+        savingButton: "Saving..."
+      }
+    },
+    partners: {
+      title: {
+        main: "Partners"
+      }
+    },
+    specForm: {
+      notifications: {
+        saveSuccess: "Specification saved successfully!"
+      },
+      labels: {
+        name: "Specification Name",
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "File Type",
+        animation: "Animation",
+        maxWeight: "Maximum Weight",
+        weight: "Maximum Weight if HTML 5",
+        title: "Title",
+        text: "Text",
+        specSheetLink: "Link to spec sheet",
+        notes: "Notes"
+      },
+      placeholders: {
+        format: "e.g., 300x250",
+        ratio: "e.g., 16:9",
+        fileType: "e.g., JPG, PNG, GIF",
+        animation: "e.g., Allowed, Not allowed",
+        maxWeight: "e.g., 100 KB",
+        weight: "e.g., 80 KB",
+        title: "e.g., Max 50 characters",
+        text: "e.g., Short descriptive text",
+        specSheetLink: "https://example.com/specs.pdf",
+        notes: "Additional notes"
+      },
+      errors: {
+        nameRequired: "The name is required"
+      },
+      buttons: {
+        cancel: "Cancel",
+        submitting: "Saving...",
+        update: "Update",
+        add: "Add"
+      }
+    },
+    specList: {
+      emptyState: {
+        message: "No specifications have been added for this partner."
+      },
+      actions: {
+        edit: "Edit",
+        delete: "Delete",
+        confirmDelete: "Are you sure you want to delete this specification?"
+      },
+      details: {
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "File Type",
+        animation: "Animation",
+        maxWeight: "Max Weight",
+        weight: "Weight",
+        title: "Title",
+        text: "Text",
+        specSheetLink: "Link to spec sheet",
+        notes: "Notes"
+      },
+      footer: {
+        lastUpdated: "Last updated:"
+      }
+    },
+    
+
+
+
     
 
   }

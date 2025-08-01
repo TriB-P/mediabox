@@ -1,23 +1,14 @@
-interface ListItem {
-  id: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
-  SH_Default_UTM?: string;
-  SH_Logo?: string;
-  SH_Type?: string;
-  SH_Tags?: string[];
-}// app/components/Tactiques/Creatif/CreatifDrawer.tsx
+// app/components/Tactiques/Creatif/CreatifDrawer.tsx
 
 /**
- * Ce fichier définit le composant CreatifDrawer, qui est un tiroir (drawer) de formulaire
- * utilisé pour créer ou modifier un "Créatif". Le tiroir contient une navigation par onglets
- * pour séparer les champs d'information générale de ceux liés à la taxonomie et aux specs.
- * Il gère l'état du formulaire et communique avec le composant parent via la prop `onSave`
- * pour persister les données.
+ * Ce fichier définit le composant CreatifDrawer optimisé avec le système de cache.
+ * OPTIMISÉ : Utilise directement le cacheService au lieu de dupliquer la logique.
+ * Élimination des appels Firebase redondants et des imports dynamiques inutiles.
+ * Version corrigée pour maximiser l'utilisation du cache localStorage.
  */
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import CreatifFormInfo from './CreatifFormInfo';
@@ -30,11 +21,29 @@ import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import { createEmptyCreatifFieldsObject, extractCreatifFieldsFromData } from '../../../config/taxonomyFields';
 
-// NOUVEAU : Import des fonctions de cache
-import {
-  getListForClient,
-  ShortcodeItem
-} from '../../../lib/cacheService';
+// OPTIMISÉ : Import direct du cacheService optimisé
+import { getListForClient } from '../../../lib/cacheService';
+
+// OPTIMISÉ : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache
+const hasCachedList = (fieldId: string, clientId: string): boolean => {
+  try {
+    const cachedList = getListForClient(fieldId, clientId);
+    return cachedList !== null && cachedList.length > 0;
+  } catch (error) {
+    console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
+    return false;
+  }
+};
+
+interface ListItem {
+  id: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Default_UTM?: string;
+  SH_Logo?: string;
+  SH_Type?: string;
+  SH_Tags?: string[];
+}
 
 interface CreatifDrawerProps {
   isOpen: boolean;
@@ -47,8 +56,8 @@ interface CreatifDrawerProps {
 }
 
 /**
- * Composant principal du tiroir de formulaire pour les créatifs.
- * Il gère l'état du formulaire, la navigation par onglets, et la soumission des données.
+ * Composant principal du tiroir de formulaire pour les créatifs OPTIMISÉ.
+ * Utilise le système de cache pour réduire drastiquement les appels Firebase.
  * @param {boolean} isOpen - Contrôle la visibilité du tiroir.
  * @param {() => void} onClose - Fonction pour fermer le tiroir.
  * @param {Creatif | null} [creatif] - L'objet créatif à modifier. Si null, le formulaire est en mode création.
@@ -73,6 +82,21 @@ export default function CreatifDrawer({
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
+  const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({});
+
+  // OPTIMISÉ : Liste des champs dynamiques possibles pour les créatifs (mémorisée)
+  const dynamicListFields = useMemo(() => [
+    'CR_Custom_Dim_1', 
+    'CR_Custom_Dim_2', 
+    'CR_Custom_Dim_3', 
+    'CR_CTA', 
+    'CR_Format_Details', 
+    'CR_Offer', 
+    'CR_Plateform_Name', 
+    'CR_Primary_Product', 
+    'CR_URL', 
+    'CR_Version', 
+  ], []);
 
   const [formData, setFormData] = useState<CreatifFormData>(() => {
     const emptyCreatifFields = createEmptyCreatifFieldsObject();
@@ -104,78 +128,54 @@ export default function CreatifDrawer({
   });
 
   /**
-   * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
-   * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher')
-   * @param clientId - L'identifiant du client
-   * @returns Promise<ListItem[]> - La liste des éléments
-   */
-  const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
-    try {
-      console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
-      
-      // Essayer d'abord le cache
-      const cachedList = getListForClient(fieldId, clientId);
-      
-      if (cachedList && cachedList.length > 0) {
-        console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
-        
-        // Convertir ShortcodeItem[] vers ListItem[] (structures identiques)
-        return cachedList.map(item => ({
-          id: item.id,
-          SH_Code: item.SH_Code,
-          SH_Display_Name_FR: item.SH_Display_Name_FR,
-          SH_Display_Name_EN: item.SH_Display_Name_EN,
-          SH_Default_UTM: item.SH_Default_UTM,
-          SH_Logo: item.SH_Logo,
-          SH_Type: item.SH_Type,
-          SH_Tags: item.SH_Tags
-        }));
-      }
-      
-      // Fallback sur Firebase si pas de cache
-      console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
-      console.log(`FIREBASE: LECTURE - Fichier: CreatifDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
-      
-      // Import dynamique pour éviter les dépendances circulaires
-      const { getDynamicList } = await import('../../../lib/tactiqueListService');
-      return await getDynamicList(fieldId, clientId);
-      
-    } catch (error) {
-      console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
-      
-      // En cas d'erreur, fallback sur Firebase
-      console.log(`FIREBASE: LECTURE - Fichier: CreatifDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
-      const { getDynamicList } = await import('../../../lib/tactiqueListService');
-      return await getDynamicList(fieldId, clientId);
-    }
-  };
-
-  /**
-   * Charge toutes les listes dynamiques nécessaires avec priorité sur le cache
+   * OPTIMISÉ : Charge toutes les listes dynamiques nécessaires depuis le cache
+   * Utilise la même logique uniforme que TactiqueDrawer
    */
   const loadAllData = useCallback(async () => {
     if (!selectedClient) return;
 
     try {
-      console.log(`[CACHE] 🚀 Début chargement données avec cache pour CreatifDrawer`);
       
-      // Charger TC_Publisher via le cache
-      console.log(`[CACHE] Chargement de TC_Publisher`);
-      const publishersList = await getCachedOrFirebaseList('TC_Publisher', selectedClient.clientId);
+      // 1. Vérifier l'existence de toutes les listes dynamiques
+      const newVisibleFields: { [key: string]: boolean } = {};
+      for (const field of dynamicListFields) {
+        const hasListResult = hasCachedList(field, selectedClient.clientId);
+        newVisibleFields[field] = hasListResult;
+      }
       
-      const newDynamicLists: { [key: string]: ListItem[] } = {
-        TC_Publisher: publishersList
-      };
+      setVisibleFields(newVisibleFields);
+
+      // 2. Charger les listes qui existent
+      const newDynamicLists: { [key: string]: ListItem[] } = {};
+      for (const field of dynamicListFields) {
+        if (newVisibleFields[field]) {
+          const cachedList = getListForClient(field, selectedClient.clientId);
+          
+          if (cachedList && cachedList.length > 0) {
+            // Conversion directe ShortcodeItem[] vers ListItem[]
+            newDynamicLists[field] = cachedList.map(item => ({
+              id: item.id,
+              SH_Display_Name_FR: item.SH_Display_Name_FR,
+              SH_Display_Name_EN: item.SH_Display_Name_EN,
+              SH_Default_UTM: item.SH_Default_UTM,
+              SH_Logo: item.SH_Logo,
+              SH_Type: item.SH_Type,
+              SH_Tags: item.SH_Tags
+            }));
+            
+          }
+        }
+      }
 
       setDynamicLists(newDynamicLists);
       
-      console.log(`[CACHE] ✅ Chargement terminé avec cache pour CreatifDrawer`);
       
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+      console.error('[CACHE] Erreur lors du chargement optimisé:', error);
       setDynamicLists({});
+      setVisibleFields({});
     }
-  }, [selectedClient]);
+  }, [selectedClient, dynamicListFields]);
 
   /**
    * Effet pour charger les données au montage du composant

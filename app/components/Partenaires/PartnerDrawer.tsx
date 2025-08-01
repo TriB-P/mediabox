@@ -27,6 +27,7 @@ import ContactList from './ContactList';
 import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
   id: string;
@@ -56,6 +57,7 @@ interface PartnerDrawerProps {
  * @returns {JSX.Element} Le composant de panneau latéral.
  */
 export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartner }: PartnerDrawerProps) {
+  const { t } = useTranslation();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -80,9 +82,9 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
   const [partnerTags, setPartnerTags] = useState<string[]>([]);
 
   const categories = [
-    { name: 'Informations', icon: BuildingOfficeIcon },
-    { name: 'Contacts', icon: UserIcon },
-    { name: 'Specs', icon: DocumentTextIcon }
+    { name: t('partnerDrawer.tabs.information'), icon: BuildingOfficeIcon },
+    { name: t('partnerDrawer.tabs.contacts'), icon: UserIcon },
+    { name: t('partnerDrawer.tabs.specs'), icon: DocumentTextIcon }
   ];
 
   /**
@@ -423,7 +425,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                     <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-lg font-medium text-white">
-                          {partner?.SH_Display_Name_FR || "Détails du partenaire"}
+                          {partner?.SH_Display_Name_FR || t('partnerDrawer.header.titleFallback')}
                         </Dialog.Title>
                         <div className="ml-3 flex h-7 items-center">
                           <button
@@ -431,7 +433,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                             className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white"
                             onClick={onClose}
                           >
-                            <span className="sr-only">Fermer</span>
+                            <span className="sr-only">{t('partnerDrawer.header.close')}</span>
                             <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                           </button>
                         </div>
@@ -484,7 +486,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700">Code</label>
+                                  <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.code')}</label>
                                   <input
                                     type="text"
                                     name="SH_Code"
@@ -497,7 +499,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">Nom d'affichage (FR)</label>
+                                  <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameFr')}</label>
                                   <input
                                     type="text"
                                     name="SH_Display_Name_FR"
@@ -510,7 +512,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">Nom d'affichage (EN)</label>
+                                  <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameEn')}</label>
                                   <input
                                     type="text"
                                     name="SH_Display_Name_EN"
@@ -522,7 +524,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700">UTM par défaut</label>
+                                  <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.defaultUtm')}</label>
                                   <input
                                     type="text"
                                     name="SH_Default_UTM"
@@ -534,7 +536,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700">Type</label>
+                                  <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.type')}</label>
                                   <input
                                     type="text"
                                     name="SH_Type"
@@ -546,7 +548,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Logo" className="block text-sm font-medium text-gray-700">URL du logo</label>
+                                  <label htmlFor="SH_Logo" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.logoUrl')}</label>
                                   <input
                                     type="text"
                                     name="SH_Logo"
@@ -558,7 +560,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('partnerDrawer.labels.tags')}</label>
                                   <div className="flex flex-wrap gap-2 mb-2">
                                     {partnerTags.map((tag, index) => (
                                       <div
@@ -579,7 +581,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                   <div className="flex mt-2">
                                     <input
                                       type="text"
-                                      placeholder="Ajouter un tag..."
+                                      placeholder={t('partnerDrawer.placeholders.addTag')}
                                       value={newTag}
                                       onChange={(e) => setNewTag(e.target.value)}
                                       onKeyDown={handleTagKeyPress}
@@ -590,7 +592,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                       onClick={handleAddTag}
                                       className="inline-flex items-center px-3 py-2 border border-transparent rounded-r-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                       >
-                                        Ajouter
+                                        {t('partnerDrawer.buttons.add')}
                                       </button>
                                     </div>
                                   </div>
@@ -601,7 +603,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                       onClick={() => setIsEditingPartner(false)}
                                       className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
-                                      Annuler
+                                      {t('partnerDrawer.buttons.cancel')}
                                     </button>
                                     <button
                                       type="button"
@@ -609,7 +611,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                       disabled={isSavingPartner}
                                       className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
-                                      {isSavingPartner ? 'Enregistrement...' : 'Enregistrer'}
+                                      {isSavingPartner ? t('partnerDrawer.buttons.saving') : t('partnerDrawer.buttons.save')}
                                     </button>
                                   </div>
                                 </form>
@@ -642,7 +644,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                               onClick={initPartnerForm}
                                               className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
                                             >
-                                              Modifier
+                                              {t('partnerDrawer.buttons.edit')}
                                             </button>
                                           )}
                                         </div>
@@ -661,19 +663,19 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                   <div className="px-4 py-5 sm:p-6">
                                     <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                                       <div className="sm:col-span-1">
-                                        <dt className="text-sm font-medium text-gray-500">Code</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t('partnerDrawer.labels.code')}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">{partner.SH_Code}</dd>
                                       </div>
                                       
                                       <div className="sm:col-span-1">
-                                        <dt className="text-sm font-medium text-gray-500">UTM par défaut</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t('partnerDrawer.labels.defaultUtm')}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">{partner.SH_Default_UTM || '—'}</dd>
                                       </div>
                                       
                                       <div className="sm:col-span-2">
                                         <dt className="text-sm font-medium text-gray-500 flex items-center">
                                           <TagIcon className="h-4 w-4 mr-1" />
-                                          Tags
+                                          {t('partnerDrawer.labels.tags')}
                                         </dt>
                                         <dd className="mt-1">
                                           <div className="flex flex-wrap gap-2">
@@ -687,7 +689,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                                 </span>
                                               ))
                                             ) : (
-                                              <span className="text-sm text-gray-500">Aucun tag</span>
+                                              <span className="text-sm text-gray-500">{t('partnerDrawer.messages.noTags')}</span>
                                             )}
                                           </div>
                                         </dd>
@@ -697,18 +699,18 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                   
                                   <div className="px-4 py-4 border-t border-gray-200 sm:px-6 bg-gray-50">
                                     <div className="flex items-center">
-                                      <h3 className="text-sm font-medium text-gray-900">Informations techniques</h3>
+                                      <h3 className="text-sm font-medium text-gray-900">{t('partnerDrawer.labels.technicalInfo')}</h3>
                                     </div>
                                     <div className="mt-2">
                                       <details className="text-xs text-gray-600">
-                                        <summary className="cursor-pointer hover:text-indigo-600">ID du partenaire</summary>
+                                        <summary className="cursor-pointer hover:text-indigo-600">{t('partnerDrawer.labels.partnerId')}</summary>
                                         <p className="mt-1 break-all pl-4">{partner.id}</p>
                                       </details>
                                     </div>
                                     {partner.SH_Logo && (
                                       <div className="mt-2">
                                         <details className="text-xs text-gray-600">
-                                          <summary className="cursor-pointer hover:text-indigo-600">URL du logo</summary>
+                                          <summary className="cursor-pointer hover:text-indigo-600">{t('partnerDrawer.labels.logoUrl')}</summary>
                                           <p className="mt-1 break-all pl-4">{partner.SH_Logo}</p>
                                         </details>
                                       </div>
@@ -723,7 +725,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                             <div className="p-6">
                               <div className="space-y-4">
                                 <div className="flex justify-between items-center">
-                                  <h2 className="text-lg font-medium text-gray-900">Contacts</h2>
+                                  <h2 className="text-lg font-medium text-gray-900">{t('partnerDrawer.tabs.contacts')}</h2>
                                   {!showContactForm && (
                                     <button
                                       type="button"
@@ -734,7 +736,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                       className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
                                     >
                                       <PlusIcon className="h-4 w-4 mr-1" />
-                                      Ajouter un contact
+                                      {t('partnerDrawer.buttons.addContact')}
                                     </button>
                                   )}
                                 </div>
@@ -751,7 +753,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 ) : loadingContacts ? (
                                   <div className="text-center py-4">
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
-                                    <p className="mt-2 text-sm text-gray-500">Chargement des contacts...</p>
+                                    <p className="mt-2 text-sm text-gray-500">{t('partnerDrawer.messages.loadingContacts')}</p>
                                   </div>
                                 ) : (
                                   <ContactList
@@ -771,7 +773,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                             <div className="p-6">
                               <div className="space-y-4">
                                 <div className="flex justify-between items-center">
-                                  <h2 className="text-lg font-medium text-gray-900">Spécifications techniques</h2>
+                                  <h2 className="text-lg font-medium text-gray-900">{t('partnerDrawer.sectionTitles.specs')}</h2>
                                   {!showSpecForm && (
                                     <button
                                       type="button"
@@ -782,7 +784,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                       className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
                                     >
                                       <PlusIcon className="h-4 w-4 mr-1" />
-                                      Ajouter une spec
+                                      {t('partnerDrawer.buttons.addSpec')}
                                     </button>
                                   )}
                                 </div>
@@ -799,7 +801,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 ) : loadingSpecs ? (
                                   <div className="text-center py-4">
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
-                                    <p className="mt-2 text-sm text-gray-500">Chargement des spécifications...</p>
+                                    <p className="mt-2 text-sm text-gray-500">{t('partnerDrawer.messages.loadingSpecs')}</p>
                                   </div>
                                 ) : (
                                   <SpecList

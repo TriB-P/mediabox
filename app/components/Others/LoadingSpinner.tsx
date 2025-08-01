@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface LoadingSpinnerProps {
   gifPath?: string;
@@ -22,7 +23,7 @@ interface LoadingSpinnerProps {
  * @param {object} props - Les propriétés du composant.
  * @param {string} [props.gifPath="/images/loading.gif"] - Chemin vers le fichier GIF d'animation.
  * @param {number} [props.minimumDuration=2000] - Durée minimale d'affichage du spinner en millisecondes.
- * @param {string} [props.message="Chargement en cours..."] - Le message à afficher sous le spinner.
+ * @param {string} [props.message] - Le message à afficher sous le spinner.
  * @param {string} [props.className=""] - Classes CSS additionnelles pour le conteneur principal.
  * @param {() => void} [props.onMinimumTimeElapsed] - Une fonction de callback exécutée une fois la durée minimale écoulée.
  * @returns {React.ReactElement} Le composant de chargement.
@@ -30,10 +31,11 @@ interface LoadingSpinnerProps {
 export default function LoadingSpinner({
   gifPath = "/images/loading.gif",
   minimumDuration = 2000,
-  message = "Chargement en cours...",
+  message,
   className = "",
   onMinimumTimeElapsed
 }: LoadingSpinnerProps) {
+  const { t } = useTranslation();
   const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);
 
   useEffect(() => {
@@ -52,10 +54,10 @@ export default function LoadingSpinner({
       <div className="mb-4 flex items-center justify-center">
         <img 
           src={gifPath}
-          alt="Chargement..."
+          alt={t('loadingSpinner.alt.loading')}
           className="max-w-32 max-h-32 object-contain"
           onError={(e) => {
-            console.warn(`Impossible de charger le gif: ${gifPath}`);
+            console.warn(`${t('loadingSpinner.error.gifLoadFailed')} ${gifPath}`);
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
@@ -74,7 +76,7 @@ export default function LoadingSpinner({
       
       <div className="text-center">
         <div className="text-sm font-medium text-gray-900 mb-2">
-          {message}
+          {message ?? t('loadingSpinner.message.inProgress')}
         </div>
         
         <div className="w-48 bg-gray-200 rounded-full h-1">
@@ -90,7 +92,7 @@ export default function LoadingSpinner({
         
         {minimumTimeElapsed && (
           <div className="text-xs text-green-600 mt-2 animate-fade-in">
-            ✓ Prêt
+            ✓ {t('loadingSpinner.status.ready')}
           </div>
         )}
       </div>

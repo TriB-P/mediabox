@@ -511,10 +511,8 @@ export function getListForClient(listType: string, clientId: string): ShortcodeI
     
     if (listStructure[clientId]) {
       shortcodeIds = listStructure[clientId]; // Directement l'array!
-      console.log(`[CACHE] Liste ${listType} pour client ${clientId}: ${shortcodeIds.length} items`);
     } else if (listStructure['PlusCo']) {
       shortcodeIds = listStructure['PlusCo']; // Directement l'array!
-      console.log(`[CACHE] Liste ${listType} pour client ${clientId} (fallback PlusCo): ${shortcodeIds.length} items`);
     }
 
     if (shortcodeIds.length === 0) return null;

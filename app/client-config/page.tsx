@@ -1,14 +1,15 @@
 /**
- * @file Ce fichier définit la page principale de configuration pour un client.
- * Il utilise un système d'onglets pour permettre à l'utilisateur de naviguer
- * entre différentes sections de configuration comme les informations générales,
- * la gestion des accès, les frais, les taxonomies, etc.
- * Chaque onglet affiche un composant dédié à une tâche de configuration spécifique.
+ * @file This file defines the main configuration page for a client.
+ * It uses a tab system to allow the user to navigate
+ * between different configuration sections such as general information,
+ * access management, fees, taxonomies, etc.
+ * Each tab displays a component dedicated to a specific configuration task.
  */
 
 'use client';
 
 import { useState } from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import ClientFees from '../components/Client/ClientFees';
@@ -23,41 +24,42 @@ import ClientTemplates from '../components/Client/ClientTemplates';
 
 
 /**
- * Concatène des noms de classes CSS en filtrant les valeurs non valides.
- * Utile pour appliquer des classes conditionnelles dans React.
- * @param {...string} classes - Une liste de chaînes de caractères représentant les classes CSS.
- * @returns {string} Une chaîne de caractères unique contenant les classes valides, séparées par des espaces.
+ * Concatenates CSS class names, filtering out invalid values.
+ * Useful for applying conditional classes in React.
+ * @param {...string} classes - A list of strings representing CSS classes.
+ * @returns {string} A single string containing the valid classes, separated by spaces.
  */
 function classNames(...classes: string[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
 /**
- * Composant principal de la page de configuration du client.
- * Gère l'état de l'onglet actuellement sélectionné et affiche le composant correspondant.
- * La page est protégée et ne peut être accédée que par un utilisateur authentifié.
- * @returns {JSX.Element} Le rendu de la page de configuration avec ses onglets de navigation.
+ * Main component for the client configuration page.
+ * Manages the state of the currently selected tab and displays the corresponding component.
+ * The page is protected and can only be accessed by an authenticated user.
+ * @returns {JSX.Element} The rendered configuration page with its navigation tabs.
  */
 export default function ClientConfigPage(): JSX.Element {
+  const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = useState(0);
 
   const tabs = [
-    { name: 'Général', component: () => <ClientGeneral /> },
-    { name: 'Accès', component: () => <ClientAccess /> },
-    { name: 'Frais', component: () => <ClientFees /> },
-    { name: 'Taxonomies', component: () => <ClientTaxonomies /> },
-    { name: 'Gabarits', component: () => <ClientTemplates /> },
-    { name: 'Listes', component: () => <ClientLists /> },
-    { name: 'Dimensions', component: () => <ClientDimensions /> },
-    { name: 'Codes personnalisés', component: () => <ClientCustomCodes /> },
-    { name: 'Devises', component: () => <ClientCurrencies /> },
+    { name: t('clientConfig.tabs.general'), component: () => <ClientGeneral /> },
+    { name: t('clientConfig.tabs.access'), component: () => <ClientAccess /> },
+    { name: t('clientConfig.tabs.fees'), component: () => <ClientFees /> },
+    { name: t('clientConfig.tabs.taxonomies'), component: () => <ClientTaxonomies /> },
+    { name: t('clientConfig.tabs.templates'), component: () => <ClientTemplates /> },
+    { name: t('clientConfig.tabs.lists'), component: () => <ClientLists /> },
+    { name: t('clientConfig.tabs.dimensions'), component: () => <ClientDimensions /> },
+    { name: t('clientConfig.tabs.customCodes'), component: () => <ClientCustomCodes /> },
+    { name: t('clientConfig.tabs.currencies'), component: () => <ClientCurrencies /> },
   ];
 
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Configuration du client</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('clientConfig.header.title')}</h1>
 
           <div className="flex flex-wrap rounded-xl bg-gray-100 p-1 mb-6">
             {tabs.map((tab, index) => (

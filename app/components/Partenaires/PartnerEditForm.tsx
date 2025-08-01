@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
   id: string;
@@ -38,6 +39,7 @@ export default function PartnerEditForm({
   onUpdatePartner,
   onCloseDrawer
 }: PartnerEditFormProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -109,7 +111,7 @@ export default function PartnerEditForm({
       await onUpdatePartner(selectedPartner.id, updatedFields);
       setIsEditing(false);
     } catch (error: any) {
-      setError(error.message || 'Une erreur est survenue lors de la mise à jour du partenaire');
+      setError(error.message || t('partnerEditForm.edit.updateError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,12 +125,12 @@ export default function PartnerEditForm({
     return (
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Détails du partenaire</h2>
+          <h2 className="text-lg font-semibold">{t('partnerEditForm.view.title')}</h2>
           <button
             onClick={() => setIsEditing(true)}
             className="btn-secondary text-sm"
           >
-            Modifier
+            {t('partnerEditForm.view.editButton')}
           </button>
         </div>
 
@@ -137,7 +139,7 @@ export default function PartnerEditForm({
             <div className="mb-4 flex justify-center">
               <img
                 src={selectedPartner.SH_Logo}
-                alt={`Logo ${selectedPartner.SH_Display_Name_FR}`}
+                alt={`${t('partnerEditForm.view.logoAlt')} ${selectedPartner.SH_Display_Name_FR}`}
                 className="h-20 object-contain"
               />
             </div>
@@ -145,31 +147,31 @@ export default function PartnerEditForm({
 
           <div className="grid grid-cols-1 gap-2">
             <div>
-              <span className="text-sm font-medium text-gray-500">ID</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.id')}</span>
               <p className="mt-1">{selectedPartner.id}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">Code</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.code')}</span>
               <p className="mt-1">{selectedPartner.SH_Code}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">Nom d'affichage (FR)</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.displayNameFR')}</span>
               <p className="mt-1">{selectedPartner.SH_Display_Name_FR}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">Nom d'affichage (EN)</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.displayNameEN')}</span>
               <p className="mt-1">{selectedPartner.SH_Display_Name_EN || '-'}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">UTM par défaut</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.defaultUTM')}</span>
               <p className="mt-1">{selectedPartner.SH_Default_UTM || '-'}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">Type</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.type')}</span>
               <p className="mt-1">{selectedPartner.SH_Type || '-'}</p>
             </div>
             <div>
-              <span className="text-sm font-medium text-gray-500">Logo URL</span>
+              <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.logoUrl')}</span>
               <p className="mt-1 break-all text-xs">{selectedPartner.SH_Logo || '-'}</p>
             </div>
           </div>
@@ -180,7 +182,7 @@ export default function PartnerEditForm({
 
   return (
     <div className="p-4">
-      <h2 className="text-lg font-semibold mb-4">Modifier le partenaire</h2>
+      <h2 className="text-lg font-semibold mb-4">{t('partnerEditForm.edit.title')}</h2>
 
       {error && (
         <div className="bg-red-50 text-red-500 p-2 rounded mb-4 text-sm">
@@ -190,7 +192,7 @@ export default function PartnerEditForm({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="form-label">ID</label>
+          <label className="form-label">{t('partnerEditForm.common.id')}</label>
           <input
             type="text"
             value={selectedPartner.id}
@@ -200,7 +202,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Code" className="form-label">Code</label>
+          <label htmlFor="SH_Code" className="form-label">{t('partnerEditForm.common.code')}</label>
           <input
             id="SH_Code"
             name="SH_Code"
@@ -213,7 +215,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Display_Name_FR" className="form-label">Nom d'affichage (FR)</label>
+          <label htmlFor="SH_Display_Name_FR" className="form-label">{t('partnerEditForm.common.displayNameFR')}</label>
           <input
             id="SH_Display_Name_FR"
             name="SH_Display_Name_FR"
@@ -226,7 +228,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Display_Name_EN" className="form-label">Nom d'affichage (EN)</label>
+          <label htmlFor="SH_Display_Name_EN" className="form-label">{t('partnerEditForm.common.displayNameEN')}</label>
           <input
             id="SH_Display_Name_EN"
             name="SH_Display_Name_EN"
@@ -238,7 +240,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Default_UTM" className="form-label">UTM par défaut</label>
+          <label htmlFor="SH_Default_UTM" className="form-label">{t('partnerEditForm.common.defaultUTM')}</label>
           <input
             id="SH_Default_UTM"
             name="SH_Default_UTM"
@@ -250,7 +252,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Type" className="form-label">Type</label>
+          <label htmlFor="SH_Type" className="form-label">{t('partnerEditForm.common.type')}</label>
           <input
             id="SH_Type"
             name="SH_Type"
@@ -262,7 +264,7 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Logo" className="form-label">Logo URL</label>
+          <label htmlFor="SH_Logo" className="form-label">{t('partnerEditForm.common.logoUrl')}</label>
           <input
             id="SH_Logo"
             name="SH_Logo"
@@ -277,7 +279,7 @@ export default function PartnerEditForm({
           <div className="mt-2 flex justify-center">
             <img
               src={formData.SH_Logo}
-              alt="Aperçu du logo"
+              alt={t('partnerEditForm.edit.logoPreviewAlt')}
               className="h-20 object-contain"
               onError={(e) => {
                 e.currentTarget.src = 'https://via.placeholder.com/150?text=Logo+Error';
@@ -293,14 +295,14 @@ export default function PartnerEditForm({
             className="btn-secondary"
             disabled={isSubmitting}
           >
-            Annuler
+            {t('partnerEditForm.edit.cancelButton')}
           </button>
           <button
             type="submit"
             className="btn-primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            {isSubmitting ? t('partnerEditForm.edit.savingButton') : t('partnerEditForm.edit.saveButton')}
           </button>
         </div>
       </form>

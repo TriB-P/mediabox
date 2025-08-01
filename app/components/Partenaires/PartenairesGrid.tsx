@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
   id: string;
@@ -39,6 +40,7 @@ export default function PartenairesGrid({
   isLoading,
   onPartnerClick
 }: PartenairesGridProps) {
+  const { t } = useTranslation();
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
   const [loadingImages, setLoadingImages] = useState(false);
 
@@ -107,8 +109,8 @@ export default function PartenairesGrid({
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-5.2-5.2m2.2-2.8a8 8 0 11-15.4-3 8 8 0 0115.4 3z" />
           </svg>
-          <h3 className="text-lg font-medium">Aucun partenaire trouvé</h3>
-          <p className="mt-1">Essayez de modifier vos critères de recherche</p>
+          <h3 className="text-lg font-medium">{t('partnersGrid.notFound.title')}</h3>
+          <p className="mt-1">{t('partnersGrid.notFound.suggestion')}</p>
         </div>
       </div>
     );

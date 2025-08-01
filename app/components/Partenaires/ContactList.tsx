@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { Contact } from '../../lib/contactService';
 import { PencilIcon, TrashIcon, EnvelopeIcon, UserIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ContactListProps {
   contacts: Contact[];
@@ -26,6 +27,7 @@ interface ContactListProps {
  * @returns {React.ReactElement} Le composant JSX représentant la liste des contacts.
  */
 export default function ContactList({ contacts, onEdit, onDelete }: ContactListProps) {
+  const { t } = useTranslation();
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
 
   /**
@@ -43,7 +45,7 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
   if (contacts.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500">
-        Aucun contact n'a été ajouté pour ce partenaire.
+        {t('contactList.emptyState.message')}
       </div>
     );
   }
@@ -107,19 +109,19 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
                   onEdit(contact);
                 }}
                 className="text-gray-400 hover:text-indigo-600"
-                title="Modifier"
+                title={t('contactList.actions.edit')}
               >
                 <PencilIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact?')) {
+                  if (window.confirm(t('contactList.actions.confirmDelete'))) {
                     onDelete(contact.id);
                   }
                 }}
                 className="text-gray-400 hover:text-red-600"
-                title="Supprimer"
+                title={t('contactList.actions.delete')}
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
@@ -130,22 +132,22 @@ export default function ContactList({ contacts, onEdit, onDelete }: ContactListP
             <div className="mt-3 ml-10 p-3 bg-gray-50 rounded-md text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="font-medium text-gray-500">Langues:</span>{' '}
+                  <span className="font-medium text-gray-500">{t('contactList.details.languages')}:</span>{' '}
                   <span className="text-gray-900">
-                    {contact.languages.FR && contact.languages.EN ? 'Français et Anglais' :
-                     contact.languages.FR ? 'Français' :
-                     contact.languages.EN ? 'Anglais' : 'Non spécifié'}
+                    {contact.languages.FR && contact.languages.EN ? t('contactList.details.frenchAndEnglish') :
+                     contact.languages.FR ? t('contactList.details.french') :
+                     contact.languages.EN ? t('contactList.details.english') : t('contactList.details.notSpecified')}
                   </span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-500">Créé le:</span>{' '}
+                  <span className="font-medium text-gray-500">{t('contactList.details.createdAt')}:</span>{' '}
                   <span className="text-gray-900">{new Date(contact.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
 
               {contact.comment && (
                 <div className="mt-2">
-                  <span className="font-medium text-gray-500">Commentaire:</span>
+                  <span className="font-medium text-gray-500">{t('contactList.details.comment')}:</span>
                   <p className="mt-1 text-gray-900">{contact.comment}</p>
                 </div>
               )}

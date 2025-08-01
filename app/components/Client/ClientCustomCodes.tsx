@@ -9,6 +9,7 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { Dialog, Transition } from '@headlessui/react';
 import {
   getAllShortcodes,
@@ -34,6 +35,7 @@ import {
  * @returns {React.ReactElement} Le JSX du composant.
  */
 const ClientCustomCodes: React.FC = () => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [customCodes, setCustomCodes] = useState<CustomCode[]>([]);
@@ -82,7 +84,7 @@ const ClientCustomCodes: React.FC = () => {
 
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
-      setError('Impossible de charger les données.');
+      setError(t('clientCustomCodes.messages.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -149,7 +151,7 @@ const ClientCustomCodes: React.FC = () => {
         customCode: customCodeValue
       });
 
-      setSuccess('Code personnalisé ajouté avec succès.');
+      setSuccess(t('clientCustomCodes.messages.successAdd'));
       setTimeout(() => setSuccess(null), 3000);
 
       await loadData();
@@ -157,7 +159,7 @@ const ClientCustomCodes: React.FC = () => {
       closeModal();
     } catch (err) {
       console.error('Erreur lors de l\'ajout du code personnalisé:', err);
-      setError('Impossible d\'ajouter le code personnalisé.');
+      setError(t('clientCustomCodes.messages.errorAdd'));
     }
   };
 
@@ -183,7 +185,7 @@ const ClientCustomCodes: React.FC = () => {
         }
       );
 
-      setSuccess('Code personnalisé mis à jour avec succès.');
+      setSuccess(t('clientCustomCodes.messages.successUpdate'));
       setTimeout(() => setSuccess(null), 3000);
 
       await loadData();
@@ -191,7 +193,7 @@ const ClientCustomCodes: React.FC = () => {
       closeModal();
     } catch (err) {
       console.error('Erreur lors de la mise à jour du code personnalisé:', err);
-      setError('Impossible de mettre à jour le code personnalisé.');
+      setError(t('clientCustomCodes.messages.errorUpdate'));
     }
   };
 
@@ -206,20 +208,20 @@ const ClientCustomCodes: React.FC = () => {
   const handleDeleteCode = async (codeId: string) => {
     if (!selectedClient || !hasCustomCodePermission) return;
 
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce code personnalisé ?')) {
+    if (window.confirm(t('clientCustomCodes.messages.confirmDelete'))) {
       try {
         setError(null);
 
         console.log(`FIREBASE: ÉCRITURE - Fichier: ClientCustomCodes.tsx - Fonction: handleDeleteCode - Path: clients/${selectedClient.clientId}/customCodes/${codeId}`);
         await deleteCustomCode(selectedClient.clientId, codeId);
 
-        setSuccess('Code personnalisé supprimé avec succès.');
+        setSuccess(t('clientCustomCodes.messages.successDelete'));
         setTimeout(() => setSuccess(null), 3000);
 
         await loadData();
       } catch (err) {
         console.error('Erreur lors de la suppression du code personnalisé:', err);
-        setError('Impossible de supprimer le code personnalisé.');
+        setError(t('clientCustomCodes.messages.errorDelete'));
       }
     }
   };
@@ -264,7 +266,7 @@ const ClientCustomCodes: React.FC = () => {
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour gérer les codes personnalisés.</p>
+        <p className="text-gray-600">{t('clientCustomCodes.page.prompt')}</p>
       </div>
     );
   }
@@ -273,7 +275,7 @@ const ClientCustomCodes: React.FC = () => {
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">Codes personnalisés</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t('clientCustomCodes.page.title')}</h2>
           <button
             onClick={openAddModal}
             className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
@@ -282,16 +284,16 @@ const ClientCustomCodes: React.FC = () => {
                 : 'text-gray-500 bg-gray-300 cursor-not-allowed'
             }`}
             disabled={!hasCustomCodePermission}
-            title={!hasCustomCodePermission ? "Vous n'avez pas la permission d'ajouter des codes personnalisés" : ""}
+            title={!hasCustomCodePermission ? t('clientCustomCodes.permissions.addTooltip') : ""}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            Ajouter un code personnalisé
+            {t('clientCustomCodes.modal.buttonAdd')}
           </button>
         </div>
 
         {!hasCustomCodePermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les codes personnalisés.
+            {t('clientCustomCodes.permissions.readOnlyWarning')}
           </div>
         )}
 
@@ -315,7 +317,7 @@ const ClientCustomCodes: React.FC = () => {
             <input
               type="text"
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Rechercher par shortcode, code personnalisé ou ID..."
+              placeholder={t('clientCustomCodes.page.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -323,12 +325,12 @@ const ClientCustomCodes: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="py-4 text-center text-gray-500">Chargement des codes personnalisés...</div>
+          <div className="py-4 text-center text-gray-500">{t('clientCustomCodes.page.loading')}</div>
         ) : filteredCustomCodes.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
             <p>{customCodes.length === 0
-              ? 'Aucun code personnalisé configuré pour ce client.'
-              : 'Aucun résultat pour votre recherche.'}</p>
+              ? t('clientCustomCodes.page.noCodesForClient')
+              : t('clientCustomCodes.page.noSearchResults')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -336,19 +338,19 @@ const ClientCustomCodes: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ID Shortcode
+                    {t('clientCustomCodes.table.headerId')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Code Shortcode
+                    {t('clientCustomCodes.table.headerCode')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nom Shortcode
+                    {t('clientCustomCodes.table.headerName')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Code Personnalisé
+                    {t('clientCustomCodes.table.headerCustomCode')}
                   </th>
                   <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('clientCustomCodes.table.headerActions')}</span>
                   </th>
                 </tr>
               </thead>
@@ -361,10 +363,10 @@ const ClientCustomCodes: React.FC = () => {
                         {code.shortcodeId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {shortcode?.SH_Code || 'N/A'}
+                        {shortcode?.SH_Code || t('clientCustomCodes.table.notAvailable')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {shortcode?.SH_Display_Name_FR || 'N/A'}
+                        {shortcode?.SH_Display_Name_FR || t('clientCustomCodes.table.notAvailable')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {code.customCode}
@@ -379,7 +381,7 @@ const ClientCustomCodes: React.FC = () => {
                                 : 'text-gray-400 cursor-not-allowed'
                             }`}
                             disabled={!hasCustomCodePermission}
-                            title={!hasCustomCodePermission ? "Vous n'avez pas la permission de modifier les codes personnalisés" : "Modifier"}
+                            title={!hasCustomCodePermission ? t('clientCustomCodes.permissions.editTooltip') : t('clientCustomCodes.table.editAction')}
                           >
                             <PencilIcon className="h-5 w-5" />
                           </button>
@@ -391,7 +393,7 @@ const ClientCustomCodes: React.FC = () => {
                                 : 'text-gray-400 cursor-not-allowed'
                             }`}
                             disabled={!hasCustomCodePermission}
-                            title={!hasCustomCodePermission ? "Vous n'avez pas la permission de supprimer les codes personnalisés" : "Supprimer"}
+                            title={!hasCustomCodePermission ? t('clientCustomCodes.permissions.deleteTooltip') : t('clientCustomCodes.table.deleteAction')}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -437,14 +439,14 @@ const ClientCustomCodes: React.FC = () => {
               <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
                 <div className="flex justify-between items-center">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    {editingCode ? 'Modifier le code personnalisé' : 'Ajouter un code personnalisé'}
+                    {editingCode ? t('clientCustomCodes.modal.titleEdit') : t('clientCustomCodes.modal.titleAdd')}
                   </Dialog.Title>
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={closeModal}
                   >
-                    <span className="sr-only">Fermer</span>
+                    <span className="sr-only">{t('clientCustomCodes.modal.close')}</span>
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
@@ -453,7 +455,7 @@ const ClientCustomCodes: React.FC = () => {
                   {!editingCode && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sélectionner un shortcode
+                        {t('clientCustomCodes.modal.selectShortcode')}
                       </label>
 
                       <div className="mb-2">
@@ -464,7 +466,7 @@ const ClientCustomCodes: React.FC = () => {
                           <input
                             type="text"
                             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            placeholder="Rechercher par code, nom ou ID..."
+                            placeholder={t('clientCustomCodes.modal.searchPlaceholder')}
                             value={shortcodeSearchTerm}
                             onChange={(e) => setShortcodeSearchTerm(e.target.value)}
                           />
@@ -474,7 +476,7 @@ const ClientCustomCodes: React.FC = () => {
                       <div className="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
                         {filteredShortcodes.length === 0 ? (
                           <div className="p-4 text-center text-gray-500">
-                            Aucun shortcode trouvé
+                            {t('clientCustomCodes.modal.noShortcodeFound')}
                           </div>
                         ) : (
                           <ul className="divide-y divide-gray-200">
@@ -494,7 +496,7 @@ const ClientCustomCodes: React.FC = () => {
                                     <div className="flex-1">
                                       <p className="text-sm font-medium text-gray-900">
                                         {shortcode.SH_Code}
-                                        {isDisabled && <span className="ml-2 text-xs text-red-500">(Déjà personnalisé)</span>}
+                                        {isDisabled && <span className="ml-2 text-xs text-red-500">{t('clientCustomCodes.modal.alreadyCustomized')}</span>}
                                       </p>
                                       <p className="text-xs text-gray-500">{shortcode.SH_Display_Name_FR}</p>
                                       <p className="text-xs font-mono text-gray-400 mt-1">ID: {shortcode.id}</p>
@@ -526,7 +528,7 @@ const ClientCustomCodes: React.FC = () => {
 
                   <div>
                     <label htmlFor="customCode" className="block text-sm font-medium text-gray-700 mb-1">
-                      Code personnalisé
+                      {t('clientCustomCodes.modal.customCodeLabel')}
                     </label>
                     <input
                       type="text"
@@ -545,7 +547,7 @@ const ClientCustomCodes: React.FC = () => {
                     className="mr-3 inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     onClick={closeModal}
                   >
-                    Annuler
+                    {t('clientCustomCodes.modal.cancel')}
                   </button>
                   <button
                     type="button"
@@ -553,7 +555,7 @@ const ClientCustomCodes: React.FC = () => {
                     onClick={editingCode ? handleUpdateCode : handleAddCode}
                     disabled={!customCodeValue || (!editingCode && !selectedShortcode)}
                   >
-                    {editingCode ? 'Mettre à jour' : 'Ajouter'}
+                    {editingCode ? t('clientCustomCodes.modal.update') : t('clientCustomCodes.modal.add')}
                   </button>
                 </div>
               </div>

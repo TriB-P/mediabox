@@ -37,7 +37,6 @@ import {
     structure: string, 
     level: number = 1
   ): ParsedTaxonomyStructure {
-    console.log(`🔍 Parsing structure niveau ${level}:`, structure);
     
     const result: ParsedTaxonomyStructure = {
       variables: [],
@@ -60,7 +59,6 @@ import {
     while ((match = TAXONOMY_VARIABLE_REGEX.exec(structure)) !== null) {
       const [fullMatch, variableName, format] = match;
       
-      console.log(`📋 Variable trouvée: ${variableName}, format: ${format}`);
       
       // Éviter les doublons dans le même niveau
       const variableKey = `${variableName}:${format}`;
@@ -93,7 +91,6 @@ import {
       }
     }
   
-    console.log(`✅ Parsing terminé: ${result.variables.length} variables trouvées, valide: ${result.isValid}`);
     
     return result;
   }
@@ -106,7 +103,6 @@ import {
     taxonomyPlatform?: string, 
     taxonomyMediaOcean?: string
   ): { [key: string]: ParsedTaxonomyStructure } {
-    console.log('🔍 Parsing de toutes les taxonomies');
     
     const results: { [key: string]: ParsedTaxonomyStructure } = {};
     
@@ -122,7 +118,6 @@ import {
       results.mediaocean = parseTaxonomyStructure(taxonomyMediaOcean, 3);
     }
   
-    console.log(`✅ Parsing complet: ${Object.keys(results).length} taxonomies analysées`);
     
     return results;
   }

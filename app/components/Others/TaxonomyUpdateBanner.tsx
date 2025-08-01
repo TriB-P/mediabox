@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { XMarkIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TaxonomyUpdateStatus {
   isUpdating: boolean;
@@ -28,6 +29,8 @@ interface TaxonomyUpdateBannerProps {
  * @returns {React.ReactElement | null} Le composant de la bannière ou null si aucun message n'est à afficher.
  */
 export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpdateBannerProps) {
+  const { t } = useTranslation();
+
   if (!status.message && !status.isUpdating) {
     return null;
   }
@@ -86,7 +89,7 @@ export default function TaxonomyUpdateBanner({ status, onDismiss }: TaxonomyUpda
             onClick={onDismiss}
             className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors ${getIconClasses()}`}
           >
-            <span className="sr-only">Fermer</span>
+            <span className="sr-only">{t('common.close')}</span>
             <XMarkIcon className="h-4 w-4" />
           </button>
         </div>

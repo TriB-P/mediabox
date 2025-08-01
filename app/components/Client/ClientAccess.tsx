@@ -27,11 +27,7 @@ import {
   XMarkIcon,
   UserPlusIcon 
 } from '@heroicons/react/24/outline';
-
-const ACCESS_LEVELS = [
-  { value: 'editor', label: 'Éditeur' },
-  { value: 'user', label: 'Utilisateur' }
-];
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * Composant principal pour la gestion des accès d'un client.
@@ -39,6 +35,13 @@ const ACCESS_LEVELS = [
  * @returns {React.ReactElement} Le JSX du composant.
  */
 const ClientAccess: React.FC = () => {
+  const { t } = useTranslation();
+
+  const ACCESS_LEVELS = [
+    { value: 'editor', label: t('clientAccess.accessLevels.editor') },
+    { value: 'user', label: t('clientAccess.accessLevels.user') }
+  ];
+
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
@@ -86,7 +89,7 @@ const ClientAccess: React.FC = () => {
       
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
-      setError('Impossible de charger les données.');
+      setError(t('clientAccess.errors.loadData'));
     } finally {
       setLoading(false);
     }
@@ -161,7 +164,7 @@ const ClientAccess: React.FC = () => {
         }
       );
       
-      setSuccess('Utilisateur ajouté avec succès.');
+      setSuccess(t('clientAccess.success.userAdded'));
       setTimeout(() => setSuccess(null), 3000);
       
       await loadData();
@@ -169,7 +172,7 @@ const ClientAccess: React.FC = () => {
       closeModal();
     } catch (err) {
       console.error('Erreur lors de l\'ajout de l\'utilisateur:', err);
-      setError('Impossible d\'ajouter l\'utilisateur.');
+      setError(t('clientAccess.errors.addUser'));
     }
   };
 
@@ -195,7 +198,7 @@ const ClientAccess: React.FC = () => {
         }
       );
       
-      setSuccess('Accès utilisateur mis à jour avec succès.');
+      setSuccess(t('clientAccess.success.userUpdated'));
       setTimeout(() => setSuccess(null), 3000);
       
       await loadData();
@@ -203,7 +206,7 @@ const ClientAccess: React.FC = () => {
       closeModal();
     } catch (err) {
       console.error('Erreur lors de la mise à jour de l\'accès utilisateur:', err);
-      setError('Impossible de mettre à jour l\'accès utilisateur.');
+      setError(t('clientAccess.errors.updateUser'));
     }
   };
 
@@ -217,20 +220,20 @@ const ClientAccess: React.FC = () => {
   const handleRemoveUser = async (userEmail: string) => {
     if (!selectedClient || !hasAccessPermission) return;
     
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer l\'accès de cet utilisateur ?')) {
+    if (window.confirm(t('clientAccess.confirmations.removeUser'))) {
       try {
         setError(null);
         
         console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientAccess.tsx - Fonction: handleRemoveUser - Path: clients/${selectedClient.clientId}/userAccess/${userEmail}`);
         await removeUserAccess(selectedClient.clientId, userEmail);
         
-        setSuccess('Accès utilisateur supprimé avec succès.');
+        setSuccess(t('clientAccess.success.userRemoved'));
         setTimeout(() => setSuccess(null), 3000);
         
         await loadData();
       } catch (err) {
         console.error('Erreur lors de la suppression de l\'accès utilisateur:', err);
-        setError('Impossible de supprimer l\'accès utilisateur.');
+        setError(t('clientAccess.errors.removeUser'));
       }
     }
   };
@@ -252,7 +255,7 @@ const ClientAccess: React.FC = () => {
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour gérer les accès.</p>
+        <p className="text-gray-600">{t('clientAccess.messages.selectClient')}</p>
       </div>
     );
   }
@@ -260,7 +263,7 @@ const ClientAccess: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Chargement des données d'accès...</p>
+        <p className="text-gray-600">{t('clientAccess.messages.loading')}</p>
       </div>
     );
   }
@@ -269,7 +272,7 @@ const ClientAccess: React.FC = () => {
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">Gestion des accès</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t('clientAccess.title')}</h2>
           <button
             onClick={openAddUserModal}
             className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
@@ -278,16 +281,16 @@ const ClientAccess: React.FC = () => {
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
             disabled={!hasAccessPermission}
-            title={!hasAccessPermission ? "Vous n'avez pas la permission de gérer les accès" : ""}
+            title={!hasAccessPermission ? t('clientAccess.tooltips.noAccessPermission') : ""}
           >
             <UserPlusIcon className="h-5 w-5 mr-2" />
-            Ajouter un utilisateur
+            {t('clientAccess.buttons.addUser')}
           </button>
         </div>
 
         {!hasAccessPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier accès.
+            {t('clientAccess.messages.readOnly')}
           </div>
         )}
         
@@ -305,8 +308,8 @@ const ClientAccess: React.FC = () => {
         
         {clientUsers.length === 0 ? (
           <div className="bg-gray-50 p-6 text-center rounded-lg">
-            <p className="text-gray-500">Aucun utilisateur n'a accès à ce client.</p>
-            <p className="text-gray-500 mt-2">Cliquez sur "Ajouter un utilisateur" pour commencer.</p>
+            <p className="text-gray-500">{t('clientAccess.emptyState.noUsers')}</p>
+            <p className="text-gray-500 mt-2">{t('clientAccess.emptyState.getStarted')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -314,16 +317,16 @@ const ClientAccess: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Utilisateur
+                    {t('clientAccess.table.header.user')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Niveau d'accès
+                    {t('clientAccess.table.header.accessLevel')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Note
+                    {t('clientAccess.table.header.note')}
                   </th>
                   <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('clientAccess.table.header.actions')}</span>
                   </th>
                 </tr>
               </thead>
@@ -359,7 +362,7 @@ const ClientAccess: React.FC = () => {
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {user.accessLevel === 'editor' ? 'Éditeur' : 'Utilisateur'}
+                        {user.accessLevel === 'editor' ? t('clientAccess.accessLevels.editor') : t('clientAccess.accessLevels.user')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -374,7 +377,7 @@ const ClientAccess: React.FC = () => {
                             : 'text-gray-400 cursor-not-allowed'
                         } mr-4`}
                         disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? "Vous n'avez pas la permission de modifier les accès" : ""}
+                        title={!hasAccessPermission ? t('clientAccess.tooltips.noEditPermission') : ""}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
@@ -386,7 +389,7 @@ const ClientAccess: React.FC = () => {
                             : 'text-gray-400 cursor-not-allowed'
                         }`}
                         disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? "Vous n'avez pas la permission de supprimer les accès" : ""}
+                        title={!hasAccessPermission ? t('clientAccess.tooltips.noDeletePermission') : ""}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -410,14 +413,14 @@ const ClientAccess: React.FC = () => {
               <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
                 <div className="flex justify-between items-center">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    {isEditing ? 'Modifier l\'accès utilisateur' : 'Ajouter un utilisateur'}
+                    {isEditing ? t('clientAccess.modal.title.edit') : t('clientAccess.modal.title.add')}
                   </Dialog.Title>
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={closeModal}
                   >
-                    <span className="sr-only">Fermer</span>
+                    <span className="sr-only">{t('clientAccess.modal.close')}</span>
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
@@ -426,14 +429,14 @@ const ClientAccess: React.FC = () => {
                   {!isEditing && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sélectionner un utilisateur
+                        {t('clientAccess.form.label.selectUser')}
                       </label>
                       
                       <div className="mb-2">
                         <input
                           type="text"
                           className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                          placeholder="Filtrer les utilisateurs..."
+                          placeholder={t('clientAccess.form.placeholder.filterUsers')}
                           value={userSearchQuery}
                           onChange={(e) => setUserSearchQuery(e.target.value)}
                         />
@@ -449,7 +452,7 @@ const ClientAccess: React.FC = () => {
                             setSelectedUser(user || null);
                           }}
                         >
-                          <option value="">Sélectionner un utilisateur</option>
+                          <option value="">{t('clientAccess.form.option.selectUser')}</option>
                           {availableUsers.map((user) => (
                             <option key={user.id} value={user.id}>
                               {user.displayName} ({user.email})
@@ -506,7 +509,7 @@ const ClientAccess: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Niveau d'accès
+                      {t('clientAccess.form.label.accessLevel')}
                     </label>
                     <select
                       className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -527,7 +530,7 @@ const ClientAccess: React.FC = () => {
                   
                   <div>
                     <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
-                      Note
+                      {t('clientAccess.form.label.note')}
                     </label>
                     <textarea
                       id="note"
@@ -536,7 +539,7 @@ const ClientAccess: React.FC = () => {
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Ajoutez une note concernant cet accès..."
+                      placeholder={t('clientAccess.form.placeholder.addNote')}
                     />
                   </div>
                 </div>
@@ -547,7 +550,7 @@ const ClientAccess: React.FC = () => {
                     className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
                     onClick={closeModal}
                   >
-                    Annuler
+                    {t('clientAccess.buttons.cancel')}
                   </button>
                   <button
                     type="button"
@@ -555,7 +558,7 @@ const ClientAccess: React.FC = () => {
                     onClick={isEditing ? handleUpdateUser : handleAddUser}
                     disabled={isEditing ? false : !selectedUser}
                   >
-                    {isEditing ? 'Mettre à jour' : 'Ajouter'}
+                    {isEditing ? t('clientAccess.buttons.update') : t('clientAccess.buttons.add')}
                   </button>
                 </div>
               </div>

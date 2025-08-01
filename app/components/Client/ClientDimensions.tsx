@@ -12,6 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { getClientInfo, updateClientInfo } from '../../lib/clientService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface DimensionsData {
   Custom_Dim_CA_1: string;
@@ -34,6 +35,7 @@ interface DimensionsData {
  * @returns {React.ReactElement} Le JSX du composant de formulaire.
  */
 const ClientDimensions: React.FC = () => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [dimensions, setDimensions] = useState<DimensionsData | null>(null);
@@ -82,7 +84,7 @@ const ClientDimensions: React.FC = () => {
       });
     } catch (err) {
       console.error('Erreur lors du chargement des dimensions du client:', err);
-      setError('Impossible de charger les dimensions du client.');
+      setError(t('clientDimensions.messages.loadError'));
     } finally {
       setLoading(false);
     }
@@ -106,11 +108,11 @@ const ClientDimensions: React.FC = () => {
       console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientDimensions.tsx - Fonction: handleSubmit - Path: clients/${selectedClient.clientId}`);
       await updateClientInfo(selectedClient.clientId, dimensions);
       
-      setSuccess('Les dimensions du client ont été mises à jour avec succès.');
+      setSuccess(t('clientDimensions.messages.updateSuccess'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour des dimensions:', err);
-      setError('Impossible de mettre à jour les dimensions du client.');
+      setError(t('clientDimensions.messages.updateError'));
     } finally {
       setSaving(false);
     }
@@ -134,7 +136,7 @@ const ClientDimensions: React.FC = () => {
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour configurer ses dimensions.</p>
+        <p className="text-gray-600">{t('clientDimensions.messages.selectClientPrompt')}</p>
       </div>
     );
   }
@@ -142,7 +144,7 @@ const ClientDimensions: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Chargement des dimensions du client...</p>
+        <p className="text-gray-600">{t('clientDimensions.messages.loading')}</p>
       </div>
     );
   }
@@ -150,7 +152,7 @@ const ClientDimensions: React.FC = () => {
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Dimensions personnalisées</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-6">{t('clientDimensions.headings.title')}</h2>
         
         {error && (
           <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 text-red-700">
@@ -166,14 +168,14 @@ const ClientDimensions: React.FC = () => {
         
         {!hasDimensionsPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les dimensions.
+            {t('clientDimensions.messages.readOnly')}
           </div>
         )}
         
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-              Campagne
+              {t('clientDimensions.headings.campaign')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -183,7 +185,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CA_1"
                   value={dimensions?.Custom_Dim_CA_1 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 1"
+                  placeholder={t('clientDimensions.form.placeholderDim1')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -195,7 +197,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CA_2"
                   value={dimensions?.Custom_Dim_CA_2 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 2"
+                  placeholder={t('clientDimensions.form.placeholderDim2')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -207,7 +209,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CA_3"
                   value={dimensions?.Custom_Dim_CA_3 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 3"
+                  placeholder={t('clientDimensions.form.placeholderDim3')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -217,7 +219,7 @@ const ClientDimensions: React.FC = () => {
           
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-              Tactique
+              {t('clientDimensions.headings.tactic')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -227,7 +229,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_TC_1"
                   value={dimensions?.Custom_Dim_TC_1 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 1"
+                  placeholder={t('clientDimensions.form.placeholderDim1')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -239,7 +241,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_TC_2"
                   value={dimensions?.Custom_Dim_TC_2 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 2"
+                  placeholder={t('clientDimensions.form.placeholderDim2')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -251,7 +253,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_TC_3"
                   value={dimensions?.Custom_Dim_TC_3 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 3"
+                  placeholder={t('clientDimensions.form.placeholderDim3')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -261,7 +263,7 @@ const ClientDimensions: React.FC = () => {
           
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-              Placement
+              {t('clientDimensions.headings.placement')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -271,7 +273,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_PL_1"
                   value={dimensions?.Custom_Dim_PL_1 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 1"
+                  placeholder={t('clientDimensions.form.placeholderDim1')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -283,7 +285,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_PL_2"
                   value={dimensions?.Custom_Dim_PL_2 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 2"
+                  placeholder={t('clientDimensions.form.placeholderDim2')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -295,7 +297,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_PL_3"
                   value={dimensions?.Custom_Dim_PL_3 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 3"
+                  placeholder={t('clientDimensions.form.placeholderDim3')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -305,7 +307,7 @@ const ClientDimensions: React.FC = () => {
           
           <div>
             <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-              Créatif
+              {t('clientDimensions.headings.creative')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -315,7 +317,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CR_1"
                   value={dimensions?.Custom_Dim_CR_1 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 1"
+                  placeholder={t('clientDimensions.form.placeholderDim1')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -327,7 +329,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CR_2"
                   value={dimensions?.Custom_Dim_CR_2 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 2"
+                  placeholder={t('clientDimensions.form.placeholderDim2')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -339,7 +341,7 @@ const ClientDimensions: React.FC = () => {
                   name="Custom_Dim_CR_3"
                   value={dimensions?.Custom_Dim_CR_3 || ''}
                   onChange={handleChange}
-                  placeholder="Dimension 3"
+                  placeholder={t('clientDimensions.form.placeholderDim3')}
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   disabled={!hasDimensionsPermission}
                 />
@@ -354,7 +356,7 @@ const ClientDimensions: React.FC = () => {
                 onClick={loadClientDimensions}
                 className={`bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${!hasDimensionsPermission ? 'hidden' : ''}`}
               >
-                Annuler
+                {t('clientDimensions.buttons.cancel')}
               </button>
               <button
                 type="submit"
@@ -365,7 +367,7 @@ const ClientDimensions: React.FC = () => {
                     : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
+                {saving ? t('clientDimensions.buttons.saving') : t('clientDimensions.buttons.save')}
               </button>
             </div>
           </div>

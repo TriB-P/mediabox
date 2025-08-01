@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TopLoadingIndicatorProps {
   isVisible: boolean;
@@ -21,7 +22,7 @@ interface TopLoadingIndicatorProps {
 /**
  * Affiche une barre de chargement en haut de l'écran.
  * @param {boolean} isVisible - Détermine si l'indicateur est visible.
- * @param {string} [message='Chargement...'] - Le message à afficher.
+ * @param {string} [message] - Le message à afficher.
  * @param {number} [progress] - Le pourcentage de progression (0-100) à afficher.
  * @param {'info' | 'success' | 'warning' | 'error'} [type='info'] - Le type d'indicateur, qui change la couleur.
  * @param {boolean} [autoHide=true] - Si vrai, se masque automatiquement après un succès.
@@ -31,15 +32,18 @@ interface TopLoadingIndicatorProps {
  */
 export default function TopLoadingIndicator({
   isVisible,
-  message = 'Chargement...',
+  message,
   progress,
   type = 'info',
   autoHide = true,
   autoHideDelay = 2000,
   className = ''
 }: TopLoadingIndicatorProps) {
+  const { t } = useTranslation();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  const effectiveMessage = message ?? t('topLoadingIndicator.messages.loading');
 
   useEffect(() => {
     if (isVisible) {
@@ -125,7 +129,7 @@ export default function TopLoadingIndicator({
               `} />
             )}
             <span className="text-sm font-medium">
-              {showSuccess ? 'Actualisation terminée' : message}
+              {showSuccess ? t('topLoadingIndicator.messages.refreshComplete') : effectiveMessage}
             </span>
           </div>
           {progress !== undefined && !showSuccess && (
@@ -163,17 +167,18 @@ interface QuickLoadingIndicatorProps {
 /**
  * Variante de l'indicateur pour les opérations courtes, avec un délai de masquage rapide.
  * @param {boolean} isVisible - Détermine si l'indicateur est visible.
- * @param {string} [message='Traitement...'] - Le message à afficher.
+ * @param {string} [message] - Le message à afficher.
  * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré.
  */
 export function QuickLoadingIndicator({
   isVisible,
-  message = 'Traitement...'
+  message
 }: QuickLoadingIndicatorProps) {
+  const { t } = useTranslation();
   return (
     <TopLoadingIndicator
       isVisible={isVisible}
-      message={message}
+      message={message ?? t('topLoadingIndicator.messages.processing')}
       autoHideDelay={1000}
     />
   );
@@ -182,17 +187,18 @@ export function QuickLoadingIndicator({
 /**
  * Variante de l'indicateur pour les opérations de sauvegarde, affichant un style "succès".
  * @param {boolean} isVisible - Détermine si l'indicateur est visible.
- * @param {string} [message='Sauvegarde...'] - Le message à afficher.
+ * @param {string} [message] - Le message à afficher.
  * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré pour la sauvegarde.
  */
 export function SaveLoadingIndicator({
   isVisible,
-  message = 'Sauvegarde...'
+  message
 }: QuickLoadingIndicatorProps) {
+  const { t } = useTranslation();
   return (
     <TopLoadingIndicator
       isVisible={isVisible}
-      message={message}
+      message={message ?? t('topLoadingIndicator.messages.saving')}
       type="success"
       autoHideDelay={1500}
     />
@@ -202,17 +208,18 @@ export function SaveLoadingIndicator({
 /**
  * Variante de l'indicateur pour afficher une erreur. Ne se masque pas automatiquement.
  * @param {boolean} isVisible - Détermine si l'indicateur est visible.
- * @param {string} [message='Une erreur est survenue'] - Le message à afficher.
+ * @param {string} [message] - Le message à afficher.
  * @returns {JSX.Element} Le composant TopLoadingIndicator pré-configuré pour les erreurs.
  */
 export function ErrorLoadingIndicator({
   isVisible,
-  message = 'Une erreur est survenue'
+  message
 }: QuickLoadingIndicatorProps) {
+  const { t } = useTranslation();
   return (
     <TopLoadingIndicator
       isVisible={isVisible}
-      message={message}
+      message={message ?? t('topLoadingIndicator.messages.errorOccurred')}
       type="error"
       autoHide={false}
     />

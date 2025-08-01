@@ -28,6 +28,7 @@ import {
   Clipboard,
   Check,
 } from 'lucide-react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQo6UwoIgRiWTCyEQuuX4vZU0TqKZn80SUzNQ8tQPFkHxc0P5LvkkAtxlFzQCD-S0ABwEbAf5NMbpP7/pub?gid=623482803&single=true&output=csv';
 
@@ -123,12 +124,24 @@ function FaqItem({
  * @returns {JSX.Element} La page d'aide complète.
  */
 export default function AidePage() {
+  const { t } = useTranslation();
   const [allFaqs, setAllFaqs] = useState<FaqItemData[]>([]);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryTranslationMap: { [key: string]: string } = {
+    'Campagnes': 'aide.categories.campaigns',
+    'Stratégie': 'aide.categories.strategy',
+    'Tactiques': 'aide.categories.tactics',
+    'Documents': 'aide.categories.documents',
+    'Guide de Coûts': 'aide.categories.costGuide',
+    'Partenaires': 'aide.categories.partners',
+    'Client': 'aide.categories.client',
+    'Admin': 'aide.categories.admin',
+  };
 
   /**
    * Effet de bord pour récupérer les données de la FAQ depuis le Google Sheet
@@ -143,7 +156,7 @@ export default function AidePage() {
         const response = await fetch(GOOGLE_SHEET_CSV_URL);
 
         if (!response.ok) {
-          throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+          throw new Error(t('aide.logs.httpError', { status: response.status, statusText: response.statusText }));
         }
 
         const csvText = await response.text();
@@ -151,15 +164,15 @@ export default function AidePage() {
         setAllFaqs(parsedData);
 
       } catch (err) {
-        console.error("Erreur lors du chargement des FAQs:", err);
-        setError("Impossible de charger les FAQs. Veuillez vérifier la connexion ou l'URL du Google Sheet.");
+        console.error(t('aide.logs.loadError'), err);
+        setError(t('aide.state.loadError'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchFaqs();
-  }, []);
+  }, [t]);
 
   /**
    * Analyse une chaîne de caractères au format CSV et la transforme en un tableau d'objets FaqItemData.
@@ -213,7 +226,7 @@ export default function AidePage() {
         if (faqItem.ID && faqItem.Catégorie && faqItem.Question && faqItem.Réponse) {
             faqs.push(faqItem as FaqItemData);
         } else {
-            console.warn('Ligne CSV ignorée en raison de champs manquants ou invalides:', faqItem);
+            console.warn(t('aide.logs.csvRowSkipped'), faqItem);
         }
     }
     return faqs;
@@ -239,7 +252,7 @@ export default function AidePage() {
         setTimeout(() => setCopied(false), 2000);
       },
       (err) => {
-        console.error("Impossible de copier l'e-mail : ", err);
+        console.error(t('aide.logs.copyError'), err);
       }
     );
   };
@@ -280,7 +293,7 @@ export default function AidePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
-        <p className="ml-4 text-xl text-gray-600">Chargement des FAQs...</p>
+        <p className="ml-4 text-xl text-gray-600">{t('aide.state.loading')}</p>
       </div>
     );
   }
@@ -289,10 +302,10 @@ export default function AidePage() {
     return (
       <div className="p-6">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Erreur !</strong>
+          <strong className="font-bold">{t('aide.state.errorTitle')}</strong>
           <span className="block sm:inline"> {error}</span>
         </div>
-        <p className="mt-4 text-gray-600">Veuillez vous assurer que le Google Sheet est correctement publié en CSV et que l'URL est correcte.</p>
+        <p className="mt-4 text-gray-600">{t('aide.state.errorInstructions')}</p>
       </div>
     );
   }
@@ -301,12 +314,11 @@ export default function AidePage() {
     <div className="p-6 space-y-12 pb-24">
       <div className="relative text-center">
         <h1 className="text-4xl font-bold text-gray-900 inline-block">
-          Comment pouvons-nous vous aider ?
+          {t('aide.header.title')}
         </h1>
 
         <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-          Posez une question ou parcourez les catégories pour trouver des
-          réponses.
+          {t('aide.header.subtitle')}
         </p>
 
         <div className="mt-8 max-w-2xl mx-auto">
@@ -318,7 +330,7 @@ export default function AidePage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher une question..."
+              placeholder={t('aide.search.placeholder')}
               className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -344,7 +356,7 @@ export default function AidePage() {
                   }
                 >
                   <Icon className="h-5 w-5" />
-                  <span>{staticCategory.name}</span>
+                  <span>{t(categoryTranslationMap[staticCategory.name] || staticCategory.name)}</span>
                 </Tab>
               );
             })}
@@ -369,11 +381,10 @@ export default function AidePage() {
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      Aucune question ne correspond à votre recherche dans cette
-                      catégorie.
+                      {t('aide.results.noneInCategory')}
                       {searchTerm && (
                         <p className="mt-2 text-sm">
-                          (La catégorie "{category.name}" pourrait être vide dans le Google Sheet ou les résultats filtrés.)
+                           {t('aide.results.emptyCategoryHint', { categoryName: t(categoryTranslationMap[category.name] || category.name) })}
                         </p>
                       )}
                     </div>
@@ -388,7 +399,7 @@ export default function AidePage() {
       {searchTerm.trim() !== '' && (
         <div className="max-w-4xl mx-auto mt-12 border-t pt-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            Tous les résultats pour "{searchTerm}"
+            {t('aide.results.allResultsFor', { searchTerm })}
           </h2>
           {unifiedSearchResults.length > 0 ? (
             <div className="space-y-4">
@@ -404,7 +415,7 @@ export default function AidePage() {
                                 bg-indigo-100 text-indigo-800 border border-indigo-200"
                     >
                       <CategoryIcon className="h-4 w-4" />
-                      <span>{item.categoryName}</span>
+                      <span>{t(categoryTranslationMap[item.categoryName] || item.categoryName)}</span>
                     </div>
                     <FaqItem
                       item={item}
@@ -419,10 +430,10 @@ export default function AidePage() {
           ) : (
             <div className="text-center py-16">
               <p className="text-lg text-gray-600 font-semibold">
-                Aucun résultat trouvé sur l'ensemble des catégories
+                {t('aide.results.noneOverall')}
               </p>
               <p className="text-gray-500 mt-2">
-                Essayez de simplifier vos mots-clés ou de vérifier l'orthographe.
+                {t('aide.results.noneOverallHint')}
               </p>
             </div>
           )}
@@ -431,16 +442,16 @@ export default function AidePage() {
 
       <div className="fixed bottom-0 left-0 right-0 bg-indigo-50 border-t border-indigo-200 p-4 shadow-lg text-center z-50 flex items-center justify-center">
         <p className="text-indigo-700 text-base font-medium flex items-center space-x-2">
-          <span className="italic">pssttt!</span>
+          <span className="italic">{t('aide.contact.intro')}</span>
           <Mail className="h-5 w-5 flex-shrink-0" />
           <span>
-            Vous ne trouvez pas la réponse à vos questions? Écrivez-nous à{' '}
+            {t('aide.contact.prompt')}{' '}
             <span className="inline-flex items-center font-bold">
               mediabox@pluscompany.com
               <button
                 onClick={copyEmailToClipboard}
                 className="ml-2 p-1 rounded-full hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                title={copied ? 'Copié !' : "Copier l'e-mail"}
+                title={copied ? t('aide.contact.tooltipCopied') : t('aide.contact.tooltipCopy')}
               >
                 {copied ? (
                   <Check className="h-5 w-5 text-green-600" />

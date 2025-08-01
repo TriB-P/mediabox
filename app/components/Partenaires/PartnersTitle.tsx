@@ -9,6 +9,8 @@
 
 'use client';
 
+import { useTranslation } from '../../contexts/LanguageContext';
+
 interface Partner {
   id: string;
   SH_Code: string;
@@ -33,17 +35,18 @@ interface PartnersTitleProps {
  * @returns {JSX.Element} Le composant JSX représentant le titre.
  */
 export default function PartnersTitle({ partners, filteredPartners }: PartnersTitleProps) {
+  const { t } = useTranslation();
   const totalCount = partners?.length || 0;
   const filteredCount = filteredPartners?.length || 0;
   const isFiltered = totalCount !== filteredCount && filteredCount > 0;
 
   return (
     <div className="flex items-center gap-3">
-      <h1 className="text-2xl font-bold text-gray-900">Partenaires</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{t('partners.title.main')}</h1>
 
       <div className="flex items-center">
         <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-          {isFiltered ? `${filteredCount} sur ${totalCount}` : totalCount}
+          {isFiltered ? `${filteredCount} ${t('common.on')} ${totalCount}` : totalCount}
         </span>
       </div>
     </div>

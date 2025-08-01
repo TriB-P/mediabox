@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface LoadingStep {
   id: string;
@@ -32,6 +33,7 @@ export default function LoadingScreen({
   progress, 
   currentDetails 
 }: LoadingScreenProps) {
+  const { t } = useTranslation();
   if (!isVisible) return null;
 
   return (
@@ -43,22 +45,22 @@ export default function LoadingScreen({
           <div className="mb-4">
             <img 
               src="/images/loading.gif" 
-              alt="Chargement" 
+              alt={t('loadingScreen.alt.loading')} 
               className="w-16 h-16 mx-auto"
             />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-            Initialisation
+            {t('loadingScreen.title.initialization')}
           </h1>
           <p className="text-gray-600">
-            Préparation de vos données...
+            {t('loadingScreen.subtitle.preparingData')}
           </p>
         </div>
 
         {/* Barre de progrès principale */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Progrès global</span>
+            <span>{t('loadingScreen.progressBar.globalProgress')}</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2.5">

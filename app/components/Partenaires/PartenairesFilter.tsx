@@ -8,6 +8,7 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface PartenairesFilterProps {
   searchTerm: string;
@@ -29,6 +30,8 @@ export default function PartenairesFilter({
   activeTypes,
   onToggleType
 }: PartenairesFilterProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="mb-6 space-y-4">
       <div className="relative">
@@ -38,7 +41,7 @@ export default function PartenairesFilter({
         
         <input
           type="text"
-          placeholder="Rechercher un partenaire..."
+          placeholder={t('partnersFilter.search.placeholder')}
           className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
@@ -55,7 +58,7 @@ export default function PartenairesFilter({
       </div>
       
       <div className="flex flex-wrap gap-2">
-        <span className="text-sm font-medium text-gray-700 self-center mr-2">Filtrer par type:</span>
+        <span className="text-sm font-medium text-gray-700 self-center mr-2">{t('partnersFilter.filter.label')}</span>
         {Object.keys(activeTypes).map(type => (
           <button
             key={type}

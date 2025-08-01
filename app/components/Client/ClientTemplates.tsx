@@ -12,6 +12,7 @@ import { Template } from '../../types/template';
 import TemplateForm from './TemplateForm';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { 
   getTemplatesByClient,
   createTemplate,
@@ -26,6 +27,7 @@ import {
  * @returns {JSX.Element} Le composant UI pour la gestion des gabarits.
  */
 export default function ClientTemplates() {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -60,7 +62,7 @@ export default function ClientTemplates() {
       setTemplates(fetchedTemplates);
     } catch (err) {
       console.error('Erreur lors du chargement des gabarits:', err);
-      setError('Une erreur est survenue lors du chargement des gabarits.');
+      setError(t('clientTemplates.error.load'));
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +122,7 @@ export default function ClientTemplates() {
       handleCloseForm();
     } catch (err) {
       console.error('Erreur lors de la sauvegarde du gabarit:', err);
-      setError('Une erreur est survenue lors de la sauvegarde du gabarit.');
+      setError(t('clientTemplates.error.save'));
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +138,7 @@ export default function ClientTemplates() {
     if (!selectedClient || !hasTemplatePermission) return;
     
     try {
-      if (confirm('Êtes-vous sûr de vouloir supprimer ce gabarit ?')) {
+      if (confirm(t('clientTemplates.confirm.delete'))) {
         setIsLoading(true);
         setError(null);
         console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientTemplates.tsx - Fonction: handleDeleteTemplate - Path: clients/${selectedClient.clientId}/templates/${id}`);
@@ -145,14 +147,14 @@ export default function ClientTemplates() {
       }
     } catch (err) {
       console.error('Erreur lors de la suppression du gabarit:', err);
-      setError('Une erreur est survenue lors de la suppression du gabarit.');
+      setError(t('clientTemplates.error.delete'));
     } finally {
       setIsLoading(false);
     }
   };
 
   if (isLoading && templates.length === 0) {
-    return <div className="flex justify-center py-8">Chargement des gabarits...</div>;
+    return <div className="flex justify-center py-8">{t('clientTemplates.loading.message')}</div>;
   }
 
   if (error) {
@@ -162,7 +164,7 @@ export default function ClientTemplates() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Gestion des gabarits</h2>
+        <h2 className="text-xl font-semibold text-gray-800">{t('clientTemplates.header.title')}</h2>
         <button
           onClick={() => handleOpenForm()}
           className={`inline-flex items-center px-4 py-2 ${
@@ -171,37 +173,37 @@ export default function ClientTemplates() {
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           } rounded-md`}
           disabled={!hasTemplatePermission || !selectedClient}
-          title={!hasTemplatePermission ? "Vous n'avez pas la permission d'ajouter des gabarits" : ""}
+          title={!hasTemplatePermission ? t('clientTemplates.permissions.tooltip.add') : ""}
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          Ajouter un gabarit
+          {t('clientTemplates.actions.add')}
         </button>
       </div>
 
       {!hasTemplatePermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les gabarits.
+            {t('clientTemplates.permissions.readOnlyWarning')}
           </div>
         )}
 
       {!selectedClient ? (
         <div className="text-center py-8 text-gray-500">
-          Veuillez sélectionner un client pour gérer ses gabarits.
+          {t('clientTemplates.emptyState.selectClient')}
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          Aucun gabarit configuré. {hasTemplatePermission ? 'Cliquez sur "Ajouter un gabarit" pour commencer.' : ''}
+          {t('clientTemplates.emptyState.noTemplates')} {hasTemplatePermission ? t('clientTemplates.emptyState.callToAction') : ''}
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Langue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duplication</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.name')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.url')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.language')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.duplication')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -215,7 +217,7 @@ export default function ClientTemplates() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{template.TE_Language}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {template.TE_Duplicate ? 'Oui' : 'Non'}
+                    {template.TE_Duplicate ? t('clientTemplates.table.body.yes') : t('clientTemplates.table.body.no')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
@@ -226,7 +228,7 @@ export default function ClientTemplates() {
                           : 'text-gray-400 cursor-not-allowed'
                       } mr-3`}
                       disabled={!hasTemplatePermission}
-                      title={!hasTemplatePermission ? "Vous n'avez pas la permission de modifier les gabarits" : ""}
+                      title={!hasTemplatePermission ? t('clientTemplates.permissions.tooltip.edit') : ""}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
@@ -238,7 +240,7 @@ export default function ClientTemplates() {
                           : 'text-gray-400 cursor-not-allowed'
                       }`}
                       disabled={!hasTemplatePermission}
-                      title={!hasTemplatePermission ? "Vous n'avez pas la permission de supprimer les gabarits" : ""}
+                      title={!hasTemplatePermission ? t('clientTemplates.permissions.tooltip.delete') : ""}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>

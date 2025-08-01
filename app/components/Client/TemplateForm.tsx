@@ -10,6 +10,7 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Template, TemplateFormData, LANGUAGES } from '../../types/template';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TemplateFormProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface TemplateFormProps {
  * @returns {JSX.Element} Le formulaire modal pour la gestion des gabarits.
  */
 export default function TemplateForm({ isOpen, onClose, onSave, template }: TemplateFormProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<TemplateFormData>({
     TE_Name: '',
     TE_URL: '',
@@ -73,21 +75,21 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     const newErrors: Record<string, string> = {};
 
     if (!formData.TE_Name.trim()) {
-      newErrors.TE_Name = 'Le nom du gabarit est requis';
+      newErrors.TE_Name = t('templateForm.errors.nameRequired');
     }
 
     if (!formData.TE_URL.trim()) {
-      newErrors.TE_URL = "L'URL du gabarit est requise";
+      newErrors.TE_URL = t('templateForm.errors.urlRequired');
     } else {
       try {
         new URL(formData.TE_URL);
       } catch (e) {
-        newErrors.TE_URL = "L'URL doit être valide";
+        newErrors.TE_URL = t('templateForm.errors.urlInvalid');
       }
     }
 
     if (!formData.TE_Language) {
-      newErrors.TE_Language = 'La langue est requise';
+      newErrors.TE_Language = t('templateForm.errors.languageRequired');
     }
 
     setErrors(newErrors);
@@ -169,7 +171,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
                 >
-                  {template ? 'Modifier le gabarit' : 'Ajouter un gabarit'}
+                  {template ? t('templateForm.title.edit') : t('templateForm.title.add')}
                   <button
                     type="button"
                     className="text-gray-400 hover:text-gray-500"
@@ -183,7 +185,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="TE_Name" className="block text-sm font-medium text-gray-700">
-                        Nom du gabarit *
+                        {t('templateForm.fields.name.label')} *
                       </label>
                       <input
                         type="text"
@@ -194,7 +196,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                         className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
                           errors.TE_Name ? 'border-red-500' : ''
                         }`}
-                        placeholder="Ex: Gabarit Standard"
+                        placeholder={t('templateForm.fields.name.placeholder')}
                       />
                       {errors.TE_Name && (
                         <p className="mt-1 text-sm text-red-500">{errors.TE_Name}</p>
@@ -203,7 +205,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
 
                     <div>
                       <label htmlFor="TE_URL" className="block text-sm font-medium text-gray-700">
-                        URL du gabarit *
+                        {t('templateForm.fields.url.label')} *
                       </label>
                       <input
                         type="text"
@@ -214,7 +216,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                         className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
                           errors.TE_URL ? 'border-red-500' : ''
                         }`}
-                        placeholder="https://docs.google.com/spreadsheets/d/exemple"
+                        placeholder={t('templateForm.fields.url.placeholder')}
                       />
                       {errors.TE_URL && (
                         <p className="mt-1 text-sm text-red-500">{errors.TE_URL}</p>
@@ -234,17 +236,17 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       </div>
                       <div className="ml-3 text-sm">
                         <label htmlFor="TE_Duplicate" className="font-medium text-gray-700">
-                          Dupliquer pour chaque onglet
+                          {t('templateForm.fields.duplicate.label')}
                         </label>
                         <p className="text-gray-500">
-                          Activer cette option pour créer un onglet par section de campagne
+                          {t('templateForm.fields.duplicate.description')}
                         </p>
                       </div>
                     </div>
 
                     <div>
                       <label htmlFor="TE_Language" className="block text-sm font-medium text-gray-700">
-                        Langue *
+                        {t('templateForm.fields.language.label')} *
                       </label>
                       <select
                         id="TE_Language"
@@ -273,13 +275,13 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       onClick={onClose}
                       className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
-                      Annuler
+                      {t('templateForm.buttons.cancel')}
                     </button>
                     <button
                       type="submit"
                       className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
-                      {template ? 'Mettre à jour' : 'Créer'}
+                      {template ? t('templateForm.buttons.update') : t('templateForm.buttons.create')}
                     </button>
                   </div>
                 </form>

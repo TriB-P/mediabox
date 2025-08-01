@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { Contact, ContactFormData } from '../../lib/contactService';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ContactFormProps {
   contact?: Contact;
@@ -23,6 +24,7 @@ interface ContactFormProps {
  * @returns {JSX.Element} Le formulaire de contact rendu.
  */
 export default function ContactForm({ contact, onSubmit, onCancel }: ContactFormProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<ContactFormData>({
     firstName: '',
     lastName: '',
@@ -106,17 +108,17 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
     } = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Le prénom est requis';
+      newErrors.firstName = t('contactForm.errors.firstNameRequired');
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Le nom est requis';
+      newErrors.lastName = t('contactForm.errors.lastNameRequired');
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'L\'email est requis';
+      newErrors.email = t('contactForm.errors.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
+      newErrors.email = t('contactForm.errors.emailInvalid');
     }
 
     if (!formData.languages.FR && !formData.languages.EN) {
@@ -179,7 +181,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10 rounded-md">
           <div className="bg-green-100 text-green-800 p-4 rounded-md flex items-center shadow-md">
             <CheckIcon className="h-6 w-6 mr-2 text-green-600" />
-            <span className="font-medium">Contact sauvegardé avec succès!</span>
+            <span className="font-medium">{t('contactForm.success.message')}</span>
           </div>
         </div>
       )}
@@ -188,7 +190,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-              Prénom *
+              {t('contactForm.labels.firstName')}
             </label>
             <input
               type="text"
@@ -207,7 +209,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
 
           <div>
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Nom *
+              {t('contactForm.labels.lastName')}
             </label>
             <input
               type="text"
@@ -227,7 +229,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
 
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email *
+            {t('contactForm.labels.email')}
           </label>
           <input
             type="email"
@@ -246,7 +248,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Langues préférées
+            {t('contactForm.labels.preferredLanguages')}
           </label>
           <div className="space-y-2">
             <div className="flex items-center">
@@ -258,7 +260,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
               />
               <label htmlFor="language-fr" className="ml-2 block text-sm text-gray-900">
-                Français
+                {t('contactForm.labels.french')}
               </label>
             </div>
             <div className="flex items-center">
@@ -270,7 +272,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
                 className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
               />
               <label htmlFor="language-en" className="ml-2 block text-sm text-gray-900">
-                Anglais
+                {t('contactForm.labels.english')}
               </label>
             </div>
           </div>
@@ -278,7 +280,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
 
         <div>
           <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
-            Commentaire
+            {t('contactForm.labels.comment')}
           </label>
           <textarea
             id="comment"
@@ -287,7 +289,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             value={formData.comment}
             onChange={handleChange}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Informations supplémentaires..."
+            placeholder={t('contactForm.placeholders.additionalInfo')}
           />
         </div>
 
@@ -298,14 +300,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }: ContactForm
             className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             disabled={isSubmitting}
           >
-            Annuler
+            {t('contactForm.buttons.cancel')}
           </button>
           <button
             type="submit"
             className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Enregistrement...' : contact ? 'Mettre à jour' : 'Ajouter'}
+            {isSubmitting ? t('contactForm.buttons.saving') : contact ? t('contactForm.buttons.update') : t('contactForm.buttons.add')}
           </button>
         </div>
       </form>

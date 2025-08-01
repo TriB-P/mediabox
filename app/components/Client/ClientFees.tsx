@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../contexts/LanguageContext';
 import {
   getClientFees,
   getFeeOptions,
@@ -41,6 +42,7 @@ import {
  * @returns {React.JSX.Element} Le JSX du composant de gestion des frais.
  */
 export default function ClientFees() {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [fees, setFees] = useState<Fee[]>([]);
@@ -92,7 +94,7 @@ export default function ClientFees() {
 
     } catch (err) {
       console.error('Erreur lors du chargement des frais:', err);
-      setError('Impossible de charger les frais du client.');
+      setError(t('clientFees.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -121,12 +123,12 @@ export default function ClientFees() {
     try {
       console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleMoveFeeUp - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
       await moveFeeUp(selectedClient.clientId, feeId);
-      setSuccess('Frais déplacé vers le haut.');
+      setSuccess(t('clientFees.success.feeMovedUp'));
       setTimeout(() => setSuccess(null), 2000);
       loadFees();
     } catch (err) {
       console.error('Erreur lors du déplacement du frais:', err);
-      setError('Impossible de déplacer le frais.');
+      setError(t('clientFees.errors.moveFailed'));
     }
   };
 
@@ -141,12 +143,12 @@ export default function ClientFees() {
     try {
       console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleMoveFeeDown - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
       await moveFeeDown(selectedClient.clientId, feeId);
-      setSuccess('Frais déplacé vers le bas.');
+      setSuccess(t('clientFees.success.feeMovedDown'));
       setTimeout(() => setSuccess(null), 2000);
       loadFees();
     } catch (err) {
       console.error('Erreur lors du déplacement du frais:', err);
-      setError('Impossible de déplacer le frais.');
+      setError(t('clientFees.errors.moveFailed'));
     }
   };
 
@@ -163,11 +165,11 @@ export default function ClientFees() {
       await addFee(selectedClient.clientId, formData);
       setShowFeeForm(false);
       loadFees();
-      setSuccess('Frais ajouté avec succès.');
+      setSuccess(t('clientFees.success.feeAdded'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de l\'ajout du frais:', err);
-      setError('Impossible d\'ajouter le frais.');
+      setError(t('clientFees.errors.addFailed'));
     }
   };
 
@@ -185,11 +187,11 @@ export default function ClientFees() {
       setShowFeeForm(false);
       setCurrentFee(null);
       loadFees();
-      setSuccess('Frais mis à jour avec succès.');
+      setSuccess(t('clientFees.success.feeUpdated'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour du frais:', err);
-      setError('Impossible de mettre à jour le frais.');
+      setError(t('clientFees.errors.updateFailed'));
     }
   };
 
@@ -201,16 +203,16 @@ export default function ClientFees() {
   const handleDeleteFee = async (feeId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
 
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce frais et toutes ses options ?')) {
+    if (window.confirm(t('clientFees.confirmations.deleteFee'))) {
       try {
         console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleDeleteFee - Path: clients/${selectedClient.clientId}/fees/${feeId}`);
         await deleteFee(selectedClient.clientId, feeId);
         loadFees();
-        setSuccess('Frais supprimé avec succès.');
+        setSuccess(t('clientFees.success.feeDeleted'));
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('Erreur lors de la suppression du frais:', err);
-        setError('Impossible de supprimer le frais.');
+        setError(t('clientFees.errors.deleteFailed'));
       }
     }
   };
@@ -235,11 +237,11 @@ export default function ClientFees() {
         ...prev,
         [currentOption.feeId]: updatedOptions
       }));
-      setSuccess('Option ajoutée avec succès.');
+      setSuccess(t('clientFees.success.optionAdded'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de l\'ajout de l\'option:', err);
-      setError('Impossible d\'ajouter l\'option.');
+      setError(t('clientFees.errors.addOptionFailed'));
     }
   };
 
@@ -268,11 +270,11 @@ export default function ClientFees() {
         ...prev,
         [currentOption.feeId]: updatedOptions
       }));
-      setSuccess('Option mise à jour avec succès.');
+      setSuccess(t('clientFees.success.optionUpdated'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour de l\'option:', err);
-      setError('Impossible de mettre à jour l\'option.');
+      setError(t('clientFees.errors.updateOptionFailed'));
     }
   };
 
@@ -285,7 +287,7 @@ export default function ClientFees() {
   const handleDeleteOption = async (feeId: string, optionId: string) => {
     if (!selectedClient || !hasFeesPermission) return;
 
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette option ?')) {
+    if (window.confirm(t('clientFees.confirmations.deleteOption'))) {
       try {
         console.log(`FIREBASE: ÉCRITURE - Fichier: ClientFees.tsx - Fonction: handleDeleteOption - Path: clients/${selectedClient.clientId}/fees/${feeId}/options/${optionId}`);
         await deleteFeeOption(selectedClient.clientId, feeId, optionId);
@@ -296,11 +298,11 @@ export default function ClientFees() {
           ...prev,
           [feeId]: updatedOptions
         }));
-        setSuccess('Option supprimée avec succès.');
+        setSuccess(t('clientFees.success.optionDeleted'));
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('Erreur lors de la suppression de l\'option:', err);
-        setError('Impossible de supprimer l\'option.');
+        setError(t('clientFees.errors.deleteOptionFailed'));
       }
     }
   };
@@ -308,7 +310,7 @@ export default function ClientFees() {
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour voir ses frais.</p>
+        <p className="text-gray-600">{t('clientFees.placeholders.selectClient')}</p>
       </div>
     );
   }
@@ -317,7 +319,7 @@ export default function ClientFees() {
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">Frais du client</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t('clientFees.title')}</h2>
           <button
             onClick={() => {
               if (hasFeesPermission) {
@@ -330,10 +332,10 @@ export default function ClientFees() {
                 : 'text-gray-500 bg-gray-300 cursor-not-allowed'
               }`}
             disabled={!hasFeesPermission}
-            title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des frais" : ""}
+            title={!hasFeesPermission ? t('clientFees.tooltips.noAddPermission') : ""}
           >
             <PlusIcon className="h-4 w-4 mr-1" />
-            Ajouter un frais
+            {t('clientFees.actions.addFee')}
           </button>
         </div>
 
@@ -351,15 +353,15 @@ export default function ClientFees() {
 
         {!hasFeesPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les frais.
+            {t('clientFees.notifications.readOnly')}
           </div>
         )}
 
         {loading ? (
-          <div className="py-4 text-center text-gray-500">Chargement des frais...</div>
+          <div className="py-4 text-center text-gray-500">{t('clientFees.states.loading')}</div>
         ) : fees.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
-            <p>Aucun frais configuré pour ce client.</p>
+            <p>{t('clientFees.states.noFees')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -398,7 +400,7 @@ export default function ClientFees() {
                             : 'text-gray-300 cursor-not-allowed'
                           }`}
                         disabled={!hasFeesPermission || index === 0}
-                        title="Déplacer vers le haut"
+                        title={t('clientFees.tooltips.moveUp')}
                       >
                         <ArrowUpIcon className="h-4 w-4" />
                       </button>
@@ -414,7 +416,7 @@ export default function ClientFees() {
                             : 'text-gray-300 cursor-not-allowed'
                           }`}
                         disabled={!hasFeesPermission || index === fees.length - 1}
-                        title="Déplacer vers le bas"
+                        title={t('clientFees.tooltips.moveDown')}
                       >
                         <ArrowDownIcon className="h-4 w-4" />
                       </button>
@@ -432,7 +434,7 @@ export default function ClientFees() {
                           : 'text-gray-300 cursor-not-allowed'
                         }`}
                       disabled={!hasFeesPermission}
-                      title={!hasFeesPermission ? "Vous n'avez pas la permission de modifier les frais" : ""}
+                      title={!hasFeesPermission ? t('clientFees.tooltips.noEditPermission') : ""}
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
@@ -448,7 +450,7 @@ export default function ClientFees() {
                           : 'text-gray-300 cursor-not-allowed'
                         }`}
                       disabled={!hasFeesPermission}
-                      title={!hasFeesPermission ? "Vous n'avez pas la permission de supprimer les frais" : ""}
+                      title={!hasFeesPermission ? t('clientFees.tooltips.noDeletePermission') : ""}
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
@@ -458,7 +460,7 @@ export default function ClientFees() {
                 {expandedFees[fee.id] && (
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-700">Options du frais</h4>
+                      <h4 className="font-medium text-gray-700">{t('clientFees.options.title')}</h4>
                       <button
                         onClick={() => {
                           if (hasFeesPermission) {
@@ -471,10 +473,10 @@ export default function ClientFees() {
                             : 'text-gray-500 bg-gray-200 cursor-not-allowed'
                           }`}
                         disabled={!hasFeesPermission}
-                        title={!hasFeesPermission ? "Vous n'avez pas la permission d'ajouter des options" : ""}
+                        title={!hasFeesPermission ? t('clientFees.tooltips.noAddOptionPermission') : ""}
                       >
                         <PlusIcon className="h-3 w-3 mr-1" />
-                        Ajouter une option
+                        {t('clientFees.actions.addOption')}
                       </button>
                     </div>
 
@@ -484,19 +486,19 @@ export default function ClientFees() {
                           <thead className="bg-gray-50">
                             <tr>
                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Option
+                                {t('clientFees.table.option')}
                               </th>
                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Valeur
+                                {t('clientFees.table.value')}
                               </th>
                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Buffer
+                                {t('clientFees.table.buffer')}
                               </th>
                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Éditable
+                                {t('clientFees.table.editable')}
                               </th>
                               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
+                                {t('clientFees.table.actions')}
                               </th>
                             </tr>
                           </thead>
@@ -513,7 +515,7 @@ export default function ClientFees() {
                                   {option.FO_Buffer}%
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {option.FO_Editable ? 'Oui' : 'Non'}
+                                  {option.FO_Editable ? t('common.yes') : t('common.no')}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                   <div className="flex justify-end space-x-2">
@@ -554,7 +556,7 @@ export default function ClientFees() {
                         </table>
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Aucune option configurée pour ce frais.</p>
+                      <p className="text-sm text-gray-500 italic">{t('clientFees.states.noOptions')}</p>
                     )}
                   </div>
                 )}
@@ -568,7 +570,7 @@ export default function ClientFees() {
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {currentFee ? 'Modifier le frais' : 'Ajouter un frais'}
+              {currentFee ? t('clientFees.modals.editFeeTitle') : t('clientFees.modals.addFeeTitle')}
             </h3>
             <FeeForm
               fee={currentFee || undefined}
@@ -586,7 +588,7 @@ export default function ClientFees() {
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {currentOption.option ? 'Modifier l\'option' : 'Ajouter une option'}
+              {currentOption.option ? t('clientFees.modals.editOptionTitle') : t('clientFees.modals.addOptionTitle')}
             </h3>
             <FeeOptionForm
               option={currentOption.option || undefined}

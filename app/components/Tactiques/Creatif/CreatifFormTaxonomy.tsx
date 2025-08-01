@@ -112,14 +112,6 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
     return true;
   });
 
-  // 🔥 DEBUG: Voir ce qui est détecté
-  console.log('🔍 === DEBUG CreatifFormTaxonomy AVEC FILTRAGE ===');
-  console.log('📋 clientConfig:', clientConfig);
-  console.log('📊 manualVariables (avant filtrage):', manualVariables.map(v => v.variable));
-  console.log('📊 filteredManualVariables (après filtrage):', filteredManualVariables.map(v => v.variable));
-  console.log('📊 fieldStates keys:', Object.keys(fieldStates));
-  console.log('🔍 === FIN DEBUG ===');
-
   return (
     <div className="flex h-full">
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">

@@ -17,12 +17,14 @@ import {
   deleteCurrency
 } from '../../lib/currencyService';
 import CurrencyForm from './CurrencyForm';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * Gère l'affichage, la création, la modification et la suppression des taux de conversion pour le client actuellement sélectionné.
  * @returns {React.ReactElement} Le composant JSX pour gérer les devises du client.
  */
 const ClientCurrencies: React.FC = () => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -60,7 +62,7 @@ const ClientCurrencies: React.FC = () => {
 
     } catch (err) {
       console.error('Erreur lors du chargement des devises:', err);
-      setError('Impossible de charger les devises du client.');
+      setError(t('clientCurrencies.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +95,7 @@ const ClientCurrencies: React.FC = () => {
       loadCurrencies();
     } catch (err: any) {
       console.error('Erreur lors de l\'ajout de la devise:', err);
-      setError(err.message || 'Impossible d\'ajouter la devise.');
+      setError(err.message || t('clientCurrencies.errors.addFailed'));
     }
   };
 
@@ -113,7 +115,7 @@ const ClientCurrencies: React.FC = () => {
       loadCurrencies();
     } catch (err: any) {
       console.error('Erreur lors de la mise à jour de la devise:', err);
-      setError(err.message || 'Impossible de mettre à jour la devise.');
+      setError(err.message || t('clientCurrencies.errors.updateFailed'));
     }
   };
 
@@ -125,14 +127,14 @@ const ClientCurrencies: React.FC = () => {
   const handleDeleteCurrency = async (currencyId: string) => {
     if (!selectedClient || !hasCurrencyPermission) return;
 
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce taux de conversion ?')) {
+    if (window.confirm(t('clientCurrencies.confirmations.delete'))) {
       try {
         console.log(`FIREBASE: ÉCRITURE - Fichier: ClientCurrencies.tsx - Fonction: handleDeleteCurrency - Path: clients/${selectedClient.clientId}/currencies/${currencyId}`);
         await deleteCurrency(selectedClient.clientId, currencyId);
         loadCurrencies();
       } catch (err) {
         console.error('Erreur lors de la suppression de la devise:', err);
-        setError('Impossible de supprimer la devise.');
+        setError(t('clientCurrencies.errors.deleteFailed'));
       }
     }
   };
@@ -140,7 +142,7 @@ const ClientCurrencies: React.FC = () => {
   if (!selectedClient) {
     return (
       <div className="p-6 bg-white rounded-lg shadow">
-        <p className="text-gray-600">Veuillez sélectionner un client pour voir ses taux de conversion.</p>
+        <p className="text-gray-600">{t('clientCurrencies.messages.selectClient')}</p>
       </div>
     );
   }
@@ -149,7 +151,7 @@ const ClientCurrencies: React.FC = () => {
     <div className="bg-white shadow rounded-lg">
       <div className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h2 className="text-xl font-bold text-gray-800">Taux de conversion</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t('clientCurrencies.header.title')}</h2>
 
           <div className="flex items-center gap-2">
 
@@ -157,7 +159,7 @@ const ClientCurrencies: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder={t('clientCurrencies.filters.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -177,7 +179,7 @@ const ClientCurrencies: React.FC = () => {
               onChange={(e) => setSelectedYear(e.target.value)}
               className="border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
-              <option value="all">Toutes les années</option>
+              <option value="all">{t('clientCurrencies.filters.allYears')}</option>
               {uniqueYears.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
@@ -194,16 +196,16 @@ const ClientCurrencies: React.FC = () => {
                   : 'text-gray-500 bg-gray-300 cursor-not-allowed'
               }`}
               disabled={!hasCurrencyPermission}
-              title={!hasCurrencyPermission ? "Vous n'avez pas la permission d'ajouter des taux de conversion" : ""}
+              title={!hasCurrencyPermission ? t('clientCurrencies.permissions.noAddPermission') : ""}
             >
-              + Ajouter
+              + {t('clientCurrencies.actions.add')}
             </button>
           </div>
         </div>
 
         {!hasCurrencyPermission && (
           <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700">
-            Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les taux de conversion des devises.
+            {t('clientCurrencies.permissions.readOnlyWarning')}
           </div>
         )}
 
@@ -214,13 +216,13 @@ const ClientCurrencies: React.FC = () => {
         )}
 
         {loading ? (
-          <div className="py-4 text-center text-gray-500">Chargement des taux de conversion...</div>
+          <div className="py-4 text-center text-gray-500">{t('clientCurrencies.messages.loading')}</div>
         ) : filteredCurrencies.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
             {currencies.length === 0 ? (
-              <p>Aucun taux de conversion configuré pour ce client.</p>
+              <p>{t('clientCurrencies.messages.noRatesConfigured')}</p>
             ) : (
-              <p>Aucun résultat pour votre recherche.</p>
+              <p>{t('clientCurrencies.messages.noFilterResults')}</p>
             )}
           </div>
         ) : (
@@ -229,19 +231,19 @@ const ClientCurrencies: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Année
+                    {t('clientCurrencies.table.year')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    De
+                    {t('clientCurrencies.table.from')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vers
+                    {t('clientCurrencies.table.to')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Taux
+                    {t('clientCurrencies.table.rate')}
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('clientCurrencies.table.actions')}
                   </th>
                 </tr>
               </thead>
@@ -275,7 +277,7 @@ const ClientCurrencies: React.FC = () => {
                               : 'text-gray-400 cursor-not-allowed'
                           }`}
                           disabled={!hasCurrencyPermission}
-                          title={!hasCurrencyPermission ? "Vous n'avez pas la permission de modifier les taux" : ""}
+                          title={!hasCurrencyPermission ? t('clientCurrencies.permissions.noEditPermission') : ""}
                         >
                           ✏️
                         </button>
@@ -291,7 +293,7 @@ const ClientCurrencies: React.FC = () => {
                               : 'text-gray-400 cursor-not-allowed'
                           }`}
                           disabled={!hasCurrencyPermission}
-                          title={!hasCurrencyPermission ? "Vous n'avez pas la permission de supprimer les taux" : ""}
+                          title={!hasCurrencyPermission ? t('clientCurrencies.permissions.noDeletePermission') : ""}
                         >
                           🗑️
                         </button>
@@ -309,7 +311,7 @@ const ClientCurrencies: React.FC = () => {
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {currentCurrency ? 'Modifier le taux' : 'Ajouter un taux'}
+              {currentCurrency ? t('clientCurrencies.form.editTitle') : t('clientCurrencies.form.addTitle')}
             </h3>
             <CurrencyForm
               currency={currentCurrency || undefined}

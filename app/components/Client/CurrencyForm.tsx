@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Currency, CurrencyFormData, CURRENCIES } from '../../types/currency';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CurrencyFormProps {
   currency?: Currency;
@@ -23,6 +24,7 @@ interface CurrencyFormProps {
  * @returns {React.ReactElement} Le formulaire de devise.
  */
 const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCancel }) => {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => (currentYear - 5 + i).toString());
   
@@ -83,7 +85,7 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="CU_Year" className="block text-sm font-medium text-gray-700">
-            Année
+            {t('currencyForm.labels.year')}
           </label>
           <select
             id="CU_Year"
@@ -102,7 +104,7 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
 
         <div>
           <label htmlFor="CU_Rate" className="block text-sm font-medium text-gray-700">
-            Taux
+            {t('currencyForm.labels.rate')}
           </label>
           <input
             type="number"
@@ -121,7 +123,7 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="CU_From" className="block text-sm font-medium text-gray-700">
-            Devise source
+            {t('currencyForm.labels.from')}
           </label>
           <select
             id="CU_From"
@@ -140,7 +142,7 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
 
         <div>
           <label htmlFor="CU_To" className="block text-sm font-medium text-gray-700">
-            Devise cible
+            {t('currencyForm.labels.to')}
           </label>
           <select
             id="CU_To"
@@ -164,13 +166,13 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
           onClick={onCancel}
           className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          Annuler
+          {t('currencyForm.buttons.cancel')}
         </button>
         <button
           type="submit"
           className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          {currency ? 'Mettre à jour' : 'Ajouter'}
+          {t(currency ? 'currencyForm.buttons.update' : 'currencyForm.buttons.add')}
         </button>
       </div>
     </form>

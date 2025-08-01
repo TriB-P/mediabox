@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spec, SpecFormData } from '../../lib/specService';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SpecFormProps {
   spec?: Spec;
@@ -24,6 +25,7 @@ interface SpecFormProps {
  * @returns {React.ReactElement} Le composant de formulaire.
  */
 export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<SpecFormData>({
     name: '',
     format: '',
@@ -101,7 +103,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
     } = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Le nom est requis';
+      newErrors.name = t('specForm.errors.nameRequired');
     }
 
     setErrors(newErrors);
@@ -164,7 +166,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
           <div className="bg-green-100 text-green-800 p-4 rounded-md flex items-center shadow-md">
             <CheckIcon className="h-6 w-6 mr-2 text-green-600" />
             <span className="font-medium">
-              Spécification sauvegardée avec succès!
+              {t('specForm.notifications.saveSuccess')}
             </span>
           </div>
         </div>
@@ -179,7 +181,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             htmlFor="name"
             className="block text-sm font-medium text-gray-700"
           >
-            Nom de la spécification *
+            {t('specForm.labels.name')} *
           </label>
           <input
             type="text"
@@ -204,7 +206,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="format"
               className="block text-sm font-medium text-gray-700"
             >
-              Format
+              {t('specForm.labels.format')}
             </label>
             <input
               type="text"
@@ -212,7 +214,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="format"
               value={formData.format}
               onChange={handleChange}
-              placeholder="ex: 300x250"
+              placeholder={t('specForm.placeholders.format')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -222,7 +224,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="ratio"
               className="block text-sm font-medium text-gray-700"
             >
-              Ratio
+              {t('specForm.labels.ratio')}
             </label>
             <input
               type="text"
@@ -230,7 +232,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="ratio"
               value={formData.ratio}
               onChange={handleChange}
-              placeholder="ex: 16:9"
+              placeholder={t('specForm.placeholders.ratio')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -242,7 +244,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="fileType"
               className="block text-sm font-medium text-gray-700"
             >
-              Type de fichier
+              {t('specForm.labels.fileType')}
             </label>
             <input
               type="text"
@@ -250,7 +252,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="fileType"
               value={formData.fileType}
               onChange={handleChange}
-              placeholder="ex: JPG, PNG, GIF"
+              placeholder={t('specForm.placeholders.fileType')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -260,7 +262,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="animation"
               className="block text-sm font-medium text-gray-700"
             >
-              Animation
+              {t('specForm.labels.animation')}
             </label>
             <input
               type="text"
@@ -268,7 +270,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="animation"
               value={formData.animation}
               onChange={handleChange}
-              placeholder="ex: Autorisée, Non autorisée"
+              placeholder={t('specForm.placeholders.animation')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -280,7 +282,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="maxWeight"
               className="block text-sm font-medium text-gray-700"
             >
-              Poids maximal
+              {t('specForm.labels.maxWeight')}
             </label>
             <input
               type="text"
@@ -288,7 +290,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="maxWeight"
               value={formData.maxWeight}
               onChange={handleChange}
-              placeholder="ex: 100 Ko"
+              placeholder={t('specForm.placeholders.maxWeight')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -298,7 +300,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="weight"
               className="block text-sm font-medium text-gray-700"
             >
-              Poids maximal si HTML 5
+              {t('specForm.labels.weight')}
             </label>
             <input
               type="text"
@@ -306,7 +308,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="weight"
               value={formData.weight}
               onChange={handleChange}
-              placeholder="ex: 80 Ko"
+              placeholder={t('specForm.placeholders.weight')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -317,7 +319,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="title"
               className="block text-sm font-medium text-gray-700"
             >
-              Titre
+              {t('specForm.labels.title')}
             </label>
             <input
               type="text"
@@ -325,7 +327,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="ex: Max 50 caractères"
+              placeholder={t('specForm.placeholders.title')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -335,7 +337,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               htmlFor="text"
               className="block text-sm font-medium text-gray-700"
             >
-              Texte
+              {t('specForm.labels.text')}
             </label>
             <input
               type="text"
@@ -343,7 +345,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
               name="text"
               value={formData.text}
               onChange={handleChange}
-              placeholder="ex: Texte court descriptif"
+              placeholder={t('specForm.placeholders.text')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -354,7 +356,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             htmlFor="specSheetLink"
             className="block text-sm font-medium text-gray-700"
           >
-            Lien vers feuille de specs
+            {t('specForm.labels.specSheetLink')}
           </label>
           <input
             type="text"
@@ -362,7 +364,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             name="specSheetLink"
             value={formData.specSheetLink}
             onChange={handleChange}
-            placeholder="https://example.com/specs.pdf"
+            placeholder={t('specForm.placeholders.specSheetLink')}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
@@ -372,7 +374,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             htmlFor="notes"
             className="block text-sm font-medium text-gray-700"
           >
-            Notes
+            {t('specForm.labels.notes')}
           </label>
           <textarea
             id="notes"
@@ -380,7 +382,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             rows={3}
             value={formData.notes}
             onChange={handleChange}
-            placeholder="Notes additionnelles"
+            placeholder={t('specForm.placeholders.notes')}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
@@ -392,7 +394,7 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             disabled={isSubmitting}
           >
-            Annuler
+            {t('specForm.buttons.cancel')}
           </button>
           <button
             type="submit"
@@ -400,10 +402,10 @@ export default function SpecForm({ spec, onSubmit, onCancel }: SpecFormProps) {
             disabled={isSubmitting}
           >
             {isSubmitting
-              ? 'Enregistrement...'
+              ? t('specForm.buttons.submitting')
               : spec
-                ? 'Mettre à jour'
-                : 'Ajouter'}
+                ? t('specForm.buttons.update')
+                : t('specForm.buttons.add')}
           </button>
         </div>
       </form>
