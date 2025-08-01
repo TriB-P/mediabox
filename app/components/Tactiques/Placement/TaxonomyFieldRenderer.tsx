@@ -1,11 +1,11 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Version avec labels et custom dimensions
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Simplifié sans logique spéciale
 
 'use client';
 
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
-import { getPlacementFieldLabel, isCustomDimension } from '../../../config/placementFieldLabels';
+import { getPlacementFieldLabel } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, TaxonomyValues, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -18,10 +18,14 @@ interface FieldState {
   error?: string;
 }
 
+// 🔥 AJOUTÉ: Interface pour config client (labels pour placements ET créatifs)
 interface ClientConfig {
   Custom_Dim_PL_1?: string;
   Custom_Dim_PL_2?: string;
-  Custom_Dim_SPL_3?: string;
+  Custom_Dim_PL_3?: string;
+  Custom_Dim_CR_1?: string; // 🔥 AJOUTÉ: Support créatifs
+  Custom_Dim_CR_2?: string; // 🔥 AJOUTÉ: Support créatifs
+  Custom_Dim_CR_3?: string; // 🔥 AJOUTÉ: Support créatifs
 }
 
 interface TaxonomyFieldRendererProps {
@@ -29,11 +33,7 @@ interface TaxonomyFieldRendererProps {
   fieldStates: { [key: string]: FieldState };
   formData: any; 
   highlightState: HighlightState;
-  clientConfig?: ClientConfig;
-  customDim1List?: Array<{ id: string; label: string; code?: string }>;
-  customDim2List?: Array<{ id: string; label: string; code?: string }>;
-  customDim3List?: Array<{ id: string; label: string; code?: string }>;
-  loadingCustomDims?: boolean;
+  clientConfig?: ClientConfig; // 🔥 AJOUTÉ: Pour les labels personnalisés
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
 }
@@ -45,11 +45,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   fieldStates,
   formData,
   highlightState,
-  clientConfig = {},
-  customDim1List = [],
-  customDim2List = [],
-  customDim3List = [],
-  loadingCustomDims = false,
+  clientConfig = {}, // 🔥 AJOUTÉ: Config client avec valeur par défaut
   onFieldChange,
   onFieldHighlight,
 }) => {
@@ -62,53 +58,58 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   const getFieldLabel = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
     
-    // Pour les dimensions personnalisées, utiliser la config client si disponible
-    if (isCustomDimension(fieldKey)) {
-      const configKey = fieldKey.replace('PL_', '') as keyof ClientConfig;
-      const customLabel = clientConfig[configKey];
-      return getPlacementFieldLabel(fieldKey, customLabel);
+    // 🔥 AJOUTÉ: Pour les custom dimensions PLACEMENT, utiliser le label personnalisé si disponible
+    if (fieldKey === 'PL_Custom_Dim_1' && clientConfig.Custom_Dim_PL_1) {
+      return clientConfig.Custom_Dim_PL_1;
+    }
+    if (fieldKey === 'PL_Custom_Dim_2' && clientConfig.Custom_Dim_PL_2) {
+      return clientConfig.Custom_Dim_PL_2;
+    }
+    if (fieldKey === 'PL_Custom_Dim_3' && clientConfig.Custom_Dim_PL_3) {
+      return clientConfig.Custom_Dim_PL_3;
     }
     
-    // Pour les autres champs, utiliser le mapping standard
+    // 🔥 AJOUTÉ: Pour les custom dimensions CRÉATIF, utiliser le label personnalisé si disponible
+    if (fieldKey === 'CR_Custom_Dim_1' && clientConfig.Custom_Dim_CR_1) {
+      return clientConfig.Custom_Dim_CR_1;
+    }
+    if (fieldKey === 'CR_Custom_Dim_2' && clientConfig.Custom_Dim_CR_2) {
+      return clientConfig.Custom_Dim_CR_2;
+    }
+    if (fieldKey === 'CR_Custom_Dim_3' && clientConfig.Custom_Dim_CR_3) {
+      return clientConfig.Custom_Dim_CR_3;
+    }
+    
+    // Pour tous les autres champs, utiliser le mapping standard
     return getPlacementFieldLabel(fieldKey, variable.label);
-  };
-
-  /**
-   * Détermine si un champ de dimension personnalisée doit être affiché
-   */
-  const shouldShowCustomDimension = (fieldKey: string): boolean => {
-    if (!isCustomDimension(fieldKey)) return true;
-    
-    const configKey = fieldKey.replace('PL_', '') as keyof ClientConfig;
-    return !!clientConfig[configKey];
-  };
-
-  /**
-   * Obtient les options pour les dimensions personnalisées
-   */
-  const getCustomDimensionOptions = (fieldKey: string) => {
-    switch (fieldKey) {
-      case 'PL_Custom_Dim_1':
-        return customDim1List;
-      case 'PL_Custom_Dim_2':
-        return customDim2List;
-      case 'PL_Custom_Dim_3':
-        return customDim3List;
-      default:
-        return [];
-    }
   };
 
   // ==================== FONCTIONS DE RENDU ====================
   
-  const renderCustomDimensionField = (variable: ParsedTaxonomyVariable) => {
+  const renderVariableField = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
+    const fieldState = fieldStates[fieldKey];
     const currentValue = formData[fieldKey] || '';
-    const customOptions = getCustomDimensionOptions(fieldKey);
-    const hasCustomOptions = customOptions.length > 0;
     
+    
+    // Obtenir les formats autorisés pour ce champ
+    const variableConfig = getVariableConfig(variable.variable);
+    const allowedFormats = variableConfig?.allowedFormats || [];
+    
+    const hasShortcodeList = allowedFormats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
+    
+    // Vérifier si la valeur actuelle correspond à un ID d'option
+    let isValueInOptions = false;
+    let matchingOption = null;
+    
+    if (hasShortcodeList && fieldState.options.length > 0) {
+      matchingOption = fieldState.options.find(opt => opt.id === currentValue || opt.label === currentValue);
+      isValueInOptions = !!matchingOption;
+    }
+    
+
     // Si chargement en cours
-    if (loadingCustomDims) {
+    if (fieldState?.isLoading) {
       return (
         <div className="relative">
           <FormInput
@@ -127,10 +128,10 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       );
     }
 
-    // Si des options sont disponibles, utiliser SmartSelect
-    if (hasCustomOptions) {
-      const selectedOption = customOptions.find(opt => opt.id === currentValue || opt.label === currentValue);
-      const selectValue = selectedOption ? selectedOption.id : currentValue;
+    // Mode hybride - SmartSelect SI la valeur est dans les options OU si pas de valeur actuelle
+    if (hasShortcodeList && (isValueInOptions || !currentValue)) {
+      
+      const selectValue = matchingOption ? matchingOption.id : currentValue;
       
       return (
         <SmartSelect
@@ -139,90 +140,18 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           value={selectValue}
           onChange={(e) => {
             const selectedId = e.target.value;
-            const selectedOption = customOptions.find(opt => opt.id === selectedId);
-            console.log(`🔄 CustomDim ${fieldKey} changé:`, { selectedId, selectedOption });
-            onFieldChange(variable.variable, selectedOption?.label || '', 'code', selectedId);
+            const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
+            const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
+            onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
           }}
-          options={customOptions}
+          options={fieldState.options}
           placeholder="Sélectionner..."
           label=""
         />
       );
     }
-
-    // Sinon, champ texte libre
-    return (
-      <FormInput
-        id={fieldKey}
-        name={fieldKey}
-        value={currentValue}
-        onChange={(e) => {
-          console.log(`🔄 CustomDim ${fieldKey} (texte libre) changé:`, e.target.value);
-          onFieldChange(variable.variable, e.target.value, 'open');
-        }}
-        type="text"
-        placeholder="Saisir la valeur..."
-        label=""
-      />
-    );
-  };
-  
-  const renderStandardField = (variable: ParsedTaxonomyVariable) => {
-    const fieldKey = variable.variable;
-    const fieldState = fieldStates[fieldKey];
-    const currentValue = formData[fieldKey] || '';
-    
-    // Obtenir les formats autorisés pour ce champ
-    const variableConfig = getVariableConfig(variable.variable);
-    const allowedFormats = variableConfig?.allowedFormats || [];
-    
-    const hasShortcodeList = allowedFormats.some(formatRequiresShortcode) && fieldState?.hasCustomList;
-    
-    // Vérifier si la valeur actuelle correspond à un ID d'option
-    let isValueInOptions = false;
-    let matchingOption = null;
-    
-    if (hasShortcodeList && fieldState.options.length > 0) {
-      matchingOption = fieldState.options.find(opt => opt.id === currentValue || opt.label === currentValue);
-      isValueInOptions = !!matchingOption;
-    }
-    
-    console.log(`🔍 ${fieldKey}: hasShortcodeList=${hasShortcodeList}, isValueInOptions=${isValueInOptions}, currentValue="${currentValue}"`);
-
-    // Mode hybride - SmartSelect SI la valeur est dans les options OU si pas de valeur actuelle
-    if (hasShortcodeList && (isValueInOptions || !currentValue)) {
-      console.log(`📋 ${fieldKey}: Rendu SmartSelect (valeur dans options ou vide)`);
-      
-      const selectValue = matchingOption ? matchingOption.id : currentValue;
-      
-      return (
-        <div className="relative">
-          <SmartSelect
-            id={fieldKey}
-            name={fieldKey}
-            value={selectValue}
-            onChange={(e) => {
-              const selectedId = e.target.value;
-              const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
-              const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
-              console.log(`🔄 SmartSelect ${fieldKey} changé:`, { selectedId, selectedOption, primaryFormat });
-              onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
-            }}
-            options={fieldState.options}
-            placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner..."}
-            label=""
-          />
-          {fieldState.isLoading && (
-            <div className="absolute inset-0 bg-gray-100 bg-opacity-70 flex items-center justify-center rounded-lg">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            </div>
-          )}
-        </div>
-      );
-    }
     
     // Mode texte libre
-    console.log(`📝 ${fieldKey}: Rendu FormInput (saisie libre)`);
     return (
       <div className="space-y-2">
         <FormInput
@@ -230,7 +159,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
           name={fieldKey}
           value={currentValue}
           onChange={(e) => {
-            console.log(`🔄 FormInput ${fieldKey} changé:`, e.target.value);
             onFieldChange(variable.variable, e.target.value, 'open');
           }}
           type="text"
@@ -254,27 +182,11 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     );
   };
 
-  const renderVariableInput = (variable: ParsedTaxonomyVariable) => {
-    const fieldKey = variable.variable;
-    
-    // Pour les dimensions personnalisées, utiliser le rendu spécialisé
-    if (isCustomDimension(fieldKey)) {
-      return renderCustomDimensionField(variable);
-    }
-    
-    // Pour les autres champs, utiliser le rendu standard
-    return renderStandardField(variable);
-  };
-
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const sourceColor = getSourceColor(variable.source);
     const fieldLabel = getFieldLabel(variable);
     
-    // Ne pas afficher les dimensions personnalisées non configurées
-    if (isCustomDimension(fieldKey) && !shouldShowCustomDimension(fieldKey)) {
-      return null;
-    }
     
     return (
       <div
@@ -302,25 +214,18 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         </div>
         
         <div className="mt-2">
-          {renderVariableInput(variable)}
+          {renderVariableField(variable)}
         </div>
       </div>
     );
   };
 
   // ==================== RENDU PRINCIPAL ====================
-  
-  // Filtrer les variables pour exclure les dimensions non configurées
-  const visibleVariables = manualVariables.filter(variable => {
-    if (isCustomDimension(variable.variable)) {
-      return shouldShowCustomDimension(variable.variable);
-    }
-    return true;
-  });
+
 
   return (
     <div className="space-y-4">
-      {visibleVariables.length === 0 ? (
+      {manualVariables.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <h4 className="text-md font-medium text-gray-900 mb-2">
             Configuration des champs de placement
@@ -332,9 +237,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       ) : (
         <div className="space-y-3">
           <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
-            Champs à configurer ({visibleVariables.length})
+            Champs à configurer ({manualVariables.length})
           </h4>
-          {visibleVariables.map((variable) => renderVariableCard(variable))}
+          {manualVariables.map((variable) => renderVariableCard(variable))}
         </div>
       )}
     </div>

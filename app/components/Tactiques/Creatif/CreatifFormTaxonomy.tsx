@@ -6,12 +6,13 @@
 
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 import TaxonomyFieldRenderer from '../Placement/TaxonomyFieldRenderer';
 import TaxonomyPreview from '../Placement/TaxonomyPreview';
 import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 import { CreatifFormData, Tactique, Placement } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
+import { getClientInfo } from '../../../lib/listService'; // 🔥 AJOUTÉ: Pour charger config client
 
 interface CreatifFormTaxonomyProps {
   formData: CreatifFormData;
@@ -24,20 +25,17 @@ interface CreatifFormTaxonomyProps {
   loading?: boolean;
 }
 
+// 🔥 AJOUTÉ: Interface pour la configuration client (juste pour labels et filtrage)
+interface ClientConfig {
+  Custom_Dim_CR_1?: string;
+  Custom_Dim_CR_2?: string;
+  Custom_Dim_CR_3?: string;
+}
+
 /**
  * Affiche l'interface de configuration de la taxonomie pour un créatif.
  * Ce composant gère l'affichage des champs de saisie basés sur les taxonomies sélectionnées
  * et fournit un aperçu en temps réel. Il se concentre spécifiquement sur les niveaux 5 et 6 de la taxonomie.
- * @param {CreatifFormTaxonomyProps} props - Les propriétés du composant.
- * @param {CreatifFormData} props.formData - Les données actuelles du formulaire du créatif.
- * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void} props.onChange - La fonction de rappel pour gérer les changements dans le formulaire.
- * @param {(tooltip: string | null) => void} props.onTooltipChange - La fonction de rappel pour afficher des infobulles.
- * @param {string} props.clientId - L'identifiant du client.
- * @param {Campaign} [props.campaignData] - Les données de la campagne associée.
- * @param {Tactique} [props.tactiqueData] - Les données de la tactique associée.
- * @param {Placement} [props.placementData] - Les données du placement associé.
- * @param {boolean} [props.loading=false] - Indique si le composant est en état de chargement.
- * @returns {React.ReactElement} Le composant React de la section taxonomie du formulaire créatif.
  */
 const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
   formData,
@@ -49,6 +47,29 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
   placementData,
   loading = false
 }) => {
+  
+  // 🔥 AJOUTÉ: État pour la config client (juste pour labels et filtrage)
+  const [clientConfig, setClientConfig] = useState<ClientConfig>({});
+
+  // 🔥 AJOUTÉ: Charger uniquement la config client (pas les listes)
+  const loadClientConfig = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      console.log(`FIREBASE: LECTURE - Fichier: CreatifFormTaxonomy.tsx - Fonction: loadClientConfig - Path: clients/${clientId}`);
+      const clientInfo = await getClientInfo(clientId);
+      setClientConfig({
+        Custom_Dim_CR_1: clientInfo.Custom_Dim_CR_1 || undefined,
+        Custom_Dim_CR_2: clientInfo.Custom_Dim_CR_2 || undefined,
+        Custom_Dim_CR_3: clientInfo.Custom_Dim_CR_3 || undefined,
+      });
+    } catch (error) {
+      console.error('❌ Erreur chargement config client:', error);
+    }
+  }, [clientId]);
+
+  useEffect(() => {
+    loadClientConfig();
+  }, [loadClientConfig]);
   
   const {
     selectedTaxonomyData,
@@ -78,6 +99,27 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
     formType: 'creatif'
   });
 
+  // 🔥 AJOUTÉ: Filtrer manualVariables pour masquer dimensions non configurées
+  const filteredManualVariables = manualVariables.filter(variable => {
+    const fieldKey = variable.variable;
+    
+    // Si c'est une custom dimension créatif, vérifier si elle est configurée
+    if (fieldKey === 'CR_Custom_Dim_1') return !!clientConfig.Custom_Dim_CR_1;
+    if (fieldKey === 'CR_Custom_Dim_2') return !!clientConfig.Custom_Dim_CR_2;
+    if (fieldKey === 'CR_Custom_Dim_3') return !!clientConfig.Custom_Dim_CR_3;
+    
+    // Pour tous les autres champs, les garder
+    return true;
+  });
+
+  // 🔥 DEBUG: Voir ce qui est détecté
+  console.log('🔍 === DEBUG CreatifFormTaxonomy AVEC FILTRAGE ===');
+  console.log('📋 clientConfig:', clientConfig);
+  console.log('📊 manualVariables (avant filtrage):', manualVariables.map(v => v.variable));
+  console.log('📊 filteredManualVariables (après filtrage):', filteredManualVariables.map(v => v.variable));
+  console.log('📊 fieldStates keys:', Object.keys(fieldStates));
+  console.log('🔍 === FIN DEBUG ===');
+
   return (
     <div className="flex h-full">
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
@@ -104,10 +146,11 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
 
         {hasTaxonomies ? (
           <TaxonomyFieldRenderer
-            manualVariables={manualVariables}
+            manualVariables={filteredManualVariables} // 🔥 MODIFIÉ: Utiliser variables filtrées
             fieldStates={fieldStates}
             formData={formData}
             highlightState={highlightState}
+            clientConfig={clientConfig} // 🔥 AJOUTÉ: Pour les labels personnalisés
             onFieldChange={handleFieldChange}
             onFieldHighlight={handleFieldHighlight}
           />

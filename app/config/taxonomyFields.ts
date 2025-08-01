@@ -7,7 +7,7 @@
  * C'est essentiel pour maintenir la cohérence et la validation des données de taxonomie à travers l'application.
  */
 
-export type FieldSource = 'campaign' | 'tactique' | 'placement' | 'manual';
+export type FieldSource = 'campaign' | 'tactique' | 'placement' | 'créatif';
 
 export type TaxonomyFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'custom_utm' | 'custom_code' | 'open';
 
@@ -94,6 +94,17 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'PL_Format': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'PL_Language': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'PL_Placement_Location': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+
+  'CR_Custom_Dim_1': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Custom_Dim_2': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Custom_Dim_3': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_CTA': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Format_Details': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Offer': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Plateform_Name': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Primary_Product': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_URL': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Version': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
 };
 
 export const TAXONOMY_FORMATS: FormatOption[] = [
@@ -110,7 +121,7 @@ export const SOURCE_COLORS = {
   campaign: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', hex: '#3B82F6' },
   tactique: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', hex: '#10B981' },
   placement: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', hex: '#8B5CF6' },
-  manual: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', hex: '#F59E0B' },
+  créatif: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', hex: '#F59E0B' },
   empty: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300', hex: '#6B7280' }
 } as const;
 
@@ -300,7 +311,7 @@ export const ERROR_MESSAGES = {
  */
 export function getManualVariableNames(): string[] {
   return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([_, config]) => config.source === 'manual')
+    .filter(([_, config]) => config.source === 'créatif')
     .map(([variableName, _]) => variableName);
 }
 
@@ -311,7 +322,7 @@ export function getManualVariableNames(): string[] {
  */
 export function getCreatifVariableNames(): string[] {
   return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('CR_'))
+    .filter(([variableName, config]) => config.source === 'créatif' && variableName.startsWith('CR_'))
     .map(([variableName, _]) => variableName);
 }
 
@@ -322,7 +333,7 @@ export function getCreatifVariableNames(): string[] {
  */
 export function getPlacementVariableNames(): string[] {
   return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('PL_'))
+    .filter(([variableName, config]) => config.source === 'placement' && variableName.startsWith('PL_'))
     .map(([variableName, _]) => variableName);
 }
 
@@ -401,7 +412,7 @@ export function extractCreatifFieldsFromData(data: any): { [key: string]: string
  */
 export function isManualVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'manual' : false;
+  return config ? config.source === 'créatif' : false;
 }
 
 /**
@@ -411,7 +422,7 @@ export function isManualVariable(variableName: string): boolean {
  */
 export function isCreatifVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'manual' && variableName.startsWith('CR_') : false;
+  return config ? config.source === 'créatif' && variableName.startsWith('CR_') : false;
 }
 
 /**
@@ -421,5 +432,5 @@ export function isCreatifVariable(variableName: string): boolean {
  */
 export function isPlacementVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'placement' || (config.source === 'manual' && variableName.startsWith('PL_')) : false;
+  return config ? config.source === 'placement' || (config.source === 'créatif' && variableName.startsWith('PL_')) : false;
 }

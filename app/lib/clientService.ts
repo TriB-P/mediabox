@@ -45,7 +45,7 @@ export interface ClientInfo {
   Custom_Dim_TC_3?: string;
   Custom_Dim_PL_1?: string;
   Custom_Dim_PL_2?: string;
-  Custom_Dim_SPL_3?: string;
+  Custom_Dim_PL_3?: string;
   Custom_Dim_CR_1?: string;
   Custom_Dim_CR_2?: string;
   Custom_Dim_CR_3?: string;
@@ -153,7 +153,7 @@ export async function getClientInfo(clientId: string): Promise<ClientInfo> {
       Custom_Dim_TC_3: data.Custom_Dim_TC_3 || '',
       Custom_Dim_PL_1: data.Custom_Dim_PL_1 || '',
       Custom_Dim_PL_2: data.Custom_Dim_PL_2 || '',
-      Custom_Dim_SPL_3: data.Custom_Dim_SPL_3 || '',
+      Custom_Dim_PL_3: data.Custom_Dim_PL_3 || '',
       Custom_Dim_CR_1: data.Custom_Dim_CR_1 || '',
       Custom_Dim_CR_2: data.Custom_Dim_CR_2 || '',
       Custom_Dim_CR_3: data.Custom_Dim_CR_3 || '',

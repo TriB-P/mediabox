@@ -1,4 +1,4 @@
-// app/config/placementFieldLabels.ts
+// app/config/TaxonomyFieldLabels.ts
 // Ce fichier contient le mapping entre les noms techniques des champs de placement et leurs labels affichables
 
 /**

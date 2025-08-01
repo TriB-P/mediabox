@@ -367,7 +367,7 @@ export function useTaxonomyForm({
     
     const newTaxonomyValue: TaxonomyVariableValue = {
       value, 
-      source: 'manual', 
+      source: 'créatif', 
       format,
       ...(format === 'open' ? { openValue: value } : {}),
       ...(shortcodeId ? { shortcodeId } : {})

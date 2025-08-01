@@ -1,13 +1,14 @@
-// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx
+// app/components/Tactiques/Placement/PlacementFormTaxonomy.tsx - Simplifié
 
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 import TaxonomyFieldRenderer from './TaxonomyFieldRenderer';
 import TaxonomyPreview from './TaxonomyPreview';
 import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 import { PlacementFormData, Tactique } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
+import { getClientInfo } from '../../../lib/listService'; // 🔥 AJOUTÉ: Pour charger config client
 
 interface PlacementFormTaxonomyProps {
   formData: PlacementFormData;
@@ -19,6 +20,13 @@ interface PlacementFormTaxonomyProps {
   loading?: boolean;
 }
 
+// 🔥 AJOUTÉ: Interface pour la configuration client (juste pour labels et filtrage)
+interface ClientConfig {
+  Custom_Dim_PL_1?: string;
+  Custom_Dim_PL_2?: string;
+  Custom_Dim_PL_3?: string;
+}
+
 const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   formData,
   onChange,
@@ -28,6 +36,29 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   tactiqueData,
   loading = false
 }) => {
+  
+  // 🔥 AJOUTÉ: État pour la config client (juste pour labels et filtrage)
+  const [clientConfig, setClientConfig] = useState<ClientConfig>({});
+
+  // 🔥 AJOUTÉ: Charger uniquement la config client (pas les listes)
+  const loadClientConfig = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      console.log(`FIREBASE: LECTURE - Fichier: PlacementFormTaxonomy.tsx - Fonction: loadClientConfig - Path: clients/${clientId}`);
+      const clientInfo = await getClientInfo(clientId);
+      setClientConfig({
+        Custom_Dim_PL_1: clientInfo.Custom_Dim_PL_1 || undefined,
+        Custom_Dim_PL_2: clientInfo.Custom_Dim_PL_2 || undefined,
+        Custom_Dim_PL_3: clientInfo.Custom_Dim_PL_3 || undefined,
+      });
+    } catch (error) {
+      console.error('❌ Erreur chargement config client:', error);
+    }
+  }, [clientId]);
+
+  useEffect(() => {
+    loadClientConfig();
+  }, [loadClientConfig]);
   
   const {
     selectedTaxonomyData,
@@ -53,8 +84,22 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
     clientId,
     campaignData,
     tactiqueData,
-    formType: 'placement' // 🔥 CORRECTION: Spécifier explicitement le type placement
+    formType: 'placement'
   });
+
+  // 🔥 AJOUTÉ: Filtrer manualVariables pour masquer dimensions non configurées
+  const filteredManualVariables = manualVariables.filter(variable => {
+    const fieldKey = variable.variable;
+    
+    // Si c'est une custom dimension, vérifier si elle est configurée
+    if (fieldKey === 'PL_Custom_Dim_1') return !!clientConfig.Custom_Dim_PL_1;
+    if (fieldKey === 'PL_Custom_Dim_2') return !!clientConfig.Custom_Dim_PL_2;
+    if (fieldKey === 'PL_Custom_Dim_3') return !!clientConfig.Custom_Dim_PL_3;
+    
+    // Pour tous les autres champs, les garder
+    return true;
+  });
+
 
   return (
     <div className="flex h-full">
@@ -75,10 +120,11 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
 
         {hasTaxonomies ? (
           <TaxonomyFieldRenderer
-            manualVariables={manualVariables}
+            manualVariables={filteredManualVariables} // 🔥 MODIFIÉ: Utiliser variables filtrées
             fieldStates={fieldStates}
             formData={formData}
             highlightState={highlightState}
+            clientConfig={clientConfig} // 🔥 AJOUTÉ: Pour les labels personnalisés
             onFieldChange={handleFieldChange}
             onFieldHighlight={handleFieldHighlight}
           />

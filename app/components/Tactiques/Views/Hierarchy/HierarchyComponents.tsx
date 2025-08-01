@@ -139,11 +139,6 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
             <div className="text-xs text-gray-600 truncate">
               {creatif.CR_Label}
             </div>
-            {creatif.CR_Version && (
-              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                v{creatif.CR_Version}
-              </span>
-            )}
           </div>
 
           {/* Contenu de droite : Actions et Indicateurs de taxonomie */}

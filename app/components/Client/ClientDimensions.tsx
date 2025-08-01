@@ -22,7 +22,7 @@ interface DimensionsData {
   Custom_Dim_TC_3: string;
   Custom_Dim_PL_1: string;
   Custom_Dim_PL_2: string;
-  Custom_Dim_SPL_3: string;
+  Custom_Dim_PL_3: string;
   Custom_Dim_CR_1: string;
   Custom_Dim_CR_2: string;
   Custom_Dim_CR_3: string;
@@ -75,7 +75,7 @@ const ClientDimensions: React.FC = () => {
         Custom_Dim_TC_3: clientInfo.Custom_Dim_TC_3 || '',
         Custom_Dim_PL_1: clientInfo.Custom_Dim_PL_1 || '',
         Custom_Dim_PL_2: clientInfo.Custom_Dim_PL_2 || '',
-        Custom_Dim_SPL_3: clientInfo.Custom_Dim_SPL_3 || '',
+        Custom_Dim_PL_3: clientInfo.Custom_Dim_PL_3 || '',
         Custom_Dim_CR_1: clientInfo.Custom_Dim_CR_1 || '',
         Custom_Dim_CR_2: clientInfo.Custom_Dim_CR_2 || '',
         Custom_Dim_CR_3: clientInfo.Custom_Dim_CR_3 || '',
@@ -291,9 +291,9 @@ const ClientDimensions: React.FC = () => {
               <div>
                 <input
                   type="text"
-                  id="Custom_Dim_SPL_3"
-                  name="Custom_Dim_SPL_3"
-                  value={dimensions?.Custom_Dim_SPL_3 || ''}
+                  id="Custom_Dim_PL_3"
+                  name="Custom_Dim_PL_3"
+                  value={dimensions?.Custom_Dim_PL_3 || ''}
                   onChange={handleChange}
                   placeholder="Dimension 3"
                   className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${!hasDimensionsPermission ? 'bg-gray-100 cursor-not-allowed' : ''}`}

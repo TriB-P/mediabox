@@ -59,10 +59,7 @@ export default function PlacementDrawer({
   useEffect(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
     if (placement) {
-      console.log('🔍 === DEBUG PLACEMENT DRAWER ===');
-      console.log('📦 Placement reçu:', placement);
-      console.log('📋 Clés du placement:', Object.keys(placement));
-      
+     
       // Vérifier les champs PL_ directement sur l'objet placement
       const directTaxFields = {
         PL_Audience_Behaviour: placement.PL_Audience_Behaviour,
@@ -86,10 +83,7 @@ export default function PlacementDrawer({
         PL_Placement_Location: placement.PL_Placement_Location,
 
       };
-      console.log('🏷️ Champs PL_ directs:', directTaxFields);
       
-      // Vérifier PL_Taxonomy_Values
-      console.log('📊 PL_Taxonomy_Values:', placement.PL_Taxonomy_Values);
       
       // Extraire depuis PL_Taxonomy_Values si les champs directs sont vides
       const taxFromTaxonomyValues: any = {};
@@ -98,14 +92,12 @@ export default function PlacementDrawer({
           if (key.startsWith('PL_')) {
             const taxonomyValue = placement.PL_Taxonomy_Values![key];
             taxFromTaxonomyValues[key] = taxonomyValue.openValue || taxonomyValue.value || '';
-            console.log(`🔄 Récupération ${key} depuis PL_Taxonomy_Values:`, taxFromTaxonomyValues[key]);
           }
         });
       }
       
       // Extraire les champs manuels
       const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
-      console.log('📋 Champs manuels extraits:', manualFieldsFromPlacement);
       
       // Priorité: champs directs > taxonomy values > vide
       const finalTaxFields: any = {};
@@ -133,7 +125,6 @@ export default function PlacementDrawer({
         finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || 
                                taxFromTaxonomyValues[field] || 
                                '';
-        console.log(`✅ ${field} final:`, finalTaxFields[field]);
       });
       
       const newFormData = {
@@ -149,14 +140,10 @@ export default function PlacementDrawer({
         ...manualFieldsFromPlacement,
         ...finalTaxFields,
       };
-      
-      console.log('✅ FormData final après restauration:', newFormData);
 
-      console.log('🔍 === FIN DEBUG PLACEMENT DRAWER ===');
       
       setFormData(newFormData);
     } else {
-      console.log('📝 Nouveau placement - formData vide');
       setFormData({
         PL_Label: '', 
         PL_Order: 0,
@@ -178,10 +165,8 @@ export default function PlacementDrawer({
   
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    console.log(`🔄 Changement de champ PlacementDrawer: ${name} =`, value);
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
-      console.log('📋 Nouveau formData après changement:', newData);
       return newData;
     });
   }, []);
@@ -204,7 +189,6 @@ export default function PlacementDrawer({
       // 3. ✅ Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
       // Seulement pour les placements existants (pas les nouveaux)
       if (placement && placement.id && selectedClient && selectedCampaign) {
-        console.log(`🚀 Lancement mise à jour taxonomies pour placement: ${placement.id}`);
         
         updateTaxonomiesAsync('placement', { 
           id: placement.id, 
@@ -216,7 +200,6 @@ export default function PlacementDrawer({
         });
       }
       
-      console.log('💾 === FIN SAUVEGARDE PLACEMENT ===');
       
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde du placement:', error);
