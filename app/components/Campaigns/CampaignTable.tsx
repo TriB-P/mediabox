@@ -1,9 +1,13 @@
+// app/components/Campaigns/CampaignTable.tsx
+
 /**
  * Ce composant a pour rôle d'afficher une liste de campagnes sous forme de tableau pour les écrans larges
  * et sous forme de liste de cartes pour les appareils mobiles. Il permet de visualiser les informations
  * principales de chaque campagne et d'accéder à des actions (modifier, etc.). Il gère également un état
  * d'expansion pour chaque ligne afin d'afficher des informations détaillées, comme les versions de la campagne,
  * en chargeant un composant enfant `CampaignVersions`.
+ * 
+ * MODIFIÉ : Support des shortcodes pour CA_Quarter et CA_Year (comme CA_Division).
  */
 'use client';
 
@@ -15,6 +19,12 @@ import { useClient } from '../../contexts/ClientContext';
 import { getClientList, ShortcodeItem } from '../../lib/listService';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+
+// Import des fonctions de cache
+import {
+  getListForClient,
+  ShortcodeItem as CachedShortcodeItem
+} from '../../lib/cacheService';
 
 interface CampaignTableProps {
   campaigns: Campaign[];
@@ -43,28 +53,96 @@ export default function CampaignTable({
   const { selectedClient } = useClient();
   const { t, language } = useTranslation();
   const [divisions, setDivisions] = useState<ShortcodeItem[]>([]);
+  const [quarters, setQuarters] = useState<CachedShortcodeItem[]>([]);
+  const [years, setYears] = useState<CachedShortcodeItem[]>([]);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadDivisions = async () => {
+    const loadShortcodeLists = async () => {
       if (!selectedClient) return;
 
       try {
-        console.log(`FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadDivisions - Path: shortcodes/clients/${selectedClient.clientId}/CA_Division`);
+        // Charger CA_Division (logique existante)
+        console.log(`FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/${selectedClient.clientId}/CA_Division`);
         const divisionsData = await getClientList('CA_Division', selectedClient.clientId)
           .catch(() => {
-            console.log("FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadDivisions - Path: shortcodes/clients/PlusCo/CA_Division");
+            console.log("FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/PlusCo/CA_Division");
             return getClientList('CA_Division', 'PlusCo');
           });
 
         setDivisions(divisionsData);
+
+        // NOUVEAU : Charger CA_Quarter depuis le cache
+        console.log(`[CACHE] Chargement CA_Quarter pour client ${selectedClient.clientId}`);
+        const quartersFromCache = getListForClient('CA_Quarter', selectedClient.clientId);
+        
+        if (quartersFromCache && quartersFromCache.length > 0) {
+          console.log(`[CACHE] ✅ CA_Quarter trouvé dans le cache (${quartersFromCache.length} éléments)`);
+          setQuarters(quartersFromCache);
+        } else {
+          console.log(`[CACHE] ⚠️ CA_Quarter non trouvé dans le cache, fallback Firebase`);
+          console.log(`FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/${selectedClient.clientId}/CA_Quarter`);
+          
+          const quartersData = await getClientList('CA_Quarter', selectedClient.clientId)
+            .catch(() => {
+              console.log("FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/PlusCo/CA_Quarter");
+              return getClientList('CA_Quarter', 'PlusCo');
+            });
+
+          // Convertir au format CachedShortcodeItem
+          const convertedQuarters: CachedShortcodeItem[] = quartersData.map(item => ({
+            id: item.id,
+            SH_Code: item.SH_Code,
+            SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
+            SH_Default_UTM: item.SH_Default_UTM,
+            SH_Logo: item.SH_Logo,
+            SH_Type: item.SH_Type,
+            SH_Tags: item.SH_Tags || []
+          }));
+
+          setQuarters(convertedQuarters);
+        }
+
+        // NOUVEAU : Charger CA_Year depuis le cache
+        console.log(`[CACHE] Chargement CA_Year pour client ${selectedClient.clientId}`);
+        const yearsFromCache = getListForClient('CA_Year', selectedClient.clientId);
+        
+        if (yearsFromCache && yearsFromCache.length > 0) {
+          console.log(`[CACHE] ✅ CA_Year trouvé dans le cache (${yearsFromCache.length} éléments)`);
+          setYears(yearsFromCache);
+        } else {
+          console.log(`[CACHE] ⚠️ CA_Year non trouvé dans le cache, fallback Firebase`);
+          console.log(`FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/${selectedClient.clientId}/CA_Year`);
+          
+          const yearsData = await getClientList('CA_Year', selectedClient.clientId)
+            .catch(() => {
+              console.log("FIREBASE: LECTURE - Fichier: CampaignTable.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/PlusCo/CA_Year");
+              return getClientList('CA_Year', 'PlusCo');
+            });
+
+          // Convertir au format CachedShortcodeItem
+          const convertedYears: CachedShortcodeItem[] = yearsData.map(item => ({
+            id: item.id,
+            SH_Code: item.SH_Code,
+            SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
+            SH_Default_UTM: item.SH_Default_UTM,
+            SH_Logo: item.SH_Logo,
+            SH_Type: item.SH_Type,
+            SH_Tags: item.SH_Tags || []
+          }));
+
+          setYears(convertedYears);
+        }
+
       } catch (error) {
-        console.warn(`${t('campaigns.table.divisionsLoadingError')}:`, error);
+        console.warn(`${t('campaigns.table.shortcodeListsLoadingError')}:`, error);
       }
     };
 
-    loadDivisions();
-  }, [selectedClient]);
+    loadShortcodeLists();
+  }, [selectedClient, t]);
 
   /**
    * Formate un montant numérique en une chaîne de caractères monétaire.
@@ -106,6 +184,28 @@ export default function CampaignTable({
     if (!divisionId) return '';
     const division = divisions.find(d => d.id === divisionId);
     return division ? division.SH_Display_Name_FR || division.SH_Code || divisionId : divisionId;
+  };
+
+  /**
+   * NOUVEAU : Récupère le nom affichable d'un trimestre à partir de son identifiant.
+   * @param {string | undefined} quarterId - L'identifiant du trimestre.
+   * @returns {string} Le nom du trimestre ou l'identifiant lui-même si non trouvé.
+   */
+  const getQuarterName = (quarterId: string | undefined): string => {
+    if (!quarterId) return '';
+    const quarter = quarters.find(q => q.id === quarterId);
+    return quarter ? quarter.SH_Display_Name_FR || quarter.SH_Code || quarterId : quarterId;
+  };
+
+  /**
+   * NOUVEAU : Récupère le nom affichable d'une année à partir de son identifiant.
+   * @param {string | undefined} yearId - L'identifiant de l'année.
+   * @returns {string} Le nom de l'année ou l'identifiant lui-même si non trouvé.
+   */
+  const getYearName = (yearId: string | undefined): string => {
+    if (!yearId) return '';
+    const year = years.find(y => y.id === yearId);
+    return year ? year.SH_Display_Name_FR || year.SH_Code || yearId : yearId;
   };
 
   /**
@@ -199,7 +299,7 @@ export default function CampaignTable({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {campaign.CA_Quarter} {campaign.CA_Year}
+                    {getQuarterName(campaign.CA_Quarter)} {getYearName(campaign.CA_Year)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
@@ -259,7 +359,7 @@ export default function CampaignTable({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-900 font-medium">
-                      {campaign.CA_Quarter} {campaign.CA_Year}
+                      {getQuarterName(campaign.CA_Quarter)} {getYearName(campaign.CA_Year)}
                     </span>
                     <span className="text-sm font-medium text-gray-900">
                       {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}

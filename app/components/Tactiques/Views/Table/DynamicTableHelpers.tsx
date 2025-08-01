@@ -187,7 +187,7 @@ export function processTableRows(
           searchFields.push(data.TC_Label, data.TC_Publisher, data.TC_Media_Type);
           break;
         case 'placement':
-          searchFields.push(data.PL_Label, data.TAX_Product, data.TAX_Location);
+          searchFields.push(data.PL_Label, data.PL_Product, data.PL_Location);
           break;
         case 'creatif':
           searchFields.push(data.CR_Label, data.CR_CTA, data.CR_Offer);

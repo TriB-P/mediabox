@@ -63,15 +63,30 @@ export default function PlacementDrawer({
       console.log('📦 Placement reçu:', placement);
       console.log('📋 Clés du placement:', Object.keys(placement));
       
-      // Vérifier les champs TAX_ directement sur l'objet placement
+      // Vérifier les champs PL_ directement sur l'objet placement
       const directTaxFields = {
-        TAX_Product: placement.TAX_Product,
-        TAX_Audience_Demographics: placement.TAX_Audience_Demographics,
-        TAX_Location: placement.TAX_Location,
-        TAX_Device: placement.TAX_Device,
-        TAX_Targeting: placement.TAX_Targeting
+        PL_Audience_Behaviour: placement.PL_Audience_Behaviour,
+        PL_Audience_Demographics: placement.PL_Audience_Demographics,
+        PL_Audience_Engagement: placement.PL_Audience_Engagement,
+        PL_Audience_Interest: placement.PL_Audience_Interest,
+        PL_Audience_Other: placement.PL_Audience_Other,
+        PL_Creative_Grouping: placement.PL_Creative_Grouping,
+        PL_Device: placement.PL_Device,
+        PL_Market_Details: placement.PL_Market_Details,
+        PL_Product: placement.PL_Product,
+        PL_Segment_Open: placement.PL_Segment_Open,
+        PL_Tactic_Category: placement.PL_Tactic_Category,
+        PL_Targeting: placement.PL_Targeting,
+        PL_Custom_Dim_1: placement.PL_Custom_Dim_1,
+        PL_Custom_Dim_2: placement.PL_Custom_Dim_2,
+        PL_Custom_Dim_3: placement.PL_Custom_Dim_3,
+        PL_Channel: placement.PL_Channel,
+        PL_Format: placement.PL_Format,
+        PL_Language: placement.PL_Language,
+        PL_Placement_Location: placement.PL_Placement_Location,
+
       };
-      console.log('🏷️ Champs TAX_ directs:', directTaxFields);
+      console.log('🏷️ Champs PL_ directs:', directTaxFields);
       
       // Vérifier PL_Taxonomy_Values
       console.log('📊 PL_Taxonomy_Values:', placement.PL_Taxonomy_Values);
@@ -80,7 +95,7 @@ export default function PlacementDrawer({
       const taxFromTaxonomyValues: any = {};
       if (placement.PL_Taxonomy_Values) {
         Object.keys(placement.PL_Taxonomy_Values).forEach(key => {
-          if (key.startsWith('TAX_')) {
+          if (key.startsWith('PL_')) {
             const taxonomyValue = placement.PL_Taxonomy_Values![key];
             taxFromTaxonomyValues[key] = taxonomyValue.openValue || taxonomyValue.value || '';
             console.log(`🔄 Récupération ${key} depuis PL_Taxonomy_Values:`, taxFromTaxonomyValues[key]);
@@ -94,7 +109,27 @@ export default function PlacementDrawer({
       
       // Priorité: champs directs > taxonomy values > vide
       const finalTaxFields: any = {};
-      ['TAX_Product', 'TAX_Audience_Demographics', 'TAX_Location', 'TAX_Device', 'TAX_Targeting'].forEach(field => {
+      [
+      'PL_Audience_Behaviour',
+      'PL_Audience_Demographics',
+       'PL_Audience_Engagement',
+       'PL_Audience_Interest',
+       'PL_Audience_Other',
+       'PL_Creative_Grouping',
+       'PL_Device',
+       'PL_Market_Details',
+       'PL_Product',
+       'PL_Segment_Open',
+       'PL_Tactic_Category',
+       'PL_Targeting',
+       'PL_Custom_Dim_1',
+       'PL_Custom_Dim_2',
+       'PL_Custom_Dim_3',
+       'PL_Channel',
+       'PL_Format',
+       'PL_Language',
+       'PL_Placement_Location'
+     ].forEach(field => {
         finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || 
                                taxFromTaxonomyValues[field] || 
                                '';
@@ -116,13 +151,7 @@ export default function PlacementDrawer({
       };
       
       console.log('✅ FormData final après restauration:', newFormData);
-      console.log('🎯 Champs TAX_ dans formData final:', {
-        TAX_Product: newFormData.TAX_Product,
-        TAX_Audience_Demographics: newFormData.TAX_Audience_Demographics,
-        TAX_Location: newFormData.TAX_Location,
-        TAX_Device: newFormData.TAX_Device,
-        TAX_Targeting: newFormData.TAX_Targeting
-      });
+
       console.log('🔍 === FIN DEBUG PLACEMENT DRAWER ===');
       
       setFormData(newFormData);
@@ -164,15 +193,7 @@ export default function PlacementDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log('💾 === SAUVEGARDE PLACEMENT ===');
-      console.log('📤 FormData envoyé:', formData);
-      console.log('🎯 Champs TAX_ envoyés:', {
-        TAX_Product: formData.TAX_Product,
-        TAX_Audience_Demographics: formData.TAX_Audience_Demographics,
-        TAX_Location: formData.TAX_Location,
-        TAX_Device: formData.TAX_Device,
-        TAX_Targeting: formData.TAX_Targeting
-      });
+
       
       // 1. ✅ Sauvegarder rapidement le placement
       await onSave(formData);

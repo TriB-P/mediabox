@@ -330,31 +330,31 @@ const PLACEMENT_INFO_COLUMNS: DynamicColumn[] = [
  */
 const PLACEMENT_TAXONOMIE_COLUMNS: DynamicColumn[] = [
   {
-    key: 'TAX_Product',
+    key: 'PL_Product',
     label: 'Produit',
     type: 'text',
     width: 150
   },
   {
-    key: 'TAX_Location',
+    key: 'PL_Location',
     label: 'Emplacement',
     type: 'text',
     width: 150
   },
   {
-    key: 'TAX_Audience_Demographics',
+    key: 'PL_Audience_Demographics',
     label: 'Démographie',
     type: 'text',
     width: 150
   },
   {
-    key: 'TAX_Device',
+    key: 'PL_Device',
     label: 'Appareil',
     type: 'text',
     width: 120
   },
   {
-    key: 'TAX_Targeting',
+    key: 'PL_Targeting',
     label: 'Ciblage',
     type: 'text',
     width: 140

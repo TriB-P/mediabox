@@ -119,7 +119,7 @@ function formatShortcodeValue(
  * Résout la valeur d'une variable de taxonomie en fonction de sa source et du contexte fourni.
  * La résolution prend en compte les valeurs manuelles du créatif, puis les données
  * de la campagne, de la tactique et du placement.
- * @param variableName Le nom de la variable à résoudre (ex: 'TAX_Product').
+ * @param variableName Le nom de la variable à résoudre (ex: 'PL_Product').
  * @param format Le format de sortie désiré pour la variable.
  * @param context Le contexte de résolution contenant les données de la campagne, tactique, placement, créatif et les caches.
  * @returns La valeur résolue et formatée de la variable.
@@ -195,9 +195,9 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
 
 /**
  * Génère une chaîne de taxonomie en résolvant les variables contenues dans une structure donnée.
- * La fonction parcourt la structure, identifie les variables (ex: [TAX_Product:code]) et les groupes (<...>),
+ * La fonction parcourt la structure, identifie les variables (ex: [PL_Product:code]) et les groupes (<...>),
  * puis résout chaque variable en utilisant le contexte fourni.
- * @param structure La chaîne de structure de taxonomie à traiter (ex: "[TAX_Product:code]_[TAX_Audience:display_fr]").
+ * @param structure La chaîne de structure de taxonomie à traiter (ex: "[PL_Product:code]_[PL_Audience:display_fr]").
  * @param context Le contexte de résolution.
  * @returns La chaîne de taxonomie finale avec les variables résolues.
  */

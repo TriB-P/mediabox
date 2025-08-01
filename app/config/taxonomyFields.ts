@@ -48,6 +48,52 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'CA_Start_Date': { source: 'campaign', allowedFormats: ['open'] },
   'CA_Budget': { source: 'campaign', allowedFormats: ['open'] },
   'CA_Year': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+
+  'TC_AssetDate': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Billing_ID': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_BuyCurrency': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Buying_Method': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Custom_Dim_1': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'TC_Custom_Dim_2': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'TC_Custom_Dim_3': { source: 'tactique', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'TC_Location_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Start_Date': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_End_Date': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Format_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Frequence': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Inventory': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Kpi': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Language_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_LOB': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Market': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Market_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Media_Objective': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Media_Type': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_PO': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Product_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Publisher': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Targeting_Open': { source: 'tactique',  allowedFormats: ['open'] },
+  'TC_Unit_Type': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+
+  'PL_Audience_Behaviour': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Audience_Demographics': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Audience_Engagement': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Audience_Interest': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Audience_Other': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Creative_Grouping': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Device': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Market_Details': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Product': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Segment_Open': { source: 'placement',  allowedFormats: ['open'] },
+  'PL_Tactic_Category': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Targeting': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Custom_Dim_1': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'PL_Custom_Dim_2': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'PL_Custom_Dim_3': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'PL_Channel': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Format': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Language': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Placement_Location': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
 };
 
 export const TAXONOMY_FORMATS: FormatOption[] = [
@@ -270,13 +316,13 @@ export function getCreatifVariableNames(): string[] {
 }
 
 /**
- * Extrait tous les noms de variables qui ont la source 'manual' et commencent par 'TAX_' (pour les placements).
+ * Extrait tous les noms de variables qui ont la source 'manual' et commencent par 'PL_' (pour les placements).
  * Ces variables sont spécifiquement liées aux placements.
  * @returns Un tableau de chaînes de caractères représentant les noms des variables de placement manuelles.
  */
 export function getPlacementVariableNames(): string[] {
   return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('TAX_'))
+    .filter(([variableName, config]) => config.source === 'manual' && variableName.startsWith('PL_'))
     .map(([variableName, _]) => variableName);
 }
 
@@ -369,11 +415,11 @@ export function isCreatifVariable(variableName: string): boolean {
 }
 
 /**
- * Valide si un nom de variable donné correspond à un champ de placement (soit source 'placement', soit manuel et commençant par 'TAX_').
+ * Valide si un nom de variable donné correspond à un champ de placement (soit source 'placement', soit manuel et commençant par 'PL_').
  * @param variableName - Le nom de la variable à valider.
  * @returns Vrai si la variable est un champ de placement, faux sinon.
  */
 export function isPlacementVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'placement' || (config.source === 'manual' && variableName.startsWith('TAX_')) : false;
+  return config ? config.source === 'placement' || (config.source === 'manual' && variableName.startsWith('PL_')) : false;
 }

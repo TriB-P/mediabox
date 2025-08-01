@@ -82,7 +82,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
               onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
             }}
             options={[
-              { id: '', label: 'Saisie libre...' }, // 🔥 NOUVEAU: Option pour passer en mode libre
+              
               ...fieldState.options
             ]}
             placeholder={fieldState.isLoading ? "Chargement..." : "Sélectionner..."}

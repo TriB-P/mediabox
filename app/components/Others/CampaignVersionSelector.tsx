@@ -1,9 +1,13 @@
+// app/components/Others/CampaignVersionSelector.tsx
+
 /**
  * Ce fichier contient les composants et le hook nécessaires pour afficher des sélecteurs de campagne et de version.
  * Il est conçu pour être réutilisable à travers l'application.
  * - `CampaignVersionSelector` : Le composant principal qui affiche deux listes déroulantes.
  * - `CompactCampaignVersionSelector` : Une variante plus petite du composant principal.
  * - `useCampaignVersionSelector` : Un hook personnalisé pour gérer facilement l'état de sélection.
+ * 
+ * MODIFIÉ : Support des shortcodes pour CA_Quarter et CA_Year (comme CA_Division).
  */
 'use client';
 
@@ -11,7 +15,16 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDownIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Campaign } from '../../types/campaign';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { useClient } from '../../contexts/ClientContext';
 
+// Import des fonctions de cache
+import {
+  getListForClient,
+  ShortcodeItem as CachedShortcodeItem
+} from '../../lib/cacheService';
+
+// Import de la fonction Firebase fallback
+import { getClientList } from '../../lib/listService';
 
 interface Version {
   id: string;
@@ -62,12 +75,116 @@ export default function CampaignVersionSelector({
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   const [campaignSearchTerm, setCampaignSearchTerm] = useState('');
 
+  // NOUVEAU : États pour les listes de shortcodes
+  const [quarters, setQuarters] = useState<CachedShortcodeItem[]>([]);
+  const [years, setYears] = useState<CachedShortcodeItem[]>([]);
+
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
   const campaignSearchRef = useRef<HTMLInputElement>(null);
 
   const { t } = useTranslation();
+  const { selectedClient } = useClient();
 
+  // NOUVEAU : Charger les listes de shortcodes
+  useEffect(() => {
+    const loadShortcodeLists = async () => {
+      if (!selectedClient) return;
+
+      try {
+        // Charger CA_Quarter depuis le cache
+        console.log(`[CACHE] Chargement CA_Quarter pour client ${selectedClient.clientId}`);
+        const quartersFromCache = getListForClient('CA_Quarter', selectedClient.clientId);
+        
+        if (quartersFromCache && quartersFromCache.length > 0) {
+          console.log(`[CACHE] ✅ CA_Quarter trouvé dans le cache (${quartersFromCache.length} éléments)`);
+          setQuarters(quartersFromCache);
+        } else {
+          console.log(`[CACHE] ⚠️ CA_Quarter non trouvé dans le cache, fallback Firebase`);
+          console.log(`FIREBASE: LECTURE - Fichier: CampaignVersionSelector.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/${selectedClient.clientId}/CA_Quarter`);
+          
+          const quartersData = await getClientList('CA_Quarter', selectedClient.clientId)
+            .catch(() => {
+              console.log("FIREBASE: LECTURE - Fichier: CampaignVersionSelector.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/PlusCo/CA_Quarter");
+              return getClientList('CA_Quarter', 'PlusCo');
+            });
+
+          // Convertir au format CachedShortcodeItem
+          const convertedQuarters: CachedShortcodeItem[] = quartersData.map(item => ({
+            id: item.id,
+            SH_Code: item.SH_Code,
+            SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
+            SH_Default_UTM: item.SH_Default_UTM,
+            SH_Logo: item.SH_Logo,
+            SH_Type: item.SH_Type,
+            SH_Tags: item.SH_Tags || []
+          }));
+
+          setQuarters(convertedQuarters);
+        }
+
+        // Charger CA_Year depuis le cache
+        console.log(`[CACHE] Chargement CA_Year pour client ${selectedClient.clientId}`);
+        const yearsFromCache = getListForClient('CA_Year', selectedClient.clientId);
+        
+        if (yearsFromCache && yearsFromCache.length > 0) {
+          console.log(`[CACHE] ✅ CA_Year trouvé dans le cache (${yearsFromCache.length} éléments)`);
+          setYears(yearsFromCache);
+        } else {
+          console.log(`[CACHE] ⚠️ CA_Year non trouvé dans le cache, fallback Firebase`);
+          console.log(`FIREBASE: LECTURE - Fichier: CampaignVersionSelector.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/${selectedClient.clientId}/CA_Year`);
+          
+          const yearsData = await getClientList('CA_Year', selectedClient.clientId)
+            .catch(() => {
+              console.log("FIREBASE: LECTURE - Fichier: CampaignVersionSelector.tsx - Fonction: loadShortcodeLists - Path: shortcodes/clients/PlusCo/CA_Year");
+              return getClientList('CA_Year', 'PlusCo');
+            });
+
+          // Convertir au format CachedShortcodeItem
+          const convertedYears: CachedShortcodeItem[] = yearsData.map(item => ({
+            id: item.id,
+            SH_Code: item.SH_Code,
+            SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
+            SH_Default_UTM: item.SH_Default_UTM,
+            SH_Logo: item.SH_Logo,
+            SH_Type: item.SH_Type,
+            SH_Tags: item.SH_Tags || []
+          }));
+
+          setYears(convertedYears);
+        }
+
+      } catch (error) {
+        console.warn('Erreur lors du chargement des listes de shortcodes:', error);
+      }
+    };
+
+    loadShortcodeLists();
+  }, [selectedClient]);
+
+  /**
+   * NOUVEAU : Récupère le nom affichable d'un trimestre à partir de son identifiant.
+   * @param {string | undefined} quarterId - L'identifiant du trimestre.
+   * @returns {string} Le nom du trimestre ou l'identifiant lui-même si non trouvé.
+   */
+  const getQuarterName = useCallback((quarterId: string | undefined): string => {
+    if (!quarterId) return '';
+    const quarter = quarters.find(q => q.id === quarterId);
+    return quarter ? quarter.SH_Display_Name_FR || quarter.SH_Code || quarterId : quarterId;
+  }, [quarters]);
+
+  /**
+   * NOUVEAU : Récupère le nom affichable d'une année à partir de son identifiant.
+   * @param {string | undefined} yearId - L'identifiant de l'année.
+   * @returns {string} Le nom de l'année ou l'identifiant lui-même si non trouvé.
+   */
+  const getYearName = useCallback((yearId: string | undefined): string => {
+    if (!yearId) return '';
+    const year = years.find(y => y.id === yearId);
+    return year ? year.SH_Display_Name_FR || year.SH_Code || yearId : yearId;
+  }, [years]);
 
   useEffect(() => {
     if (autoSelectVersion && selectedCampaign && versions.length === 1 && !selectedVersion) {
@@ -250,7 +367,7 @@ export default function CampaignVersionSelector({
                           <div className="font-medium">{campaign.CA_Name}</div>
                           {!compact && (
                             <div className="text-xs text-gray-500 mt-0.5">
-                              {campaign.CA_Year} • {campaign.CA_Quarter}
+                              {getYearName(campaign.CA_Year)} • {getQuarterName(campaign.CA_Quarter)}
                             </div>
                           )}
                         </div>
@@ -327,66 +444,4 @@ export default function CampaignVersionSelector({
       </div>
     </div>
   );
-}
-
-interface CompactCampaignVersionSelectorProps extends Omit<CampaignVersionSelectorProps, 'compact'> {
-  orientation?: 'horizontal' | 'vertical';
-}
-
-/**
- * Un wrapper pour `CampaignVersionSelector` qui applique un style compact.
- * Utile pour les interfaces où l'espace est limité.
- * @param {CompactCampaignVersionSelectorProps} props - Les propriétés pour configurer le composant, avec l'ajout de `orientation`.
- * @returns {JSX.Element} Le composant `CampaignVersionSelector` en mode compact.
- */
-export function CompactCampaignVersionSelector({
-  orientation = 'horizontal',
-  ...props
-}: CompactCampaignVersionSelectorProps) {
-  
-  const orientationClasses = orientation === 'vertical' 
-    ? 'flex-col space-y-2' 
-    : 'flex-row space-x-2';
-  
-  return (
-    <div className={orientationClasses}>
-      <CampaignVersionSelector
-        {...props}
-        compact={true}
-        className="w-full"
-      />
-    </div>
-  );
-}
-
-/**
- * Hook personnalisé pour simplifier la gestion de l'état du `CampaignVersionSelector`.
- * Il gère la campagne et la version sélectionnées et fournit des fonctions pour les mettre à jour et les réinitialiser.
- * @returns {{selectedCampaign: Campaign | null, selectedVersion: Version | null, handleCampaignChange: (campaign: Campaign) => void, handleVersionChange: (version: Version) => void, reset: () => void}} Un objet contenant l'état et les gestionnaires d'état.
- */
-export function useCampaignVersionSelector() {
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
-  
-  const handleCampaignChange = useCallback((campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    setSelectedVersion(null);
-  }, []);
-  
-  const handleVersionChange = useCallback((version: Version) => {
-    setSelectedVersion(version);
-  }, []);
-  
-  const reset = useCallback(() => {
-    setSelectedCampaign(null);
-    setSelectedVersion(null);
-  }, []);
-  
-  return {
-    selectedCampaign,
-    selectedVersion,
-    handleCampaignChange,
-    handleVersionChange,
-    reset
-  };
 }

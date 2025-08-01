@@ -149,11 +149,25 @@ export interface Placement {
   PL_Taxonomy_MediaOcean?: string;
 
   // Champs de placement
-  TAX_Product?: string;
-  TAX_Audience_Demographics?: string;
-  TAX_Location?: string;
-  TAX_Device?: string;
-  TAX_Targeting?: string;
+  PL_Audience_Behaviour?: string;
+  PL_Audience_Demographics?: string;
+  PL_Audience_Engagement?: string;
+  PL_Audience_Interest?: string;
+  PL_Audience_Other?: string;
+  PL_Creative_Grouping?: string;
+  PL_Device?: string;
+  PL_Market_Details?: string;
+  PL_Product?: string;
+  PL_Segment_Open?: string;
+  PL_Tactic_Category?: string;
+  PL_Targeting?: string;
+  PL_Custom_Dim_1?: string;
+  PL_Custom_Dim_2?: string;
+  PL_Custom_Dim_3?: string;
+  PL_Channel?: string;
+  PL_Format?: string;
+  PL_Language?: string;
+  PL_Placement_Location?: string;
 
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;
@@ -305,11 +319,25 @@ export interface PlacementFormData {
   PL_Taxonomy_MediaOcean?: string;
 
   // Champs de placement
-  TAX_Product?: string;
-  TAX_Location?: string;
-  TAX_Audience_Demographics?: string;
-  TAX_Device?: string;
-  TAX_Targeting?: string;
+  PL_Audience_Behaviour?: string;
+  PL_Audience_Demographics?: string;
+  PL_Audience_Engagement?: string;
+  PL_Audience_Interest?: string;
+  PL_Audience_Other?: string;
+  PL_Creative_Grouping?: string;
+  PL_Device?: string;
+  PL_Market_Details?: string;
+  PL_Product?: string;
+  PL_Segment_Open?: string;
+  PL_Tactic_Category?: string;
+  PL_Targeting?: string;
+  PL_Custom_Dim_1?: string;
+  PL_Custom_Dim_2?: string;
+  PL_Custom_Dim_3?: string;
+  PL_Channel?: string;
+  PL_Format?: string;
+  PL_Language?: string;
+  PL_Placement_Location?: string;
 
   PL_Taxonomy_Values?: TaxonomyValues;
   PL_Generated_Taxonomies?: GeneratedTaxonomies;

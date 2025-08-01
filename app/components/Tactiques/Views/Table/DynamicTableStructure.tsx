@@ -248,11 +248,11 @@ export default function DynamicTableStructure({
       console.log('⚠️ Aucune taxonomie sélectionnée, affichage des champs de base');
       // Aucune taxonomie sélectionnée, afficher les champs manuels de base
       return [
-        { key: 'TAX_Product', label: 'Produit', type: 'text', width: 150 },
-        { key: 'TAX_Location', label: 'Emplacement', type: 'text', width: 150 },
-        { key: 'TAX_Audience_Demographics', label: 'Démographie', type: 'text', width: 150 },
-        { key: 'TAX_Device', label: 'Appareil', type: 'text', width: 120 },
-        { key: 'TAX_Targeting', label: 'Ciblage', type: 'text', width: 140 }
+        { key: 'PL_Product', label: 'Produit', type: 'text', width: 150 },
+        { key: 'PL_Location', label: 'Emplacement', type: 'text', width: 150 },
+        { key: 'PL_Audience_Demographics', label: 'Démographie', type: 'text', width: 150 },
+        { key: 'PL_Device', label: 'Appareil', type: 'text', width: 120 },
+        { key: 'PL_Targeting', label: 'Ciblage', type: 'text', width: 140 }
       ];
     }
 
@@ -309,11 +309,11 @@ export default function DynamicTableStructure({
     const knownManualVariables = getManualVariableNames();
     console.log('📋 Variables manuelles connues:', knownManualVariables);
     
-    // CORRECTION : Filtrage plus intelligent - inclure les variables TAX_ même si elles ne sont pas dans la liste
+    // CORRECTION : Filtrage plus intelligent - inclure les variables PL_ même si elles ne sont pas dans la liste
     const relevantVariables = Array.from(allManualVariables).filter(varName => {
-      // Toujours inclure les variables TAX_ (champs placement)
-      if (varName.startsWith('TAX_')) {
-        console.log(`✅ Variable TAX_ acceptée: ${varName}`);
+      // Toujours inclure les variables PL_ (champs placement)
+      if (varName.startsWith('PL_')) {
+        console.log(`✅ Variable PL_ acceptée: ${varName}`);
         return true;
       }
       
@@ -323,7 +323,7 @@ export default function DynamicTableStructure({
         return true;
       }
       
-      console.log(`❌ Variable rejetée: ${varName} (ni TAX_ ni dans les connues)`);
+      console.log(`❌ Variable rejetée: ${varName} (ni PL_ ni dans les connues)`);
       return false;
     });
     console.log('✅ Variables pertinentes après correction:', relevantVariables);
