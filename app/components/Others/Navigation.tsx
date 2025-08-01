@@ -28,6 +28,9 @@ import {
   ShieldPlus
 } from 'lucide-react';
 
+import { useTranslation } from '../../contexts/LanguageContext';
+
+
 /**
  * @function Navigation
  * @summary Le composant principal pour la barre de navigation latérale.
@@ -42,17 +45,19 @@ export default function Navigation() {
   if (!user) return null;
 
   const isAdmin = userRole === 'admin';
+  const { t } = useTranslation();
+
 
   const navigationItems = [
-    { name: 'Campagnes', href: '/campaigns', icon: LayoutDashboard },
-    { name: 'Stratégie', href: '/strategy', icon: LineChart },
-    { name: 'Tactiques', href: '/tactiques', icon: Layers },
-    { name: 'Documents', href: '/documents', icon: FileText },
-    { name: 'Guide de coût', href: '/guide-de-cout', icon: DollarSign },
-    { name: 'Partenaires', href: '/partenaires', icon: Users },
-    { name: 'Client', href: '/client-config', icon: Settings },
-    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: ShieldPlus }] : []),
-    { name: 'Aide', href: '/aide', icon: HelpCircle }
+    { name: t('navigation.menus.campaigns'), href: '/campaigns', icon: LayoutDashboard },
+    { name: t('navigation.menus.strategy'), href: '/strategy', icon: LineChart },
+    { name: t('navigation.menus.tactics'), href: '/tactiques', icon: Layers },
+    { name: t('navigation.menus.documents'), href: '/documents', icon: FileText },
+    { name: t('navigation.menus.costGuide'), href: '/guide-de-cout', icon: DollarSign },
+    { name: t('navigation.menus.partners'), href: '/partenaires', icon: Users },
+    { name: t('navigation.menus.clientConfig'), href: '/client-config', icon: Settings },
+    ...(isAdmin ? [{ name: t('navigation.menus.admin'), href: '/admin', icon: ShieldPlus }] : []),
+    { name: t('navigation.menus.help'), href: '/aide', icon: HelpCircle }
   ];
 
   /**

@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon, DocumentTextIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useClient } from '../../contexts/ClientContext';
 import { useSelection } from '../../contexts/SelectionContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { useCreateDocument } from '../../hooks/documents/useCreateDocument';
 import { getTemplatesByClient } from '../../lib/templateService';
 import { getCampaigns } from '../../lib/campaignService';
@@ -39,6 +40,7 @@ export default function CreateDocumentModal({
 }: CreateDocumentModalProps) {
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId } = useSelection();
+  const { t } = useTranslation();
   const { createDocument, loading: createLoading, error: createError, progress } = useCreateDocument();
   
   // États du formulaire
@@ -73,11 +75,11 @@ export default function CreateDocumentModal({
       setTemplates(clientTemplates);
     } catch (err) {
       console.error('Erreur lors du chargement des templates:', err);
-      setDataError('Impossible de charger les templates du client.');
+      setDataError(t('createDocument.errors.loadTemplates'));
     } finally {
       setDataLoading(false);
     }
-  }, [selectedClient]);
+  }, [selectedClient, t]);
 
   /**
    * Charge les informations de la campagne et version sélectionnées pour affichage.
@@ -93,18 +95,18 @@ export default function CreateDocumentModal({
       // Charger les informations de la campagne
       const campaigns = await getCampaigns(selectedClient.clientId);
       const campaign = campaigns.find(c => c.id === selectedCampaignId);
-      setCampaignName(campaign?.CA_Name || 'Campagne inconnue');
+      setCampaignName(campaign?.CA_Name || t('createDocument.unknownCampaign'));
 
       // Charger les informations de la version
       const versions = await getVersions(selectedClient.clientId, selectedCampaignId);
       const version = versions.find(v => v.id === selectedVersionId);
-      setVersionName(version?.name || 'Version inconnue');
+      setVersionName(version?.name || t('createDocument.unknownVersion'));
     } catch (err) {
       console.error('Erreur lors du chargement des informations:', err);
-      setCampaignName('Erreur de chargement');
-      setVersionName('Erreur de chargement');
+      setCampaignName(t('createDocument.loadingError'));
+      setVersionName(t('createDocument.loadingError'));
     }
-  }, [selectedClient, selectedCampaignId, selectedVersionId]);
+  }, [selectedClient, selectedCampaignId, selectedVersionId, t]);
 
   // Charger les données initiales
   useEffect(() => {
@@ -143,27 +145,27 @@ export default function CreateDocumentModal({
     setFormError(null);
 
     if (!documentName.trim()) {
-      setFormError('Veuillez saisir un nom pour le document.');
+      setFormError(t('createDocument.validation.nameRequired'));
       return false;
     }
 
     if (!selectedTemplate) {
-      setFormError('Veuillez sélectionner un template.');
+      setFormError(t('createDocument.validation.templateRequired'));
       return false;
     }
 
     if (!selectedCampaignId) {
-      setFormError('Aucune campagne sélectionnée. Veuillez sélectionner une campagne depuis la page principale.');
+      setFormError(t('createDocument.validation.noCampaign'));
       return false;
     }
 
     if (!selectedVersionId) {
-      setFormError('Aucune version sélectionnée. Veuillez sélectionner une version depuis la page principale.');
+      setFormError(t('createDocument.validation.noVersion'));
       return false;
     }
 
     return true;
-  }, [documentName, selectedTemplate, selectedCampaignId, selectedVersionId]);
+  }, [documentName, selectedTemplate, selectedCampaignId, selectedVersionId, t]);
 
   /**
    * Gère la soumission du formulaire et lance la création du document.
@@ -218,7 +220,7 @@ export default function CreateDocumentModal({
               <div className="flex items-center space-x-3">
                 <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
                 <h3 className="text-lg font-medium text-gray-900">
-                  Créer un nouveau document
+                  {t('createDocument.title')}
                 </h3>
               </div>
               <button
@@ -249,9 +251,9 @@ export default function CreateDocumentModal({
                   <div className="flex">
                     <CheckCircleIcon className="h-5 w-5 text-green-400 mr-2" />
                     <div>
-                      <p className="text-sm font-medium">Document créé avec succès !</p>
+                      <p className="text-sm font-medium">{t('createDocument.success.title')}</p>
                       <p className="text-sm mt-1">
-                        Le document "{creationResult.document?.name}" est maintenant disponible.
+                        {t('createDocument.success.message', { name: creationResult.document?.name ?? '' })}
                       </p>
                       {creationResult.document?.url && (
                         <a
@@ -260,7 +262,7 @@ export default function CreateDocumentModal({
                           rel="noopener noreferrer"
                           className="text-sm text-green-600 hover:text-green-800 underline mt-1 inline-block"
                         >
-                          Ouvrir le document →
+                          {t('createDocument.success.openDocument')}
                         </a>
                       )}
                     </div>
@@ -296,19 +298,18 @@ export default function CreateDocumentModal({
               {/* Informations sur la campagne et version sélectionnées */}
               {selectedCampaignId && selectedVersionId && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-           
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-blue-700 font-medium">Campagne : </span>
+                      <span className="text-blue-700 font-medium">{t('createDocument.campaignLabel')}: </span>
                       <span className="text-blue-600">{campaignName}</span>
                     </div>
                     <div>
-                      <span className="text-blue-700 font-medium">Version : </span>
+                      <span className="text-blue-700 font-medium">{t('createDocument.versionLabel')}: </span>
                       <span className="text-blue-600">{versionName}</span>
                     </div>
                   </div>
                   <p className="text-xs text-blue-600 mt-2">
-                    Pour changer, retournez à la page principale.
+                    {t('createDocument.changeSelectionNote')}
                   </p>
                 </div>
               )}
@@ -319,9 +320,9 @@ export default function CreateDocumentModal({
                   <div className="flex">
                     <ExclamationTriangleIcon className="h-5 w-5 text-amber-400 mr-2" />
                     <div>
-                      <p className="text-sm font-medium text-amber-800">Sélection manquante</p>
+                      <p className="text-sm font-medium text-amber-800">{t('createDocument.missingSelection.title')}</p>
                       <p className="text-sm text-amber-700 mt-1">
-                        Veuillez sélectionner une campagne et une version depuis la page principale avant de créer un document.
+                        {t('createDocument.missingSelection.message')}
                       </p>
                     </div>
                   </div>
@@ -334,14 +335,14 @@ export default function CreateDocumentModal({
                 {/* Nom du document */}
                 <div>
                   <label htmlFor="document-name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Nom du document *
+                    {t('createDocument.form.nameLabel')}
                   </label>
                   <input
                     type="text"
                     id="document-name"
                     value={documentName}
                     onChange={(e) => setDocumentName(e.target.value)}
-                    placeholder="Ex: Plan Média Q1 2024"
+                    placeholder={t('createDocument.form.namePlaceholder')}
                     disabled={createLoading || dataLoading || !selectedCampaignId || !selectedVersionId}
                     className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
                       createLoading || dataLoading || !selectedCampaignId || !selectedVersionId ? 'bg-gray-100 cursor-not-allowed' : ''
@@ -353,7 +354,7 @@ export default function CreateDocumentModal({
                 {/* Sélection du template */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Template *
+                    {t('createDocument.form.templateLabel')}
                   </label>
                   {dataLoading ? (
                     <div className="animate-pulse bg-gray-200 h-10 rounded-md"></div>
@@ -370,7 +371,7 @@ export default function CreateDocumentModal({
                       }`}
                       required
                     >
-                      <option value="">Sélectionner un template</option>
+                      <option value="">{t('createDocument.form.templatePlaceholder')}</option>
                       {templates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.TE_Name} ({template.TE_Language})
@@ -379,7 +380,7 @@ export default function CreateDocumentModal({
                     </select>
                   )}
                   <p className="mt-1 text-xs text-gray-500">
-                    Les shortcodes seront convertis selon la langue du template sélectionné.
+                    {t('createDocument.form.templateHelp')}
                   </p>
                 </div>
 
@@ -393,7 +394,7 @@ export default function CreateDocumentModal({
                       createLoading ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -407,10 +408,10 @@ export default function CreateDocumentModal({
                     {createLoading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Création en cours...
+                        {t('createDocument.form.creating')}
                       </>
                     ) : (
-                      'Créer le document'
+                      t('createDocument.form.createButton')
                     )}
                   </button>
                 </div>

@@ -4,9 +4,10 @@
  * Contient toutes les traductions en français et anglais.
  */
 
+import ClientDropdown from "@/components/Others/ClientDropdown";
+
 export const translations = {
   fr: {
-    // Ajout de la section navigation pour le modal de version
     navigation: {
       version: {
         title: "Informations de version",
@@ -17,6 +18,17 @@ export const translations = {
         previousVersions: "Versions précédentes",
         upcomingFeatures: "Fonctionnalités à venir",
         upcomingDisclaimer: "Ces fonctionnalités sont en développement et peuvent changer."
+      },
+      menus:{
+        campaigns: "Campagnes",
+        strategy: "Stratégie",
+        tactics: "Tactiques",
+        documents: "Documents",
+        costGuide: "Guide de coût",
+        partners: "Partenaires",
+        clientConfig: "Client",
+        admin: "Admin",
+        help: "Aide"
       }
     },
     admin: {
@@ -452,7 +464,8 @@ export const translations = {
       warning: "Attention",
       error: "Erreur",
       success: "Succès",
-      info: "Information"
+      info: "Information",
+      logout: "Déconnexion",
     },
     errors: {
       generic: "Une erreur inattendue s'est produite",
@@ -509,9 +522,270 @@ export const translations = {
       refreshSuccessMessage: "Mise à jour complétée",
       refreshErrorMessage: "Erreur lors de l'actualisation du cache"
     },
-  },
+    documents: {
+        title: "Documents",
+        newDocument: "Nouveau document",
+        newDocumentDisabled: "Sélectionnez un client pour créer un document",
+        noClientSelected: "Aucun client sélectionné",
+        noClientMessage: "Veuillez sélectionner un client dans la barre de navigation pour gérer ses documents.",
+        loadingDocuments: "Chargement des documents...",
+        selectCampaign: "Sélectionnez une campagne",
+        selectCampaignMessage: "Choisissez une campagne et une version pour voir les documents associés.",
+        selectVersion: "Sélectionnez une version",
+        selectVersionMessage: "Choisissez une version pour voir les documents associés.",
+        noDocuments: "Aucun document",
+        noDocumentsMessage: "Cette version ne contient pas encore de documents.",
+        createFirstDocument: "Créer le premier document",
+        documentCountPlural: "documents",
+        documentCount: "document",
+        unlinked: "Dissocié",
+        syncInfo: "Sync: {{date}}{{status}}",
+        syncFailed: "échec",
+        errorLabel: "Erreur",
+        status: {
+          completed: "Terminé",
+          error: "Erreur",
+          creating: "En création...",
+          unknown: "Inconnu"
+        },
+        actions: {
+          open: "Ouvrir",
+          refreshTooltip: "Actualiser les données du document",
+          unlinkTooltip: "Dissocier le document (créer une copie statique)",
+          deleteTooltip: "Supprimer le document et le fichier Google Drive",
+          deleteConfirm: "Êtes-vous sûr de vouloir supprimer le document \"{{name}}\" ?\n\nCette action supprimera :\n- L'entrée de la base de données\n- Le fichier Google Drive associé\n\nCette action est irréversible."
+        },
+        errors: {
+          loadCampaigns: "Impossible de charger les campagnes.",
+          loadVersions: "Impossible de charger les versions.",
+          loadDocuments: "Impossible de charger les documents.",
+          missingContext: "Informations de contexte manquantes pour la dissociation.",
+          unlinkUnknown: "Erreur inconnue lors de la dissociation",
+          missingContextDelete: "Informations de contexte manquantes pour la suppression.",
+          deleteUnknown: "Erreur inconnue lors de la suppression",
+          deleteError: "Erreur lors de la suppression: {{message}}",
+          missingContextRefresh: "Informations de contexte manquantes pour l'actualisation.",
+          onlyCompletedRefresh: "Seuls les documents terminés peuvent être actualisés.",
+          refreshFailed: "Échec de l'actualisation des données",
+          refreshUnknown: "Erreur inconnue lors de l'actualisation",
+          refreshError: "Erreur lors de l'actualisation: {{message}}"
+        },
+        common: {
+          invalidDate: "Date invalide",
+          unknownTemplate: "Template inconnu",
+          unknownUser: "Utilisateur"
+        }
+    },
+    createDocument: {
+        title: "Créer un nouveau document",
+        unknownCampaign: "Campagne inconnue",
+        unknownVersion: "Version inconnue",
+        loadingError: "Erreur de chargement",
+        campaignLabel: "Campagne",
+        versionLabel: "Version",
+        changeSelectionNote: "Pour changer, retournez à la page principale.",
+        success: {
+          title: "Document créé avec succès !",
+          message: "Le document \"{{name}}\" est maintenant disponible.",
+          openDocument: "Ouvrir le document →"
+        },
+        missingSelection: {
+          title: "Sélection manquante",
+          message: "Veuillez sélectionner une campagne et une version depuis la page principale avant de créer un document."
+        },
+        form: {
+          nameLabel: "Nom du document *",
+          namePlaceholder: "Ex: Plan Média Q1 2024",
+          templateLabel: "Template *",
+          templatePlaceholder: "Sélectionner un template",
+          templateHelp: "Les shortcodes seront convertis selon la langue du template sélectionné.",
+          creating: "Création en cours...",
+          createButton: "Créer le document"
+        },
+        validation: {
+          nameRequired: "Veuillez saisir un nom pour le document.",
+          templateRequired: "Veuillez sélectionner un template.",
+          noCampaign: "Aucune campagne sélectionnée. Veuillez sélectionner une campagne depuis la page principale.",
+          noVersion: "Aucune version sélectionnée. Veuillez sélectionner une version depuis la page principale."
+        },
+        errors: {
+          loadTemplates: "Impossible de charger les templates du client."
+        }
+    },   
+    unlinkDocument: {
+        title: "Dissocier le document",
+        defaultSuffix: "Unlinked",
+        warning: {
+          title: "Attention!",
+          copyWithoutFormulas: "Une copie sera créée sans aucune formule dynamique",
+          noAutomaticTotals: "Les totaux ne seront plus calculés automatiquement",
+          noLongerLinked: "Le document ne sera plus lié à MediaBox",
+          cannotRefresh: "Il ne sera plus possible d'actualiser le document"
+        },
+        form: {
+          nameLabel: "Nom du nouveau document :",
+          namePlaceholder: "Nom du document dissocié",
+          unlinking: "Dissociation...",
+          unlinkButton: "Dissocier"
+        },
+        errors: {
+          generic: "Erreur lors de la dissociation",
+          unknown: "Erreur inconnue"
+        }
+    },
+    clientDropdown: {
+      searchPlaceholder: "Rechercher un client...",
+      noClientAvailable: "Aucun client disponible",
+      noClientFound:"Aucun client trouvé",
+      selectClient: "Sélectionner un client",
+    },
+    campaignSelector: {
+      selectCampaign: "Sélectionner une campagne",
+      noCampaign: "Aucune campagne",
+      searchCampaign: "Rechercher une campagne...",
+      noCampaignFound: "Aucune campagne trouvée pour",
+      selectCampaignFirst: "Veuillez sélectionner une campagne d'abord",
+      noVersion: "Aucune version",
+      selectVersion: "Sélectionner une version"
+    },
+    costGuideForm: {
+      errors: {
+        level1Required: "L'information de niveau 1 est requise",
+        level2Required: "L'information de niveau 2 est requise",
+        level3Required: "L'information de niveau 3 est requise",
+        level4Required: "L'information de niveau 4 est requise",
+        unitPriceRequired: "Le montant unitaire est requis",
+        unitPriceInvalid: "Le montant doit être un nombre",
+      },
+      submissionError: "Erreur lors de la soumission du formulaire:",
+      successMessage: "Entrée sauvegardée avec succès!",
+      editEntry: "Modifier l'entrée",
+      addEntry: "Ajouter une entrée",
+      level1Label: "Niveau 1",
+      level2Label: "Niveau 2",
+      level3Label: "Niveau 3",
+      level4Label: "Niveau 4",
+      purchaseUnitLabel: "Unité d'achat",
+      unitOption: "Unitaire",
+      unitPriceLabel: "Montant unitaire",
+      commentLabel: "Commentaire",
+      commentPlaceholder: "Informations supplémentaires...",
+      cancelButton: "Annuler",
+      savingButton: "Enregistrement...",
+      updateButton: "Mettre à jour",
+      addButton: "Ajouter",
+    },
+    costGuideList: {
+      deleteConfirmation: "Êtes-vous sûr de vouloir supprimer cette entrée ?",
+      deleteError: "Erreur lors de la suppression de l'entrée:",
+      duplicateError: "Erreur lors de la duplication de l'entrée:",
+      addEntryLevel1: "Ajouter une entrée avec ce niveau 1",
+      addEntryLevel1And2: "Ajouter une entrée avec ces niveaux 1 et 2",
+      addEntryLevel12And3: "Ajouter une entrée avec ces niveaux 1, 2 et 3",
+      addEntryAllLevels: "Ajouter une entrée avec ces 4 niveaux",
+      unit: "Unité",
+      unitPrice: "Prix unitaire",
+      comment: "Commentaire",
+      actions: "Actions",
+      edit: "Modifier",
+      duplicate: "Dupliquer",
+      delete: "Supprimer",
+    },
+    costGuideTable: {
+      saveError: "Erreur lors de la sauvegarde des modifications:",
+      saveErrorAlert: "Une erreur est survenue lors de la sauvegarde.",
+      fillRequiredFields: "Veuillez remplir tous les champs obligatoires.",
+      addEntryError: "Erreur lors de l'ajout d'une entrée:",
+      addEntryErrorAlert: "Une erreur est survenue lors de l'ajout de l'entrée.",
+      confirmDeleteEntry: "Êtes-vous sûr de vouloir supprimer cette entrée ?",
+      deleteEntryError: "Erreur lors de la suppression de l'entrée:",
+      deleteEntryErrorAlert: "Une erreur est survenue lors de la suppression.",
+      duplicateEntryError: "Erreur lors de la duplication de l'entrée:",
+      duplicateEntryErrorAlert: "Une erreur est survenue lors de la duplication.",
+      level1: "Niveau 1",
+      level2: "Niveau 2",
+      level3: "Niveau 3",
+      level4: "Niveau 4",
+      purchaseUnit: "Unité d'achat",
+      unitPrice: "Prix unitaire",
+      comment: "Commentaire",
+      noEntriesAvailable: "Aucune entrée disponible.",
+      addEntriesForQuickEdit: "Ajoutez des entrées pour utiliser l'édition rapide.",
+      editModeActive: "Mode édition activé",
+      activateEditMode: "Activer l'édition",
+      exportCSV: "Exporter CSV",
+      cancel: "Annuler",
+      saving: "Enregistrement...",
+      save: "Enregistrer",
+      addEntry: "Ajouter une entrée",
+      quickEditModeTitle: "Mode édition rapide :",
+      quickEditModeDescription: "Cliquez pour sélectionner une cellule. Maintenez Shift pour sélectionner plusieurs cellules. Double-cliquez pour modifier une cellule. Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller sur les cellules sélectionnées.",
+      addNewEntry: "Ajouter une nouvelle entrée",
+      unitPriceAmount: "Montant unitaire",
+      additionalInfoPlaceholder: "Informations supplémentaires...",
+      addingInProgress: "Ajout en cours...",
+      add: "Ajouter",
+      actions: "Actions",
+      duplicateRow: "Dupliquer cette ligne",
+      deleteRow: "Supprimer cette ligne",
+      readOnlyModeMessage: "Vous êtes en mode consultation. Vous n'avez pas les permissions nécessaires pour modifier ce guide de coûts."
+    },
+    costGuidePage: {
+      error: {
+        clientGuideNotFound: "Le guide de coûts associé à ce client n'a pas été trouvé.",
+        loadClientGuide: "Erreur lors du chargement du guide de coûts.",
+        loadGuides: "Erreur lors du chargement des guides de coût",
+        guideNotFound: "Guide de coûts non trouvé",
+        loadData: "Erreur lors du chargement des données",
+        createGuide: "Erreur lors de la création du guide",
+        deleteGuide: "Erreur lors de la suppression du guide",
+        updateGuide: "Erreur lors de la mise à jour du guide"
+      },
+      noClientGuideMessage: "Aucun guide de coûts n'est associé à ce client. Veuillez contacter un administrateur pour associer un guide de coûts.",
+      title: "Guide de coûts",
+      subtitle: {
+        admin: "Gérez vos guides de coût pour faciliter la planification budgétaire",
+        client: "Consultez le guide de coût associé à votre client"
+      },
+      newGuideButton: "Nouveau guide",
+      backToListButton: {
+        admin: "Retour à la liste",
+        client: "Retour"
+      },
+      loadingGuides: "Chargement des guides de coût...",
+      noGuidesFound: "Aucun guide de coûts trouvé. Créez votre premier guide !",
+      deleteButton: "Supprimer",
+      viewButton: "Voir",
+      loadingCostGuide: "Chargement du guide de coûts...",
+      guideNamePlaceholder: "Nom du guide",
+      descriptionOptionalPlaceholder: "Description (optionnelle)",
+      saveButton: "Enregistrer",
+      cancelButton: "Annuler",
+      modifyButton: "Modifier",
+      hierarchicalViewButton: "Vue hiérarchique",
+      quickEditButton: "Édition rapide",
+      newEntryButton: "Nouvelle entrée",
+      noEntriesInGuide: "Aucune entrée dans ce guide de coûts.",
+      addFirstEntry: "Ajoutez votre première entrée !",
+      readOnlyMessage: "Vous êtes en mode consultation. Contactez un administrateur si vous souhaitez modifier ce guide.",
+      newCostGuideModal: {
+        title: "Nouveau guide de coûts",
+        guideNameLabel: "Nom du guide",
+        guideNamePlaceholder: "Ex: Guide de coûts Q1 2023",
+        descriptionLabel: "Description",
+        descriptionPlaceholder: "Description optionnelle",
+        cancelButton: "Annuler",
+        createButton: "Créer"
+      },
+      confirmDelete: "Êtes-vous sûr de vouloir supprimer ce guide de coûts ?"
+    },
+
+    },
+
+
+
+
   en: {
-    // Ajout de la section navigation pour le modal de version
     navigation: {
       version: {
         title: "Version Information",
@@ -522,7 +796,19 @@ export const translations = {
         previousVersions: "Previous versions",
         upcomingFeatures: "Upcoming features",
         upcomingDisclaimer: "These features are in development and may change."
+      },
+      menus: {
+        campaigns: "Campaigns",
+        strategy: "Strategy",
+        tactics: "Tactics",
+        documents: "Documents",
+        costGuide: "Cost Guide",
+        partners: "Partners",
+        clientConfig: "Client",
+        admin: "Admin",
+        help: "Help"
       }
+      
     },
     admin: {
       title: "Administration",
@@ -801,7 +1087,8 @@ export const translations = {
       warning: "Warning",
       error: "Error",
       success: "Success",
-      info: "Information"
+      info: "Information",
+      logout: "Logout",
     },
     errors: {
       generic: "An unexpected error occurred",
@@ -858,5 +1145,264 @@ export const translations = {
       refreshSuccessMessage: "Cache has been successfully refreshed",
       refreshErrorMessage: "Error while refreshing the cache"
     },
+    documents: {
+      title: "Documents",
+      newDocument: "New document",
+      newDocumentDisabled: "Select a client to create a document",
+      noClientSelected: "No client selected",
+      noClientMessage: "Please select a client from the navigation bar to manage their documents.",
+      loadingDocuments: "Loading documents...",
+      selectCampaign: "Select a campaign",
+      selectCampaignMessage: "Choose a campaign and version to see associated documents.",
+      selectVersion: "Select a version",
+      selectVersionMessage: "Choose a version to see associated documents.",
+      noDocuments: "No documents",
+      noDocumentsMessage: "This version does not contain any documents yet.",
+      createFirstDocument: "Create first document",
+      documentCountPlural: "documents",
+      documentCount: "document",
+      unlinked: "Unlinked",
+      syncInfo: "Sync: {{date}}{{status}}",
+      syncFailed: "failed",
+      errorLabel: "Error",
+      status: {
+        completed: "Completed",
+        error: "Error",
+        creating: "Creating...",
+        unknown: "Unknown"
+      },
+      actions: {
+        open: "Open",
+        refreshTooltip: "Refresh document data",
+        unlinkTooltip: "Unlink document (create static copy)",
+        deleteTooltip: "Delete document and Google Drive file",
+        deleteConfirm: "Are you sure you want to delete the document \"{{name}}\"?\n\nThis action will delete:\n- The database entry\n- The associated Google Drive file\n\nThis action is irreversible."
+      },
+      errors: {
+        loadCampaigns: "Unable to load campaigns.",
+        loadVersions: "Unable to load versions.",
+        loadDocuments: "Unable to load documents.",
+        missingContext: "Missing context information for unlinking.",
+        unlinkUnknown: "Unknown error during unlinking",
+        missingContextDelete: "Missing context information for deletion.",
+        deleteUnknown: "Unknown error during deletion",
+        deleteError: "Error during deletion: {{message}}",
+        missingContextRefresh: "Missing context information for refresh.",
+        onlyCompletedRefresh: "Only completed documents can be refreshed.",
+        refreshFailed: "Data refresh failed",
+        refreshUnknown: "Unknown error during refresh",
+        refreshError: "Error during refresh: {{message}}"
+      },
+      common: {
+        invalidDate: "Invalid date",
+        unknownTemplate: "Unknown template",
+        unknownUser: "User"
+      }
+    },
+    createDocument: {
+      title: "Create new document",
+      unknownCampaign: "Unknown campaign",
+      unknownVersion: "Unknown version",
+      loadingError: "Loading error",
+      campaignLabel: "Campaign",
+      versionLabel: "Version",
+      changeSelectionNote: "To change, return to the main page.",
+      success: {
+        title: "Document created successfully!",
+        message: "The document \"{{name}}\" is now available.",
+        openDocument: "Open document →"
+      },
+      missingSelection: {
+        title: "Missing selection",
+        message: "Please select a campaign and version from the main page before creating a document."
+      },
+      form: {
+        nameLabel: "Document name *",
+        namePlaceholder: "Ex: Media Plan Q1 2024",
+        templateLabel: "Template *",
+        templatePlaceholder: "Select a template",
+        templateHelp: "Shortcodes will be converted according to the selected template language.",
+        creating: "Creating...",
+        createButton: "Create document"
+      },
+      validation: {
+        nameRequired: "Please enter a name for the document.",
+        templateRequired: "Please select a template.",
+        noCampaign: "No campaign selected. Please select a campaign from the main page.",
+        noVersion: "No version selected. Please select a version from the main page."
+      },
+      errors: {
+        loadTemplates: "Unable to load client templates."
+      }
+    },
+    unlinkDocument: {
+      title: "Unlink document",
+      defaultSuffix: "Unlinked",
+      warning: {
+        title: "Warning!",
+        copyWithoutFormulas: "A copy will be created without any dynamic formulas",
+        noAutomaticTotals: "Totals will no longer be calculated automatically",
+        noLongerLinked: "The document will no longer be linked to MediaBox",
+        cannotRefresh: "It will no longer be possible to refresh the document"
+      },
+      form: {
+        nameLabel: "New document name:",
+        namePlaceholder: "Unlinked document name",
+        unlinking: "Unlinking...",
+        unlinkButton: "Unlink"
+      },
+      errors: {
+        generic: "Error during unlinking",
+        unknown: "Unknown error"
+      }
+    },
+    clientDropdown: {
+      searchPlaceholder: "Search a client...",
+      noClientAvailable: "No available client",
+      noClientFound:"No client found",
+      selectClient: "Select a client",
+    },
+    campaignSelector : {
+      selectCampaign: "Select a campaign", 
+      noCampaign: "No campaign", 
+      searchCampaign : "Search campaign...",
+      noCampaignFound: "No campaign found for",
+      selectCampaignFirst : "Please select a campaign first",
+      noVersion: "No version",
+      selectVersion : "Select a version",
+    },
+    costGuideForm: {
+      errors: {
+        level1Required: "Level 1 information is required",
+        level2Required: "Level 2 information is required",
+        level3Required: "Level 3 information is required",
+        level4Required: "Level 4 information is required",
+        unitPriceRequired: "Unit amount is required",
+        unitPriceInvalid: "The amount must be a number",
+      },
+      submissionError: "Error submitting the form:",
+      successMessage: "Entry saved successfully!",
+      editEntry: "Edit Entry",
+      addEntry: "Add Entry",
+      level1Label: "Level 1",
+      level2Label: "Level 2",
+      level3Label: "Level 3",
+      level4Label: "Level 4",
+      purchaseUnitLabel: "Purchase Unit",
+      unitOption: "Unit",
+      unitPriceLabel: "Unit cost",
+      commentLabel: "Comment",
+      commentPlaceholder: "Additional information...",
+      cancelButton: "Cancel",
+      savingButton: "Saving...",
+      updateButton: "Update",
+      addButton: "Add",
+    },
+    costGuideList: {
+      deleteConfirmation: "Are you sure you want to delete this entry?",
+      deleteError: "Error deleting entry:",
+      duplicateError: "Error duplicating entry:",
+      addEntryLevel1: "Add entry with this level 1",
+      addEntryLevel1And2: "Add entry with these levels 1 and 2",
+      addEntryLevel12And3: "Add entry with these levels 1, 2 and 3",
+      addEntryAllLevels: "Add entry with all 4 levels",
+      unit: "Unit",
+      unitPrice: "Unit price",
+      comment: "Comment",
+      actions: "Actions",
+      edit: "Edit",
+      duplicate: "Duplicate",
+      delete: "Delete",
+    },
+    costGuideTable: {
+      saveError: "Error saving changes:",
+      saveErrorAlert: "An error occurred while saving.",
+      fillRequiredFields: "Please fill in all required fields.",
+      addEntryError: "Error adding entry:",
+      addEntryErrorAlert: "An error occurred while adding the entry.",
+      confirmDeleteEntry: "Are you sure you want to delete this entry?",
+      deleteEntryError: "Error deleting entry:",
+      deleteEntryErrorAlert: "An error occurred while deleting.",
+      duplicateEntryError: "Error duplicating entry:",
+      duplicateEntryErrorAlert: "An error occurred while duplicating.",
+      level1: "Level 1",
+      level2: "Level 2",
+      level3: "Level 3",
+      level4: "Level 4",
+      purchaseUnit: "Purchase Unit",
+      unitPrice: "Unit Price",
+      comment: "Comment",
+      noEntriesAvailable: "No entries available.",
+      addEntriesForQuickEdit: "Add entries to use quick editing.",
+      editModeActive: "Edit mode active",
+      activateEditMode: "Activate editing",
+      exportCSV: "Export CSV",
+      cancel: "Cancel",
+      saving: "Saving...",
+      save: "Save",
+      addEntry: "Add an entry",
+      quickEditModeTitle: "Quick edit mode:",
+      quickEditModeDescription: "Click to select a cell. Hold Shift to select multiple cells. Double-click to edit a cell. Use Ctrl+C/⌘+C to copy and Ctrl+V/⌘+V to paste on selected cells.",
+      addNewEntry: "Add new entry",
+      unitPriceAmount: "Unit amount",
+      additionalInfoPlaceholder: "Additional information...",
+      addingInProgress: "Adding in progress...",
+      add: "Add",
+      actions: "Actions",
+      duplicateRow: "Duplicate this row",
+      deleteRow: "Delete this row",
+      readOnlyModeMessage: "You are in view mode. You do not have the necessary permissions to modify this cost guide."
+    },
+    costGuidePage: {
+      error: {
+        clientGuideNotFound: "The cost guide associated with this client was not found.",
+        loadClientGuide: "Error loading the cost guide.",
+        loadGuides: "Error loading cost guides",
+        guideNotFound: "Cost guide not found",
+        loadData: "Error loading data",
+        createGuide: "Error creating guide",
+        deleteGuide: "Error deleting guide",
+        updateGuide: "Error updating guide"
+      },
+      noClientGuideMessage: "No cost guide is associated with this client. Please contact an administrator to associate a cost guide.",
+      title: "Cost Guide",
+      subtitle: {
+        admin: "Manage your cost guides to facilitate budget planning",
+        client: "Consult the cost guide associated with your client"
+      },
+      newGuideButton: "New Guide",
+      backToListButton: {
+        admin: "Back to list",
+        client: "Back"
+      },
+      loadingGuides: "Loading cost guides...",
+      noGuidesFound: "No cost guides found. Create your first guide!",
+      deleteButton: "Delete",
+      viewButton: "View",
+      loadingCostGuide: "Loading cost guide...",
+      guideNamePlaceholder: "Guide name",
+      descriptionOptionalPlaceholder: "Description (optional)",
+      saveButton: "Save",
+      cancelButton: "Cancel",
+      modifyButton: "Modify",
+      hierarchicalViewButton: "Hierarchical View",
+      quickEditButton: "Quick Edit",
+      newEntryButton: "New Entry",
+      noEntriesInGuide: "No entries in this cost guide.",
+      addFirstEntry: "Add your first entry!",
+      readOnlyMessage: "You are in view mode. Contact an administrator if you wish to modify this guide.",
+      newCostGuideModal: {
+        title: "New Cost Guide",
+        guideNameLabel: "Guide Name",
+        guideNamePlaceholder: "Ex: Q1 2023 Cost Guide",
+        descriptionLabel: "Description",
+        descriptionPlaceholder: "Optional description",
+        cancelButton: "Cancel",
+        createButton: "Create"
+      },
+      confirmDelete: "Are you sure you want to delete this cost guide?"
+    },
+    
+
   }
 };

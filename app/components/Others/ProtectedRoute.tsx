@@ -10,6 +10,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../contexts/LanguageContext';
+
 
 /**
  * Protège une route en vérifiant l'état d'authentification de l'utilisateur.
@@ -26,6 +28,8 @@ export default function ProtectedRoute({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { t } = useTranslation();
+
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,7 +40,8 @@ export default function ProtectedRoute({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Chargement...</p>
+        <p className="text-gray-500">{t('common.loading')}
+        </p>
       </div>
     );
   }

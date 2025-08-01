@@ -16,6 +16,8 @@ import { Fragment, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 import { useClient } from '../../contexts/ClientContext';
+import { useTranslation } from '../../contexts/LanguageContext';
+
 
 /**
  * Affiche un menu déroulant permettant à l'utilisateur de sélectionner un client.
@@ -25,6 +27,8 @@ import { useClient } from '../../contexts/ClientContext';
  * @returns {JSX.Element} Le composant JSX du menu déroulant.
  */
 export default function ClientDropdown() {
+  const { t } = useTranslation();
+
   const { availableClients, selectedClient, setSelectedClient, loading } =
     useClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,7 +64,7 @@ export default function ClientDropdown() {
       <span className="truncate">{selectedClient.CL_Name}</span>
     </div>
   ) : (
-    <span>Sélectionner un client</span>
+    <span>{t('clientDropdown.selectClient')}</span>
   );
 
   return (
@@ -92,7 +96,7 @@ export default function ClientDropdown() {
                 <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Rechercher un client..."
+                  placeholder={t('clientDropdown.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -105,7 +109,7 @@ export default function ClientDropdown() {
             <div className="max-h-60 overflow-y-auto">
               {filteredClients.length === 0 ? (
                 <div className="px-4 py-2 text-sm text-gray-500">
-                  Aucun client trouvé
+                  {t('clientDropdown.noClientFound')}
                 </div>
               ) : (
                 filteredClients.map((client) => (

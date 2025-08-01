@@ -11,6 +11,7 @@ import CampaignVersionSelector, { useCampaignVersionSelector } from '../componen
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useSelection } from '../contexts/SelectionContext';
+import { useTranslation } from '../contexts/LanguageContext';
 import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync } from '../lib/documentService';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
@@ -49,6 +50,7 @@ interface Version {
 export default function DocumentsPage() {
   const { selectedClient } = useClient();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { 
     selectedCampaignId, 
     selectedVersionId,
@@ -114,9 +116,9 @@ export default function DocumentsPage() {
       }
     } catch (err) {
       console.error('Erreur lors du chargement des campagnes:', err);
-      setError('Impossible de charger les campagnes.');
+      setError(t('documents.errors.loadCampaigns'));
     }
-  }, [selectedClient, selectedCampaignId, handleCampaignChange]);
+  }, [selectedClient, selectedCampaignId, handleCampaignChange, t]);
 
   /**
    * Charge les versions d'une campagne sélectionnée.
@@ -142,9 +144,9 @@ export default function DocumentsPage() {
       }
     } catch (err) {
       console.error('Erreur lors du chargement des versions:', err);
-      setError('Impossible de charger les versions.');
+      setError(t('documents.errors.loadVersions'));
     }
-  }, [selectedClient, selectedCampaign, selectedVersionId, handleVersionChange]);
+  }, [selectedClient, selectedCampaign, selectedVersionId, handleVersionChange, t]);
 
   /**
    * Charge les documents d'une version sélectionnée.
@@ -168,11 +170,11 @@ export default function DocumentsPage() {
       setDocuments(versionDocuments);
     } catch (err) {
       console.error('Erreur lors du chargement des documents:', err);
-      setError('Impossible de charger les documents.');
+      setError(t('documents.errors.loadDocuments'));
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion]);
+  }, [selectedClient, selectedCampaign, selectedVersion, t]);
 
   // Charger les campagnes au changement de client
   useEffect(() => {
@@ -272,7 +274,7 @@ export default function DocumentsPage() {
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
       return {
         success: false,
-        errorMessage: 'Informations de contexte manquantes pour la dissociation.'
+        errorMessage: t('documents.errors.missingContext')
       };
     }
 
@@ -293,7 +295,7 @@ export default function DocumentsPage() {
 
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la dissociation';
+      const errorMessage = err instanceof Error ? err.message : t('documents.errors.unlinkUnknown');
       console.error('❌ Erreur dissociation document:', errorMessage);
       
       return {
@@ -301,7 +303,7 @@ export default function DocumentsPage() {
         errorMessage
       };
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, unlinkDocument, loadDocuments]);
+  }, [selectedClient, selectedCampaign, selectedVersion, unlinkDocument, loadDocuments, t]);
 
   /**
    * Formate une date en format lisible.
@@ -319,9 +321,9 @@ export default function DocumentsPage() {
         minute: '2-digit'
       });
     } catch {
-      return 'Date invalide';
+      return t('documents.common.invalidDate');
     }
-  }, []);
+  }, [t]);
 
   /**
    * Retourne l'icône appropriée selon le statut du document.
@@ -349,29 +351,29 @@ export default function DocumentsPage() {
   const getStatusText = useCallback((status: DocumentStatus): string => {
     switch (status) {
       case DocumentStatus.COMPLETED:
-        return 'Terminé';
+        return t('documents.status.completed');
       case DocumentStatus.ERROR:
-        return 'Erreur';
+        return t('documents.status.error');
       case DocumentStatus.CREATING:
-        return 'En création...';
+        return t('documents.status.creating');
       default:
-        return 'Inconnu';
+        return t('documents.status.unknown');
     }
-  }, []);
+  }, [t]);
 
   /**
    * Gère la suppression d'un document avec confirmation.
    * @param document Le document à supprimer.
    */
   const handleDeleteDocument = useCallback(async (document: Document) => {
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer le document "${document.name}" ?\n\nCette action supprimera :\n- L'entrée de la base de données\n- Le fichier Google Drive associé\n\nCette action est irréversible.`;
+    const confirmMessage = t('documents.actions.deleteConfirm', { name: document.name });
     
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
-      setError('Informations de contexte manquantes pour la suppression.');
+      setError(t('documents.errors.missingContextDelete'));
       return;
     }
 
@@ -391,13 +393,13 @@ export default function DocumentsPage() {
       
       console.log(`✅ Document "${document.name}" supprimé avec succès`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la suppression';
+      const errorMessage = err instanceof Error ? err.message : t('documents.errors.deleteUnknown');
       console.error('❌ Erreur suppression document:', errorMessage);
-      setError(`Erreur lors de la suppression: ${errorMessage}`);
+      setError(t('documents.errors.deleteError', { message: errorMessage }));
     } finally {
       setDeletingDocumentId(null);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, loadDocuments]);
+  }, [selectedClient, selectedCampaign, selectedVersion, loadDocuments, t]);
 
   /**
    * Gère l'actualisation des données d'un document.
@@ -405,12 +407,12 @@ export default function DocumentsPage() {
    */
   const handleRefreshDocument = useCallback(async (document: Document) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
-      setError('Informations de contexte manquantes pour l\'actualisation.');
+      setError(t('documents.errors.missingContextRefresh'));
       return;
     }
 
     if (document.status !== DocumentStatus.COMPLETED) {
-      setError('Seuls les documents terminés peuvent être actualisés.');
+      setError(t('documents.errors.onlyCompletedRefresh'));
       return;
     }
 
@@ -437,7 +439,7 @@ export default function DocumentsPage() {
           selectedCampaign.id,
           selectedVersion.id,
           document.id,
-          user?.email || 'Utilisateur',
+          user?.email || t('documents.common.unknownUser'),
           true
         );
 
@@ -446,10 +448,10 @@ export default function DocumentsPage() {
         
         console.log(`✅ Document "${document.name}" actualisé avec succès`);
       } else {
-        throw new Error('Échec de l\'actualisation des données');
+        throw new Error(t('documents.errors.refreshFailed'));
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'actualisation';
+      const errorMessage = err instanceof Error ? err.message : t('documents.errors.refreshUnknown');
       console.error('❌ Erreur actualisation document:', errorMessage);
       
       // Enregistrer l'échec de synchronisation
@@ -459,7 +461,7 @@ export default function DocumentsPage() {
           selectedCampaign.id,
           selectedVersion.id,
           document.id,
-          user?.email || 'Utilisateur',
+          user?.email || t('documents.common.unknownUser'),
           false,
           errorMessage
         );
@@ -467,11 +469,11 @@ export default function DocumentsPage() {
         console.error('Erreur lors de l\'enregistrement de l\'échec de sync:', syncError);
       }
 
-      setError(`Erreur lors de l'actualisation: ${errorMessage}`);
+      setError(t('documents.errors.refreshError', { message: errorMessage }));
     } finally {
       setRefreshingDocumentId(null);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, exportCombinedData, loadDocuments, user]);
+  }, [selectedClient, selectedCampaign, selectedVersion, exportCombinedData, loadDocuments, user, t]);
 
   /**
    * Groupe les documents par nom de template.
@@ -480,14 +482,14 @@ export default function DocumentsPage() {
    */
   const groupDocumentsByTemplate = useCallback((documents: Document[]): { [templateName: string]: Document[] } => {
     return documents.reduce((groups, document) => {
-      const templateName = document.template.name || 'Template inconnu';
+      const templateName = document.template.name || t('documents.common.unknownTemplate');
       if (!groups[templateName]) {
         groups[templateName] = [];
       }
       groups[templateName].push(document);
       return groups;
     }, {} as { [templateName: string]: Document[] });
-  }, []);
+  }, [t]);
 
   return (
     <ProtectedRoute>
@@ -498,8 +500,7 @@ export default function DocumentsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
-            
+                <h1 className="text-2xl font-bold text-gray-900">{t('documents.title')}</h1>
               </div>
             </div>
             <button
@@ -510,10 +511,10 @@ export default function DocumentsPage() {
                   ? 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                   : 'bg-gray-400 cursor-not-allowed'
               }`}
-              title={!selectedClient ? "Sélectionnez un client pour créer un document" : ""}
+              title={!selectedClient ? t('documents.newDocumentDisabled') : ""}
             >
               <PlusIcon className="h-5 w-5 mr-2" />
-              Nouveau document
+              {t('documents.newDocument')}
             </button>
           </div>
 
@@ -523,9 +524,9 @@ export default function DocumentsPage() {
               <div className="flex items-start space-x-3">
                 <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-amber-800">Aucun client sélectionné</p>
+                  <p className="text-sm font-medium text-amber-800">{t('documents.noClientSelected')}</p>
                   <p className="text-sm text-amber-700 mt-1">
-                    Veuillez sélectionner un client dans la barre de navigation pour gérer ses documents.
+                    {t('documents.noClientMessage')}
                   </p>
                 </div>
               </div>
@@ -553,14 +554,12 @@ export default function DocumentsPage() {
 
               {/* Liste des documents */}
               <div className="bg-white shadow rounded-lg">
-
-
                 <div className="px-6 py-4">
                   {/* États de chargement et d'erreur */}
                   {loading && (
                     <div className="flex items-center justify-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                      <span className="ml-3 text-gray-600">Chargement des documents...</span>
+                      <span className="ml-3 text-gray-600">{t('documents.loadingDocuments')}</span>
                     </div>
                   )}
 
@@ -577,9 +576,9 @@ export default function DocumentsPage() {
                   {!selectedCampaign && !loading && !error && (
                     <div className="text-center py-8 text-gray-500">
                       <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">Sélectionnez une campagne</p>
+                      <p className="text-lg font-medium">{t('documents.selectCampaign')}</p>
                       <p className="text-sm mt-1">
-                        Choisissez une campagne et une version pour voir les documents associés.
+                        {t('documents.selectCampaignMessage')}
                       </p>
                     </div>
                   )}
@@ -588,9 +587,9 @@ export default function DocumentsPage() {
                   {selectedCampaign && !selectedVersion && !loading && !error && (
                     <div className="text-center py-8 text-gray-500">
                       <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">Sélectionnez une version</p>
+                      <p className="text-lg font-medium">{t('documents.selectVersion')}</p>
                       <p className="text-sm mt-1">
-                        Choisissez une version pour voir les documents associés.
+                        {t('documents.selectVersionMessage')}
                       </p>
                     </div>
                   )}
@@ -601,16 +600,16 @@ export default function DocumentsPage() {
                       {documents.length === 0 ? (
                         <div className="text-center py-8">
                           <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p className="text-lg font-medium text-gray-900">Aucun document</p>
+                          <p className="text-lg font-medium text-gray-900">{t('documents.noDocuments')}</p>
                           <p className="text-sm text-gray-500 mt-1">
-                            Cette version ne contient pas encore de documents.
+                            {t('documents.noDocumentsMessage')}
                           </p>
                           <button
                             onClick={handleCreateDocument}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mt-4"
                           >
                             <PlusIcon className="h-4 w-4 mr-2" />
-                            Créer le premier document
+                            {t('documents.createFirstDocument')}
                           </button>
                         </div>
                       ) : (
@@ -623,7 +622,10 @@ export default function DocumentsPage() {
                                   <DocumentTextIcon className="h-5 w-5 text-indigo-600" />
                                   <h3 className="text-lg font-medium text-gray-900">{templateName}</h3>
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    {templateDocuments.length} document{templateDocuments.length > 1 ? 's' : ''}
+                                    {templateDocuments.length === 1 
+                                      ? 1 + ' ' +  t('documents.documentCount')
+                                      : templateDocuments.length + ' ' +t('documents.documentCountPlural')
+                                    }
                                   </span>
                                 </div>
                               </div>
@@ -654,7 +656,7 @@ export default function DocumentsPage() {
                                           {document.isUnlinked && (
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                                               <LinkSlashIcon className="h-3 w-3 mr-1" />
-                                              Dissocié
+                                              {t('documents.unlinked')}
                                             </span>
                                           )}
                                         </div>
@@ -672,8 +674,10 @@ export default function DocumentsPage() {
                                             <div className="flex items-center space-x-1">
                                               <span className="text-gray-400">•</span>
                                               <span className="text-gray-400">
-                                                Sync: {formatDate(document.lastDataSync.syncedAt)}
-                                                {document.lastDataSync.success ? '' : ' (échec)'}
+                                                {t('documents.syncInfo', { 
+                                                  date: formatDate(document.lastDataSync.syncedAt),
+                                                  status: document.lastDataSync.success ? '' : ` (${t('documents.syncFailed')})`
+                                                })}
                                               </span>
                                             </div>
                                           )}
@@ -681,7 +685,7 @@ export default function DocumentsPage() {
 
                                         {document.errorMessage && (
                                           <div className="mt-2 text-sm text-red-600">
-                                            Erreur: {document.errorMessage}
+                                            {t('documents.errorLabel')}: {document.errorMessage}
                                           </div>
                                         )}
                                       </div>
@@ -696,7 +700,7 @@ export default function DocumentsPage() {
                                               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                             >
                                               <LinkIcon className="h-4 w-4 mr-1" />
-                                              Ouvrir
+                                              {t('documents.actions.open')}
                                             </a>
                                             
                                             {!document.isUnlinked && (
@@ -709,7 +713,7 @@ export default function DocumentsPage() {
                                                       ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                                       : 'text-blue-700 bg-white hover:bg-blue-50'
                                                   }`}
-                                                  title="Actualiser les données du document"
+                                                  title={t('documents.actions.refreshTooltip')}
                                                 >
                                                   {refreshingDocumentId === document.id ? (
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
@@ -726,7 +730,7 @@ export default function DocumentsPage() {
                                                       ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                                       : 'text-orange-700 bg-white hover:bg-orange-50'
                                                   }`}
-                                                  title="Dissocier le document (créer une copie statique)"
+                                                  title={t('documents.actions.unlinkTooltip')}
                                                 >
                                                   <LinkSlashIcon className="h-4 w-4" />
                                                 </button>
@@ -743,7 +747,7 @@ export default function DocumentsPage() {
                                               ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                               : 'text-red-700 bg-white hover:bg-red-50'
                                           }`}
-                                          title="Supprimer le document et le fichier Google Drive"
+                                          title={t('documents.actions.deleteTooltip')}
                                         >
                                           {deletingDocumentId === document.id ? (
                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />

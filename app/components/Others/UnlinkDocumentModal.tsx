@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon,
   LinkSlashIcon
 } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 import { Document, DocumentUnlinkResult } from '../../types/document';
 
 interface UnlinkDocumentModalProps {
@@ -40,6 +41,7 @@ export default function UnlinkDocumentModal({
   onConfirm,
   loading = false
 }: UnlinkDocumentModalProps) {
+  const { t } = useTranslation();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +50,7 @@ export default function UnlinkDocumentModal({
   useEffect(() => {
     if (isOpen && document) {
       // Pré-remplir avec le nom + "(Unlinked)"
-      setNewName(`${document.name} (Unlinked)`);
+      setNewName(`${document.name} (${t('unlinkDocument.defaultSuffix')})`);
       setError(null);
       setIsSubmitting(false);
     } else if (!isOpen) {
@@ -56,7 +58,7 @@ export default function UnlinkDocumentModal({
       setError(null);
       setIsSubmitting(false);
     }
-  }, [isOpen, document]);
+  }, [isOpen, document, t]);
 
   /**
    * Gère la soumission du formulaire.
@@ -79,10 +81,10 @@ export default function UnlinkDocumentModal({
         onClose();
       } else {
         // Afficher l'erreur
-        setError(result.errorMessage || 'Erreur lors de la dissociation');
+        setError(result.errorMessage || t('unlinkDocument.errors.generic'));
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+      const errorMessage = err instanceof Error ? err.message : t('unlinkDocument.errors.unknown');
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -111,7 +113,7 @@ export default function UnlinkDocumentModal({
           <div className="flex items-center space-x-3">
             <LinkSlashIcon className="h-6 w-6 text-orange-600" />
             <h3 className="text-lg font-medium text-gray-900">
-              Dissocier le document
+              {t('unlinkDocument.title')}
             </h3>
           </div>
           <button
@@ -132,24 +134,22 @@ export default function UnlinkDocumentModal({
               <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-amber-800 mb-2">
-                  Attention!
+                  {t('unlinkDocument.warning.title')}
                 </p>
                 <ul className="text-amber-700 space-y-1 list-disc list-inside">
-                  <li>Une copie sera créée sans aucune formule dynamique</li>
-                  <li>Les totaux ne seront plus calculés automatiquement</li>
-                  <li>Le document ne sera plus lié à MediaBox</li>
-                  <li>Il ne sera plus possible d'actualiser le document</li>
+                  <li>{t('unlinkDocument.warning.copyWithoutFormulas')}</li>
+                  <li>{t('unlinkDocument.warning.noAutomaticTotals')}</li>
+                  <li>{t('unlinkDocument.warning.noLongerLinked')}</li>
+                  <li>{t('unlinkDocument.warning.cannotRefresh')}</li>
                 </ul>
               </div>
             </div>
           </div>
 
-    
-
           {/* Champ nom */}
           <div>
             <label htmlFor="newName" className="block text-sm font-medium text-gray-700 mb-2">
-              Nom du nouveau document :
+              {t('unlinkDocument.form.nameLabel')}
             </label>
             <input
               type="text"
@@ -157,7 +157,7 @@ export default function UnlinkDocumentModal({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Nom du document dissocié"
+              placeholder={t('unlinkDocument.form.namePlaceholder')}
               disabled={isSubmitting || loading}
               required
             />
@@ -178,7 +178,7 @@ export default function UnlinkDocumentModal({
               disabled={isSubmitting || loading}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -188,12 +188,12 @@ export default function UnlinkDocumentModal({
               {isSubmitting || loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Dissociation...
+                  {t('unlinkDocument.form.unlinking')}
                 </>
               ) : (
                 <>
                   <LinkSlashIcon className="h-4 w-4 mr-2" />
-                  Dissocier
+                  {t('unlinkDocument.form.unlinkButton')}
                 </>
               )}
             </button>

@@ -13,6 +13,7 @@ import {
   updateCostGuideEntry,
 } from '../../lib/costGuideService';
 import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CostGuideEntryFormProps {
   guideId: string;
@@ -44,6 +45,7 @@ export default function CostGuideEntryForm({
   onCancel,
   onSuccess,
 }: CostGuideEntryFormProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<CostGuideEntryFormData>({
     level1: '',
     level2: '',
@@ -111,25 +113,25 @@ export default function CostGuideEntryForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.level1) {
-      newErrors.level1 = 'L\'information de niveau 1 est requise';
+      newErrors.level1 = t('costGuideForm.errors.level1Required');
     }
 
     if (!formData.level2) {
-      newErrors.level2 = 'L\'information de niveau 2 est requise';
+      newErrors.level2 = t('costGuideForm.errors.level2Required');
     }
 
     if (!formData.level3) {
-      newErrors.level3 = 'L\'information de niveau 3 est requise';
+      newErrors.level3 = t('costGuideForm.errors.level3Required');
     }
 
     if (!formData.level4) {
-      newErrors.level4 = 'L\'information de niveau 4 est requise';
+      newErrors.level4 = t('costGuideForm.errors.level4Required');
     }
 
     if (!formData.unitPrice) {
-      newErrors.unitPrice = 'Le montant unitaire est requis';
+      newErrors.unitPrice = t('costGuideForm.errors.unitPriceRequired');
     } else if (isNaN(Number(formData.unitPrice))) {
-      newErrors.unitPrice = 'Le montant doit être un nombre';
+      newErrors.unitPrice = t('costGuideForm.errors.unitPriceInvalid');
     }
 
     setErrors(newErrors);
@@ -155,7 +157,7 @@ export default function CostGuideEntryForm({
         console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries/${entry.id}`);
         await updateCostGuideEntry(guideId, entry.id, formData);
       } else {
-        console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Path: costGuides/${guideId}/entries`);
+        console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryForm.tsx - Fonction: handleSubmit - Fonction: handleSubmit - Path: costGuides/${guideId}/entries`);
         await addCostGuideEntry(guideId, formData);
       }
 
@@ -164,7 +166,7 @@ export default function CostGuideEntryForm({
         onSuccess();
       }, 1000);
     } catch (err) {
-      console.error('Erreur lors de la soumission du formulaire:', err);
+      console.error(t('costGuideForm.submissionError'), err);
     } finally {
       setSubmitting(false);
     }
@@ -176,7 +178,7 @@ export default function CostGuideEntryForm({
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10 rounded-md">
           <div className="bg-green-100 text-green-800 p-4 rounded-md flex items-center shadow-md">
             <CheckIcon className="h-6 w-6 mr-2 text-green-600" />
-            <span className="font-medium">Entrée sauvegardée avec succès!</span>
+            <span className="font-medium">{t('costGuideForm.successMessage')}</span>
           </div>
         </div>
       )}
@@ -184,7 +186,7 @@ export default function CostGuideEntryForm({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium text-gray-900">
-            {entry ? 'Modifier l\'entrée' : 'Ajouter une entrée'}
+            {entry ? t('costGuideForm.editEntry') : t('costGuideForm.addEntry')}
           </h3>
           <button
             type="button"
@@ -198,7 +200,7 @@ export default function CostGuideEntryForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
-              Niveau 1 *
+              {t('costGuideForm.level1Label')} *
             </label>
             <input
               type="text"
@@ -219,7 +221,7 @@ export default function CostGuideEntryForm({
 
           <div>
             <label htmlFor="level2" className="block text-sm font-medium text-gray-700">
-              Niveau 2 *
+              {t('costGuideForm.level2Label')} *
             </label>
             <input
               type="text"
@@ -242,7 +244,7 @@ export default function CostGuideEntryForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="level3" className="block text-sm font-medium text-gray-700">
-              Niveau 3 *
+              {t('costGuideForm.level3Label')} *
             </label>
             <input
               type="text"
@@ -263,7 +265,7 @@ export default function CostGuideEntryForm({
 
           <div>
             <label htmlFor="level4" className="block text-sm font-medium text-gray-700">
-              Niveau 4 *
+              {t('costGuideForm.level4Label')} *
             </label>
             <input
               type="text"
@@ -286,7 +288,7 @@ export default function CostGuideEntryForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="purchaseUnit" className="block text-sm font-medium text-gray-700">
-              Unité d'achat *
+              {t('costGuideForm.purchaseUnitLabel')} *
             </label>
             <select
               id="purchaseUnit"
@@ -297,13 +299,13 @@ export default function CostGuideEntryForm({
             >
               <option value="CPM">CPM</option>
               <option value="PEB">PEB</option>
-              <option value="Unitaire">Unitaire</option>
+              <option value="Unitaire">{t('costGuideForm.unitOption')}</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
-              Montant unitaire * (CAD)
+              {t('costGuideForm.unitPriceLabel')} * (CAD)
             </label>
             <div className="relative mt-1 rounded-md shadow-sm">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -331,7 +333,7 @@ export default function CostGuideEntryForm({
 
         <div>
           <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
-            Commentaire
+            {t('costGuideForm.commentLabel')}
           </label>
           <textarea
             id="comment"
@@ -340,7 +342,7 @@ export default function CostGuideEntryForm({
             value={formData.comment}
             onChange={handleChange}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Informations supplémentaires..."
+            placeholder={t('costGuideForm.commentPlaceholder')}
           />
         </div>
 
@@ -351,7 +353,7 @@ export default function CostGuideEntryForm({
             className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             disabled={submitting}
           >
-            Annuler
+            {t('costGuideForm.cancelButton')}
           </button>
           <button
             type="submit"
@@ -359,10 +361,10 @@ export default function CostGuideEntryForm({
             disabled={submitting}
           >
             {submitting
-              ? 'Enregistrement...'
+              ? t('costGuideForm.savingButton')
               : entry
-              ? 'Mettre à jour'
-              : 'Ajouter'}
+              ? t('costGuideForm.updateButton')
+              : t('costGuideForm.addButton')}
           </button>
         </div>
       </form>

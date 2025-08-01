@@ -33,6 +33,7 @@ import CostGuideEntryList from '../components/CostGuide/CostGuideEntryList';
 import CostGuideEntryTable from '../components/CostGuide/CostGuideEntryTable';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { useClient } from '../contexts/ClientContext';
+import { useTranslation } from '../contexts/LanguageContext';
 
 /**
  * Composant principal de la page des guides de coûts.
@@ -41,6 +42,7 @@ import { useClient } from '../contexts/ClientContext';
  * @returns {JSX.Element} Le composant de la page des guides de coûts.
  */
 export default function CostGuidePage() {
+  const { t } = useTranslation();
   const { userRole, canPerformAction } = usePermissions();
   const { selectedClient } = useClient();
   const isAdmin = userRole === 'admin';
@@ -114,14 +116,14 @@ export default function CostGuidePage() {
           await loadGuideDetails(guideId);
         } else {
           setGuides([]);
-          setError("Le guide de coûts associé à ce client n'a pas été trouvé.");
+          setError(t('costGuidePage.error.clientGuideNotFound'));
         }
       } else {
         setGuides([]);
       }
     } catch (err) {
       console.error('Erreur lors du chargement du guide client:', err);
-      setError("Erreur lors du chargement du guide de coûts.");
+      setError(t('costGuidePage.error.loadClientGuide'));
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ export default function CostGuidePage() {
       const data = await getCostGuides();
       setGuides(data);
     } catch (err) {
-      setError('Erreur lors du chargement des guides de coût');
+      setError(t('costGuidePage.error.loadGuides'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -163,7 +165,7 @@ export default function CostGuidePage() {
         console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuideDetails - Path: costGuides/${guideId}");
         const loadedGuide = await getCostGuideById(guideId);
         if (!loadedGuide) {
-          setError('Guide de coûts non trouvé');
+          setError(t('costGuidePage.error.guideNotFound'));
           return;
         }
         guide = loadedGuide;
@@ -182,7 +184,7 @@ export default function CostGuidePage() {
       setPartners(partnersData);
     } catch (err) {
       console.error('Erreur lors du chargement du guide:', err);
-      setError('Erreur lors du chargement des données');
+      setError(t('costGuidePage.error.loadData'));
     } finally {
       setLoadingDetail(false);
     }
@@ -212,7 +214,7 @@ export default function CostGuidePage() {
       
       await loadGuideDetails(guideId);
     } catch (err) {
-      setError('Erreur lors de la création du guide');
+      setError(t('costGuidePage.error.createGuide'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -227,7 +229,7 @@ export default function CostGuidePage() {
    * @returns {Promise<void>}
    */
   const handleDeleteGuide = async (guideId: string) => {
-    if (!isAdmin || !confirm('Êtes-vous sûr de vouloir supprimer ce guide de coûts ?')) return;
+    if (!isAdmin || !confirm(t('costGuidePage.confirmDelete'))) return;
 
     try {
       setLoading(true);
@@ -245,7 +247,7 @@ export default function CostGuidePage() {
         setClientGuideId(null);
       }
     } catch (err) {
-      setError('Erreur lors de la suppression du guide');
+      setError(t('costGuidePage.error.deleteGuide'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -284,7 +286,7 @@ export default function CostGuidePage() {
       setIsEditing(false);
     } catch (err) {
       console.error('Erreur lors de la mise à jour du guide:', err);
-      setError('Erreur lors de la mise à jour du guide');
+      setError(t('costGuidePage.error.updateGuide'));
     }
   };
 
@@ -355,7 +357,7 @@ export default function CostGuidePage() {
         </div>
         <div className="ml-3">
           <p className="text-sm text-amber-700">
-            Aucun guide de coûts n'est associé à ce client. Veuillez contacter un administrateur pour associer un guide de coûts.
+            {t('costGuidePage.noClientGuideMessage')}
           </p>
         </div>
       </div>
@@ -368,16 +370,16 @@ export default function CostGuidePage() {
         <div>
           {!selectedGuide ? (
             <>
-              <h1 className="text-2xl font-bold text-gray-900">Guide de coûts</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('costGuidePage.title')}</h1>
               <p className="text-gray-600">
                 {isAdmin 
-                  ? "Gérez vos guides de coût pour faciliter la planification budgétaire"
-                  : "Consultez le guide de coût associé à votre client"
+                  ? t('costGuidePage.subtitle.admin')
+                  : t('costGuidePage.subtitle.client')
                 }
               </p>
             </>
           ) : (
-            <h1 className="text-xl font-bold text-gray-900">Guide de coûts</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('costGuidePage.title')}</h1>
           )}
         </div>
         
@@ -388,7 +390,7 @@ export default function CostGuidePage() {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
-              Nouveau guide
+              {t('costGuidePage.newGuideButton')}
             </button>
           )
         ) : (
@@ -397,7 +399,7 @@ export default function CostGuidePage() {
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            {isAdmin ? "Retour à la liste" : "Retour"}
+            {isAdmin ? t('costGuidePage.backToListButton.admin') : t('costGuidePage.backToListButton.client')}
           </button>
         )}
       </div>
@@ -414,14 +416,14 @@ export default function CostGuidePage() {
         <>
           {loading && !guides.length && (
             <div className="text-center py-8">
-              <p className="text-gray-500">Chargement des guides de coût...</p>
+              <p className="text-gray-500">{t('costGuidePage.loadingGuides')}</p>
             </div>
           )}
 
           {!loading && !guides.length && (
             <div className="text-center py-8 bg-white rounded-lg shadow">
               <p className="text-gray-500">
-                Aucun guide de coûts trouvé. Créez votre premier guide !
+                {t('costGuidePage.noGuidesFound')}
               </p>
             </div>
           )}
@@ -447,7 +449,7 @@ export default function CostGuidePage() {
                         <button
                           onClick={() => handleDeleteGuide(guide.id)}
                           className="text-gray-400 hover:text-red-600 p-1"
-                          title="Supprimer"
+                          title={t('costGuidePage.deleteButton')}
                           disabled={!isAdmin}
                         >
                           <TrashIcon className="h-5 w-5" />
@@ -456,7 +458,7 @@ export default function CostGuidePage() {
                           onClick={() => loadGuideDetails(guide.id)}
                           className="inline-flex items-center px-3 py-1 border border-transparent rounded text-sm font-medium text-indigo-600 hover:bg-indigo-50"
                         >
-                          <span className="mr-1">Voir</span>
+                          <span className="mr-1">{t('costGuidePage.viewButton')}</span>
                           <ArrowRightIcon className="h-4 w-4" />
                         </button>
                       </div>
@@ -473,7 +475,7 @@ export default function CostGuidePage() {
         <>
           {loadingDetail && (
             <div className="text-center py-8">
-              <p className="text-gray-500">Chargement du guide de coûts...</p>
+              <p className="text-gray-500">{t('costGuidePage.loadingCostGuide')}</p>
             </div>
           )}
 
@@ -487,13 +489,13 @@ export default function CostGuidePage() {
                       value={editedName}
                       onChange={(e) => setEditedName(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm text-lg font-bold"
-                      placeholder="Nom du guide"
+                      placeholder={t('costGuidePage.guideNamePlaceholder')}
                     />
                     <textarea
                       value={editedDescription}
                       onChange={(e) => setEditedDescription(e.target.value)}
                       className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-                      placeholder="Description (optionnelle)"
+                      placeholder={t('costGuidePage.descriptionOptionalPlaceholder')}
                       rows={2}
                     ></textarea>
                   </div>
@@ -513,7 +515,7 @@ export default function CostGuidePage() {
                         onClick={handleUpdateGuide}
                         className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                       >
-                        Enregistrer
+                        {t('costGuidePage.saveButton')}
                       </button>
                       <button
                         onClick={() => {
@@ -523,7 +525,7 @@ export default function CostGuidePage() {
                         }}
                         className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                       >
-                        Annuler
+                        {t('costGuidePage.cancelButton')}
                       </button>
                     </>
                   ) : (
@@ -533,14 +535,14 @@ export default function CostGuidePage() {
                           <button
                             onClick={() => setIsEditing(true)}
                             className="text-gray-400 hover:text-indigo-600 p-2"
-                            title="Modifier"
+                            title={t('costGuidePage.modifyButton')}
                           >
                             <PencilIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteGuide(selectedGuide.id)}
                             className="text-gray-400 hover:text-red-600 p-2"
-                            title="Supprimer"
+                            title={t('costGuidePage.deleteButton')}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -562,7 +564,7 @@ export default function CostGuidePage() {
                     }`}
                   >
                     <DocumentTextIcon className="h-5 w-5 mr-1" />
-                    Vue hiérarchique
+                    {t('costGuidePage.hierarchicalViewButton')}
                   </button>
 
                   {hasCostGuidePermission && (
@@ -575,7 +577,7 @@ export default function CostGuidePage() {
                     }`}
                   >
                     <TableCellsIcon className="h-5 w-5 mr-1" />
-                    Édition rapide
+                    {t('costGuidePage.quickEditButton')}
                   </button>)}
                 </div>
                 
@@ -589,7 +591,7 @@ export default function CostGuidePage() {
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     <PlusIcon className="h-5 w-5 mr-1" />
-                    Nouvelle entrée
+                    {t('costGuidePage.newEntryButton')}
                   </button>
                 )}
               </div>
@@ -599,7 +601,6 @@ export default function CostGuidePage() {
                   <CostGuideEntryForm
                     guideId={selectedGuide.id}
                     entry={selectedEntry}
-                    partners={partners}
                     preset={formPreset}
                     onCancel={() => {
                       setShowEntryForm(false);
@@ -635,7 +636,6 @@ export default function CostGuidePage() {
                 <CostGuideEntryTable
                   guideId={selectedGuide.id}
                   entries={entries}
-                  partners={partners}
                   onEntriesUpdated={refreshEntries}
                   readOnly={!hasCostGuidePermission}
                 />
@@ -644,8 +644,8 @@ export default function CostGuidePage() {
               {entries.length === 0 && !showEntryForm && (
                 <div className="text-center py-8 bg-white rounded-lg shadow">
                   <p className="text-gray-500">
-                    Aucune entrée dans ce guide de coûts. 
-                    {hasCostGuidePermission ? "Ajoutez votre première entrée !" : ""}
+                    {t('costGuidePage.noEntriesInGuide')} 
+                    {hasCostGuidePermission ? t('costGuidePage.addFirstEntry') : ""}
                   </p>
                 </div>
               )}
@@ -655,7 +655,7 @@ export default function CostGuidePage() {
                   <div className="flex">
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
-                        Vous êtes en mode consultation. Contactez un administrateur si vous souhaitez modifier ce guide.
+                        {t('costGuidePage.readOnlyMessage')}
                       </p>
                     </div>
                   </div>
@@ -669,14 +669,14 @@ export default function CostGuidePage() {
       {isCreateModalOpen && isAdmin && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Nouveau guide de coûts</h2>
+            <h2 className="text-xl font-bold mb-4">{t('costGuidePage.newCostGuideModal.title')}</h2>
             <div className="space-y-4">
               <div>
                 <label
                   htmlFor="guideName"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Nom du guide *
+                  {t('costGuidePage.newCostGuideModal.guideNameLabel')} *
                 </label>
                 <input
                   type="text"
@@ -684,7 +684,7 @@ export default function CostGuidePage() {
                   value={newGuideName}
                   onChange={(e) => setNewGuideName(e.target.value)}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Ex: Guide de coûts Q1 2023"
+                  placeholder={t('costGuidePage.newCostGuideModal.guideNamePlaceholder')}
                 />
               </div>
               <div>
@@ -692,7 +692,7 @@ export default function CostGuidePage() {
                   htmlFor="guideDescription"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Description
+                  {t('costGuidePage.newCostGuideModal.descriptionLabel')}
                 </label>
                 <textarea
                   id="guideDescription"
@@ -700,7 +700,7 @@ export default function CostGuidePage() {
                   onChange={(e) => setNewGuideDescription(e.target.value)}
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Description optionnelle"
+                  placeholder={t('costGuidePage.newCostGuideModal.descriptionPlaceholder')}
                 />
               </div>
             </div>
@@ -714,7 +714,7 @@ export default function CostGuidePage() {
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
-                Annuler
+                {t('costGuidePage.newCostGuideModal.cancelButton')}
               </button>
               <button
                 type="button"
@@ -726,7 +726,7 @@ export default function CostGuidePage() {
                     : 'bg-indigo-400 cursor-not-allowed'
                 }`}
               >
-                Créer
+                {t('costGuidePage.newCostGuideModal.createButton')}
               </button>
             </div>
           </div>

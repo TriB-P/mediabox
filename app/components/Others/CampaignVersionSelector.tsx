@@ -10,6 +10,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDownIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Campaign } from '../../types/campaign';
+import { useTranslation } from '../../contexts/LanguageContext';
+
 
 interface Version {
   id: string;
@@ -63,6 +65,9 @@ export default function CampaignVersionSelector({
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
   const campaignSearchRef = useRef<HTMLInputElement>(null);
+
+  const { t } = useTranslation();
+
 
   useEffect(() => {
     if (autoSelectVersion && selectedCampaign && versions.length === 1 && !selectedVersion) {
@@ -193,8 +198,8 @@ export default function CampaignVersionSelector({
             {selectedCampaign 
               ? formatCampaignDisplay(selectedCampaign)
               : campaigns.length === 0 
-                ? 'Aucune campagne'
-                : 'Sélectionner une campagne'
+                ? t('campaignSelector.noCampaign')
+                : t('campaignSelector.selectCampaign')
             }
           </span>
           <ChevronDownIcon className={`w-5 h-5 ml-2 -mr-1 transition-transform ${
@@ -209,7 +214,7 @@ export default function CampaignVersionSelector({
                 <input
                   ref={campaignSearchRef}
                   type="text"
-                  placeholder="Rechercher une campagne..."
+                  placeholder={t('campaignSelector.searchCampaign')}
                   value={campaignSearchTerm}
                   onChange={(e) => setCampaignSearchTerm(e.target.value)}
                   onKeyDown={handleCampaignSearchKeyDown}
@@ -258,7 +263,7 @@ export default function CampaignVersionSelector({
                 </ul>
               ) : (
                 <div className="px-4 py-6 text-center text-sm text-gray-500">
-                  Aucune campagne trouvée pour "{campaignSearchTerm}"
+                  {t('campaignSelector.noCampaignFound')} "{campaignSearchTerm}"
                 </div>
               )}
             </div>
@@ -277,10 +282,10 @@ export default function CampaignVersionSelector({
             {selectedVersion 
               ? selectedVersion.name
               : !selectedCampaign
-                ? 'Sélectionner d\'abord une campagne'
+                ? t('campaignSelector.selectCampaignFirst')
                 : versions.length === 0
-                  ? 'Aucune version'
-                  : 'Sélectionner une version'
+                  ? t('campaignSelector.noVersion')
+                  : t('campaignSelector.selectVersion')
             }
           </span>
           <ChevronDownIcon className={`w-5 h-5 ml-2 -mr-1 transition-transform ${

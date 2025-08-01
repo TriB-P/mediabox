@@ -24,6 +24,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CostGuideEntryListProps {
   entries: CostGuideEntry[];
@@ -53,6 +54,7 @@ export default function CostGuideEntryList({
   readOnly = false,
 }: CostGuideEntryListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const { t } = useTranslation();
 
   /**
    * Formate un nombre en une chaîne de caractères représentant une devise en dollars canadiens (CAD).
@@ -88,14 +90,14 @@ export default function CostGuideEntryList({
   const handleDeleteEntry = async (guideId: string, entryId: string) => {
     if (readOnly) return;
 
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
+    if (!confirm(t('costGuideList.deleteConfirmation'))) return;
 
     try {
       console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryList.tsx - Fonction: handleDeleteEntry - Path: costGuides/${guideId}/entries/${entryId}`);
       await deleteCostGuideEntry(guideId, entryId);
       onDelete();
     } catch (err) {
-      console.error('Erreur lors de la suppression de l\'entrée:', err);
+      console.error(t('costGuideList.deleteError'), err);
     }
   };
 
@@ -114,7 +116,7 @@ export default function CostGuideEntryList({
       await duplicateCostGuideEntry(guideId, entryId);
       onDuplicate();
     } catch (err){
-      console.error('Erreur lors de la duplication de l\'entrée:', err);
+      console.error(t('costGuideList.duplicateError'), err);
     }
   };
 
@@ -205,7 +207,7 @@ export default function CostGuideEntryList({
                     onAddWithPreset({ level1: level1 });
                   }}
                   className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                  title="Ajouter une entrée avec ce niveau 1"
+                  title={t('costGuideList.addEntryLevel1')}
                 >
                   <PlusIcon className="h-4 w-4" />
                 </button>
@@ -243,7 +245,7 @@ export default function CostGuideEntryList({
                               });
                             }}
                             className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                            title="Ajouter une entrée avec ces niveaux 1 et 2"
+                            title={t('costGuideList.addEntryLevel1And2')}
                           >
                             <PlusIcon className="h-4 w-4" />
                           </button>
@@ -282,7 +284,7 @@ export default function CostGuideEntryList({
                                         });
                                       }}
                                       className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                                      title="Ajouter une entrée avec ces niveaux 1, 2 et 3"
+                                      title={t('costGuideList.addEntryLevel12And3')}
                                     >
                                       <PlusIcon className="h-4 w-4" />
                                     </button>
@@ -322,7 +324,7 @@ export default function CostGuideEntryList({
                                                   });
                                                 }}
                                                 className="ml-3 p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-gray-100"
-                                                title="Ajouter une entrée avec ces 4 niveaux"
+                                                title={t('costGuideList.addEntryAllLevels')}
                                               >
                                                 <PlusIcon className="h-4 w-4" />
                                               </button>
@@ -335,17 +337,17 @@ export default function CostGuideEntryList({
                                                 <thead className="bg-gray-50">
                                                   <tr>
                                                     <th scope="col" className="px-6 py-3 pl-24 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                      Unité
+                                                      {t('costGuideList.unit')}
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                      Prix unitaire
+                                                      {t('costGuideList.unitPrice')}
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                      Commentaire
+                                                      {t('costGuideList.comment')}
                                                     </th>
                                                     {!readOnly && (
                                                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Actions
+                                                        {t('costGuideList.actions')}
                                                       </th>
                                                     )}
                                                   </tr>
@@ -368,21 +370,21 @@ export default function CostGuideEntryList({
                                                             <button
                                                               onClick={() => onEdit(entry)}
                                                               className="text-indigo-600 hover:text-indigo-900"
-                                                              title="Modifier"
+                                                              title={t('costGuideList.edit')}
                                                             >
                                                               <PencilIcon className="h-4 w-4" />
                                                             </button>
                                                             <button
                                                               onClick={() => handleDuplicateEntry(entry.guideId, entry.id)}
                                                               className="text-blue-600 hover:text-blue-900"
-                                                              title="Dupliquer"
+                                                              title={t('costGuideList.duplicate')}
                                                             >
                                                               <DocumentDuplicateIcon className="h-4 w-4" />
                                                             </button>
                                                             <button
                                                               onClick={() => handleDeleteEntry(entry.guideId, entry.id)}
                                                               className="text-red-600 hover:text-red-900"
-                                                              title="Supprimer"
+                                                              title={t('costGuideList.delete')}
                                                             >
                                                               <TrashIcon className="h-4 w-4" />
                                                             </button>

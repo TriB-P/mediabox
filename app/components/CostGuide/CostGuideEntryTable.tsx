@@ -25,6 +25,7 @@ import {
   TrashIcon,
   PlusIcon
 } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface CostGuideEntryTableProps {
   guideId: string;
@@ -59,6 +60,7 @@ export default function CostGuideEntryTable({
   onEntriesUpdated,
   readOnly = false,
 }: CostGuideEntryTableProps) {
+  const { t } = useTranslation();
   const [editMode, setEditMode] = useState(false);
   const [sortField, setSortField] = useState<keyof CostGuideEntry>('level1');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -318,8 +320,8 @@ export default function CostGuideEntryTable({
 
       onEntriesUpdated();
     } catch (err) {
-      console.error('Erreur lors de la sauvegarde des modifications:', err);
-      alert('Une erreur est survenue lors de la sauvegarde.');
+      console.error(t('costGuideTable.saveError'), err);
+      alert(t('costGuideTable.saveErrorAlert'));
     } finally {
       setIsSaving(false);
     }
@@ -332,7 +334,7 @@ export default function CostGuideEntryTable({
     if (readOnly) return;
 
     if (!newRowData.level1 || !newRowData.level2 || !newRowData.level3 || !newRowData.level4 || !newRowData.unitPrice) {
-      alert('Veuillez remplir tous les champs obligatoires.');
+      alert(t('costGuideTable.fillRequiredFields'));
       return;
     }
 
@@ -366,8 +368,8 @@ export default function CostGuideEntryTable({
       setIsAddingRow(false);
       onEntriesUpdated();
     } catch (err) {
-      console.error('Erreur lors de l\'ajout d\'une entrée:', err);
-      alert('Une erreur est survenue lors de l\'ajout de l\'entrée.');
+      console.error(t('costGuideTable.addEntryError'), err);
+      alert(t('costGuideTable.addEntryErrorAlert'));
     } finally {
       setIsSaving(false);
     }
@@ -380,7 +382,7 @@ export default function CostGuideEntryTable({
   const handleDeleteRow = async (entryId: string) => {
     if (readOnly) return;
 
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
+    if (!confirm(t('costGuideTable.confirmDeleteEntry'))) return;
 
     try {
       setIsSaving(true);
@@ -388,8 +390,8 @@ export default function CostGuideEntryTable({
       await deleteCostGuideEntry(guideId, entryId);
       onEntriesUpdated();
     } catch (err) {
-      console.error('Erreur lors de la suppression de l\'entrée:', err);
-      alert('Une erreur est survenue lors de la suppression.');
+      console.error(t('costGuideTable.deleteEntryError'), err);
+      alert(t('costGuideTable.deleteEntryErrorAlert'));
     } finally {
       setIsSaving(false);
     }
@@ -408,8 +410,8 @@ export default function CostGuideEntryTable({
       await duplicateCostGuideEntry(guideId, entryId);
       onEntriesUpdated();
     } catch (err) {
-      console.error('Erreur lors de la duplication de l\'entrée:', err);
-      alert('Une erreur est survenue lors de la duplication.');
+      console.error(t('costGuideTable.duplicateEntryError'), err);
+      alert(t('costGuideTable.duplicateEntryErrorAlert'));
     } finally {
       setIsSaving(false);
     }
@@ -433,13 +435,13 @@ export default function CostGuideEntryTable({
     if (entries.length === 0) return;
 
     const headers = [
-      'Niveau 1',
-      'Niveau 2',
-      'Niveau 3',
-      'Niveau 4',
-      'Unité d\'achat',
-      'Prix unitaire',
-      'Commentaire'
+      t('costGuideTable.level1'),
+      t('costGuideTable.level2'),
+      t('costGuideTable.level3'),
+      t('costGuideTable.level4'),
+      t('costGuideTable.purchaseUnit'),
+      t('costGuideTable.unitPrice'),
+      t('costGuideTable.comment')
     ];
 
     const rows = entries.map(entry => [
@@ -610,7 +612,7 @@ export default function CostGuideEntryTable({
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-gray-500 mb-4">
-          Aucune entrée disponible. {!readOnly && "Ajoutez des entrées pour utiliser l'édition rapide."}
+          {t('costGuideTable.noEntriesAvailable')}{!readOnly && t('costGuideTable.addEntriesForQuickEdit')}
         </p>
       </div>
     );
@@ -629,7 +631,7 @@ export default function CostGuideEntryTable({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {editMode ? 'Mode édition activé' : 'Activer l\'édition'}
+              {editMode ? t('costGuideTable.editModeActive') : t('costGuideTable.activateEditMode')}
             </button>
           )}
 
@@ -638,7 +640,7 @@ export default function CostGuideEntryTable({
             className="flex items-center px-4 py-2 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
             <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-            Exporter CSV
+            {t('costGuideTable.exportCSV')}
           </button>
         </div>
 
@@ -650,7 +652,7 @@ export default function CostGuideEntryTable({
               disabled={isSaving}
             >
               <XMarkIcon className="h-4 w-4 mr-1" />
-              Annuler
+              {t('costGuideTable.cancel')}
             </button>
             <button
               onClick={handleSaveChanges}
@@ -658,27 +660,17 @@ export default function CostGuideEntryTable({
               disabled={isSaving}
             >
               <CheckIcon className="h-4 w-4 mr-1" />
-              {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+              {isSaving ? t('costGuideTable.saving') : t('costGuideTable.save')}
             </button>
           </div>
         )}
 
-        {!readOnly && !isAddingRow && (
-          <button
-            onClick={() => setIsAddingRow(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <PlusIcon className="h-5 w-5 mr-1" />
-            Ajouter une entrée
-          </button>
-        )}
       </div>
 
       {editMode && !readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
           <p>
-            <strong>Mode édition rapide :</strong> Cliquez pour sélectionner une cellule. Maintenez Shift pour sélectionner plusieurs cellules.
-            Double-cliquez pour modifier une cellule. Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller sur les cellules sélectionnées.
+            <strong>{t('costGuideTable.quickEditModeTitle')}</strong> {t('costGuideTable.quickEditModeDescription')}
           </p>
         </div>
       )}
@@ -686,7 +678,7 @@ export default function CostGuideEntryTable({
       {isAddingRow && !readOnly && (
         <div className="bg-white rounded-lg shadow p-4 border border-indigo-200">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Ajouter une nouvelle entrée</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('costGuideTable.addNewEntry')}</h3>
             <button
               onClick={() => setIsAddingRow(false)}
               className="text-gray-400 hover:text-gray-500"
@@ -698,7 +690,7 @@ export default function CostGuideEntryTable({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="level1" className="block text-sm font-medium text-gray-700">
-                Niveau 1 *
+                {t('costGuideTable.level1')} *
               </label>
               <input
                 type="text"
@@ -712,7 +704,7 @@ export default function CostGuideEntryTable({
 
             <div>
               <label htmlFor="level2" className="block text-sm font-medium text-gray-700">
-                Niveau 2 *
+                {t('costGuideTable.level2')} *
               </label>
               <input
                 type="text"
@@ -728,7 +720,7 @@ export default function CostGuideEntryTable({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="level3" className="block text-sm font-medium text-gray-700">
-                Niveau 3 *
+                {t('costGuideTable.level3')} *
               </label>
               <input
                 type="text"
@@ -742,7 +734,7 @@ export default function CostGuideEntryTable({
 
             <div>
               <label htmlFor="level4" className="block text-sm font-medium text-gray-700">
-                Niveau 4 *
+                {t('costGuideTable.level4')} *
               </label>
               <input
                 type="text"
@@ -758,7 +750,7 @@ export default function CostGuideEntryTable({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
             <div>
               <label htmlFor="purchaseUnit" className="block text-sm font-medium text-gray-700">
-                Unité d'achat *
+                {t('costGuideTable.purchaseUnit')} *
               </label>
               <select
                 id="purchaseUnit"
@@ -775,7 +767,7 @@ export default function CostGuideEntryTable({
 
             <div>
               <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
-                Montant unitaire * (CAD)
+                {t('costGuideTable.unitPriceAmount')} * (CAD)
               </label>
               <div className="relative mt-1 rounded-md shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -796,7 +788,7 @@ export default function CostGuideEntryTable({
 
           <div className="mb-4">
             <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
-              Commentaire
+              {t('costGuideTable.comment')}
             </label>
             <textarea
               id="comment"
@@ -805,7 +797,7 @@ export default function CostGuideEntryTable({
               value={newRowData.comment}
               onChange={handleNewRowChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Informations supplémentaires..."
+              placeholder={t('costGuideTable.additionalInfoPlaceholder')}
             />
           </div>
 
@@ -815,7 +807,7 @@ export default function CostGuideEntryTable({
               onClick={() => setIsAddingRow(false)}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              Annuler
+              {t('costGuideTable.cancel')}
             </button>
             <button
               type="button"
@@ -823,7 +815,7 @@ export default function CostGuideEntryTable({
               className="px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
               disabled={isSaving}
             >
-              {isSaving ? 'Ajout en cours...' : 'Ajouter'}
+              {isSaving ? t('costGuideTable.addingInProgress') : t('costGuideTable.add')}
             </button>
           </div>
         </div>
@@ -836,13 +828,13 @@ export default function CostGuideEntryTable({
               <thead className="bg-gray-50">
                 <tr>
                   {[
-                    { key: 'level1', label: 'Niveau 1' },
-                    { key: 'level2', label: 'Niveau 2' },
-                    { key: 'level3', label: 'Niveau 3' },
-                    { key: 'level4', label: 'Niveau 4' },
-                    { key: 'purchaseUnit', label: 'Unité d\'achat' },
-                    { key: 'unitPrice', label: 'Prix unitaire' },
-                    { key: 'comment', label: 'Commentaire' },
+                    { key: 'level1', label: t('costGuideTable.level1') },
+                    { key: 'level2', label: t('costGuideTable.level2') },
+                    { key: 'level3', label: t('costGuideTable.level3') },
+                    { key: 'level4', label: t('costGuideTable.level4') },
+                    { key: 'purchaseUnit', label: t('costGuideTable.purchaseUnit') },
+                    { key: 'unitPrice', label: t('costGuideTable.unitPrice') },
+                    { key: 'comment', label: t('costGuideTable.comment') },
                   ].map(({ key, label }) => (
                     <th
                       key={key}
@@ -862,7 +854,7 @@ export default function CostGuideEntryTable({
                   ))}
                   {!readOnly && (
                     <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('costGuideTable.actions')}
                     </th>
                   )}
                 </tr>
@@ -884,7 +876,7 @@ export default function CostGuideEntryTable({
                             <button
                               onClick={() => handleDuplicateRow(entry.id)}
                               className="text-blue-600 hover:text-blue-900"
-                              title="Dupliquer cette ligne"
+                              title={t('costGuideTable.duplicateRow')}
                             >
                               <DocumentDuplicateIcon className="h-4 w-4" />
                             </button>
@@ -892,7 +884,7 @@ export default function CostGuideEntryTable({
                           <button
                             onClick={() => handleDeleteRow(entry.id)}
                             className="text-red-600 hover:text-red-900"
-                            title="Supprimer cette ligne"
+                            title={t('costGuideTable.deleteRow')}
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>
@@ -904,7 +896,7 @@ export default function CostGuideEntryTable({
                 {sortedEntries.length === 0 && !isAddingRow && (
                   <tr>
                     <td colSpan={readOnly ? 7 : 8} className="px-4 py-4 text-center text-gray-500">
-                      Aucune entrée disponible.
+                      {t('costGuideTable.noEntriesAvailable')}
                     </td>
                   </tr>
                 )}
@@ -914,24 +906,13 @@ export default function CostGuideEntryTable({
         </div>
       )}
 
-      {!isAddingRow && !readOnly && entries.length > 5 && (
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={() => setIsAddingRow(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <PlusIcon className="h-5 w-5 mr-1" />
-            Ajouter une entrée
-          </button>
-        </div>
-      )}
 
       {readOnly && (
         <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
           <div className="flex">
             <div className="ml-3">
               <p className="text-sm text-blue-700">
-                Vous êtes en mode consultation. Vous n'avez pas les permissions nécessaires pour modifier ce guide de coûts.
+                {t('costGuideTable.readOnlyModeMessage')}
               </p>
             </div>
           </div>
