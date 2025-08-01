@@ -31,7 +31,7 @@ export interface Tactique {
   TC_Bucket?: string; // Référence à l'enveloppe budgétaire
 
   // Champs Stratégie - Section principale
-  TC_LoB?: string; // Ligne d'affaire
+  TC_LOB?: string; // Ligne d'affaire
   TC_Media_Type?: string; // Type média
   TC_Publisher?: string; // Partenaire
   TC_Inventory?: string; // Inventaire
@@ -253,7 +253,7 @@ export interface TactiqueFormData {
   TC_SectionId: string;
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
   TC_Bucket?: string;
-  TC_LoB?: string;
+  TC_LOB?: string;
   TC_Media_Type?: string;
   TC_Publisher?: string;
   TC_Inventory?: string;

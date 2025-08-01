@@ -367,7 +367,7 @@ const PLACEMENT_TAXONOMIE_COLUMNS: DynamicColumn[] = [
  */
 const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
   {
-    key: 'TC_LoB',
+    key: 'TC_LOB',
     label: 'Ligne d\'affaire',
     type: 'select',
     width: 150,

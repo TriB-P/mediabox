@@ -25,13 +25,13 @@ interface ListItem {
 }
 
 interface ClientCustomDimensions {
-  Custom_Dim_CA_1?: string;
-  Custom_Dim_CA_2?: string;
-  Custom_Dim_CA_3?: string;
+  TC_Custom_Dim_1?: string;
+  TC_Custom_Dim_2?: string;
+  TC_Custom_Dim_3?: string;
 }
 
 interface VisibleFields {
-  TC_LoB?: boolean;
+  TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
   TC_Buying_Method?: boolean;
@@ -45,7 +45,7 @@ interface VisibleFields {
 
 interface TactiqueFormStrategieProps {
   formData: {
-    TC_LoB?: string;
+    TC_LOB?: string;
     TC_Media_Type?: string;
     TC_Publisher?: string;
     TC_Inventory?: string;
@@ -113,13 +113,13 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
         </p>
       </div>
       <div className="space-y-6">
-        {(dynamicLists.TC_LoB && dynamicLists.TC_LoB.length > 0) && (
+        {(dynamicLists.TC_LOB && dynamicLists.TC_LOB.length > 0) && (
           <SmartSelect
-            id="TC_LoB"
-            name="TC_LoB"
-            value={formData.TC_LoB || ''}
+            id="TC_LOB"
+            name="TC_LOB"
+            value={formData.TC_LOB || ''}
             onChange={onChange}
-            options={dynamicLists.TC_LoB?.map(item => ({
+            options={dynamicLists.TC_LOB?.map(item => ({
               id: item.id,
               label: item.SH_Display_Name_FR
             })) || []}
@@ -149,6 +149,24 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+          {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
+              <SmartSelect
+                id="TC_Buying_Method"
+                name="TC_Buying_Method"
+                value={formData.TC_Buying_Method || ''}
+                onChange={onChange}
+                options={dynamicLists.TC_Buying_Method?.map(item => ({
+                  id: item.id,
+                  label: item.SH_Display_Name_FR
+                })) || []}
+                placeholder="Sélectionner une méthode d'achat..."
+                label={createLabelWithHelp(
+                  'Méthode d\'achat',
+                  "Champs personnalisé pour votre client",
+                  onTooltipChange
+                )}
+              />
+            )}
         {(dynamicLists.TC_Publisher && dynamicLists.TC_Publisher.length > 0) && (
           <SmartSelect
             id="TC_Publisher"
@@ -306,24 +324,6 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             title="Champs personnalisés"
             description="Configuration spécifique au client"
           >
-            {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
-              <SmartSelect
-                id="TC_Buying_Method"
-                name="TC_Buying_Method"
-                value={formData.TC_Buying_Method || ''}
-                onChange={onChange}
-                options={dynamicLists.TC_Buying_Method?.map(item => ({
-                  id: item.id,
-                  label: item.SH_Display_Name_FR
-                })) || []}
-                placeholder="Sélectionner une méthode d'achat..."
-                label={createLabelWithHelp(
-                  'Méthode d\'achat',
-                  "Champs personnalisé pour votre client",
-                  onTooltipChange
-                )}
-              />
-            )}
             {(dynamicLists.TC_Custom_Dim_1 && dynamicLists.TC_Custom_Dim_1.length > 0) && (
               <SmartSelect
                 id="TC_Custom_Dim_1"
@@ -334,9 +334,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                   id: item.id,
                   label: item.SH_Display_Name_FR
                 })) || []}
-                placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_1}...`}
+                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_1}...`}
                 label={createLabelWithHelp(
-                  customDimensions.Custom_Dim_CA_1 || 'Dimension personnalisée 1',
+                  customDimensions.TC_Custom_Dim_1 || 'Dimension personnalisée 1',
                   "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
@@ -352,9 +352,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                   id: item.id,
                   label: item.SH_Display_Name_FR
                 })) || []}
-                placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_2}...`}
+                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_2}...`}
                 label={createLabelWithHelp(
-                  customDimensions.Custom_Dim_CA_2 || 'Dimension personnalisée 2',
+                  customDimensions.TC_Custom_Dim_2 || 'Dimension personnalisée 2',
                   "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}
@@ -370,9 +370,9 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
                   id: item.id,
                   label: item.SH_Display_Name_FR
                 })) || []}
-                placeholder={`Sélectionner ${customDimensions.Custom_Dim_CA_3}...`}
+                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_3}...`}
                 label={createLabelWithHelp(
-                  customDimensions.Custom_Dim_CA_3 || 'Dimension personnalisée 3',
+                  customDimensions.TC_Custom_Dim_3 || 'Dimension personnalisée 3',
                   "Champs personnalisé pour votre client",
                   onTooltipChange
                 )}

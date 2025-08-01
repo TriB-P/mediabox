@@ -73,7 +73,7 @@ export interface EntityCounts {
 }
 
 interface VisibleFields {
-  TC_LoB?: boolean;
+  TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
   TC_Buying_Method?: boolean;
@@ -245,7 +245,7 @@ export default function TactiquesAdvancedTableView({
 
       // Chargement des listes dynamiques (logique existante)
       const dynamicListFields = [
-        'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
+        'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
         'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language_Open',
         'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
       ];
@@ -345,7 +345,7 @@ export default function TactiquesAdvancedTableView({
             }));
             break;
 
-          case 'TC_LoB':
+          case 'TC_LOB':
           case 'TC_Media_Type':
           case 'TC_Publisher':
           case 'TC_Buying_Method':

@@ -337,7 +337,7 @@ export function getColumnOptions(
         label: bucket.name
       }));
 
-    case 'TC_LoB':
+    case 'TC_LOB':
     case 'TC_Media_Type':
     case 'TC_Publisher':
     case 'TC_Buying_Method':

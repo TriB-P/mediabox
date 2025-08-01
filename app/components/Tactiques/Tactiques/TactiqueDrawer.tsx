@@ -69,7 +69,7 @@ interface KPIData {
 }
 
 interface VisibleFields {
-  TC_LoB?: boolean;
+  TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
   TC_Buying_Method?: boolean;
@@ -87,7 +87,7 @@ interface VisibleFields {
 
 /**
  * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
- * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher', 'TC_LoB')
+ * @param fieldId - L'identifiant du champ (ex: 'TC_Publisher', 'TC_LOB')
  * @param clientId - L'identifiant du client
  * @returns Promise<ListItem[]> - La liste des éléments
  */
@@ -173,7 +173,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_End_Date: tactique.TC_End_Date || '',
     TC_Bucket: tactique.TC_Bucket || '',
     breakdowns: tactique.TC_Bucket || '',
-    TC_LoB: tactique.TC_LoB || '',
+    TC_LOB: tactique.TC_LOB || '',
     TC_Media_Type: tactique.TC_Media_Type || '',
     TC_Publisher: tactique.TC_Publisher || '',
     TC_Buying_Method: tactique.TC_Buying_Method || '',
@@ -299,7 +299,7 @@ export default function TactiqueDrawer({
 
   // MODIFIÉ : TC_Publisher ajouté dans la liste des champs dynamiques
   const dynamicListFields = useMemo(() => [
-    'TC_LoB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
+    'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 'TC_Custom_Dim_1',
     'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 'TC_Inventory', 'TC_Market', 'TC_Language_Open',
     'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);
