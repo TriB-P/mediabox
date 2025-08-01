@@ -1,52 +1,23 @@
+// app/components/Taxonomy/TaxonomyForm.tsx
 'use client';
 
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { Taxonomy, TaxonomyFormData } from '../../types/taxonomy';
 import defaultTaxonomyService from '../../lib/defaultTaxonomyService';
 import { ChevronDownIcon, ChevronRightIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { 
+  getAvailableVariables, 
+  getAllowedFormatOptions, 
+  isKnownVariable, 
+  isFormatAllowed,
+  FormatOption 
+} from '../../config/taxonomyFields';
 
 interface TaxonomyFormProps {
   taxonomy?: Taxonomy;
   onSubmit: (data: TaxonomyFormData) => void;
   onCancel: () => void;
 }
-
-// Liste des variables dynamiques disponibles
-const DYNAMIC_VARIABLES = [
-  'CA_Billing_ID',
-  'CA_Campaign_Identifier',
-  'CA_Client',
-  'CA_Client_Ext_ID',
-  'CA_Creative_Folder',
-  'CA_Currency',
-  'CA_Custom_Dim_1',
-  'CA_Custom_Dim_2',
-  'CA_Custom_Dim_3',
-  'CA_Custom_Fee_1',
-  'CA_Custom_Fee_2',
-  'CA_Custom_Fee_3',
-  'CA_Division',
-  'CA_End date',
-  'CA_ID',
-  'CA_Last_Edit',
-  'CA_Name',
-  'CA_PO',
-  'CA_Quarter',
-  'CA_Sprint_Dates',
-  'CA_Start date',
-  'CA_Total_Budget',
-  'CA_Year',
- 
-];
-
-// Formats disponibles pour les variables
-const VARIABLE_FORMATS = [
-  { id: 'code', label: 'Code' },
-  { id: 'display_fr', label: 'Display_Name_FR' },
-  { id: 'display_en', label: 'Display_Name_EN' },
-  { id: 'utm', label: 'UTM' },
-  { id: 'custom', label: 'Custom code' },
-];
 
 const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<TaxonomyFormData>({
@@ -303,9 +274,11 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
   
   // Filtrer les variables selon le texte entré
   const getFilteredVariables = () => {
-    if (!filterText) return DYNAMIC_VARIABLES;
+    const availableVariables = getAvailableVariables();
     
-    return DYNAMIC_VARIABLES.filter(variable => 
+    if (!filterText) return availableVariables;
+    
+    return availableVariables.filter(variable => 
       variable.toLowerCase().includes(filterText.toLowerCase())
     );
   };
@@ -314,6 +287,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
   const selectVariable = (variable: string) => {
     setSelectedVariable(variable);
     setFormatMenuOpen(true);
+  };
+  
+  // Récupérer les formats autorisés pour la variable sélectionnée
+  const getAvailableFormatsForSelectedVariable = (): FormatOption[] => {
+    if (!selectedVariable) return [];
+    return getAllowedFormatOptions(selectedVariable);
   };
   
   // Insérer la variable avec le format sélectionné
@@ -366,11 +345,10 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     const [variableName, format] = parts;
     
     // Vérifier si la variable existe
-    if (!DYNAMIC_VARIABLES.includes(variableName)) return false;
+    if (!isKnownVariable(variableName)) return false;
     
-    // Vérifier si le format est valide
-    const validFormats = VARIABLE_FORMATS.map(f => f.id);
-    return validFormats.includes(format);
+    // Vérifier si le format est valide pour cette variable
+    return isFormatAllowed(variableName, format as any);
   };
   
   // Fonction pour formater le contenu avec des variables dynamiques en surbrillance
@@ -406,10 +384,10 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
       
       if (fullMatch.includes(':')) {
         const [variableName, format] = fullMatch.split(':');
-        if (!DYNAMIC_VARIABLES.includes(variableName)) {
+        if (!isKnownVariable(variableName)) {
           title = 'Variable inconnue';
-        } else if (!VARIABLE_FORMATS.map(f => f.id).includes(format)) {
-          title = 'Format invalide';
+        } else if (!isFormatAllowed(variableName, format as any)) {
+          title = 'Format invalide pour cette variable';
         } else {
           title = `Variable: ${variableName} | Format: ${format}`;
         }
@@ -652,12 +630,13 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                 Format pour {selectedVariable}
               </div>
               <div className="max-h-[90vh] overflow-y-auto py-1">
-                {VARIABLE_FORMATS.map((format) => (
+                {getAvailableFormatsForSelectedVariable().map((format) => (
                   <button
                     key={format.id}
                     type="button"
                     onClick={() => insertFormattedVariable(format.id)}
                     className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    title={format.description}
                   >
                     {format.label}
                   </button>

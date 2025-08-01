@@ -127,7 +127,7 @@ export default function CampaignDrawer({
         CA_Division: campaign.CA_Division || '',
         CA_Status: campaign.CA_Status,
         CA_Quarter: campaign.CA_Quarter,
-        CA_Year: campaign.CA_Year.toString(),
+        CA_Year: campaign.CA_Year,
         CA_Custom_Dim_1: campaign.CA_Custom_Dim_1 || '',
         CA_Custom_Dim_2: campaign.CA_Custom_Dim_2 || '',
         CA_Custom_Dim_3: campaign.CA_Custom_Dim_3 || '',

@@ -1,3 +1,4 @@
+// app/config/taxonomyFields.ts
 /**
  * Ce fichier sert de source centrale pour la configuration des variables de taxonomie.
  * Il définit d'où proviennent les variables (campagne, tactique, placement, ou manuel),
@@ -25,108 +26,28 @@ export interface FormatOption {
 }
 
 export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
+  'CA_Billing_ID': { source: 'campaign', allowedFormats: ['open'] },
   'CA_Campaign_Identifier': { source: 'campaign', allowedFormats: ['open'] },
   'CA_Client': { source: 'campaign', allowedFormats: ['open'] },
-  'CA_Division': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en'] },
-  'CA_Quarter': { source: 'campaign', allowedFormats: ['code', 'display_fr'] },
-  'CA_Year': { source: 'campaign', allowedFormats: ['code'] },
-  'CA_Custom_Dim_1': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en'] },
-  'CA_Custom_Dim_2': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en'] },
-  'CA_Custom_Dim_3': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en'] },
-  'TC_Publisher': { source: 'tactique', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_code', 'custom_utm'] },
-  'TC_Media_Type': { source: 'tactique', allowedFormats: ['code', 'display_fr', 'display_en'] },
-  'TC_Buying_Method': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_LOB': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Objective': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Inventory': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Market': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Language_Open': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Media_Objective': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Kpi': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Unit_Type': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Custom_Dim_1': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Custom_Dim_2': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Custom_Dim_3': { source: 'tactique', allowedFormats: ['code', 'display_fr'] },
-  'TC_Format': { source: 'tactique', allowedFormats: ['open'] },
-  'TC_Placement': { source: 'tactique', allowedFormats: ['open'] },
-  'TC_Billing_ID': { source: 'tactique', allowedFormats: ['open'] },
-  'TC_PO': { source: 'tactique', allowedFormats: ['open'] },
-  'PL_Label': { source: 'placement', allowedFormats: ['open'] },
-  'TAX_Product': { source: 'placement', allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'TAX_Location': { source: 'placement', allowedFormats: ['open', 'code', 'display_fr', 'display_en'] },
-  'TAX_Audience_Demographics': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'TAX_Device': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'TAX_Targeting': { source: 'placement', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'CR_Start_Date': {
-    source: 'manual',
-    label: 'Date de début créatif',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_End_Date': {
-    source: 'manual',
-    label: 'Date de fin créatif',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Rotation_Weight': {
-    source: 'manual',
-    label: 'Poids de rotation',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_CTA': {
-    source: 'manual',
-    label: 'Call-to-Action',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Format_Details': {
-    source: 'manual',
-    label: 'Détails du format',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Offer': {
-    source: 'manual',
-    label: 'Offre',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Plateform_Name': {
-    source: 'manual',
-    label: 'Nom de plateforme',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Primary_Product': {
-    source: 'manual',
-    label: 'Produit principal',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_URL': {
-    source: 'manual',
-    label: 'URL du créatif',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'CR_Version': {
-    source: 'manual',
-    label: 'Version du créatif',
-    allowedFormats: ['open', 'code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code']
-  },
-  'TAX_Location_Legacy': {
-    source: 'manual',
-    label: 'Emplacement',
-    allowedFormats: ['open', 'code', 'display_fr']
-  },
-  'TAX_Audience_Demographics_Legacy': {
-    source: 'manual',
-    label: 'Audience - Démographique',
-    allowedFormats: ['code', 'display_fr', 'custom_utm', 'utm', 'custom_code']
-  },
-  'TAX_Device_Legacy': {
-    source: 'manual',
-    label: 'Appareil',
-    allowedFormats: ['code', 'display_fr', 'custom_utm', 'utm', 'custom_code']
-  },
-  'TAX_Targeting_Legacy': {
-    source: 'manual',
-    label: 'Type de ciblage',
-    allowedFormats: ['code', 'display_fr', 'custom_utm', 'utm', 'custom_code']
-  },
+  'CA_Client_Ext_Id': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Creative_Folder': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Currency': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Custom_Dim_1': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'CA_Custom_Dim_2': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'CA_Custom_Dim_3': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
+  'CA_Custom_Fee_1': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Custom_Fee_2': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Custom_Fee_3': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Division': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CA_End_Date': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Last_Edit': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Name': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_PO': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Quarter': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CA_Sprint_Dates': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Start_Date': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Budget': { source: 'campaign', allowedFormats: ['open'] },
+  'CA_Year': { source: 'campaign', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
 };
 
 export const TAXONOMY_FORMATS: FormatOption[] = [
@@ -193,6 +114,34 @@ export function isFormatAllowed(variableName: string, format: TaxonomyFormat): b
  */
 export function getVariableConfig(variableName: string): VariableConfig | null {
   return TAXONOMY_VARIABLE_CONFIG[variableName] || null;
+}
+
+/**
+ * Récupère la liste des variables disponibles.
+ * @returns Un tableau de noms de variables configurées.
+ */
+export function getAvailableVariables(): string[] {
+  return Object.keys(TAXONOMY_VARIABLE_CONFIG);
+}
+
+/**
+ * Récupère les formats autorisés pour une variable donnée.
+ * @param variableName - Le nom de la variable.
+ * @returns Un tableau des formats autorisés ou tous les formats si la variable n'est pas trouvée.
+ */
+export function getAllowedFormats(variableName: string): TaxonomyFormat[] {
+  const config = TAXONOMY_VARIABLE_CONFIG[variableName];
+  return config ? config.allowedFormats : Object.keys(FORMAT_COLORS) as TaxonomyFormat[];
+}
+
+/**
+ * Récupère les options de format autorisées pour une variable donnée.
+ * @param variableName - Le nom de la variable.
+ * @returns Un tableau d'objets FormatOption autorisés pour cette variable.
+ */
+export function getAllowedFormatOptions(variableName: string): FormatOption[] {
+  const allowedFormats = getAllowedFormats(variableName);
+  return TAXONOMY_FORMATS.filter(format => allowedFormats.includes(format.id));
 }
 
 /**

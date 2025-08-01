@@ -18,7 +18,7 @@ export interface Campaign {
   CA_Division?: string;
   CA_Status: 'Draft' | 'Cancelled' | 'Done' | 'Active' | 'Planned';
   CA_Quarter: string;
-  CA_Year: number;
+  CA_Year: string;
   CA_Creative_Folder?: string;
   CA_Custom_Dim_1?: string;
   CA_Custom_Dim_2?: string;
