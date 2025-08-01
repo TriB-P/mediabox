@@ -1,4 +1,4 @@
-// app/hooks/useTaxonomyForm.ts - CORRECTION DÉDUPLICATION
+// app/hooks/useTaxonomyForm.ts - Enhanced Custom Dimensions Resolution
 
 /**
  * Ce hook gère la logique complexe des formulaires de taxonomie pour les créatifs et les placements.
@@ -8,6 +8,7 @@
  * de la prévisualisation des taxonomies formatées,
  * et de la persistance des valeurs sélectionnées.
  * Il interagit avec les services Firebase pour récupérer les données nécessaires.
+ * ENHANCED: Amélioration de la résolution des custom dimensions
  */
 'use client';
 
@@ -355,14 +356,19 @@ export function useTaxonomyForm({
   /**
    * Gère le changement de valeur d'un champ de taxonomie manuel.
    * Met à jour les valeurs de taxonomie et déclenche l'événement `onChange` pour le formulaire parent.
+   * 🔥 ENHANCED: Amélioration de la gestion des custom dimensions
    * @param variableName Le nom de la variable de taxonomie.
    * @param value La nouvelle valeur du champ.
    * @param format Le format de la valeur.
    * @param shortcodeId L'ID du shortcode associé, si applicable.
    */
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
+    console.log(`🔄 handleFieldChange: ${variableName} = "${value}" (format: ${format}, shortcodeId: ${shortcodeId})`);
+    
     const newTaxonomyValue: TaxonomyVariableValue = {
-      value, source: 'manual', format,
+      value, 
+      source: 'manual', 
+      format,
       ...(format === 'open' ? { openValue: value } : {}),
       ...(shortcodeId ? { shortcodeId } : {})
     };
@@ -370,15 +376,34 @@ export function useTaxonomyForm({
     const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
     setTaxonomyValues(newTaxonomyValues);
 
+    // 🔥 ENHANCED: Mise à jour améliorée pour les custom dimensions
     const taxonomyValuesFieldName = formType === 'creatif' ? 'CR_Taxonomy_Values' : 'PL_Taxonomy_Values';
     const taxonomyValuesEvent = {
       target: { name: taxonomyValuesFieldName, value: newTaxonomyValues }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
     onChange(taxonomyValuesEvent);
 
+    // 🔥 ENHANCED: Gestion spéciale pour les custom dimensions
+    const isCustomDimension = variableName.includes('Custom_Dim_');
+    
     if ((formType === 'creatif' && isCreatifVariable(variableName)) ||
-      (formType === 'placement' && (isManualVariable(variableName) || isPlacementVariable(variableName)) && !isCreatifVariable(variableName))) {
-      const eventValue = shortcodeId ?? value;
+        (formType === 'placement' && (isManualVariable(variableName) || isPlacementVariable(variableName)) && !isCreatifVariable(variableName))) {
+      
+      // Pour les custom dimensions, utiliser la valeur formatée appropriée
+      let eventValue = value;
+      if (isCustomDimension && shortcodeId) {
+        // Pour les custom dimensions avec shortcode, utiliser le shortcodeId pour cohérence avec le système
+        eventValue = shortcodeId;
+      } else if (isCustomDimension && format === 'open') {
+        // Pour les custom dimensions en saisie libre, utiliser directement la valeur
+        eventValue = value;
+      } else {
+        // Pour les autres cas, utiliser shortcodeId si disponible, sinon value
+        eventValue = shortcodeId ?? value;
+      }
+      
+      console.log(`🔄 Mise à jour champ direct: ${variableName} = "${eventValue}"`);
+      
       const fieldChangeEvent = {
         target: { name: variableName, value: eventValue }
       } as unknown as React.ChangeEvent<HTMLInputElement>;
@@ -412,6 +437,7 @@ export function useTaxonomyForm({
   /**
    * Résout la valeur d'une variable de taxonomie en fonction de sa source et du format demandé.
    * Priorise les valeurs manuelles, puis recherche dans les données de campagne, tactique ou placement.
+   * 🔥 ENHANCED: Amélioration de la résolution des custom dimensions
    * @param variable L'objet ParsedTaxonomyVariable à résoudre.
    * @param format Le format de sortie souhaité.
    * @returns La valeur résolue et formatée de la variable.
@@ -419,55 +445,90 @@ export function useTaxonomyForm({
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const variableName = variable.variable;
     const variableSource = getFieldSource(variableName);
+    const isCustomDim = variableName.includes('Custom_Dim_');
 
-    // 1. Vérifier les valeurs manuelles en priorité
+    console.log(`🔍 resolveVariableValue: ${variableName} (source: ${variableSource}, format: ${format}, isCustomDim: ${isCustomDim})`);
+
+    // 1. Vérifier les valeurs manuelles en priorité (pour toutes les variables)
     const manualValue = taxonomyValues[variableName];
     if (manualValue) {
-      if (manualValue.format === 'open') return manualValue.openValue || '';
-      if (manualValue.shortcodeId) return formatShortcode(manualValue.shortcodeId, format);
+      console.log(`✅ Valeur manuelle trouvée pour ${variableName}:`, manualValue);
+      
+      if (manualValue.format === 'open') {
+        return manualValue.openValue || '';
+      }
+      
+      if (manualValue.shortcodeId) {
+        const formattedValue = formatShortcode(manualValue.shortcodeId, format);
+        console.log(`🔄 Shortcode formaté pour ${variableName}: ${formattedValue}`);
+        return formattedValue;
+      }
+      
       return manualValue.value || '';
     }
 
     let rawValue: any = null;
 
-    // 2. Résolution selon la source avec correction pour les placements
-    if (variableSource === 'campaign' && campaignData) {
-      rawValue = campaignData[variableName];
-    } else if (variableSource === 'tactique' && tactiqueData) {
-      rawValue = tactiqueData[variableName];
-    } else if (variableSource === 'placement' && placementData) {
-      // Pour les variables de placement, chercher dans PL_Taxonomy_Values
-      if (isPlacementVariable(variableName) && placementData.PL_Taxonomy_Values && placementData.PL_Taxonomy_Values[variableName]) {
-        const taxonomyValue = placementData.PL_Taxonomy_Values[variableName];
+    // 2. 🔥 ENHANCED: Résolution améliorée pour les custom dimensions
+    if (isCustomDim && formData) {
+      // Pour les custom dimensions, d'abord vérifier dans le formData actuel
+      const currentFormValue = (formData as any)[variableName];
+      if (currentFormValue !== undefined && currentFormValue !== '') {
+        console.log(`✅ Valeur trouvée dans formData pour ${variableName}: ${currentFormValue}`);
+        rawValue = currentFormValue;
+      }
+    }
 
-        // Extraire la valeur selon le format demandé
-        if (format === 'open' && taxonomyValue.openValue) {
-          rawValue = taxonomyValue.openValue;
-        } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-          rawValue = formatShortcode(taxonomyValue.shortcodeId, format);
-          return rawValue; // Retour direct car déjà formaté
+    // 3. Résolution selon la source avec correction pour les placements
+    if (rawValue === null || rawValue === undefined) {
+      if (variableSource === 'campaign' && campaignData) {
+        rawValue = campaignData[variableName];
+        console.log(`🔍 Recherche dans campaignData pour ${variableName}: ${rawValue}`);
+      } else if (variableSource === 'tactique' && tactiqueData) {
+        rawValue = tactiqueData[variableName];
+        console.log(`🔍 Recherche dans tactiqueData pour ${variableName}: ${rawValue}`);
+      } else if (variableSource === 'placement' && (placementData || formData)) {
+        const dataSource = placementData || formData;
+        
+        // Pour les variables de placement, chercher dans PL_Taxonomy_Values en premier
+        if (isPlacementVariable(variableName) && dataSource.PL_Taxonomy_Values && dataSource.PL_Taxonomy_Values[variableName]) {
+          const taxonomyValue = dataSource.PL_Taxonomy_Values[variableName];
+          console.log(`🔍 Trouvé dans PL_Taxonomy_Values pour ${variableName}:`, taxonomyValue);
+
+          // Extraire la valeur selon le format demandé
+          if (format === 'open' && taxonomyValue.openValue) {
+            rawValue = taxonomyValue.openValue;
+          } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
+            rawValue = formatShortcode(taxonomyValue.shortcodeId, format);
+            console.log(`🔄 Valeur formatée depuis PL_Taxonomy_Values: ${rawValue}`);
+            return rawValue; // Retour direct car déjà formaté
+          } else {
+            rawValue = taxonomyValue.value;
+          }
         } else {
-          rawValue = taxonomyValue.value;
+          // Fallback: chercher directement dans l'objet placement/formData
+          rawValue = dataSource[variableName];
+          console.log(`🔍 Fallback recherche directe pour ${variableName}: ${rawValue}`);
         }
-      } else {
-        // Fallback: chercher directement dans l'objet placement
-        rawValue = placementData[variableName];
       }
     }
 
     if (rawValue === null || rawValue === undefined || rawValue === '') {
+      console.log(`❌ Aucune valeur trouvée pour ${variableName}`);
       return `[${variableName}]`;
     }
 
-    // 3. Formatage de la valeur (seulement si pas déjà formaté)
+    // 4. 🔥 ENHANCED: Formatage amélioré de la valeur
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
       const formattedValue = formatShortcode(rawValue, format);
+      console.log(`🔄 Valeur formatée via shortcode pour ${variableName}: ${formattedValue}`);
       return formattedValue;
     }
 
     const finalValue = String(rawValue);
+    console.log(`✅ Valeur finale pour ${variableName}: ${finalValue}`);
     return finalValue;
-  }, [taxonomyValues, campaignData, tactiqueData, placementData, formatShortcode]);
+  }, [taxonomyValues, campaignData, tactiqueData, placementData, formData, formatShortcode]);
 
   /**
    * Récupère la valeur formatée d'une variable spécifique.
@@ -477,7 +538,10 @@ export function useTaxonomyForm({
    */
   const getFormattedValue = useCallback((variableName: string, format: string): string => {
     const variable = parsedVariables.find(v => v.variable === variableName);
-    if (!variable) return '';
+    if (!variable) {
+      console.log(`⚠️ Variable ${variableName} non trouvée dans parsedVariables`);
+      return '';
+    }
     return resolveVariableValue(variable, format as TaxonomyFormat);
   }, [parsedVariables, resolveVariableValue]);
 
