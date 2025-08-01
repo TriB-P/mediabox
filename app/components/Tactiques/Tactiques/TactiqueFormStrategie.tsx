@@ -1,12 +1,11 @@
 // app/components/Tactiques/Tactiques/TactiqueFormStrategie.tsx
 
 /**
- * Ce fichier contient le composant React TactiqueFormStrategie.
- * Il s'agit d'un formulaire qui permet de configurer les aspects stratégiques et de ciblage d'une tactique média.
- * Le formulaire inclut des champs pour la ligne d'affaire, le type de média, le partenaire, l'inventaire,
- * diverses descriptions textuelles (marché, ciblage, produit, format, emplacement), la fréquence, le marché et la langue.
- * Il gère également l'affichage conditionnel de champs personnalisés et des informations relatives à la production.
- *
+ * CORRIGÉ : Ce fichier contient le composant React TactiqueFormStrategie avec la logique 
+ * des dimensions personnalisées corrigée pour implémenter les 3 comportements souhaités :
+ * 1. Dimension configurée + liste existe → SmartSelect avec label personnalisé
+ * 2. Dimension configurée + pas de liste → FormInput avec label personnalisé  
+ * 3. Dimension non configurée → Masqué
  */
 'use client';
 
@@ -24,10 +23,18 @@ interface ListItem {
   SH_Display_Name_FR: string;
 }
 
-interface ClientCustomDimensions {
-  TC_Custom_Dim_1?: string;
-  TC_Custom_Dim_2?: string;
-  TC_Custom_Dim_3?: string;
+// MODIFIÉ : Interface corrigée pour correspondre à CustomDimensionsState du TactiqueDrawer
+interface CustomDimensionsState {
+  configured: {
+    TC_Custom_Dim_1?: string;
+    TC_Custom_Dim_2?: string;
+    TC_Custom_Dim_3?: string;
+  };
+  hasLists: {
+    TC_Custom_Dim_1: boolean;
+    TC_Custom_Dim_2: boolean;
+    TC_Custom_Dim_3: boolean;
+  };
 }
 
 interface VisibleFields {
@@ -68,26 +75,78 @@ interface TactiqueFormStrategieProps {
   onTooltipChange: (tooltip: string | null) => void;
   dynamicLists: { [key: string]: ListItem[] };
   visibleFields: VisibleFields;
-  customDimensions: ClientCustomDimensions;
+  customDimensions: CustomDimensionsState; // MODIFIÉ : Type corrigé
   publishersOptions: { id: string; label: string }[]; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
   loading?: boolean;
   isPublishersLoading?: boolean; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
 }
 
 /**
- * Composant fonctionnel React pour le formulaire de stratégie média.
- *
- * @param {TactiqueFormStrategieProps} props - Les propriétés du composant.
- * @param {object} props.formData - Les données actuelles du formulaire.
- * @param {function} props.onChange - Le gestionnaire de changement pour les champs du formulaire.
- * @param {function} props.onTooltipChange - Le gestionnaire pour afficher/masquer les infobulles.
- * @param {object} props.dynamicLists - Les listes dynamiques utilisées pour les sélections.
- * @param {object} props.visibleFields - Un objet indiquant quels champs doivent être visibles.
- * @param {object} props.customDimensions - Les noms des dimensions personnalisées du client.
- * @param {Array} props.publishersOptions - DEPRECATED: Plus utilisé (TC_Publisher via dynamicLists maintenant).
- * @param {boolean} [props.loading=false] - Indique si le formulaire est en état de chargement global.
- * @param {boolean} [props.isPublishersLoading=false] - DEPRECATED: Plus utilisé.
- * @returns {JSX.Element} Le composant de formulaire de stratégie média.
+ * NOUVEAU : Fonction utilitaire pour rendre une dimension personnalisée selon sa configuration
+ * @param dimensionNumber - Le numéro de la dimension (1, 2 ou 3)
+ * @param customDimensions - L'état des dimensions personnalisées
+ * @param dynamicLists - Les listes dynamiques chargées
+ * @param formData - Les données du formulaire
+ * @param onChange - Le gestionnaire de changement
+ * @param onTooltipChange - Le gestionnaire de tooltip
+ * @returns JSX.Element | null - Le composant à rendre ou null si masqué
+ */
+const renderCustomDimension = (
+  dimensionNumber: 1 | 2 | 3,
+  customDimensions: CustomDimensionsState,
+  dynamicLists: { [key: string]: ListItem[] },
+  formData: any,
+  onChange: any,
+  onTooltipChange: any
+): JSX.Element | null => {
+  const fieldName = `TC_Custom_Dim_${dimensionNumber}` as const;
+  const configuredLabel = customDimensions.configured[fieldName];
+  const hasList = customDimensions.hasLists[fieldName];
+  
+  // Cas 3 : Dimension non configurée → Masqué
+  if (!configuredLabel) {
+    return null;
+  }
+  
+  const labelText = configuredLabel || `Dimension personnalisée ${dimensionNumber}`;
+  const helpText = "Champs personnalisé pour votre client";
+  
+  // Cas 1 : Dimension configurée + liste existe → SmartSelect
+  if (hasList && dynamicLists[fieldName] && dynamicLists[fieldName].length > 0) {
+    return (
+      <SmartSelect
+        key={fieldName}
+        id={fieldName}
+        name={fieldName}
+        value={formData[fieldName] || ''}
+        onChange={onChange}
+        options={dynamicLists[fieldName].map(item => ({
+          id: item.id,
+          label: item.SH_Display_Name_FR
+        }))}
+        placeholder={`Sélectionner ${labelText}...`}
+        label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
+      />
+    );
+  }
+  
+  // Cas 2 : Dimension configurée + pas de liste → FormInput
+  return (
+    <FormInput
+      key={fieldName}
+      id={fieldName}
+      name={fieldName}
+      value={formData[fieldName] || ''}
+      onChange={onChange}
+      type="text"
+      placeholder={`Saisir ${labelText}...`}
+      label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
+    />
+  );
+};
+
+/**
+ * Composant fonctionnel React pour le formulaire de stratégie média CORRIGÉ.
  */
 const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
   formData,
@@ -102,6 +161,12 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
 }) => {
   const isDisabled = loading;
 
+  // NOUVEAU : Vérifier si au moins une dimension personnalisée doit être affichée
+  const hasAnyCustomDimension = 
+    customDimensions.configured.TC_Custom_Dim_1 ||
+    customDimensions.configured.TC_Custom_Dim_2 ||
+    customDimensions.configured.TC_Custom_Dim_3;
+
   return (
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
@@ -112,6 +177,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           Configuration stratégique et ciblage
         </p>
       </div>
+      
       <div className="space-y-6">
         {(dynamicLists.TC_LOB && dynamicLists.TC_LOB.length > 0) && (
           <SmartSelect
@@ -131,6 +197,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+        
         {(dynamicLists.TC_Media_Type && dynamicLists.TC_Media_Type.length > 0) && (
           <SmartSelect
             id="TC_Media_Type"
@@ -149,24 +216,26 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
-          {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
-              <SmartSelect
-                id="TC_Buying_Method"
-                name="TC_Buying_Method"
-                value={formData.TC_Buying_Method || ''}
-                onChange={onChange}
-                options={dynamicLists.TC_Buying_Method?.map(item => ({
-                  id: item.id,
-                  label: item.SH_Display_Name_FR
-                })) || []}
-                placeholder="Sélectionner une méthode d'achat..."
-                label={createLabelWithHelp(
-                  'Méthode d\'achat',
-                  "Champs personnalisé pour votre client",
-                  onTooltipChange
-                )}
-              />
+        
+        {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
+          <SmartSelect
+            id="TC_Buying_Method"
+            name="TC_Buying_Method"
+            value={formData.TC_Buying_Method || ''}
+            onChange={onChange}
+            options={dynamicLists.TC_Buying_Method?.map(item => ({
+              id: item.id,
+              label: item.SH_Display_Name_FR
+            })) || []}
+            placeholder="Sélectionner une méthode d'achat..."
+            label={createLabelWithHelp(
+              'Méthode d\'achat',
+              "Sous-catégorisation du champs 'Type média'. Permet de mieux catégoriser la tactique",
+              onTooltipChange
             )}
+          />
+        )}
+        
         {(dynamicLists.TC_Publisher && dynamicLists.TC_Publisher.length > 0) && (
           <SmartSelect
             id="TC_Publisher"
@@ -185,6 +254,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+        
         {(dynamicLists.TC_Inventory && dynamicLists.TC_Inventory.length > 0) && (
           <SmartSelect
             id="TC_Inventory"
@@ -203,6 +273,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+        
         <FormTextarea
           id="TC_Market_Open"
           name="TC_Market_Open"
@@ -216,6 +287,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         <FormTextarea
           id="TC_Targeting_Open"
           name="TC_Targeting_Open"
@@ -229,6 +301,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         <FormTextarea
           id="TC_Product_Open"
           name="TC_Product_Open"
@@ -242,6 +315,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         <FormTextarea
           id="TC_Format_Open"
           name="TC_Format_Open"
@@ -255,6 +329,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         <FormInput
           id="TC_Location_Open"
           name="TC_Location_Open"
@@ -268,6 +343,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         <FormInput
           id="TC_Frequence"
           name="TC_Frequence"
@@ -281,6 +357,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onTooltipChange
           )}
         />
+        
         {(dynamicLists.TC_Market && dynamicLists.TC_Market.length > 0) && (
           <SmartSelect
             id="TC_Market"
@@ -299,7 +376,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
-        {(dynamicLists.TC_Language_Open && dynamicLists.TC_Language_Open.length > 0) && (
+        
           <SmartSelect
             id="TC_Language_Open"
             name="TC_Language_Open"
@@ -312,74 +389,27 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             placeholder="Sélectionner une langue..."
             label={createLabelWithHelp(
               'Langue',
-              "Champs fermé utilisé dans certaines taxonomies",
+              "Champs ouvert pour la langue de la tactique. Utilisé uniquement dans le plan média. La langue utilisée dans la taxonomie sera déterminée au niveau du placement",
               onTooltipChange
             )}
           />
-        )}
+      
+
+        
       </div>
-      {(visibleFields.TC_Custom_Dim_1 || visibleFields.TC_Custom_Dim_2 ||
-        visibleFields.TC_Custom_Dim_3 || visibleFields.TC_Buying_Method) && (
-          <FormSection
-            title="Champs personnalisés"
-            description="Configuration spécifique au client"
-          >
-            {(dynamicLists.TC_Custom_Dim_1 && dynamicLists.TC_Custom_Dim_1.length > 0) && (
-              <SmartSelect
-                id="TC_Custom_Dim_1"
-                name="TC_Custom_Dim_1"
-                value={formData.TC_Custom_Dim_1 || ''}
-                onChange={onChange}
-                options={dynamicLists.TC_Custom_Dim_1?.map(item => ({
-                  id: item.id,
-                  label: item.SH_Display_Name_FR
-                })) || []}
-                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_1}...`}
-                label={createLabelWithHelp(
-                  customDimensions.TC_Custom_Dim_1 || 'Dimension personnalisée 1',
-                  "Champs personnalisé pour votre client",
-                  onTooltipChange
-                )}
-              />
-            )}
-            {(dynamicLists.TC_Custom_Dim_2 && dynamicLists.TC_Custom_Dim_2.length > 0) && (
-              <SmartSelect
-                id="TC_Custom_Dim_2"
-                name="TC_Custom_Dim_2"
-                value={formData.TC_Custom_Dim_2 || ''}
-                onChange={onChange}
-                options={dynamicLists.TC_Custom_Dim_2?.map(item => ({
-                  id: item.id,
-                  label: item.SH_Display_Name_FR
-                })) || []}
-                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_2}...`}
-                label={createLabelWithHelp(
-                  customDimensions.TC_Custom_Dim_2 || 'Dimension personnalisée 2',
-                  "Champs personnalisé pour votre client",
-                  onTooltipChange
-                )}
-              />
-            )}
-            {(dynamicLists.TC_Custom_Dim_3 && dynamicLists.TC_Custom_Dim_3.length > 0) && (
-              <SmartSelect
-                id="TC_Custom_Dim_3"
-                name="TC_Custom_Dim_3"
-                value={formData.TC_Custom_Dim_3 || ''}
-                onChange={onChange}
-                options={dynamicLists.TC_Custom_Dim_3?.map(item => ({
-                  id: item.id,
-                  label: item.SH_Display_Name_FR
-                })) || []}
-                placeholder={`Sélectionner ${customDimensions.TC_Custom_Dim_3}...`}
-                label={createLabelWithHelp(
-                  customDimensions.TC_Custom_Dim_3 || 'Dimension personnalisée 3',
-                  "Champs personnalisé pour votre client",
-                  onTooltipChange
-                )}
-              />
-            )}
-          </FormSection>
-        )}
+
+      {/* MODIFIÉ : Section des dimensions personnalisées avec logique corrigée */}
+      {hasAnyCustomDimension && (
+        <FormSection
+          title="Champs personnalisés"
+          description="Configuration spécifique au client"
+        >
+          {renderCustomDimension(1, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
+          {renderCustomDimension(2, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
+          {renderCustomDimension(3, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
+        </FormSection>
+      )}
+
       <FormSection
         title="Production"
         description="Gestion des créatifs et des livrables"

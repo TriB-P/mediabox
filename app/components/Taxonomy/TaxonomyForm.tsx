@@ -13,18 +13,30 @@ interface TaxonomyFormProps {
 
 // Liste des variables dynamiques disponibles
 const DYNAMIC_VARIABLES = [
-  'TC_Publisher',
-  'TC_Objective',
-  'TC_LOB',
+  'CA_Billing_ID',
   'CA_Campaign_Identifier',
-  'UTM_TC_Channel',
-  'UTM_TC_Publisher',
-  'UTM_CR_Format_Details',
-  'CR_Plateform_Name',
-  'UTM_TC_Language_Open',
-  'TC_Billing_ID',
-  'TC_Targeting',
-  'TC_Media_Type'
+  'CA_Client',
+  'CA_Client_Ext_ID',
+  'CA_Creative_Folder',
+  'CA_Currency',
+  'CA_Custom_Dim_1',
+  'CA_Custom_Dim_2',
+  'CA_Custom_Dim_3',
+  'CA_Custom_Fee_1',
+  'CA_Custom_Fee_2',
+  'CA_Custom_Fee_3',
+  'CA_Division',
+  'CA_End date',
+  'CA_ID',
+  'CA_Last_Edit',
+  'CA_Name',
+  'CA_PO',
+  'CA_Quarter',
+  'CA_Sprint_Dates',
+  'CA_Start date',
+  'CA_Total_Budget',
+  'CA_Year',
+ 
 ];
 
 // Formats disponibles pour les variables
