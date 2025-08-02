@@ -6,6 +6,7 @@
  * de l'application. Il organise les colonnes par niveau (section, tactique, placement, créatif)
  * et par sous-catégorie pour les tactiques ET placements, permettant une gestion flexible de
  * l'affichage et de la validation des données dans les tables.
+ * MODIFIÉ : Ajout des colonnes de dates pour les placements
  */
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 
@@ -289,8 +290,8 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
 ];
 
 /**
- * NOUVEAU : Définition des colonnes pour la sous-catégorie 'Info' des placements.
- * Ces colonnes correspondent aux champs du PlacementFormInfo.
+ * MODIFIÉ : Définition des colonnes pour la sous-catégorie 'Info' des placements.
+ * Ajout des colonnes PL_Start_Date et PL_End_Date
  */
 const PLACEMENT_INFO_COLUMNS: DynamicColumn[] = [
   {
@@ -299,6 +300,22 @@ const PLACEMENT_INFO_COLUMNS: DynamicColumn[] = [
     type: 'text',
     width: 250,
     validation: validateRequired
+  },
+  {
+    key: 'PL_Start_Date',
+    label: 'Date de début',
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'PL_End_Date',
+    label: 'Date de fin',
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
   },
   {
     key: 'PL_Taxonomy_Tags',

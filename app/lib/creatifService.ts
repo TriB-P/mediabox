@@ -170,7 +170,7 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
             // Fallback: chercher directement dans l'objet placement
             rawValue = context.placementData[variableName];
         }
-    } else if (source === 'manual' && isCreatifVariable(variableName)) {
+    } else if (source === 'créatif' && isCreatifVariable(variableName)) {
         // Variables créatifs manuelles directement sur l'objet créatif
         rawValue = context.creatifData[variableName];
     }
@@ -340,6 +340,8 @@ async function prepareDataForFirestore(
         CR_Label: creatifData.CR_Label || '',
         CR_Order: creatifData.CR_Order || 0,
         CR_PlacementId: creatifData.CR_PlacementId,
+        CR_Start_Date: creatifData.CR_Start_Date || '',
+        CR_End_Date: creatifData.CR_End_Date || '',
         CR_Taxonomy_Tags: creatifData.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatifData.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatifData.CR_Taxonomy_MediaOcean || '',

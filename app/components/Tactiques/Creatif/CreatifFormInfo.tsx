@@ -1,9 +1,11 @@
+// app/components/Tactiques/Creatif/CreatifFormInfo.tsx
+
 /**
  * @file Ce fichier contient le composant React `CreatifFormInfo`.
  * Ce composant est une partie d'un formulaire plus grand et gère spécifiquement
  * les informations de base d'un "créatif" (comme une publicité).
- * Il permet à l'utilisateur de définir un nom pour le créatif et d'associer
- * des taxonomies (catégories pré-définies) qui sont récupérées depuis Firebase
+ * Il permet à l'utilisateur de définir un nom pour le créatif, les dates de début/fin,
+ * et d'associer des taxonomies (catégories pré-définies) qui sont récupérées depuis Firebase
  * en fonction du client sélectionné.
  */
 
@@ -21,6 +23,8 @@ import { Taxonomy } from '../../../types/taxonomy';
 interface CreatifFormInfoProps {
   formData: {
     CR_Label?: string;
+    CR_Start_Date?: string;
+    CR_End_Date?: string;
     CR_Taxonomy_Tags?: string;
     CR_Taxonomy_Platform?: string;
     CR_Taxonomy_MediaOcean?: string;
@@ -28,12 +32,15 @@ interface CreatifFormInfoProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   clientId: string;
+  campaignData?: any;
+  tactiqueData?: any;
+  placementData?: any;
   loading?: boolean;
 }
 
 /**
  * Affiche la section du formulaire dédiée aux informations générales du créatif.
- * Ce composant gère la saisie du nom du créatif et la sélection des taxonomies
+ * Ce composant gère la saisie du nom du créatif, les dates et la sélection des taxonomies
  * applicables pour les tags, la plateforme et MediaOcean.
  * Il récupère dynamiquement les taxonomies disponibles pour le client spécifié.
  *
@@ -42,6 +49,9 @@ interface CreatifFormInfoProps {
  * @param {function} props.onChange - Le gestionnaire pour les changements dans les champs de saisie.
  * @param {function} props.onTooltipChange - Le gestionnaire pour afficher des infobulles d'aide.
  * @param {string} props.clientId - L'ID du client pour lequel charger les taxonomies.
+ * @param {any} [props.campaignData] - Les données de la campagne pour l'héritage des dates.
+ * @param {any} [props.tactiqueData] - Les données de la tactique pour l'héritage des dates.
+ * @param {any} [props.placementData] - Les données du placement pour l'héritage des dates.
  * @param {boolean} [props.loading=false] - Indique si le formulaire parent est en état de chargement.
  * @returns {React.ReactElement} Le composant de formulaire pour les informations du créatif.
  */
@@ -50,6 +60,9 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
   onChange,
   onTooltipChange,
   clientId,
+  campaignData,
+  tactiqueData,
+  placementData,
   loading = false
 }) => {
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
@@ -121,6 +134,35 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
             onTooltipChange
           )}
         />
+
+        {/* CHAMPS DE DATES CÔTE À CÔTE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormInput
+            id="CR_Start_Date"
+            name="CR_Start_Date"
+            value={formData.CR_Start_Date || ''}
+            onChange={onChange}
+            type="date"
+            label={createLabelWithHelp(
+              'Date de début',
+              'Date de début du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée.',
+              onTooltipChange
+            )}
+          />
+
+          <FormInput
+            id="CR_End_Date"
+            name="CR_End_Date"
+            value={formData.CR_End_Date || ''}
+            onChange={onChange}
+            type="date"
+            label={createLabelWithHelp(
+              'Date de fin',
+              'Date de fin du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée.',
+              onTooltipChange
+            )}
+          />
+        </div>
 
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">

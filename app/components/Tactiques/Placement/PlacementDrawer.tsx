@@ -1,14 +1,12 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx - OPTIMISÉ AVEC CACHE
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SIMPLIFIÉE
 
 /**
- * PlacementDrawer avec optimisations de cache indirectes.
- * STRATÉGIE : Les composants enfants (PlacementFormTaxonomy) utilisent useTaxonomyForm
- * qui a été optimisé séparément pour utiliser le cache. PlacementDrawer lui-même
- * n'a pas besoin de charger des listes dynamiques directement.
+ * PlacementDrawer avec logique d'héritage de dates simplifiée.
+ * Les valeurs héritées sont calculées à l'affichage et fusionnées au moment de la sauvegarde.
  */
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import PlacementFormInfo from './PlacementFormInfo';
@@ -46,12 +44,17 @@ export default function PlacementDrawer({
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   
+  // Ref pour accéder aux valeurs actuellement affichées
+  const formInfoRef = useRef<any>(null);
+
   const [formData, setFormData] = useState<PlacementFormData>(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
     return {
       PL_Label: '',
       PL_Order: 0,
       PL_TactiqueId: tactiqueId,
+      PL_Start_Date: '',
+      PL_End_Date: '',
       PL_Taxonomy_Tags: '',
       PL_Taxonomy_Platform: '',
       PL_Taxonomy_MediaOcean: '',
@@ -64,9 +67,10 @@ export default function PlacementDrawer({
   useEffect(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
     if (placement) {
-     
-      // Vérifier les champs PL_ directement sur l'objet placement
+      // Mode édition - charger les données existantes
       const directTaxFields = {
+        PL_Start_Date: placement.PL_Start_Date,
+        PL_End_Date: placement.PL_End_Date,
         PL_Audience_Behaviour: placement.PL_Audience_Behaviour,
         PL_Audience_Demographics: placement.PL_Audience_Demographics,
         PL_Audience_Engagement: placement.PL_Audience_Engagement,
@@ -88,7 +92,6 @@ export default function PlacementDrawer({
         PL_Placement_Location: placement.PL_Placement_Location,
       };
       
-      // Extraire depuis PL_Taxonomy_Values si les champs directs sont vides
       const taxFromTaxonomyValues: any = {};
       if (placement.PL_Taxonomy_Values) {
         Object.keys(placement.PL_Taxonomy_Values).forEach(key => {
@@ -99,12 +102,12 @@ export default function PlacementDrawer({
         });
       }
       
-      // Extraire les champs manuels
       const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
       
-      // Priorité: champs directs > taxonomy values > vide
       const finalTaxFields: any = {};
       [
+        'PL_Start_Date',
+        'PL_End_Date',
         'PL_Audience_Behaviour',
         'PL_Audience_Demographics',
         'PL_Audience_Engagement',
@@ -146,10 +149,13 @@ export default function PlacementDrawer({
 
       setFormData(newFormData);
     } else {
+      // Mode création - initialiser avec valeurs vides (l'héritage se fait à l'affichage)
       setFormData({
         PL_Label: '', 
         PL_Order: 0,
-        PL_TactiqueId: tactiqueId, 
+        PL_TactiqueId: tactiqueId,
+        PL_Start_Date: '',
+        PL_End_Date: '',
         PL_Taxonomy_Tags: '',
         PL_Taxonomy_Platform: '', 
         PL_Taxonomy_MediaOcean: '',
@@ -167,35 +173,55 @@ export default function PlacementDrawer({
   
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => {
-      const newData = { ...prev, [name]: value };
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
   const handleTooltipChange = useCallback((tooltip: string | null) => {
     setActiveTooltip(tooltip);
   }, []);
+
+  /**
+   * Calcule les valeurs finales à sauvegarder en fusionnant formData avec les valeurs héritées affichées
+   */
+  const getFinalFormData = (): PlacementFormData => {
+    const convertToDateString = (date: any): string => {
+      if (!date) return '';
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) return date.toISOString().split('T')[0];
+      return String(date);
+    };
+
+    // Calculer les valeurs héritées si les champs sont vides
+    const inheritedStartDate = convertToDateString(
+      tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date
+    );
+    const inheritedEndDate = convertToDateString(
+      tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date
+    );
+
+    return {
+      ...formData,
+      PL_Start_Date: formData.PL_Start_Date || inheritedStartDate,
+      PL_End_Date: formData.PL_End_Date || inheritedEndDate,
+    };
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Fusionner avec les valeurs héritées avant sauvegarde
+      const finalData = getFinalFormData();
       
-      // 1. ✅ Sauvegarder rapidement le placement
-      await onSave(formData);
-      
-      // 2. ✅ Fermer immédiatement le drawer
+      await onSave(finalData);
       onClose();
       
-      // 3. ✅ Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
-      // Seulement pour les placements existants (pas les nouveaux)
+      // Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
       if (placement && placement.id && selectedClient && selectedCampaign) {
-        
         updateTaxonomiesAsync('placement', { 
           id: placement.id, 
-          name: formData.PL_Label,
+          name: finalData.PL_Label,
           clientId: selectedClient.clientId,
-          campaignId: selectedCampaign.id  // ✅ Obligatoire pour placement
+          campaignId: selectedCampaign.id
         }).catch(error => {
           console.error('Erreur mise à jour taxonomies placement:', error);
         });
@@ -212,10 +238,13 @@ export default function PlacementDrawer({
         if (!selectedClient) return null;
         return (
           <PlacementFormInfo
+            ref={formInfoRef}
             formData={formData}
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
+            campaignData={selectedCampaign}
+            tactiqueData={tactiqueData}
           />
         );
         
@@ -239,7 +268,6 @@ export default function PlacementDrawer({
   
   return (
     <>
-      {/* ✅ Bandeau de notification taxonomies */}
       <TaxonomyUpdateBanner 
         status={status} 
         onDismiss={dismissNotification} 

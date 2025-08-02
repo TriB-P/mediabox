@@ -148,6 +148,9 @@ export interface Placement {
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
 
+  PL_Start_Date?:Date;
+  PL_End_Date?:Date;
+
   // Champs de placement
   PL_Audience_Behaviour?: string;
   PL_Audience_Demographics?: string;
@@ -313,6 +316,10 @@ export interface PlacementFormData {
   PL_Label: string;
   PL_Order: number;
   PL_TactiqueId: string;
+
+  // NOUVEAUX CHAMPS DE DATES
+  PL_Start_Date?: string;
+  PL_End_Date?: string;
 
   PL_Taxonomy_Tags?: string;
   PL_Taxonomy_Platform?: string;

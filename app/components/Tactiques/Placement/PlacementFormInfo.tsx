@@ -1,7 +1,9 @@
+// app/components/Tactiques/Placement/PlacementFormInfo.tsx
+
 /**
  * Ce fichier définit le composant PlacementFormInfo, une section de formulaire utilisée
  * pour la création ou la modification des informations de base d'un "Placement".
- * Il gère la saisie du nom du placement et la sélection des taxonomies associées
+ * Il gère la saisie du nom du placement, les dates de début/fin et la sélection des taxonomies associées
  * en récupérant les taxonomies spécifiques au client depuis la base de données.
  */
 'use client';
@@ -18,6 +20,8 @@ import { Taxonomy } from '../../../types/taxonomy';
 interface PlacementFormInfoProps {
   formData: {
     PL_Label?: string;
+    PL_Start_Date?: string;
+    PL_End_Date?: string;
     PL_Taxonomy_Tags?: string;
     PL_Taxonomy_Platform?: string;
     PL_Taxonomy_MediaOcean?: string;
@@ -25,26 +29,23 @@ interface PlacementFormInfoProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
   clientId: string;
+  campaignData?: any;
+  tactiqueData?: any;
   loading?: boolean;
 }
 
 /**
  * Composant de formulaire pour les informations générales d'un placement.
- * Affiche les champs pour le nom du placement et les sélecteurs de taxonomies.
+ * Affiche les champs pour le nom du placement, les dates et les sélecteurs de taxonomies.
  * Les taxonomies sont chargées dynamiquement en fonction de l'ID du client.
- * @param {PlacementFormInfoProps} props - Les propriétés du composant.
- * @param {object} props.formData - Les données actuelles du formulaire.
- * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} props.onChange - Le gestionnaire pour les changements dans les champs du formulaire.
- * @param {(tooltip: string | null) => void} props.onTooltipChange - Le gestionnaire pour afficher les infobulles d'aide.
- * @param {string} props.clientId - L'ID du client pour lequel charger les taxonomies.
- * @param {boolean} [props.loading=false] - Indique si le formulaire est en état de chargement global.
- * @returns {React.ReactElement} Le composant de formulaire.
  */
 const PlacementFormInfo = memo<PlacementFormInfoProps>(({
   formData,
   onChange,
   onTooltipChange,
   clientId,
+  campaignData,
+  tactiqueData,
   loading = false,
 }) => {
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
@@ -59,10 +60,6 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
 
   /**
    * Charge les taxonomies disponibles pour le client spécifié via `clientId`.
-   * Met à jour les états de chargement et d'erreur. La fonction est définie
-   * à l'intérieur du composant pour accéder à `clientId` et aux fonctions `set...`.
-   * @async
-   * @returns {Promise<void>} Une promesse qui se résout une fois le chargement terminé.
    */
   const loadTaxonomies = async () => {
     try {
@@ -79,6 +76,31 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
       setTaxonomiesLoading(false);
     }
   };
+
+  /**
+   * Calcule la valeur à afficher pour les dates avec héritage
+   * Priorité : formData > tactiqueData > campaignData
+   */
+  const getDisplayValue = (fieldValue: string | undefined, inheritedValue: any): string => {
+    // Si formData a une valeur, l'utiliser
+    if (fieldValue) return fieldValue;
+    
+    // Sinon, utiliser la valeur héritée convertie en string
+    if (!inheritedValue) return '';
+    if (typeof inheritedValue === 'string') return inheritedValue;
+    if (inheritedValue instanceof Date) return inheritedValue.toISOString().split('T')[0];
+    return String(inheritedValue);
+  };
+
+  const startDateValue = getDisplayValue(
+    formData.PL_Start_Date,
+    tactiqueData?.TC_Start_Date || campaignData?.CA_Start_Date
+  );
+
+  const endDateValue = getDisplayValue(
+    formData.PL_End_Date,
+    tactiqueData?.TC_End_Date || campaignData?.CA_End_Date
+  );
 
   const taxonomyOptions = taxonomies.map((taxonomy) => ({
     id: taxonomy.id,
@@ -113,6 +135,35 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
             onTooltipChange
           )}
         />
+
+        {/* CHAMPS DE DATES CÔTE À CÔTE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormInput
+            id="PL_Start_Date"
+            name="PL_Start_Date"
+            value={startDateValue}
+            onChange={onChange}
+            type="date"
+            label={createLabelWithHelp(
+              'Date de début',
+              'Date de début du placement. Hérite de la tactique ou de la campagne si non spécifiée.',
+              onTooltipChange
+            )}
+          />
+
+          <FormInput
+            id="PL_End_Date"
+            name="PL_End_Date"
+            value={endDateValue}
+            onChange={onChange}
+            type="date"
+            label={createLabelWithHelp(
+              'Date de fin',
+              'Date de fin du placement. Hérite de la tactique ou de la campagne si non spécifiée.',
+              onTooltipChange
+            )}
+          />
+        </div>
 
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">

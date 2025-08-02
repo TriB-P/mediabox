@@ -1,10 +1,11 @@
 // app/components/Tactiques/Creatif/CreatifDrawer.tsx
 
 /**
- * Ce fichier définit le composant CreatifDrawer optimisé avec le système de cache.
+ * Ce fichier définit le composant CreatifDrawer optimisé avec le système de cache et héritage des dates.
  * OPTIMISÉ : Utilise directement le cacheService au lieu de dupliquer la logique.
  * Élimination des appels Firebase redondants et des imports dynamiques inutiles.
  * Version corrigée pour maximiser l'utilisation du cache localStorage.
+ * NOUVEAU : Héritage automatique des dates placement → tactique → campagne dans le formData.
  */
 'use client';
 
@@ -56,7 +57,7 @@ interface CreatifDrawerProps {
 }
 
 /**
- * Composant principal du tiroir de formulaire pour les créatifs OPTIMISÉ.
+ * Composant principal du tiroir de formulaire pour les créatifs OPTIMISÉ avec héritage dates.
  * Utilise le système de cache pour réduire drastiquement les appels Firebase.
  * @param {boolean} isOpen - Contrôle la visibilité du tiroir.
  * @param {() => void} onClose - Fonction pour fermer le tiroir.
@@ -98,12 +99,40 @@ export default function CreatifDrawer({
     'CR_Version', 
   ], []);
 
+  /**
+   * Calcule les valeurs héritées pour les dates
+   * Priorité : placementData → tactiqueData → selectedCampaign
+   * Convertit les dates en strings au format ISO si nécessaire
+   */
+  const getInheritedDates = useCallback(() => {
+    const convertToDateString = (date: any): string => {
+      if (!date) return '';
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      return String(date);
+    };
+
+    const startDate = convertToDateString(
+      placementData?.PL_Start_Date || 
+      tactiqueData?.TC_Start_Date || 
+      selectedCampaign?.CA_Start_Date
+    );
+    const endDate = convertToDateString(
+      placementData?.PL_End_Date || 
+      tactiqueData?.TC_End_Date || 
+      selectedCampaign?.CA_End_Date
+    );
+    return { startDate, endDate };
+  }, [placementData, tactiqueData, selectedCampaign]);
+
   const [formData, setFormData] = useState<CreatifFormData>(() => {
     const emptyCreatifFields = createEmptyCreatifFieldsObject();
     return {
       CR_Label: '',
       CR_Order: 0,
       CR_PlacementId: placementId,
+      CR_Start_Date: '',
+      CR_End_Date: '',
       CR_Taxonomy_Tags: '',
       CR_Taxonomy_Platform: '',
       CR_Taxonomy_MediaOcean: '',
@@ -199,6 +228,8 @@ export default function CreatifDrawer({
         CR_Label: creatif.CR_Label || '',
         CR_Order: creatif.CR_Order || 0,
         CR_PlacementId: creatif.CR_PlacementId,
+        CR_Start_Date: creatif.CR_Start_Date || '',
+        CR_End_Date: creatif.CR_End_Date || '',
         CR_Taxonomy_Tags: creatif.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatif.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatif.CR_Taxonomy_MediaOcean || '',
@@ -222,10 +253,15 @@ export default function CreatifDrawer({
         ...creatifFieldsFromCreatif,
       });
     } else {
+      // Nouveau créatif - calculer les valeurs héritées
+      const { startDate, endDate } = getInheritedDates();
+      
       setFormData({
         CR_Label: '',
         CR_Order: 0,
         CR_PlacementId: placementId,
+        CR_Start_Date: startDate,
+        CR_End_Date: endDate,
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
         CR_Taxonomy_MediaOcean: '',
@@ -248,7 +284,20 @@ export default function CreatifDrawer({
         ...emptyCreatifFields,
       });
     }
-  }, [creatif, placementId]);
+  }, [creatif, placementId, getInheritedDates]);
+
+  // useEffect séparé pour réinitialiser les valeurs héritées quand les données sources changent
+  useEffect(() => {
+    // Seulement pour un nouveau créatif (pas d'édition)
+    if (!creatif && (placementData || tactiqueData || selectedCampaign)) {
+      const { startDate, endDate } = getInheritedDates();
+      setFormData(prev => ({
+        ...prev,
+        CR_Start_Date: prev.CR_Start_Date || startDate,
+        CR_End_Date: prev.CR_End_Date || endDate,
+      }));
+    }
+  }, [placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates]);
 
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
@@ -304,6 +353,9 @@ export default function CreatifDrawer({
             onChange={handleChange}
             onTooltipChange={handleTooltipChange}
             clientId={selectedClient.clientId}
+            campaignData={selectedCampaign}
+            tactiqueData={tactiqueData}
+            placementData={placementData}
           />
         );
 

@@ -4,7 +4,7 @@
  * Fonctions utilitaires pour DynamicTableStructure
  * Contient toute la logique d'enrichissement, formatage et traitement des données
  * Version complète avec toutes les fonctions nécessaires
- * MODIFIÉ : Support des sous-catégories placement
+ * MODIFIÉ : Support des sous-catégories placement et correction de l'affichage des taxonomies
  */
 
 import React from 'react';
@@ -124,6 +124,7 @@ export function enrichColumnsWithData(
 
 /**
  * MODIFIÉ : Formate une valeur pour l'affichage en mode lecture avec support des sous-catégories placement
+ * et correction de l'affichage des taxonomies
  */
 export function formatDisplayValue(
   columnKey: string,
@@ -131,7 +132,9 @@ export function formatDisplayValue(
   buckets: CampaignBucket[],
   dynamicLists: { [key: string]: ListItem[] },
   selectedLevel: TableLevel,
-  subCategory?: TactiqueSubCategory | PlacementSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory,
+  // NOUVEAU : Paramètre pour les options de colonnes enrichies (pour les taxonomies)
+  columnOptions?: Array<{ id: string; label: string }>
 ): string {
   // Cas spécial pour TC_Bucket : afficher le nom au lieu de l'ID
   if (columnKey === 'TC_Bucket' && value) {
@@ -145,10 +148,10 @@ export function formatDisplayValue(
     return item ? item.SH_Display_Name_FR : value;
   }
 
-  // NOUVEAU : Cas spéciaux pour les taxonomies de placement (affichage des IDs pour l'instant)
-  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(columnKey) && value) {
-    // TODO: Enrichir avec les noms des taxonomies une fois qu'elles seront chargées
-    return value;
+  // NOUVEAU : Cas spéciaux pour les taxonomies de placement (affichage des display names)
+  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(columnKey) && value && columnOptions) {
+    const taxonomyOption = columnOptions.find(option => option.id === value);
+    return taxonomyOption ? taxonomyOption.label : value;
   }
 
   // Formatage standard pour les autres types

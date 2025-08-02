@@ -135,7 +135,7 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
       } else {
           rawValue = taxonomyValue.value;
       }
-  } else if (source === 'manual') {
+  } else if (source === 'créatif') {
       rawValue = context.placementData[variableName];
   } else if (source === 'campaign' && context.campaignData) {
       rawValue = context.campaignData[variableName];
@@ -289,11 +289,13 @@ isUpdate: boolean = false
           placementFields[fieldName] = (placementData as any)[fieldName] || '';
       }
   });
-
+  
   const firestoreData = {
       PL_Label: placementData.PL_Label || '',
       PL_Order: placementData.PL_Order || 0,
       PL_TactiqueId: placementData.PL_TactiqueId,
+      PL_Start_Date: placementData.PL_Start_Date || '',
+      PL_End_Date: placementData.PL_End_Date || '',
       PL_Taxonomy_Tags: placementData.PL_Taxonomy_Tags || '',
       PL_Taxonomy_Platform: placementData.PL_Taxonomy_Platform || '',
       PL_Taxonomy_MediaOcean: placementData.PL_Taxonomy_MediaOcean || '',
