@@ -5,6 +5,9 @@
  * pour la création ou la modification des informations de base d'un "Placement".
  * Il gère la saisie du nom du placement, les dates de début/fin et la sélection des taxonomies associées
  * en récupérant les taxonomies spécifiques au client depuis la base de données.
+ * 
+ * VERSION SIMPLIFIÉE : Les valeurs des dates proviennent directement de formData 
+ * (l'héritage se fait dans PlacementDrawer lors de l'initialisation).
  */
 'use client';
 
@@ -38,6 +41,8 @@ interface PlacementFormInfoProps {
  * Composant de formulaire pour les informations générales d'un placement.
  * Affiche les champs pour le nom du placement, les dates et les sélecteurs de taxonomies.
  * Les taxonomies sont chargées dynamiquement en fonction de l'ID du client.
+ * 
+ * Les dates affichées proviennent directement de formData - l'héritage est géré par le parent.
  */
 const PlacementFormInfo = memo<PlacementFormInfoProps>(({
   formData,
@@ -77,31 +82,6 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
     }
   };
 
-  /**
-   * Calcule la valeur à afficher pour les dates avec héritage
-   * Priorité : formData > tactiqueData > campaignData
-   */
-  const getDisplayValue = (fieldValue: string | undefined, inheritedValue: any): string => {
-    // Si formData a une valeur, l'utiliser
-    if (fieldValue) return fieldValue;
-    
-    // Sinon, utiliser la valeur héritée convertie en string
-    if (!inheritedValue) return '';
-    if (typeof inheritedValue === 'string') return inheritedValue;
-    if (inheritedValue instanceof Date) return inheritedValue.toISOString().split('T')[0];
-    return String(inheritedValue);
-  };
-
-  const startDateValue = getDisplayValue(
-    formData.PL_Start_Date,
-    tactiqueData?.TC_Start_Date || campaignData?.CA_Start_Date
-  );
-
-  const endDateValue = getDisplayValue(
-    formData.PL_End_Date,
-    tactiqueData?.TC_End_Date || campaignData?.CA_End_Date
-  );
-
   const taxonomyOptions = taxonomies.map((taxonomy) => ({
     id: taxonomy.id,
     label: taxonomy.NA_Display_Name,
@@ -136,12 +116,12 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           )}
         />
 
-        {/* CHAMPS DE DATES CÔTE À CÔTE */}
+        {/* CHAMPS DE DATES CÔTE À CÔTE - Valeurs directes depuis formData */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormInput
             id="PL_Start_Date"
             name="PL_Start_Date"
-            value={startDateValue}
+            value={formData.PL_Start_Date || ''}
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
@@ -154,7 +134,7 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           <FormInput
             id="PL_End_Date"
             name="PL_End_Date"
-            value={endDateValue}
+            value={formData.PL_End_Date || ''}
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
@@ -177,58 +157,64 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           </div>
         )}
 
-        {taxonomies.length > 0 ? (
-          <>
-            <SmartSelect
-              id="PL_Taxonomy_Tags"
-              name="PL_Taxonomy_Tags"
-              value={formData.PL_Taxonomy_Tags || ''}
-              onChange={onChange}
-              options={taxonomyOptions}
-              placeholder="Sélectionner une taxonomie..."
-              label={createLabelWithHelp(
-                'Taxonomie à utiliser pour les tags',
-                'Taxonomie qui sera utilisée pour générer les tags du placement',
-                onTooltipChange
-              )}
-            />
+        <div className="border-t border-gray-200 pt-6">
+          <h4 className="text-lg font-medium text-gray-900 mb-4">
+            Taxonomies placements (niveaux 3-4)
+          </h4>
 
-            <SmartSelect
-              id="PL_Taxonomy_Platform"
-              name="PL_Taxonomy_Platform"
-              value={formData.PL_Taxonomy_Platform || ''}
-              onChange={onChange}
-              options={taxonomyOptions}
-              placeholder="Sélectionner une taxonomie..."
-              label={createLabelWithHelp(
-                'Taxonomie à utiliser pour la plateforme',
-                'Taxonomie qui sera utilisée pour la configuration de la plateforme',
-                onTooltipChange
-              )}
-            />
+          {taxonomies.length > 0 ? (
+            <div className="space-y-4">
+              <SmartSelect
+                id="PL_Taxonomy_Tags"
+                name="PL_Taxonomy_Tags"
+                value={formData.PL_Taxonomy_Tags || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie à utiliser pour les tags',
+                  'Taxonomie qui sera utilisée pour générer les tags du placement',
+                  onTooltipChange
+                )}
+              />
 
-            <SmartSelect
-              id="PL_Taxonomy_MediaOcean"
-              name="PL_Taxonomy_MediaOcean"
-              value={formData.PL_Taxonomy_MediaOcean || ''}
-              onChange={onChange}
-              options={taxonomyOptions}
-              placeholder="Sélectionner une taxonomie..."
-              label={createLabelWithHelp(
-                'Taxonomie à utiliser pour MediaOcean',
-                'Taxonomie qui sera utilisée pour l\'export vers MediaOcean',
-                onTooltipChange
-              )}
-            />
-          </>
-        ) : !taxonomiesLoading && !taxonomiesError ? (
-          <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
-            <p className="text-sm">
-              Aucune taxonomie configurée pour ce client.
-              Vous pouvez créer des taxonomies dans la section Configuration.
-            </p>
-          </div>
-        ) : null}
+              <SmartSelect
+                id="PL_Taxonomy_Platform"
+                name="PL_Taxonomy_Platform"
+                value={formData.PL_Taxonomy_Platform || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie à utiliser pour la plateforme',
+                  'Taxonomie qui sera utilisée pour la configuration de la plateforme',
+                  onTooltipChange
+                )}
+              />
+
+              <SmartSelect
+                id="PL_Taxonomy_MediaOcean"
+                name="PL_Taxonomy_MediaOcean"
+                value={formData.PL_Taxonomy_MediaOcean || ''}
+                onChange={onChange}
+                options={taxonomyOptions}
+                placeholder="Sélectionner une taxonomie..."
+                label={createLabelWithHelp(
+                  'Taxonomie à utiliser pour MediaOcean',
+                  'Taxonomie qui sera utilisée pour l\'export vers MediaOcean',
+                  onTooltipChange
+                )}
+              />
+            </div>
+          ) : !taxonomiesLoading && !taxonomiesError ? (
+            <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
+              <p className="text-sm">
+                Aucune taxonomie configurée pour ce client.
+                Vous pouvez créer des taxonomies dans la section Configuration.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {(loading || taxonomiesLoading) && (
