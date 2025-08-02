@@ -1500,8 +1500,135 @@ export const translations = {
         lastUpdated: "Dernière mise à jour:"
       }
     },
+    creatifDrawer: {
+      tabs: {
+        info: "Informations",
+        taxonomy: "Taxonomie",
+        specs: "Specs"
+      },
+      title: {
+        edit: "Modifier le créatif:",
+        new: "Nouveau créatif"
+      }
+    },
+    creatifFormInfo: {
+      title: "Informations du créatif",
+      description: "Configuration de base et sélection des taxonomies pour le créatif",
+      creativeName: {
+        label: "Nom du créatif *",
+        tooltip: "Nom descriptif du créatif. Soyez spécifique pour faciliter l'identification lors des rapports.",
+        placeholder: "Ex: Bannière 300x250 v1, Vidéo 15s A/B test, Native Ad mobile"
+      },
+      startDate: {
+        label: "Date de début",
+        tooltip: "Date de début du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée."
+      },
+      endDate: {
+        label: "Date de fin",
+        tooltip: "Date de fin du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée."
+      },
+      errors: {
+        taxonomyLoad: "Erreur lors du chargement des taxonomies"
+      },
+      retry: "Réessayer",
+      taxonomySection: {
+        title: "Taxonomies créatifs (niveaux 5-6)",
+        placeholder: "Sélectionner une taxonomie..."
+      },
+      taxonomyTags: {
+        label: "Taxonomie pour les tags créatifs",
+        tooltip: "Taxonomie qui sera utilisée pour générer les tags du créatif (niveaux 5-6)"
+      },
+      taxonomyPlatform: {
+        label: "Taxonomie pour la plateforme créatifs",
+        tooltip: "Taxonomie qui sera utilisée pour la configuration de la plateforme (niveaux 5-6)"
+      },
+      taxonomyMediaOcean: {
+        label: "Taxonomie pour MediaOcean créatifs",
+        tooltip: "Taxonomie qui sera utilisée pour l'export vers MediaOcean (niveaux 5-6)"
+      },
+      noTaxonomy: {
+        message: "Aucune taxonomie configurée pour ce client.",
+        action: "Vous pouvez créer des taxonomies dans la section Configuration."
+      },
+      loading: {
+        data: "Chargement des données...",
+        taxonomies: "Chargement des taxonomies..."
+      }
+    },
+    creatifFormSpecs: {
+      selection: {
+        title: "Sélection automatique",
+        description: "Choisissez un partenaire puis une spec pour auto-remplir les champs",
+        partnerPlaceholder: "Sélectionner un partenaire...",
+        partnerLabel: "Partenaire",
+        partnerTooltip: "Sélectionnez d'abord un partenaire pour voir ses specs disponibles",
+        specLoadingPlaceholder: "Chargement des specs...",
+        specSelectPlaceholder: "Sélectionner une spec...",
+        specLabel: "Spécification",
+        specTooltip: "Sélectionnez une spec pour auto-remplir tous les champs ci-dessous",
+        specPrefix: "Spec",
+        specSuffix: "appliquée",
+        resetButton: "Reset"
+      },
+      details: {
+        title: "Détails de la spécification",
+        description: "Modifiez les valeurs selon vos besoins",
+        namePlaceholder: "Nom de la spécification",
+        nameLabel: "Nom",
+        nameTooltip: "Nom de la spécification technique",
+        formatPlaceholder: "ex: 300x250",
+        formatLabel: "Format",
+        formatTooltip: "Dimensions de la créative",
+        ratioPlaceholder: "ex: 16:9",
+        ratioLabel: "Ratio",
+        ratioTooltip: "Ratio d'aspect de la créative",
+        fileTypePlaceholder: "ex: JPG, PNG, GIF",
+        fileTypeLabel: "Type de fichier",
+        fileTypeTooltip: "Types de fichiers acceptés",
+        animationPlaceholder: "ex: Autorisée, Non autorisée",
+        animationLabel: "Animation",
+        animationTooltip: "Spécifications sur l'animation",
+        maxWeightPlaceholder: "ex: 100 Ko",
+        maxWeightLabel: "Poids maximal",
+        maxWeightTooltip: "Taille maximale du fichier",
+        weightPlaceholder: "ex: 80 Ko",
+        weightLabel: "Poids maximal HTML5",
+        weightTooltip: "Taille maximale si format HTML5",
+        titlePlaceholder: "ex: Max 50 caractères",
+        titleLabel: "Titre",
+        titleTooltip: "Contraintes sur le titre",
+        textPlaceholder: "ex: Texte court descriptif",
+        textLabel: "Texte",
+        textTooltip: "Contraintes sur le texte",
+        specSheetLinkPlaceholder: "https://example.com/specs.pdf",
+        specSheetLinkLabel: "Lien vers feuille de specs",
+        specSheetLinkTooltip: "URL vers la documentation complète",
+        notesPlaceholder: "Notes additionnelles sur la spécification",
+        notesLabel: "Notes",
+        notesTooltip: "Informations complémentaires"
+      }
+    },  
+    creatifFormTaxonomy: {
+        title: "Configuration du créatif",
+        subtitle: "Variables taxonomiques et informations spécifiques au créatif",
+        retry: "Réessayer",
+        noTaxonomy: {
+          title: "Configuration des taxonomies créatifs",
+          description: "Veuillez d'abord sélectionner des taxonomies dans l'onglet \"Informations\" pour configurer les variables créatifs.",
+          tip: "💡 Les créatifs utilisent les niveaux 5-6 des taxonomies."
+        },
+        loading: {
+          data: "Chargement des données...",
+          taxonomies: "Analyse des taxonomies..."
+        },
+        preview: {
+          title: "Aperçu des taxonomies créatifs",
+          subtitle: "Prévisualisation des niveaux 5-6 des taxonomies sélectionnées"
+        }
+    },
     
-    
+  
 
     },
 
@@ -2844,6 +2971,134 @@ export const translations = {
         lastUpdated: "Last updated:"
       }
     },
+    creatifDrawer: {
+      tabs: {
+        info: "Information",
+        taxonomy: "Taxonomy",
+        specs: "Specs"
+      },
+      title: {
+        edit: "Edit creative:",
+        new: "New Creative"
+      }
+    },
+    creatifFormInfo: {
+      title: "Creative Information",
+      description: "Basic configuration and selection of taxonomies for the creative",
+      creativeName: {
+        label: "Creative Name *",
+        tooltip: "Descriptive name of the creative. Be specific to facilitate identification in reports.",
+        placeholder: "Ex: Banner 300x250 v1, Video 15s A/B test, Mobile Native Ad"
+      },
+      startDate: {
+        label: "Start Date",
+        tooltip: "Start date of the creative. Inherits from the placement, tactic, or campaign if not specified."
+      },
+      endDate: {
+        label: "End Date",
+        tooltip: "End date of the creative. Inherits from the placement, tactic, or campaign if not specified."
+      },
+      errors: {
+        taxonomyLoad: "Error loading taxonomies"
+      },
+      retry: "Retry",
+      taxonomySection: {
+        title: "Creative Taxonomies (levels 5-6)",
+        placeholder: "Select a taxonomy..."
+      },
+      taxonomyTags: {
+        label: "Taxonomy for creative tags",
+        tooltip: "Taxonomy that will be used to generate the creative tags (levels 5-6)"
+      },
+      taxonomyPlatform: {
+        label: "Taxonomy for creative platform",
+        tooltip: "Taxonomy that will be used for the platform configuration (levels 5-6)"
+      },
+      taxonomyMediaOcean: {
+        label: "Taxonomy for MediaOcean creatives",
+        tooltip: "Taxonomy that will be used for the MediaOcean export (levels 5-6)"
+      },
+      noTaxonomy: {
+        message: "No taxonomy configured for this client.",
+        action: "You can create taxonomies in the Configuration section."
+      },
+      loading: {
+        data: "Loading data...",
+        taxonomies: "Loading taxonomies..."
+      }
+    },
+    creatifFormSpecs: {
+      selection: {
+        title: "Automatic Selection",
+        description: "Choose a partner then a spec to auto-fill the fields",
+        partnerPlaceholder: "Select a partner...",
+        partnerLabel: "Partner",
+        partnerTooltip: "First, select a partner to see their available specs",
+        specLoadingPlaceholder: "Loading specs...",
+        specSelectPlaceholder: "Select a spec...",
+        specLabel: "Specification",
+        specTooltip: "Select a spec to auto-fill all the fields below",
+        specPrefix: "Spec",
+        specSuffix: "applied",
+        resetButton: "Reset"
+      },
+      details: {
+        title: "Specification Details",
+        description: "Modify the values as needed",
+        namePlaceholder: "Specification name",
+        nameLabel: "Name",
+        nameTooltip: "Name of the technical specification",
+        formatPlaceholder: "e.g., 300x250",
+        formatLabel: "Format",
+        formatTooltip: "Dimensions of the creative",
+        ratioPlaceholder: "e.g., 16:9",
+        ratioLabel: "Ratio",
+        ratioTooltip: "Aspect ratio of the creative",
+        fileTypePlaceholder: "e.g., JPG, PNG, GIF",
+        fileTypeLabel: "File Type",
+        fileTypeTooltip: "Accepted file types",
+        animationPlaceholder: "e.g., Allowed, Not allowed",
+        animationLabel: "Animation",
+        animationTooltip: "Specifications on animation",
+        maxWeightPlaceholder: "e.g., 100 KB",
+        maxWeightLabel: "Maximum Weight",
+        maxWeightTooltip: "Maximum file size",
+        weightPlaceholder: "e.g., 80 KB",
+        weightLabel: "Maximum HTML5 Weight",
+        weightTooltip: "Maximum size if HTML5 format",
+        titlePlaceholder: "e.g., Max 50 characters",
+        titleLabel: "Title",
+        titleTooltip: "Constraints on the title",
+        textPlaceholder: "e.g., Short descriptive text",
+        textLabel: "Text",
+        textTooltip: "Constraints on the text",
+        specSheetLinkPlaceholder: "https://example.com/specs.pdf",
+        specSheetLinkLabel: "Link to spec sheet",
+        specSheetLinkTooltip: "URL to the complete documentation",
+        notesPlaceholder: "Additional notes on the specification",
+        notesLabel: "Notes",
+        notesTooltip: "Additional information"
+      }
+    },
+    creatifFormTaxonomy: {
+      title: "Creative Configuration",
+      subtitle: "Taxonomic variables and creative-specific information",
+      retry: "Retry",
+      noTaxonomy: {
+        title: "Creative Taxonomy Configuration",
+        description: "Please first select taxonomies in the \"Information\" tab to configure creative variables.",
+        tip: "💡 Creatives use levels 5-6 of the taxonomies."
+      },
+      loading: {
+        data: "Loading data...",
+        taxonomies: "Analyzing taxonomies..."
+      },
+      preview: {
+        title: "Creative Taxonomies Preview",
+        subtitle: "Preview of levels 5-6 of the selected taxonomies"
+      }
+    },
+    
     
 
 

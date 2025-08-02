@@ -12,6 +12,7 @@
 'use client';
 
 import React, { useState, useEffect, memo } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { 
   FormInput, 
   SmartSelect, 
@@ -65,6 +66,7 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
   placementData,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(true);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
@@ -94,7 +96,7 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
       
     } catch (error) {
       console.error('Erreur lors du chargement des taxonomies:', error);
-      setTaxonomiesError('Erreur lors du chargement des taxonomies');
+      setTaxonomiesError(t('creatifFormInfo.errors.taxonomyLoad'));
     } finally {
       setTaxonomiesLoading(false);
     }
@@ -111,10 +113,10 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
     <div className="p-8 space-y-6">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Informations du créatif
+          {t('creatifFormInfo.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration de base et sélection des taxonomies pour le créatif
+          {t('creatifFormInfo.description')}
         </p>
       </div>
       
@@ -126,11 +128,11 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           value={formData.CR_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannière 300x250 v1, Vidéo 15s A/B test, Native Ad mobile"
+          placeholder={t('creatifFormInfo.creativeName.placeholder')}
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Nom du créatif *', 
-            'Nom descriptif du créatif. Soyez spécifique pour faciliter l\'identification lors des rapports.', 
+            t('creatifFormInfo.creativeName.label'), 
+            t('creatifFormInfo.creativeName.tooltip'), 
             onTooltipChange
           )}
         />
@@ -144,8 +146,8 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
-              'Date de début',
-              'Date de début du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée.',
+              t('creatifFormInfo.startDate.label'),
+              t('creatifFormInfo.startDate.tooltip'),
               onTooltipChange
             )}
           />
@@ -157,8 +159,8 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
-              'Date de fin',
-              'Date de fin du créatif. Hérite du placement, de la tactique ou de la campagne si non spécifiée.',
+              t('creatifFormInfo.endDate.label'),
+              t('creatifFormInfo.endDate.tooltip'),
               onTooltipChange
             )}
           />
@@ -171,14 +173,14 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
               onClick={loadTaxonomies}
               className="ml-2 text-red-600 hover:text-red-800 underline"
             >
-              Réessayer
+              {t('creatifFormInfo.retry')}
             </button>
           </div>
         )}
 
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4">
-            Taxonomies créatifs (niveaux 5-6)
+            {t('creatifFormInfo.taxonomySection.title')}
           </h4>
 
           {taxonomies.length > 0 ? (
@@ -189,10 +191,10 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
                 value={formData.CR_Taxonomy_Tags || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('creatifFormInfo.taxonomySection.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie pour les tags créatifs', 
-                  'Taxonomie qui sera utilisée pour générer les tags du créatif (niveaux 5-6)', 
+                  t('creatifFormInfo.taxonomyTags.label'), 
+                  t('creatifFormInfo.taxonomyTags.tooltip'), 
                   onTooltipChange
                 )}
               />
@@ -203,10 +205,10 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
                 value={formData.CR_Taxonomy_Platform || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('creatifFormInfo.taxonomySection.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie pour la plateforme créatifs', 
-                  'Taxonomie qui sera utilisée pour la configuration de la plateforme (niveaux 5-6)', 
+                  t('creatifFormInfo.taxonomyPlatform.label'), 
+                  t('creatifFormInfo.taxonomyPlatform.tooltip'), 
                   onTooltipChange
                 )}
               />
@@ -217,10 +219,10 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
                 value={formData.CR_Taxonomy_MediaOcean || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('creatifFormInfo.taxonomySection.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie pour MediaOcean créatifs', 
-                  'Taxonomie qui sera utilisée pour l\'export vers MediaOcean (niveaux 5-6)', 
+                  t('creatifFormInfo.taxonomyMediaOcean.label'), 
+                  t('creatifFormInfo.taxonomyMediaOcean.tooltip'), 
                   onTooltipChange
                 )}
               />
@@ -228,8 +230,9 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           ) : !taxonomiesLoading && !taxonomiesError ? (
             <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
               <p className="text-sm">
-                Aucune taxonomie configurée pour ce client. 
-                Vous pouvez créer des taxonomies dans la section Configuration.
+                {t('creatifFormInfo.noTaxonomy.message')}
+                {' '}
+                {t('creatifFormInfo.noTaxonomy.action')}
               </p>
             </div>
           ) : null}
@@ -239,7 +242,7 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
       {(loading || taxonomiesLoading) && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            {loading ? 'Chargement des données...' : 'Chargement des taxonomies...'}
+            {loading ? t('creatifFormInfo.loading.data') : t('creatifFormInfo.loading.taxonomies')}
           </p>
         </div>
       )}

@@ -7,6 +7,7 @@
 'use client';
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import TaxonomyFieldRenderer from '../Placement/TaxonomyFieldRenderer';
 import TaxonomyPreview from '../Placement/TaxonomyPreview';
 import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
@@ -48,6 +49,7 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
   loading = false
 }) => {
   
+  const { t } = useTranslation();
   // 🔥 AJOUTÉ: État pour la config client (juste pour labels et filtrage)
   const [clientConfig, setClientConfig] = useState<ClientConfig>({});
 
@@ -117,10 +119,10 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
       <div className="w-[50%] p-8 space-y-6 overflow-y-auto">
         <div className="border-b border-gray-200 pb-4">
           <h3 className="text-lg font-semibold text-gray-900">
-            Configuration du créatif
+            {t('creatifFormTaxonomy.title')}
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            Variables taxonomiques et informations spécifiques au créatif
+            {t('creatifFormTaxonomy.subtitle')}
           </p>
         </div>
         
@@ -131,7 +133,7 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
               onClick={retryLoadTaxonomies}
               className="ml-2 text-red-600 hover:text-red-800 underline"
             >
-              Réessayer
+              {t('creatifFormTaxonomy.retry')}
             </button>
           </div>
         )}
@@ -149,13 +151,13 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
             <h4 className="text-md font-medium text-gray-900 mb-2">
-              Configuration des taxonomies créatifs
+              {t('creatifFormTaxonomy.noTaxonomy.title')}
             </h4>
             <p className="text-sm">
-              Veuillez d'abord sélectionner des taxonomies dans l'onglet "Informations" pour configurer les variables créatifs.
+              {t('creatifFormTaxonomy.noTaxonomy.description')}
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              💡 Les créatifs utilisent les niveaux 5-6 des taxonomies.
+              {t('creatifFormTaxonomy.noTaxonomy.tip')}
             </p>
           </div>
         )}
@@ -163,7 +165,7 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
         {(loading || taxonomiesLoading) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              {loading ? 'Chargement des données...' : 'Analyse des taxonomies...'}
+              {loading ? t('creatifFormTaxonomy.loading.data') : t('creatifFormTaxonomy.loading.taxonomies')}
             </p>
           </div>
         )}
@@ -171,9 +173,9 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
 
       <div className="w-[50%] bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
         <div className="mb-4">
-          <h4 className="text-md font-medium text-gray-900">Aperçu des taxonomies créatifs</h4>
+          <h4 className="text-md font-medium text-gray-900">{t('creatifFormTaxonomy.preview.title')}</h4>
           <p className="text-sm text-gray-600 mt-1">
-            Prévisualisation des niveaux 5-6 des taxonomies sélectionnées
+            {t('creatifFormTaxonomy.preview.subtitle')}
           </p>
         </div>
         <TaxonomyPreview

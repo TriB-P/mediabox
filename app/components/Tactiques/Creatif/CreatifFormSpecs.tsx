@@ -18,6 +18,7 @@ import {
 } from '../Tactiques/TactiqueFormComponents';
 import { getPartnerSpecs, Spec } from '../../../lib/specService';
 import { ArrowPathIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface ListItem {
   id: string;
@@ -62,6 +63,7 @@ export default function CreatifFormSpecs({
   clientId
 }: CreatifFormSpecsProps) {
   
+  const { t } = useTranslation();
   const [partnerSpecs, setPartnerSpecs] = useState<Spec[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSpecData, setSelectedSpecData] = useState<Spec | null>(null);
@@ -209,15 +211,10 @@ export default function CreatifFormSpecs({
   };
 
   return (
-
-
-    
     <div className="p-8 space-y-8">
-
-
       <FormSection
-        title="Sélection automatique"
-        description="Choisissez un partenaire puis une spec pour auto-remplir les champs"
+        title={t('creatifFormSpecs.selection.title')}
+        description={t('creatifFormSpecs.selection.description')}
       >
         <SmartSelect
           id="CR_Spec_PartnerId"
@@ -228,10 +225,10 @@ export default function CreatifFormSpecs({
             id: publisher.id,
             label: publisher.SH_Display_Name_FR
           }))}
-          placeholder="Sélectionner un partenaire..."
+          placeholder={t('creatifFormSpecs.selection.partnerPlaceholder')}
           label={createLabelWithHelp(
-            'Partenaire',
-            'Sélectionnez d\'abord un partenaire pour voir ses specs disponibles',
+            t('creatifFormSpecs.selection.partnerLabel'),
+            t('creatifFormSpecs.selection.partnerTooltip'),
             onTooltipChange
           )}
         />
@@ -246,10 +243,10 @@ export default function CreatifFormSpecs({
               id: spec.id,
               label: spec.name
             }))}
-            placeholder={loading ? "Chargement des specs..." : "Sélectionner une spec..."}
+            placeholder={loading ? t('creatifFormSpecs.selection.specLoadingPlaceholder') : t('creatifFormSpecs.selection.specSelectPlaceholder')}
             label={createLabelWithHelp(
-              'Spécification',
-              'Sélectionnez une spec pour auto-remplir tous les champs ci-dessous',
+              t('creatifFormSpecs.selection.specLabel'),
+              t('creatifFormSpecs.selection.specTooltip'),
               onTooltipChange
             )}
           />
@@ -260,7 +257,7 @@ export default function CreatifFormSpecs({
             <div className="flex items-center">
               <DocumentTextIcon className="h-5 w-5 text-green-600 mr-2" />
               <span className="text-sm font-medium text-green-800">
-                Spec "{selectedSpecData.name}" appliquée
+                {t('creatifFormSpecs.selection.specPrefix')} "{selectedSpecData.name}" {t('creatifFormSpecs.selection.specSuffix')}
               </span>
             </div>
             <button
@@ -269,15 +266,15 @@ export default function CreatifFormSpecs({
               className="inline-flex items-center px-3 py-1 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100"
             >
               <ArrowPathIcon className="h-4 w-4 mr-1" />
-              Reset
+              {t('creatifFormSpecs.selection.resetButton')}
             </button>
           </div>
         )}
       </FormSection>
 
       <FormSection
-        title="Détails de la spécification"
-        description="Modifiez les valeurs selon vos besoins"
+        title={t('creatifFormSpecs.details.title')}
+        description={t('creatifFormSpecs.details.description')}
       >
         <FormInput
           id="CR_Spec_Name"
@@ -285,10 +282,10 @@ export default function CreatifFormSpecs({
           value={formData.CR_Spec_Name || ''}
           onChange={onChange}
           type="text"
-          placeholder="Nom de la spécification"
+          placeholder={t('creatifFormSpecs.details.namePlaceholder')}
           label={createLabelWithHelp(
-            'Nom',
-            'Nom de la spécification technique',
+            t('creatifFormSpecs.details.nameLabel'),
+            t('creatifFormSpecs.details.nameTooltip'),
             onTooltipChange
           )}
         />
@@ -300,10 +297,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Format || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: 300x250"
+            placeholder={t('creatifFormSpecs.details.formatPlaceholder')}
             label={createLabelWithHelp(
-              'Format',
-              'Dimensions de la créative',
+              t('creatifFormSpecs.details.formatLabel'),
+              t('creatifFormSpecs.details.formatTooltip'),
               onTooltipChange
             )}
           />
@@ -314,10 +311,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Ratio || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: 16:9"
+            placeholder={t('creatifFormSpecs.details.ratioPlaceholder')}
             label={createLabelWithHelp(
-              'Ratio',
-              'Ratio d\'aspect de la créative',
+              t('creatifFormSpecs.details.ratioLabel'),
+              t('creatifFormSpecs.details.ratioTooltip'),
               onTooltipChange
             )}
           />
@@ -330,10 +327,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_FileType || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: JPG, PNG, GIF"
+            placeholder={t('creatifFormSpecs.details.fileTypePlaceholder')}
             label={createLabelWithHelp(
-              'Type de fichier',
-              'Types de fichiers acceptés',
+              t('creatifFormSpecs.details.fileTypeLabel'),
+              t('creatifFormSpecs.details.fileTypeTooltip'),
               onTooltipChange
             )}
           />
@@ -344,10 +341,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Animation || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: Autorisée, Non autorisée"
+            placeholder={t('creatifFormSpecs.details.animationPlaceholder')}
             label={createLabelWithHelp(
-              'Animation',
-              'Spécifications sur l\'animation',
+              t('creatifFormSpecs.details.animationLabel'),
+              t('creatifFormSpecs.details.animationTooltip'),
               onTooltipChange
             )}
           />
@@ -360,10 +357,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_MaxWeight || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: 100 Ko"
+            placeholder={t('creatifFormSpecs.details.maxWeightPlaceholder')}
             label={createLabelWithHelp(
-              'Poids maximal',
-              'Taille maximale du fichier',
+              t('creatifFormSpecs.details.maxWeightLabel'),
+              t('creatifFormSpecs.details.maxWeightTooltip'),
               onTooltipChange
             )}
           />
@@ -374,10 +371,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Weight || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: 80 Ko"
+            placeholder={t('creatifFormSpecs.details.weightPlaceholder')}
             label={createLabelWithHelp(
-              'Poids maximal HTML5',
-              'Taille maximale si format HTML5',
+              t('creatifFormSpecs.details.weightLabel'),
+              t('creatifFormSpecs.details.weightTooltip'),
               onTooltipChange
             )}
           />
@@ -390,10 +387,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Title || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: Max 50 caractères"
+            placeholder={t('creatifFormSpecs.details.titlePlaceholder')}
             label={createLabelWithHelp(
-              'Titre',
-              'Contraintes sur le titre',
+              t('creatifFormSpecs.details.titleLabel'),
+              t('creatifFormSpecs.details.titleTooltip'),
               onTooltipChange
             )}
           />
@@ -404,10 +401,10 @@ export default function CreatifFormSpecs({
             value={formData.CR_Spec_Text || ''}
             onChange={onChange}
             type="text"
-            placeholder="ex: Texte court descriptif"
+            placeholder={t('creatifFormSpecs.details.textPlaceholder')}
             label={createLabelWithHelp(
-              'Texte',
-              'Contraintes sur le texte',
+              t('creatifFormSpecs.details.textLabel'),
+              t('creatifFormSpecs.details.textTooltip'),
               onTooltipChange
             )}
           />
@@ -419,10 +416,10 @@ export default function CreatifFormSpecs({
           value={formData.CR_Spec_SpecSheetLink || ''}
           onChange={onChange}
           type="text"
-          placeholder="https://example.com/specs.pdf"
+          placeholder={t('creatifFormSpecs.details.specSheetLinkPlaceholder')}
           label={createLabelWithHelp(
-            'Lien vers feuille de specs',
-            'URL vers la documentation complète',
+            t('creatifFormSpecs.details.specSheetLinkLabel'),
+            t('creatifFormSpecs.details.specSheetLinkTooltip'),
             onTooltipChange
           )}
         />
@@ -433,10 +430,10 @@ export default function CreatifFormSpecs({
           value={formData.CR_Spec_Notes || ''}
           onChange={onChange}
           rows={3}
-          placeholder="Notes additionnelles sur la spécification"
+          placeholder={t('creatifFormSpecs.details.notesPlaceholder')}
           label={createLabelWithHelp(
-            'Notes',
-            'Informations complémentaires',
+            t('creatifFormSpecs.details.notesLabel'),
+            t('creatifFormSpecs.details.notesTooltip'),
             onTooltipChange
           )}
         />

@@ -21,9 +21,11 @@ import { Creatif, CreatifFormData, Tactique, Placement } from '../../../types/ta
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
 import { createEmptyCreatifFieldsObject, extractCreatifFieldsFromData } from '../../../config/taxonomyFields';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 // OPTIMISÉ : Import direct du cacheService optimisé
 import { getListForClient } from '../../../lib/cacheService';
+
 
 // OPTIMISÉ : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache
 const hasCachedList = (fieldId: string, clientId: string): boolean => {
@@ -85,6 +87,8 @@ export default function CreatifDrawer({
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({});
 
+  const { t } = useTranslation();
+
   // OPTIMISÉ : Liste des champs dynamiques possibles pour les créatifs (mémorisée)
   const dynamicListFields = useMemo(() => [
     'CR_Custom_Dim_1', 
@@ -98,6 +102,7 @@ export default function CreatifDrawer({
     'CR_URL', 
     'CR_Version', 
   ], []);
+
 
   /**
    * Calcule les valeurs héritées pour les dates
@@ -300,9 +305,9 @@ export default function CreatifDrawer({
   }, [placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates]);
 
   const tabs: FormTab[] = [
-    { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
-    { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon },
-    { id: 'specs', name: 'Specs', icon: CogIcon }
+    { id: 'infos', name: t('creatifDrawer.tabs.info'), icon: DocumentTextIcon },
+    { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: TagIcon },
+    { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: CogIcon }
   ];
 
   /**
@@ -394,7 +399,7 @@ export default function CreatifDrawer({
     <FormDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={creatif ? `Modifier le créatif: ${formData.CR_Label}` : 'Nouveau créatif'}
+      title={creatif ? `${t('creatifDrawer.title.edit')} ${formData.CR_Label}` : t('creatifDrawer.title.new')}
     >
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
         <FormTabs
@@ -412,13 +417,13 @@ export default function CreatifDrawer({
               onClick={onClose}
               className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
             >
-              {creatif ? 'Mettre à jour' : 'Créer'}
+              {creatif ? t('common.update') : t('common.create')}
             </button>
           </div>
         </div>
