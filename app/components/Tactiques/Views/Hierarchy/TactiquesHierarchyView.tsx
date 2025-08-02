@@ -6,7 +6,7 @@
  */
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import {
   ChevronDownIcon,
@@ -439,20 +439,21 @@ export default function TactiquesHierarchyView({
    * @param {string} sectionId - L'identifiant de la section parente.
    */
   const handleCreateTactiqueLocal = async (sectionId: string) => {
-    if (!onCreateTactique) return;
-
-    try {
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleCreateTactiqueLocal - Path: tactiques (création)");
-      const newTactique = await onCreateTactique(sectionId);
-      setTactiqueDrawer({
-        isOpen: true,
-        tactique: newTactique,
-        sectionId,
-        mode: 'edit'
-      });
-    } catch (error) {
-      console.error('Erreur lors de la création de la tactique:', error);
-    }
+    console.log('🔥 HIERARCHY - handleCreateTactiqueLocal appelé pour section:', sectionId);
+    console.log('🔥 HIERARCHY - onCreateTactique function:', !!onCreateTactique);
+    
+    // ✅ CORRECTION : Ouvrir le drawer en mode création sans créer en DB
+    console.log('🔥 HIERARCHY - Avant setTactiqueDrawer');
+    setTactiqueDrawer({
+      isOpen: true,
+      tactique: null,   
+      sectionId,
+      mode: 'create'    
+    });
+    console.log('🔥 HIERARCHY - Après setTactiqueDrawer');
+    
+    // ❌ ON NE DEVRAIT JAMAIS VOIR CE LOG :
+    console.log('🔥 HIERARCHY - FIN handleCreateTactiqueLocal (aucun appel onCreateTactique)');
   };
 
   /**
@@ -461,35 +462,29 @@ export default function TactiquesHierarchyView({
    * @param {string} tactiqueId - L'identifiant de la tactique parente.
    */
   const handleCreatePlacementLocal = async (tactiqueId: string) => {
-    if (!onCreatePlacement) return;
-
+    // Trouver le sectionId
     let sectionId = '';
-  for (const section of sections) {
-    if (section.tactiques.some(t => t.id === tactiqueId)) {
-      sectionId = section.id;
-      break;
+    for (const section of sections) {
+      if (section.tactiques.some(t => t.id === tactiqueId)) {
+        sectionId = section.id;
+        break;
+      }
     }
-  }
-
-  if (!sectionId) {
-    console.error('Section parent non trouvée pour la tactique');
-    return;
-  }
-
-  try {
-    console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleCreatePlacementLocal - Path: placements (création)");
-    const newPlacement = await onCreatePlacement(tactiqueId);
+  
+    if (!sectionId) {
+      console.error('Section parent non trouvée pour la tactique');
+      return;
+    }
+  
+    // ✅ CORRECTION : Ouvrir le drawer en mode création sans créer en DB
     setPlacementDrawer({
       isOpen: true,
-      placement: newPlacement,
+      placement: null,  // 👈 Pas de placement = mode création
       tactiqueId,
-      sectionId, // ← AJOUT
-      mode: 'edit'
+      sectionId,
+      mode: 'create'   // 👈 Mode création explicite
     });
-  } catch (error) {
-    console.error('Erreur lors de la création du placement:', error);
-  }
-};
+  };
 
 // 2. Ajouter la fonction handleCreateCreatifLocal manquante
 /**
@@ -498,9 +493,7 @@ export default function TactiquesHierarchyView({
  * @param {string} placementId - L'identifiant du placement parent.
  */
 const handleCreateCreatifLocal = async (placementId: string) => {
-  if (!onCreateCreatif) return;
-
-  // ✅ Trouver la hiérarchie complète AVANT la création
+  // Trouver la hiérarchie complète
   let sectionId = '';
   let tactiqueId = '';
   
@@ -521,20 +514,15 @@ const handleCreateCreatifLocal = async (placementId: string) => {
     return;
   }
 
-  try {
-    console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleCreateCreatifLocal - Path: creatifs (création)");
-    const newCreatif = await onCreateCreatif(placementId);
-    setCreatifDrawer({
-      isOpen: true,
-      creatif: newCreatif,
-      placementId,
-      tactiqueId,  // ← AJOUT
-      sectionId,   // ← AJOUT
-      mode: 'edit'
-    });
-  } catch (error) {
-    console.error('Erreur lors de la création du créatif:', error);
-  }
+  // ✅ CORRECTION : Ouvrir le drawer en mode création sans créer en DB
+  setCreatifDrawer({
+    isOpen: true,
+    creatif: null,    // 👈 Pas de créatif = mode création
+    placementId,
+    tactiqueId,
+    sectionId,
+    mode: 'create'    // 👈 Mode création explicite
+  });
 };
 
   /**
@@ -616,41 +604,106 @@ const handleEditCreatif = (placementId: string, creatif: Creatif) => {
    * @param {any} tactiqueData - Les données de la tactique à sauvegarder.
    */
   const handleSaveTactique = async (tactiqueData: any) => {
-    if (!tactiqueDrawer.tactique || !onUpdateTactique) return;
-
+    console.log('💾 HIERARCHY - handleSaveTactique appelé');
+    console.log('💾 HIERARCHY - Mode:', tactiqueDrawer.mode);
+    console.log('💾 HIERARCHY - onUpdateTactique function:', !!onUpdateTactique);
+    console.log('💾 HIERARCHY - onCreateTactique function:', !!onCreateTactique);
+    
+    if (!onUpdateTactique) return;
+  
     try {
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveTactique - Path: tactiques/[tactiqueDrawer.tactique.id]");
-      await onUpdateTactique(tactiqueDrawer.sectionId, tactiqueDrawer.tactique.id, tactiqueData);
+      if (tactiqueDrawer.mode === 'create') {
+        console.log('💾 HIERARCHY - MODE CRÉATION - Début création');
+        
+        if (!onCreateTactique) {
+          console.error('onCreateTactique non disponible');
+          return;
+        }
+        
+        // Créer la tactique avec les données du formulaire
+        console.log('💾 HIERARCHY - Appel onCreateTactique...');
+        const newTactique = await trackedOnCreateTactique(tactiqueDrawer.sectionId);
+        console.log('💾 HIERARCHY - Tactique créée:', newTactique.id);
+        
+        // Ensuite la mettre à jour avec les données du formulaire
+        console.log('💾 HIERARCHY - Appel onUpdateTactique...');
+        await onUpdateTactique(tactiqueDrawer.sectionId, newTactique.id, tactiqueData);
+        console.log('💾 HIERARCHY - Tactique mise à jour');
+      } else {
+        console.log('💾 HIERARCHY - MODE ÉDITION');
+        if (!tactiqueDrawer.tactique) return;
+        
+        console.log('💾 HIERARCHY - Appel onUpdateTactique...');
+        await onUpdateTactique(tactiqueDrawer.sectionId, tactiqueDrawer.tactique.id, tactiqueData);
+        console.log('💾 HIERARCHY - Tactique mise à jour');
+      }
+      
       setTactiqueDrawer(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde de la tactique:', error);
     }
   };
-
 /**
  * Gère la sauvegarde des modifications d'un placement.
  * VERSION CORRIGÉE : Passe les IDs directement depuis le drawer state
  * @param {any} placementData - Les données du placement à sauvegarder.
  */
 const handleSavePlacement = async (placementData: any) => {
-  if (!placementDrawer.placement || !onUpdatePlacement) return;
+  if (!onUpdatePlacement) return;
 
   try {
-    console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements/[placementDrawer.placement.id]");
-    
-    // ✅ Passer les IDs directement depuis le drawer state
-    await onUpdatePlacement(
-      placementDrawer.placement.id, 
-      placementData,
-      placementDrawer.sectionId, 
-      placementDrawer.tactiqueId  
-    );
+    if (placementDrawer.mode === 'create') {
+      // ✅ MODE CRÉATION : Créer le placement maintenant
+      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements (création)");
+      
+      if (!onCreatePlacement) {
+        console.error('onCreatePlacement non disponible');
+        return;
+      }
+      
+      // Créer le placement avec les données du formulaire
+      const newPlacement = await onCreatePlacement(placementDrawer.tactiqueId);
+      
+      // Ensuite le mettre à jour avec les données du formulaire
+      await onUpdatePlacement(
+        newPlacement.id, 
+        placementData,
+        placementDrawer.sectionId, 
+        placementDrawer.tactiqueId  
+      );
+    } else {
+      // ✅ MODE ÉDITION : Mettre à jour placement existant
+      if (!placementDrawer.placement) return;
+      
+      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements/[placementDrawer.placement.id]");
+      
+      await onUpdatePlacement(
+        placementDrawer.placement.id, 
+        placementData,
+        placementDrawer.sectionId, 
+        placementDrawer.tactiqueId  
+      );
+    }
     
     setPlacementDrawer(prev => ({ ...prev, isOpen: false }));
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du placement:', error);
   }
 };
+
+const trackedOnCreateTactique = useCallback(async (sectionId: string) => {
+  console.log('🚨🚨🚨 APPEL onCreateTactique détecté !');
+  console.log('🚨 Section ID:', sectionId);
+  console.trace('🚨 Stack trace de l\'appel onCreateTactique');
+  
+  if (onCreateTactique) {
+    const result = await onCreateTactique(sectionId);
+    console.log('🚨 Tactique créée ID:', result.id);
+    console.log('🚨 Tactique créée nom:', result.TC_Label);
+    return result;
+  }
+  throw new Error('onCreateTactique non disponible');
+}, [onCreateTactique]);
 
   /**
    * Gère la sauvegarde des modifications d'un créatif.
@@ -660,41 +713,44 @@ const handleSavePlacement = async (placementData: any) => {
    * @param {any} creatifData - Les données du créatif à sauvegarder.
    */
   const handleSaveCreatif = async (creatifData: any) => {
-    if (!creatifDrawer.creatif || !onUpdateCreatif || !creatifDrawer.placementId) return;
-
-    // 1. Trouver la hiérarchie parente (sectionId, tactiqueId) du créatif
-    let sectionId: string | null = null;
-    let tactiqueId: string | null = null;
-
-    for (const section of sections) {
-      for (const tactique of section.tactiques) {
-        // Utiliser les placements directement associés à la tactique dans la boucle
-        const placementExists = (tactique.placements || []).some(p => p.id === creatifDrawer.placementId);
-        if (placementExists) {
-          sectionId = section.id;
-          tactiqueId = tactique.id;
-          break;
-        }
-      }
-      if (tactiqueId) break;
-    }
-
-    // 2. Vérifier si la hiérarchie a été trouvée
-    if (!sectionId || !tactiqueId) {
-      console.error("Erreur critique : Impossible de trouver la hiérarchie (Section, Tactique) pour le placement ID:", creatifDrawer.placementId);
-      return;
-    }
-
-    // 3. Appeler onUpdateCreatif avec la hiérarchie complète
+    if (!onUpdateCreatif || !creatifDrawer.placementId) return;
+  
     try {
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveCreatif - Path: creatifs/[creatifDrawer.creatif.id]");
-      await onUpdateCreatif(
-        sectionId,
-        tactiqueId,
-        creatifDrawer.placementId,
-        creatifDrawer.creatif.id,
-        creatifData
-      );
+      if (creatifDrawer.mode === 'create') {
+        // ✅ MODE CRÉATION : Créer le créatif maintenant
+        console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveCreatif - Path: creatifs (création)");
+        
+        if (!onCreateCreatif) {
+          console.error('onCreateCreatif non disponible');
+          return;
+        }
+        
+        // Créer le créatif avec les données du formulaire
+        const newCreatif = await onCreateCreatif(creatifDrawer.placementId);
+        
+        // Ensuite le mettre à jour avec les données du formulaire
+        await onUpdateCreatif(
+          creatifDrawer.sectionId,
+          creatifDrawer.tactiqueId,
+          creatifDrawer.placementId,
+          newCreatif.id,
+          creatifData
+        );
+      } else {
+        // ✅ MODE ÉDITION : Mettre à jour créatif existant
+        if (!creatifDrawer.creatif) return;
+        
+        console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveCreatif - Path: creatifs/[creatifDrawer.creatif.id]");
+        
+        await onUpdateCreatif(
+          creatifDrawer.sectionId,
+          creatifDrawer.tactiqueId,
+          creatifDrawer.placementId,
+          creatifDrawer.creatif.id,
+          creatifData
+        );
+      }
+      
       setCreatifDrawer(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du créatif:', error);
@@ -1061,6 +1117,7 @@ const handleSavePlacement = async (placementData: any) => {
         onClose={() => setTactiqueDrawer(prev => ({ ...prev, isOpen: false }))}
         tactique={tactiqueDrawer.tactique}
         sectionId={tactiqueDrawer.sectionId}
+        mode={tactiqueDrawer.mode}  // 👈 AJOUT DE LA PROP MODE
         onSave={handleSaveTactique}
       />
 

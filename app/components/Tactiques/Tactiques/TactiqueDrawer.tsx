@@ -62,6 +62,7 @@ interface TactiqueDrawerProps {
   onClose: () => void;
   tactique?: Tactique | null;
   sectionId: string;
+  mode: 'create' | 'edit';  // 👈 AJOUT
   onSave: (tactiqueData: TactiqueFormData) => Promise<void>;
 }
 
@@ -256,6 +257,7 @@ export default function TactiqueDrawer({
   onClose,
   tactique,
   sectionId,
+  mode, 
   onSave
 }: TactiqueDrawerProps) {
   const { selectedClient } = useClient();
@@ -319,7 +321,8 @@ export default function TactiqueDrawer({
   ], []);
 
   useEffect(() => {
-    if (tactique) {
+    if (mode === 'edit' && tactique) {
+      // ✅ Mode édition - charger les données existantes
       const mappedFormData = mapTactiqueToForm(tactique);
       setFormData(mappedFormData);
 
@@ -342,7 +345,8 @@ export default function TactiqueDrawer({
       setUseInheritedPO(!tactique.TC_PO);
       setActiveTab('info');
       setIsDirty(false);
-    } else {
+    } else if (mode === 'create') {
+      // ✅ Mode création - données par défaut
       setFormData({
         ...getDefaultFormData(),
         TC_SectionId: sectionId,
@@ -353,7 +357,7 @@ export default function TactiqueDrawer({
       setActiveTab('info');
       setIsDirty(false);
     }
-  }, [tactique, sectionId]);
+  }, [mode, tactique, sectionId]); 
 
   useEffect(() => {
     if (isOpen && selectedClient && selectedCampaign && selectedVersion) {
@@ -589,6 +593,7 @@ export default function TactiqueDrawer({
 
       let dataToSave = { ...formData };
 
+      // Traitement des KPIs (inchangé)
       kpis.forEach((kpi, index) => {
         const suffix = index === 0 ? '' : `_${index + 1}`;
         (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
@@ -596,6 +601,7 @@ export default function TactiqueDrawer({
         (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
       });
 
+      // Traitement héritage (inchangé)
       if (useInheritedBilling) {
         (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
       }
@@ -605,13 +611,15 @@ export default function TactiqueDrawer({
 
       const mappedData = mapFormToTactique(dataToSave);
 
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiqueDrawer.tsx - Fonction: handleSubmit - Path: tactics");
+      // ✅ CORRECTION : Appeler onSave directement
+      // Le parent (TactiquesHierarchyView) gère création vs mise à jour
       await onSave(mappedData);
 
       setIsDirty(false);
       onClose();
 
-      if (tactique && tactique.id && selectedClient && selectedCampaign) {
+      // Mise à jour taxonomies (inchangé)
+      if (mode === 'edit' && tactique && tactique.id && selectedClient && selectedCampaign) {
         updateTaxonomiesAsync('tactic', {
           id: tactique.id,
           name: mappedData.TC_Label,
@@ -627,7 +635,7 @@ export default function TactiqueDrawer({
       setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
       setLoading(false);
     }
-  }, [formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
+  }, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -638,6 +646,18 @@ export default function TactiqueDrawer({
     setIsDirty(false);
     onClose();
   }, [isDirty, onClose]);
+
+  const getDrawerTitle = () => {
+    if (mode === 'edit' && tactique) {
+      return `Modifier la tactique: ${tactique.TC_Label}`;
+    }
+    return 'Nouvelle tactique';
+  };
+
+  const getSubmitButtonText = () => {
+    if (loading) return 'Enregistrement...';
+    return mode === 'edit' ? 'Mettre à jour' : 'Créer';
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -742,7 +762,7 @@ export default function TactiqueDrawer({
       <FormDrawer
         isOpen={isOpen}
         onClose={handleClose}
-        title={tactique ? `Modifier la tactique: ${tactique.TC_Label}` : 'Nouvelle tactique'}
+        title={getDrawerTitle()}
       >
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
           {error && (
@@ -776,7 +796,7 @@ export default function TactiqueDrawer({
                 disabled={loading}
                 className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                {loading ? 'Enregistrement...' : (tactique ? 'Mettre à jour' : 'Créer')}
+                {getSubmitButtonText()}
               </button>
             </div>
           </div>

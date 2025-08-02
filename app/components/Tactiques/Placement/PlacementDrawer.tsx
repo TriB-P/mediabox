@@ -1,4 +1,4 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SIMPLIFIÉE
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SANS LOGS
 
 /**
  * PlacementDrawer avec logique d'héritage de dates simplifiée.
@@ -44,16 +44,20 @@ export default function PlacementDrawer({
 
   const [activeTab, setActiveTab] = useState('infos');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  
-  // Ref supprimée - plus nécessaire avec la logique simplifiée
 
   /**
    * Fonction utilitaire pour convertir les dates en format string
    */
   const convertToDateString = useCallback((date: any): string => {
-    if (!date) return '';
-    if (typeof date === 'string') return date;
-    if (date instanceof Date) return date.toISOString().split('T')[0];
+    if (!date) {
+      return '';
+    }
+    if (typeof date === 'string') {
+      return date;
+    }
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0];
+    }
     return String(date);
   }, []);
 
@@ -62,23 +66,29 @@ export default function PlacementDrawer({
    * Priorité : tactique -> campagne
    */
   const calculateInheritedDates = useCallback(() => {
-    const inheritedStartDate = convertToDateString(
-      tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date
-    );
-    const inheritedEndDate = convertToDateString(
-      tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date
-    );
+    const tactiqueStartDate = tactiqueData?.TC_Start_Date;
+    const tactiqueEndDate = tactiqueData?.TC_End_Date;
+    const campaignStartDate = selectedCampaign?.CA_Start_Date;
+    const campaignEndDate = selectedCampaign?.CA_End_Date;
+
+    const sourceStartDate = tactiqueStartDate || campaignStartDate;
+    const sourceEndDate = tactiqueEndDate || campaignEndDate;
+
+    const inheritedStartDate = convertToDateString(sourceStartDate);
+    const inheritedEndDate = convertToDateString(sourceEndDate);
+
     return { inheritedStartDate, inheritedEndDate };
   }, [tactiqueData, selectedCampaign, convertToDateString]);
 
   const [formData, setFormData] = useState<PlacementFormData>(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
-    
+    const isNewPlacement = !placement;
+
     // Pour un nouveau placement, calculer l'héritage dès l'initialisation
-    if (!placement) {
+    if (isNewPlacement) {
       const { inheritedStartDate, inheritedEndDate } = calculateInheritedDates();
-      
-      return {
+
+      const newFormData = {
         PL_Label: '',
         PL_Order: 0,
         PL_TactiqueId: tactiqueId,
@@ -91,8 +101,9 @@ export default function PlacementDrawer({
         PL_Generated_Taxonomies: {},
         ...emptyManualFields,
       };
+      return newFormData;
     }
-    
+
     // Pour un placement existant, initialiser avec valeurs vides (sera rempli dans useEffect)
     return {
       PL_Label: '',
@@ -111,8 +122,9 @@ export default function PlacementDrawer({
 
   useEffect(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
-    
-    if (placement) {
+    const isNewPlacement = !placement?.id;
+
+    if (!isNewPlacement && placement) {
       // Mode édition - charger les données existantes sans recalculer l'héritage
       const directTaxFields = {
         PL_Start_Date: placement.PL_Start_Date,
@@ -137,7 +149,7 @@ export default function PlacementDrawer({
         PL_Language: placement.PL_Language,
         PL_Placement_Location: placement.PL_Placement_Location,
       };
-      
+
       const taxFromTaxonomyValues: any = {};
       if (placement.PL_Taxonomy_Values) {
         Object.keys(placement.PL_Taxonomy_Values).forEach(key => {
@@ -147,9 +159,9 @@ export default function PlacementDrawer({
           }
         });
       }
-      
+
       const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
-      
+
       const finalTaxFields: any = {};
       [
         'PL_Start_Date',
@@ -174,11 +186,11 @@ export default function PlacementDrawer({
         'PL_Language',
         'PL_Placement_Location'
       ].forEach(field => {
-        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || 
-                               taxFromTaxonomyValues[field] || 
+        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] ||
+                               taxFromTaxonomyValues[field] ||
                                '';
       });
-      
+
       const newFormData = {
         PL_Label: placement.PL_Label || '',
         PL_Order: placement.PL_Order || 0,
@@ -210,7 +222,7 @@ export default function PlacementDrawer({
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
     { id: 'taxonomie', name: 'Taxonomie', icon: TagIcon }
   ];
-  
+
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -226,20 +238,20 @@ export default function PlacementDrawer({
   const getFinalFormData = (): PlacementFormData => {
     return formData;
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       // Les valeurs héritées sont déjà dans formData
       const finalData = getFinalFormData();
-      
+
       await onSave(finalData);
       onClose();
-      
+
       // Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
       if (placement && placement.id && selectedClient && selectedCampaign) {
-        updateTaxonomiesAsync('placement', { 
-          id: placement.id, 
+        updateTaxonomiesAsync('placement', {
+          id: placement.id,
           name: finalData.PL_Label,
           clientId: selectedClient.clientId,
           campaignId: selectedCampaign.id
@@ -247,12 +259,12 @@ export default function PlacementDrawer({
           console.error('Erreur mise à jour taxonomies placement:', error);
         });
       }
-      
+
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde du placement:', error);
     }
   };
-  
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'infos':
@@ -267,7 +279,7 @@ export default function PlacementDrawer({
             tactiqueData={tactiqueData}
           />
         );
-        
+
       case 'taxonomie':
         if (!selectedClient) return null;
         return (
@@ -280,17 +292,17 @@ export default function PlacementDrawer({
             tactiqueData={tactiqueData}
           />
         );
-      
+
       default:
         return null;
     }
   };
-  
+
   return (
     <>
-      <TaxonomyUpdateBanner 
-        status={status} 
-        onDismiss={dismissNotification} 
+      <TaxonomyUpdateBanner
+        status={status}
+        onDismiss={dismissNotification}
       />
       
       <FormDrawer
@@ -298,7 +310,6 @@ export default function PlacementDrawer({
         onClose={onClose}
         title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
       >
-      
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
           <FormTabs
             tabs={tabs}
@@ -310,15 +321,15 @@ export default function PlacementDrawer({
           </div>
           <div className="sticky bottom-0 bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
             <div className="flex justify-end space-x-3">
-              <button 
-                type="button" 
-                onClick={onClose} 
+              <button
+                type="button"
+                onClick={onClose}
                 className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
                 Annuler
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
               >
                 {placement ? 'Mettre à jour' : 'Créer'}
