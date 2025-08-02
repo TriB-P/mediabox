@@ -1,10 +1,16 @@
+// app/components/Tactiques/TactiquesBudgetPanel.tsx
+
 /**
  * Ce fichier implémente le panneau de budget des tactiques pour l'application.
  * Il affiche un résumé financier des campagnes, permettant de visualiser les totaux
  * du budget par onglet ou pour tous les onglets combinés.
- * Il inclut également des détails sur les frais et une répartition du budget par section,
+ * Il inclut également des détails sur les frais (tactiques + personnalisés client) et une répartition du budget par section,
  * représentée par un graphique en forme de beignet.
  * Les données sont chargées depuis Firebase via des services dédiés.
+ * 
+ * NOUVELLE FONCTIONNALITÉ : Intégration des frais personnalisés du client
+ * - Affichage des frais définis dans CL_Custom_Fee_1,2,3 avec montants CA_Custom_Fee_1,2,3
+ * - Inclusion dans les calculs de budget client total et différence
  */
 'use client';
 
@@ -20,6 +26,7 @@ import { Campaign } from '../../types/campaign';
 import { Section, Tactique, Onglet } from '../../types/tactiques';
 import { ClientFee } from '../../lib/budgetService';
 import { getSections, getTactiques } from '../../lib/tactiqueService';
+import { getClientInfo, ClientInfo } from '../../lib/clientService';
 import { useClient } from '../../contexts/ClientContext';
 import { useSelection } from '../../contexts/SelectionContext';
 
@@ -35,6 +42,15 @@ interface TactiquesBudgetPanelProps {
 
 type DisplayScope = 'currentTab' | 'allTabs';
 type PanelTab = 'totals' | 'indicators';
+
+/**
+ * Interface pour les frais personnalisés du client
+ */
+interface CustomClientFee {
+  label: string;
+  amount: number;
+  key: string;
+}
 
 /**
  * Composant DonutChart.
@@ -139,6 +155,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
  * @param {ClientFee[]} props.clientFees - Les frais clients applicables.
  * @param {DisplayScope} props.displayScope - La portée d'affichage actuelle ('currentTab' ou 'allTabs').
  * @param {(scope: DisplayScope) => void} props.setDisplayScope - Fonction pour définir la portée d'affichage.
+ * @param {ClientInfo | null} props.clientInfo - Informations du client pour les frais personnalisés.
  * @returns {React.FC} Le composant BudgetTotalsView.
  */
 interface BudgetTotalsViewProps {
@@ -150,6 +167,7 @@ interface BudgetTotalsViewProps {
   clientFees: ClientFee[];
   displayScope: DisplayScope;
   setDisplayScope: (scope: DisplayScope) => void;
+  clientInfo: ClientInfo | null;
 }
 
 const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
@@ -161,6 +179,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   clientFees,
   displayScope,
   setDisplayScope,
+  clientInfo,
 }) => {
   const [showFeeDetails, setShowFeeDetails] = useState(false);
   const [showSectionBreakdown, setShowSectionBreakdown] = useState(true);
@@ -174,6 +193,35 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId } = useSelection();
+
+  /**
+   * Calcule les frais personnalisés du client à partir des données de campagne et client
+   */
+  const customClientFees = useMemo((): CustomClientFee[] => {
+    if (!clientInfo || !selectedCampaign) return [];
+
+    const fees: CustomClientFee[] = [];
+    
+    // Traiter les 3 frais personnalisés possibles
+    for (let i = 1; i <= 3; i++) {
+      const labelKey = `CL_Custom_Fee_${i}` as keyof ClientInfo;
+      const amountKey = `CA_Custom_Fee_${i}` as keyof Campaign;
+      
+      const label = clientInfo[labelKey] as string;
+      const amount = selectedCampaign[amountKey] as number;
+      
+      // Afficher seulement si on a un label ET un montant > 0
+      if (label && label.trim() !== '' && amount && amount > 0) {
+        fees.push({
+          label: label.trim(),
+          amount: amount,
+          key: `custom_fee_${i}`
+        });
+      }
+    }
+    
+    return fees;
+  }, [clientInfo, selectedCampaign]);
 
   /**
    * Charge les données de toutes les sections et tactiques de tous les onglets.
@@ -249,11 +297,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   /**
    * Effet de bord qui déclenche le chargement des données de tous les onglets
    * lorsque le mode d'affichage passe à 'allTabs' et que les données ne sont pas déjà chargées.
-   *
-   * @param {DisplayScope} displayScope - La portée d'affichage actuelle.
-   * @param {object | null} allTabsData - Les données de tous les onglets déjà chargées.
-   * @param {boolean} isLoadingAllTabs - Indique si les données de tous les onglets sont en cours de chargement.
-   * @param {() => Promise<void>} loadAllTabsData - La fonction pour charger les données de tous les onglets.
    */
   useEffect(() => {
     if (displayScope === 'allTabs' && !allTabsData && !isLoadingAllTabs) {
@@ -263,8 +306,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   /**
    * Retourne les sections filtrées en fonction de la portée d'affichage sélectionnée.
-   *
-   * @returns {Section[]} Les sections à afficher.
    */
   const filteredSections = useMemo(() => {
     if (displayScope === 'currentTab') {
@@ -276,8 +317,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   /**
    * Retourne les tactiques filtrées en fonction de la portée d'affichage sélectionnée.
-   *
-   * @returns {{ [sectionId: string]: Tactique[] }} Les tactiques à afficher, regroupées par ID de section.
    */
   const filteredTactiques = useMemo(() => {
     if (displayScope === 'currentTab') {
@@ -289,8 +328,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   /**
    * Retourne toutes les tactiques pertinentes pour la portée d'affichage sélectionnée.
-   *
-   * @returns {Tactique[]} Un tableau de toutes les tactiques dans la portée.
    */
   const allTactiquesInScope = useMemo(() => {
     const relevantTactiqueIds = new Set<string>();
@@ -304,9 +341,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   }, [filteredSections, filteredTactiques]);
 
   /**
-   * Calcule les totaux budgétaires (budget média, bonification, frais, budget client).
-   *
-   * @returns {object} Un objet contenant les totaux calculés.
+   * Calcule les totaux budgétaires (budget média, bonification, frais tactiques, frais personnalisés, budget client).
    */
   const calculateTotals = useCallback(() => {
     let totalMediaBudgetInput = 0;
@@ -316,6 +351,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     
     const rawFeeTotals: { [key: string]: number } = {};
 
+    // Calculs des tactiques (existant)
     allTactiquesInScope.forEach(tactique => {
       totalMediaBudgetInput += tactique.TC_Budget || 0; 
       totalMediaBudgetWithBonification += (tactique as any).TC_Media_Budget || 0;
@@ -328,17 +364,25 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       }
     });
 
-    const totalFees = Object.values(rawFeeTotals).reduce((sum, current) => sum + current, 0);
+    const totalTactiqueFees = Object.values(rawFeeTotals).reduce((sum, current) => sum + current, 0);
+    
+    // NOUVEAU : Calcul des frais personnalisés du client
+    const totalCustomClientFees = customClientFees.reduce((sum, fee) => sum + fee.amount, 0);
+    
+    // NOUVEAU : Ajout des frais personnalisés au budget client total
+    const finalClientBudget = totalClientBudget + totalCustomClientFees;
 
     return {
       totalMediaBudgetInput,
       totalMediaBudgetWithBonification,
-      totalClientBudget,
+      totalClientBudget: finalClientBudget, // Inclut maintenant les frais personnalisés
       totalBonification,
       rawFeeTotals,
-      totalFees,
+      totalTactiqueFees,
+      totalCustomClientFees, // NOUVEAU
+      customClientFees, // NOUVEAU
     };
-  }, [allTactiquesInScope]);
+  }, [allTactiquesInScope, customClientFees]);
 
   /**
    * Les totaux budgétaires calculés, mis en cache avec useMemo.
@@ -347,8 +391,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   /**
    * Calcule les budgets par section et leurs pourcentages.
-   *
-   * @returns {Array<{ name: string; amount: number; percentage: number; color: string; ongletName?: string }>} Un tableau des budgets par section.
    */
   const sectionBudgets = useMemo(() => {
     const budgets: { name: string; amount: number; percentage: number; color: string; ongletName?: string }[] = [];
@@ -372,10 +414,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   }, [filteredSections, selectedCampaign, filteredTactiques, totals.totalClientBudget, totals.totalMediaBudgetInput]);
 
   /**
-   * Récupère le nom d'un frais à partir de sa clé.
-   *
-   * @param {string} feeKey - La clé du frais (ex: 'TC_Fee_1_Value').
-   * @returns {string} Le nom du frais.
+   * Récupère le nom d'un frais tactique à partir de sa clé.
    */
   const getFeeNameByKey = useCallback((feeKey: string) => {
     const match = feeKey.match(/TC_Fee_(\d+)_Value/);
@@ -443,8 +482,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             </button>
           </div>
         )}
-
-
       </div>
 
       <div className="border border-gray-200 rounded-lg">
@@ -458,6 +495,15 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             <span className="text-gray-600">Budget de la campagne:</span>
             <span className="font-medium">{formatCurrency(selectedCampaign.CA_Budget)}</span>
           </div>
+          
+          {/* NOUVEAU : Affichage des frais personnalisés du client */}
+          {totals.customClientFees.map((fee) => (
+            <div key={fee.key} className="flex justify-between items-center text-sm">
+              <span className="text-gray-600">{fee.label}:</span>
+              <span className="font-medium text-purple-700">+{formatCurrency(fee.amount)}</span>
+            </div>
+          ))}
+          
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Budget média:</span>
             <span className="font-medium">{formatCurrency(totals.totalMediaBudgetWithBonification)}</span>
@@ -467,8 +513,8 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             <span className="font-medium text-green-700">+{formatCurrency(totals.totalBonification)}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Frais:</span>
-            <span className="font-medium text-blue-700">+{formatCurrency(totals.totalFees)}</span>
+            <span className="text-gray-600">Frais tactiques:</span>
+            <span className="font-medium text-blue-700">+{formatCurrency(totals.totalTactiqueFees)}</span>
           </div>
           <div className="flex justify-between items-center text-lg font-bold border-t border-gray-200 pt-2 mt-2">
             <span>Budget client total:</span>
@@ -497,6 +543,30 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
         </button>
         {showFeeDetails && (
           <div className="p-3 space-y-2">
+            {/* NOUVEAU : Affichage détaillé des frais personnalisés */}
+            {totals.customClientFees.length > 0 && (
+              <>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Frais de campagne
+                </div>
+                {totals.customClientFees.map((fee) => (
+                  <div key={fee.key} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">{fee.label}:</span>
+                    <span className="font-medium text-purple-700">{formatCurrency(fee.amount)}</span>
+                  </div>
+                ))}
+                
+                {Object.entries(totals.rawFeeTotals).filter(([, amount]) => amount > 0).length > 0 && (
+                  <div className="border-t border-gray-100 pt-2 mt-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Frais tactiques
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Frais tactiques existants */}
             {Object.entries(totals.rawFeeTotals)
                 .filter(([, amount]) => amount > 0)
                 .map(([feeKey, amount]) => (
@@ -505,9 +575,11 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
                     <span className="font-medium text-blue-700">{formatCurrency(amount)}</span>
                 </div>
             ))}
-            {Object.keys(totals.rawFeeTotals).length === 0 || Object.values(totals.rawFeeTotals).every(amount => amount === 0) ? (
+            
+            {totals.customClientFees.length === 0 && 
+             (Object.keys(totals.rawFeeTotals).length === 0 || Object.values(totals.rawFeeTotals).every(amount => amount === 0)) && (
                 <p className="text-sm text-gray-500 italic">Aucun frais appliqué.</p>
-            ) : null}
+            )}
           </div>
         )}
       </div>
@@ -584,13 +656,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 /**
  * Composant BudgetIndicatorsView.
  * Un composant de placeholder pour les futurs indicateurs de budget de campagne.
- *
- * @param {object} props - Les propriétés du composant.
- * @param {Campaign} props.selectedCampaign - La campagne actuellement sélectionnée.
- * @param {Section[]} props.sections - Les sections associées à la campagne.
- * @param {{ [sectionId: string]: Tactique[] }} props.tactiques - Les tactiques associées à la campagne.
- * @param {(amount: number) => string} props.formatCurrency - Fonction utilitaire pour formater les montants en devises.
- * @returns {React.FC} Le composant BudgetIndicatorsView.
  */
 interface BudgetIndicatorsViewProps {
   selectedCampaign: Campaign;
@@ -630,16 +695,6 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
  * Composant principal TactiquesBudgetPanel.
  * Affiche le panneau latéral du budget pour les tactiques d'une campagne sélectionnée.
  * Il gère la sélection de l'onglet (totaux ou indicateurs) et la portée d'affichage du budget.
- *
- * @param {object} props - Les propriétés du composant.
- * @param {Campaign | null} props.selectedCampaign - La campagne actuellement sélectionnée, ou null si aucune.
- * @param {Section[]} props.sections - Les sections de l'onglet actuel.
- * @param {{ [sectionId: string]: Tactique[] }} props.tactiques - Les tactiques de l'onglet actuel, regroupées par ID de section.
- * @param {Onglet | null} props.selectedOnglet - L'onglet actuellement sélectionné.
- * @param {Onglet[]} props.onglets - La liste de tous les onglets de la campagne.
- * @param {(amount: number) => string} props.formatCurrency - Fonction utilitaire pour formater les montants en devises.
- * @param {ClientFee[]} [props.clientFees=[]] - Les frais clients applicables, avec un tableau vide par défaut.
- * @returns {React.FC} Le composant TactiquesBudgetPanel.
  */
 const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   selectedCampaign,
@@ -652,6 +707,42 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<PanelTab>('totals');
   const [displayScope, setDisplayScope] = useState<DisplayScope>('currentTab');
+  
+  // NOUVEAU : État pour les informations client
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [loadingClientInfo, setLoadingClientInfo] = useState(false);
+  const [clientInfoError, setClientInfoError] = useState<string | null>(null);
+
+  const { selectedClient } = useClient();
+
+  /**
+   * NOUVEAU : Charge les informations du client pour récupérer les labels des frais personnalisés
+   */
+  const loadClientInfo = useCallback(async () => {
+    if (!selectedClient?.clientId) return;
+
+    try {
+      setLoadingClientInfo(true);
+      setClientInfoError(null);
+      
+      console.log("FIREBASE: LECTURE - Fichier: TactiquesBudgetPanel.tsx - Fonction: loadClientInfo - Path: clients/${selectedClient.clientId}");
+      const info = await getClientInfo(selectedClient.clientId);
+      setClientInfo(info);
+    } catch (error) {
+      console.error('Erreur lors du chargement des informations client:', error);
+      setClientInfoError('Impossible de charger les informations client');
+      setClientInfo(null);
+    } finally {
+      setLoadingClientInfo(false);
+    }
+  }, [selectedClient?.clientId]);
+
+  /**
+   * NOUVEAU : Effet pour charger les informations client quand le client sélectionné change
+   */
+  useEffect(() => {
+    loadClientInfo();
+  }, [loadClientInfo]);
 
   if (!selectedCampaign) {
     return (
@@ -687,6 +778,19 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
+        {/* NOUVEAU : Affichage d'erreur client info si nécessaire */}
+        {clientInfoError && (
+          <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
+            ⚠️ {clientInfoError}
+            <button
+              onClick={loadClientInfo}
+              className="ml-2 text-amber-800 underline hover:no-underline"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
         {activeTab === 'totals' && (
           <BudgetTotalsView
             selectedCampaign={selectedCampaign}
@@ -697,6 +801,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
             clientFees={clientFees}
             displayScope={displayScope}
             setDisplayScope={setDisplayScope}
+            clientInfo={clientInfo} // NOUVEAU : Passage des informations client
           />
         )}
         

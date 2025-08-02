@@ -17,7 +17,8 @@ import {
   ChevronRightIcon,
   PencilIcon,
   PlusIcon,
-  Bars3Icon
+  Bars3Icon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -44,6 +45,8 @@ interface CreatifItemProps extends BaseItemProps {
   sectionId: string;
   tactiqueId: string;
   placementId: string;
+  copiedId?: string | null;
+  onCopyId?: (id: string, type: string) => void;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
   onHover: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onEdit: (placementId: string, creatif: Creatif) => void;
@@ -64,6 +67,8 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   tactiqueId,
   placementId,
   hoveredCreatif,
+  copiedId,
+  onCopyId,
   onHover,
   onEdit,
   onSelectCreatif,
@@ -143,19 +148,32 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
 
           {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
           <div className="flex items-center space-x-4">
-            {/* Actions (crayon d'édition) - Standardisé */}
-            <div className="w-6 h-6 flex items-center justify-center">
+            {/* Actions (clé + crayon d'édition) - Standardisé */}
+            <div className="w-12 h-6 flex items-center justify-center space-x-1">
               {isHovered && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(placementId, creatif);
-                  }}
-                  className="p-1 rounded hover:bg-gray-200 transition-colors"
-                  title="Modifier le créatif"
-                >
-                  <PencilIcon className="h-4 w-4 text-gray-400" />
-                </button>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Appeler handleCopyId depuis les props
+                      if (onCopyId) onCopyId(creatif.id, 'créatif');
+                    }}
+                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    title={copiedId === creatif.id ? "ID copié !" : "Copier l'ID"}
+                  >
+                    <KeyIcon className={`h-3 w-3 ${copiedId === creatif.id ? 'text-green-500' : 'text-gray-300'}`} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(placementId, creatif);
+                    }}
+                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    title="Modifier le créatif"
+                  >
+                    <PencilIcon className="h-4 w-4 text-gray-400" />
+                  </button>
+                </>
               )}
             </div>
 
@@ -202,9 +220,11 @@ interface PlacementItemProps extends BaseItemProps {
   sectionId: string;
   tactiqueId: string;
   creatifs: Creatif[];
+  copiedId?: string | null;
   expandedPlacements: {[placementId: string]: boolean};
   hoveredPlacement: {sectionId: string, tactiqueId: string, placementId: string} | null;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
+  onCopyId?: (id: string, type: string) => void;
   onHoverPlacement: (hover: {sectionId: string, tactiqueId: string, placementId: string} | null) => void;
   onHoverCreatif: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onExpand: (placementId: string) => void;
@@ -232,6 +252,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   expandedPlacements,
   hoveredPlacement,
   hoveredCreatif,
+  copiedId,
+  onCopyId,
   onHoverPlacement,
   onHoverCreatif,
   onExpand,
@@ -348,19 +370,31 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
 
             {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
             <div className="flex items-center space-x-4">
-              {/* Actions (crayon d'édition) - Standardisé */}
-              <div className="w-6 h-6 flex items-center justify-center">
+              {/* Actions (clé + crayon d'édition) - Standardisé */}
+              <div className="w-12 h-6 flex items-center justify-center space-x-1">
                 {isHovered && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(tactiqueId, placement);
-                    }}
-                    className="p-1 rounded hover:bg-gray-200 transition-colors"
-                    title="Modifier le placement"
-                  >
-                    <PencilIcon className="h-4 w-4 text-gray-400" />
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onCopyId) onCopyId(placement.id, 'placement');
+                      }}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      title={copiedId === placement.id ? "ID copié !" : "Copier l'ID"}
+                    >
+                      <KeyIcon className={`h-3 w-3 ${copiedId === placement.id ? 'text-green-500' : 'text-gray-300'}`} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(tactiqueId, placement);
+                      }}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      title="Modifier le placement"
+                    >
+                      <PencilIcon className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -422,6 +456,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                           formatCurrency={() => ''}
                           onSelectCreatif={onSelectCreatif}
                           onOpenTaxonomyMenu={onOpenTaxonomyMenu}
+                          onCopyId={onCopyId}
+                          copiedId={copiedId}
                         />
                       ))}
                       {provided.placeholder}
@@ -448,6 +484,8 @@ interface TactiqueItemProps extends BaseItemProps {
   hoveredTactique: {sectionId: string, tactiqueId: string} | null;
   hoveredPlacement: {sectionId: string, tactiqueId: string, placementId: string} | null;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
+  copiedId?: string | null;
+  onCopyId?: (id: string, type: string) => void;
   onHoverTactique: (hover: {sectionId: string, tactiqueId: string} | null) => void;
   onHoverPlacement: (hover: {sectionId: string, tactiqueId: string, placementId: string} | null) => void;
   onHoverCreatif: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
@@ -483,6 +521,8 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   hoveredTactique,
   hoveredPlacement,
   hoveredCreatif,
+  copiedId,
+  onCopyId,
   onHoverTactique,
   onHoverPlacement,
   onHoverCreatif,
@@ -656,19 +696,31 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
 
             {/* Contenu de droite : Actions et budget */}
             <div className="flex items-center space-x-4">
-              {/* Actions fixes - Standardisé */}
-              <div className="w-6 h-6 flex items-center justify-center">
+              {/* Actions (clé + crayon d'édition) - Standardisé */}
+              <div className="w-12 h-6 flex items-center justify-center space-x-1">
                 {isHovered && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(sectionId, tactique);
-                    }}
-                    className="p-1 rounded hover:bg-gray-200 transition-colors"
-                    title="Modifier la tactique"
-                  >
-                    <PencilIcon className="h-4 w-4 text-gray-500" />
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onCopyId) onCopyId(tactique.id, 'tactique');
+                      }}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      title={copiedId === tactique.id ? "ID copié !" : "Copier l'ID"}
+                    >
+                      <KeyIcon className={`h-3 w-3 ${copiedId === tactique.id ? 'text-green-500' : 'text-gray-300'}`} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(sectionId, tactique);
+                      }}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      title="Modifier la tactique"
+                    >
+                      <PencilIcon className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -710,6 +762,9 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                           onSelectPlacement={onSelectPlacement}
                           onSelectCreatif={onSelectCreatif}
                           onOpenTaxonomyMenu={onOpenTaxonomyMenu}
+                          onCopyId={onCopyId}
+                          copiedId={copiedId}
+                          
                         />
                       ))}
                       {provided.placeholder}

@@ -63,6 +63,7 @@ const LIST_TYPES = [
 'TC_Media_Type', 
 'TC_Unit_Type', 
 'TC_Inventory', 
+'TC_Publisher',
 'PL_Audience_Behaviour', 
 'PL_Audience_Demographics', 
 'PL_Audience_Engagement', 

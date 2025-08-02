@@ -13,7 +13,8 @@ import {
   ChevronRightIcon,
   PencilIcon,
   PlusIcon,
-  Bars3Icon
+  Bars3Icon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 import {
   Section,
@@ -254,6 +255,9 @@ export default function TactiquesHierarchyView({
     placementId: null
   });
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+
   /**
    * Calcule le pourcentage d'un montant par rapport au budget total.
    *
@@ -263,6 +267,34 @@ export default function TactiquesHierarchyView({
   const calculatePercentage = (amount: number) => {
     if (totalBudget <= 0) return 0;
     return Math.round((amount / totalBudget) * 100);
+  };
+
+  /**
+   * Copie un ID dans le presse-papier et affiche un feedback temporaire.
+   * @param {string} id - L'ID à copier.
+   * @param {string} type - Le type d'élément pour le feedback.
+   */
+  const handleCopyId = async (id: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+      // Fallback pour les navigateurs qui ne supportent pas l'API clipboard
+      const textArea = document.createElement('textarea');
+      textArea.value = id;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      } catch (err) {
+        console.error('Erreur lors de la copie fallback:', err);
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   /**
@@ -903,9 +935,19 @@ const handleSavePlacement = async (placementData: any) => {
                             </div>
 
                             <div className="flex items-center space-x-4">
-                              <div className="relative min-w-[24px] h-6">
+                            <div className="relative min-w-[48px] h-6">
                                 {hoveredSection === section.id && (
-                                  <div className="absolute right-0 top-0 flex items-center">
+                                  <div className="absolute right-0 top-0 flex items-center space-x-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopyId(section.id, 'section');
+                                      }}
+                                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                      title={copiedId === section.id ? "ID copié !" : "Copier l'ID"}
+                                    >
+                                      <KeyIcon className={`h-3 w-3 ${copiedId === section.id ? 'text-green-500' : 'text-gray-300'}`} />
+                                    </button>
                                     {onEditSection && (
                                       <button
                                         onClick={(e) => {
@@ -975,6 +1017,7 @@ const handleSavePlacement = async (placementData: any) => {
                                           hoveredTactique={hoveredTactique}
                                           hoveredPlacement={hoveredPlacement}
                                           hoveredCreatif={hoveredCreatif}
+                                          copiedId={copiedId}
                                           onHoverTactique={setHoveredTactique}
                                           onHoverPlacement={setHoveredPlacement}
                                           onHoverCreatif={setHoveredCreatif}
@@ -990,6 +1033,7 @@ const handleSavePlacement = async (placementData: any) => {
                                           onSelectPlacement={handlePlacementSelect}
                                           onSelectCreatif={handleCreatifSelect}
                                           onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
+                                          onCopyId={handleCopyId}
                                         />
                                       );
                                     })}
