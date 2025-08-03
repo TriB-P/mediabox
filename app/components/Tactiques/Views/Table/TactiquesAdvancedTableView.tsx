@@ -33,6 +33,9 @@ import {
   FeeOption,
 } from '../../../../lib/tactiqueListService';
 
+import { useAsyncTaxonomyUpdate } from '../../../../hooks/useAsyncTaxonomyUpdate';
+
+
 // NOUVEAU : Import des fonctions de cache
 import {
   getListForClient,
@@ -178,6 +181,8 @@ export default function TactiquesAdvancedTableView({
 
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
+  const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
+
 
   // États existants
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
@@ -306,6 +311,56 @@ export default function TactiquesAdvancedTableView({
     }
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
+  const handleUpdateTactiqueWithTaxonomy = useCallback(async (
+    sectionId: string, 
+    tactiqueId: string, 
+    data: Partial<Tactique>
+  ): Promise<void> => {
+    try {
+      // 1. Effectuer la mise à jour normale
+      await onUpdateTactique(sectionId, tactiqueId, data);
+
+      // 2. Déclencher la mise à jour des taxonomies si client et campagne sont sélectionnés
+      if (selectedClient?.clientId && selectedCampaign?.id) {
+        await updateTaxonomiesAsync('tactic', {
+          id: tactiqueId,
+          name: data.TC_Label || `Tactique ${tactiqueId}`,
+          clientId: selectedClient.clientId,
+          campaignId: selectedCampaign.id
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de la tactique avec taxonomies:', error);
+      throw error;
+    }
+  }, [onUpdateTactique, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+
+  /**
+   * AJOUT : Wrapper pour onUpdatePlacement avec mise à jour taxonomique
+   */
+  const handleUpdatePlacementWithTaxonomy = useCallback(async (
+    placementId: string, 
+    data: Partial<Placement>
+  ): Promise<void> => {
+    try {
+      // 1. Effectuer la mise à jour normale
+      await onUpdatePlacement(placementId, data);
+
+      // 2. Déclencher la mise à jour des taxonomies si client et campagne sont sélectionnés
+      if (selectedClient?.clientId && selectedCampaign?.id) {
+        await updateTaxonomiesAsync('placement', {
+          id: placementId,
+          name: data.PL_Label || `Placement ${placementId}`,
+          clientId: selectedClient.clientId,
+          campaignId: selectedCampaign.id
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour du placement avec taxonomies:', error);
+      throw error;
+    }
+  }, [onUpdatePlacement, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+
   /**
    * Effet de bord qui déclenche le chargement des données dynamiques et budget
    */
@@ -398,9 +453,9 @@ export default function TactiquesAdvancedTableView({
     placements,
     creatifs,
     onUpdateSection,
-    onUpdateTactique,
-    onUpdatePlacement,
-    onUpdateCreatif
+    onUpdateTactique: handleUpdateTactiqueWithTaxonomy, // ✅ Utiliser le wrapper
+    onUpdatePlacement: handleUpdatePlacementWithTaxonomy, // ✅ Utiliser le wrapper
+    onUpdateCreatif // ✅ Pas de wrapper pour les créatifs (pas d'enfants)
   });
 
   const columns = useMemo(() => enrichedColumns(selectedLevel), [enrichedColumns, selectedLevel]);
@@ -410,16 +465,103 @@ export default function TactiquesAdvancedTableView({
     setSelectedLevel(level);
   };
 
-  const handleSaveAllChanges = async () => {
+  const handleSaveAllChanges = useCallback(async () => {
+    if (!selectedClient?.clientId || !selectedCampaign?.id) {
+      // Fallback vers la sauvegarde normale si pas de contexte
+      try {
+        await saveAllChanges();
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde:', error);
+      }
+      return;
+    }
+  
     try {
+      // 1. Identifier les entités modifiées qui nécessitent une mise à jour des taxonomies
+      const modifiedTactiques = new Set<string>();
+      const modifiedPlacements = new Set<string>();
+  
+      // ✅ CORRECTION : Utiliser Array.from() pour l'itération
+      const pendingEntries = Array.from(pendingChanges.entries());
+      for (const [entityId, changes] of pendingEntries) {
+        const row = tableRows.find(r => r.id === entityId);
+        if (!row) continue;
+  
+        // Vérifier si des champs qui affectent les taxonomies ont été modifiés
+        const taxonomyAffectingFields = [
+          'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Custom_Dim_1', 'TC_Custom_Dim_2', 'TC_Custom_Dim_3',
+          'PL_Product', 'PL_Location', 'PL_Audience_Demographics', 'PL_Device', 'PL_Targeting',
+          'PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
+          'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'
+        ];
+  
+        const hasAffectingChanges = Object.keys(changes).some(key => 
+          taxonomyAffectingFields.includes(key)
+        );
+  
+        if (hasAffectingChanges) {
+          if (row.type === 'tactique') {
+            modifiedTactiques.add(entityId);
+          } else if (row.type === 'placement') {
+            modifiedPlacements.add(entityId);
+          }
+        }
+      }
+  
+      // 2. Sauvegarder toutes les modifications d'abord
       await saveAllChanges();
+  
+      // 3. Déclencher les mises à jour de taxonomies seulement si nécessaire
+      const taxonomyPromises: Promise<void>[] = [];
+  
+      // ✅ CORRECTION : Utiliser Array.from() pour l'itération des Sets
+      // Mise à jour pour les tactiques modifiées
+      const tactiqueIds = Array.from(modifiedTactiques);
+      for (const tactiqueId of tactiqueIds) {
+        const tactiqueRow = tableRows.find(r => r.id === tactiqueId && r.type === 'tactique');
+        if (tactiqueRow) {
+          const tactiqueData = tactiqueRow.data as any;
+          taxonomyPromises.push(
+            updateTaxonomiesAsync('tactic', {
+              id: tactiqueId,
+              name: tactiqueData.TC_Label || `Tactique ${tactiqueId}`,
+              clientId: selectedClient.clientId,
+              campaignId: selectedCampaign.id
+            })
+          );
+        }
+      }
+  
+      // Mise à jour pour les placements modifiés
+      const placementIds = Array.from(modifiedPlacements);
+      for (const placementId of placementIds) {
+        const placementRow = tableRows.find(r => r.id === placementId && r.type === 'placement');
+        if (placementRow) {
+          const placementData = placementRow.data as any;
+          taxonomyPromises.push(
+            updateTaxonomiesAsync('placement', {
+              id: placementId,
+              name: placementData.PL_Label || `Placement ${placementId}`,
+              clientId: selectedClient.clientId,
+              campaignId: selectedCampaign.id
+            })
+          );
+        }
+      }
+  
+      // Attendre toutes les mises à jour de taxonomies
+      if (taxonomyPromises.length > 0) {
+        console.log(`🔄 Déclenchement des mises à jour taxonomiques pour ${taxonomyPromises.length} entité(s)`);
+        await Promise.all(taxonomyPromises);
+        console.log(`✅ Mises à jour taxonomiques terminées`);
+      }
+  
       // TODO: Afficher un toast de succès
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      console.error('❌ Erreur lors de la sauvegarde avec taxonomies:', error);
       // TODO: Afficher un toast d'erreur
     }
-  };
-
+  }, [saveAllChanges, pendingChanges, tableRows, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
   const handleCancelAllChanges = () => {
     if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
       return;
