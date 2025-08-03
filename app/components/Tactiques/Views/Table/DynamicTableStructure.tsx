@@ -9,12 +9,15 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
+import { getPlacementFieldLabel } from '../../../../config/TaxonomyFieldLabels';
 import {
   getColumnsWithHierarchy,
   getTactiqueSubCategories,
   getPlacementSubCategories,
+  getCreatifSubCategories,  // NOUVEAU
   TactiqueSubCategory,
-  PlacementSubCategory
+  PlacementSubCategory,
+  CreatifSubCategory  // NOUVEAU
 } from './tableColumns.config';
 import {
   createBudgetColumnsComplete,
@@ -69,6 +72,7 @@ import {
 } from '../../../../lib/cacheService';
 
 import { Fee } from '../../../../lib/tactiqueListService';
+
 
 interface SortConfig {
   key: string;
@@ -159,6 +163,7 @@ export default function DynamicTableStructure({
   const [hideChildrenLevels, setHideChildrenLevels] = useState(false);
   const [selectedTactiqueSubCategory, setSelectedTactiqueSubCategory] = useState<TactiqueSubCategory>('info');
   const [selectedPlacementSubCategory, setSelectedPlacementSubCategory] = useState<PlacementSubCategory>('info');
+  const [selectedCreatifSubCategory, setSelectedCreatifSubCategory] = useState<CreatifSubCategory>('info');
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
   // NOUVEAUX ÉTATS pour la taxonomie placement
@@ -201,20 +206,29 @@ export default function DynamicTableStructure({
   /**
    * NOUVEAU : Génère les colonnes dynamiques pour l'onglet taxonomie des placements
    */
-  const generatePlacementTaxonomyColumns = useCallback(async (): Promise<DynamicColumn[]> => {
+  const generateTaxonomyColumns = useCallback(async (): Promise<DynamicColumn[]> => {
     console.log('🔍 === DEBUG generatePlacementTaxonomyColumns ===');
     console.log('selectedClient?.clientId:', selectedClient?.clientId);
     console.log('selectedLevel:', selectedLevel);
     console.log('selectedPlacementSubCategory:', selectedPlacementSubCategory);
     
-    if (!selectedClient?.clientId || selectedLevel !== 'placement' || selectedPlacementSubCategory !== 'taxonomie') {
-      console.log('❌ Conditions non remplies, sortie anticipée');
+    if (!selectedClient?.clientId) {
+      return [];
+    }
+    
+    const isPlacementTaxonomy = selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie';
+    const isCreatifTaxonomy = selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie';
+    
+    if (!isPlacementTaxonomy && !isCreatifTaxonomy) {
       return [];
     }
 
     // Récupérer tous les placements visibles pour analyser leurs taxonomies
     const placementRows = tableRows.filter(row => row.type === 'placement');
-    console.log('📋 Placement rows trouvées:', placementRows.length);
+
+    const targetType = isPlacementTaxonomy ? 'placement' : 'creatif';
+    const targetRows = tableRows.filter(row => row.type === targetType);
+   console.log('📋 Placement rows trouvées:', placementRows.length);
     
     if (placementRows.length === 0) {
       console.log('❌ Aucune ligne placement trouvée');
@@ -223,37 +237,50 @@ export default function DynamicTableStructure({
 
     // Collecter toutes les taxonomies utilisées
     const usedTaxonomyIds = new Set<string>();
-    placementRows.forEach(row => {
+    const taxonomyFields = isPlacementTaxonomy 
+      ? ['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean']
+      : ['CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'];
+    
+    targetRows.forEach(row => {
       const data = row.data as any;
       const pendingData = pendingChanges.get(row.id) || {};
       const mergedData = { ...data, ...pendingData };
-
-      console.log(`🔍 Placement ${row.id}:`, {
-        PL_Taxonomy_Tags: mergedData.PL_Taxonomy_Tags,
-        PL_Taxonomy_Platform: mergedData.PL_Taxonomy_Platform,
-        PL_Taxonomy_MediaOcean: mergedData.PL_Taxonomy_MediaOcean
-      });
-
-      [mergedData.PL_Taxonomy_Tags, mergedData.PL_Taxonomy_Platform, mergedData.PL_Taxonomy_MediaOcean]
+    
+      taxonomyFields
+        .map(field => mergedData[field])
         .filter(Boolean)
         .forEach(id => {
-          console.log(`➕ Ajout taxonomie ID: ${id}`);
           usedTaxonomyIds.add(id);
         });
     });
+
 
     console.log('📊 Taxonomies utilisées:', Array.from(usedTaxonomyIds));
 
     if (usedTaxonomyIds.size === 0) {
       console.log('⚠️ Aucune taxonomie sélectionnée, affichage des champs de base');
       // Aucune taxonomie sélectionnée, afficher les champs manuels de base
-      return [
-        { key: 'PL_Product', label: 'Produit', type: 'text', width: 150 },
-        { key: 'PL_Location', label: 'Emplacement', type: 'text', width: 150 },
-        { key: 'PL_Audience_Demographics', label: 'Démographie', type: 'text', width: 150 },
-        { key: 'PL_Device', label: 'Appareil', type: 'text', width: 120 },
-        { key: 'PL_Targeting', label: 'Ciblage', type: 'text', width: 140 }
-      ];
+        const baseFields = isPlacementTaxonomy 
+        ? [
+            { key: 'PL_Product', label: 'Produit', width: 150 },
+            { key: 'PL_Location', label: 'Emplacement', width: 150 },
+            { key: 'PL_Audience_Demographics', label: 'Démographie', width: 150 },
+            { key: 'PL_Device', label: 'Appareil', width: 120 },
+            { key: 'PL_Targeting', label: 'Ciblage', width: 140 }
+          ]
+        : [
+            { key: 'CR_Product', label: 'Produit', width: 150 },
+            { key: 'CR_Audience_Demographics', label: 'Démographie', width: 150 },
+            { key: 'CR_Device', label: 'Appareil', width: 120 },
+            { key: 'CR_Targeting', label: 'Ciblage', width: 140 }
+          ];
+
+      return baseFields.map(field => ({
+        key: field.key,
+        label: field.label,
+        type: 'text' as const,
+        width: field.width
+      }));
     }
 
     // Analyser les taxonomies pour extraire les variables manuelles
@@ -310,20 +337,16 @@ export default function DynamicTableStructure({
     console.log('📋 Variables manuelles connues:', knownManualVariables);
     
     // CORRECTION : Filtrage plus intelligent - inclure les variables PL_ même si elles ne sont pas dans la liste
+    const prefix = isPlacementTaxonomy ? 'PL_' : 'CR_';
     const relevantVariables = Array.from(allManualVariables).filter(varName => {
-      // Toujours inclure les variables PL_ (champs placement)
-      if (varName.startsWith('PL_')) {
-        console.log(`✅ Variable PL_ acceptée: ${varName}`);
+      if (varName.startsWith(prefix)) {
         return true;
       }
       
-      // Inclure les variables connues
       if (knownManualVariables.includes(varName)) {
-        console.log(`✅ Variable connue acceptée: ${varName}`);
         return true;
       }
       
-      console.log(`❌ Variable rejetée: ${varName} (ni PL_ ni dans les connues)`);
       return false;
     });
     console.log('✅ Variables pertinentes après correction:', relevantVariables);
@@ -359,7 +382,7 @@ export default function DynamicTableStructure({
 
       const column = {
         key: variableName,
-        label: config.label || variableName,
+        label: getPlacementFieldLabel(variableName, config.label),
         type: options.length > 0 ? 'select' : 'text',
         width: 180,
         options
@@ -374,21 +397,22 @@ export default function DynamicTableStructure({
     console.log('🔍 === FIN DEBUG generatePlacementTaxonomyColumns ===');
     
     return sortedColumns;
-  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, tableRows, pendingChanges]);
+  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, tableRows, pendingChanges]);
 
   /**
    * NOUVEAU : Effet pour générer les colonnes dynamiques de taxonomie
    */
   useEffect(() => {
     const generateColumns = async () => {
-      if (selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie') {
-        const columns = await generatePlacementTaxonomyColumns();
+      if ((selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie') ||
+      (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie')) {
+          const columns = await generateTaxonomyColumns();
         setDynamicTaxonomyColumns(columns);
       }
     };
     
     generateColumns();
-  }, [selectedLevel, selectedPlacementSubCategory, generatePlacementTaxonomyColumns]);
+  }, [selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, generateTaxonomyColumns]);
 
   /**
    * MODIFIÉ : Colonnes enrichies avec support des sous-catégories placement et taxonomie dynamique
@@ -434,17 +458,30 @@ export default function DynamicTableStructure({
         },
         ...dynamicTaxonomyColumns
       ];
-    } else {
-      const subCategory = selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
-                         selectedLevel === 'placement' ? selectedPlacementSubCategory : 
-                         undefined;
+    }  else if (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie') {
+      // NOUVEAU : Colonnes dynamiques de taxonomie pour les créatifs
+      return [
+        {
+          key: '_hierarchy',
+          label: 'Structure',
+          type: 'readonly' as const,
+          width: 300
+        },
+        ...dynamicTaxonomyColumns
+      ];
+    }
+      else {
+        const subCategory = selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
+        selectedLevel === 'placement' ? selectedPlacementSubCategory : 
+        selectedLevel === 'creatif' ? selectedCreatifSubCategory :
+        undefined;
       
       const hierarchyColumns = getColumnsWithHierarchy(selectedLevel, subCategory);
       
       // MODIFIÉ : Enrichir les taxonomies de placement avec les vraies taxonomies du client
       const enrichedColumns = enrichColumnsWithData(hierarchyColumns, buckets, dynamicLists).map(col => {
-        if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(col.key)) {
-          return {
+        if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
+          'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'].includes(col.key)) {          return {
             ...col,
             options: clientTaxonomies.map(taxonomy => ({
               id: taxonomy.id,
@@ -465,6 +502,7 @@ export default function DynamicTableStructure({
     selectedLevel, 
     selectedTactiqueSubCategory, 
     selectedPlacementSubCategory, 
+    selectedCreatifSubCategory,
     buckets, 
     dynamicLists, 
     clientFees,
@@ -649,6 +687,9 @@ export default function DynamicTableStructure({
     if (level !== 'placement') {
       setSelectedPlacementSubCategory('info');
     }
+    if (level !== 'creatif') {
+      setSelectedCreatifSubCategory('info');
+    }
     setSelectedCells([]);
     setSelectionStart(null);
   }, [onLevelChange]);
@@ -757,6 +798,19 @@ export default function DynamicTableStructure({
       );
     }
 
+    if (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie' && row.type !== 'creatif') {
+      return (
+        <div 
+          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+          }`}
+          onClick={() => handleCellClick(rowIndex, column.key)}
+        >
+          -
+        </div>
+      );
+    }
+
     // Gestion des colonnes de frais composites
     if (isFeeCompositeColumn(column)) {
       const rowDataWithPending: BudgetRowData = {
@@ -851,8 +905,9 @@ export default function DynamicTableStructure({
     // Cellules readonly normales
     if (column.type === 'readonly' || !row.isEditable) {
       const subCategory = selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
-                         selectedLevel === 'placement' ? selectedPlacementSubCategory : 
-                         undefined;
+      selectedLevel === 'placement' ? selectedPlacementSubCategory : 
+      selectedLevel === 'creatif' ? selectedCreatifSubCategory :
+      undefined;
       
       const formattedValue = isBudgetMode ? 
         value : 
@@ -939,7 +994,7 @@ export default function DynamicTableStructure({
           <div className={`w-full px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors ${
             column.type === 'number' || column.type === 'currency' ? 'justify-center' : 'justify-start'
           }`}>
-            {formatDisplayValue(
+           {formatDisplayValue(
               column.key, 
               value, 
               buckets, 
@@ -947,7 +1002,11 @@ export default function DynamicTableStructure({
               selectedLevel, 
               selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
               selectedLevel === 'placement' ? selectedPlacementSubCategory : 
-              undefined
+              selectedLevel === 'creatif' ? selectedCreatifSubCategory :
+
+              undefined,
+              // NOUVEAU : Passer les options de la colonne pour les taxonomies
+              (column as DynamicColumn).options
             ) || (
               <span className="text-gray-400 italic">Double-clic pour modifier</span>
             )}
@@ -1032,6 +1091,27 @@ export default function DynamicTableStructure({
             ))}
           </div>
         )}
+        {selectedLevel === 'creatif' && (
+  <div className="flex space-x-1 bg-gray-100 p-1 rounded">
+    {getCreatifSubCategories().map(subCategory => (
+      <button
+        key={subCategory.id}
+        onClick={() => setSelectedCreatifSubCategory(subCategory.id)}
+        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+          selectedCreatifSubCategory === subCategory.id
+            ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+        }`}
+        disabled={taxonomiesLoading && subCategory.id === 'taxonomie'}
+      >
+        {subCategory.label}
+        {taxonomiesLoading && subCategory.id === 'taxonomie' && (
+          <span className="ml-1 animate-spin">⏳</span>
+        )}
+      </button>
+    ))}
+  </div>
+)}
 
         <div className="flex-1 max-w-sm">
           <input
@@ -1132,16 +1212,6 @@ export default function DynamicTableStructure({
         </div>
       )}
 
-      {/* Bandeau d'information pour taxonomie */}
-      {selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie' && (
-        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-          <div className="flex items-center space-x-2 text-sm text-blue-700">
-            <span className="font-medium">Mode Taxonomie :</span>
-            <span>Les colonnes sont générées automatiquement selon les taxonomies sélectionnées dans l'onglet Info</span>
-          </div>
-        </div>
-      )}
-
       {/* Tableau */}
       <div className="bg-white border border-gray-200 rounded-lg">
         <div
@@ -1173,11 +1243,7 @@ export default function DynamicTableStructure({
                           🔧
                         </span>
                       )}
-                      {selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie' && column.key !== '_hierarchy' && (
-                        <span className="text-green-600 text-xs" title="Colonne générée automatiquement">
-                          ⚡
-                        </span>
-                      )}
+
                       {sortConfig?.key === column.key && (
                         <span className="text-indigo-600 font-bold">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
@@ -1213,7 +1279,7 @@ export default function DynamicTableStructure({
                           : renderDataCell(row, column, rowIndex)
                         }
                       </td>
-                    ))}
+                    ))}x
                   </tr>
                 ))
               )}

@@ -4,13 +4,13 @@
  * Fonctions utilitaires pour DynamicTableStructure
  * Contient toute la logique d'enrichissement, formatage et traitement des données
  * Version complète avec toutes les fonctions nécessaires
- * MODIFIÉ : Support des sous-catégories placement et correction de l'affichage des taxonomies
+ * MODIFIÉ : Support des sous-catégories placement et créatifs, correction de l'affichage des taxonomies
  */
 
 import React from 'react';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { formatColumnValue, TactiqueSubCategory, PlacementSubCategory } from './tableColumns.config';
+import { formatColumnValue, TactiqueSubCategory, PlacementSubCategory, CreatifSubCategory } from './tableColumns.config';
 
 interface CampaignBucket {
   id: string;
@@ -71,10 +71,18 @@ export function enrichColumnsWithData(
             }));
             break;
 
-          // NOUVEAU : Support des taxonomies de placement
+          // Support des taxonomies de placement
           case 'PL_Taxonomy_Tags':
           case 'PL_Taxonomy_Platform':
           case 'PL_Taxonomy_MediaOcean':
+            // Ces options seront enrichies dynamiquement avec les taxonomies du client
+            // dans TactiquesAdvancedTableView.tsx
+            break;
+
+          // NOUVEAU : Support des taxonomies de créatif
+          case 'CR_Taxonomy_Tags':
+          case 'CR_Taxonomy_Platform':
+          case 'CR_Taxonomy_MediaOcean':
             // Ces options seront enrichies dynamiquement avec les taxonomies du client
             // dans TactiquesAdvancedTableView.tsx
             break;
@@ -102,8 +110,9 @@ export function enrichColumnsWithData(
         return buckets.length > 0;
       }
 
-      // Pour les taxonomies de placement, toujours garder (seront enrichies ailleurs)
-      if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(column.key)) {
+      // Pour les taxonomies de placement et créatif, toujours garder (seront enrichies ailleurs)
+      if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
+           'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'].includes(column.key)) {
         return true;
       }
 
@@ -123,8 +132,8 @@ export function enrichColumnsWithData(
 }
 
 /**
- * MODIFIÉ : Formate une valeur pour l'affichage en mode lecture avec support des sous-catégories placement
- * et correction de l'affichage des taxonomies
+ * MODIFIÉ : Formate une valeur pour l'affichage en mode lecture avec support des sous-catégories 
+ * placement et créatifs, et correction de l'affichage des taxonomies
  */
 export function formatDisplayValue(
   columnKey: string,
@@ -132,7 +141,7 @@ export function formatDisplayValue(
   buckets: CampaignBucket[],
   dynamicLists: { [key: string]: ListItem[] },
   selectedLevel: TableLevel,
-  subCategory?: TactiqueSubCategory | PlacementSubCategory,
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
   // NOUVEAU : Paramètre pour les options de colonnes enrichies (pour les taxonomies)
   columnOptions?: Array<{ id: string; label: string }>
 ): string {
@@ -148,8 +157,9 @@ export function formatDisplayValue(
     return item ? item.SH_Display_Name_FR : value;
   }
 
-  // NOUVEAU : Cas spéciaux pour les taxonomies de placement (affichage des display names)
-  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean'].includes(columnKey) && value && columnOptions) {
+  // MODIFIÉ : Cas spéciaux pour les taxonomies (placement ET créatif)
+  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
+       'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'].includes(columnKey) && value && columnOptions) {
     const taxonomyOption = columnOptions.find(option => option.id === value);
     return taxonomyOption ? taxonomyOption.label : value;
   }
@@ -239,7 +249,7 @@ export function processTableRows(
 }
 
 /**
- * Récupère le libellé de hiérarchie pour une ligne donnée
+ * MODIFIÉ : Récupère le libellé de hiérarchie pour une ligne donnée (support créatifs)
  */
 export function getHierarchyLabel(row: TableRow): string {
   const data = row.data as any;

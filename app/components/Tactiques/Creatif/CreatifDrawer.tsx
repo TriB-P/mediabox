@@ -101,6 +101,7 @@ export default function CreatifDrawer({
     'CR_Primary_Product', 
     'CR_URL', 
     'CR_Version', 
+    'TC_Publisher'
   ], []);
 
 

@@ -1569,7 +1569,8 @@ export const translations = {
         specTooltip: "Sélectionnez une spec pour auto-remplir tous les champs ci-dessous",
         specPrefix: "Spec",
         specSuffix: "appliquée",
-        resetButton: "Reset"
+        resetButton: "Reset",
+        noSpecs: "Ce partenaire n'a pas de spécifications pré-configurées.",
       },
       details: {
         title: "Détails de la spécification",
@@ -3040,7 +3041,9 @@ export const translations = {
         specTooltip: "Select a spec to auto-fill all the fields below",
         specPrefix: "Spec",
         specSuffix: "applied",
-        resetButton: "Reset"
+        resetButton: "Reset",
+        noSpecs: "This partner has no pre-configured specs.",
+
       },
       details: {
         title: "Specification Details",

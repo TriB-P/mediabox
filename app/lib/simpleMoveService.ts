@@ -778,8 +778,10 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
           const orderField = getOrderField(itemWithContext.itemType);
           const parentRefs = buildParentReferences(itemWithContext.itemType, enhancedDestination);
 
+          // ✅ CORRECTION : Synchroniser le champ 'id' avec l'ID du document Firestore
           const newData = {
             ...sourceData,
+            id: destRef.id, // 🔧 CORRECTION APPLIQUÉE ICI
             [orderField]: currentOrder,
             ...parentRefs,
             updatedAt: new Date().toISOString()
