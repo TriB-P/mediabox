@@ -202,12 +202,27 @@ export const formatNumber = (value: any): string => {
  */
 export const formatDate = (value: any): string => {
   if (!value) return '';
-  const date = new Date(value);
+  
+  let date: Date;
+  
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    // Pour les dates au format ISO YYYY-MM-DD, créer une date locale
+    const [year, month, day] = value.split('-').map(Number);
+    date = new Date(year, month - 1, day); // month - 1 car les mois sont 0-indexés
+  } else {
+    // Pour les autres formats, utiliser le constructeur standard
+    date = new Date(value);
+  }
+  
   if (isNaN(date.getTime())) return value;
 
-  return date.toLocaleDateString('fr-CA');
+  // Formater en DD-MM-YYYY pour l'affichage
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${day}/${month}/${year}`;
 };
-
 /**
  * Formate une valeur numérique en pourcentage.
  * @param value La valeur à formater.

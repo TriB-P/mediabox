@@ -1291,7 +1291,7 @@ levelsToAnalyze
                           : renderDataCell(row, column, rowIndex)
                         }
                       </td>
-                    ))}x
+                    ))}
                   </tr>
                 ))
               )}

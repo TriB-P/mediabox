@@ -483,24 +483,58 @@ const handleUpdatePlacement = useCallback(async (
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       throw new Error('Contexte manquant pour modifier un créatif');
     }
-    if (!sectionId || !tactiqueId || !placementId) {
-      throw new Error('Hiérarchie parent (section, tactique, placement) manquante pour le créatif');
-    }
-    try {
-      const currentTactique = tactiques[sectionId]?.find(t => t.id === tactiqueId);
-      const currentPlacement = placements[tactiqueId]?.find(p => p.id === placementId);
-      if (!currentPlacement) {
-        throw new Error('Le placement parent n\'a pas été trouvé dans les données locales.');
+  
+    let finalSectionId = sectionId;
+    let finalTactiqueId = tactiqueId;
+    let finalPlacementId = placementId;
+  
+    // ✅ Vérifier d'abord si la hiérarchie fournie est correcte
+    let currentPlacement = placements[finalTactiqueId]?.find(p => p.id === finalPlacementId);
+    
+    // ✅ Si le placement n'est pas trouvé, faire une recherche dans toutes les données
+    if (!currentPlacement) {
+      console.log('🔍 Placement non trouvé avec les IDs fournis, recherche automatique...');
+      
+      // Recherche exhaustive dans toute la hiérarchie
+      let found = false;
+      for (const section of sections) {
+        for (const tactique of (tactiques[section.id] || [])) {
+          for (const placement of (placements[tactique.id] || [])) {
+            if (creatifs[placement.id]?.some(c => c.id === creatifId)) {
+              finalSectionId = section.id;
+              finalTactiqueId = tactique.id;
+              finalPlacementId = placement.id;
+              currentPlacement = placement;
+              found = true;
+              console.log(`✅ Hiérarchie trouvée automatiquement: Section=${finalSectionId}, Tactique=${finalTactiqueId}, Placement=${finalPlacementId}`);
+              break;
+            }
+          }
+          if (found) break;
+        }
+        if (found) break;
       }
-      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdateCreatif - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
+      
+      if (!found || !currentPlacement) {
+        throw new Error('Hiérarchie parent (section, tactique, placement) non trouvée pour le créatif');
+      }
+    } else {
+      console.log(`✅ Hiérarchie validée: Section=${finalSectionId}, Tactique=${finalTactiqueId}, Placement=${finalPlacementId}`);
+    }
+  
+    try {
+      const currentTactique = tactiques[finalSectionId]?.find(t => t.id === finalTactiqueId);
+      
+      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdateCreatif - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${finalSectionId}/tactiques/${finalTactiqueId}/placements/${finalPlacementId}/creatifs/${creatifId}");
+      
       await updateCreatif(
         selectedClient.clientId,
         selectedCampaignId,
         selectedVersionId,
         selectedOngletId,
-        sectionId,
-        tactiqueId,
-        placementId,
+        finalSectionId,
+        finalTactiqueId,
+        finalPlacementId,
         creatifId,
         data,
         selectedCampaign,
@@ -512,8 +546,7 @@ const handleUpdatePlacement = useCallback(async (
       console.error('❌ Erreur modification créatif:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques, placements, selectedCampaign, onRefresh]);
-
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign, onRefresh]);
   /**
    * Gère la suppression d'un créatif.
    * @param {string} sectionId - L'ID de la section parente du créatif.
