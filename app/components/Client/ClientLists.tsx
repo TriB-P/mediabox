@@ -1,10 +1,8 @@
 /**
- * @file Ce composant représente l'interface principale pour la gestion des listes de shortcodes d'un client.
- * Il orchestre l'affichage des dimensions (catégories de listes), la liste des shortcodes
- * pour la dimension sélectionnée, et toutes les actions associées comme la création/suppression
- * de listes personnalisées et l'ajout/suppression de shortcodes. Il s'appuie sur le hook
- * `useShortcodes` pour la logique métier et les interactions avec Firebase, et utilise
- * le `ClientContext` pour savoir quel client est sélectionné.
+ * app/components/Client/ClientLists.tsx
+ * 
+ * Version mise à jour pour utiliser le tableau scrollable sans pagination.
+ * Supprime les props et logiques liées à la pagination (hasMore, loadingMore, onLoadMore, etc.)
  */
 
 'use client';
@@ -22,8 +20,7 @@ import ShortcodeTable from './ShortcodeTable';
 
 /**
  * Composant principal pour la gestion des listes de shortcodes.
- * Il affiche l'interface utilisateur permettant de naviguer entre les dimensions, de voir les shortcodes,
- * et d'effectuer des opérations de gestion de liste en fonction des permissions de l'utilisateur.
+ * Version adaptée pour le tableau scrollable - supprime les éléments de pagination.
  * @returns {React.ReactElement} Le JSX du composant de gestion des listes.
  */
 const ClientLists: React.FC = () => {
@@ -41,14 +38,11 @@ const ClientLists: React.FC = () => {
     shortcodes,
     allShortcodes,
     isCustomList,
-    hasMore,
-    totalCount,
+    customDimensions,
     loading,
-    loadingMore,
     error,
     success,
     setSelectedDimension,
-    loadMoreShortcodes,
     handleCreateCustomList,
     handleDeleteCustomList,
     handleAddShortcode,
@@ -60,7 +54,6 @@ const ClientLists: React.FC = () => {
 
   /**
    * Ouvre la modale de confirmation pour la suppression d'une liste personnalisée.
-   * Change simplement l'état `isDeleteListModalOpen` à `true`.
    */
   const onDeleteCustomList = () => {
     setIsDeleteListModalOpen(true);
@@ -68,7 +61,6 @@ const ClientLists: React.FC = () => {
 
   /**
    * Exécute la suppression de la liste personnalisée après confirmation de l'utilisateur.
-   * Appelle la fonction `handleDeleteCustomList` du hook `useShortcodes` puis ferme la modale.
    * @returns {Promise<void>}
    */
   const confirmDeleteCustomList = async () => {
@@ -78,8 +70,6 @@ const ClientLists: React.FC = () => {
 
   /**
    * Déclenche le rafraîchissement de la liste des shortcodes.
-   * Utile après une mise à jour pour récupérer les données les plus récentes.
-   * Appelle `refreshShortcodes` du hook `useShortcodes`.
    * @returns {Promise<void>}
    */
   const onUpdateShortcode = async () => {
@@ -133,6 +123,8 @@ const ClientLists: React.FC = () => {
             selectedDimension={selectedDimension}
             onSelectDimension={setSelectedDimension}
             loading={loading && dimensions.length === 0}
+            clientId={selectedClient.clientId}
+            customDimensions={customDimensions}
           />
 
           <div className="flex-1 mt-6 md:mt-0">
@@ -163,20 +155,17 @@ const ClientLists: React.FC = () => {
                   hasPermission={hasListPermission}
                   isCustomList={isCustomList}
                   loading={loading}
-                  loadingMore={loadingMore}
-                  hasMore={hasMore}
-                  totalCount={totalCount}
                   searchQuery={searchQuery}
                   userRole={userRole}
                   onRemoveShortcode={handleRemoveShortcode}
                   onUpdateShortcode={onUpdateShortcode}
-                  onLoadMore={loadMoreShortcodes}
                 />
               </>
             )}
           </div>
         </div>
 
+        {/* Modal de confirmation de suppression de liste */}
         <Transition show={isDeleteListModalOpen} as={Fragment}>
           <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={() => setIsDeleteListModalOpen(false)}>
             <div className="min-h-screen px-4 text-center">
