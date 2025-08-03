@@ -116,73 +116,76 @@ function formatShortcodeValue(shortcodeData: any, customCode: string | null, for
 }
 
 /**
- * Résout la valeur d'une variable de taxonomie en utilisant le contexte fourni.
- * La résolution prend en compte les valeurs manuelles, puis les données de campagne,
- * tactique, placement ou créatif, et enfin le formatage avec shortcode/code personnalisé.
- * @param variableName Le nom de la variable à résoudre (ex: 'CA_ClientName').
- * @param format Le format souhaité pour la valeur résolue.
- * @param context Le contexte de résolution contenant les données de la campagne, tactique, placement, créatif et les caches.
- * @param isCreatif Indique si la variable est résolue dans le contexte d'un créatif.
- * @returns La valeur résolue de la variable.
+ * Vérifie si une valeur correspond à un shortcode existant dans le cache
+ */
+async function isExistingShortcode(value: string, cache: Map<string, any>): Promise<boolean> {
+  if (!value) return false;
+  const shortcodeData = await getShortcode(value, cache);
+  return shortcodeData !== null;
+}
+
+/**
+ * NOUVELLE VERSION SIMPLIFIÉE : Résout la valeur d'une variable de taxonomie en utilisant le contexte fourni
+ * Structure simplifiée : *_Taxonomy_Values[variableName] = string (shortcodeId ou saisie libre)
+ */
+
+/**
+ * NOUVELLE VERSION : Résout la valeur d'une variable directement depuis les champs de l'objet
+ * Plus de *_Taxonomy_Values - les valeurs sont stockées directement (ex: PL_Product, CR_CTA)
  */
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  if (isCreatif) {
-    const manualValue = context.creatifData?.CR_Taxonomy_Values?.[variableName];
-    if (manualValue) {
-      if (manualValue.format === 'open') return manualValue.openValue || '';
-      if (manualValue.shortcodeId) {
-        const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
-        if (shortcodeData) {
-          const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
-          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          return formattedValue;
+  // 1. Vérifier d'abord les champs directs selon le contexte
+  if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
+    // Variables créatifs stockées directement (ex: CR_CTA, CR_Offer)
+    rawValue = context.creatifData[variableName];
+    
+    if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+      // Si c'est un shortcode existant ET qu'on a besoin de formatage
+      if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+        if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
+          const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+          if (shortcodeData) {
+            const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+            return formattedValue;
+          }
         }
       }
-      return manualValue.value || '';
+      
+      return String(rawValue);
     }
-  } else {
-    const manualValue = context.placementData.PL_Taxonomy_Values?.[variableName];
-    if (manualValue) {
-      if (manualValue.format === 'open') return manualValue.openValue || '';
-      if (manualValue.shortcodeId) {
-        const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
-        if (shortcodeData) {
-          const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
-          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          return formattedValue;
+  } else if (!isCreatif && context.placementData) {
+    // Variables placement stockées directement (ex: PL_Product, PL_Channel)
+    rawValue = context.placementData[variableName];
+    
+    if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+      // Si c'est un shortcode existant ET qu'on a besoin de formatage
+      if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+        if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
+          const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+          if (shortcodeData) {
+            const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+            return formattedValue;
+          }
         }
       }
-      return manualValue.value || '';
+      
+      return String(rawValue);
     }
   }
 
+  // 2. Résolution selon la source (hiérarchie campagne → tactique → placement)
   if (source === 'campaign' && context.campaignData) {
     rawValue = context.campaignData[variableName];
   } else if (source === 'tactique' && context.tactiqueData) {
     rawValue = context.tactiqueData[variableName];
   } else if (source === 'placement' && context.placementData) {
-    if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-      const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-
-      if (format === 'open' && taxonomyValue.openValue) {
-        rawValue = taxonomyValue.openValue;
-      } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-        const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-        if (shortcodeData) {
-          const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-          const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-          return formattedValue;
-        }
-      } else {
-        rawValue = taxonomyValue.value;
-      }
-    } else {
-      rawValue = context.placementData[variableName];
-    }
-  } else if (source === 'manual') {
+    rawValue = context.placementData[variableName];
+  } else if (source === 'créatif') {
     if (isCreatif && isCreatifVariable(variableName) && context.creatifData) {
       rawValue = context.creatifData[variableName];
     } else {
@@ -194,19 +197,21 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
     return '';
   }
 
+  // 3. Formatage de la valeur pour les champs directs
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-    const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
-    if (shortcodeData) {
-      const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-      const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      return formattedValue;
+    if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
+      const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+      if (shortcodeData) {
+        const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+        return formattedValue;
+      }
     }
   }
 
   const finalValue = String(rawValue);
   return finalValue;
 }
-
 /**
  * Génère une chaîne de caractères de taxonomie en résolvant les variables et les groupes à partir d'une structure donnée.
  * @param structure La chaîne de structure de taxonomie contenant des variables (ex: "[CA_ClientName:code]").
@@ -307,11 +312,7 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
     PL_MO_2: moChains[1] || '',
     PL_MO_3: moChains[2] || '',
     PL_MO_4: moChains[3] || '',
-    PL_Generated_Taxonomies: {
-      tags: tagChains.filter(Boolean).join('|'),
-      platform: platformChains.filter(Boolean).join('|'),
-      mediaocean: moChains.filter(Boolean).join('|'),
-    },
+
     updatedAt: new Date().toISOString()
   };
 }

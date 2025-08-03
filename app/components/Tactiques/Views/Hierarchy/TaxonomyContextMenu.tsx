@@ -12,7 +12,7 @@ import { XMarkIcon, CheckIcon, DocumentDuplicateIcon, ArrowPathIcon } from '@her
 import { getTaxonomyById } from '../../../../lib/taxonomyService';
 import { generateFinalTaxonomyString } from '../../../../lib/taxonomyParser';
 import { Taxonomy } from '../../../../types/taxonomy';
-import { Placement, Creatif, TaxonomyValues, TaxonomyFormat } from '../../../../types/tactiques';
+import { Placement, Creatif, TaxonomyFormat } from '../../../../types/tactiques';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../lib/firebase';
 
@@ -261,58 +261,37 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
     setAvailableLevels(levels);
   };
 
-  /**
-   * Crée une fonction de résolution de valeurs pour la génération de chaînes de taxonomie.
-   * Cette fonction tente de récupérer la valeur d'une variable d'abord à partir des champs directs
-   * préfixés de l'élément (`PL_Tag_1`, etc.), puis des valeurs de taxonomie stockées,
-   * et enfin des champs directs non préfixés de l'élément.
-   * @returns {(variableName: string, format: TaxonomyFormat) => string} La fonction de résolution.
-   */
-  const createValueResolver = () => {
-    const { fieldPrefix = '' } = loadedTaxonomy;
-    
-    return (variableName: string, format: TaxonomyFormat): string => {
-      if (fieldPrefix) {
-        for (let level = 1; level <= 6; level++) {
-          const fieldName = `${fieldPrefix}${level}`;
-          const fieldValue = getDirectFieldValue(fieldName);
-          if (fieldValue) {
-            return fieldValue;
-          }
+// app/components/Tactiques/Views/Hierarchy/TaxonomyContextMenu.tsx - FONCTION MODIFIÉE
+
+/**
+ * NOUVELLE VERSION SIMPLIFIÉE : Crée une fonction de résolution de valeurs pour la génération de chaînes de taxonomie
+ * Structure simplifiée : les valeurs de taxonomie sont maintenant des strings directes
+ */
+const createValueResolver = () => {
+  const { fieldPrefix = '' } = loadedTaxonomy;
+  
+  return (variableName: string, format: TaxonomyFormat): string => {
+    if (fieldPrefix) {
+      for (let level = 1; level <= 6; level++) {
+        const fieldName = `${fieldPrefix}${level}`;
+        const fieldValue = getDirectFieldValue(fieldName);
+        if (fieldValue) {
+          return fieldValue;
         }
       }
-
-      const taxonomyValues = getTaxonomyValues();
-      if (taxonomyValues && taxonomyValues[variableName]) {
-        const taxonomyValue = taxonomyValues[variableName];
-        
-        if (format === 'open' && taxonomyValue.openValue) {
-          return taxonomyValue.openValue;
-        }
-        
-        return taxonomyValue.value || `[${variableName}:${format}]`;
-      }
-
-      const directValue = getDirectFieldValue(variableName);
-      if (directValue) {
-        return directValue;
-      }
-
-      return `[${variableName}:${format}]`;
-    };
-  };
-
-  /**
-   * Récupère les valeurs de taxonomie spécifiques (PL_Taxonomy_Values ou CR_Taxonomy_Values) de l'élément frais.
-   * @returns {TaxonomyValues | undefined} Les valeurs de taxonomie ou `undefined`.
-   */
-  const getTaxonomyValues = (): TaxonomyValues | undefined => {
-    if (itemType === 'placement') {
-      return (freshItem as Placement).PL_Taxonomy_Values;
-    } else {
-      return (freshItem as Creatif).CR_Taxonomy_Values;
     }
+
+    // ✅ DIRECT : Recherche directe dans l'objet freshItem
+    const directValue = getDirectFieldValue(variableName);
+    if (directValue) {
+      return directValue;
+    }
+
+    return `[${variableName}:${format}]`;
   };
+};
+
+
 
   /**
    * Récupère la valeur d'un champ directement depuis l'objet `freshItem`.

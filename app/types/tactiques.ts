@@ -102,17 +102,6 @@ export interface Tactique {
 export type TaxonomyVariableFormat = TaxonomyFormat;
 export type TaxonomyVariableSource = FieldSource;
 
-export interface TaxonomyVariableValue {
-  value: string;
-  source: TaxonomyVariableSource;
-  format: TaxonomyFormat;
-  shortcodeId?: string;
-  openValue?: string;
-}
-
-export interface TaxonomyValues {
-  [variableName: string]: TaxonomyVariableValue;
-}
 
 export interface GeneratedTaxonomies {
   tags?: string;
@@ -172,8 +161,6 @@ export interface Placement {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
-  PL_Taxonomy_Values?: TaxonomyValues;
-  PL_Generated_Taxonomies?: GeneratedTaxonomies;
 
   createdAt?: string;
   updatedAt?: string;
@@ -221,7 +208,6 @@ export interface Creatif {
   CR_Spec_Notes?: string;           // Notes additionnelles
 
   // Stockage des valeurs taxonomie et générations
-  CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
 
   createdAt?: string;
@@ -346,8 +332,6 @@ export interface PlacementFormData {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
-  PL_Taxonomy_Values?: TaxonomyValues;
-  PL_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
 // ==================== FORMULAIRE CRÉATIF COMPLET + SPECS ====================
@@ -390,7 +374,6 @@ export interface CreatifFormData {
   CR_Spec_Notes?: string;           // Notes additionnelles
 
   // Stockage des valeurs taxonomie
-  CR_Taxonomy_Values?: TaxonomyValues;
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
 }
 
@@ -403,13 +386,6 @@ export interface TaxonomyContext {
   clientId: string;
 }
 
-export interface TaxonomyProcessingResult {
-  variables: ParsedTaxonomyVariable[];
-  values: TaxonomyValues;
-  generated: GeneratedTaxonomies;
-  errors: string[];
-  warnings: string[];
-}
 
 export interface TaxonomyFieldConfig {
   variable: string;

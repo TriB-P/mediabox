@@ -34,8 +34,6 @@ import type {
   PlacementFormData,
   CreatifFormData,
   HighlightState,
-  TaxonomyValues,
-  TaxonomyVariableValue,
   ParsedTaxonomyVariable,
 } from '../types/tactiques';
 import type { TaxonomyFormat } from '../config/taxonomyFields';
@@ -93,12 +91,7 @@ export function useTaxonomyForm({
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
   const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
-  const [taxonomyValues, setTaxonomyValues] = useState<TaxonomyValues>(() => {
-    if (formType === 'creatif') {
-      return (formData as CreatifFormData).CR_Taxonomy_Values || {};
-    }
-    return (formData as PlacementFormData).PL_Taxonomy_Values || {};
-  });
+
 
   const [previewUpdateTime, setPreviewUpdateTime] = useState(Date.now());
   const [shortcodeCache, setShortcodeCache] = useState<Map<string, ShortcodeData>>(new Map());
@@ -453,6 +446,7 @@ export function useTaxonomyForm({
    */
   useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
 
+
   /**
    * Gère le changement de valeur d'un champ de taxonomie manuel.
    * Met à jour les valeurs de taxonomie et déclenche l'événement `onChange` pour le formulaire parent.
@@ -463,52 +457,23 @@ export function useTaxonomyForm({
    * @param shortcodeId L'ID du shortcode associé, si applicable.
    */
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
+  
+    // Valeur finale : shortcodeId en priorité, sinon la saisie libre
+    const finalValue = shortcodeId || value;
     
-    const newTaxonomyValue: TaxonomyVariableValue = {
-      value, 
-      source: 'créatif', 
-      format,
-      ...(format === 'open' ? { openValue: value } : {}),
-      ...(shortcodeId ? { shortcodeId } : {})
-    };
-
-    const newTaxonomyValues = { ...taxonomyValues, [variableName]: newTaxonomyValue };
-    setTaxonomyValues(newTaxonomyValues);
-
-    // 🔥 ENHANCED: Mise à jour améliorée pour les custom dimensions
-    const taxonomyValuesFieldName = formType === 'creatif' ? 'CR_Taxonomy_Values' : 'PL_Taxonomy_Values';
-    const taxonomyValuesEvent = {
-      target: { name: taxonomyValuesFieldName, value: newTaxonomyValues }
-    } as unknown as React.ChangeEvent<HTMLInputElement>;
-    onChange(taxonomyValuesEvent);
-
-    // 🔥 ENHANCED: Gestion spéciale pour les custom dimensions
-    const isCustomDimension = variableName.includes('Custom_Dim_');
-    
+    // Mise à jour directe du champ dans le formulaire parent
     if ((formType === 'creatif' && isCreatifVariable(variableName)) ||
-        (formType === 'placement' && (isManualVariable(variableName) || isPlacementVariable(variableName)) && !isCreatifVariable(variableName))) {
+    (formType === 'placement' && !isCreatifVariable(variableName))) {
       
-      // Pour les custom dimensions, utiliser la valeur formatée appropriée
-      let eventValue = value;
-      if (isCustomDimension && shortcodeId) {
-        // Pour les custom dimensions avec shortcode, utiliser le shortcodeId pour cohérence avec le système
-        eventValue = shortcodeId;
-      } else if (isCustomDimension && format === 'open') {
-        // Pour les custom dimensions en saisie libre, utiliser directement la valeur
-        eventValue = value;
-      } else {
-        // Pour les autres cas, utiliser shortcodeId si disponible, sinon value
-        eventValue = shortcodeId ?? value;
-      }
-            
       const fieldChangeEvent = {
-        target: { name: variableName, value: eventValue }
+        target: { name: variableName, value: finalValue }
       } as unknown as React.ChangeEvent<HTMLInputElement>;
       onChange(fieldChangeEvent);
     }
-
+  
     setPreviewUpdateTime(Date.now());
-  }, [taxonomyValues, onChange, formType]);
+  }, [onChange, formType]);
+  
 
   /**
    * Gère la mise en surbrillance d'un champ de taxonomie.
@@ -543,77 +508,47 @@ export function useTaxonomyForm({
     const variableName = variable.variable;
     const variableSource = getFieldSource(variableName);
     const isCustomDim = variableName.includes('Custom_Dim_');
-
-
-    // 1. Vérifier les valeurs manuelles en priorité (pour toutes les variables)
-    const manualValue = taxonomyValues[variableName];
-    if (manualValue) {
+  
+    // 1. Vérifier d'abord dans formData (valeurs actuelles du formulaire)
+    if (formData && (formData as any)[variableName] !== undefined && (formData as any)[variableName] !== '') {
+      const currentValue = (formData as any)[variableName];
       
-      if (manualValue.format === 'open') {
-        return manualValue.openValue || '';
-      }
-      
-      if (manualValue.shortcodeId) {
-        const formattedValue = formatShortcode(manualValue.shortcodeId, format);
+      // Si c'est un format qui nécessite formatage ET que c'est un shortcode existant
+      if (formatRequiresShortcode(format) && globalShortcodesCache && globalShortcodesCache[currentValue]) {
+        const formattedValue = formatShortcode(currentValue, format);
         return formattedValue;
       }
       
-      return manualValue.value || '';
+      // Sinon retourner la valeur directement
+      return String(currentValue);
     }
-
+  
     let rawValue: any = null;
-
-    // 2. 🔥 ENHANCED: Résolution améliorée pour les custom dimensions
-    if (isCustomDim && formData) {
-      // Pour les custom dimensions, d'abord vérifier dans le formData actuel
-      const currentFormValue = (formData as any)[variableName];
-      if (currentFormValue !== undefined && currentFormValue !== '') {
-        rawValue = currentFormValue;
-      }
+  
+    // 2. Résolution selon la source
+    if (variableSource === 'campaign' && campaignData) {
+      rawValue = campaignData[variableName];
+    } else if (variableSource === 'tactique' && tactiqueData) {
+      rawValue = tactiqueData[variableName];
+    } else if (variableSource === 'placement' && (placementData || formData)) {
+      const dataSource = placementData || formData;
+      // Chercher directement dans l'objet placement
+      rawValue = dataSource[variableName];
     }
-
-    // 3. Résolution selon la source avec correction pour les placements
-    if (rawValue === null || rawValue === undefined) {
-      if (variableSource === 'campaign' && campaignData) {
-        rawValue = campaignData[variableName];
-      } else if (variableSource === 'tactique' && tactiqueData) {
-        rawValue = tactiqueData[variableName];
-      } else if (variableSource === 'placement' && (placementData || formData)) {
-        const dataSource = placementData || formData;
-        
-        // Pour les variables de placement, chercher dans PL_Taxonomy_Values en premier
-        if (isPlacementVariable(variableName) && dataSource.PL_Taxonomy_Values && dataSource.PL_Taxonomy_Values[variableName]) {
-          const taxonomyValue = dataSource.PL_Taxonomy_Values[variableName];
-
-          // Extraire la valeur selon le format demandé
-          if (format === 'open' && taxonomyValue.openValue) {
-            rawValue = taxonomyValue.openValue;
-          } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-            rawValue = formatShortcode(taxonomyValue.shortcodeId, format);
-            return rawValue; // Retour direct car déjà formaté
-          } else {
-            rawValue = taxonomyValue.value;
-          }
-        } else {
-          // Fallback: chercher directement dans l'objet placement/formData
-          rawValue = dataSource[variableName];
-        }
-      }
-    }
-
+  
     if (rawValue === null || rawValue === undefined || rawValue === '') {
       return `[${variableName}]`;
     }
-
-    // 4. 🔥 ENHANCED: Formatage amélioré de la valeur
+  
+    // 3. Formatage de la valeur
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
       const formattedValue = formatShortcode(rawValue, format);
       return formattedValue;
     }
-
+  
     const finalValue = String(rawValue);
     return finalValue;
-  }, [taxonomyValues, campaignData, tactiqueData, placementData, formData, formatShortcode]);
+  }, [campaignData, tactiqueData, placementData, formData, formatShortcode, globalShortcodesCache]);
 
   /**
    * Récupère la valeur formatée d'une variable spécifique.
@@ -637,16 +572,16 @@ export function useTaxonomyForm({
   const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
     const taxonomy = selectedTaxonomyData[taxonomyType];
     if (!taxonomy) return '';
-
+  
     let structure = '';
     if (formType === 'creatif') {
       structure = [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
     } else {
       structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
     }
-
+  
     TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
-
+  
     return structure.replace(TAXONOMY_VARIABLE_REGEX, (match, variableName, format) => {
       return getFormattedValue(variableName, format) || match;
     });
@@ -658,7 +593,6 @@ export function useTaxonomyForm({
     taxonomiesError,
     parsedVariables,
     fieldStates,
-    taxonomyValues,
     highlightState,
     expandedPreviews,
     handleFieldChange,

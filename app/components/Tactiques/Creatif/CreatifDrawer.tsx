@@ -239,7 +239,6 @@ export default function CreatifDrawer({
         CR_Taxonomy_Tags: creatif.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatif.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatif.CR_Taxonomy_MediaOcean || '',
-        CR_Taxonomy_Values: creatif.CR_Taxonomy_Values || {},
         CR_Generated_Taxonomies: creatif.CR_Generated_Taxonomies || {},
         // Champs specs depuis le créatif existant
         CR_Spec_PartnerId: (creatif as any).CR_Spec_PartnerId || '',
@@ -271,7 +270,6 @@ export default function CreatifDrawer({
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
         CR_Taxonomy_MediaOcean: '',
-        CR_Taxonomy_Values: {},
         CR_Generated_Taxonomies: {},
         // Champs specs vides pour nouveau créatif
         CR_Spec_PartnerId: '',

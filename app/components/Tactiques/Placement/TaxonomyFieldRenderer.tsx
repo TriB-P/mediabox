@@ -6,7 +6,7 @@ import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
 import { getPlacementFieldLabel } from '../../../config/TaxonomyFieldLabels';
-import type { ParsedTaxonomyVariable, TaxonomyValues, HighlightState } from '../../../types/tactiques';
+import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
 // ==================== TYPES ====================

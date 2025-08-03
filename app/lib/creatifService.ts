@@ -23,7 +23,7 @@ import {
     where
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Creatif, CreatifFormData, GeneratedTaxonomies, TaxonomyValues } from '../types/tactiques';
+import { Creatif, CreatifFormData, GeneratedTaxonomies } from '../types/tactiques';
 import { getTaxonomyById } from './taxonomyService';
 import { Taxonomy } from '../types/taxonomy';
 import {
@@ -116,31 +116,38 @@ function formatShortcodeValue(
 }
 
 /**
- * Résout la valeur d'une variable de taxonomie en fonction de sa source et du contexte fourni.
- * La résolution prend en compte les valeurs manuelles du créatif, puis les données
- * de la campagne, de la tactique et du placement.
- * @param variableName Le nom de la variable à résoudre (ex: 'PL_Product').
- * @param format Le format de sortie désiré pour la variable.
- * @param context Le contexte de résolution contenant les données de la campagne, tactique, placement, créatif et les caches.
- * @returns La valeur résolue et formatée de la variable.
+ * Vérifie si une valeur correspond à un shortcode existant dans le cache
  */
-async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext): Promise<string> {
+async function isExistingShortcode(value: string, cache: Map<string, any>): Promise<boolean> {
+    if (!value) return false;
+    const shortcodeData = await getShortcode(value, cache);
+    return shortcodeData !== null;
+  }
+  
+  
+  async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext): Promise<string> {
     const source = getFieldSource(variableName);
     let rawValue: any = null;
 
-    // 1. Vérifier d'abord les valeurs manuelles dans CR_Taxonomy_Values
-    const manualValue = context.creatifData.CR_Taxonomy_Values?.[variableName];
-    if (manualValue) {
-        if (manualValue.format === 'open') return manualValue.openValue || '';
-        if (manualValue.shortcodeId) {
-            const shortcodeData = await getShortcode(manualValue.shortcodeId, context.caches.shortcodes);
-            if (shortcodeData) {
-                const customCode = await getCustomCode(context.clientId, manualValue.shortcodeId, context.caches.customCodes);
-                const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                return formattedValue;
+    // 1. Vérifier d'abord les champs directs du créatif (ex: CR_CTA, CR_Offer)
+    if (isCreatifVariable(variableName) && context.creatifData) {
+        rawValue = context.creatifData[variableName];
+        
+        if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+            // Si c'est un shortcode existant ET qu'on a besoin de formatage
+            if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+                if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
+                    const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+                    if (shortcodeData) {
+                        const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+                        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+                        return formattedValue;
+                    }
+                }
             }
+            
+            return String(rawValue);
         }
-        return manualValue.value || '';
     }
 
     // 2. Résolution selon la source avec correction pour les placements
@@ -149,43 +156,23 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
     } else if (source === 'tactique' && context.tactiqueData) {
         rawValue = context.tactiqueData[variableName];
     } else if (source === 'placement' && context.placementData) {
-        // Pour les variables de placement, chercher dans PL_Taxonomy_Values
-        if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-            const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-
-            // Extraire la valeur selon le format demandé
-            if (format === 'open' && taxonomyValue.openValue) {
-                rawValue = taxonomyValue.openValue;
-            } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-                const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-                if (shortcodeData) {
-                    const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-                    const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                    return formattedValue; // Retour direct car déjà formaté
-                }
-            } else {
-                rawValue = taxonomyValue.value;
-            }
-        } else {
-            // Fallback: chercher directement dans l'objet placement
-            rawValue = context.placementData[variableName];
-        }
-    } else if (source === 'créatif' && isCreatifVariable(variableName)) {
-        // Variables créatifs manuelles directement sur l'objet créatif
-        rawValue = context.creatifData[variableName];
+        // Variables de placement stockées directement dans l'objet (ex: PL_Product, PL_Channel)
+        rawValue = context.placementData[variableName];
     }
 
     if (rawValue === null || rawValue === undefined || rawValue === '') {
         return '';
     }
 
-    // 3. Formatage de la valeur (seulement si pas déjà formaté)
+    // 3. Formatage de la valeur si c'est un shortcode
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-        const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
-        if (shortcodeData) {
-            const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-            const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-            return formattedValue;
+        if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
+            const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+            if (shortcodeData) {
+                const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+                const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+                return formattedValue;
+            }
         }
     }
 
@@ -276,8 +263,6 @@ async function prepareDataForFirestore(
 
     /**
      * Traite un type de taxonomie donné en générant les chaînes de niveau 5 et 6.
-     * @param taxonomyId L'ID de la taxonomie à traiter.
-     * @returns Un tableau contenant les chaînes générées pour le niveau 5 et le niveau 6.
      */
     const processTaxonomyType = async (taxonomyId: string | undefined): Promise<string[]> => {
         if (!taxonomyId) return ['', ''];
@@ -310,7 +295,7 @@ async function prepareDataForFirestore(
         CR_MO_6: moChains[1],
     };
 
-    // Specific creative fields
+    // Extraire tous les champs spécifiques aux créatifs (incluant les variables taxonomie)
     const creatifFieldNames = getCreatifVariableNames();
     const creatifFields: any = {};
     creatifFieldNames.forEach(fieldName => {
@@ -319,7 +304,7 @@ async function prepareDataForFirestore(
         }
     });
 
-    // NOUVEAU: Gestion des champs specs
+    // Gestion des champs specs
     const specFields = {
         CR_Spec_PartnerId: creatifData.CR_Spec_PartnerId || '',
         CR_Spec_SelectedSpecId: creatifData.CR_Spec_SelectedSpecId || '',
@@ -345,15 +330,15 @@ async function prepareDataForFirestore(
         CR_Taxonomy_Tags: creatifData.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatifData.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatifData.CR_Taxonomy_MediaOcean || '',
-        CR_Taxonomy_Values: creatifData.CR_Taxonomy_Values || {},
+        // ✅ SUPPRIMÉ : CR_Taxonomy_Values (plus nécessaire)
         CR_Generated_Taxonomies: {
             tags: tagChains.filter(Boolean).join('|'),
             platform: platformChains.filter(Boolean).join('|'),
             mediaocean: moChains.filter(Boolean).join('|'),
         },
-        ...creatifFields,
+        ...creatifFields,    // ✅ INCLUT maintenant directement CR_CTA, CR_Offer, etc.
         ...taxonomyChains,
-        ...specFields, // NOUVEAU: Ajout des champs specs
+        ...specFields,
         updatedAt: new Date().toISOString(),
         ...(!isUpdate && { createdAt: new Date().toISOString() })
     };

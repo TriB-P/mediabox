@@ -9,7 +9,7 @@
 import { useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
-import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
+import { Section, Tactique, Placement, Creatif, PlacementFormData } from '../types/tactiques';
 import {
   addSection,
   updateSection,
@@ -274,7 +274,6 @@ export function useTactiquesCrud({
           PL_Taxonomy_Tags: '',
           PL_Taxonomy_Platform: '',
           PL_Taxonomy_MediaOcean: '',
-          PL_Taxonomy_Values: {}
         },
         selectedCampaign,
         currentTactique
@@ -287,7 +286,6 @@ export function useTactiquesCrud({
         PL_Taxonomy_Tags: '',
         PL_Taxonomy_Platform: '',
         PL_Taxonomy_MediaOcean: '',
-        PL_Taxonomy_Values: {}
       };
       return newPlacement;
     } catch (error) {
@@ -310,7 +308,7 @@ export function useTactiquesCrud({
  */
 const handleUpdatePlacement = useCallback(async (
   placementId: string, 
-  data: Partial<Placement>, 
+  data: Partial<PlacementFormData>, 
   sectionId?: string, 
   tactiqueId?: string
 ) => {
@@ -440,7 +438,6 @@ const handleUpdatePlacement = useCallback(async (
           CR_Taxonomy_Tags: '',
           CR_Taxonomy_Platform: '',
           CR_Taxonomy_MediaOcean: '',
-          CR_Taxonomy_Values: {}
         },
         selectedCampaign,
         currentTactique,
@@ -454,7 +451,6 @@ const handleUpdatePlacement = useCallback(async (
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
         CR_Taxonomy_MediaOcean: '',
-        CR_Taxonomy_Values: {}
       };
       return newCreatif;
     } catch (error) {

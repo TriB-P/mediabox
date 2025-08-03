@@ -98,7 +98,6 @@ export default function PlacementDrawer({
         PL_Taxonomy_Platform: '',
         PL_Taxonomy_MediaOcean: '',
         PL_Taxonomy_Values: {},
-        PL_Generated_Taxonomies: {},
         ...emptyManualFields,
       };
       return newFormData;
@@ -115,7 +114,6 @@ export default function PlacementDrawer({
       PL_Taxonomy_Platform: '',
       PL_Taxonomy_MediaOcean: '',
       PL_Taxonomy_Values: {},
-      PL_Generated_Taxonomies: {},
       ...emptyManualFields,
     };
   });
@@ -123,9 +121,9 @@ export default function PlacementDrawer({
   useEffect(() => {
     const emptyManualFields = createEmptyManualFieldsObject();
     const isNewPlacement = !placement?.id;
-
+  
     if (!isNewPlacement && placement) {
-      // Mode édition - charger les données existantes sans recalculer l'héritage
+      // Mode édition - charger les données existantes directement
       const directTaxFields = {
         PL_Start_Date: placement.PL_Start_Date,
         PL_End_Date: placement.PL_End_Date,
@@ -149,19 +147,10 @@ export default function PlacementDrawer({
         PL_Language: placement.PL_Language,
         PL_Placement_Location: placement.PL_Placement_Location,
       };
-
-      const taxFromTaxonomyValues: any = {};
-      if (placement.PL_Taxonomy_Values) {
-        Object.keys(placement.PL_Taxonomy_Values).forEach(key => {
-          if (key.startsWith('PL_')) {
-            const taxonomyValue = placement.PL_Taxonomy_Values![key];
-            taxFromTaxonomyValues[key] = taxonomyValue.openValue || taxonomyValue.value || '';
-          }
-        });
-      }
-
+  
       const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
-
+  
+      // ✅ SIMPLIFIÉ : Plus besoin de taxFromTaxonomyValues - valeurs directes
       const finalTaxFields: any = {};
       [
         'PL_Start_Date',
@@ -186,11 +175,10 @@ export default function PlacementDrawer({
         'PL_Language',
         'PL_Placement_Location'
       ].forEach(field => {
-        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] ||
-                               taxFromTaxonomyValues[field] ||
-                               '';
+        // ✅ DIRECT : Valeur directement depuis l'objet placement
+        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || '';
       });
-
+  
       const newFormData = {
         PL_Label: placement.PL_Label || '',
         PL_Order: placement.PL_Order || 0,
@@ -198,13 +186,9 @@ export default function PlacementDrawer({
         PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
-        PL_Taxonomy_Values: placement.PL_Taxonomy_Values || {},
-        PL_Generated_Taxonomies: placement.PL_Generated_Taxonomies || {},
-        ...emptyManualFields,
-        ...manualFieldsFromPlacement,
-        ...finalTaxFields,
+  
       };
-
+  
       setFormData(newFormData);
     } else {
       // Mode création - recalculer l'héritage si les sources changent

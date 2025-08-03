@@ -18,15 +18,14 @@ import {
   where
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Placement, PlacementFormData, GeneratedTaxonomies, TaxonomyValues } from '../types/tactiques';
+import { Placement, PlacementFormData, GeneratedTaxonomies } from '../types/tactiques';
 import { getTaxonomyById } from './taxonomyService';
 import { Taxonomy } from '../types/taxonomy';
 import { 
   TAXONOMY_VARIABLE_REGEX,
-  getManualVariableNames, 
+  getPlacementVariableNames, 
   getFieldSource,
   formatRequiresShortcode,
-  isPlacementVariable,
   TaxonomyFormat 
 } from '../config/taxonomyFields';
 
@@ -106,73 +105,52 @@ switch (format) {
 }
 }
 
+
 /**
- * Résout la valeur d'une variable de taxonomie en fonction de sa source et de son format.
- * La résolution se fait dans l'ordre suivant : valeurs manuelles dans PL_Taxonomy_Values,
- * puis variables manuelles directes sur l'objet placement, puis données de campagne,
- * tactique et enfin de placement.
- * @param variableName Le nom de la variable à résoudre.
- * @param format Le format de sortie désiré pour la variable.
- * @param context Le contexte de résolution contenant les données nécessaires (client, campagne, tactique, placement, caches).
- * @returns La valeur résolue de la variable sous forme de chaîne de caractères.
+ * Vérifie si une valeur correspond à un shortcode existant dans le cache
+ */
+async function isExistingShortcode(value: string, cache: Map<string, any>): Promise<boolean> {
+  if (!value) return false;
+  const shortcodeData = await getShortcode(value, cache);
+  return shortcodeData !== null;
+}
+
+/**
+ * NOUVELLE VERSION SIMPLIFIÉE : Résout la valeur d'une variable de taxonomie
+ * Structure simplifiée : PL_Taxonomy_Values[variableName] = string (shortcodeId ou saisie libre)
  */
 async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext): Promise<string> {
   const source = getFieldSource(variableName);
   let rawValue: any = null;
 
-  if (context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-      const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-      
-      if (format === 'open' && taxonomyValue.openValue) {
-          rawValue = taxonomyValue.openValue;
-      } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-          const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-          if (shortcodeData) {
-              const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-              const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-              return formattedValue;
-          }
-      } else {
-          rawValue = taxonomyValue.value;
-      }
-  } else if (source === 'créatif') {
-      rawValue = context.placementData[variableName];
+  // 1. Résolution selon la source
+  if (source === 'créatif') {
+    // Variables manuelles stockées directement dans l'objet placement
+    rawValue = context.placementData[variableName];
   } else if (source === 'campaign' && context.campaignData) {
-      rawValue = context.campaignData[variableName];
+    rawValue = context.campaignData[variableName];
   } else if (source === 'tactique' && context.tactiqueData) {
-      rawValue = context.tactiqueData[variableName];
+    rawValue = context.tactiqueData[variableName];
   } else if (source === 'placement' && context.placementData) {
-      if (isPlacementVariable(variableName) && context.placementData.PL_Taxonomy_Values && context.placementData.PL_Taxonomy_Values[variableName]) {
-          const taxonomyValue = context.placementData.PL_Taxonomy_Values[variableName];
-          
-          if (format === 'open' && taxonomyValue.openValue) {
-              rawValue = taxonomyValue.openValue;
-          } else if (taxonomyValue.shortcodeId && formatRequiresShortcode(format)) {
-              const shortcodeData = await getShortcode(taxonomyValue.shortcodeId, context.caches.shortcodes);
-              if (shortcodeData) {
-                  const customCode = await getCustomCode(context.clientId, taxonomyValue.shortcodeId, context.caches.customCodes);
-                  const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-                  return formattedValue;
-              }
-          } else {
-              rawValue = taxonomyValue.value;
-          }
-      } else {
-          rawValue = context.placementData[variableName];
-      }
+    // Variables de placement stockées directement dans l'objet (ex: PL_Product, PL_Channel)
+    rawValue = context.placementData[variableName];
   }
 
   if (rawValue === null || rawValue === undefined || rawValue === '') {
-      return '';
+    return '';
   }
 
+  // 2. Formatage de la valeur si c'est un shortcode
   if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
+    // Vérifier si c'est un shortcode existant
+    if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
       const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
-      if (!shortcodeData) return rawValue;
-
-      const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
-      const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
-      return formattedValue;
+      if (shortcodeData) {
+        const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+        const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
+        return formattedValue;
+      }
+    }
   }
   
   const finalValue = String(rawValue);
@@ -245,11 +223,11 @@ async function generateLevelString(structure: string, context: ResolutionContext
  * @returns Un objet contenant les données prêtes pour Firestore.
  */
 async function prepareDataForFirestore(
-placementData: PlacementFormData,
-clientId: string,
-campaignData: any,
-tactiqueData: any,
-isUpdate: boolean = false
+  placementData: PlacementFormData,
+  clientId: string,
+  campaignData: any,
+  tactiqueData: any,
+  isUpdate: boolean = false
 ): Promise<any> {
   
   const caches = { shortcodes: new Map(), customCodes: new Map() };
@@ -282,7 +260,8 @@ isUpdate: boolean = false
     PL_MO_1: moChains[0], PL_MO_2: moChains[1], PL_MO_3: moChains[2], PL_MO_4: moChains[3],
   };
 
-  const placementFieldNames = getManualVariableNames();
+  // Extraire tous les champs manuels de placement (incluant les variables taxonomie)
+  const placementFieldNames = getPlacementVariableNames();
   const placementFields: any = {};
   placementFieldNames.forEach(fieldName => {
       if (fieldName in placementData) {
@@ -299,13 +278,8 @@ isUpdate: boolean = false
       PL_Taxonomy_Tags: placementData.PL_Taxonomy_Tags || '',
       PL_Taxonomy_Platform: placementData.PL_Taxonomy_Platform || '',
       PL_Taxonomy_MediaOcean: placementData.PL_Taxonomy_MediaOcean || '',
-      PL_Taxonomy_Values: placementData.PL_Taxonomy_Values || {},
-      PL_Generated_Taxonomies: {
-          tags: tagChains.filter(Boolean).join('|'),
-          platform: platformChains.filter(Boolean).join('|'),
-          mediaocean: moChains.filter(Boolean).join('|'),
-      },
-      ...placementFields,
+
+      ...placementFields,  // ✅ INCLUT maintenant directement PL_Product, PL_Channel, etc.
       ...taxonomyChains,
       updatedAt: new Date().toISOString(),
       ...(!isUpdate && { createdAt: new Date().toISOString() })
