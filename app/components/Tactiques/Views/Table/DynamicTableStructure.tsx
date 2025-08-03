@@ -114,6 +114,7 @@ interface DynamicTableStructureProps {
   clientFees: Fee[];
   exchangeRates: { [key: string]: number };
   campaignCurrency: string;
+  customDimensions: { [key: string]: string }; // AJOUTÉ
 }
 
 type TableColumn = DynamicColumn | FeeColumnDefinition;
@@ -224,14 +225,16 @@ export default function DynamicTableStructure({
     }
 
     // Récupérer tous les placements visibles pour analyser leurs taxonomies
-    const placementRows = tableRows.filter(row => row.type === 'placement');
 
     const targetType = isPlacementTaxonomy ? 'placement' : 'creatif';
     const targetRows = tableRows.filter(row => row.type === targetType);
-   console.log('📋 Placement rows trouvées:', placementRows.length);
+    console.log(`📋 ${targetType} rows trouvées:`, targetRows.length);
+
+
     
-    if (placementRows.length === 0) {
-      console.log('❌ Aucune ligne placement trouvée');
+   if (targetRows.length === 0) {
+
+    console.log('❌ Aucune ligne placement trouvée');
       return [];
     }
 
@@ -308,23 +311,32 @@ export default function DynamicTableStructure({
           NA_Name_Level_4: taxonomy.NA_Name_Level_4
         });
 
-        // Analyser les 4 niveaux de taxonomie pour extraire les variables
-        [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4]
-          .filter(Boolean)
-          .forEach((levelStructure, index) => {
-            console.log(`🔍 Analyse niveau ${index + 1}:`, levelStructure);
-            const variableMatches = levelStructure.match(/\[([^:]+):/g);
-            if (variableMatches) {
-              console.log(`🎯 Variables trouvées niveau ${index + 1}:`, variableMatches);
-              variableMatches.forEach(match => {
-                const variableName = match.slice(1, -1); // Enlever [ et :
-                console.log(`➕ Ajout variable: ${variableName}`);
-                allManualVariables.add(variableName);
-              });
-            } else {
-              console.log(`⚠️ Aucune variable trouvée niveau ${index + 1}`);
-            }
-          });
+// CORRIGÉ : Analyser les bons niveaux selon le type (placement = 1-4, créatif = 5-8)
+const levelsToAnalyze = isPlacementTaxonomy 
+? [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4]
+: [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6];
+
+const startLevel = isPlacementTaxonomy ? 1 : 5;
+
+console.log("TRISTAN",isPlacementTaxonomy)
+
+levelsToAnalyze
+.filter(Boolean)
+.forEach((levelStructure, index) => {
+  const actualLevel = startLevel + index;
+  console.log(`🔍 Analyse niveau ${actualLevel} (${targetType}):`, levelStructure);
+  const variableMatches = levelStructure.match(/\[([^:]+):/g);
+  if (variableMatches) {
+    console.log(`🎯 Variables trouvées niveau ${actualLevel}:`, variableMatches);
+    variableMatches.forEach(match => {
+      const variableName = match.slice(1, -1); // Enlever [ et :
+      console.log(`➕ Ajout variable: ${variableName}`);
+      allManualVariables.add(variableName);
+    });
+  } else {
+    console.log(`⚠️ Aucune variable trouvée niveau ${actualLevel}`);
+  }
+});
       } catch (error) {
         console.warn(`❌ Erreur lors du chargement de la taxonomie ${taxonomyId}:`, error);
       }

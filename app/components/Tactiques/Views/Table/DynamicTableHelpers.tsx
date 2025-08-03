@@ -156,12 +156,11 @@ export function formatDisplayValue(
     const item = dynamicLists[columnKey].find(item => item.id === value);
     return item ? item.SH_Display_Name_FR : value;
   }
-
-  // MODIFIÉ : Cas spéciaux pour les taxonomies (placement ET créatif)
-  if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
-       'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'].includes(columnKey) && value && columnOptions) {
-    const taxonomyOption = columnOptions.find(option => option.id === value);
-    return taxonomyOption ? taxonomyOption.label : value;
+  
+  // MODIFIÉ : Cas spéciaux pour TOUS les champs avec options (taxonomies ET variables manuelles)
+  if (value && columnOptions && columnOptions.length > 0) {
+    const option = columnOptions.find(option => option.id === value);
+    return option ? option.label : value;
   }
 
   // Formatage standard pour les autres types

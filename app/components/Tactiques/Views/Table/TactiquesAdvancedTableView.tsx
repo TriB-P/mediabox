@@ -469,7 +469,7 @@ export default function TactiquesAdvancedTableView({
         </div>
       )}
 
-      <DynamicTableStructure
+<DynamicTableStructure
         tableRows={tableRows}
         selectedLevel={selectedLevel}
         pendingChanges={pendingChanges}
@@ -487,8 +487,8 @@ export default function TactiquesAdvancedTableView({
         clientFees={clientFees}
         exchangeRates={exchangeRates}
         campaignCurrency={campaignCurrency}
+        customDimensions={customDimensions} // AJOUTÉ
       />
-
 
 
     </div>
