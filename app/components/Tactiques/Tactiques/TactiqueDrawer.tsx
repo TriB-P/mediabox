@@ -170,6 +170,7 @@ const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
 const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
   const baseData = {
     TC_Label: tactique.TC_Label || '',
+    TC_MPA: tactique.TC_MPA || '',
     TC_Budget: tactique.TC_Budget || 0,
     TC_Order: tactique.TC_Order || 0,
     TC_SectionId: tactique.TC_SectionId || '',
@@ -243,6 +244,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
  */
 const getDefaultFormData = (): TactiqueFormData => ({
   TC_Label: '',
+  TC_MPA:'',
   TC_Budget: 0,
   TC_Order: 0,
   TC_SectionId: '',

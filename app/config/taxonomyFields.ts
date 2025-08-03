@@ -1,10 +1,11 @@
-// app/config/taxonomyFields.ts
+// app/config/taxonomyFields.ts - VERSION CORRIGÉE POUR PLACEMENTS
+
 /**
  * Ce fichier sert de source centrale pour la configuration des variables de taxonomie.
- * Il définit d'où proviennent les variables (campagne, tactique, placement, ou manuel),
+ * Il définit d'où proviennent les variables (campagne, tactique, placement, ou créatif),
  * les formats de sortie autorisés pour chaque variable,
  * et fournit des fonctions utilitaires pour interagir avec cette configuration.
- * C'est essentiel pour maintenir la cohérence et la validation des données de taxonomie à travers l'application.
+ * CORRIGÉ : Fonctions spécifiques pour les placements ajoutées.
  */
 
 export type FieldSource = 'campaign' | 'tactique' | 'placement' | 'créatif';
@@ -138,7 +139,7 @@ export const FORMAT_COLORS = {
 /**
  * Récupère la source d'une variable de taxonomie donnée.
  * @param fieldName - Le nom de la variable de taxonomie.
- * @returns La source du champ (campaign, tactique, placement, manual) ou null si non trouvée.
+ * @returns La source du champ (campaign, tactique, placement, créatif) ou null si non trouvée.
  */
 export function getFieldSource(fieldName: string): FieldSource | null {
   return TAXONOMY_VARIABLE_CONFIG[fieldName]?.source || null;
@@ -221,7 +222,7 @@ export function getFormatInfo(formatId: TaxonomyFormat): FormatOption | null {
 
 /**
  * Récupère les couleurs associées à une source de champ.
- * @param source - La source du champ (campaign, tactique, placement, manual, ou null).
+ * @param source - La source du champ (campaign, tactique, placement, créatif, ou null).
  * @returns Un objet contenant les classes CSS pour le fond, le texte, la bordure et la couleur hexadécimale.
  */
 export function getSourceColor(source: FieldSource | null) {
@@ -285,9 +286,7 @@ export function getCompatibleFormats(source: FieldSource): FormatOption[] {
 }
 
 export const MAX_TAXONOMY_LEVELS = 6;
-
 export const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-
 export const TAXONOMY_TYPES = {
   TAGS: 'tags',
   PLATFORM: 'platform',
@@ -305,132 +304,126 @@ export const ERROR_MESSAGES = {
   USER_INPUT_REQUIRED: 'Ce format nécessite une saisie utilisateur'
 } as const;
 
-/**
- * Extrait tous les noms de variables qui ont la source 'manual'.
- * @returns Un tableau de chaînes de caractères représentant les noms des variables manuelles.
- */
-export function getManualVariableNames(): string[] {
-  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([_, config]) => config.source === 'créatif')
-    .map(([variableName, _]) => variableName);
-}
+// ==================== FONCTIONS POUR CRÉATIFS ====================
 
 /**
- * Extrait tous les noms de variables qui ont la source 'manual' et commencent par 'CR_'.
- * Ces variables sont spécifiquement liées aux créatifs.
- * @returns Un tableau de chaînes de caractères représentant les noms des variables créatives manuelles.
+ * Extrait tous les noms de variables qui ont la source 'créatif'.
+ * @returns Un tableau de chaînes de caractères représentant les noms des variables créatives.
  */
 export function getCreatifVariableNames(): string[] {
-  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([variableName, config]) => config.source === 'créatif' && variableName.startsWith('CR_'))
-    .map(([variableName, _]) => variableName);
+  return getVariableNamesBySource('créatif');
 }
 
 /**
- * Extrait tous les noms de variables qui ont la source 'manual' et commencent par 'PL_' (pour les placements).
- * Ces variables sont spécifiquement liées aux placements.
- * @returns Un tableau de chaînes de caractères représentant les noms des variables de placement manuelles.
- */
-export function getPlacementVariableNames(): string[] {
-  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
-    .filter(([variableName, config]) => config.source === 'placement' && variableName.startsWith('PL_'))
-    .map(([variableName, _]) => variableName);
-}
-
-/**
- * Crée un objet vide où toutes les variables manuelles sont initialisées avec une chaîne vide.
- * Utile pour initialiser des formulaires ou des états.
- * @returns Un objet avec les noms des variables manuelles comme clés et des chaînes vides comme valeurs.
- */
-export function createEmptyManualFieldsObject(): { [key: string]: string } {
-  const manualVars = getManualVariableNames();
-  const emptyObject: { [key: string]: string } = {};
-
-  manualVars.forEach(varName => {
-    emptyObject[varName] = '';
-  });
-
-  return emptyObject;
-}
-
-/**
- * Crée un objet vide où toutes les variables créatives (commençant par CR_) sont initialisées avec une chaîne vide.
+ * Crée un objet vide où toutes les variables créatives sont initialisées avec une chaîne vide.
  * Utile pour initialiser des formulaires ou des états spécifiques aux créatifs.
  * @returns Un objet avec les noms des variables créatives comme clés et des chaînes vides comme valeurs.
  */
 export function createEmptyCreatifFieldsObject(): { [key: string]: string } {
-  const creatifVars = getCreatifVariableNames();
-  const emptyObject: { [key: string]: string } = {};
-
-  creatifVars.forEach(varName => {
-    emptyObject[varName] = '';
-  });
-
-  return emptyObject;
+  return createEmptyFieldsObjectBySource('créatif');
 }
 
 /**
- * Extrait les valeurs des champs manuels à partir d'un objet de données générique.
- * @param data - L'objet de données source.
- * @returns Un objet contenant uniquement les champs manuels extraits avec leurs valeurs.
- */
-export function extractManualFieldsFromData(data: any): { [key: string]: string } {
-  const manualVars = getManualVariableNames();
-  const extractedFields: { [key: string]: string } = {};
-
-  manualVars.forEach(varName => {
-    if (data && typeof data[varName] !== 'undefined') {
-      extractedFields[varName] = data[varName];
-    }
-  });
-
-  return extractedFields;
-}
-
-/**
- * Extrait les valeurs des champs créatifs (commençant par CR_) à partir d'un objet de données générique.
+ * Extrait les valeurs des champs créatifs à partir d'un objet de données générique.
  * @param data - L'objet de données source.
  * @returns Un objet contenant uniquement les champs créatifs extraits avec leurs valeurs.
  */
 export function extractCreatifFieldsFromData(data: any): { [key: string]: string } {
-  const creatifVars = getCreatifVariableNames();
-  const extractedFields: { [key: string]: string } = {};
-
-  creatifVars.forEach(varName => {
-    if (data && typeof data[varName] !== 'undefined') {
-      extractedFields[varName] = data[varName];
-    }
-  });
-
-  return extractedFields;
+  return extractFieldsBySource(data, 'créatif');
 }
 
 /**
- * Valide si un nom de variable donné correspond à un champ manuel.
- * @param variableName - Le nom de la variable à valider.
- * @returns Vrai si la variable est un champ manuel, faux sinon.
- */
-export function isManualVariable(variableName: string): boolean {
-  const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'créatif' : false;
-}
-
-/**
- * Valide si un nom de variable donné correspond à un champ créatif (manuel et commençant par 'CR_').
+ * Valide si un nom de variable donné correspond à un champ créatif (source 'créatif').
  * @param variableName - Le nom de la variable à valider.
  * @returns Vrai si la variable est un champ créatif, faux sinon.
  */
 export function isCreatifVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'créatif' && variableName.startsWith('CR_') : false;
+  return config ? config.source === 'créatif' : false;
+}
+
+// ==================== FONCTIONS POUR PLACEMENTS ====================
+
+/**
+ * Extrait tous les noms de variables qui ont la source 'placement'.
+ * @returns Un tableau de chaînes de caractères représentant les noms des variables de placement.
+ */
+export function getPlacementVariableNames(): string[] {
+  return getVariableNamesBySource('placement');
 }
 
 /**
- * Valide si un nom de variable donné correspond à un champ de placement (soit source 'placement', soit manuel et commençant par 'PL_').
+ * Crée un objet vide où toutes les variables de placement sont initialisées avec une chaîne vide.
+ * Utile pour initialiser des formulaires ou des états spécifiques aux placements.
+ * @returns Un objet avec les noms des variables de placement comme clés et des chaînes vides comme valeurs.
+ */
+export function createEmptyPlacementFieldsObject(): { [key: string]: string } {
+  return createEmptyFieldsObjectBySource('placement');
+}
+
+/**
+ * Extrait les valeurs des champs de placement à partir d'un objet de données générique.
+ * @param data - L'objet de données source.
+ * @returns Un objet contenant uniquement les champs de placement extraits avec leurs valeurs.
+ */
+export function extractPlacementFieldsFromData(data: any): { [key: string]: string } {
+  return extractFieldsBySource(data, 'placement');
+}
+
+/**
+ * Valide si un nom de variable donné correspond à un champ de placement (source 'placement').
  * @param variableName - Le nom de la variable à valider.
  * @returns Vrai si la variable est un champ de placement, faux sinon.
  */
 export function isPlacementVariable(variableName: string): boolean {
   const config = TAXONOMY_VARIABLE_CONFIG[variableName];
-  return config ? config.source === 'placement' || (config.source === 'créatif' && variableName.startsWith('PL_')) : false;
+  return config ? config.source === 'placement' : false;
+}
+
+// ==================== FONCTIONS UTILITAIRES POUR FILTRAGE PAR SOURCE ====================
+
+/**
+ * Récupère tous les noms de variables pour une source donnée.
+ * @param source - La source à filtrer ('campaign', 'tactique', 'placement', 'créatif').
+ * @returns Un tableau de chaînes de caractères représentant les noms des variables de cette source.
+ */
+export function getVariableNamesBySource(source: FieldSource): string[] {
+  return Object.entries(TAXONOMY_VARIABLE_CONFIG)
+    .filter(([_, config]) => config.source === source)
+    .map(([variableName, _]) => variableName);
+}
+
+/**
+ * Crée un objet vide pour une source donnée où toutes les variables sont initialisées avec une chaîne vide.
+ * @param source - La source pour laquelle créer l'objet vide.
+ * @returns Un objet avec les noms des variables de cette source comme clés et des chaînes vides comme valeurs.
+ */
+export function createEmptyFieldsObjectBySource(source: FieldSource): { [key: string]: string } {
+  const variables = getVariableNamesBySource(source);
+  const emptyObject: { [key: string]: string } = {};
+
+  variables.forEach(varName => {
+    emptyObject[varName] = '';
+  });
+
+  return emptyObject;
+}
+
+/**
+ * Extrait les valeurs des champs pour une source donnée à partir d'un objet de données générique.
+ * @param data - L'objet de données source.
+ * @param source - La source à extraire.
+ * @returns Un objet contenant uniquement les champs de cette source extraits avec leurs valeurs.
+ */
+export function extractFieldsBySource(data: any, source: FieldSource): { [key: string]: string } {
+  const variables = getVariableNamesBySource(source);
+  const extractedFields: { [key: string]: string } = {};
+
+  variables.forEach(varName => {
+    if (data && typeof data[varName] !== 'undefined') {
+      extractedFields[varName] = data[varName];
+    }
+  });
+
+  return extractedFields;
 }

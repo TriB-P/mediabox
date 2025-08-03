@@ -302,6 +302,12 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
     options: []
   },
   {
+    key: 'TC_MPA',
+    label: 'MPA',
+    type: 'text',
+    width: 250,
+  },
+  {
     key: 'TC_Start_Date',
     label: 'Date de début',
     type: 'date',

@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { getPlacementFieldLabel } from '../../../../config/TaxonomyFieldLabels';
+import { getFieldLabel } from '../../../../config/TaxonomyFieldLabels';
 import {
   getColumnsWithHierarchy,
   getTactiqueSubCategories,
@@ -61,7 +61,8 @@ import { getClientTaxonomies, getTaxonomyById } from '../../../../lib/taxonomySe
 import { useClient } from '../../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../../hooks/useCampaignSelection';
 import { 
-  getManualVariableNames, 
+  getPlacementVariableNames,
+  getCreatifVariableNames,
   getVariableConfig,
   formatRequiresShortcode,
   TaxonomyFormat
@@ -345,8 +346,10 @@ levelsToAnalyze
     console.log('📊 Toutes les variables manuelles trouvées:', Array.from(allManualVariables));
 
     // Filtrer pour ne garder que les variables manuelles connues
-    const knownManualVariables = getManualVariableNames();
-    console.log('📋 Variables manuelles connues:', knownManualVariables);
+    const knownVariables = isPlacementTaxonomy 
+  ? getPlacementVariableNames()
+  : getCreatifVariableNames();
+console.log('📋 Variables connues pour', targetType, ':', knownVariables);
     
     // CORRECTION : Filtrage plus intelligent - inclure les variables PL_ même si elles ne sont pas dans la liste
     const prefix = isPlacementTaxonomy ? 'PL_' : 'CR_';
@@ -355,7 +358,7 @@ levelsToAnalyze
         return true;
       }
       
-      if (knownManualVariables.includes(varName)) {
+      if (knownVariables.includes(varName)) {
         return true;
       }
       
@@ -394,7 +397,7 @@ levelsToAnalyze
 
       const column = {
         key: variableName,
-        label: getPlacementFieldLabel(variableName, config.label),
+        label: getFieldLabel(variableName, config.label),
         type: options.length > 0 ? 'select' : 'text',
         width: 180,
         options

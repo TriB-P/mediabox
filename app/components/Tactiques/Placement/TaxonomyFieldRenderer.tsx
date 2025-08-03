@@ -5,9 +5,10 @@
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
-import { getPlacementFieldLabel } from '../../../config/TaxonomyFieldLabels';
+import { getFieldLabel as getGenericFieldLabel } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
+
 
 // ==================== TYPES ====================
 
@@ -58,7 +59,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   const getFieldLabel = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
     
-    // 🔥 AJOUTÉ: Pour les custom dimensions PLACEMENT, utiliser le label personnalisé si disponible
+    // Pour les custom dimensions PLACEMENT, utiliser le label personnalisé si disponible
     if (fieldKey === 'PL_Custom_Dim_1' && clientConfig.Custom_Dim_PL_1) {
       return clientConfig.Custom_Dim_PL_1;
     }
@@ -69,7 +70,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       return clientConfig.Custom_Dim_PL_3;
     }
     
-    // 🔥 AJOUTÉ: Pour les custom dimensions CRÉATIF, utiliser le label personnalisé si disponible
+    // Pour les custom dimensions CRÉATIF, utiliser le label personnalisé si disponible  
     if (fieldKey === 'CR_Custom_Dim_1' && clientConfig.Custom_Dim_CR_1) {
       return clientConfig.Custom_Dim_CR_1;
     }
@@ -80,10 +81,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       return clientConfig.Custom_Dim_CR_3;
     }
     
-    // Pour tous les autres champs, utiliser le mapping standard
-    return getPlacementFieldLabel(fieldKey, variable.label);
+    // Pour tous les autres champs, utiliser la fonction générique importée
+    return getGenericFieldLabel(fieldKey);
   };
-
   // ==================== FONCTIONS DE RENDU ====================
   
   const renderVariableField = (variable: ParsedTaxonomyVariable) => {

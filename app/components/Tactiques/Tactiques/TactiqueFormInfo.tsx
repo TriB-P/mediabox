@@ -31,6 +31,7 @@ interface TactiqueFormInfoProps {
     TC_Start_Date?: string;
     TC_End_Date?: string;
     TC_Bucket?: string;
+    TC_MPA?: string;
   };
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
@@ -109,7 +110,24 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
               onTooltipChange
             )}
           />
+
+          
         )}
+
+      <FormInput
+          id="TC_MPA"
+          name="TC_MPA"
+          value={formData.TC_MPA || ''}
+          onChange={onChange}
+          type="text"
+          placeholder="Ex: MPA Digital"
+          required={!isDisabled}
+          label={createLabelWithHelp(
+            'MPA *',
+            "Vous permet de définir sur quelle MPA cette tactique s'affichera. Si laissez vide : s'affichera sur la MPA globale",
+            onTooltipChange
+          )}
+        />
 
         <input
           type="hidden"

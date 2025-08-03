@@ -1,15 +1,16 @@
-// app/hooks/useTaxonomyForm.ts - Enhanced Custom Dimensions Resolution + CACHE OPTIMIZATION
+// app/hooks/useTaxonomyForm.ts - FILTRAGE CORRIGÉ PAR SOURCE
 
 /**
  * Ce hook gère la logique complexe des formulaires de taxonomie pour les créatifs et les placements.
  * OPTIMISÉ VERSION: Utilise le système de cache pour éliminer 80% des appels Firebase.
- * Quick wins A & B implémentés pour maximiser les performances.
+ * CORRIGÉ: Filtrage simplifié par source directe au lieu de l'ancienne logique "manual".
  * 
  * Optimisations appliquées:
  * A) loadShortcode() → utilise getCachedAllShortcodes() au lieu de getDoc()
  * B) loadFieldOptions() → utilise getListForClient() au lieu de getDynamicList()
+ * C) manualVariables → filtrage direct par source ('placement' ou 'créatif')
  * 
- * Résultat: Élimination de 10-50 appels Firebase par ouverture de formulaire
+ * Résultat: Chaque drawer ne voit que SES champs spécifiques
  */
 'use client';
 
@@ -25,9 +26,6 @@ import {
 import {
   TAXONOMY_VARIABLE_REGEX,
   formatRequiresShortcode,
-  isManualVariable,
-  isCreatifVariable,
-  isPlacementVariable,
   getFieldSource
 } from '../config/taxonomyFields';
 import type {
@@ -35,6 +33,7 @@ import type {
   CreatifFormData,
   HighlightState,
   ParsedTaxonomyVariable,
+  FieldSource
 } from '../types/tactiques';
 import type { TaxonomyFormat } from '../config/taxonomyFields';
 
@@ -92,7 +91,6 @@ export function useTaxonomyForm({
   const [parsedVariables, setParsedVariables] = useState<ParsedTaxonomyVariable[]>([]);
   const [fieldStates, setFieldStates] = useState<{ [key: string]: FieldState }>({});
 
-
   const [previewUpdateTime, setPreviewUpdateTime] = useState(Date.now());
   const [shortcodeCache, setShortcodeCache] = useState<Map<string, ShortcodeData>>(new Map());
   const [customCodesCache, setCustomCodesCache] = useState<CustomCode[]>([]);
@@ -128,25 +126,25 @@ export function useTaxonomyForm({
   const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
 
   /**
-   * Mémoise les variables manuelles filtrées en fonction du type de formulaire.
-   * 🔥 CORRECTION: Déduplique par nom de variable pour éviter les doublons avec différents formats.
-   * @returns Un tableau de variables de taxonomie analysées qui sont considérées comme manuelles.
+   * 🔥 CORRIGÉ: Filtrage simplifié par source directe
+   * Chaque formType ne voit que SES champs spécifiques :
+   * - placement → source === 'placement'
+   * - creatif → source === 'créatif'
+   * 
+   * Plus de logique complexe avec isManualVariable, isCreatifVariable, etc.
+   * @returns Un tableau de variables de taxonomie filtrées par source.
    */
   const manualVariables = useMemo(() => {
-    let filteredVariables;
+    // Déterminer la source cible selon le type de formulaire
+    const targetSource: FieldSource = formType === 'creatif' ? 'créatif' : 'placement';
     
-    if (formType === 'creatif') {
-      filteredVariables = parsedVariables.filter(variable => isCreatifVariable(variable.variable));
-    } else {
-      filteredVariables = parsedVariables.filter(variable => {
-        const isCreatif = isCreatifVariable(variable.variable);
-        const isPlacement = isPlacementVariable(variable.variable);
-        const isManual = isManualVariable(variable.variable);
-        return isPlacement || (isManual && !isCreatif);
-      });
-    }
+    // Filtrer les variables qui correspondent à la source cible
+    const filteredVariables = parsedVariables.filter(variable => {
+      const variableSource = getFieldSource(variable.variable);
+      return variableSource === targetSource;
+    });
     
-    // 🔥 NOUVEAU: Déduplicquer par nom de variable (garder seulement la première occurrence)
+    // Déduplication par nom de variable (garder seulement la première occurrence)
     const uniqueByVariable = new Map<string, ParsedTaxonomyVariable>();
     
     filteredVariables.forEach(variable => {
@@ -155,7 +153,10 @@ export function useTaxonomyForm({
       }
     });
     
-    return Array.from(uniqueByVariable.values());
+    const result = Array.from(uniqueByVariable.values());
+    console.log(`[TAXONOMY] ${formType} → ${result.length} variables filtrées:`, result.map(v => v.variable));
+    
+    return result;
   }, [parsedVariables, formType]);
 
   const hasLoadingFields = Object.values(fieldStates).some(fs => fs.isLoading);
@@ -168,7 +169,6 @@ export function useTaxonomyForm({
     if (globalShortcodesCache !== null) return; // Déjà chargé
     
     try {
-      
       // OPTIMISÉ A) : Utiliser le cache au lieu de Firebase
       const cachedShortcodes = getCachedAllShortcodes();
       
@@ -378,7 +378,6 @@ export function useTaxonomyForm({
       setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: true } }));
       
       try {
-        
         // OPTIMISÉ B) : Utiliser le cache au lieu de Firebase
         const hasCustom = hasCachedList(fieldKey, clientId);
         let options: Array<{ id: string; label: string; code?: string }> = [];
@@ -392,7 +391,6 @@ export function useTaxonomyForm({
               label: item.SH_Display_Name_FR || item.SH_Code || item.id,
               code: item.SH_Code
             }));
-            
           }
         } else {
           console.log(`[CACHE] ⚠️ ${fieldKey} non disponible dans le cache`);
@@ -446,34 +444,27 @@ export function useTaxonomyForm({
    */
   useEffect(() => { setPreviewUpdateTime(Date.now()); }, [shortcodeCache.size, customCodesCache.length]);
 
-
   /**
-   * Gère le changement de valeur d'un champ de taxonomie manuel.
-   * Met à jour les valeurs de taxonomie et déclenche l'événement `onChange` pour le formulaire parent.
-   * 🔥 ENHANCED: Amélioration de la gestion des custom dimensions
+   * 🔥 CORRIGÉ: Simplification du handleFieldChange
+   * Plus de vérification complexe, on fait confiance au filtrage par source
    * @param variableName Le nom de la variable de taxonomie.
    * @param value La nouvelle valeur du champ.
    * @param format Le format de la valeur.
    * @param shortcodeId L'ID du shortcode associé, si applicable.
    */
   const handleFieldChange = useCallback((variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => {
-  
     // Valeur finale : shortcodeId en priorité, sinon la saisie libre
     const finalValue = shortcodeId || value;
     
     // Mise à jour directe du champ dans le formulaire parent
-    if ((formType === 'creatif' && isCreatifVariable(variableName)) ||
-    (formType === 'placement' && !isCreatifVariable(variableName))) {
-      
-      const fieldChangeEvent = {
-        target: { name: variableName, value: finalValue }
-      } as unknown as React.ChangeEvent<HTMLInputElement>;
-      onChange(fieldChangeEvent);
-    }
+    // Plus de vérification complexe - on fait confiance au filtrage par source
+    const fieldChangeEvent = {
+      target: { name: variableName, value: finalValue }
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onChange(fieldChangeEvent);
   
     setPreviewUpdateTime(Date.now());
-  }, [onChange, formType]);
-  
+  }, [onChange]);
 
   /**
    * Gère la mise en surbrillance d'un champ de taxonomie.
@@ -499,7 +490,6 @@ export function useTaxonomyForm({
   /**
    * Résout la valeur d'une variable de taxonomie en fonction de sa source et du format demandé.
    * Priorise les valeurs manuelles, puis recherche dans les données de campagne, tactique ou placement.
-   * 🔥 ENHANCED: Amélioration de la résolution des custom dimensions
    * @param variable L'objet ParsedTaxonomyVariable à résoudre.
    * @param format Le format de sortie souhaité.
    * @returns La valeur résolue et formatée de la variable.
@@ -507,7 +497,6 @@ export function useTaxonomyForm({
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const variableName = variable.variable;
     const variableSource = getFieldSource(variableName);
-    const isCustomDim = variableName.includes('Custom_Dim_');
   
     // 1. Vérifier d'abord dans formData (valeurs actuelles du formulaire)
     if (formData && (formData as any)[variableName] !== undefined && (formData as any)[variableName] !== '') {
@@ -603,6 +592,7 @@ export function useTaxonomyForm({
     manualVariables,
     hasLoadingFields,
     getFormattedValue,
-    getFormattedPreview
+    getFormattedPreview,
+    taxonomyValues: formData // Ajouté pour compatibilité avec TaxonomyPreview
   };
 }

@@ -1,9 +1,9 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SANS LOGS
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SIMPLIFIÉE
 
 /**
- * PlacementDrawer avec logique d'héritage de dates simplifiée.
- * Les valeurs héritées sont calculées à l'initialisation et sauvegardées définitivement.
- * Plus de recalcul dynamique - l'héritage se fait une seule fois lors de la création.
+ * PlacementDrawer simplifié avec la même logique que CreatifDrawer.
+ * Utilise les nouvelles fonctions spécifiques aux placements de taxonomyFields.ts.
+ * Fini la logique complexe - maintenant c'est simple et clair !
  */
 'use client';
 
@@ -17,7 +17,7 @@ import { DocumentTextIcon, TagIcon } from '@heroicons/react/24/outline';
 import { Placement, PlacementFormData, Tactique } from '../../../types/tactiques';
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
-import { createEmptyManualFieldsObject, extractManualFieldsFromData } from '../../../config/taxonomyFields';
+import { createEmptyPlacementFieldsObject, extractPlacementFieldsFromData } from '../../../config/taxonomyFields';
 import { useAsyncTaxonomyUpdate } from '../../../hooks/useAsyncTaxonomyUpdate';
 import TaxonomyUpdateBanner from '../../Others/TaxonomyUpdateBanner';
 
@@ -46,64 +46,29 @@ export default function PlacementDrawer({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   /**
-   * Fonction utilitaire pour convertir les dates en format string
+   * Calcule les valeurs héritées pour les dates
+   * Priorité : tactiqueData → selectedCampaign
+   * Convertit les dates en strings au format ISO si nécessaire
    */
-  const convertToDateString = useCallback((date: any): string => {
-    if (!date) {
-      return '';
-    }
-    if (typeof date === 'string') {
-      return date;
-    }
-    if (date instanceof Date) {
-      return date.toISOString().split('T')[0];
-    }
-    return String(date);
-  }, []);
+  const getInheritedDates = useCallback(() => {
+    const convertToDateString = (date: any): string => {
+      if (!date) return '';
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      return String(date);
+    };
 
-  /**
-   * Calcule l'héritage des dates pour un nouveau placement
-   * Priorité : tactique -> campagne
-   */
-  const calculateInheritedDates = useCallback(() => {
-    const tactiqueStartDate = tactiqueData?.TC_Start_Date;
-    const tactiqueEndDate = tactiqueData?.TC_End_Date;
-    const campaignStartDate = selectedCampaign?.CA_Start_Date;
-    const campaignEndDate = selectedCampaign?.CA_End_Date;
-
-    const sourceStartDate = tactiqueStartDate || campaignStartDate;
-    const sourceEndDate = tactiqueEndDate || campaignEndDate;
-
-    const inheritedStartDate = convertToDateString(sourceStartDate);
-    const inheritedEndDate = convertToDateString(sourceEndDate);
-
-    return { inheritedStartDate, inheritedEndDate };
-  }, [tactiqueData, selectedCampaign, convertToDateString]);
+    const startDate = convertToDateString(
+      tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date
+    );
+    const endDate = convertToDateString(
+      tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date
+    );
+    return { startDate, endDate };
+  }, [tactiqueData, selectedCampaign]);
 
   const [formData, setFormData] = useState<PlacementFormData>(() => {
-    const emptyManualFields = createEmptyManualFieldsObject();
-    const isNewPlacement = !placement;
-
-    // Pour un nouveau placement, calculer l'héritage dès l'initialisation
-    if (isNewPlacement) {
-      const { inheritedStartDate, inheritedEndDate } = calculateInheritedDates();
-
-      const newFormData = {
-        PL_Label: '',
-        PL_Order: 0,
-        PL_TactiqueId: tactiqueId,
-        PL_Start_Date: inheritedStartDate,
-        PL_End_Date: inheritedEndDate,
-        PL_Taxonomy_Tags: '',
-        PL_Taxonomy_Platform: '',
-        PL_Taxonomy_MediaOcean: '',
-        PL_Taxonomy_Values: {},
-        ...emptyManualFields,
-      };
-      return newFormData;
-    }
-
-    // Pour un placement existant, initialiser avec valeurs vides (sera rempli dans useEffect)
+    const emptyPlacementFields = createEmptyPlacementFieldsObject();
     return {
       PL_Label: '',
       PL_Order: 0,
@@ -114,93 +79,72 @@ export default function PlacementDrawer({
       PL_Taxonomy_Platform: '',
       PL_Taxonomy_MediaOcean: '',
       PL_Taxonomy_Values: {},
-      ...emptyManualFields,
+      ...emptyPlacementFields,
     };
   });
 
+  /**
+   * Fonction utilitaire pour convertir les dates en format string
+   */
+  const convertToDateString = useCallback((date: any): string => {
+    if (!date) return '';
+    if (typeof date === 'string') return date;
+    if (date instanceof Date) return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    return String(date);
+  }, []);
+
+  /**
+   * Effet pour initialiser ou mettre à jour les données du formulaire.
+   * Si un objet `placement` est fourni, le formulaire est peuplé avec ses données (mode édition).
+   * Sinon, le formulaire est initialisé avec des valeurs par défaut pour un nouveau placement (mode création).
+   */
   useEffect(() => {
-    const emptyManualFields = createEmptyManualFieldsObject();
-    const isNewPlacement = !placement?.id;
-  
-    if (!isNewPlacement && placement) {
-      // Mode édition - charger les données existantes directement
-      const directTaxFields = {
-        PL_Start_Date: placement.PL_Start_Date,
-        PL_End_Date: placement.PL_End_Date,
-        PL_Audience_Behaviour: placement.PL_Audience_Behaviour,
-        PL_Audience_Demographics: placement.PL_Audience_Demographics,
-        PL_Audience_Engagement: placement.PL_Audience_Engagement,
-        PL_Audience_Interest: placement.PL_Audience_Interest,
-        PL_Audience_Other: placement.PL_Audience_Other,
-        PL_Creative_Grouping: placement.PL_Creative_Grouping,
-        PL_Device: placement.PL_Device,
-        PL_Market_Details: placement.PL_Market_Details,
-        PL_Product: placement.PL_Product,
-        PL_Segment_Open: placement.PL_Segment_Open,
-        PL_Tactic_Category: placement.PL_Tactic_Category,
-        PL_Targeting: placement.PL_Targeting,
-        PL_Custom_Dim_1: placement.PL_Custom_Dim_1,
-        PL_Custom_Dim_2: placement.PL_Custom_Dim_2,
-        PL_Custom_Dim_3: placement.PL_Custom_Dim_3,
-        PL_Channel: placement.PL_Channel,
-        PL_Format: placement.PL_Format,
-        PL_Language: placement.PL_Language,
-        PL_Placement_Location: placement.PL_Placement_Location,
-      };
-  
-      const manualFieldsFromPlacement = extractManualFieldsFromData(placement);
-  
-      // ✅ SIMPLIFIÉ : Plus besoin de taxFromTaxonomyValues - valeurs directes
-      const finalTaxFields: any = {};
-      [
-        'PL_Start_Date',
-        'PL_End_Date',
-        'PL_Audience_Behaviour',
-        'PL_Audience_Demographics',
-        'PL_Audience_Engagement',
-        'PL_Audience_Interest',
-        'PL_Audience_Other',
-        'PL_Creative_Grouping',
-        'PL_Device',
-        'PL_Market_Details',
-        'PL_Product',
-        'PL_Segment_Open',
-        'PL_Tactic_Category',
-        'PL_Targeting',
-        'PL_Custom_Dim_1',
-        'PL_Custom_Dim_2',
-        'PL_Custom_Dim_3',
-        'PL_Channel',
-        'PL_Format',
-        'PL_Language',
-        'PL_Placement_Location'
-      ].forEach(field => {
-        // ✅ DIRECT : Valeur directement depuis l'objet placement
-        finalTaxFields[field] = directTaxFields[field as keyof typeof directTaxFields] || '';
-      });
-  
-      const newFormData = {
+    const emptyPlacementFields = createEmptyPlacementFieldsObject();
+    if (placement) {
+      // Mode édition - utiliser la même logique simple que CreatifDrawer
+      const placementFieldsFromPlacement = extractPlacementFieldsFromData(placement);
+      setFormData({
         PL_Label: placement.PL_Label || '',
         PL_Order: placement.PL_Order || 0,
         PL_TactiqueId: placement.PL_TactiqueId,
+        PL_Start_Date: convertToDateString(placement.PL_Start_Date),
+        PL_End_Date: convertToDateString(placement.PL_End_Date),
         PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
-  
-      };
-  
-      setFormData(newFormData);
+        ...emptyPlacementFields,
+        ...placementFieldsFromPlacement,
+      });
     } else {
-      // Mode création - recalculer l'héritage si les sources changent
-      const { inheritedStartDate, inheritedEndDate } = calculateInheritedDates();
+      // Nouveau placement - calculer les valeurs héritées
+      const { startDate, endDate } = getInheritedDates();
       
+      setFormData({
+        PL_Label: '',
+        PL_Order: 0,
+        PL_TactiqueId: tactiqueId,
+        PL_Start_Date: startDate,
+        PL_End_Date: endDate,
+        PL_Taxonomy_Tags: '',
+        PL_Taxonomy_Platform: '',
+        PL_Taxonomy_MediaOcean: '',
+        ...emptyPlacementFields,
+      });
+    }
+  }, [placement, tactiqueId, getInheritedDates, convertToDateString]);
+
+  // useEffect séparé pour réinitialiser les valeurs héritées quand les données sources changent
+  useEffect(() => {
+    // Seulement pour un nouveau placement (pas d'édition)
+    if (!placement && (tactiqueData || selectedCampaign)) {
+      const { startDate, endDate } = getInheritedDates();
       setFormData(prev => ({
         ...prev,
-        PL_Start_Date: inheritedStartDate,
-        PL_End_Date: inheritedEndDate,
+        PL_Start_Date: prev.PL_Start_Date || startDate,
+        PL_End_Date: prev.PL_End_Date || endDate,
       }));
     }
-  }, [placement, tactiqueId, calculateInheritedDates]);
+  }, [tactiqueData, selectedCampaign, placement, getInheritedDates]);
 
   const tabs: FormTab[] = [
     { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
@@ -216,27 +160,17 @@ export default function PlacementDrawer({
     setActiveTooltip(tooltip);
   }, []);
 
-  /**
-   * Plus besoin de recalculer l'héritage - les valeurs sont déjà dans formData
-   */
-  const getFinalFormData = (): PlacementFormData => {
-    return formData;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Les valeurs héritées sont déjà dans formData
-      const finalData = getFinalFormData();
-
-      await onSave(finalData);
+      await onSave(formData);
       onClose();
 
       // Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
       if (placement && placement.id && selectedClient && selectedCampaign) {
         updateTaxonomiesAsync('placement', {
           id: placement.id,
-          name: finalData.PL_Label,
+          name: formData.PL_Label,
           clientId: selectedClient.clientId,
           campaignId: selectedCampaign.id
         }).catch(error => {
