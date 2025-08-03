@@ -158,6 +158,7 @@ export function useTactiquesCrud({
         {
           TC_Label: 'Nouvelle tactique',
           TC_Budget: 0,
+          TC_MPA:'',
           TC_Order: sectionTactiques.length,
           TC_SectionId: sectionId,
           TC_Unit_Type: '',
@@ -167,6 +168,7 @@ export function useTactiquesCrud({
         id: newTactiqueId,
         TC_Label: 'Nouvelle tactique',
         TC_Budget: 0,
+        TC_MPA: '',
         TC_Order: sectionTactiques.length,
         TC_SectionId: sectionId,
         TC_Unit_Type: '',

@@ -946,6 +946,7 @@ export async function duplicateOnglet(
           clientId, campaignId, versionId, newOngletId, newSectionId,
           {
             TC_Label: tactiqueData.TC_Label,
+            TC_MPA:tactiqueData.TC_MPA,
             TC_Order: tactiqueData.TC_Order,
             TC_Budget: tactiqueData.TC_Budget,
             TC_SectionId: newSectionId

@@ -1,4 +1,4 @@
-// app/components/Tactiques/Tactiques/useTactiqueBreakdown.ts
+// app/hooks/useTactiqueBreakdown.ts
 /**
  * Hooks personnalisés pour la gestion des breakdowns dans les tactiques.
  * Contient toute la logique de gestion des périodes, de l'état local,
@@ -262,6 +262,7 @@ export function useBreakdownLocalData(
 
 /**
  * Hook pour gérer l'état du cost guide
+ * CORRECTION: Ajout de vérifications de type pour CL_Cost_Guide_ID
  */
 export function useCostGuide(clientId?: string) {
   const [costGuideEntries, setCostGuideEntries] = useState<CostGuideEntry[]>([]);
@@ -277,12 +278,16 @@ export function useCostGuide(clientId?: string) {
       
       try {
         const clientInfo = await getClientInfo(clientId);
-        const hasCostGuide = !!(clientInfo.CL_Cost_Guide_ID && clientInfo.CL_Cost_Guide_ID.trim());
+        
+        // Vérification de type et de valeur pour CL_Cost_Guide_ID
+        const costGuideId = clientInfo.CL_Cost_Guide_ID;
+        const hasCostGuide = !!(costGuideId && typeof costGuideId === 'string' && costGuideId.trim());
+        
         setClientHasCostGuide(hasCostGuide);
         
-        if (hasCostGuide) {
+        if (hasCostGuide && costGuideId) {
           setCostGuideLoading(true);
-          const entries = await getCostGuideEntries(clientInfo.CL_Cost_Guide_ID);
+          const entries = await getCostGuideEntries(costGuideId);
           setCostGuideEntries(entries);
         }
       } catch (error) {
