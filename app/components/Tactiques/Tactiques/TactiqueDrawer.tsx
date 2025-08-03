@@ -323,6 +323,26 @@ export default function TactiqueDrawer({
   ], []);
 
   useEffect(() => {
+    // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
+    if (isOpen) {
+      setActiveTab('info');
+      setActiveTooltip(null);
+      setIsDirty(false);
+      
+      // Si mode création, réinitialiser toutes les données
+      if (mode === 'create') {
+        setFormData({
+          ...getDefaultFormData(),
+          TC_SectionId: sectionId,
+        });
+        setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
+        setUseInheritedBilling(true);
+        setUseInheritedPO(true);
+      }
+    }
+  }, [isOpen, mode, sectionId]);
+
+  useEffect(() => {
     if (mode === 'edit' && tactique) {
       // ✅ Mode édition - charger les données existantes
       const mappedFormData = mapTactiqueToForm(tactique);

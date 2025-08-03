@@ -5,7 +5,7 @@
 import React from 'react';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
-import { getFieldLabel as getGenericFieldLabel } from '../../../config/TaxonomyFieldLabels';
+import { getFieldLabel, ClientConfig } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -19,22 +19,12 @@ interface FieldState {
   error?: string;
 }
 
-// 🔥 AJOUTÉ: Interface pour config client (labels pour placements ET créatifs)
-interface ClientConfig {
-  Custom_Dim_PL_1?: string;
-  Custom_Dim_PL_2?: string;
-  Custom_Dim_PL_3?: string;
-  Custom_Dim_CR_1?: string; // 🔥 AJOUTÉ: Support créatifs
-  Custom_Dim_CR_2?: string; // 🔥 AJOUTÉ: Support créatifs
-  Custom_Dim_CR_3?: string; // 🔥 AJOUTÉ: Support créatifs
-}
-
 interface TaxonomyFieldRendererProps {
   manualVariables: ParsedTaxonomyVariable[];
   fieldStates: { [key: string]: FieldState };
   formData: any; 
   highlightState: HighlightState;
-  clientConfig?: ClientConfig; // 🔥 AJOUTÉ: Pour les labels personnalisés
+  clientConfig?: ClientConfig; // MODIFIÉ : Utilise maintenant le type importé
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
 }
@@ -46,7 +36,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   fieldStates,
   formData,
   highlightState,
-  clientConfig = {}, // 🔥 AJOUTÉ: Config client avec valeur par défaut
+  clientConfig = {}, // MODIFIÉ : Utilise la config client importée
   onFieldChange,
   onFieldHighlight,
 }) => {
@@ -54,36 +44,15 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   // ==================== FONCTIONS UTILITAIRES ====================
 
   /**
-   * Obtient le label à afficher pour un champ donné
+   * MODIFIÉ : Obtient le label à afficher pour un champ donné en utilisant la config client
    */
-  const getFieldLabel = (variable: ParsedTaxonomyVariable): string => {
+  const getFieldLabelWithConfig = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
     
-    // Pour les custom dimensions PLACEMENT, utiliser le label personnalisé si disponible
-    if (fieldKey === 'PL_Custom_Dim_1' && clientConfig.Custom_Dim_PL_1) {
-      return clientConfig.Custom_Dim_PL_1;
-    }
-    if (fieldKey === 'PL_Custom_Dim_2' && clientConfig.Custom_Dim_PL_2) {
-      return clientConfig.Custom_Dim_PL_2;
-    }
-    if (fieldKey === 'PL_Custom_Dim_3' && clientConfig.Custom_Dim_PL_3) {
-      return clientConfig.Custom_Dim_PL_3;
-    }
-    
-    // Pour les custom dimensions CRÉATIF, utiliser le label personnalisé si disponible  
-    if (fieldKey === 'CR_Custom_Dim_1' && clientConfig.Custom_Dim_CR_1) {
-      return clientConfig.Custom_Dim_CR_1;
-    }
-    if (fieldKey === 'CR_Custom_Dim_2' && clientConfig.Custom_Dim_CR_2) {
-      return clientConfig.Custom_Dim_CR_2;
-    }
-    if (fieldKey === 'CR_Custom_Dim_3' && clientConfig.Custom_Dim_CR_3) {
-      return clientConfig.Custom_Dim_CR_3;
-    }
-    
-    // Pour tous les autres champs, utiliser la fonction générique importée
-    return getGenericFieldLabel(fieldKey);
+    // MODIFIÉ : Utilise la nouvelle fonction avec la config client
+    return getFieldLabel(fieldKey, clientConfig);
   };
+
   // ==================== FONCTIONS DE RENDU ====================
   
   const renderVariableField = (variable: ParsedTaxonomyVariable) => {
@@ -185,7 +154,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const sourceColor = getSourceColor(variable.source);
-    const fieldLabel = getFieldLabel(variable);
+    const fieldLabel = getFieldLabelWithConfig(variable); // MODIFIÉ : Utilise la nouvelle fonction
     
     
     return (

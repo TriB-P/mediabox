@@ -290,10 +290,52 @@ export default function CreatifDrawer({
     }
   }, [creatif, placementId, getInheritedDates]);
 
+ // NOUVEAU useEffect pour réinitialiser complètement le drawer
+useEffect(() => {
+  // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
+  if (isOpen) {
+    setActiveTab('infos');
+    setActiveTooltip(null);
+    
+    // Si pas de créatif (mode création), réinitialiser les données avec héritage
+    if (!creatif) {
+      const emptyCreatifFields = createEmptyCreatifFieldsObject();
+      const { startDate, endDate } = getInheritedDates();
+      
+      setFormData({
+        CR_Label: '',
+        CR_Order: 0,
+        CR_PlacementId: placementId,
+        CR_Start_Date: startDate,
+        CR_End_Date: endDate,
+        CR_Taxonomy_Tags: '',
+        CR_Taxonomy_Platform: '',
+        CR_Taxonomy_MediaOcean: '',
+        CR_Generated_Taxonomies: {},
+        // Champs specs vides pour nouveau créatif
+        CR_Spec_PartnerId: '',
+        CR_Spec_SelectedSpecId: '',
+        CR_Spec_Name: '',
+        CR_Spec_Format: '',
+        CR_Spec_Ratio: '',
+        CR_Spec_FileType: '',
+        CR_Spec_MaxWeight: '',
+        CR_Spec_Weight: '',
+        CR_Spec_Animation: '',
+        CR_Spec_Title: '',
+        CR_Spec_Text: '',
+        CR_Spec_SpecSheetLink: '',
+        CR_Spec_Notes: '',
+        ...emptyCreatifFields,
+      });
+    }
+  }
+}, [isOpen, creatif, placementId, getInheritedDates]);
+  
   // useEffect séparé pour réinitialiser les valeurs héritées quand les données sources changent
   useEffect(() => {
-    // Seulement pour un nouveau créatif (pas d'édition)
-    if (!creatif && (placementData || tactiqueData || selectedCampaign)) {
+    // Seulement pour un nouveau créatif (pas d'édition) ET quand le drawer est ouvert
+    if (isOpen && !creatif && (placementData || tactiqueData || selectedCampaign)) {
       const { startDate, endDate } = getInheritedDates();
       setFormData(prev => ({
         ...prev,
@@ -301,8 +343,7 @@ export default function CreatifDrawer({
         CR_End_Date: prev.CR_End_Date || endDate,
       }));
     }
-  }, [placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates]);
-
+  }, [isOpen, placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates]);
   const tabs: FormTab[] = [
     { id: 'infos', name: t('creatifDrawer.tabs.info'), icon: DocumentTextIcon },
     { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: TagIcon },

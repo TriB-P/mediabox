@@ -2,6 +2,18 @@
 // Ce fichier contient le mapping entre les noms techniques des champs de placement ET créatifs et leurs labels affichables
 
 /**
+ * Interface pour la configuration client contenant les labels personnalisés
+ */
+export interface ClientConfig {
+  Custom_Dim_PL_1?: string;
+  Custom_Dim_PL_2?: string;
+  Custom_Dim_PL_3?: string;
+  Custom_Dim_CR_1?: string;
+  Custom_Dim_CR_2?: string;
+  Custom_Dim_CR_3?: string;
+}
+
+/**
  * Mapping des noms techniques des champs de placement vers des labels lisibles
  * pour l'interface utilisateur.
  */
@@ -49,7 +61,7 @@ export const PLACEMENT_FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * NOUVEAU : Mapping des noms techniques des champs de créatifs vers des labels lisibles
+ * Mapping des noms techniques des champs de créatifs vers des labels lisibles
  * pour l'interface utilisateur.
  */
 export const CREATIF_FIELD_LABELS: Record<string, string> = {
@@ -94,15 +106,27 @@ export const CREATIF_FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * Obtient le label affiché pour un champ de placement donné.
- * Si aucun label personnalisé n'est trouvé, retourne le nom du champ nettoyé.
+ * MODIFIÉ : Obtient le label affiché pour un champ de placement donné.
+ * Vérifie d'abord dans la configuration client pour les dimensions personnalisées.
  * 
  * @param fieldName - Le nom technique du champ (ex: "PL_Audience_Behaviour")
- * @param customLabel - Un label personnalisé optionnel (utilisé pour les dimensions custom)
+ * @param clientConfig - La configuration client optionnelle contenant les labels personnalisés
+ * @param customLabel - Un label personnalisé optionnel (fallback si clientConfig n'est pas fourni)
  * @returns Le label à afficher dans l'interface
  */
-export function getPlacementFieldLabel(fieldName: string, customLabel?: string): string {
-  // Si un label personnalisé est fourni (cas des dimensions custom), l'utiliser
+export function getPlacementFieldLabel(fieldName: string, clientConfig?: ClientConfig, customLabel?: string): string {
+  // Pour les dimensions personnalisées, utiliser la config client en priorité
+  if (fieldName === 'PL_Custom_Dim_1' && clientConfig?.Custom_Dim_PL_1) {
+    return clientConfig.Custom_Dim_PL_1;
+  }
+  if (fieldName === 'PL_Custom_Dim_2' && clientConfig?.Custom_Dim_PL_2) {
+    return clientConfig.Custom_Dim_PL_2;
+  }
+  if (fieldName === 'PL_Custom_Dim_3' && clientConfig?.Custom_Dim_PL_3) {
+    return clientConfig.Custom_Dim_PL_3;
+  }
+  
+  // Si un label personnalisé est fourni en fallback, l'utiliser
   if (customLabel) {
     return customLabel;
   }
@@ -117,15 +141,27 @@ export function getPlacementFieldLabel(fieldName: string, customLabel?: string):
 }
 
 /**
- * NOUVEAU : Obtient le label affiché pour un champ de créatif donné.
- * Si aucun label personnalisé n'est trouvé, retourne le nom du champ nettoyé.
+ * MODIFIÉ : Obtient le label affiché pour un champ de créatif donné.
+ * Vérifie d'abord dans la configuration client pour les dimensions personnalisées.
  * 
  * @param fieldName - Le nom technique du champ (ex: "CR_Custom_Dim_1")
- * @param customLabel - Un label personnalisé optionnel (utilisé pour les dimensions custom)
+ * @param clientConfig - La configuration client optionnelle contenant les labels personnalisés
+ * @param customLabel - Un label personnalisé optionnel (fallback si clientConfig n'est pas fourni)
  * @returns Le label à afficher dans l'interface
  */
-export function getCreatifFieldLabel(fieldName: string, customLabel?: string): string {
-  // Si un label personnalisé est fourni (cas des dimensions custom), l'utiliser
+export function getCreatifFieldLabel(fieldName: string, clientConfig?: ClientConfig, customLabel?: string): string {
+  // Pour les dimensions personnalisées, utiliser la config client en priorité
+  if (fieldName === 'CR_Custom_Dim_1' && clientConfig?.Custom_Dim_CR_1) {
+    return clientConfig.Custom_Dim_CR_1;
+  }
+  if (fieldName === 'CR_Custom_Dim_2' && clientConfig?.Custom_Dim_CR_2) {
+    return clientConfig.Custom_Dim_CR_2;
+  }
+  if (fieldName === 'CR_Custom_Dim_3' && clientConfig?.Custom_Dim_CR_3) {
+    return clientConfig.Custom_Dim_CR_3;
+  }
+  
+  // Si un label personnalisé est fourni en fallback, l'utiliser
   if (customLabel) {
     return customLabel;
   }
@@ -140,18 +176,19 @@ export function getCreatifFieldLabel(fieldName: string, customLabel?: string): s
 }
 
 /**
- * NOUVEAU : Fonction générique qui détermine automatiquement le type de champ et retourne le bon label.
+ * MODIFIÉ : Fonction générique qui détermine automatiquement le type de champ et retourne le bon label.
  * Utilise le préfixe pour déterminer si c'est un champ placement (PL_) ou créatif (CR_).
  * 
  * @param fieldName - Le nom technique du champ (ex: "PL_Audience_Behaviour" ou "CR_Custom_Dim_1")
- * @param customLabel - Un label personnalisé optionnel (utilisé pour les dimensions custom)
+ * @param clientConfig - La configuration client optionnelle contenant les labels personnalisés
+ * @param customLabel - Un label personnalisé optionnel (fallback si clientConfig n'est pas fourni)
  * @returns Le label à afficher dans l'interface
  */
-export function getFieldLabel(fieldName: string, customLabel?: string): string {
+export function getFieldLabel(fieldName: string, clientConfig?: ClientConfig, customLabel?: string): string {
   if (fieldName.startsWith('PL_')) {
-    return getPlacementFieldLabel(fieldName, customLabel);
+    return getPlacementFieldLabel(fieldName, clientConfig, customLabel);
   } else if (fieldName.startsWith('CR_')) {
-    return getCreatifFieldLabel(fieldName, customLabel);
+    return getCreatifFieldLabel(fieldName, clientConfig, customLabel);
   } else {
     // Pour les champs sans préfixe, utiliser le label personnalisé ou nettoyer le nom
     return customLabel || cleanFieldName(fieldName);
@@ -184,7 +221,7 @@ export function isCustomDimension(fieldName: string): boolean {
 }
 
 /**
- * NOUVEAU : Vérifie si un champ est une dimension personnalisée de créatif
+ * Vérifie si un champ est une dimension personnalisée de créatif
  * 
  * @param fieldName - Le nom du champ à vérifier
  * @returns true si c'est une dimension personnalisée de créatif
@@ -194,7 +231,7 @@ export function isCreatifCustomDimension(fieldName: string): boolean {
 }
 
 /**
- * NOUVEAU : Vérifie si un champ est une dimension personnalisée (placement ou créatif)
+ * Vérifie si un champ est une dimension personnalisée (placement ou créatif)
  * 
  * @param fieldName - Le nom du champ à vérifier
  * @returns true si c'est une dimension personnalisée (peu importe le type)
@@ -204,7 +241,7 @@ export function isAnyCustomDimension(fieldName: string): boolean {
 }
 
 /**
- * NOUVEAU : Détermine le type de champ basé sur son préfixe
+ * Détermine le type de champ basé sur son préfixe
  * 
  * @param fieldName - Le nom du champ à analyser
  * @returns 'placement' | 'creatif' | 'unknown'

@@ -5,16 +5,19 @@
  * (par exemple, mensuellement, hebdomadairement, avec des périodes personnalisées ou PEBs).
  * Il inclut également des utilitaires pour la validation des périodes personnalisées.
  * NOUVEAU: Support du type PEBs (Périodes d'Estimation par Blocs)
+ * NOUVEAU: Support des dates de début pour toutes les périodes
  */
 export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
 
 /**
  * Structure pour une période personnalisée utilisée dans un breakdown de type 'Custom'.
+ * NOUVEAU: Support du champ startDate pour toutes les périodes
  */
 export interface CustomPeriod {
   id: string;
   name: string; // Ex: "Q1", "Phase 1", "Sprint 1"
   order: number;
+  startDate?: Date; // NOUVEAU: Date de début de la période (calculée automatiquement pour non-Custom)
 }
 
 /**
@@ -53,10 +56,12 @@ export interface BreakdownFormData {
 
 /**
  * Interface pour les données de formulaire lors de l'édition d'une période personnalisée.
+ * NOUVEAU: Support du champ startDate
  */
 export interface CustomPeriodFormData {
   name: string;
   order: number;
+  startDate?: Date; // NOUVEAU: Date de début (pour maintenir la cohérence)
 }
 
 /**

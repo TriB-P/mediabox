@@ -24,6 +24,7 @@ export interface Tactique {
   TC_Label: string;
   TC_Budget: number;
   TC_Order: number;
+  TC_MPA: string;
   TC_SectionId: string; // Référence à la section parente
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
 
@@ -252,6 +253,7 @@ export interface SectionWithTactiques extends Section {
 export interface TactiqueFormData {
   TC_Label: string;
   TC_Budget: number;
+  TC_MPA: string;
   TC_Order: number;
   TC_SectionId: string;
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';

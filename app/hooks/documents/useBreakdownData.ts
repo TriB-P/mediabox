@@ -4,6 +4,7 @@
  * depuis les tactiques d'une campagne Firebase. Il transforme la structure
  * complexe des breakdowns stockés sur chaque tactique en un tableau 2D
  * simple où chaque ligne représente une période d'un breakdown.
+ * NOUVEAU: Support de la colonne "Date" avec les dates de début des périodes
  */
 'use client';
 
@@ -33,6 +34,7 @@ interface BreakdownDataRow {
   order: number;
   breakdownOrder: number;
   periodOrder: number;
+  startDate: Date | null; // NOUVEAU: Date de début de la période
 }
 
 /**
@@ -115,6 +117,51 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
+   * NOUVEAU: Calcule la date de début d'une période selon le type de breakdown et l'ID de période.
+   * @param {string} periodId L'ID de la période
+   * @param {any} breakdownInfo Les informations du breakdown
+   * @returns {Date | null} La date de début ou null si ne peut pas être calculée
+   */
+  const calculatePeriodStartDate = useCallback((
+    periodId: string,
+    breakdownInfo: any
+  ): Date | null => {
+    if (!breakdownInfo) return null;
+
+    try {
+      if (breakdownInfo.type === 'Custom' && breakdownInfo.customPeriods) {
+        // Pour les breakdowns Custom, chercher la date stockée dans customPeriods
+        const customPeriod = breakdownInfo.customPeriods.find((p: any) => p.id === periodId);
+        if (customPeriod && customPeriod.startDate) {
+          return new Date(customPeriod.startDate);
+        }
+        return null; // Pas de date pour les Custom sans date stockée
+      } else if (breakdownInfo.type === 'Mensuel') {
+        // Pour les breakdowns mensuels, extraire année/mois de l'ID
+        const match = periodId.match(/^(\d{4})_(\d{2})$/);
+        if (match) {
+          const year = parseInt(match[1]);
+          const month = parseInt(match[2]);
+          return new Date(year, month - 1, 1); // 1er du mois
+        }
+      } else if (breakdownInfo.type === 'Hebdomadaire' || breakdownInfo.type === 'PEBs') {
+        // Pour les breakdowns hebdomadaires/PEBs, extraire la date de l'ID
+        const match = periodId.match(/^week_(\d{4})_(\d{2})_(\d{2})$/);
+        if (match) {
+          const year = parseInt(match[1]);
+          const month = parseInt(match[2]);
+          const day = parseInt(match[3]);
+          return new Date(year, month - 1, day);
+        }
+      }
+    } catch (error) {
+      console.warn('Erreur lors du calcul de la date de début pour la période:', periodId, error);
+    }
+
+    return null;
+  }, []);
+
+  /**
    * Applatit les données de breakdown des tactiques en un tableau 2D.
    * @param {any[]} tactiques Un tableau de tactiques avec leurs données de breakdown.
    * @param {{[key: string]: any}} breakdownsInfo Les informations des breakdowns de la campagne.
@@ -176,6 +223,9 @@ export function useBreakdownData(): UseBreakdownDataReturn {
             }
           }
 
+          // NOUVEAU: Calculer la date de début de la période
+          const startDate = calculatePeriodStartDate(periodId, breakdownInfo);
+
           flattenedData.push({
             tactiqueId: tactique.id,
             breakdownId: breakdownId,
@@ -189,7 +239,8 @@ export function useBreakdownData(): UseBreakdownDataReturn {
             isToggled: periodData.isToggled !== undefined ? periodData.isToggled : true,
             order: periodData.order || 0,
             breakdownOrder: breakdownOrder,
-            periodOrder: periodOrder
+            periodOrder: periodOrder,
+            startDate: startDate // NOUVEAU: Date de début de la période
           });
         });
       });
@@ -216,22 +267,24 @@ export function useBreakdownData(): UseBreakdownDataReturn {
     });
 
     return flattenedData;
-  }, []);
+  }, [calculatePeriodStartDate]);
 
   /**
    * Transforme les données aplaties en un tableau 2D avec en-têtes.
+   * NOUVEAU: Inclut la colonne "Date" dans l'output
    * @param {BreakdownDataRow[]} flattenedData Les données aplaties.
    * @returns {string[][]} Un tableau 2D prêt pour l'affichage ou l'export.
    */
   const transformToTable = useCallback((flattenedData: BreakdownDataRow[]): string[][] => {
     const table: string[][] = [];
     
-    // 1. Créer les en-têtes avec la nouvelle colonne Order
+    // 1. Créer les en-têtes avec la nouvelle colonne Date
     const headers = [
       'Tactique ID',
       'Breakdown Name', 
       'Type',
       'Period Name',
+      'Date', // NOUVEAU: Colonne Date
       'Order',
       'Value',
       'Unit Cost',   
@@ -242,12 +295,16 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
     // 2. Ajouter chaque ligne de données (déjà triées dans flattenBreakdownData)
     flattenedData.forEach(row => {
+      // NOUVEAU: Formater la date en string ISO ou vide si null
+      const dateString = row.startDate ? row.startDate.toISOString().split('T')[0] : '';
+
       table.push([
         row.tactiqueId,
         row.breakdownName,
         row.breakdownType,
         row.periodName,
-        row.order.toString(), // NOUVEAU: Inclure l'ordre
+        dateString, // NOUVEAU: Date formatée
+        row.order.toString(),
         row.value,
         row.unitCost,       
         row.total,   

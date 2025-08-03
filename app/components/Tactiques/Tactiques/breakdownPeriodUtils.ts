@@ -3,6 +3,7 @@
  * Utilitaires pour la génération de périodes de breakdown.
  * Contient toutes les fonctions de génération des périodes selon les types
  * de breakdown (Mensuel, Hebdomadaire, PEBs, Custom).
+ * NOUVEAU: Calcul et inclusion des dates de début pour toutes les périodes
  */
 
 import { Breakdown } from '../../../types/breakdown';
@@ -10,6 +11,7 @@ import { BreakdownPeriod } from '../../../hooks/useTactiqueBreakdown';
 
 /**
  * Génère les périodes pour un breakdown mensuel
+ * NOUVEAU: Calcule et inclut la date de début pour chaque période
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown, 
@@ -40,12 +42,16 @@ export function generateMonthlyPeriods(
     // ID standardisé avec préfixe breakdown pour éviter les collisions
     const periodId = `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`;
 
+    // NOUVEAU: Calculer la date de début (1er du mois)
+    const periodStartDate = new Date(current.getFullYear(), current.getMonth(), 1);
+
     periods.push({
       id: periodId,
       label: `${monthLabel} ${yearSuffix}`,
       value: '',
       breakdownId: breakdown.id,
-      breakdownName: breakdown.name
+      breakdownName: breakdown.name,
+      startDate: periodStartDate // NOUVEAU: Date de début incluse
     });
 
     current.setMonth(current.getMonth() + 1);
@@ -61,6 +67,7 @@ export function generateMonthlyPeriods(
 
 /**
  * Génère les périodes pour un breakdown hebdomadaire
+ * NOUVEAU: Calcule et inclut la date de début pour chaque période
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown, 
@@ -97,12 +104,16 @@ export function generateWeeklyPeriods(
     // ID standardisé avec préfixe breakdown pour éviter les collisions
     const periodId = `${breakdown.id}_week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
 
+    // NOUVEAU: Calculer la date de début (lundi de la semaine)
+    const periodStartDate = new Date(current);
+
     periods.push({
       id: periodId,
       label: `${day} ${month}`,
       value: '',
       breakdownId: breakdown.id,
-      breakdownName: breakdown.name
+      breakdownName: breakdown.name,
+      startDate: periodStartDate // NOUVEAU: Date de début incluse
     });
 
     current.setDate(current.getDate() + 7);
@@ -118,6 +129,7 @@ export function generateWeeklyPeriods(
 
 /**
  * Génère les périodes pour un breakdown PEBs (identique aux périodes hebdomadaires)
+ * NOUVEAU: Calcule et inclut la date de début pour chaque période
  */
 export function generatePEBsPeriods(
   breakdown: Breakdown, 
@@ -154,12 +166,16 @@ export function generatePEBsPeriods(
     // ID standardisé identique aux périodes hebdomadaires
     const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
 
+    // NOUVEAU: Calculer la date de début (lundi de la semaine)
+    const periodStartDate = new Date(current);
+
     periods.push({
       id: periodId,
       label: `${day} ${month}`,
       value: '',
       breakdownId: breakdown.id,
-      breakdownName: breakdown.name
+      breakdownName: breakdown.name,
+      startDate: periodStartDate // NOUVEAU: Date de début incluse
     });
 
     current.setDate(current.getDate() + 7);
@@ -175,6 +191,8 @@ export function generatePEBsPeriods(
 
 /**
  * Génère les périodes pour un breakdown personnalisé
+ * NOUVEAU: Les breakdowns Custom n'ont pas de date de début calculable automatiquement
+ * mais peuvent en avoir une stockée manuellement
  */
 export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
@@ -188,7 +206,8 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
           label: period.name,
           value: '',
           breakdownId: breakdown.id,
-          breakdownName: breakdown.name
+          breakdownName: breakdown.name,
+          startDate: period.startDate || undefined // NOUVEAU: Utiliser la date stockée ou undefined
         });
       });
   }
@@ -198,6 +217,7 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
 
 /**
  * Génère toutes les périodes pour tous les breakdowns
+ * NOUVEAU: Toutes les périodes générées incluent maintenant leur date de début
  */
 export function generateAllPeriods(
   breakdowns: Breakdown[], 
@@ -232,8 +252,15 @@ export function generateAllPeriods(
 
 /**
  * Extrait la date de début d'une période depuis son ID
+ * MODIFIÉ: Maintenant utilise prioritairement la date stockée dans la période
  */
 export function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
+  // NOUVEAU: Utiliser en priorité la date stockée dans la période
+  if (period.startDate) {
+    return period.startDate;
+  }
+
+  // Fallback: calcul basé sur l'ID (pour compatibilité)
   try {
     // Retirer le préfixe breakdown de l'ID
     const cleanId = period.id.replace(`${period.breakdownId}_`, '');
@@ -262,6 +289,7 @@ export function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
 
 /**
  * Calcule les périodes concernées par des dates de distribution
+ * MODIFIÉ: Utilise la nouvelle fonction extractPeriodStartDate qui priorise les dates stockées
  */
 export function getPeriodsForDistribution(
   periods: BreakdownPeriod[],

@@ -3,6 +3,7 @@
  * Hooks personnalisés pour la gestion des breakdowns dans les tactiques.
  * Contient toute la logique de gestion des périodes, de l'état local,
  * et de la synchronisation avec le formulaire parent.
+ * NOUVEAU: Support des dates de début des périodes
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,6 +22,7 @@ export interface BreakdownPeriod {
   breakdownName: string;
   isFirst?: boolean;
   isLast?: boolean;
+  startDate?: Date; // NOUVEAU: Date de début de la période
 }
 
 export interface DistributionModalState {

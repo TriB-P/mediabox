@@ -195,6 +195,32 @@ export default function CampaignDrawer({
       setAdditionalBreakdowns([]);
     }
   }, [campaign]);
+  
+  // NOUVEAU useEffect à ajouter après le useEffect existant
+  useEffect(() => {
+    // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
+    if (isOpen) {
+      setActiveTab('info');
+      setActiveTooltip(null);
+      
+      // Si pas de campagne (mode création), réinitialiser les données
+      if (!campaign) {
+        setFormData({
+          CA_Name: '',
+          CA_Campaign_Identifier: '',
+          CA_Status: 'Draft',
+          CA_Quarter: '',
+          CA_Year: '',
+          CA_Start_Date: '',
+          CA_End_Date: '',
+          CA_Sprint_Dates: '',
+          CA_Budget: '',
+          CA_Currency: 'CAD',
+        });
+        setAdditionalBreakdowns([]);
+      }
+    }
+  }, [isOpen, campaign]);
 
   useEffect(() => {
     const { CA_Start_Date, CA_End_Date } = formData;

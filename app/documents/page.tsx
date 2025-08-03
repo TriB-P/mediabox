@@ -2,19 +2,17 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import CreateDocumentModal from '../components/Others/CreateDocumentModal';
 import UnlinkDocumentModal from '../components/Others/UnlinkDocumentModal';
-import CampaignVersionSelector, { useCampaignVersionSelector } from '../components/Others/CampaignVersionSelector';
+import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useSelection } from '../contexts/SelectionContext';
 import { useTranslation } from '../contexts/LanguageContext';
+import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync } from '../lib/documentService';
-import { getCampaigns } from '../lib/campaignService';
-import { getVersions } from '../lib/versionService';
 import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport';
 import { useUnlinkDoc } from '../hooks/documents/useUnlinkDoc';
 import { 
@@ -31,15 +29,6 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus, DocumentCreationResult } from '../types/document';
-import { Campaign } from '../types/campaign';
-
-interface Version {
-  id: string;
-  name: string;
-  isOfficial: boolean;
-  createdAt: string;
-  createdBy: string;
-}
 
 /**
  * Page principale de gestion des documents.
@@ -51,12 +40,18 @@ export default function DocumentsPage() {
   const { selectedClient } = useClient();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { 
-    selectedCampaignId, 
-    selectedVersionId,
-    setSelectedCampaignId,
-    setSelectedVersionId 
-  } = useSelection();
+
+  // Hook pour la sélection campagne/version (même logique que strategy)
+  const {
+    campaigns,
+    versions,
+    selectedCampaign,
+    selectedVersion,
+    loading: campaignLoading,
+    error: campaignError,
+    handleCampaignChange,
+    handleVersionChange,
+  } = useCampaignSelection();
 
   // Hook pour l'export combiné (utilisé pour le refresh)
   const { exportCombinedData, loading: exportLoading } = useCombinedDocExport();
@@ -70,83 +65,11 @@ export default function DocumentsPage() {
   const [documentToUnlink, setDocumentToUnlink] = useState<Document | null>(null);
 
   // États des données
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [versions, setVersions] = useState<Version[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [refreshingDocumentId, setRefreshingDocumentId] = useState<string | null>(null);
-  
-  // Hook pour la sélection campagne/version
-  const {
-    selectedCampaign,
-    selectedVersion,
-    handleCampaignChange,
-    handleVersionChange,
-    reset: resetSelection
-  } = useCampaignVersionSelector();
-
-  // Refs pour éviter les boucles de synchronisation
-  const isInitializing = useRef(true);
-  const lastSyncedCampaignId = useRef<string | null>(null);
-  const lastSyncedVersionId = useRef<string | null>(null);
-
-  /**
-   * Charge les campagnes du client sélectionné.
-   */
-  const loadCampaigns = useCallback(async () => {
-    if (!selectedClient) {
-      setCampaigns([]);
-      return;
-    }
-
-    try {
-      setError(null);
-      const clientCampaigns = await getCampaigns(selectedClient.clientId);
-      setCampaigns(clientCampaigns);
-
-      // Restaurer la sélection depuis le contexte SEULEMENT lors de l'initialisation
-      if (isInitializing.current && selectedCampaignId) {
-        const campaign = clientCampaigns.find(c => c.id === selectedCampaignId);
-        if (campaign) {
-          handleCampaignChange(campaign);
-          lastSyncedCampaignId.current = selectedCampaignId;
-        }
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des campagnes:', err);
-      setError(t('documents.errors.loadCampaigns'));
-    }
-  }, [selectedClient, selectedCampaignId, handleCampaignChange, t]);
-
-  /**
-   * Charge les versions d'une campagne sélectionnée.
-   */
-  const loadVersions = useCallback(async () => {
-    if (!selectedClient || !selectedCampaign) {
-      setVersions([]);
-      return;
-    }
-
-    try {
-      setError(null);
-      const campaignVersions = await getVersions(selectedClient.clientId, selectedCampaign.id);
-      setVersions(campaignVersions);
-
-      // Restaurer la sélection depuis le contexte SEULEMENT lors de l'initialisation
-      if (isInitializing.current && selectedVersionId) {
-        const version = campaignVersions.find(v => v.id === selectedVersionId);
-        if (version) {
-          handleVersionChange(version);
-          lastSyncedVersionId.current = selectedVersionId;
-        }
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des versions:', err);
-      setError(t('documents.errors.loadVersions'));
-    }
-  }, [selectedClient, selectedCampaign, selectedVersionId, handleVersionChange, t]);
 
   /**
    * Charge les documents d'une version sélectionnée.
@@ -176,51 +99,27 @@ export default function DocumentsPage() {
     }
   }, [selectedClient, selectedCampaign, selectedVersion, t]);
 
-  // Charger les campagnes au changement de client
-  useEffect(() => {
-    loadCampaigns();
-  }, [loadCampaigns]);
-
-  // Charger les versions au changement de campagne
-  useEffect(() => {
-    loadVersions();
-  }, [loadVersions]);
-
   // Charger les documents au changement de version
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Synchroniser avec le contexte de sélection (uniquement pour les changements utilisateur)
-  useEffect(() => {
-    if (selectedCampaign && selectedCampaign.id !== lastSyncedCampaignId.current) {
-      setSelectedCampaignId(selectedCampaign.id);
-      lastSyncedCampaignId.current = selectedCampaign.id;
-    }
-  }, [selectedCampaign, setSelectedCampaignId]);
+  /**
+   * Gère le changement de campagne sélectionnée.
+   */
+  const handleCampaignChangeLocal = (campaign: any) => {
+    handleCampaignChange(campaign);
+    setDocuments([]);
+    setError(null);
+  };
 
-  useEffect(() => {
-    if (selectedVersion && selectedVersion.id !== lastSyncedVersionId.current) {
-      setSelectedVersionId(selectedVersion.id);
-      lastSyncedVersionId.current = selectedVersion.id;
-    }
-  }, [selectedVersion, setSelectedVersionId]);
-
-  // Marquer la fin de l'initialisation après le premier chargement complet
-  useEffect(() => {
-    if (selectedClient && campaigns.length > 0) {
-      isInitializing.current = false;
-    }
-  }, [selectedClient, campaigns]);
-
-  // Réinitialiser les flags lors du changement de client
-  useEffect(() => {
-    if (selectedClient) {
-      isInitializing.current = true;
-      lastSyncedCampaignId.current = null;
-      lastSyncedVersionId.current = null;
-    }
-  }, [selectedClient]);
+  /**
+   * Gère le changement de version de campagne sélectionnée.
+   */
+  const handleVersionChangeLocal = (version: any) => {
+    handleVersionChange(version);
+    setError(null);
+  };
 
   /**
    * Ouvre le modal de création de document.
@@ -491,6 +390,9 @@ export default function DocumentsPage() {
     }, {} as { [templateName: string]: Document[] });
   }, [t]);
 
+  const isLoading = campaignLoading || loading;
+  const hasError = campaignError || error;
+
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
@@ -537,43 +439,44 @@ export default function DocumentsPage() {
           {selectedClient && (
             <>
               {/* Sélecteur campagne/version */}
+              <div className="flex justify-between items-center">
                 <div className="flex-1 max-w-4xl">
                   <CampaignVersionSelector
                     campaigns={campaigns}
                     versions={versions}
                     selectedCampaign={selectedCampaign}
                     selectedVersion={selectedVersion}
-                    loading={loading}
-                    error={error}
-                    onCampaignChange={handleCampaignChange}
-                    onVersionChange={handleVersionChange}
+                    loading={campaignLoading}
+                    error={campaignError}
+                    onCampaignChange={handleCampaignChangeLocal}
+                    onVersionChange={handleVersionChangeLocal}
                     className="mb-0"
                   />
                 </div>
-  
+              </div>
 
               {/* Liste des documents */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4">
                   {/* États de chargement et d'erreur */}
-                  {loading && (
+                  {isLoading && (
                     <div className="flex items-center justify-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                       <span className="ml-3 text-gray-600">{t('documents.loadingDocuments')}</span>
                     </div>
                   )}
 
-                  {error && (
+                  {hasError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-start space-x-3">
                         <XCircleIcon className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-red-700">{error}</p>
+                        <p className="text-sm text-red-700">{hasError}</p>
                       </div>
                     </div>
                   )}
 
                   {/* Message si pas de sélection */}
-                  {!selectedCampaign && !loading && !error && (
+                  {!selectedCampaign && !isLoading && !hasError && (
                     <div className="text-center py-8 text-gray-500">
                       <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium">{t('documents.selectCampaign')}</p>
@@ -584,7 +487,7 @@ export default function DocumentsPage() {
                   )}
 
                   {/* Message si pas de version */}
-                  {selectedCampaign && !selectedVersion && !loading && !error && (
+                  {selectedCampaign && !selectedVersion && !isLoading && !hasError && (
                     <div className="text-center py-8 text-gray-500">
                       <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium">{t('documents.selectVersion')}</p>
@@ -595,7 +498,7 @@ export default function DocumentsPage() {
                   )}
 
                   {/* Liste des documents organisés par template */}
-                  {selectedCampaign && selectedVersion && !loading && !error && (
+                  {selectedCampaign && selectedVersion && !isLoading && !hasError && (
                     <>
                       {documents.length === 0 ? (
                         <div className="text-center py-8">

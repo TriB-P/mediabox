@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
-import { getFieldLabel } from '../../../../config/TaxonomyFieldLabels';
+import { getFieldLabel, ClientConfig } from '../../../../config/TaxonomyFieldLabels';
 import {
   getColumnsWithHierarchy,
   getTactiqueSubCategories,
@@ -115,7 +115,6 @@ interface DynamicTableStructureProps {
   clientFees: Fee[];
   exchangeRates: { [key: string]: number };
   campaignCurrency: string;
-  customDimensions: { [key: string]: string }; // AJOUTÉ
 }
 
 type TableColumn = DynamicColumn | FeeColumnDefinition;
@@ -172,6 +171,8 @@ export default function DynamicTableStructure({
   const [clientTaxonomies, setClientTaxonomies] = useState<any[]>([]);
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(false);
   const [dynamicTaxonomyColumns, setDynamicTaxonomyColumns] = useState<DynamicColumn[]>([]);
+  const [clientConfig, setClientConfig] = useState<ClientConfig>({});
+
 
   // États pour sélection avancée
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
@@ -194,9 +195,23 @@ export default function DynamicTableStructure({
         console.log("FIREBASE: LECTURE - Fichier: DynamicTableStructure.tsx - Fonction: loadClientTaxonomies - Path: clients/${selectedClient.clientId}/taxonomies");
         const taxonomies = await getClientTaxonomies(selectedClient.clientId);
         setClientTaxonomies(taxonomies);
+        
+        // AJOUTÉ : Charger la configuration client pour les labels
+        console.log("FIREBASE: LECTURE - Fichier: DynamicTableStructure.tsx - Fonction: loadClientTaxonomies - Path: clients/${selectedClient.clientId}");
+        const { getClientInfo } = await import('../../../../lib/clientService');
+        const clientInfo = await getClientInfo(selectedClient.clientId);
+        setClientConfig({
+          Custom_Dim_PL_1: clientInfo.Custom_Dim_PL_1,
+          Custom_Dim_PL_2: clientInfo.Custom_Dim_PL_2,
+          Custom_Dim_PL_3: clientInfo.Custom_Dim_PL_3,
+          Custom_Dim_CR_1: clientInfo.Custom_Dim_CR_1,
+          Custom_Dim_CR_2: clientInfo.Custom_Dim_CR_2,
+          Custom_Dim_CR_3: clientInfo.Custom_Dim_CR_3,
+        });
       } catch (error) {
         console.error('Erreur chargement taxonomies client:', error);
         setClientTaxonomies([]);
+        setClientConfig({});
       } finally {
         setTaxonomiesLoading(false);
       }
@@ -204,6 +219,7 @@ export default function DynamicTableStructure({
 
       loadClientTaxonomies();
   }, [selectedClient?.clientId]);
+
 
   /**
    * NOUVEAU : Génère les colonnes dynamiques pour l'onglet taxonomie des placements
@@ -376,6 +392,25 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
         continue;
       }
 
+      // AJOUTÉ : Masquer les dimensions personnalisées non configurées
+      const isCustomDim = variableName.match(/^(PL|CR)_Custom_Dim_[123]$/);
+      if (isCustomDim) {
+        let hasClientConfig = false;
+        
+        // Vérifier si la dimension personnalisée est configurée dans clientConfig
+        if (variableName === 'PL_Custom_Dim_1' && clientConfig.Custom_Dim_PL_1) hasClientConfig = true;
+        if (variableName === 'PL_Custom_Dim_2' && clientConfig.Custom_Dim_PL_2) hasClientConfig = true;
+        if (variableName === 'PL_Custom_Dim_3' && clientConfig.Custom_Dim_PL_3) hasClientConfig = true;
+        if (variableName === 'CR_Custom_Dim_1' && clientConfig.Custom_Dim_CR_1) hasClientConfig = true;
+        if (variableName === 'CR_Custom_Dim_2' && clientConfig.Custom_Dim_CR_2) hasClientConfig = true;
+        if (variableName === 'CR_Custom_Dim_3' && clientConfig.Custom_Dim_CR_3) hasClientConfig = true;
+        
+        if (!hasClientConfig) {
+          console.log(`🚫 Dimension personnalisée ${variableName} masquée car non configurée`);
+          continue;
+        }
+      }
+
       const hasShortcodeFormat = config.allowedFormats.some(formatRequiresShortcode);
       let options: Array<{ id: string; label: string }> = [];
 
@@ -394,14 +429,15 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
           console.warn(`❌ Erreur chargement options pour ${variableName}:`, error);
         }
       }
-
       const column = {
         key: variableName,
-        label: getFieldLabel(variableName, config.label),
+        label: getFieldLabel(variableName, clientConfig),
         type: options.length > 0 ? 'select' : 'text',
         width: 180,
         options
       } as DynamicColumn;
+
+
       
       console.log(`➕ Colonne créée:`, column);
       columns.push(column);
@@ -412,7 +448,7 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
     console.log('🔍 === FIN DEBUG generatePlacementTaxonomyColumns ===');
     
     return sortedColumns;
-  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, tableRows, pendingChanges]);
+  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, tableRows, pendingChanges, clientConfig]);
 
   /**
    * NOUVEAU : Effet pour générer les colonnes dynamiques de taxonomie
@@ -427,7 +463,7 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
     };
     
     generateColumns();
-  }, [selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, generateTaxonomyColumns]);
+  }, [selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, generateTaxonomyColumns, clientConfig]);
 
   /**
    * MODIFIÉ : Colonnes enrichies avec support des sous-catégories placement et taxonomie dynamique

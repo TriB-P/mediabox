@@ -93,6 +93,33 @@ export default function PlacementDrawer({
     return String(date);
   }, []);
 
+
+  useEffect(() => {
+    // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
+    if (isOpen) {
+      setActiveTab('infos');
+      setActiveTooltip(null);
+      
+      // Si pas de placement (mode création), réinitialiser les données avec héritage
+      if (!placement) {
+        const emptyPlacementFields = createEmptyPlacementFieldsObject();
+        const { startDate, endDate } = getInheritedDates();
+        
+        setFormData({
+          PL_Label: '',
+          PL_Order: 0,
+          PL_TactiqueId: tactiqueId,
+          PL_Start_Date: startDate,
+          PL_End_Date: endDate,
+          PL_Taxonomy_Tags: '',
+          PL_Taxonomy_Platform: '',
+          PL_Taxonomy_MediaOcean: '',
+          ...emptyPlacementFields,
+        });
+      }
+    }
+  }, [isOpen, placement, tactiqueId, getInheritedDates]);
+
   /**
    * Effet pour initialiser ou mettre à jour les données du formulaire.
    * Si un objet `placement` est fourni, le formulaire est peuplé avec ses données (mode édition).

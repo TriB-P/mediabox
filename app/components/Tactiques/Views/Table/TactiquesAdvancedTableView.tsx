@@ -487,7 +487,6 @@ export default function TactiquesAdvancedTableView({
         clientFees={clientFees}
         exchangeRates={exchangeRates}
         campaignCurrency={campaignCurrency}
-        customDimensions={customDimensions} // AJOUTÉ
       />
 
 
