@@ -1,14 +1,14 @@
 /**
  * app/components/Client/DimensionSidebar.tsx
  * 
- * Version mise à jour avec des icônes pour identifier les dimensions 
- * qui ont des listes personnalisées pour le client sélectionné.
+ * Version améliorée avec fonctionnalité de recherche à travers les dimensions
+ * et interface plus claire pour identifier les listes personnalisées.
  */
 
 'use client';
 
-import React from 'react';
-import { StarIcon } from '@heroicons/react/24/solid';
+import React, { useState, useMemo } from 'react';
+import { StarIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 
 interface DimensionSidebarProps {
@@ -21,7 +21,7 @@ interface DimensionSidebarProps {
 }
 
 /**
- * Affiche une barre latérale avec une liste de dimensions cliquables.
+ * Affiche une barre latérale avec recherche et liste de dimensions cliquables.
  * Inclut des icônes pour identifier les dimensions avec des listes personnalisées.
  * @param {DimensionSidebarProps} props - Les propriétés du composant.
  * @param {string[]} props.dimensions - La liste des dimensions à afficher.
@@ -40,19 +40,65 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
   clientId,
   customDimensions = new Set()
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fonction pour formater les noms de dimensions de façon plus lisible
+  const formatDimensionName = (dimension: string): string => {
+    return dimension
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Filtrer les dimensions selon la recherche
+  const filteredDimensions = useMemo(() => {
+    if (!searchQuery.trim()) return dimensions;
+    
+    const searchLower = searchQuery.toLowerCase();
+    return dimensions.filter(dimension => {
+      const formattedName = formatDimensionName(dimension);
+      return (
+        dimension.toLowerCase().includes(searchLower) ||
+        formattedName.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [dimensions, searchQuery]);
+
+  // Séparer les dimensions personnalisées et standard pour l'affichage
+  const sortedDimensions = useMemo(() => {
+    return filteredDimensions.sort((a, b) => {
+      const aIsCustom = customDimensions.has(a);
+      const bIsCustom = customDimensions.has(b);
+      
+      // Les listes personnalisées en premier
+      if (aIsCustom && !bIsCustom) return -1;
+      if (!aIsCustom && bIsCustom) return 1;
+      
+      // Puis tri alphabétique
+      return formatDimensionName(a).localeCompare(formatDimensionName(b));
+    });
+  }, [filteredDimensions, customDimensions]);
+
+  const hasCustomList = (dimension: string): boolean => {
+    return customDimensions.has(dimension);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
   if (loading) {
     return (
-      <div className="w-full md:w-64">
-        <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 bg-gray-100 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700">Dimensions</h3>
+      <div className="w-full md:w-80">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
+            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
           </div>
           <div className="p-4">
-            <div className="space-y-2">
-              {[...Array(5)].map((_, index) => (
+            <div className="space-y-3">
+              {[...Array(8)].map((_, index) => (
                 <div
                   key={index}
-                  className="h-8 bg-gray-200 rounded animate-pulse"
+                  className="h-10 bg-gray-200 rounded animate-pulse"
                 />
               ))}
             </div>
@@ -64,12 +110,12 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
 
   if (dimensions.length === 0) {
     return (
-      <div className="w-full md:w-64">
-        <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 bg-gray-100 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700">Dimensions</h3>
+      <div className="w-full md:w-80">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
+            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
           </div>
-          <div className="p-4 text-center">
+          <div className="p-6 text-center">
             <p className="text-sm text-gray-500">Aucune dimension disponible</p>
           </div>
         </div>
@@ -77,75 +123,134 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
     );
   }
 
-  const hasCustomList = (dimension: string): boolean => {
-    return customDimensions.has(dimension);
-  };
-
   return (
-    <div className="w-full md:w-64">
-      <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 bg-gray-100 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">Dimensions</h3>
+    <div className="w-full md:w-80">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {/* En-tête avec titre et statistiques */}
+        <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
             {customDimensions.size > 0 && (
-              <div className="flex items-center text-xs text-amber-600">
+              <div className="flex items-center text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
                 <StarIcon className="h-3 w-3 mr-1" />
-                <span>Custom</span>
+                <span>{customDimensions.size} personnalisée{customDimensions.size > 1 ? 's' : ''}</span>
               </div>
             )}
           </div>
-        </div>
-        <ul className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-          {dimensions.map((dimension) => {
-            const isCustom = hasCustomList(dimension);
-            const isSelected = selectedDimension === dimension;
-            
-            return (
-              <li key={dimension}>
-                <button
-                  onClick={() => onSelectDimension(dimension)}
-                  className={`w-full px-4 py-3 text-left hover:bg-gray-100 focus:outline-none transition-colors duration-150 ${
-                    isSelected
-                      ? 'bg-indigo-50 text-indigo-700 font-medium border-r-2 border-indigo-500'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                  title={`Sélectionner la dimension ${dimension}${isCustom ? ' (liste personnalisée)' : ' (liste PlusCo)'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="block truncate flex-1">
-                      {dimension}
-                    </span>
-                    {isCustom && (
-                      <div className="ml-2 flex-shrink-0">
-                        {isSelected ? (
-                          <StarIcon className="h-4 w-4 text-amber-500" title="Liste personnalisée" />
-                        ) : (
-                          <StarIcon className="h-4 w-4 text-amber-400" title="Liste personnalisée" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        
-        {dimensions.length > 0 && (
-          <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>
-                {dimensions.length} dimension{dimensions.length > 1 ? 's' : ''} disponible{dimensions.length > 1 ? 's' : ''}
-              </span>
-              {customDimensions.size > 0 && (
-                <div className="flex items-center text-amber-600">
-                  <StarIcon className="h-3 w-3 mr-1" />
-                  <span>{customDimensions.size} personnalisée{customDimensions.size > 1 ? 's' : ''}</span>
-                </div>
-              )}
+          
+          {/* Barre de recherche */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
             </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              placeholder="Rechercher une dimension..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <XMarkIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Liste des dimensions */}
+        <div className="max-h-96 overflow-y-auto">
+          {searchQuery && filteredDimensions.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-sm text-gray-500">
+                Aucune dimension ne correspond à "{searchQuery}"
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {sortedDimensions.map((dimension) => {
+                const isCustom = hasCustomList(dimension);
+                const isSelected = selectedDimension === dimension;
+                const formattedName = formatDimensionName(dimension);
+                
+                return (
+                  <li key={dimension}>
+                    <button
+                      onClick={() => onSelectDimension(dimension)}
+                      className={`w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none transition-all duration-150 group ${
+                        isSelected
+                          ? 'bg-indigo-50 text-indigo-700 font-medium border-r-4 border-indigo-500'
+                          : 'text-gray-700 hover:text-gray-900'
+                      }`}
+                      title={`Sélectionner ${formattedName}${isCustom ? ' (liste personnalisée)' : ' (liste PlusCo)'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center">
+                            {isCustom && (
+                              <StarIcon 
+                                className={`h-4 w-4 mr-2 flex-shrink-0 ${
+                                  isSelected ? 'text-amber-500' : 'text-amber-400'
+                                }`} 
+                                title="Liste personnalisée" 
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-sm font-medium truncate ${
+                                isSelected ? 'text-indigo-700' : 'text-gray-900'
+                              }`}>
+                                {dimension}
+                              </p>
+                        
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Indicateur de type de liste */}
+                        <div className="ml-2 flex-shrink-0">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            isCustom
+                              ? isSelected 
+                                ? 'bg-amber-100 text-amber-800' 
+                                : 'bg-amber-50 text-amber-700'
+                              : isSelected
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {isCustom ? 'Custom' : 'PlusCo'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        
+        {/* Pied avec statistiques */}
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>
+              {searchQuery ? (
+                <>
+                  {filteredDimensions.length} résultat{filteredDimensions.length > 1 ? 's' : ''} 
+                  sur {dimensions.length}
+                </>
+              ) : (
+                <>
+                  {dimensions.length} dimension{dimensions.length > 1 ? 's' : ''} disponible{dimensions.length > 1 ? 's' : ''}
+                </>
+              )}
+            </span>
+            
+
+          </div>
+        </div>
       </div>
     </div>
   );

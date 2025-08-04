@@ -1,13 +1,13 @@
 /**
- * Ce fichier définit le composant ListHeader, qui sert d'en-tête pour les listes
- * de questions. Il affiche des informations contextuelles comme la dimension sélectionnée,
- * si la liste est personnalisée ou par défaut, et propose des actions comme la création
- * ou la suppression d'une liste personnalisée en fonction des permissions de l'utilisateur.
+ * app/components/Client/ListHeader.tsx
+ * 
+ * Version compacte et harmonisée de l'en-tête de liste.
+ * Style cohérent avec le reste de l'application, plus compact.
  */
 'use client';
 
 import React from 'react';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 interface ListHeaderProps {
   selectedDimension: string;
@@ -19,18 +19,8 @@ interface ListHeaderProps {
 }
 
 /**
- * Affiche l'en-tête d'une liste de questions.
- * Fournit des informations sur la dimension et le type de liste (par défaut ou personnalisée).
- * Permet aux utilisateurs autorisés de créer une liste personnalisée à partir d'une liste par défaut,
- * ou de supprimer une liste personnalisée existante.
- *
- * @param {string} selectedDimension - La dimension actuellement affichée.
- * @param {boolean} isCustomList - Indique si la liste affichée est une liste personnalisée.
- * @param {string} clientName - Le nom du client, utilisé dans les descriptions.
- * @param {boolean} hasPermission - Indique si l'utilisateur a les droits pour créer/supprimer des listes.
- * @param {() => void} onCreateCustomList - La fonction à appeler pour créer une liste personnalisée.
- * @param {() => void} onDeleteCustomList - La fonction à appeler pour supprimer la liste personnalisée.
- * @returns {React.ReactElement | null} Le composant JSX de l'en-tête, ou null si aucune dimension n'est sélectionnée.
+ * Affiche l'en-tête compact d'une liste de questions.
+ * Version harmonisée sans background coloré, plus compacte.
  */
 const ListHeader: React.FC<ListHeaderProps> = ({
   selectedDimension,
@@ -44,56 +34,60 @@ const ListHeader: React.FC<ListHeaderProps> = ({
     return null;
   }
 
-  return (
-    <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-        <div className="mb-4 sm:mb-0">
-          <h3 className="text-md font-medium text-gray-700">
-            Dimension: <span className="text-indigo-600">{selectedDimension}</span> -
-            {isCustomList ? (
-              <span className="text-green-600 ml-2">Liste personnalisée</span>
-            ) : (
-              <span className="text-amber-600 ml-2">Liste par défaut (PlusCo)</span>
-            )}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {isCustomList
-              ? `Liste spécifique au client ${clientName}`
-              : `Liste commune (PlusCo)`
-            }
-          </p>
-        </div>
 
-        <div className="flex space-x-2">
-          {!isCustomList ? (
-            <button
-              onClick={onCreateCustomList}
-              className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md transition-colors duration-150 ${
-                hasPermission
-                  ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                  : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'
-              }`}
-              disabled={!hasPermission}
-              title={!hasPermission ? "Vous n'avez pas la permission de créer une liste personnalisée" : "Créer une liste personnalisée basée sur la liste PlusCo"}
-            >
-              Créer une liste personnalisée
-            </button>
-          ) : (
-            <button
-              onClick={onDeleteCustomList}
-              className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md transition-colors duration-150 ${
-                hasPermission
-                  ? 'border-red-300 text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
-                  : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'
-              }`}
-              disabled={!hasPermission}
-              title={!hasPermission ? "Vous n'avez pas la permission de supprimer cette liste" : "Supprimer cette liste personnalisée"}
-            >
-              <TrashIcon className="h-4 w-4 mr-1" />
-              Supprimer cette liste
-            </button>
-          )}
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800">
+          {(selectedDimension)}
+        </h3>
+        <div className="flex items-center space-x-2 mt-1">
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            isCustomList 
+              ? 'bg-amber-100 text-amber-800' 
+              : 'bg-blue-100 text-blue-800'
+          }`}>
+            {isCustomList ? 'Liste personnalisée' : 'Liste PlusCo'}
+          </span>
+          <span className="text-sm text-gray-500">
+            {isCustomList
+              ? `Spécifique à ${clientName}`
+              : 'Liste commune'
+            }
+          </span>
         </div>
+      </div>
+
+      <div className="flex items-center space-x-2">
+      {!isCustomList ? (
+          <button
+            onClick={onCreateCustomList}
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm transition-colors duration-150 ${
+              hasPermission
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                : 'text-gray-400 bg-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!hasPermission}
+            title={!hasPermission ? "Permission requise" : "Créer une liste personnalisée"}
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Créer une liste personnalisée
+          </button>
+        ) : (
+          <button
+            onClick={onDeleteCustomList}
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm transition-colors duration-150 ${
+              hasPermission
+                ? 'text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                : 'text-gray-400 bg-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!hasPermission}
+            title={!hasPermission ? "Permission requise" : "Supprimer cette liste personnalisée"}
+          >
+            <TrashIcon className="h-4 w-4 mr-2" />
+            Supprimer la liste personnalisée
+          </button>
+        )}
       </div>
     </div>
   );

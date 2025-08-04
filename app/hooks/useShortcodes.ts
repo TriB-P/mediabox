@@ -1,8 +1,8 @@
 /**
  * app/hooks/useShortcodes.ts
  * 
- * Hook personnalisé pour la gestion des shortcodes sans pagination.
- * Version optimisée qui utilise le système de cache pour charger tous les shortcodes d'un coup.
+ * Hook personnalisé amélioré avec gestion intelligente du cache.
+ * Met automatiquement à jour le cache local pour des modifications instantanément visibles.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,7 +18,8 @@ import {
   addShortcodeToDimension, 
   removeShortcodeFromDimension,
   createCustomListFromPlusCo,
-  deleteCustomList
+  deleteCustomList,
+  updateShortcode
 } from '../lib/shortcodeService';
 
 // Interface pour les shortcodes (utilise celle du cache)
@@ -54,6 +55,7 @@ interface UseShortcodesReturn {
     SH_Display_Name_FR: string;
     SH_Display_Name_EN: string;
   }) => Promise<void>;
+  handleUpdateShortcode: (shortcodeId: string, data: Partial<Shortcode>) => Promise<void>;
   
   // Actions utilitaires
   refreshShortcodes: () => Promise<void>;
@@ -78,8 +80,8 @@ const AVAILABLE_DIMENSIONS = [
 ];
 
 /**
- * Hook pour la gestion des shortcodes et listes client.
- * Version optimisée sans pagination qui utilise le cache local.
+ * Hook pour la gestion intelligente des shortcodes avec cache optimisé.
+ * Met automatiquement à jour le cache local pour des modifications instantanément visibles.
  */
 export function useShortcodes(): UseShortcodesReturn {
   const { selectedClient } = useClient();
@@ -96,6 +98,121 @@ export function useShortcodes(): UseShortcodesReturn {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  /**
+   * Met à jour le cache local des shortcodes après une modification.
+   */
+  const updateLocalShortcodeCache = useCallback((shortcodeId: string, updatedData: Partial<Shortcode>) => {
+    const cachedShortcodes = getCachedAllShortcodes();
+    if (cachedShortcodes && cachedShortcodes[shortcodeId]) {
+      // Mettre à jour le shortcode dans le cache
+      const updatedShortcode = { ...cachedShortcodes[shortcodeId], ...updatedData };
+      cachedShortcodes[shortcodeId] = updatedShortcode;
+      
+      // Sauvegarder le cache mis à jour
+      const now = Date.now();
+      const cacheEntry = {
+        data: cachedShortcodes,
+        timestamp: now,
+        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+      };
+      localStorage.setItem('mediabox-cache-all-shortcodes', JSON.stringify(cacheEntry));
+      
+      // Mettre à jour l'état local
+      setAllShortcodes(Object.values(cachedShortcodes));
+      
+      console.log(`[CACHE] Shortcode ${shortcodeId} mis à jour localement`);
+    }
+  }, []);
+
+  /**
+   * Ajoute un nouveau shortcode au cache local.
+   */
+  const addToLocalShortcodeCache = useCallback((shortcode: Shortcode) => {
+    const cachedShortcodes = getCachedAllShortcodes();
+    if (cachedShortcodes) {
+      // Ajouter le nouveau shortcode
+      cachedShortcodes[shortcode.id] = shortcode;
+      
+      // Sauvegarder le cache mis à jour
+      const now = Date.now();
+      const cacheEntry = {
+        data: cachedShortcodes,
+        timestamp: now,
+        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+      };
+      localStorage.setItem('mediabox-cache-all-shortcodes', JSON.stringify(cacheEntry));
+      
+      // Mettre à jour l'état local
+      setAllShortcodes(Object.values(cachedShortcodes));
+      
+      console.log(`[CACHE] Nouveau shortcode ${shortcode.id} ajouté au cache local`);
+    }
+  }, []);
+
+  /**
+   * Met à jour le cache local des listes après ajout/suppression de shortcode.
+   */
+  const updateLocalListCache = useCallback((dimension: string, clientId: string, shortcodeId: string, action: 'add' | 'remove') => {
+    const optimizedLists = getCachedOptimizedLists();
+    if (optimizedLists && optimizedLists[dimension] && optimizedLists[dimension][clientId]) {
+      const currentList = optimizedLists[dimension][clientId];
+      
+      if (action === 'add' && !currentList.includes(shortcodeId)) {
+        // Ajouter le shortcode à la liste
+        optimizedLists[dimension][clientId] = [...currentList, shortcodeId];
+      } else if (action === 'remove') {
+        // Retirer le shortcode de la liste
+        optimizedLists[dimension][clientId] = currentList.filter(id => id !== shortcodeId);
+      }
+      
+      // Sauvegarder le cache mis à jour
+      const now = Date.now();
+      const cacheEntry = {
+        data: optimizedLists,
+        timestamp: now,
+        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+      };
+      localStorage.setItem('mediabox-cache-optimized-lists', JSON.stringify(cacheEntry));
+      
+      console.log(`[CACHE] Liste ${dimension}/${clientId} mise à jour localement (${action} ${shortcodeId})`);
+    }
+  }, []);
+
+  /**
+   * Met à jour les dimensions personnalisées dans le cache local.
+   */
+  const updateLocalCustomDimensions = useCallback((dimension: string, clientId: string, action: 'add' | 'remove') => {
+    const optimizedLists = getCachedOptimizedLists();
+    if (optimizedLists) {
+      if (action === 'add') {
+        // Créer la structure pour cette dimension si elle n'existe pas
+        if (!optimizedLists[dimension]) {
+          optimizedLists[dimension] = {};
+        }
+        // S'assurer que le client a une entrée (même vide)
+        if (!optimizedLists[dimension][clientId]) {
+          optimizedLists[dimension][clientId] = [];
+        }
+      } else if (action === 'remove') {
+        // Supprimer la liste client pour cette dimension
+        if (optimizedLists[dimension] && optimizedLists[dimension][clientId]) {
+          delete optimizedLists[dimension][clientId];
+        }
+      }
+      
+      // Sauvegarder le cache mis à jour
+      const now = Date.now();
+      const cacheEntry = {
+        data: optimizedLists,
+        timestamp: now,
+        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+      };
+      localStorage.setItem('mediabox-cache-optimized-lists', JSON.stringify(cacheEntry));
+      
+      console.log(`[CACHE] Dimension personnalisée ${dimension} ${action} pour client ${clientId}`);
+    }
+  }, []);
 
   /**
    * Détecte quelles dimensions ont des listes personnalisées pour le client actuel.
@@ -143,6 +260,7 @@ export function useShortcodes(): UseShortcodesReturn {
   const loadShortcodesForDimension = useCallback(async (dimension: string) => {
     if (!selectedClient || !dimension) {
       setShortcodes([]);
+      setIsCustomList(false);
       return;
     }
 
@@ -150,15 +268,25 @@ export function useShortcodes(): UseShortcodesReturn {
     setError(null);
 
     try {
-      // Essayer d'abord la liste client, puis PlusCo en fallback
-      const clientList = getListForClient(dimension, selectedClient.clientId);
+      // Vérifier d'abord si le client a vraiment une liste personnalisée
+      const optimizedLists = getCachedOptimizedLists();
+      const hasCustom = optimizedLists && 
+                       optimizedLists[dimension] && 
+                       optimizedLists[dimension][selectedClient.clientId];
       
-      if (clientList && clientList.length > 0) {
-        setShortcodes(clientList);
-        setIsCustomList(true);
-        console.log(`[SHORTCODES] Liste personnalisée chargée pour ${dimension}: ${clientList.length} shortcodes`);
+      if (hasCustom) {
+        // Le client a une liste personnalisée
+        const clientList = getListForClient(dimension, selectedClient.clientId);
+        if (clientList) {
+          setShortcodes(clientList);
+          setIsCustomList(true);
+          console.log(`[SHORTCODES] Liste personnalisée chargée pour ${dimension}: ${clientList.length} shortcodes`);
+        } else {
+          setShortcodes([]);
+          setIsCustomList(false);
+        }
       } else {
-        // Fallback sur PlusCo
+        // Utiliser la liste PlusCo
         const plusCoList = getListForClient(dimension, 'PlusCo');
         if (plusCoList) {
           setShortcodes(plusCoList);
@@ -174,6 +302,7 @@ export function useShortcodes(): UseShortcodesReturn {
       console.error('Erreur lors du chargement des shortcodes:', err);
       setError('Erreur lors du chargement des shortcodes');
       setShortcodes([]);
+      setIsCustomList(false);
     } finally {
       setLoading(false);
     }
@@ -199,7 +328,7 @@ export function useShortcodes(): UseShortcodesReturn {
   }, [loadShortcodesForDimension]);
 
   /**
-   * Crée une liste personnalisée pour le client actuel.
+   * Crée une liste personnalisée pour le client actuel avec mise à jour optimiste du cache.
    */
   const handleCreateCustomList = useCallback(async () => {
     if (!selectedClient || !selectedDimension) return;
@@ -209,20 +338,52 @@ export function useShortcodes(): UseShortcodesReturn {
     setSuccess(null);
 
     try {
+      // Mise à jour optimiste du cache
+      updateLocalCustomDimensions(selectedDimension, selectedClient.clientId, 'add');
+      
+      // Copier la liste PlusCo dans le cache local
+      const plusCoList = getListForClient(selectedDimension, 'PlusCo');
+      if (plusCoList) {
+        const optimizedLists = getCachedOptimizedLists();
+        if (optimizedLists) {
+          if (!optimizedLists[selectedDimension]) {
+            optimizedLists[selectedDimension] = {};
+          }
+          optimizedLists[selectedDimension][selectedClient.clientId] = plusCoList.map(s => s.id);
+          
+          // Sauvegarder
+          const now = Date.now();
+          const cacheEntry = {
+            data: optimizedLists,
+            timestamp: now,
+            expiresAt: now + (48 * 60 * 60 * 1000)
+          };
+          localStorage.setItem('mediabox-cache-optimized-lists', JSON.stringify(cacheEntry));
+        }
+      }
+
+      // Appel Firebase
       await createCustomListFromPlusCo(selectedDimension, selectedClient.clientId);
+      
       setSuccess('Liste personnalisée créée avec succès');
+      
+      // Recharger depuis le cache mis à jour
       await loadShortcodesForDimension(selectedDimension);
-      detectCustomDimensions(); // Re-détecter les dimensions custom
+      detectCustomDimensions();
+      
     } catch (err) {
       console.error('Erreur lors de la création de la liste personnalisée:', err);
       setError('Erreur lors de la création de la liste personnalisée');
+      
+      // Rollback optimiste
+      updateLocalCustomDimensions(selectedDimension, selectedClient.clientId, 'remove');
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedDimension, loadShortcodesForDimension, detectCustomDimensions]);
+  }, [selectedClient, selectedDimension, loadShortcodesForDimension, detectCustomDimensions, updateLocalCustomDimensions]);
 
   /**
-   * Supprime la liste personnalisée du client actuel.
+   * Supprime la liste personnalisée du client actuel avec mise à jour optimiste du cache.
    */
   const handleDeleteCustomList = useCallback(async () => {
     if (!selectedClient || !selectedDimension) return;
@@ -232,20 +393,31 @@ export function useShortcodes(): UseShortcodesReturn {
     setSuccess(null);
 
     try {
+      // Mise à jour optimiste du cache
+      updateLocalCustomDimensions(selectedDimension, selectedClient.clientId, 'remove');
+
+      // Appel Firebase
       await deleteCustomList(selectedDimension, selectedClient.clientId);
+      
       setSuccess('Liste personnalisée supprimée avec succès');
+      
+      // Recharger depuis le cache mis à jour
       await loadShortcodesForDimension(selectedDimension);
-      detectCustomDimensions(); // Re-détecter les dimensions custom
+      detectCustomDimensions();
+      
     } catch (err) {
       console.error('Erreur lors de la suppression de la liste personnalisée:', err);
       setError('Erreur lors de la suppression de la liste personnalisée');
+      
+      // Rollback optimiste
+      updateLocalCustomDimensions(selectedDimension, selectedClient.clientId, 'add');
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedDimension, loadShortcodesForDimension, detectCustomDimensions]);
+  }, [selectedClient, selectedDimension, loadShortcodesForDimension, detectCustomDimensions, updateLocalCustomDimensions]);
 
   /**
-   * Ajoute un shortcode existant à la liste actuelle.
+   * Ajoute un shortcode existant à la liste actuelle avec mise à jour optimiste.
    */
   const handleAddShortcode = useCallback(async (shortcodeId: string) => {
     if (!selectedClient || !selectedDimension) return;
@@ -254,21 +426,39 @@ export function useShortcodes(): UseShortcodesReturn {
     setError(null);
     setSuccess(null);
 
+    const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
+
     try {
-      const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
+      // Mise à jour optimiste du cache de liste
+      updateLocalListCache(selectedDimension, targetClientId, shortcodeId, 'add');
+      
+      // Mise à jour optimiste de l'interface
+      const shortcodeToAdd = allShortcodes.find(s => s.id === shortcodeId);
+      if (shortcodeToAdd) {
+        setShortcodes(prev => [...prev, shortcodeToAdd].sort((a, b) => 
+          a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+        ));
+      }
+
+      // Appel Firebase
       await addShortcodeToDimension(selectedDimension, targetClientId, shortcodeId);
+      
       setSuccess('Shortcode ajouté avec succès');
-      await loadShortcodesForDimension(selectedDimension);
+      
     } catch (err) {
       console.error('Erreur lors de l\'ajout du shortcode:', err);
       setError('Erreur lors de l\'ajout du shortcode');
+      
+      // Rollback optimiste
+      updateLocalListCache(selectedDimension, targetClientId, shortcodeId, 'remove');
+      await loadShortcodesForDimension(selectedDimension);
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedDimension, isCustomList, loadShortcodesForDimension]);
+  }, [selectedClient, selectedDimension, isCustomList, allShortcodes, loadShortcodesForDimension, updateLocalListCache]);
 
   /**
-   * Retire un shortcode de la liste actuelle.
+   * Retire un shortcode de la liste actuelle avec mise à jour optimiste.
    */
   const handleRemoveShortcode = useCallback(async (shortcodeId: string) => {
     if (!selectedClient || !selectedDimension) return;
@@ -277,21 +467,34 @@ export function useShortcodes(): UseShortcodesReturn {
     setError(null);
     setSuccess(null);
 
+    const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
+
     try {
-      const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
+      // Mise à jour optimiste du cache de liste
+      updateLocalListCache(selectedDimension, targetClientId, shortcodeId, 'remove');
+      
+      // Mise à jour optimiste de l'interface
+      setShortcodes(prev => prev.filter(s => s.id !== shortcodeId));
+
+      // Appel Firebase
       await removeShortcodeFromDimension(selectedDimension, targetClientId, shortcodeId);
+      
       setSuccess('Shortcode retiré avec succès');
-      await loadShortcodesForDimension(selectedDimension);
+      
     } catch (err) {
       console.error('Erreur lors de la suppression du shortcode:', err);
       setError('Erreur lors de la suppression du shortcode');
+      
+      // Rollback optimiste
+      updateLocalListCache(selectedDimension, targetClientId, shortcodeId, 'add');
+      await loadShortcodesForDimension(selectedDimension);
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedDimension, isCustomList, loadShortcodesForDimension]);
+  }, [selectedClient, selectedDimension, isCustomList, loadShortcodesForDimension, updateLocalListCache]);
 
   /**
-   * Crée un nouveau shortcode et l'ajoute à la liste actuelle.
+   * Crée un nouveau shortcode et l'ajoute à la liste actuelle avec mise à jour optimiste.
    */
   const handleCreateShortcode = useCallback(async (shortcodeData: {
     SH_Code: string;
@@ -306,34 +509,81 @@ export function useShortcodes(): UseShortcodesReturn {
     setSuccess(null);
 
     try {
+      // Appel Firebase pour créer le shortcode
       const newShortcodeId = await createShortcode(shortcodeData);
+      
+      // Créer l'objet shortcode complet
+      const newShortcode: Shortcode = {
+        id: newShortcodeId,
+        ...shortcodeData
+      };
+      
+      // Mettre à jour le cache des shortcodes
+      addToLocalShortcodeCache(newShortcode);
       
       // Ajouter le nouveau shortcode à la liste actuelle
       const targetClientId = isCustomList ? selectedClient.clientId : 'PlusCo';
       await addShortcodeToDimension(selectedDimension, targetClientId, newShortcodeId);
       
+      // Mettre à jour le cache de liste
+      updateLocalListCache(selectedDimension, targetClientId, newShortcodeId, 'add');
+      
+      // Mise à jour optimiste de l'interface
+      setShortcodes(prev => [...prev, newShortcode].sort((a, b) => 
+        a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+      ));
+      
       setSuccess('Shortcode créé et ajouté avec succès');
       
-      // Recharger les données
-      loadAllShortcodes();
-      await loadShortcodesForDimension(selectedDimension);
     } catch (err) {
       console.error('Erreur lors de la création du shortcode:', err);
       setError('Erreur lors de la création du shortcode');
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedDimension, isCustomList, loadAllShortcodes, loadShortcodesForDimension]);
+  }, [selectedClient, selectedDimension, isCustomList, addToLocalShortcodeCache, updateLocalListCache]);
 
   /**
-   * Rafraîchit les shortcodes de la dimension actuelle.
+   * Met à jour un shortcode existant avec mise à jour optimiste du cache.
+   */
+  const handleUpdateShortcode = useCallback(async (shortcodeId: string, data: Partial<Shortcode>) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Appel Firebase
+      await updateShortcode(shortcodeId, data);
+      
+      // Mise à jour optimiste du cache
+      updateLocalShortcodeCache(shortcodeId, data);
+      
+      // Mise à jour optimiste de l'interface locale
+      setShortcodes(prev => prev.map(s => 
+        s.id === shortcodeId ? { ...s, ...data } : s
+      ));
+      
+      setSuccess('Shortcode mis à jour avec succès');
+      
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du shortcode:', err);
+      setError('Erreur lors de la mise à jour du shortcode');
+      throw err; // Re-throw pour que les composants puissent gérer l'erreur
+    } finally {
+      setLoading(false);
+    }
+  }, [updateLocalShortcodeCache]);
+
+  /**
+   * Rafraîchit les shortcodes de la dimension actuelle depuis le cache.
    */
   const refreshShortcodes = useCallback(async () => {
     if (selectedDimension) {
       loadAllShortcodes();
       await loadShortcodesForDimension(selectedDimension);
+      detectCustomDimensions();
     }
-  }, [selectedDimension, loadAllShortcodes, loadShortcodesForDimension]);
+  }, [selectedDimension, loadAllShortcodes, loadShortcodesForDimension, detectCustomDimensions]);
 
   /**
    * Efface les messages d'erreur et de succès.
@@ -368,6 +618,7 @@ export function useShortcodes(): UseShortcodesReturn {
     handleAddShortcode,
     handleRemoveShortcode,
     handleCreateShortcode,
+    handleUpdateShortcode,
     
     // Actions utilitaires
     refreshShortcodes,
