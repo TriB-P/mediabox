@@ -75,6 +75,11 @@ export interface Tactique {
   TC_Kpi_CostPer_5?: number; // Coût par 5
   TC_Kpi_Volume_5?: number; // Volume 5
 
+  // 🔥 NOUVEAUX CHAMPS TAGS
+  TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
+  TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
+  TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
+
   // Champs Admin
   TC_Billing_ID?: string; // Numéro de facturation
   TC_PO?: string; // PO
@@ -298,6 +303,11 @@ export interface TactiqueFormData {
   TC_Format?: string;
   TC_Start_Date?: string;
   TC_End_Date?: string;
+
+  // 🔥 NOUVEAUX CHAMPS TAGS DANS LE FORMULAIRE
+  TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
+  TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
+  TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
 }
 
 export interface PlacementFormData {

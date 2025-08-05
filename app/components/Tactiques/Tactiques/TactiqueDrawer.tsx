@@ -8,6 +8,7 @@
  * - Si configurée + pas de liste → Input text
  * - Si non configurée → Masqué
  * VERSION VALIDATION : Ajout de la validation des champs obligatoires
+ * VERSION TAGS : Ajout du nouvel onglet Tags avec TC_Buy_Type, TC_CM360_Volume et TC_CM360_Rate
  */
 'use client';
 
@@ -20,6 +21,7 @@ import TactiqueFormKPI from './TactiqueFormKPI';
 import TactiqueFormBudget from './TactiqueFormBudget';
 import TactiqueFormAdmin from './TactiqueFormAdmin';
 import TactiqueFormRepartition from './TactiqueFormRepartition';
+import TactiqueFormTags from './TactiqueFormTags';  // NOUVEAU IMPORT
 import { TooltipBanner } from './TactiqueFormComponents';
 import {
   DocumentTextIcon,
@@ -28,6 +30,7 @@ import {
   CurrencyDollarIcon,
   CogIcon,
   CalendarDaysIcon,
+  TagIcon,  // NOUVEAU ICÔNE
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../../types/tactiques';
 import { Breakdown } from '../../../types/breakdown';
@@ -72,7 +75,8 @@ const REQUIRED_FIELDS = [
     field: 'TC_Publisher', 
     label: 'Partenaire', 
     tab: 'strategie' 
-  }
+  },
+
   // Pour ajouter d'autres champs requis, décommentez et ajustez :
   // { field: 'TC_LOB', label: 'Ligne d\'affaires', tab: 'strategie' },
   // { field: 'TC_Budget', label: 'Budget', tab: 'budget' },
@@ -133,6 +137,7 @@ interface CustomDimensionsState {
 
 /**
  * Fonction de validation des champs obligatoires
+ * MODIFIÉE : Ajout de validation spéciale pour TC_CM360_Volume > 0
  * @param formData - Les données du formulaire à valider
  * @returns Un objet contenant les erreurs de validation (vide si tout est valide)
  */
@@ -147,6 +152,14 @@ const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors =>
       errors[field] = `Le champ "${label}" est obligatoire.`;
     }
   });
+
+  // VALIDATION SPÉCIALE pour TC_CM360_Volume : doit être > 0
+  const cm360Volume = (formData as any).TC_CM360_Volume;
+  if (cm360Volume !== undefined && cm360Volume !== null && cm360Volume !== '') {
+    if (Number(cm360Volume) <= 0) {
+      errors.TC_CM360_Volume = 'Le volume CM360 doit être supérieur à 0.';
+    }
+  }
   
   return errors;
 };
@@ -229,6 +242,7 @@ const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
 
 /**
  * Convertit un objet tactique provenant de Firestore en un format adapté au formulaire.
+ * MODIFIÉE : Ajout des nouveaux champs Tags
  */
 const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
   const baseData = {
@@ -265,6 +279,10 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_PO: tactique.TC_PO || '',
     TC_Placement: tactique.TC_Placement || '',
     TC_Format: tactique.TC_Format || '',
+    // NOUVEAUX CHAMPS TAGS
+    TC_Buy_Type: tactique.TC_Buy_Type || '',
+    TC_CM360_Volume: tactique.TC_CM360_Volume || 0,
+    TC_CM360_Rate: tactique.TC_CM360_Rate || 0,
     ...Object.fromEntries(
       Object.entries(tactique).filter(([key]) =>
         key.startsWith('TC_Budget') ||
@@ -316,6 +334,7 @@ const getDefaultFormData = (): TactiqueFormData => ({
 
 /**
  * Composant principal TactiqueDrawer CORRIGÉ pour les dimensions personnalisées et avec validation.
+ * MODIFIÉ : Ajout de l'onglet Tags
  */
 export default function TactiqueDrawer({
   isOpen,
@@ -372,6 +391,7 @@ export default function TactiqueDrawer({
   // NOUVEAU : État pour les erreurs de validation
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
+  // MODIFIÉ : Ajout de l'onglet Tags
   const tabs: FormTab[] = useMemo(() => [
     { id: 'info', name: 'Info', icon: DocumentTextIcon },
     { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
@@ -379,6 +399,8 @@ export default function TactiqueDrawer({
     { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
     { id: 'repartition', name: 'Répartition', icon: CalendarDaysIcon },
     { id: 'admin', name: 'Admin', icon: CogIcon },
+    { id: 'tags', name: 'Tags', icon: TagIcon }, // NOUVEAU ONGLET TAGS
+
   ], []);
 
   // MODIFIÉ : Exclure les dimensions personnalisées de cette liste car elles sont traitées séparément
@@ -814,6 +836,7 @@ export default function TactiqueDrawer({
     );
   };
 
+  // MODIFIÉ : Ajout du cas 'tags' dans le switch
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -868,6 +891,17 @@ export default function TactiqueDrawer({
             clientId={selectedClient?.clientId || ''} 
             onChange={handleChange}
             onCalculatedChange={handleBudgetChange}
+            onTooltipChange={setActiveTooltip}
+            loading={loading}
+          />
+        );
+
+      // NOUVEAU CAS : ONGLET TAGS
+      case 'tags':
+        return (
+          <TactiqueFormTags
+            formData={formData}
+            onChange={handleChange}
             onTooltipChange={setActiveTooltip}
             loading={loading}
           />
