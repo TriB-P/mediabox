@@ -131,7 +131,7 @@ export interface ParsedTaxonomyStructure {
   errors: string[];
 }
 
-// ==================== PLACEMENT AVEC CHAMPS DE PLACEMENT ====================
+// ==================== PLACEMENT AVEC CHAMPS DE PLACEMENT + TAGS ====================
 
 export interface Placement {
   id: string;
@@ -167,6 +167,12 @@ export interface Placement {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
+  // 🔥 NOUVEAUX CHAMPS TAGS
+  TC_Tag_Start_Date?: string;         // Date de début tag
+  TC_Tag_End_Date?: string;           // Date de fin tag  
+  TC_Tag_Type?: string;               // Type de tag (Video-Hosted, Video-Tracked, Display-Hosted, Display-Tracked, Audio-Hosted, Audio-Tracked)
+  TC_Third_Party_Measurement?: boolean; // Mesure tierce partie (défaut: false)
+  TC_VPAID?: boolean;                 // VPAID activé (défaut: true)
 
   createdAt?: string;
   updatedAt?: string;
@@ -376,6 +382,12 @@ export interface PlacementFormData {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
+  // 🔥 NOUVEAUX CHAMPS TAGS DANS LE FORMULAIRE
+  TC_Tag_Start_Date?: string;         // Date de début tag
+  TC_Tag_End_Date?: string;           // Date de fin tag  
+  TC_Tag_Type?: string;               // Type de tag
+  TC_Third_Party_Measurement?: boolean; // Mesure tierce partie
+  TC_VPAID?: boolean;                 // VPAID activé
 }
 
 // ==================== FORMULAIRE CRÉATIF COMPLET + SPECS ====================
