@@ -240,6 +240,9 @@ const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
   }
 };
 
+
+const round2 = (val: any) => val ? Math.round(Number(val) * 100) / 100 : 0;
+
 /**
  * Convertit un objet tactique provenant de Firestore en un format adapté au formulaire.
  * MODIFIÉE : Ajout des nouveaux champs Tags
@@ -279,10 +282,45 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_PO: tactique.TC_PO || '',
     TC_Placement: tactique.TC_Placement || '',
     TC_Format: tactique.TC_Format || '',
+    
     // NOUVEAUX CHAMPS TAGS
     TC_Buy_Type: tactique.TC_Buy_Type || '',
     TC_CM360_Volume: tactique.TC_CM360_Volume || 0,
     TC_CM360_Rate: tactique.TC_CM360_Rate || 0,
+    
+    // CORRECTION BUDGET : Charger tous les champs budgétaires
+    TC_Media_Budget: tactique.TC_Media_Budget || 0,
+    TC_Client_Budget: tactique.TC_Client_Budget || 0,
+    TC_BudgetChoice: tactique.TC_BudgetChoice || 'client',
+    TC_BudgetInput: tactique.TC_BudgetInput || 0,
+    TC_Unit_Price: tactique.TC_Unit_Price || 0,
+    TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
+    TC_Media_Value: tactique.TC_Media_Value || 0,
+    TC_Bonification: tactique.TC_Bonification || 0,
+    TC_Currency_Rate: tactique.TC_Currency_Rate || 1,
+    TC_BuyCurrency: tactique.TC_BuyCurrency || 'CAD',
+    TC_Delta: tactique.TC_Delta || 0,
+    TC_Unit_Type: tactique.TC_Unit_Type || '',
+    TC_Has_Bonus: tactique.TC_Has_Bonus || false,
+    
+    // CORRECTION FRAIS : Charger les frais appliqués
+    TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
+    TC_Fee_1_Volume: tactique.TC_Fee_1_Volume || 0,
+    TC_Fee_1_Value: tactique.TC_Fee_1_Value || 0,
+    TC_Fee_2_Option: tactique.TC_Fee_2_Option || '',
+    TC_Fee_2_Volume: tactique.TC_Fee_2_Volume || 0,
+    TC_Fee_2_Value: tactique.TC_Fee_2_Value || 0,
+    TC_Fee_3_Option: tactique.TC_Fee_3_Option || '',
+    TC_Fee_3_Volume: tactique.TC_Fee_3_Volume || 0,
+    TC_Fee_3_Value: tactique.TC_Fee_3_Value || 0,
+    TC_Fee_4_Option: tactique.TC_Fee_4_Option || '',
+    TC_Fee_4_Volume: tactique.TC_Fee_4_Volume || 0,
+    TC_Fee_4_Value: tactique.TC_Fee_4_Value || 0,
+    TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
+    TC_Fee_5_Volume: tactique.TC_Fee_5_Volume || 0,
+    TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
+    
+    // Conserver les autres champs dynamiques
     ...Object.fromEntries(
       Object.entries(tactique).filter(([key]) =>
         key.startsWith('TC_Budget') ||
@@ -302,6 +340,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     )
   };
 
+
   if (tactique.breakdowns) {
     baseData.breakdowns = tactique.breakdowns;
   }
@@ -314,9 +353,65 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
  */
 const mapFormToTactique = (formData: TactiqueFormData): any => {
   const formDataAny = formData as any;
+  
+  // Fonction d'arrondi simple
+  const round2 = (val: any) => val ? Math.round(Number(val) * 100) / 100 : 0;
+  
   return {
     ...formData,
-    TC_Budget: formDataAny.TC_Client_Budget || formData.TC_Budget || 0,
+    
+    // CORRECTION : Budgets arrondis à 2 décimales
+    TC_Budget: round2(formDataAny.TC_Client_Budget || formData.TC_Budget),
+    TC_Media_Budget: round2(formDataAny.TC_Media_Budget),
+    TC_Client_Budget: round2(formDataAny.TC_Client_Budget),
+    
+    // Paramètres budgétaires arrondis
+    TC_BudgetInput: round2(formDataAny.TC_BudgetInput),
+    TC_Unit_Price: round2(formDataAny.TC_Unit_Price),
+    TC_Unit_Volume: round2(formDataAny.TC_Unit_Volume),
+    TC_Media_Value: round2(formDataAny.TC_Media_Value),
+    TC_Bonification: round2(formDataAny.TC_Bonification),
+    TC_Currency_Rate: round2(formDataAny.TC_Currency_Rate) || 1,
+    TC_Delta: round2(formDataAny.TC_Delta),
+    
+    // Autres champs non-numériques
+    TC_BudgetChoice: formDataAny.TC_BudgetChoice,
+    TC_BuyCurrency: formDataAny.TC_BuyCurrency,
+    TC_Unit_Type: formDataAny.TC_Unit_Type,
+    TC_Has_Bonus: formDataAny.TC_Has_Bonus || false,
+    
+    // Frais arrondis
+    TC_Fee_1_Option: formDataAny.TC_Fee_1_Option || '',
+    TC_Fee_1_Volume: round2(formDataAny.TC_Fee_1_Volume),
+    TC_Fee_1_Value: round2(formDataAny.TC_Fee_1_Value),
+    TC_Fee_2_Option: formDataAny.TC_Fee_2_Option || '',
+    TC_Fee_2_Volume: round2(formDataAny.TC_Fee_2_Volume),
+    TC_Fee_2_Value: round2(formDataAny.TC_Fee_2_Value),
+    TC_Fee_3_Option: formDataAny.TC_Fee_3_Option || '',
+    TC_Fee_3_Volume: round2(formDataAny.TC_Fee_3_Volume),
+    TC_Fee_3_Value: round2(formDataAny.TC_Fee_3_Value),
+    TC_Fee_4_Option: formDataAny.TC_Fee_4_Option || '',
+    TC_Fee_4_Volume: round2(formDataAny.TC_Fee_4_Volume),
+    TC_Fee_4_Value: round2(formDataAny.TC_Fee_4_Value),
+    TC_Fee_5_Option: formDataAny.TC_Fee_5_Option || '',
+    TC_Fee_5_Volume: round2(formDataAny.TC_Fee_5_Volume),
+    TC_Fee_5_Value: round2(formDataAny.TC_Fee_5_Value),
+    
+    // CM360 arrondis
+    TC_CM360_Volume: round2(formDataAny.TC_CM360_Volume),
+    TC_CM360_Rate: round2(formDataAny.TC_CM360_Rate),
+    
+    // KPIs arrondis
+    TC_Kpi_CostPer: round2(formDataAny.TC_Kpi_CostPer),
+    TC_Kpi_Volume: round2(formDataAny.TC_Kpi_Volume),
+    TC_Kpi_CostPer_2: round2(formDataAny.TC_Kpi_CostPer_2),
+    TC_Kpi_Volume_2: round2(formDataAny.TC_Kpi_Volume_2),
+    TC_Kpi_CostPer_3: round2(formDataAny.TC_Kpi_CostPer_3),
+    TC_Kpi_Volume_3: round2(formDataAny.TC_Kpi_Volume_3),
+    TC_Kpi_CostPer_4: round2(formDataAny.TC_Kpi_CostPer_4),
+    TC_Kpi_Volume_4: round2(formDataAny.TC_Kpi_Volume_4),
+    TC_Kpi_CostPer_5: round2(formDataAny.TC_Kpi_CostPer_5),
+    TC_Kpi_Volume_5: round2(formDataAny.TC_Kpi_Volume_5),
   };
 };
 

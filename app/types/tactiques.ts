@@ -308,6 +308,38 @@ export interface TactiqueFormData {
   TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
   TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
   TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
+
+  // 🔥 CORRECTION BUDGET : Ajout des champs budgétaires manquants
+  TC_Media_Budget?: number; // Budget média calculé
+  TC_Client_Budget?: number; // Budget client calculé
+  TC_BudgetChoice?: 'client' | 'media'; // Mode de saisie du budget
+  TC_BudgetInput?: number; // Valeur saisie par l'utilisateur
+  TC_Unit_Price?: number; // Prix unitaire
+  TC_Unit_Volume?: number; // Volume d'unités
+  TC_Media_Value?: number; // Valeur média négociée
+  TC_Bonification?: number; // Bonification calculée
+  TC_Currency_Rate?: number; // Taux de change appliqué
+  TC_BuyCurrency?: string; // Devise d'achat
+  TC_Delta?: number; // Écart de budget
+  TC_Unit_Type?: string; // Type d'unité (CPM, CPC, etc.)
+  TC_Has_Bonus?: boolean; // Indicateur de bonification
+  
+  // Champs de frais (jusqu'à 5 frais possibles)
+  TC_Fee_1_Option?: string;
+  TC_Fee_1_Volume?: number;
+  TC_Fee_1_Value?: number;
+  TC_Fee_2_Option?: string;
+  TC_Fee_2_Volume?: number;
+  TC_Fee_2_Value?: number;
+  TC_Fee_3_Option?: string;
+  TC_Fee_3_Volume?: number;
+  TC_Fee_3_Value?: number;
+  TC_Fee_4_Option?: string;
+  TC_Fee_4_Volume?: number;
+  TC_Fee_4_Value?: number;
+  TC_Fee_5_Option?: string;
+  TC_Fee_5_Volume?: number;
+  TC_Fee_5_Value?: number;
 }
 
 export interface PlacementFormData {

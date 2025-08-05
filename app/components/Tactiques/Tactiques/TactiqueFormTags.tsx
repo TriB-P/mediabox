@@ -27,7 +27,7 @@ export default function TactiqueFormTags({
    */
   const calculateCM360Rate = (): number => {
     const formDataAny = formData as any;
-    const clientBudget = formDataAny.TC_Client_Budget || 0;
+    const mediaBudget = formDataAny.TC_Media_Budget || 0;
     const volume = formDataAny.TC_CM360_Volume || 0;
     const buyType = formDataAny.TC_Buy_Type;
 
@@ -36,7 +36,7 @@ export default function TactiqueFormTags({
       return 0;
     }
 
-    const baseRate = clientBudget / volume;
+    const baseRate = mediaBudget / volume;
 
     // Si CPM, multiplier par 1000
     if (buyType === 'CPM') {
@@ -68,7 +68,7 @@ export default function TactiqueFormTags({
       onChange(syntheticEvent);
     }
   }, [
-    (formData as any).TC_Client_Budget, 
+    (formData as any).TC_Media_Budget, 
     (formData as any).TC_CM360_Volume, 
     (formData as any).TC_Buy_Type,
     onChange
