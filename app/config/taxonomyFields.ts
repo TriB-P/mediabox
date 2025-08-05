@@ -110,8 +110,8 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
 
 export const TAXONOMY_FORMATS: FormatOption[] = [
   { id: 'code', label: 'Code', description: 'Utilise la valeur SH_Code du shortcode', requiresShortcode: true, allowsUserInput: false },
-  { id: 'display_fr', label: 'Display FR', description: 'Utilise la valeur SH_Display_Name_FR du shortcode', requiresShortcode: true, allowsUserInput: false },
-  { id: 'display_en', label: 'Display EN', description: 'Utilise la valeur SH_Display_Name_EN du shortcode', requiresShortcode: true, allowsUserInput: false },
+  { id: 'display_fr', label: 'Display FR', description: 'Utilise la valeur SH_Display_Name_EN du shortcode', requiresShortcode: true, allowsUserInput: false },
+  { id: 'display_en', label: 'Display EN', description: 'Utilise la valeur SH_Display_Name_FR du shortcode', requiresShortcode: true, allowsUserInput: false },
   { id: 'utm', label: 'UTM', description: 'Utilise la valeur SH_Default_UTM du shortcode', requiresShortcode: true, allowsUserInput: false },
   { id: 'custom_utm', label: 'UTM Personnalisé', description: 'Utilise la valeur personnalisée UTM du client, sinon SH_Default_UTM', requiresShortcode: true, allowsUserInput: false },
   { id: 'custom_code', label: 'Code Personnalisé', description: 'Utilise la valeur personnalisée Code du client, sinon SH_Code', requiresShortcode: true, allowsUserInput: false },

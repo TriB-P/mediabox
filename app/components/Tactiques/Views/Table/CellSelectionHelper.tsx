@@ -39,7 +39,7 @@ interface CampaignBucket {
 
 interface ListItem {
   id: string;
-  SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 /**
@@ -353,7 +353,7 @@ export function getColumnOptions(
       const listData = dynamicLists[columnKey] || [];
       return listData.map(item => ({
         id: item.id,
-        label: item.SH_Display_Name_FR
+        label: item.SH_Display_Name_EN
       }));
 
     default:

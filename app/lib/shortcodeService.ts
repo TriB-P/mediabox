@@ -25,8 +25,8 @@ export interface Shortcode {
   id: string;
   SH_Code: string;
   SH_Default_UTM?: string;
-  SH_Display_Name_EN?: string;
-  SH_Display_Name_FR: string;
+  SH_Display_Name_FR?: string;
+  SH_Display_Name_EN: string;
   SH_Type?: string;
   SH_Tags?: string[];
 }

@@ -325,8 +325,8 @@ export default function CampaignDrawer({
             newDynamicLists[field] = cachedList.map(item => ({
               id: item.id,
               SH_Code: item.SH_Code,
-              SH_Display_Name_FR: item.SH_Display_Name_FR,
-              SH_Display_Name_EN: item.SH_Display_Name_EN ?? '',
+              SH_Display_Name_EN: item.SH_Display_Name_EN,
+              SH_Display_Name_FR: item.SH_Display_Name_FR ?? '',
               SH_Default_UTM: item.SH_Default_UTM,
               SH_Logo: item.SH_Logo,
               SH_Type: item.SH_Type,

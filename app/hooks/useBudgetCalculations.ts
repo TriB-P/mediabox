@@ -13,7 +13,7 @@ interface UseBudgetCalculationsProps {
   clientFees: ClientFee[];
   campaignCurrency: string;
   exchangeRates: { [key: string]: number };
-  unitTypeOptions: Array<{ id: string; SH_Display_Name_FR: string }>;
+  unitTypeOptions: Array<{ id: string; SH_Display_Name_EN: string }>;
   autoCalculate?: boolean;
 }
 
@@ -163,7 +163,7 @@ function calculateFeesCorrectly(
  * @param {ClientFee[]} props.clientFees La liste des frais clients applicables.
  * @param {string} props.campaignCurrency La devise de la campagne.
  * @param {{[key: string]: number}} props.exchangeRates Les taux de change.
- * @param {Array<{id: string; SH_Display_Name_FR: string}>} props.unitTypeOptions Les options de type d'unité.
+ * @param {Array<{id: string; SH_Display_Name_EN: string}>} props.unitTypeOptions Les options de type d'unité.
  * @param {boolean} [props.autoCalculate=true] Indique si le calcul doit être déclenché automatiquement lors des changements de données.
  * @returns {UseBudgetCalculationsReturn} Un objet contenant les données du budget, l'état de calcul, les erreurs, et les fonctions de manipulation.
  */
@@ -351,7 +351,7 @@ export function useBudgetCalculations({
  * @param {ClientFee[]} clientFees La liste des frais clients.
  * @param {string} campaignCurrency La devise de la campagne.
  * @param {{[key: string]: number}} exchangeRates Les taux de change.
- * @param {Array<{id: string; SH_Display_Name_FR: string}>} unitTypeOptions Les options de type d'unité.
+ * @param {Array<{id: string; SH_Display_Name_EN: string}>} unitTypeOptions Les options de type d'unité.
  * @returns {() => BudgetCalculationResult} Une fonction qui, lorsqu'elle est appelée, exécute le calcul complet et retourne le résultat.
  */
 export function useBudgetCalculationsReadOnly(
@@ -359,7 +359,7 @@ export function useBudgetCalculationsReadOnly(
   clientFees: ClientFee[],
   campaignCurrency: string,
   exchangeRates: { [key: string]: number },
-  unitTypeOptions: Array<{ id: string; SH_Display_Name_FR: string }>
+  unitTypeOptions: Array<{ id: string; SH_Display_Name_EN: string }>
 ) {
   return useCallback(() => {
     return budgetService.calculateComplete(

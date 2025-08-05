@@ -23,7 +23,7 @@ import { ClientFee } from '../../../lib/budgetService';
 
 interface ListItem {
   id: string;
-  SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 interface TactiqueFormBudgetProps {
@@ -447,7 +447,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           totalFees={calculatedTotalFees}
           unitTypeOptions={unitTypeOptions.map(item => ({ 
             id: item.id, 
-            label: item.SH_Display_Name_FR 
+            label: item.SH_Display_Name_EN 
           }))}
           clientId={clientId}
           onChange={handleFormChange}

@@ -188,7 +188,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 name="CA_Division"
                 value={formData.CA_Division || ''}
                 onChange={onChange}
-                options={divisions.map(d => ({ id: d.id, label: d.SH_Display_Name_FR }))}
+                options={divisions.map(d => ({ id: d.id, label: d.SH_Display_Name_EN }))}
                 placeholder={t('campaigns.formInfo.divisionPlaceholder')}
                 label=""
               />
@@ -205,7 +205,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 name="CA_Quarter"
                 value={formData.CA_Quarter|| ''}
                 onChange={onChange}
-                options={quarters.map(q => ({ id: q.id, label: q.SH_Display_Name_FR }))}
+                options={quarters.map(q => ({ id: q.id, label: q.SH_Display_Name_EN }))}
                 placeholder={t('campaigns.formInfo.quarterPlaceholder')}
                 label=""
               />
@@ -222,7 +222,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                 name="CA_Year"
                 value={formData.CA_Year}
                 onChange={onChange}
-                options={years.map(y => ({ id: y.id, label: y.SH_Display_Name_FR }))}
+                options={years.map(y => ({ id: y.id, label: y.SH_Display_Name_EN }))}
                 placeholder={t('campaigns.formInfo.yearPlaceholder')}
                 label=""
               />
@@ -241,7 +241,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_1"
                     value={formData.CA_Custom_Dim_1 || ''}
                     onChange={onChange}
-                    options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_EN }))}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_1 })}
                     label=""
                   />
@@ -272,7 +272,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_2"
                     value={formData.CA_Custom_Dim_2 || ''}
                     onChange={onChange}
-                    options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_EN }))}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_2 })}
                     label=""
                   />
@@ -303,7 +303,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_3"
                     value={formData.CA_Custom_Dim_3 || ''}
                     onChange={onChange}
-                    options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_EN }))}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_3 })}
                     label=""
                   />

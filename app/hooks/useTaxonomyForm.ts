@@ -50,8 +50,8 @@ interface FieldState {
 interface ShortcodeData {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
 }
 
@@ -180,8 +180,8 @@ export function useTaxonomyForm({
           convertedCache[id] = {
             id: shortcode.id,
             SH_Code: shortcode.SH_Code,
-            SH_Display_Name_FR: shortcode.SH_Display_Name_FR,
             SH_Display_Name_EN: shortcode.SH_Display_Name_EN,
+            SH_Display_Name_FR: shortcode.SH_Display_Name_FR,
             SH_Default_UTM: shortcode.SH_Default_UTM
           };
         });
@@ -272,14 +272,14 @@ export function useTaxonomyForm({
 
     switch (format) {
       case 'code': return shortcodeData.SH_Code;
-      case 'display_fr': return shortcodeData.SH_Display_Name_FR;
-      case 'display_en': return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR;
+      case 'display_fr': return shortcodeData.SH_Display_Name_EN;
+      case 'display_en': return shortcodeData.SH_Display_Name_FR || shortcodeData.SH_Display_Name_EN;
       case 'utm': return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
       case 'custom_utm':
         return customCodeMatch?.customCode || shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
       case 'custom_code':
         return customCodeMatch?.customCode || shortcodeData.SH_Code;
-      default: return shortcodeData.SH_Display_Name_FR;
+      default: return shortcodeData.SH_Display_Name_EN;
     }
   }, [shortcodeCache, customCodesCache, loadShortcode]);
 
@@ -388,7 +388,7 @@ export function useTaxonomyForm({
           if (cachedList) {
             options = cachedList.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_FR || item.SH_Code || item.id,
+              label: item.SH_Display_Name_EN || item.SH_Code || item.id,
               code: item.SH_Code
             }));
           }

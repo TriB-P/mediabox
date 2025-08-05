@@ -92,7 +92,7 @@ interface CampaignBucket {
 
 interface ListItem {
   id: string;
-  SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 interface DynamicTableStructureProps {
@@ -425,7 +425,7 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
           if (cachedList && cachedList.length > 0) {
             options = cachedList.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_FR || item.SH_Code || item.id
+              label: item.SH_Display_Name_EN || item.SH_Code || item.id
             }));
             console.log(`✅ Options chargées pour ${variableName}:`, options.length);
           }

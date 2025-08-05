@@ -25,8 +25,8 @@ interface ShortcodeActionsProps {
   onCreateShortcode: (shortcodeData: {
     SH_Code: string;
     SH_Default_UTM: string;
-    SH_Display_Name_FR: string;
     SH_Display_Name_EN: string;
+    SH_Display_Name_FR: string;
   }) => Promise<void>;
   onAddShortcode: (shortcodeId: string) => Promise<void>;
   searchQuery: string;
@@ -55,8 +55,8 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
   const [newShortcode, setNewShortcode] = useState({
     SH_Code: '',
     SH_Default_UTM: '',
-    SH_Display_Name_FR: '',
     SH_Display_Name_EN: '',
+    SH_Display_Name_FR: '',
   });
 
   /**
@@ -68,8 +68,8 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
       setNewShortcode({
         SH_Code: '',
         SH_Default_UTM: '',
-        SH_Display_Name_FR: '',
         SH_Display_Name_EN: '',
+        SH_Display_Name_FR: '',
       });
       setIsCreateModalOpen(false);
     } catch (error) {
@@ -188,22 +188,8 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   </div>
                   
                   <div>
-                    <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeActions.createModal.form.nameFRLabel')} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="SH_Display_Name_FR"
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      value={newShortcode.SH_Display_Name_FR}
-                      onChange={(e) => setNewShortcode({...newShortcode, SH_Display_Name_FR: e.target.value})}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
                     <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeActions.createModal.form.nameENLabel')}
+                      {t('shortcodeActions.createModal.form.nameFRLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -211,6 +197,20 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       value={newShortcode.SH_Display_Name_EN}
                       onChange={(e) => setNewShortcode({...newShortcode, SH_Display_Name_EN: e.target.value})}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('shortcodeActions.createModal.form.nameENLabel')}
+                    </label>
+                    <input
+                      type="text"
+                      id="SH_Display_Name_FR"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      value={newShortcode.SH_Display_Name_FR}
+                      onChange={(e) => setNewShortcode({...newShortcode, SH_Display_Name_FR: e.target.value})}
                     />
                   </div>
                   

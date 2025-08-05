@@ -32,8 +32,8 @@ import { useTranslation } from '../../contexts/LanguageContext';
 interface Partner {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -199,7 +199,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
    */
   const renderPlaceholder = () => (
     <div className="h-40 w-40 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-500">
-      {partner?.SH_Display_Name_FR.charAt(0).toUpperCase()}
+      {partner?.SH_Display_Name_EN.charAt(0).toUpperCase()}
     </div>
   );
 
@@ -350,8 +350,8 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
     if (partner) {
       setPartnerFormData({
         SH_Code: partner.SH_Code || '',
-        SH_Display_Name_FR: partner.SH_Display_Name_FR || '',
         SH_Display_Name_EN: partner.SH_Display_Name_EN || '',
+        SH_Display_Name_FR: partner.SH_Display_Name_FR || '',
         SH_Default_UTM: partner.SH_Default_UTM || '',
         SH_Logo: partner.SH_Logo || '',
         SH_Type: partner.SH_Type || ''
@@ -425,7 +425,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                     <div className="sticky top-0 z-10 bg-indigo-600 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-lg font-medium text-white">
-                          {partner?.SH_Display_Name_FR || t('partnerDrawer.header.titleFallback')}
+                          {partner?.SH_Display_Name_EN || t('partnerDrawer.header.titleFallback')}
                         </Dialog.Title>
                         <div className="ml-3 flex h-7 items-center">
                           <button
@@ -475,7 +475,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                     ) : imageUrl && !imageError ? (
                                       <img
                                         src={imageUrl}
-                                        alt={partner.SH_Display_Name_FR}
+                                        alt={partner.SH_Display_Name_EN}
                                         className="max-h-full max-w-full object-contain"
                                         onError={() => setImageError(true)}
                                       />
@@ -499,12 +499,12 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameFr')}</label>
+                                  <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameFr')}</label>
                                   <input
                                     type="text"
-                                    name="SH_Display_Name_FR"
-                                    id="SH_Display_Name_FR"
-                                    value={partnerFormData.SH_Display_Name_FR || ''}
+                                    name="SH_Display_Name_EN"
+                                    id="SH_Display_Name_EN"
+                                    value={partnerFormData.SH_Display_Name_EN || ''}
                                     onChange={handlePartnerFormChange}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                     required
@@ -512,12 +512,12 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                 </div>
 
                                 <div>
-                                  <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameEn')}</label>
+                                  <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700">{t('partnerDrawer.labels.displayNameEn')}</label>
                                   <input
                                     type="text"
-                                    name="SH_Display_Name_EN"
-                                    id="SH_Display_Name_EN"
-                                    value={partnerFormData.SH_Display_Name_EN || ''}
+                                    name="SH_Display_Name_FR"
+                                    id="SH_Display_Name_FR"
+                                    value={partnerFormData.SH_Display_Name_FR || ''}
                                     onChange={handlePartnerFormChange}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
@@ -625,19 +625,19 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                         ) : imageUrl && !imageError ? (
                                           <img
                                             src={imageUrl}
-                                            alt={partner.SH_Display_Name_FR}
+                                            alt={partner.SH_Display_Name_EN}
                                             className="h-24 w-24 object-contain"
                                             onError={() => setImageError(true)}
                                           />
                                         ) : (
                                           <div className="h-24 w-24 bg-indigo-100 rounded-full flex items-center justify-center text-2xl text-indigo-800 font-semibold">
-                                            {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
+                                            {partner.SH_Display_Name_EN.charAt(0).toUpperCase()}
                                           </div>
                                         )}
                                       </div>
                                       <div className="flex-1 text-center sm:text-left">
                                         <div className="flex justify-between items-center">
-                                          <h2 className="text-2xl font-bold text-gray-900">{partner.SH_Display_Name_FR}</h2>
+                                          <h2 className="text-2xl font-bold text-gray-900">{partner.SH_Display_Name_EN}</h2>
                                           {onUpdatePartner && (
                                             <button
                                               type="button"
@@ -648,8 +648,8 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                             </button>
                                           )}
                                         </div>
-                                        {partner.SH_Display_Name_EN && (
-                                          <p className="mt-1 text-lg text-gray-600">{partner.SH_Display_Name_EN}</p>
+                                        {partner.SH_Display_Name_FR && (
+                                          <p className="mt-1 text-lg text-gray-600">{partner.SH_Display_Name_FR}</p>
                                         )}
                                         {partner.SH_Type && (
                                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mt-2">

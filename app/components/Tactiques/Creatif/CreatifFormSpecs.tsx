@@ -22,7 +22,7 @@ import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface ListItem {
   id: string;
-  SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 interface CreatifFormSpecsProps {
@@ -223,7 +223,7 @@ export default function CreatifFormSpecs({
           onChange={handlePartnerChange}
           options={publishersList.map(publisher => ({
             id: publisher.id,
-            label: publisher.SH_Display_Name_FR
+            label: publisher.SH_Display_Name_EN
           }))}
           placeholder={t('creatifFormSpecs.selection.partnerPlaceholder')}
           label={createLabelWithHelp(

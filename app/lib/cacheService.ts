@@ -18,8 +18,8 @@ import { db } from './firebase';
 export interface ShortcodeItem {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -242,8 +242,8 @@ async function loadAllShortcodes(): Promise<{ [shortcodeId: string]: ShortcodeIt
       allShortcodes[doc.id] = {
         id: doc.id,
         SH_Code: data.SH_Code || doc.id,
-        SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || doc.id,
-        SH_Display_Name_EN: data.SH_Display_Name_EN,
+        SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || doc.id,
+        SH_Display_Name_FR: data.SH_Display_Name_FR,
         SH_Default_UTM: data.SH_Default_UTM,
         SH_Logo: data.SH_Logo,
         SH_Type: data.SH_Type,
@@ -527,7 +527,7 @@ export function getListForClient(listType: string, clientId: string): ShortcodeI
     });
 
     return result.sort((a, b) =>
-      a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+      a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
     );
 
   } catch (error) {

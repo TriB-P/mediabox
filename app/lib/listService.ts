@@ -9,8 +9,8 @@ import { db } from './firebase';
 export interface ShortcodeItem {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
   SH_Display_Name_EN: string;
+  SH_Display_Name_FR: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -82,8 +82,8 @@ export async function getClientList(
         return {
           id: shortcodeSnap.id,
           SH_Code: data.SH_Code || id,
-          SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || id,
-          SH_Display_Name_EN: data.SH_Display_Name_EN,
+          SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || id,
+          SH_Display_Name_FR: data.SH_Display_Name_FR,
           SH_Default_UTM: data.SH_Default_UTM,
           SH_Logo: data.SH_Logo,
           SH_Type: data.SH_Type,
@@ -97,7 +97,7 @@ export async function getClientList(
     const finalShortcodes = resolvedShortcodes.filter(s => s !== null) as ShortcodeItem[];
 
     return finalShortcodes.sort((a, b) => 
-      a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+      a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
     );
 
   } catch (error) {
@@ -136,8 +136,8 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
         return {
           id: partnerId,
           SH_Code: data.SH_Code || partnerId,
-          SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerId,
           SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || partnerId,
+          SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerId,
           SH_Default_UTM: data.SH_Default_UTM,
           SH_Logo: data.SH_Logo,
           SH_Type: data.SH_Type,
@@ -152,7 +152,7 @@ export async function getPartnersList(): Promise<ShortcodeItem[]> {
     const partners = partnersResults.filter(p => p !== null) as ShortcodeItem[];
     
     return partners.sort((a, b) => 
-      a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+      a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
     );
   } catch (error) {
     console.error('Erreur lors de la récupération des partenaires:', error);
@@ -179,8 +179,8 @@ export async function getPartnerById(partnerId: string): Promise<ShortcodeItem |
     return {
       id: partnerDoc.id,
       SH_Code: data.SH_Code || partnerDoc.id,
-      SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerDoc.id,
       SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || partnerDoc.id,
+      SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || partnerDoc.id,
       SH_Default_UTM: data.SH_Default_UTM,
       SH_Logo: data.SH_Logo,
       SH_Type: data.SH_Type,

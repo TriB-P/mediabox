@@ -78,12 +78,12 @@ export function useConvertShortcodesDoc(): UseConvertShortcodesDocReturn {
     shortcode: ShortcodeItem, 
     language: 'FR' | 'EN'
   ): string => {
-    if (language === 'EN' && shortcode.SH_Display_Name_EN) {
-      return shortcode.SH_Display_Name_EN;
+    if (language === 'EN' && shortcode.SH_Display_Name_FR) {
+      return shortcode.SH_Display_Name_FR;
     }
     
     // Fallback vers français si pas de version anglaise ou si langue est FR
-    return shortcode.SH_Display_Name_FR;
+    return shortcode.SH_Display_Name_EN;
   }, []);
 
   /**

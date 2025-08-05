@@ -15,8 +15,8 @@ import { useTranslation } from '../../contexts/LanguageContext';
 interface Partner {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -52,7 +52,7 @@ export default function PartenairesGrid({
    */
   const renderPlaceholder = (partner: Partner) => (
     <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
-      {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
+      {partner.SH_Display_Name_EN.charAt(0).toUpperCase()}
     </div>
   );
 
@@ -129,7 +129,7 @@ export default function PartenairesGrid({
               <div className="h-20 w-20 flex items-center justify-center">
                 <img
                   src={imageUrls[partner.id]}
-                  alt={partner.SH_Display_Name_FR}
+                  alt={partner.SH_Display_Name_EN}
                   className="max-h-full max-w-full object-contain"
                   onError={() => {
                     setImageUrls(prev => {
@@ -146,7 +146,7 @@ export default function PartenairesGrid({
             )}
           </div>
           <p className="text-sm font-medium text-center text-gray-900 mt-2">
-            {partner.SH_Display_Name_FR}
+            {partner.SH_Display_Name_EN}
           </p>
           {partner.SH_Type && (
             <p className="text-xs text-gray-500 mt-1">

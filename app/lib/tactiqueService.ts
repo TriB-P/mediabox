@@ -1091,7 +1091,7 @@ export async function hasUnitTypeList(clientId: string): Promise<boolean> {
  * @param clientId L'ID du client.
  * @returns Une promesse qui résout en un tableau d'objets avec l'ID et le nom d'affichage français du type d'unité.
  */
-export async function getUnitTypes(clientId: string): Promise<Array<{ id: string, SH_Display_Name_FR: string }>> {
+export async function getUnitTypes(clientId: string): Promise<Array<{ id: string, SH_Display_Name_EN: string }>> {
   try {
     const unitTypesRef = collection(db, 'shortcodes');
     console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: getUnitTypes - Path: shortcodes");
@@ -1099,12 +1099,12 @@ export async function getUnitTypes(clientId: string): Promise<Array<{ id: string
       unitTypesRef,
       where('SH_Dimension', '==', 'TC_Unit_Type'),
       where('SH_Client_ID', 'in', [clientId, 'PlusCo']),
-      orderBy('SH_Display_Name_FR', 'asc')
+      orderBy('SH_Display_Name_EN', 'asc')
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
-      SH_Display_Name_FR: doc.data().SH_Display_Name_FR
+      SH_Display_Name_EN: doc.data().SH_Display_Name_EN
     }));
   } catch (error) {
     console.error('Erreur lors de la récupération des types d\'unité:', error);

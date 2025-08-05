@@ -14,8 +14,8 @@ import { useTranslation } from '../../contexts/LanguageContext';
 interface Partner {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;

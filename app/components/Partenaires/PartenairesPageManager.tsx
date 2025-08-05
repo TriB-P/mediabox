@@ -17,8 +17,8 @@ import DrawerContainer from './DrawerContainer';
 interface Partner {
   id: string;
   SH_Code: string;
-  SH_Display_Name_FR: string;
-  SH_Display_Name_EN?: string;
+  SH_Display_Name_EN: string;
+  SH_Display_Name_FR?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -33,8 +33,8 @@ interface Partner {
 const convertShortcodeToPartner = (shortcode: ShortcodeItem): Partner => ({
   id: shortcode.id,
   SH_Code: shortcode.SH_Code,
-  SH_Display_Name_FR: shortcode.SH_Display_Name_FR,
   SH_Display_Name_EN: shortcode.SH_Display_Name_EN,
+  SH_Display_Name_FR: shortcode.SH_Display_Name_FR,
   SH_Default_UTM: shortcode.SH_Default_UTM,
   SH_Logo: shortcode.SH_Logo,
   SH_Type: shortcode.SH_Type,
@@ -84,7 +84,7 @@ export default function PartenairesPageManager() {
         const partnersData = Object.values(allShortcodes)
           .map(convertShortcodeToPartner)
           .sort((a, b) => 
-            a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+            a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
           );
 
         setPartners(partnersData);
@@ -122,8 +122,8 @@ export default function PartenairesPageManager() {
       const searchFields = [
         partner.id,
         partner.SH_Code,
-        partner.SH_Display_Name_FR,
         partner.SH_Display_Name_EN,
+        partner.SH_Display_Name_FR,
         partner.SH_Default_UTM
       ].filter(Boolean).map(field => field?.toLowerCase());
       

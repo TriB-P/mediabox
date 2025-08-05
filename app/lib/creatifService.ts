@@ -105,9 +105,9 @@ function formatShortcodeValue(
         case 'code':
             return shortcodeData.SH_Code || '';
         case 'display_fr':
-            return shortcodeData.SH_Display_Name_FR || '';
+            return shortcodeData.SH_Display_Name_EN || '';
         case 'display_en':
-            return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR || '';
+            return shortcodeData.SH_Display_Name_FR || shortcodeData.SH_Display_Name_EN || '';
         case 'utm':
             return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
         case 'custom_utm':
@@ -115,7 +115,7 @@ function formatShortcodeValue(
         case 'custom_code':
             return customCode || shortcodeData.SH_Code || '';
         default:
-            return shortcodeData.SH_Display_Name_FR || '';
+            return shortcodeData.SH_Display_Name_EN || '';
     }
 }
 

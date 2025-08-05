@@ -63,7 +63,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
    * @returns {Promise<void>}
    */
   const handleSubmit = async () => {
-    if (!editedShortcode.SH_Code || !editedShortcode.SH_Display_Name_FR) {
+    if (!editedShortcode.SH_Code || !editedShortcode.SH_Display_Name_EN) {
       setError(t('shortcodeDetail.errors.requiredFields'));
       return;
     }
@@ -75,8 +75,8 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
       console.log(`FIREBASE: ÉCRITURE - Fichier: ShortcodeDetail.tsx - Fonction: handleSubmit - Path: shortcodes/${shortcode.id}`);
       await updateShortcodeService(shortcode.id, {
         SH_Code: editedShortcode.SH_Code,
-        SH_Display_Name_FR: editedShortcode.SH_Display_Name_FR,
         SH_Display_Name_EN: editedShortcode.SH_Display_Name_EN,
+        SH_Display_Name_FR: editedShortcode.SH_Display_Name_FR,
         SH_Default_UTM: editedShortcode.SH_Default_UTM,
         SH_Type: editedShortcode.SH_Type,
         SH_Tags: editedShortcode.SH_Tags,
@@ -183,30 +183,30 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                   </div>
                   
                   <div>
-                    <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeDetail.form.displayNameFrLabel')} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="SH_Display_Name_FR"
-                      name="SH_Display_Name_FR"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      value={editedShortcode.SH_Display_Name_FR}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
                     <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeDetail.form.displayNameEnLabel')}
+                      {t('shortcodeDetail.form.displayNameFrLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       id="SH_Display_Name_EN"
                       name="SH_Display_Name_EN"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      value={editedShortcode.SH_Display_Name_EN || ''}
+                      value={editedShortcode.SH_Display_Name_EN}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('shortcodeDetail.form.displayNameEnLabel')}
+                    </label>
+                    <input
+                      type="text"
+                      id="SH_Display_Name_FR"
+                      name="SH_Display_Name_FR"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      value={editedShortcode.SH_Display_Name_FR || ''}
                       onChange={handleChange}
                     />
                   </div>
