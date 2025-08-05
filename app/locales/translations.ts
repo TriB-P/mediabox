@@ -4,6 +4,7 @@
  * Contient toutes les traductions en français et anglais.
  */
 
+import ListHeader from "@/components/Client/ListHeader";
 import ClientDropdown from "@/components/Others/ClientDropdown";
 
 export const translations = {
@@ -1628,8 +1629,294 @@ export const translations = {
           subtitle: "Prévisualisation des niveaux 5-6 des taxonomies sélectionnées"
         }
     },
+    clientLists: {
+      noClient: {
+        title: "Aucun client sélectionné",
+        description: "Veuillez sélectionner un client pour gérer ses listes de shortcodes."
+      },
+      header: {
+        title: "Configuration des listes"
+      },
+      readOnly: {
+        message: "Vous êtes en mode lecture seule. Contactez votre administrateur pour obtenir les permissions de modification."
+      },
+      initialState: {
+        title: "Sélectionnez une dimension",
+        description: "Choisissez une dimension dans la liste de gauche pour gérer les shortcodes."
+      },
+      deleteModal: {
+        title: "Confirmer la suppression",
+        confirmationTextPart1: "Êtes-vous sûr de vouloir supprimer cette liste personnalisée ? Le système utilisera automatiquement la liste par défaut (PlusCo) à la place. Cette action est",
+        confirmationTextPart2: "irréversible",
+        confirmButton: "Supprimer définitivement"
+      }
+    },
+    dimensionSidebar: {
+        header: {
+          title: "Dimensions",
+          customPersonalized: "personnalisée",
+          customPersonalized_plural: "personnalisées"
+        },
+        search: {
+          placeholder: "Rechercher une dimension...",
+          noMatch: "Aucune dimension ne correspond à"
+        },
+        status: {
+          noDimensionsAvailable: "Aucune dimension disponible"
+        },
+        list: {
+          selectDimension: "Sélectionner",
+          customListTooltip: "liste personnalisée",
+          pluscoListTooltip: "liste PlusCo",
+          customListTitle: "Liste personnalisée",
+          customBadge: "Custom",
+          pluscoBadge: "PlusCo"
+        },
+        footer: {
+          result: "résultat",
+          results: "résultats",
+          dimensionAvailable: "dimension disponible",
+          dimensionsAvailable: "dimensions disponibles"
+        }
+    },
+    listHeader: {
+      listHeader: {
+        customList: "Liste personnalisée",
+        pluscoList: "Liste PlusCo",
+        specificTo: "Spécifique à",
+        commonList: "Liste commune",
+        permissionRequired: "Permission requise",
+        createCustomList: "Créer une liste personnalisée",
+        deleteThisCustomList: "Supprimer cette liste personnalisée",
+        deleteCustomList: "Supprimer la liste personnalisée"
+      }
+    },
+    shortcodeActions: {
+      browse: {
+        title: "Parcourir tous les shortcodes disponibles",
+        button: "Voir tous les shortcodes"
+      },
+      create: {
+        noPermission: "Vous n'avez pas la permission de créer des shortcodes",
+        title: "Créer un nouveau shortcode",
+        button: "Nouveau shortcode"
+      },
+      search: {
+        placeholder: "Rechercher dans cette liste..."
+      },
+      createModal: {
+        title: "Créer un nouveau shortcode",
+        form: {
+          codeLabel: "Code",
+          nameFRLabel: "Nom d'affichage FR",
+          nameENLabel: "Nom d'affichage EN",
+          defaultUTMLabel: "UTM par défaut"
+        },
+        submitButton: "Créer et assigner"
+      }
+    },
+    shortcodeDetail: {
+      modal: {
+        title: "Détails du shortcode"
+      },
+      errors: {
+        requiredFields: "Le code et le nom d'affichage FR sont obligatoires.",
+        updateFailed: "Impossible de mettre à jour le shortcode.",
+        deleteFailed: "Impossible de supprimer le shortcode."
+      },
+      form: {
+        codeLabel: "Code",
+        displayNameFrLabel: "Nom d'affichage FR",
+        displayNameEnLabel: "Nom d'affichage EN",
+        defaultUtmLabel: "UTM par défaut",
+        typeLabel: "Type"
+      },
+      buttons: {
+        saving: "Enregistrement...",
+        deleting: "Suppression..."
+      },
+      deleteModal: {
+        title: "Confirmer la suppression",
+        areYouSure: "Êtes-vous sûr de vouloir supprimer le shortcode ",
+        irreversible: " ? Cette action est irréversible et supprimera également ce shortcode de toutes les listes."
+      }
+    },
+    shortcodeTable: {
+      remove: {
+        confirmCustom: "Êtes-vous sûr de vouloir retirer \"{name}\" de cette liste personnalisée ?",
+        confirmPlusco: "Êtes-vous sûr de vouloir retirer \"{name}\" de la liste PlusCo ? Cela affectera tous les clients qui utilisent cette liste."
+      },
+      empty: {
+        title: "Liste vide",
+        description: "Cette liste ne contient aucun shortcode. Utilisez les boutons d'action ci-dessus pour en ajouter."
+      },
+      search: {
+        noResults: "Aucun résultat",
+        noMatchPart1: "Aucun shortcode ne correspond à votre recherche \"",
+        noMatchPart2: "\" dans cette liste."
+      },
+      header: {
+        listTitle: "Shortcodes de la liste",
+        searchResults: "Résultats de recherche",
+        code: "Code",
+        nameFR: "Nom français",
+        nameEN: "Nom anglais",
+        defaultUTM: "UTM par défaut",
+        type: "Type",
+        actions: "Actions"
+      },
+      label: {
+        shortcode: "shortcode",
+        shortcodes: "shortcodes",
+        totalInList: "au total dans cette liste"
+      },
+      cell: {
+        notDefined: "Non défini"
+      },
+      tooltip: {
+        copyId: "Copier l'ID",
+        idCopied: "ID copié !",
+        editShortcode: "Modifier ce shortcode",
+        removing: "Suppression en cours...",
+        permissionRequired: "Permission requise",
+        removeFromCustom: "Retirer de cette liste",
+        removeFromPlusco: "Retirer de la liste PlusCo"
+      },
+      footer: {
+        resultsDisplayedSingular: "résultat affiché",
+        resultsDisplayedPlural: "résultats affichés",
+        totalSingular: "shortcode au total",
+        totalPlural: "shortcodes au total",
+        pluscoWarning: "Les modifications affectent tous les clients utilisant la liste PlusCo"
+      }
+    },
+    feeForm: {
+      labels: {
+        name: "Nom du frais",
+        calculationType: "Type de calcul",
+        calculationMode: "Mode de calcul"
+      },
+      placeholders: {
+        name: "Nom du frais"
+      },
+      calculationTypes: {
+        volumeUnit: "Volume d'unité",
+        fixedFee: "Frais fixe",
+        percentageBudget: "Pourcentage budget",
+        units: "Unités"
+      },
+      calculationModes: {
+        direct: "Directement sur le budget média",
+        onPrevious: "Applicable sur les frais précédents"
+      }
+    },
+    placementFormInfo: {
+      header: {
+        title: "Informations du placement",
+        subtitle: "Configuration de base et taxonomies pour le placement"
+      },
+      fields: {
+        nameLabel: "Nom du placement *",
+        namePlaceholder: "Ex: Bannières Desktop, Vidéo Mobile, Display Tablet",
+        nameTooltip: "Nom descriptif du placement. Soyez spécifique pour faciliter l'identification.",
+        startDateLabel: "Date de début",
+        startDateTooltip: "Date de début du placement. Hérite de la tactique ou de la campagne si non spécifiée.",
+        endDateLabel: "Date de fin",
+        endDateTooltip: "Date de fin du placement. Hérite de la tactique ou de la campagne si non spécifiée."
+      },
+      taxonomies: {
+        title: "Taxonomies placements (niveaux 3-4)",
+        placeholder: "Sélectionner une taxonomie...",
+        tagsLabel: "Taxonomie à utiliser pour les tags",
+        tagsTooltip: "Taxonomie qui sera utilisée pour générer les tags du placement",
+        platformLabel: "Taxonomie à utiliser pour la plateforme",
+        platformTooltip: "Taxonomie qui sera utilisée pour la configuration de la plateforme",
+        mediaOceanLabel: "Taxonomie à utiliser pour MediaOcean",
+        mediaOceanTooltip: "Taxonomie qui sera utilisée pour l'export vers MediaOcean"
+      },
+      notifications: {
+        taxonomiesError: "Erreur lors du chargement des taxonomies",
+        retry: "Réessayer",
+        noTaxonomiesConfigured: "Aucune taxonomie configurée pour ce client.",
+        youCanCreateTaxonomies: "Vous pouvez créer des taxonomies dans la section Configuration.",
+        loadingData: "Chargement des données...",
+        loadingTaxonomies: "Chargement des taxonomies..."
+      }
+    },
+    placementFormTaxonomy: {
+      error: {
+        retry: "Réessayer"
+      },
+      noTaxonomy: {
+        title: "Configuration des taxonomies",
+        description: "Veuillez d'abord sélectionner des taxonomies dans l'onglet \"Informations\" pour configurer les variables."
+      },
+      loading: {
+        data: "Chargement des données...",
+        taxonomyAnalysis: "Analyse des taxonomies..."
+      }
+    },
+    taxonomyFieldRenderer: {
+      select: {
+        placeholder: "Sélectionner..."
+      },
+      input: {
+        placeholder: "Saisir la valeur..."
+      },
+      button: {
+        chooseFromList: "📋 Choisir dans la liste ({count} options)"
+      },
+      emptyState: {
+        title: "Configuration des champs de placement",
+        description: "Toutes les variables sont héritées automatiquement. Aucune configuration manuelle n'est requise."
+      },
+      configuredState: {
+        title: "Champs à configurer ({count})"
+      }
+    },
+    budgetBonification: {
+      includeBonusLabel: "Cette tactique inclut de la bonification",
+      includeBonusTooltip: "La bonification représente la valeur ajoutée gratuite obtenue auprès du partenaire média. Elle permet de maximiser la portée sans coût supplémentaire. Cette case peut être cochée ou décochée à tout moment.",
+      hasBonusDescription: "Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire. Vous pouvez la décocher pour annuler la bonification.",
+      noBonusDescription: "Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire.",
+      mediaBudgetWarning: "⚠️ Un budget média doit être défini pour calculer correctement la bonification.",
+      referenceBudgetTitle: "📊 Budget média de référence",
+      currentMediaBudget: "Budget média actuel :",
+      realValueMustBeGreater: "La valeur réelle doit être supérieure à ce montant pour générer une bonification.",
+      bonusActivePendingInputTitle: "Bonification activée - En attente de saisie",
+      bonusActivePendingInputDescription: "Saisissez la valeur réelle négociée avec le partenaire média ci-dessous. Cette valeur doit être supérieure au budget média pour générer une économie.",
+      realValueLabel: "Valeur réelle de la tactique",
+      realValueTooltip: "Valeur totale négociée avec le partenaire média (incluant la bonification). Doit être supérieure au budget média pour générer une économie.",
+      economyOf: "Économie de",
+      onNegotiatedValue: "sur la valeur négociée",
+      insufficientValue: "Valeur insuffisante pour bonification",
+      bonusCalculatedLabel: "Bonification (calculée automatiquement)",
+      bonusCalculatedTooltip: "Économie réalisée calculée automatiquement par le système (Valeur réelle - Budget média). Cette valeur représente l'avantage négocié en dollars économisés.",
+      ofMediaBudget: "du budget média",
+      noBonusReasonSameValue: "Aucune bonification car valeur réelle = budget média",
+      bonusWillBeCalculated: "Bonification sera calculée automatiquement",
+      loadingConfiguration: "⏳ Chargement en cours... La configuration de bonification sera disponible une fois les données chargées.",
+      validation: {
+        mustBeGreaterOrEqual: "La valeur réelle doit être supérieure ou égale au budget média pour avoir une bonification",
+        noBonusSameValue: "Aucune bonification (valeur réelle = budget média)"
+      },
+      summary: {
+        title: "🎁 Récapitulatif de la bonification",
+        totalNegotiatedValue: "Valeur négociée totale :",
+        mediaBudgetPaid: "Budget média payé :",
+        bonusObtained: "Bonification obtenue :",
+        represents: "Cela représente",
+        addedValue: "de valeur ajoutée gratuite par rapport au budget média."
+      },
+      disabled: {
+        title: "Bonification désactivée.",
+        description: "Les calculs se baseront uniquement sur le budget média sans valeur ajoutée."
+      }
+    },
+
     
-  
+    
+    
 
     },
 
@@ -3101,12 +3388,293 @@ export const translations = {
         subtitle: "Preview of levels 5-6 of the selected taxonomies"
       }
     },
-    
-    
+    clientLists: {
+      noClient: {
+        title: "No client selected",
+        description: "Please select a client to manage their shortcode lists."
+      },
+      header: {
+        title: "List Configuration"
+      },
+      readOnly: {
+        message: "You are in read-only mode. Contact your administrator to obtain modification permissions."
+      },
+      initialState: {
+        title: "Select a dimension",
+        description: "Choose a dimension from the list on the left to manage shortcodes."
+      },
+      deleteModal: {
+        title: "Confirm deletion",
+        confirmationTextPart1: "Are you sure you want to delete this custom list? The system will automatically use the default list (PlusCo) instead. This action is",
+        confirmationTextPart2: "irreversible",
+        confirmButton: "Delete permanently"
+      }
+    },
+    dimensionSidebar: {
+      header: {
+        title: "Dimensions",
+        customPersonalized: "custom",
+        customPersonalized_plural: "custom"
+      },
+      search: {
+        placeholder: "Search a dimension...",
+        noMatch: "No dimension matches"
+      },
+      status: {
+        noDimensionsAvailable: "No dimensions available"
+      },
+      list: {
+        selectDimension: "Select",
+        customListTooltip: "custom list",
+        pluscoListTooltip: "PlusCo list",
+        customListTitle: "Custom list",
+        customBadge: "Custom",
+        pluscoBadge: "PlusCo"
+      },
+      footer: {
+        result: "result",
+        results: "results",
+        dimensionAvailable: "dimension available",
+        dimensionsAvailable: "dimensions available"
+      }
+    },
+    listHeader: {
+      listHeader: {
+        customList: "Custom list",
+        pluscoList: "PlusCo List",
+        specificTo: "Specific to",
+        commonList: "Common list",
+        permissionRequired: "Permission required",
+        createCustomList: "Create a custom list",
+        deleteThisCustomList: "Delete this custom list",
+        deleteCustomList: "Delete the custom list"
+      }
+    },
+    shortcodeActions: {
+      browse: {
+        title: "Browse all available shortcodes",
+        button: "View all shortcodes"
+      },
+      create: {
+        noPermission: "You do not have permission to create shortcodes",
+        title: "Create a new shortcode",
+        button: "New shortcode"
+      },
+      search: {
+        placeholder: "Search in this list..."
+      },
+      createModal: {
+        title: "Create a new shortcode",
+        form: {
+          codeLabel: "Code",
+          nameFRLabel: "Display Name FR",
+          nameENLabel: "Display Name EN",
+          defaultUTMLabel: "Default UTM"
+        },
+        submitButton: "Create and assign"
+      }
+    },
+    shortcodeDetail: {
+      modal: {
+        title: "Shortcode Details"
+      },
+      errors: {
+        requiredFields: "The code and FR display name are required.",
+        updateFailed: "Could not update the shortcode.",
+        deleteFailed: "Could not delete the shortcode."
+      },
+      form: {
+        codeLabel: "Code",
+        displayNameFrLabel: "Display Name FR",
+        displayNameEnLabel: "Display Name EN",
+        defaultUtmLabel: "Default UTM",
+        typeLabel: "Type"
+      },
+      buttons: {
+        saving: "Saving...",
+        deleting: "Deleting..."
+      },
+      deleteModal: {
+        title: "Confirm Deletion",
+        areYouSure: "Are you sure you want to delete the shortcode ",
+        irreversible: "? This action is irreversible and will also remove this shortcode from all lists."
+      }
+    },
+    shortcodeTable: {
+      remove: {
+        confirmCustom: "Are you sure you want to remove \"{name}\" from this custom list?",
+        confirmPlusco: "Are you sure you want to remove \"{name}\" from the PlusCo list? This will affect all clients using this list."
+      },
+      empty: {
+        title: "Empty List",
+        description: "This list contains no shortcodes. Use the action buttons above to add some."
+      },
+      search: {
+        noResults: "No Results",
+        noMatchPart1: "No shortcode matches your search for \"",
+        noMatchPart2: "\" in this list."
+      },
+      header: {
+        listTitle: "Shortcodes in the List",
+        searchResults: "Search Results",
+        code: "Code",
+        nameFR: "French Name",
+        nameEN: "English Name",
+        defaultUTM: "Default UTM",
+        type: "Type",
+        actions: "Actions"
+      },
+      label: {
+        shortcode: "shortcode",
+        shortcodes: "shortcodes",
+        totalInList: "total in this list"
+      },
+      cell: {
+        notDefined: "Not defined"
+      },
+      tooltip: {
+        copyId: "Copy ID",
+        idCopied: "ID copied!",
+        editShortcode: "Edit this shortcode",
+        removing: "Removing...",
+        permissionRequired: "Permission required",
+        removeFromCustom: "Remove from this list",
+        removeFromPlusco: "Remove from PlusCo list"
+      },
+      footer: {
+        resultsDisplayedSingular: "result displayed",
+        resultsDisplayedPlural: "results displayed",
+        totalSingular: "shortcode in total",
+        totalPlural: "shortcodes in total",
+        pluscoWarning: "Changes affect all clients using the PlusCo list"
+      }
+    },
+    feeForm: {
+      labels: {
+        name: "Fee Name",
+        calculationType: "Calculation Type",
+        calculationMode: "Calculation Mode"
+      },
+      placeholders: {
+        name: "Fee Name"
+      },
+      calculationTypes: {
+        volumeUnit: "Volume of units",
+        fixedFee: "Fixed fee",
+        percentageBudget: "Budget percentage",
+        units: "Units"
+      },
+      calculationModes: {
+        direct: "Directly on media budget",
+        onPrevious: "Applicable on previous fees"
+      }
+    },
+    placementFormInfo: {
+      header: {
+        title: "Placement Information",
+        subtitle: "Basic configuration and taxonomies for the placement"
+      },
+      fields: {
+        nameLabel: "Placement Name *",
+        namePlaceholder: "e.g., Desktop Banners, Mobile Video, Tablet Display",
+        nameTooltip: "Descriptive name for the placement. Be specific to facilitate identification.",
+        startDateLabel: "Start Date",
+        startDateTooltip: "Start date of the placement. Inherits from the tactic or campaign if not specified.",
+        endDateLabel: "End Date",
+        endDateTooltip: "End date of the placement. Inherits from the tactic or campaign if not specified."
+      },
+      taxonomies: {
+        title: "Placement Taxonomies (levels 3-4)",
+        placeholder: "Select a taxonomy...",
+        tagsLabel: "Taxonomy to use for tags",
+        tagsTooltip: "Taxonomy that will be used to generate the placement tags",
+        platformLabel: "Taxonomy to use for the platform",
+        platformTooltip: "Taxonomy that will be used for the platform configuration",
+        mediaOceanLabel: "Taxonomy to use for MediaOcean",
+        mediaOceanTooltip: "Taxonomy that will be used for the MediaOcean export"
+      },
+      notifications: {
+        taxonomiesError: "Error loading taxonomies",
+        retry: "Retry",
+        noTaxonomiesConfigured: "No taxonomies configured for this client.",
+        youCanCreateTaxonomies: "You can create taxonomies in the Configuration section.",
+        loadingData: "Loading data...",
+        loadingTaxonomies: "Loading taxonomies..."
+      }
+    },
+    placementFormTaxonomy: {
+      error: {
+        retry: "Retry"
+      },
+      noTaxonomy: {
+        title: "Taxonomy Configuration",
+        description: "Please first select taxonomies in the \"Information\" tab to configure the variables."
+      },
+      loading: {
+        data: "Loading data...",
+        taxonomyAnalysis: "Analyzing taxonomies..."
+      }
+    },
+    taxonomyFieldRenderer: {
+      select: {
+        placeholder: "Select..."
+      },
+      input: {
+        placeholder: "Enter value..."
+      },
+      button: {
+        chooseFromList: "📋 Choose from list ({count} options)"
+      },
+      emptyState: {
+        title: "Placement Field Configuration",
+        description: "All variables are inherited automatically. No manual configuration is required."
+      },
+      configuredState: {
+        title: "Fields to Configure ({count})"
+      }
+    },
+    budgetBonification: {
+      includeBonusLabel: "This tactic includes a bonus",
+      includeBonusTooltip: "The bonus represents the free added value obtained from the media partner. It helps maximize reach at no extra cost. This box can be checked or unchecked at any time.",
+      hasBonusDescription: "Check this box if you have negotiated additional free value with the partner. You can uncheck it to cancel the bonus.",
+      noBonusDescription: "Check this box if you have negotiated additional free value with the partner.",
+      mediaBudgetWarning: "⚠️ A media budget must be set to correctly calculate the bonus.",
+      referenceBudgetTitle: "📊 Reference Media Budget",
+      currentMediaBudget: "Current media budget:",
+      realValueMustBeGreater: "The real value must be greater than this amount to generate a bonus.",
+      bonusActivePendingInputTitle: "Bonus Activated - Awaiting Input",
+      bonusActivePendingInputDescription: "Enter the real value negotiated with the media partner below. This value must be greater than the media budget to generate savings.",
+      realValueLabel: "Real value of the tactic",
+      realValueTooltip: "Total value negotiated with the media partner (including the bonus). Must be greater than the media budget to generate savings.",
+      economyOf: "Saving of",
+      onNegotiatedValue: "on the negotiated value",
+      insufficientValue: "Insufficient value for a bonus",
+      bonusCalculatedLabel: "Bonus (calculated automatically)",
+      bonusCalculatedTooltip: "Savings achieved, calculated automatically by the system (Real Value - Media Budget). This value represents the negotiated benefit in saved dollars.",
+      ofMediaBudget: "of the media budget",
+      noBonusReasonSameValue: "No bonus because real value = media budget",
+      bonusWillBeCalculated: "Bonus will be calculated automatically",
+      loadingConfiguration: "⏳ Loading... The bonus configuration will be available once the data has loaded.",
+      validation: {
+        mustBeGreaterOrEqual: "The real value must be greater than or equal to the media budget to have a bonus",
+        noBonusSameValue: "No bonus (real value = media budget)"
+      },
+      summary: {
+        title: "🎁 Bonus Summary",
+        totalNegotiatedValue: "Total negotiated value:",
+        mediaBudgetPaid: "Media budget paid:",
+        bonusObtained: "Bonus obtained:",
+        represents: "This represents",
+        addedValue: "of free added value compared to the media budget."
+      },
+      disabled: {
+        title: "Bonus disabled.",
+        description: "Calculations will be based solely on the media budget without added value."
+      }
+    },
+  
 
 
-
-    
-
+  
   }
 };

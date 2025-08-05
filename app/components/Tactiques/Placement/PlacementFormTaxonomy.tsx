@@ -9,6 +9,7 @@ import { useTaxonomyForm } from '../../../hooks/useTaxonomyForm';
 import { PlacementFormData, Tactique } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
 import { getClientInfo } from '../../../lib/listService'; // 🔥 AJOUTÉ: Pour charger config client
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface PlacementFormTaxonomyProps {
   formData: PlacementFormData;
@@ -36,6 +37,8 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
   tactiqueData,
   loading = false
 }) => {
+
+  const { t } = useTranslation();
   
   // 🔥 AJOUTÉ: État pour la config client (juste pour labels et filtrage)
   const [clientConfig, setClientConfig] = useState<ClientConfig>({});
@@ -113,7 +116,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
               onClick={retryLoadTaxonomies}
               className="ml-2 text-red-600 hover:text-red-800 underline"
             >
-              Réessayer
+              {t('placementFormTaxonomy.error.retry')}
             </button>
           </div>
         )}
@@ -131,10 +134,10 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         ) : (
           <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
             <h4 className="text-md font-medium text-gray-900 mb-2">
-              Configuration des taxonomies
+              {t('placementFormTaxonomy.noTaxonomy.title')}
             </h4>
             <p className="text-sm">
-              Veuillez d'abord sélectionner des taxonomies dans l'onglet "Informations" pour configurer les variables.
+              {t('placementFormTaxonomy.noTaxonomy.description')}
             </p>
           </div>
         )}
@@ -142,7 +145,7 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         {(loading || taxonomiesLoading) && (
           <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              {loading ? 'Chargement des données...' : 'Analyse des taxonomies...'}
+              {loading ? t('placementFormTaxonomy.loading.data') : t('placementFormTaxonomy.loading.taxonomyAnalysis')}
             </p>
           </div>
         )}

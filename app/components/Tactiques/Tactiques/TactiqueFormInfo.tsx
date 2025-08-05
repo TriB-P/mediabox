@@ -121,9 +121,8 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           onChange={onChange}
           type="text"
           placeholder="Ex: MPA Digital"
-          required={!isDisabled}
           label={createLabelWithHelp(
-            'MPA *',
+            'MPA',
             "Vous permet de définir sur quelle MPA cette tactique s'affichera. Si laissez vide : s'affichera sur la MPA globale",
             onTooltipChange
           )}

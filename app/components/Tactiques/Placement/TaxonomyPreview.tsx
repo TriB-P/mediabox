@@ -56,7 +56,7 @@ export default function TaxonomyPreview({
   
   const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'manual' => {
     const variable = parsedVariables.find(v => v.variable === variableName);
-    return variable?.source || 'manual';
+    return variable?.source || 'créatif';
   };
 
   const hasVariableValue = (variableName: string, format: string): boolean => {

@@ -1,7 +1,6 @@
 /**
  * app/components/Client/ClientLists.tsx
- * 
- * Version restructurée avec interface plus claire et intégration du modal AllShortcodesModal.
+ * * Version restructurée avec interface plus claire et intégration du modal AllShortcodesModal.
  * Améliore l'organisation visuelle et l'expérience utilisateur.
  */
 
@@ -24,12 +23,14 @@ import ShortcodeActions from './ShortcodeActions';
 import ShortcodeTable from './ShortcodeTable';
 import AllShortcodesModal from './AllShortcodesModal';
 import { updateShortcode } from '../../lib/shortcodeService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * Composant principal restructuré pour la gestion des listes de shortcodes.
  * Interface plus claire et intuitive avec modal centralisé pour la gestion des shortcodes.
  */
 const ClientLists: React.FC = () => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { canPerformAction, userRole } = usePermissions();
 
@@ -114,9 +115,9 @@ const ClientLists: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
             <div className="text-6xl mb-4">🏢</div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Aucun client sélectionné</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('clientLists.noClient.title')}</h2>
             <p className="text-gray-600">
-              Veuillez sélectionner un client pour gérer ses listes de shortcodes.
+              {t('clientLists.noClient.description')}
             </p>
           </div>
         </div>
@@ -130,7 +131,7 @@ const ClientLists: React.FC = () => {
         {/* En-tête compact */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Configuration des listes</h2>
+            <h2 className="text-xl font-bold text-gray-800">{t('clientLists.header.title')}</h2>
             
           </div>
         </div>
@@ -160,7 +161,7 @@ const ClientLists: React.FC = () => {
 
         {!hasListPermission && (
           <div className="mb-4 p-3 bg-amber-50 border-l-4 border-amber-400 text-amber-700 text-sm">
-            Vous êtes en mode lecture seule. Contactez votre administrateur pour obtenir les permissions de modification.
+            {t('clientLists.readOnly.message')}
           </div>
         )}
 
@@ -225,10 +226,10 @@ const ClientLists: React.FC = () => {
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <div className="text-4xl mb-4">📋</div>
                 <h3 className="text-lg font-medium text-gray-800 mb-2">
-                  Sélectionnez une dimension
+                  {t('clientLists.initialState.title')}
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Choisissez une dimension dans la liste de gauche pour gérer les shortcodes.
+                  {t('clientLists.initialState.description')}
                 </p>
  
               </div>
@@ -284,13 +285,13 @@ const ClientLists: React.FC = () => {
                     </div>
                     <div className="ml-3">
                       <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                        Confirmer la suppression
+                        {t('clientLists.deleteModal.title')}
                       </Dialog.Title>
                       <div className="mt-2">
                         <p className="text-sm text-gray-500">
-                          Êtes-vous sûr de vouloir supprimer cette liste personnalisée ? 
-                          Le système utilisera automatiquement la liste par défaut (PlusCo) à la place. 
-                          Cette action est <strong>irréversible</strong>.
+                          {t('clientLists.deleteModal.confirmationTextPart1')}
+                          {' '}
+                          <strong>{t('clientLists.deleteModal.confirmationTextPart2')}</strong>.
                         </p>
                       </div>
                     </div>
@@ -302,14 +303,14 @@ const ClientLists: React.FC = () => {
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                       onClick={() => setIsDeleteListModalOpen(false)}
                     >
-                      Annuler
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
                       className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                       onClick={confirmDeleteCustomList}
                     >
-                      Supprimer définitivement
+                      {t('clientLists.deleteModal.confirmButton')}
                     </button>
                   </div>
                 </div>

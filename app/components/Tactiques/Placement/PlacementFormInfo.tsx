@@ -5,13 +5,13 @@
  * pour la création ou la modification des informations de base d'un "Placement".
  * Il gère la saisie du nom du placement, les dates de début/fin et la sélection des taxonomies associées
  * en récupérant les taxonomies spécifiques au client depuis la base de données.
- * 
- * VERSION SIMPLIFIÉE : Les valeurs des dates proviennent directement de formData 
+ * * VERSION SIMPLIFIÉE : Les valeurs des dates proviennent directement de formData 
  * (l'héritage se fait dans PlacementDrawer lors de l'initialisation).
  */
 'use client';
 
 import React, { useState, useEffect, memo } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import {
   FormInput,
   SmartSelect,
@@ -41,8 +41,7 @@ interface PlacementFormInfoProps {
  * Composant de formulaire pour les informations générales d'un placement.
  * Affiche les champs pour le nom du placement, les dates et les sélecteurs de taxonomies.
  * Les taxonomies sont chargées dynamiquement en fonction de l'ID du client.
- * 
- * Les dates affichées proviennent directement de formData - l'héritage est géré par le parent.
+ * * Les dates affichées proviennent directement de formData - l'héritage est géré par le parent.
  */
 const PlacementFormInfo = memo<PlacementFormInfoProps>(({
   formData,
@@ -53,6 +52,7 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
   tactiqueData,
   loading = false,
 }) => {
+  const { t } = useTranslation();
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(true);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
@@ -76,7 +76,7 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
       setTaxonomies(clientTaxonomies);
     } catch (error) {
       console.error('Erreur lors du chargement des taxonomies:', error);
-      setTaxonomiesError('Erreur lors du chargement des taxonomies');
+      setTaxonomiesError(t('placementFormInfo.notifications.taxonomiesError'));
     } finally {
       setTaxonomiesLoading(false);
     }
@@ -93,10 +93,10 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
     <div className="p-8 space-y-6">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Informations du placement
+          {t('placementFormInfo.header.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration de base et taxonomies pour le placement
+          {t('placementFormInfo.header.subtitle')}
         </p>
       </div>
 
@@ -107,11 +107,11 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           value={formData.PL_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannières Desktop, Vidéo Mobile, Display Tablet"
+          placeholder={t('placementFormInfo.fields.namePlaceholder')}
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Nom du placement *',
-            'Nom descriptif du placement. Soyez spécifique pour faciliter l\'identification.',
+            t('placementFormInfo.fields.nameLabel'),
+            t('placementFormInfo.fields.nameTooltip'),
             onTooltipChange
           )}
         />
@@ -125,8 +125,8 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
-              'Date de début',
-              'Date de début du placement. Hérite de la tactique ou de la campagne si non spécifiée.',
+              t('placementFormInfo.fields.startDateLabel'),
+              t('placementFormInfo.fields.startDateTooltip'),
               onTooltipChange
             )}
           />
@@ -138,8 +138,8 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
             onChange={onChange}
             type="date"
             label={createLabelWithHelp(
-              'Date de fin',
-              'Date de fin du placement. Hérite de la tactique ou de la campagne si non spécifiée.',
+              t('placementFormInfo.fields.endDateLabel'),
+              t('placementFormInfo.fields.endDateTooltip'),
               onTooltipChange
             )}
           />
@@ -152,14 +152,14 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
               onClick={loadTaxonomies}
               className="ml-2 text-red-600 hover:text-red-800 underline"
             >
-              Réessayer
+              {t('placementFormInfo.notifications.retry')}
             </button>
           </div>
         )}
 
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4">
-            Taxonomies placements (niveaux 3-4)
+            {t('placementFormInfo.taxonomies.title')}
           </h4>
 
           {taxonomies.length > 0 ? (
@@ -170,10 +170,10 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
                 value={formData.PL_Taxonomy_Tags || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('placementFormInfo.taxonomies.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie à utiliser pour les tags',
-                  'Taxonomie qui sera utilisée pour générer les tags du placement',
+                  t('placementFormInfo.taxonomies.tagsLabel'),
+                  t('placementFormInfo.taxonomies.tagsTooltip'),
                   onTooltipChange
                 )}
               />
@@ -184,10 +184,10 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
                 value={formData.PL_Taxonomy_Platform || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('placementFormInfo.taxonomies.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie à utiliser pour la plateforme',
-                  'Taxonomie qui sera utilisée pour la configuration de la plateforme',
+                  t('placementFormInfo.taxonomies.platformLabel'),
+                  t('placementFormInfo.taxonomies.platformTooltip'),
                   onTooltipChange
                 )}
               />
@@ -198,10 +198,10 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
                 value={formData.PL_Taxonomy_MediaOcean || ''}
                 onChange={onChange}
                 options={taxonomyOptions}
-                placeholder="Sélectionner une taxonomie..."
+                placeholder={t('placementFormInfo.taxonomies.placeholder')}
                 label={createLabelWithHelp(
-                  'Taxonomie à utiliser pour MediaOcean',
-                  'Taxonomie qui sera utilisée pour l\'export vers MediaOcean',
+                  t('placementFormInfo.taxonomies.mediaOceanLabel'),
+                  t('placementFormInfo.taxonomies.mediaOceanTooltip'),
                   onTooltipChange
                 )}
               />
@@ -209,8 +209,8 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
           ) : !taxonomiesLoading && !taxonomiesError ? (
             <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
               <p className="text-sm">
-                Aucune taxonomie configurée pour ce client.
-                Vous pouvez créer des taxonomies dans la section Configuration.
+                {t('placementFormInfo.notifications.noTaxonomiesConfigured')}{' '}
+                {t('placementFormInfo.notifications.youCanCreateTaxonomies')}
               </p>
             </div>
           ) : null}
@@ -220,7 +220,7 @@ const PlacementFormInfo = memo<PlacementFormInfoProps>(({
       {(loading || taxonomiesLoading) && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            {loading ? 'Chargement des données...' : 'Chargement des taxonomies...'}
+            {loading ? t('placementFormInfo.notifications.loadingData') : t('placementFormInfo.notifications.loadingTaxonomies')}
           </p>
         </div>
       )}

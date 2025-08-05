@@ -3,6 +3,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
 import { getFieldLabel, ClientConfig } from '../../../config/TaxonomyFieldLabels';
@@ -41,6 +42,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   onFieldHighlight,
 }) => {
 
+  const { t } = useTranslation();
   // ==================== FONCTIONS UTILITAIRES ====================
 
   /**
@@ -87,7 +89,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             value={currentValue}
             onChange={() => {}} // Disabled pendant le chargement
             type="text"
-            placeholder="Chargement..."
+            placeholder={t('common.loading')}
             label=""
           />
           <div className="absolute inset-0 bg-gray-100 bg-opacity-70 flex items-center justify-center rounded-lg">
@@ -114,7 +116,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
           }}
           options={fieldState.options}
-          placeholder="Sélectionner..."
+          placeholder={t('taxonomyFieldRenderer.select.placeholder')}
           label=""
         />
       );
@@ -131,7 +133,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             onFieldChange(variable.variable, e.target.value, 'open');
           }}
           type="text"
-          placeholder="Saisir la valeur..."
+          placeholder={t('taxonomyFieldRenderer.input.placeholder')}
           label=""
         />
         {/* Bouton pour passer en mode liste si disponible */}
@@ -144,7 +146,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             }}
             className="text-xs text-indigo-600 hover:text-indigo-800"
           >
-            📋 Choisir dans la liste ({fieldState.options.length} options)
+            {t('taxonomyFieldRenderer.button.chooseFromList', { count: fieldState.options.length })}
           </button>
         )}
       </div>
@@ -197,16 +199,16 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       {manualVariables.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <h4 className="text-md font-medium text-gray-900 mb-2">
-            Configuration des champs de placement
+            {t('taxonomyFieldRenderer.emptyState.title')}
           </h4>
           <p className="text-sm">
-            Toutes les variables sont héritées automatiquement. Aucune configuration manuelle n'est requise.
+            {t('taxonomyFieldRenderer.emptyState.description')}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
-            Champs à configurer ({manualVariables.length})
+            {t('taxonomyFieldRenderer.configuredState.title', { count: manualVariables.length })}
           </h4>
           {manualVariables.map((variable) => renderVariableCard(variable))}
         </div>

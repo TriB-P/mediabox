@@ -1,7 +1,6 @@
 /**
  * app/components/Client/ShortcodeTable.tsx
- * 
- * Version améliorée du tableau de shortcodes avec design moderne,
+ * * Version améliorée du tableau de shortcodes avec design moderne,
  * meilleure expérience utilisateur et intégration harmonieuse.
  */
 'use client';
@@ -17,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Shortcode } from '../../lib/shortcodeService';
 import ShortcodeDetail from './ShortcodeDetail';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ShortcodeTableProps {
   shortcodes: Shortcode[];
@@ -42,6 +42,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
   onRemoveShortcode,
   onUpdateShortcode
 }) => {
+  const { t } = useTranslation();
   const canEditShortcode = userRole === 'admin';
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedShortcode, setSelectedShortcode] = useState<Shortcode | null>(null);
@@ -80,8 +81,8 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
    */
   const handleRemove = async (shortcodeId: string, shortcodeName: string) => {
     const confirmMessage = isCustomList 
-      ? `Êtes-vous sûr de vouloir retirer "${shortcodeName}" de cette liste personnalisée ?`
-      : `Êtes-vous sûr de vouloir retirer "${shortcodeName}" de la liste PlusCo ? Cela affectera tous les clients qui utilisent cette liste.`;
+      ? t('shortcodeTable.remove.confirmCustom').replace('{name}', shortcodeName)
+      : t('shortcodeTable.remove.confirmPlusco').replace('{name}', shortcodeName);
     
     if (window.confirm(confirmMessage)) {
       setRemovingId(shortcodeId);
@@ -139,13 +140,13 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
     return (
       <div className="bg-white">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-700">Shortcodes de la liste</h3>
+          <h3 className="text-sm font-medium text-gray-700">{t('shortcodeTable.header.listTitle')}</h3>
         </div>
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📭</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Liste vide</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('shortcodeTable.empty.title')}</h3>
           <p className="text-gray-500 max-w-sm mx-auto">
-            Cette liste ne contient aucun shortcode. Utilisez les boutons d'action ci-dessus pour en ajouter.
+            {t('shortcodeTable.empty.description')}
           </p>
         </div>
       </div>
@@ -158,7 +159,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
       <div className="bg-white">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">Résultats de recherche</h3>
+            <h3 className="text-sm font-medium text-gray-700">{t('shortcodeTable.header.searchResults')}</h3>
             <div className="flex items-center text-sm text-gray-500">
               <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
               <span>"{searchQuery}"</span>
@@ -167,12 +168,12 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
         </div>
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun résultat</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('shortcodeTable.search.noResults')}</h3>
           <p className="text-gray-500 max-w-sm mx-auto">
-            Aucun shortcode ne correspond à votre recherche "<strong>{searchQuery}</strong>" dans cette liste.
+            {t('shortcodeTable.search.noMatchPart1')}<strong>{searchQuery}</strong>{t('shortcodeTable.search.noMatchPart2')}
           </p>
           <p className="text-gray-400 text-sm mt-2">
-            {shortcodes.length} shortcode{shortcodes.length > 1 ? 's' : ''} au total dans cette liste
+            {shortcodes.length} {shortcodes.length > 1 ? t('shortcodeTable.label.shortcodes') : t('shortcodeTable.label.shortcode')} {t('shortcodeTable.label.totalInList')}
           </p>
         </div>
       </div>
@@ -191,23 +192,23 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
               <tr>
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center space-x-1">
-                    <span>Code</span>
+                    <span>{t('shortcodeTable.header.code')}</span>
                   </div>
                 </th>
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nom français
+                  {t('shortcodeTable.header.nameFR')}
                 </th>
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nom anglais
+                  {t('shortcodeTable.header.nameEN')}
                 </th>
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  UTM par défaut
+                  {t('shortcodeTable.header.defaultUTM')}
                 </th>
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
+                  {t('shortcodeTable.header.type')}
                 </th>
                 <th scope="col" className="px-4 py-3 w-32">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t('shortcodeTable.header.actions')}</span>
                 </th>
               </tr>
             </thead>
@@ -245,7 +246,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-600 break-words max-w-xs">
                         {shortcode.SH_Display_Name_EN || (
-                          <span className="text-gray-400 italic">Non défini</span>
+                          <span className="text-gray-400 italic">{t('shortcodeTable.cell.notDefined')}</span>
                         )}
                       </div>
                     </td>
@@ -254,7 +255,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                     <td className="px-4 py-3">
                       <div className="text-xs text-gray-500 break-words max-w-sm font-mono">
                         {shortcode.SH_Default_UTM || (
-                          <span className="text-gray-400 italic font-sans">Non défini</span>
+                          <span className="text-gray-400 italic font-sans">{t('shortcodeTable.cell.notDefined')}</span>
                         )}
                       </div>
                     </td>
@@ -267,7 +268,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                           {shortcode.SH_Type}
                         </span>
                       ) : (
-                        <span className="text-gray-400 italic text-xs">Non défini</span>
+                        <span className="text-gray-400 italic text-xs">{t('shortcodeTable.cell.notDefined')}</span>
                       )}
 
                     </td>
@@ -284,7 +285,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                               ? 'text-green-600 bg-green-50' 
                               : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                           }`}
-                          title={isCopied ? "ID copié !" : "Copier l'ID"}
+                          title={isCopied ? t('shortcodeTable.tooltip.idCopied') : t('shortcodeTable.tooltip.copyId')}
                           disabled={isRemoving}
                         >
                           {isCopied ? (
@@ -299,7 +300,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                           <button
                             onClick={() => openDetailModal(shortcode)}
                             className="p-2 rounded-md text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-all duration-150"
-                            title="Modifier ce shortcode"
+                            title={t('shortcodeTable.tooltip.editShortcode')}
                             disabled={isRemoving}
                           >
                             <PencilIcon className="h-4 w-4" />
@@ -317,12 +318,12 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                           disabled={!hasPermission || isRemoving}
                           title={
                             isRemoving 
-                              ? "Suppression en cours..."
+                              ? t('shortcodeTable.tooltip.removing')
                               : !hasPermission 
-                                ? "Permission requise"
+                                ? t('shortcodeTable.tooltip.permissionRequired')
                                 : isCustomList 
-                                  ? "Retirer de cette liste" 
-                                  : "Retirer de la liste PlusCo"
+                                  ? t('shortcodeTable.tooltip.removeFromCustom') 
+                                  : t('shortcodeTable.tooltip.removeFromPlusco')
                           }
                         >
                           {isRemoving ? (
@@ -346,16 +347,16 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-500">
             {searchQuery ? (
-              `${filteredShortcodes.length} résultat${filteredShortcodes.length > 1 ? 's' : ''} affiché${filteredShortcodes.length > 1 ? 's' : ''}`
+              `${filteredShortcodes.length} ${filteredShortcodes.length > 1 ? t('shortcodeTable.footer.resultsDisplayedPlural') : t('shortcodeTable.footer.resultsDisplayedSingular')}`
             ) : (
-              `${shortcodes.length} shortcode${shortcodes.length > 1 ? 's' : ''} au total`
+              `${shortcodes.length} ${shortcodes.length > 1 ? t('shortcodeTable.footer.totalPlural') : t('shortcodeTable.footer.totalSingular')}`
             )}
           </div>
           
           {!isCustomList && (
             <div className="flex items-center text-xs text-amber-600">
               <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
-              <span>Les modifications affectent tous les clients utilisant la liste PlusCo</span>
+              <span>{t('shortcodeTable.footer.pluscoWarning')}</span>
             </div>
           )}
         </div>

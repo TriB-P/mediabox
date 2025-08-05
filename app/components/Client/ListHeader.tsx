@@ -1,13 +1,13 @@
 /**
  * app/components/Client/ListHeader.tsx
- * 
- * Version compacte et harmonisée de l'en-tête de liste.
+ * * Version compacte et harmonisée de l'en-tête de liste.
  * Style cohérent avec le reste de l'application, plus compact.
  */
 'use client';
 
 import React from 'react';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ListHeaderProps {
   selectedDimension: string;
@@ -30,6 +30,7 @@ const ListHeader: React.FC<ListHeaderProps> = ({
   onCreateCustomList,
   onDeleteCustomList
 }) => {
+  const { t } = useTranslation();
   if (!selectedDimension) {
     return null;
   }
@@ -47,12 +48,12 @@ const ListHeader: React.FC<ListHeaderProps> = ({
               ? 'bg-amber-100 text-amber-800' 
               : 'bg-blue-100 text-blue-800'
           }`}>
-            {isCustomList ? 'Liste personnalisée' : 'Liste PlusCo'}
+            {isCustomList ? t('listHeader.listHeader.customList') : t('listHeader.listHeader.pluscoList')}
           </span>
           <span className="text-sm text-gray-500">
             {isCustomList
-              ? `Spécifique à ${clientName}`
-              : 'Liste commune'
+              ? `${t('listHeader.listHeader.specificTo')} ${clientName}`
+              : t('listHeader.listHeader.commonList')
             }
           </span>
         </div>
@@ -68,10 +69,10 @@ const ListHeader: React.FC<ListHeaderProps> = ({
                 : 'text-gray-400 bg-gray-300 cursor-not-allowed'
             }`}
             disabled={!hasPermission}
-            title={!hasPermission ? "Permission requise" : "Créer une liste personnalisée"}
+            title={!hasPermission ? t('listHeader.listHeader.permissionRequired') : t('listHeader.listHeader.createCustomList')}
           >
             <PlusIcon className="h-4 w-4 mr-2" />
-            Créer une liste personnalisée
+            {t('listHeader.listHeader.createCustomList')}
           </button>
         ) : (
           <button
@@ -82,10 +83,10 @@ const ListHeader: React.FC<ListHeaderProps> = ({
                 : 'text-gray-400 bg-gray-300 cursor-not-allowed'
             }`}
             disabled={!hasPermission}
-            title={!hasPermission ? "Permission requise" : "Supprimer cette liste personnalisée"}
+            title={!hasPermission ? t('listHeader.listHeader.permissionRequired') : t('listHeader.listHeader.deleteThisCustomList')}
           >
             <TrashIcon className="h-4 w-4 mr-2" />
-            Supprimer la liste personnalisée
+            {t('listHeader.listHeader.deleteCustomList')}
           </button>
         )}
       </div>

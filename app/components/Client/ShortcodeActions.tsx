@@ -1,7 +1,6 @@
 /**
  * app/components/Client/ShortcodeActions.tsx
- * 
- * Version restructurée avec interface plus intuitive et bouton "Voir tous les shortcodes".
+ * * Version restructurée avec interface plus intuitive et bouton "Voir tous les shortcodes".
  * Simplifie l'interface en regroupant les actions principales et améliore l'UX.
  */
 'use client';
@@ -16,6 +15,7 @@ import {
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import { Shortcode } from '../../lib/shortcodeService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ShortcodeActionsProps {
   hasPermission: boolean;
@@ -49,6 +49,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
   onSearchChange,
   onOpenAllShortcodesModal
 }) => {
+  const { t } = useTranslation();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   const [newShortcode, setNewShortcode] = useState({
@@ -89,10 +90,10 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         <button
               onClick={onOpenAllShortcodesModal}
               className="inline-flex items-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150"
-              title="Parcourir tous les shortcodes disponibles"
+              title={t('shortcodeActions.browse.title')}
             >
               <EyeIcon className="h-4 w-4 mr-2" />
-              Voir tous les shortcodes
+              {t('shortcodeActions.browse.button')}
             </button>
 
             {/* Bouton Créer un shortcode */}
@@ -104,10 +105,10 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   : 'text-gray-400 bg-gray-300 cursor-not-allowed'
               }`}
               disabled={!hasPermission}
-              title={!hasPermission ? "Vous n'avez pas la permission de créer des shortcodes" : "Créer un nouveau shortcode"}
+              title={!hasPermission ? t('shortcodeActions.create.noPermission') : t('shortcodeActions.create.title')}
             >
               <PlusIcon className="h-4 w-4 mr-2" />
-              Nouveau shortcode
+              {t('shortcodeActions.create.button')}
             </button>
           </div>
           
@@ -120,7 +121,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
               <input
                 type="text"
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Rechercher dans cette liste..."
+                placeholder={t('shortcodeActions.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
               />
@@ -159,14 +160,14 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
               <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
                 <div className="flex justify-between items-center mb-6">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Créer un nouveau shortcode
+                    {t('shortcodeActions.createModal.title')}
                   </Dialog.Title>
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={() => setIsCreateModalOpen(false)}
                   >
-                    <span className="sr-only">Fermer</span>
+                    <span className="sr-only">{t('common.close')}</span>
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
@@ -174,7 +175,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700 mb-1">
-                      Code <span className="text-red-500">*</span>
+                      {t('shortcodeActions.createModal.form.codeLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -188,7 +189,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom d'affichage FR <span className="text-red-500">*</span>
+                      {t('shortcodeActions.createModal.form.nameFRLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -202,7 +203,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom d'affichage EN
+                      {t('shortcodeActions.createModal.form.nameENLabel')}
                     </label>
                     <input
                       type="text"
@@ -215,7 +216,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700 mb-1">
-                      UTM par défaut
+                      {t('shortcodeActions.createModal.form.defaultUTMLabel')}
                     </label>
                     <input
                       type="text"
@@ -233,14 +234,14 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                     onClick={() => setIsCreateModalOpen(false)}
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                     onClick={handleCreateSubmit}
                   >
-                    Créer et assigner
+                    {t('shortcodeActions.createModal.submitButton')}
                   </button>
                 </div>
               </div>

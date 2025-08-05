@@ -12,6 +12,7 @@ import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Shortcode, updateShortcode as updateShortcodeService, deleteShortcode as deleteShortcodeService } from '../../lib/shortcodeService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface ShortcodeDetailProps {
   shortcode: Shortcode;
@@ -37,6 +38,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
   onDelete,
   onUpdate
 }) => {
+  const { t } = useTranslation();
   const [editedShortcode, setEditedShortcode] = useState<Shortcode>({...shortcode});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
    */
   const handleSubmit = async () => {
     if (!editedShortcode.SH_Code || !editedShortcode.SH_Display_Name_FR) {
-      setError('Le code et le nom d\'affichage FR sont obligatoires.');
+      setError(t('shortcodeDetail.errors.requiredFields'));
       return;
     }
 
@@ -84,7 +86,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
       onClose();
     } catch (err) {
       console.error('Erreur lors de la mise à jour du shortcode:', err);
-      setError('Impossible de mettre à jour le shortcode.');
+      setError(t('shortcodeDetail.errors.updateFailed'));
     } finally {
       setLoading(false);
     }
@@ -107,7 +109,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
       onClose();
     } catch (err) {
       console.error('Erreur lors de la suppression du shortcode:', err);
-      setError('Impossible de supprimer le shortcode.');
+      setError(t('shortcodeDetail.errors.deleteFailed'));
     } finally {
       setLoading(false);
     }
@@ -146,14 +148,14 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
               <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
                 <div className="flex justify-between items-center">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Détails du shortcode
+                    {t('shortcodeDetail.modal.title')}
                   </Dialog.Title>
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={onClose}
                   >
-                    <span className="sr-only">Fermer</span>
+                    <span className="sr-only">{t('common.close')}</span>
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
@@ -167,7 +169,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                 <div className="mt-4 space-y-4">
                   <div>
                     <label htmlFor="SH_Code" className="block text-sm font-medium text-gray-700 mb-1">
-                      Code <span className="text-red-500">*</span>
+                      {t('shortcodeDetail.form.codeLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -182,7 +184,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom d'affichage FR <span className="text-red-500">*</span>
+                      {t('shortcodeDetail.form.displayNameFrLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -197,7 +199,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom d'affichage EN
+                      {t('shortcodeDetail.form.displayNameEnLabel')}
                     </label>
                     <input
                       type="text"
@@ -211,7 +213,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700 mb-1">
-                      UTM par défaut
+                      {t('shortcodeDetail.form.defaultUtmLabel')}
                     </label>
                     <input
                       type="text"
@@ -225,7 +227,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                   
                   <div>
                     <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700 mb-1">
-                      Type
+                      {t('shortcodeDetail.form.typeLabel')}
                     </label>
                     <input
                       type="text"
@@ -244,7 +246,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                     className="inline-flex justify-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 border border-transparent rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     onClick={() => setIsDeleteModalOpen(true)}
                   >
-                    Supprimer
+                    {t('common.delete')}
                   </button>
                   
                   <div>
@@ -253,7 +255,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                       className="mr-3 inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       onClick={onClose}
                     >
-                      Annuler
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -261,7 +263,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                       onClick={handleSubmit}
                       disabled={loading}
                     >
-                      {loading ? 'Enregistrement...' : 'Enregistrer'}
+                      {loading ? t('shortcodeDetail.buttons.saving') : t('common.save')}
                     </button>
                   </div>
                 </div>
@@ -301,12 +303,12 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
             >
               <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
                 <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                  Confirmer la suppression
+                  {t('shortcodeDetail.deleteModal.title')}
                 </Dialog.Title>
                 
                 <div className="mt-2">
                   <p className="text-sm text-gray-500">
-                    Êtes-vous sûr de vouloir supprimer le shortcode <strong>{shortcode.SH_Code}</strong> ? Cette action est irréversible et supprimera également ce shortcode de toutes les listes.
+                    {t('shortcodeDetail.deleteModal.areYouSure')} <strong>{shortcode.SH_Code}</strong>{t('shortcodeDetail.deleteModal.irreversible')}
                   </p>
                 </div>
                 
@@ -316,7 +318,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                     className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     onClick={() => setIsDeleteModalOpen(false)}
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -324,7 +326,7 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                     onClick={handleDelete}
                     disabled={loading}
                   >
-                    {loading ? 'Suppression...' : 'Supprimer'}
+                    {loading ? t('shortcodeDetail.buttons.deleting') : t('common.delete')}
                   </button>
                 </div>
               </div>

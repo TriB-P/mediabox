@@ -1,7 +1,6 @@
 /**
  * app/components/Client/DimensionSidebar.tsx
- * 
- * Version améliorée avec fonctionnalité de recherche à travers les dimensions
+ * * Version améliorée avec fonctionnalité de recherche à travers les dimensions
  * et interface plus claire pour identifier les listes personnalisées.
  */
 
@@ -10,6 +9,7 @@
 import React, { useState, useMemo } from 'react';
 import { StarIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface DimensionSidebarProps {
   dimensions: string[];
@@ -40,6 +40,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
   clientId,
   customDimensions = new Set()
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fonction pour formater les noms de dimensions de façon plus lisible
@@ -91,7 +92,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
       <div className="w-full md:w-80">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
+            <h3 className="text-base font-semibold text-gray-800">{t('dimensionSidebar.header.title')}</h3>
           </div>
           <div className="p-4">
             <div className="space-y-3">
@@ -113,10 +114,10 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
       <div className="w-full md:w-80">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
+            <h3 className="text-base font-semibold text-gray-800">{t('dimensionSidebar.header.title')}</h3>
           </div>
           <div className="p-6 text-center">
-            <p className="text-sm text-gray-500">Aucune dimension disponible</p>
+            <p className="text-sm text-gray-500">{t('dimensionSidebar.status.noDimensionsAvailable')}</p>
           </div>
         </div>
       </div>
@@ -129,11 +130,11 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
         {/* En-tête avec titre et statistiques */}
         <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold text-gray-800">Dimensions</h3>
+            <h3 className="text-base font-semibold text-gray-800">{t('dimensionSidebar.header.title')}</h3>
             {customDimensions.size > 0 && (
               <div className="flex items-center text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
                 <StarIcon className="h-3 w-3 mr-1" />
-                <span>{customDimensions.size} personnalisée{customDimensions.size > 1 ? 's' : ''}</span>
+                <span>{customDimensions.size} {customDimensions.size > 1 ? t('dimensionSidebar.header.customPersonalized_plural') : t('dimensionSidebar.header.customPersonalized')}</span>
               </div>
             )}
           </div>
@@ -146,7 +147,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
             <input
               type="text"
               className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-              placeholder="Rechercher une dimension..."
+              placeholder={t('dimensionSidebar.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -166,7 +167,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
           {searchQuery && filteredDimensions.length === 0 ? (
             <div className="p-6 text-center">
               <p className="text-sm text-gray-500">
-                Aucune dimension ne correspond à "{searchQuery}"
+                {t('dimensionSidebar.search.noMatch')} "{searchQuery}"
               </p>
             </div>
           ) : (
@@ -185,7 +186,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
                           ? 'bg-indigo-50 text-indigo-700 font-medium border-r-4 border-indigo-500'
                           : 'text-gray-700 hover:text-gray-900'
                       }`}
-                      title={`Sélectionner ${formattedName}${isCustom ? ' (liste personnalisée)' : ' (liste PlusCo)'}`}
+                      title={`${t('dimensionSidebar.list.selectDimension')} ${formattedName}${isCustom ? ` (${t('dimensionSidebar.list.customListTooltip')})` : ` (${t('dimensionSidebar.list.pluscoListTooltip')})`}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
@@ -195,7 +196,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
                                 className={`h-4 w-4 mr-2 flex-shrink-0 ${
                                   isSelected ? 'text-amber-500' : 'text-amber-400'
                                 }`} 
-                                title="Liste personnalisée" 
+                                title={t('dimensionSidebar.list.customListTitle')}
                               />
                             )}
                             <div className="min-w-0 flex-1">
@@ -220,7 +221,7 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-gray-100 text-gray-600'
                           }`}>
-                            {isCustom ? 'Custom' : 'PlusCo'}
+                            {isCustom ? t('dimensionSidebar.list.customBadge') : t('dimensionSidebar.list.pluscoBadge')}
                           </span>
                         </div>
                       </div>
@@ -238,12 +239,11 @@ const DimensionSidebar: React.FC<DimensionSidebarProps> = ({
             <span>
               {searchQuery ? (
                 <>
-                  {filteredDimensions.length} résultat{filteredDimensions.length > 1 ? 's' : ''} 
-                  sur {dimensions.length}
+                  {filteredDimensions.length} {filteredDimensions.length > 1 ? t('dimensionSidebar.footer.results') : t('dimensionSidebar.footer.result')} {t('common.on')} {dimensions.length}
                 </>
               ) : (
                 <>
-                  {dimensions.length} dimension{dimensions.length > 1 ? 's' : ''} disponible{dimensions.length > 1 ? 's' : ''}
+                  {dimensions.length} {dimensions.length > 1 ? t('dimensionSidebar.footer.dimensionsAvailable') : t('dimensionSidebar.footer.dimensionAvailable')}
                 </>
               )}
             </span>

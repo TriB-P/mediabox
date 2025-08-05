@@ -7,6 +7,7 @@
  * - Si configurée + liste existe → Select
  * - Si configurée + pas de liste → Input text
  * - Si non configurée → Masqué
+ * VERSION VALIDATION : Ajout de la validation des champs obligatoires
  */
 'use client';
 
@@ -57,6 +58,26 @@ import {
   ShortcodeItem
 } from '../../../lib/cacheService';
 
+/**
+ * CONSTANTE FACILEMENT MODIFIABLE : Liste des champs obligatoires
+ * Pour ajouter/retirer des champs requis, modifiez simplement cette liste
+ */
+const REQUIRED_FIELDS = [
+  { 
+    field: 'TC_Media_Type', 
+    label: 'Type média', 
+    tab: 'strategie' 
+  },
+  { 
+    field: 'TC_Publisher', 
+    label: 'Partenaire', 
+    tab: 'strategie' 
+  }
+  // Pour ajouter d'autres champs requis, décommentez et ajustez :
+  // { field: 'TC_LOB', label: 'Ligne d\'affaires', tab: 'strategie' },
+  // { field: 'TC_Budget', label: 'Budget', tab: 'budget' },
+];
+
 interface TactiqueDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -89,6 +110,13 @@ interface VisibleFields {
   [key: string]: boolean | undefined;
 }
 
+/**
+ * Interface pour les erreurs de validation
+ */
+interface ValidationErrors {
+  [fieldName: string]: string;
+}
+
 // NOUVEAU : Interface pour distinguer les dimensions configurées de celles ayant des listes
 interface CustomDimensionsState {
   configured: {
@@ -102,6 +130,41 @@ interface CustomDimensionsState {
     TC_Custom_Dim_3: boolean;
   };
 }
+
+/**
+ * Fonction de validation des champs obligatoires
+ * @param formData - Les données du formulaire à valider
+ * @returns Un objet contenant les erreurs de validation (vide si tout est valide)
+ */
+const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors => {
+  const errors: ValidationErrors = {};
+  
+  REQUIRED_FIELDS.forEach(({ field, label }) => {
+    const value = (formData as any)[field];
+    
+    // Vérifier si le champ est vide, null, undefined ou une chaîne vide
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      errors[field] = `Le champ "${label}" est obligatoire.`;
+    }
+  });
+  
+  return errors;
+};
+
+/**
+ * Fonction pour obtenir le premier onglet contenant une erreur
+ * @param errors - Les erreurs de validation
+ * @returns L'ID du premier onglet contenant une erreur, ou null si aucune erreur
+ */
+const getFirstErrorTab = (errors: ValidationErrors): string | null => {
+  for (const fieldName of Object.keys(errors)) {
+    const requiredField = REQUIRED_FIELDS.find(rf => rf.field === fieldName);
+    if (requiredField) {
+      return requiredField.tab;
+    }
+  }
+  return null;
+};
 
 /**
  * Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
@@ -252,7 +315,7 @@ const getDefaultFormData = (): TactiqueFormData => ({
 });
 
 /**
- * Composant principal TactiqueDrawer CORRIGÉ pour les dimensions personnalisées.
+ * Composant principal TactiqueDrawer CORRIGÉ pour les dimensions personnalisées et avec validation.
  */
 export default function TactiqueDrawer({
   isOpen,
@@ -305,6 +368,9 @@ export default function TactiqueDrawer({
   const [clientFees, setClientFees] = useState<any[]>([]);
   const [campaignCurrency, setCampaignCurrency] = useState('CAD');
   const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
+  
+  // NOUVEAU : État pour les erreurs de validation
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
   const tabs: FormTab[] = useMemo(() => [
     { id: 'info', name: 'Info', icon: DocumentTextIcon },
@@ -386,6 +452,15 @@ export default function TactiqueDrawer({
       loadAllData();
     }
   }, [isOpen, selectedClient, selectedCampaign, selectedVersion]);
+
+  // NOUVEAU : useEffect pour nettoyer les erreurs quand on change de données
+  useEffect(() => {
+    // Nettoyer les erreurs de validation quand les données changent
+    if (Object.keys(validationErrors).length > 0) {
+      const errors = validateRequiredFields(formData);
+      setValidationErrors(errors);
+    }
+  }, [formData, validationErrors]);
 
   /**
    * CORRIGÉE : Charge toutes les données avec logique correcte pour les dimensions personnalisées
@@ -606,8 +681,31 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
 
+  /**
+   * FONCTION MODIFIÉE : handleSubmit avec validation
+   */
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. VALIDATION DES CHAMPS OBLIGATOIRES
+    const errors = validateRequiredFields(formData);
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      
+      // Naviguer vers le premier onglet contenant une erreur
+      const firstErrorTab = getFirstErrorTab(errors);
+      if (firstErrorTab) {
+        setActiveTab(firstErrorTab);
+      }
+      
+      // Afficher un message d'erreur général
+      setError('Veuillez remplir tous les champs obligatoires avant de sauvegarder.');
+      return; // 🚫 ARRÊTER LA SOUMISSION
+    }
+
+    // 2. NETTOYER LES ERREURS SI VALIDATION RÉUSSIE
+    setValidationErrors({});
 
     try {
       setLoading(true);
@@ -659,12 +757,17 @@ export default function TactiqueDrawer({
     }
   }, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
 
+  /**
+   * FONCTION MODIFIÉE : handleClose pour prendre en compte les erreurs de validation
+   */
   const handleClose = useCallback(() => {
     if (isDirty) {
       const shouldClose = confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?');
       if (!shouldClose) return;
     }
 
+    // Nettoyer les erreurs de validation à la fermeture
+    setValidationErrors({});
     setIsDirty(false);
     onClose();
   }, [isDirty, onClose]);
@@ -679,6 +782,36 @@ export default function TactiqueDrawer({
   const getSubmitButtonText = () => {
     if (loading) return 'Enregistrement...';
     return mode === 'edit' ? 'Mettre à jour' : 'Créer';
+  };
+
+  /**
+   * MODIFICATION : Affichage des erreurs de validation dans le JSX
+   */
+  const renderErrorSection = () => {
+    if (!error && Object.keys(validationErrors).length === 0) return null;
+
+    return (
+      <div className="mx-6 mt-4 space-y-2">
+        {/* Erreur générale */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+        
+        {/* Erreurs de validation spécifiques */}
+        {Object.keys(validationErrors).length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">
+            <div className="font-medium mb-2">Champs obligatoires manquants :</div>
+            <ul className="list-disc list-inside space-y-1">
+              {Object.entries(validationErrors).map(([field, message]) => (
+                <li key={field} className="text-sm">{message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderTabContent = () => {
@@ -733,12 +866,10 @@ export default function TactiqueDrawer({
             campaignCurrency={campaignCurrency}
             exchangeRates={exchangeRates}
             clientId={selectedClient?.clientId || ''} 
-
             onChange={handleChange}
             onCalculatedChange={handleBudgetChange}
             onTooltipChange={setActiveTooltip}
             loading={loading}
-            
           />
         );
 
@@ -787,11 +918,7 @@ export default function TactiqueDrawer({
         title={getDrawerTitle()}
       >
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
-          {error && (
-            <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
+          {renderErrorSection()}
 
           <FormTabs
             tabs={tabs}
@@ -815,8 +942,12 @@ export default function TactiqueDrawer({
               </button>
               <button
                 type="submit"
-                disabled={loading}
-                className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                disabled={loading || Object.keys(validationErrors).length > 0}
+                className={`inline-flex justify-center rounded-lg border border-transparent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors ${
+                  Object.keys(validationErrors).length > 0 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'
+                }`}
               >
                 {getSubmitButtonText()}
               </button>

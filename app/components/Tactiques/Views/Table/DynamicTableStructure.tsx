@@ -73,6 +73,8 @@ import {
 } from '../../../../lib/cacheService';
 
 import { Fee } from '../../../../lib/tactiqueListService';
+import { useAsyncTaxonomyUpdate } from '../../../../hooks/useAsyncTaxonomyUpdate';
+
 
 
 interface SortConfig {
@@ -157,6 +159,8 @@ export default function DynamicTableStructure({
   
   const { selectedClient } = useClient();
   const { selectedCampaign } = useCampaignSelection();
+  const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
+
   
   // États existants
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);

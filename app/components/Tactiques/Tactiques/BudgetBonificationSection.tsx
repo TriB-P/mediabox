@@ -15,6 +15,7 @@
 
 import React, { memo, useCallback, useMemo } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface BudgetBonificationSectionProps {
   formData: {
@@ -55,6 +56,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
   disabled = false
 }) => {
   
+  const { t } = useTranslation();
   const hasBonus = formData.TC_Has_Bonus || false;
   const realValue = formData.TC_Real_Value || 0;
   const bonusValue = formData.TC_Bonus_Value || 0;
@@ -78,19 +80,19 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
     if (mediaBudget > 0 && realValue < mediaBudget) {
       return { 
         isValid: false, 
-        message: 'La valeur réelle doit être supérieure ou égale au budget média pour avoir une bonification' 
+        message: t('budgetBonification.validation.mustBeGreaterOrEqual')
       };
     }
     
     if (mediaBudget > 0 && realValue === mediaBudget) {
       return { 
         isValid: true, 
-        message: 'Aucune bonification (valeur réelle = budget média)' 
+        message: t('budgetBonification.validation.noBonusSameValue')
       };
     }
     
     return { isValid: true, message: null };
-  }, [hasBonus, realValue, mediaBudget]);
+  }, [hasBonus, realValue, mediaBudget, t]);
 
   /**
    * @description Calcule et mémorise le pourcentage de la bonification par rapport au budget média.
@@ -179,15 +181,15 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
         <div className="ml-3 flex-1">
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              'Cette tactique inclut de la bonification', 
-              'La bonification représente la valeur ajoutée gratuite obtenue auprès du partenaire média. Elle permet de maximiser la portée sans coût supplémentaire. Cette case peut être cochée ou décochée à tout moment.', 
+              t('budgetBonification.includeBonusLabel'), 
+              t('budgetBonification.includeBonusTooltip'), 
               onTooltipChange
             )}
           </div>
           <p className="text-sm text-gray-600">
             {hasBonus 
-              ? 'Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire. Vous pouvez la décocher pour annuler la bonification.'
-              : 'Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire.'
+              ? t('budgetBonification.hasBonusDescription')
+              : t('budgetBonification.noBonusDescription')
             }
           </p>
         </div>
@@ -196,7 +198,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       {mediaBudget <= 0 && hasBonus && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⚠️ Un budget média doit être défini pour calculer correctement la bonification.
+            {t('budgetBonification.mediaBudgetWarning')}
           </p>
         </div>
       )}
@@ -206,15 +208,15 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           {mediaBudget > 0 && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h5 className="text-sm font-medium text-gray-800 mb-2">
-                📊 Budget média de référence
+                {t('budgetBonification.referenceBudgetTitle')}
               </h5>
               <div className="text-sm text-gray-700">
                 <div className="flex justify-between items-center">
-                  <span>Budget média actuel :</span>
+                  <span>{t('budgetBonification.currentMediaBudget')}</span>
                   <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  La valeur réelle doit être supérieure à ce montant pour générer une bonification.
+                  {t('budgetBonification.realValueMustBeGreater')}
                 </div>
               </div>
             </div>
@@ -228,11 +230,10 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-blue-800">
-                    Bonification activée - En attente de saisie
+                    {t('budgetBonification.bonusActivePendingInputTitle')}
                   </p>
                   <p className="text-sm text-blue-700 mt-1">
-                    Saisissez la valeur réelle négociée avec le partenaire média ci-dessous. 
-                    Cette valeur doit être supérieure au budget média pour générer une économie.
+                    {t('budgetBonification.bonusActivePendingInputDescription')}
                   </p>
                 </div>
               </div>
@@ -242,8 +243,8 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'Valeur réelle de la tactique', 
-                'Valeur totale négociée avec le partenaire média (incluant la bonification). Doit être supérieure au budget média pour générer une économie.', 
+                t('budgetBonification.realValueLabel'), 
+                t('budgetBonification.realValueTooltip'), 
                 onTooltipChange
               )}
             </div>
@@ -274,8 +275,8 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             {realValue > 0 && validationStatus.isValid && mediaBudget > 0 && (
               <div className="mt-2 text-sm text-gray-600">
                 {realValue >= mediaBudget 
-                  ? `Économie de ${formatPercentage(((realValue - mediaBudget) / realValue) * 100)}% sur la valeur négociée`
-                  : `Valeur insuffisante pour bonification`
+                  ? `${t('budgetBonification.economyOf')} ${formatPercentage(((realValue - mediaBudget) / realValue) * 100)}% ${t('budgetBonification.onNegotiatedValue')}`
+                  : t('budgetBonification.insufficientValue')
                 }
               </div>
             )}
@@ -284,8 +285,8 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'Bonification (calculée automatiquement)', 
-                'Économie réalisée calculée automatiquement par le système (Valeur réelle - Budget média). Cette valeur représente l\'avantage négocié en dollars économisés.', 
+                t('budgetBonification.bonusCalculatedLabel'), 
+                t('budgetBonification.bonusCalculatedTooltip'), 
                 onTooltipChange
               )}
             </div>
@@ -312,14 +313,14 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
             </div>
             {bonusValue > 0 && (
               <div className="mt-1 text-sm text-green-600">
-                Économie de {formatCurrency(bonusValue)} {currency} ({formatPercentage(bonusPercentage)}% du budget média)
+                {t('budgetBonification.economyOf')} {formatCurrency(bonusValue)} {currency} ({formatPercentage(bonusPercentage)}% {t('budgetBonification.ofMediaBudget')})
               </div>
             )}
             {bonusValue === 0 && realValue > 0 && (
               <div className="mt-1 text-sm text-gray-500">
                 {realValue === mediaBudget 
-                  ? 'Aucune bonification car valeur réelle = budget média'
-                  : 'Bonification sera calculée automatiquement'
+                  ? t('budgetBonification.noBonusReasonSameValue')
+                  : t('budgetBonification.bonusWillBeCalculated')
                 }
               </div>
             )}
@@ -328,23 +329,23 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
           {realValue > 0 && bonusValue > 0 && mediaBudget > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h5 className="text-sm font-medium text-green-800 mb-3">
-                🎁 Récapitulatif de la bonification
+                {t('budgetBonification.summary.title')}
               </h5>
               <div className="space-y-2 text-sm text-green-700">
                 <div className="flex justify-between">
-                  <span>Valeur négociée totale :</span>
+                  <span>{t('budgetBonification.summary.totalNegotiatedValue')}</span>
                   <span className="font-medium">{formatCurrency(realValue)} {currency}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Budget média payé :</span>
+                  <span>{t('budgetBonification.summary.mediaBudgetPaid')}</span>
                   <span className="font-medium">{formatCurrency(mediaBudget)} {currency}</span>
                 </div>
                 <div className="flex justify-between border-t border-green-300 pt-2 font-semibold">
-                  <span>Bonification obtenue :</span>
+                  <span>{t('budgetBonification.summary.bonusObtained')}</span>
                   <span className="text-green-800">+{formatCurrency(bonusValue)} {currency}</span>
                 </div>
                 <div className="text-xs text-green-600 mt-2">
-                  Cela représente {formatPercentage(bonusPercentage)}% de valeur ajoutée gratuite par rapport au budget média.
+                  {t('budgetBonification.summary.represents')} {formatPercentage(bonusPercentage)}% {t('budgetBonification.summary.addedValue')}
                 </div>
               </div>
             </div>
@@ -355,7 +356,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       {!hasBonus && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            <strong>Bonification désactivée.</strong> Les calculs se baseront uniquement sur le budget média sans valeur ajoutée.
+            <strong>{t('budgetBonification.disabled.title')}</strong> {t('budgetBonification.disabled.description')}
           </p>
         </div>
       )}
@@ -363,7 +364,7 @@ const BudgetBonificationSection = memo<BudgetBonificationSectionProps>(({
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⏳ Chargement en cours... La configuration de bonification sera disponible une fois les données chargées.
+            {t('budgetBonification.loadingConfiguration')}
           </p>
         </div>
       )}

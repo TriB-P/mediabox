@@ -111,6 +111,24 @@ export default function CampaignDrawer({
     'CA_Custom_Dim_3'
   ], []);
 
+  const REQUIRED_FIELDS = [
+    { 
+      field: 'TC_Media_Type', 
+      label: 'Type de média', 
+      tab: 'strategie' 
+    },
+    { 
+      field: 'TC_Publisher', 
+      label: 'Partenaire', 
+      tab: 'strategie' 
+    }
+    
+  ];
+
+  interface ValidationErrors {
+    [fieldName: string]: string;
+  }
+
   const [formData, setFormData] = useState<CampaignFormData>({
     CA_Name: '',
     CA_Campaign_Identifier: '',
@@ -373,6 +391,8 @@ export default function CampaignDrawer({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  
 
   /**
    * Gère la soumission du formulaire. Appelle la fonction `onSave` passée en props,

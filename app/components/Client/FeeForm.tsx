@@ -5,10 +5,11 @@
  * passées en props (`onSubmit`, `onCancel`) pour communiquer avec son composant parent,
  * qui est responsable de la logique métier (par exemple, un appel à Firebase).
  */
-'use client';
+'use an client';
 
 import React, { useState, useEffect } from 'react';
 import { Fee, FeeFormData, CalculationType, CalculationMode } from '../../types/fee';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface FeeFormProps {
   fee?: Fee;
@@ -26,6 +27,7 @@ interface FeeFormProps {
  * @returns {React.ReactElement} Le composant de formulaire.
  */
 const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<FeeFormData>({
     FE_Name: '',
     FE_Calculation_Type: "Frais fixe",
@@ -64,23 +66,25 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
     });
   };
 
-  const calculationTypes: CalculationType[] = [
-    "Volume d'unité",
-    "Frais fixe",
-    "Pourcentage budget",
-    "Unités"
+  // The 'value' must remain in French to match the 'Fee' type definition.
+  // The 'label' is used for display and is translated.
+  const calculationTypes = [
+    { value: "Volume d'unité", label: t('feeForm.calculationTypes.volumeUnit') },
+    { value: "Frais fixe", label: t('feeForm.calculationTypes.fixedFee') },
+    { value: "Pourcentage budget", label: t('feeForm.calculationTypes.percentageBudget') },
+    { value: "Unités", label: t('feeForm.calculationTypes.units') }
   ];
 
-  const calculationModes: CalculationMode[] = [
-    "Directement sur le budget média",
-    "Applicable sur les frais précédents"
+  const calculationModes = [
+    { value: "Directement sur le budget média", label: t('feeForm.calculationModes.direct') },
+    { value: "Applicable sur les frais précédents", label: t('feeForm.calculationModes.onPrevious') }
   ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="FE_Name" className="block text-sm font-medium text-gray-700">
-          Nom du frais
+          {t('feeForm.labels.name')}
         </label>
         <input
           type="text"
@@ -90,13 +94,13 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
           onChange={handleChange}
           required
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          placeholder="Nom du frais"
+          placeholder={t('feeForm.placeholders.name')}
         />
       </div>
 
       <div>
         <label htmlFor="FE_Calculation_Type" className="block text-sm font-medium text-gray-700">
-          Type de calcul
+          {t('feeForm.labels.calculationType')}
         </label>
         <select
           id="FE_Calculation_Type"
@@ -106,8 +110,8 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
           {calculationTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
+            <option key={type.value} value={type.value}>
+              {type.label}
             </option>
           ))}
         </select>
@@ -115,7 +119,7 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
 
       <div>
         <label htmlFor="FE_Calculation_Mode" className="block text-sm font-medium text-gray-700">
-          Mode de calcul
+          {t('feeForm.labels.calculationMode')}
         </label>
         <select
           id="FE_Calculation_Mode"
@@ -125,8 +129,8 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
           {calculationModes.map((mode) => (
-            <option key={mode} value={mode}>
-              {mode}
+            <option key={mode.value} value={mode.value}>
+              {mode.label}
             </option>
           ))}
         </select>
@@ -138,13 +142,13 @@ const FeeForm: React.FC<FeeFormProps> = ({ fee, onSubmit, onCancel }) => {
           onClick={onCancel}
           className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          Annuler
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          {fee ? 'Mettre à jour' : 'Ajouter'}
+          {fee ? t('common.update') : t('common.create')}
         </button>
       </div>
     </form>

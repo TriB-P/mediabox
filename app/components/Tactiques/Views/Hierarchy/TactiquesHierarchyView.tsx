@@ -1,8 +1,11 @@
+// app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx
 /**
  * Ce composant affiche la hiérarchie complète des sections, tactiques, placements et créatifs.
  * Il permet l'expansion des éléments, la sélection multiple pour des actions groupées,
  * et la réorganisation par glisser-déposer (drag and drop).
  * Il intègre également des tiroirs (drawers) pour la création et l'édition de chaque type d'élément.
+ * 
+ * CORRECTION : Structure DOM des sections simplifiée pour corriger le drag and drop
  */
 'use client';
 
@@ -220,15 +223,15 @@ export default function TactiquesHierarchyView({
     isOpen: boolean;
     creatif: Creatif | null;
     placementId: string;
-    tactiqueId: string; // ← AJOUT
-    sectionId: string;  // ← AJOUT
+    tactiqueId: string;
+    sectionId: string;
     mode: 'create' | 'edit';
   }>({
     isOpen: false,
     creatif: null,
     placementId: '',
-    tactiqueId: '',  // ← AJOUT
-    sectionId: '',   // ← AJOUT
+    tactiqueId: '',
+    sectionId: '',
     mode: 'create'
   });
 
@@ -256,7 +259,6 @@ export default function TactiquesHierarchyView({
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
 
   /**
    * Calcule le pourcentage d'un montant par rapport au budget total.
@@ -362,12 +364,18 @@ export default function TactiquesHierarchyView({
   };
 
   /**
+   * Gère l'expansion d'une section - VERSION CORRIGÉE pour éviter les conflits avec le drag
+   * @param {React.MouseEvent} e - L'événement de clic
+   * @param {string} sectionId - L'ID de la section
+   */
+  const handleSectionExpandClick = (e: React.MouseEvent, sectionId: string) => {
+    // Empêcher le bubbling vers le drag handle
+    e.stopPropagation();
+    onSectionExpand(sectionId);
+  };
+
+  /**
    * Ouvre le menu contextuel pour la gestion des taxonomies.
-   *
-   * @param {Placement | Creatif} item - L'élément (placement ou créatif) concerné.
-   * @param {'placement' | 'creatif'} itemType - Le type de l'élément ('placement' ou 'creatif').
-   * @param {'tags' | 'platform' | 'mediaocean'} taxonomyType - Le type de taxonomie à gérer.
-   * @param {{ x: number; y: number }} position - La position d'affichage du menu.
    */
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif,
@@ -439,14 +447,12 @@ export default function TactiquesHierarchyView({
    * @param {string} sectionId - L'identifiant de la section parente.
    */
   const handleCreateTactiqueLocal = async (sectionId: string) => {
-
-        setTactiqueDrawer({
+    setTactiqueDrawer({
       isOpen: true,
       tactique: null,   
       sectionId,
       mode: 'create'    
     });
-    
   };
 
   /**
@@ -469,60 +475,54 @@ export default function TactiquesHierarchyView({
       return;
     }
   
-    // ✅ CORRECTION : Ouvrir le drawer en mode création sans créer en DB
     setPlacementDrawer({
       isOpen: true,
-      placement: null,  // 👈 Pas de placement = mode création
+      placement: null,
       tactiqueId,
       sectionId,
-      mode: 'create'   // 👈 Mode création explicite
+      mode: 'create'
     });
   };
 
-// 2. Ajouter la fonction handleCreateCreatifLocal manquante
-/**
- * Gère la création locale d'un nouveau créatif.
- *
- * @param {string} placementId - L'identifiant du placement parent.
- */
-const handleCreateCreatifLocal = async (placementId: string) => {
-  // Trouver la hiérarchie complète
-  let sectionId = '';
-  let tactiqueId = '';
-  
-  for (const section of sections) {
-    for (const tactique of section.tactiques) {
-      const tactiquePlacements = tactique.placements || [];
-      if (tactiquePlacements.some(p => p.id === placementId)) {
-        sectionId = section.id;
-        tactiqueId = tactique.id;
-        break;
+  /**
+   * Gère la création locale d'un nouveau créatif.
+   *
+   * @param {string} placementId - L'identifiant du placement parent.
+   */
+  const handleCreateCreatifLocal = async (placementId: string) => {
+    // Trouver la hiérarchie complète
+    let sectionId = '';
+    let tactiqueId = '';
+    
+    for (const section of sections) {
+      for (const tactique of section.tactiques) {
+        const tactiquePlacements = tactique.placements || [];
+        if (tactiquePlacements.some(p => p.id === placementId)) {
+          sectionId = section.id;
+          tactiqueId = tactique.id;
+          break;
+        }
       }
+      if (tactiqueId) break;
     }
-    if (tactiqueId) break;
-  }
 
-  if (!sectionId || !tactiqueId) {
-    console.error('Hiérarchie parent non trouvée pour le placement');
-    return;
-  }
+    if (!sectionId || !tactiqueId) {
+      console.error('Hiérarchie parent non trouvée pour le placement');
+      return;
+    }
 
-  // ✅ CORRECTION : Ouvrir le drawer en mode création sans créer en DB
-  setCreatifDrawer({
-    isOpen: true,
-    creatif: null,    // 👈 Pas de créatif = mode création
-    placementId,
-    tactiqueId,
-    sectionId,
-    mode: 'create'    // 👈 Mode création explicite
-  });
-};
+    setCreatifDrawer({
+      isOpen: true,
+      creatif: null,
+      placementId,
+      tactiqueId,
+      sectionId,
+      mode: 'create'
+    });
+  };
 
   /**
    * Ouvre le tiroir d'édition pour une tactique existante.
-   *
-   * @param {string} sectionId - L'identifiant de la section parente.
-   * @param {Tactique} tactique - La tactique à éditer.
    */
   const handleEditTactique = (sectionId: string, tactique: Tactique) => {
     setTactiqueDrawer({
@@ -535,12 +535,8 @@ const handleCreateCreatifLocal = async (placementId: string) => {
 
   /**
    * Ouvre le tiroir d'édition pour un placement existant.
-   *
-   * @param {string} tactiqueId - L'identifiant de la tactique parente.
-   * @param {Placement} placement - Le placement à éditer.
    */
   const handleEditPlacement = (tactiqueId: string, placement: Placement) => {
-    // ✅ Trouver le sectionId pour l'édition
     let sectionId = '';
     for (const section of sections) {
       if (section.tactiques.some(t => t.id === tactiqueId)) {
@@ -553,69 +549,54 @@ const handleCreateCreatifLocal = async (placementId: string) => {
       isOpen: true,
       placement,
       tactiqueId,
-      sectionId, // ← AJOUT
+      sectionId,
       mode: 'edit'
     });
   };
 
-/**
- * Ouvre le tiroir d'édition pour un créatif existant.
- *
- * @param {string} placementId - L'identifiant du placement parent.
- * @param {Creatif} creatif - Le créatif à éditer.
- */
-const handleEditCreatif = (placementId: string, creatif: Creatif) => {
-  // ✅ Trouver la hiérarchie complète pour l'édition
-  let sectionId = '';
-  let tactiqueId = '';
-  
-  for (const section of sections) {
-    for (const tactique of section.tactiques) {
-      const tactiquePlacements = tactique.placements || [];
-      if (tactiquePlacements.some(p => p.id === placementId)) {
-        sectionId = section.id;
-        tactiqueId = tactique.id;
-        break;
-      }
-    }
-    if (tactiqueId) break;
-  }
-
-  setCreatifDrawer({
-    isOpen: true,
-    creatif,
-    placementId,
-    tactiqueId,  // ← AJOUT
-    sectionId,   // ← AJOUT
-    mode: 'edit'
-  });
-};
-
   /**
-   * Gère la sauvegarde des modifications d'une tactique.
-   *
-   * @param {any} tactiqueData - Les données de la tactique à sauvegarder.
+   * Ouvre le tiroir d'édition pour un créatif existant.
    */
-  const handleSaveTactique = async (tactiqueData: any) => {
-   
+  const handleEditCreatif = (placementId: string, creatif: Creatif) => {
+    let sectionId = '';
+    let tactiqueId = '';
     
+    for (const section of sections) {
+      for (const tactique of section.tactiques) {
+        const tactiquePlacements = tactique.placements || [];
+        if (tactiquePlacements.some(p => p.id === placementId)) {
+          sectionId = section.id;
+          tactiqueId = tactique.id;
+          break;
+        }
+      }
+      if (tactiqueId) break;
+    }
+
+    setCreatifDrawer({
+      isOpen: true,
+      creatif,
+      placementId,
+      tactiqueId,
+      sectionId,
+      mode: 'edit'
+    });
+  };
+
+  // [Continues with save handlers...]
+  const handleSaveTactique = async (tactiqueData: any) => {
     if (!onUpdateTactique) return;
   
     try {
       if (tactiqueDrawer.mode === 'create') {
-        
         if (!onCreateTactique) {
           return;
         }
         
-        // Créer la tactique avec les données du formulaire
         const newTactique = await onCreateTactique(tactiqueDrawer.sectionId);
-        
-        // Ensuite la mettre à jour avec les données du formulaire
         await onUpdateTactique(tactiqueDrawer.sectionId, newTactique.id, tactiqueData);
       } else {
         if (!tactiqueDrawer.tactique) return;
-        
         await onUpdateTactique(tactiqueDrawer.sectionId, tactiqueDrawer.tactique.id, tactiqueData);
       }
       
@@ -624,69 +605,50 @@ const handleEditCreatif = (placementId: string, creatif: Creatif) => {
       console.error('Erreur lors de la sauvegarde de la tactique:', error);
     }
   };
-/**
- * Gère la sauvegarde des modifications d'un placement.
- * VERSION CORRIGÉE : Passe les IDs directement depuis le drawer state
- * @param {any} placementData - Les données du placement à sauvegarder.
- */
-const handleSavePlacement = async (placementData: any) => {
-  if (!onUpdatePlacement) return;
 
-  try {
-    if (placementDrawer.mode === 'create') {
-      // ✅ MODE CRÉATION : Créer le placement maintenant
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements (création)");
-      
-      if (!onCreatePlacement) {
-        console.error('onCreatePlacement non disponible');
-        return;
+  const handleSavePlacement = async (placementData: any) => {
+    if (!onUpdatePlacement) return;
+
+    try {
+      if (placementDrawer.mode === 'create') {
+        console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements (création)");
+        
+        if (!onCreatePlacement) {
+          console.error('onCreatePlacement non disponible');
+          return;
+        }
+        
+        const newPlacement = await onCreatePlacement(placementDrawer.tactiqueId);
+        await onUpdatePlacement(
+          newPlacement.id, 
+          placementData,
+          placementDrawer.sectionId, 
+          placementDrawer.tactiqueId  
+        );
+      } else {
+        if (!placementDrawer.placement) return;
+        
+        console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements/[placementDrawer.placement.id]");
+        
+        await onUpdatePlacement(
+          placementDrawer.placement.id, 
+          placementData,
+          placementDrawer.sectionId, 
+          placementDrawer.tactiqueId  
+        );
       }
       
-      // Créer le placement avec les données du formulaire
-      const newPlacement = await onCreatePlacement(placementDrawer.tactiqueId);
-      
-      // Ensuite le mettre à jour avec les données du formulaire
-      await onUpdatePlacement(
-        newPlacement.id, 
-        placementData,
-        placementDrawer.sectionId, 
-        placementDrawer.tactiqueId  
-      );
-    } else {
-      // ✅ MODE ÉDITION : Mettre à jour placement existant
-      if (!placementDrawer.placement) return;
-      
-      console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSavePlacement - Path: placements/[placementDrawer.placement.id]");
-      
-      await onUpdatePlacement(
-        placementDrawer.placement.id, 
-        placementData,
-        placementDrawer.sectionId, 
-        placementDrawer.tactiqueId  
-      );
+      setPlacementDrawer(prev => ({ ...prev, isOpen: false }));
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du placement:', error);
     }
-    
-    setPlacementDrawer(prev => ({ ...prev, isOpen: false }));
-  } catch (error) {
-    console.error('Erreur lors de la sauvegarde du placement:', error);
-  }
-};
+  };
 
-
-
-  /**
-   * Gère la sauvegarde des modifications d'un créatif.
-   * Cette fonction inclut la logique pour retrouver la hiérarchie parente (sectionId, tactiqueId)
-   * à partir du placementId pour l'appel à `onUpdateCreatif`.
-   *
-   * @param {any} creatifData - Les données du créatif à sauvegarder.
-   */
   const handleSaveCreatif = async (creatifData: any) => {
     if (!onUpdateCreatif || !creatifDrawer.placementId) return;
   
     try {
       if (creatifDrawer.mode === 'create') {
-        // ✅ MODE CRÉATION : Créer le créatif maintenant
         console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveCreatif - Path: creatifs (création)");
         
         if (!onCreateCreatif) {
@@ -694,10 +656,7 @@ const handleSavePlacement = async (placementData: any) => {
           return;
         }
         
-        // Créer le créatif avec les données du formulaire
         const newCreatif = await onCreateCreatif(creatifDrawer.placementId);
-        
-        // Ensuite le mettre à jour avec les données du formulaire
         await onUpdateCreatif(
           creatifDrawer.sectionId,
           creatifDrawer.tactiqueId,
@@ -706,7 +665,6 @@ const handleSavePlacement = async (placementData: any) => {
           creatifData
         );
       } else {
-        // ✅ MODE ÉDITION : Mettre à jour créatif existant
         if (!creatifDrawer.creatif) return;
         
         console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesHierarchyView.tsx - Fonction: handleSaveCreatif - Path: creatifs/[creatifDrawer.creatif.id]");
@@ -726,10 +684,6 @@ const handleSavePlacement = async (placementData: any) => {
     }
   };
 
-  /**
-   * Construit la liste des éléments sélectionnés pour affichage dans le panneau d'actions.
-   * Cette liste inclut le nom, le type et les données complètes de chaque élément.
-   */
   const selectedItems = useMemo(() => {
     const selection = selectionLogic.getSelectedItems();
     const result: Array<{
@@ -740,7 +694,6 @@ const handleSavePlacement = async (placementData: any) => {
     }> = [];
 
     selection.details.forEach(detail => {
-      // Chercher l'élément réel dans la hiérarchie sections
       for (const section of sections) {
         if (section.id === detail.id) {
           result.push({
@@ -797,20 +750,11 @@ const handleSavePlacement = async (placementData: any) => {
     return result;
   }, [selectionLogic, sections]);
 
-  /**
-   * Gère la demande locale de désélection de tous les éléments.
-   */
   const handleClearSelectionLocal = () => {
     selectionLogic.clearSelection();
     onClearSelection?.();
   };
 
-  /**
-   * Trouve une tactique par son identifiant à travers toutes les sections.
-   *
-   * @param {string} tactiqueId - L'identifiant de la tactique à trouver.
-   * @returns {Tactique | undefined} La tactique trouvée ou undefined si non trouvée.
-   */
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
     for (const section of sections) {
       const tactique = section.tactiques.find(t => t.id === tactiqueId);
@@ -819,12 +763,6 @@ const handleSavePlacement = async (placementData: any) => {
     return undefined;
   };
 
-  /**
-   * Trouve un placement par son identifiant et retourne le placement ainsi que sa tactique parente.
-   *
-   * @param {string} placementId - L'identifiant du placement à trouver.
-   * @returns {{ placement: Placement; tactique: Tactique } | undefined} L'objet contenant le placement et sa tactique, ou undefined.
-   */
   const findPlacementById = (placementId: string): { placement: Placement; tactique: Tactique } | undefined => {
     for (const section of sections) {
       for (const tactique of section.tactiques) {
@@ -838,17 +776,10 @@ const handleSavePlacement = async (placementData: any) => {
     return undefined;
   };
 
-  /**
-   * Récupère les données de la tactique courante si un placement est sélectionné dans le tiroir de placement.
-   */
   const currentTactiqueData = placementDrawer.tactiqueId ?
     findTactiqueById(placementDrawer.tactiqueId) :
     undefined;
 
-  /**
-   * Récupère le contexte du placement courant (placement et tactique parentes)
-   * si un créatif est sélectionné dans le tiroir de créatif.
-   */
   const currentPlacementContext = creatifDrawer.placementId ?
     findPlacementById(creatifDrawer.placementId) :
     undefined;
@@ -869,20 +800,16 @@ const handleSavePlacement = async (placementData: any) => {
 
       {/* Panel d'actions pour les éléments sélectionnés */}
       {selectedItems.length > 0 && (
-        <>
-          <SelectedActionsPanel
-            selectedItems={selectedItems}
-            onDuplicateSelected={onDuplicateSelected || (() => {})}
-            onDeleteSelected={onDeleteSelected || (() => {})}
-            onClearSelection={handleClearSelectionLocal}
-            onRefresh={onRefresh}
-            loading={loading}
-            validationResult={validationResult}
-            hierarchyContext={hierarchyContext}
-          />
-
-
-        </>
+        <SelectedActionsPanel
+          selectedItems={selectedItems}
+          onDuplicateSelected={onDuplicateSelected || (() => {})}
+          onDeleteSelected={onDeleteSelected || (() => {})}
+          onClearSelection={handleClearSelectionLocal}
+          onRefresh={onRefresh}
+          loading={loading}
+          validationResult={validationResult}
+          hierarchyContext={hierarchyContext}
+        />
       )}
 
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -905,19 +832,20 @@ const handleSavePlacement = async (placementData: any) => {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`${snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''}`}
+                        onMouseEnter={() => setHoveredSection(section.id)}
+                        onMouseLeave={() => setHoveredSection(null)}
                       >
-                        {/* Section header */}
+                        {/* Section header - STRUCTURE EXACTE DE L'ORIGINAL RESTAURÉE */}
                         <div
                           className="relative"
                           onMouseEnter={() => setHoveredSection(section.id)}
                           onMouseLeave={() => setHoveredSection(null)}
                         >
                           <div
-                            className={`flex justify-between items-center px-4 py-3 cursor-pointer bg-white hover:bg-gray-50 transition-colors ${
+                            className={`flex justify-between items-center px-4 py-3 bg-white hover:bg-gray-50 transition-colors ${
                               section.isExpanded ? 'bg-gray-50' : ''
                             } ${selectionLogic.isSelected(section.id) ? 'bg-indigo-50' : ''}`}
                             style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
-                            onClick={() => onSectionExpand(section.id)}
                           >
                             <div className="flex items-center">
                               <input
@@ -927,23 +855,31 @@ const handleSavePlacement = async (placementData: any) => {
                                 onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
                                 onClick={(e) => e.stopPropagation()}
                               />
+                              
+                              {/* ✅ EXACT comme les autres composants : dragHandleProps sur span */}
                               <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
                                 <Bars3Icon className="h-4 w-4 text-gray-400" />
                               </span>
 
-                              {section.isExpanded ? (
-                                <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
-                              ) : (
-                                <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
-                              )}
+                              {/* ✅ COMME LES AUTRES COMPOSANTS : onClick seulement sur cette zone, pas sur le div principal */}
+                              <div 
+                                className="section-expand-area flex items-center cursor-pointer"
+                                onClick={() => onSectionExpand(section.id)}
+                              >
+                                {section.isExpanded ? (
+                                  <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
+                                ) : (
+                                  <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
+                                )}
 
-                              <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
+                                <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
 
-                              {section.tactiques.length > 0 && (
-                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                  {section.tactiques.length}
-                                </span>
-                              )}
+                                {section.tactiques.length > 0 && (
+                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    {section.tactiques.length}
+                                  </span>
+                                )}
+                              </div>
 
                               <button
                                 onClick={(e) => {
@@ -960,7 +896,7 @@ const handleSavePlacement = async (placementData: any) => {
                             </div>
 
                             <div className="flex items-center space-x-4">
-                            <div className="relative min-w-[48px] h-6">
+                              <div className="relative min-w-[48px] h-6">
                                 {hoveredSection === section.id && (
                                   <div className="absolute right-0 top-0 flex items-center space-x-1">
                                     <button
@@ -1086,7 +1022,7 @@ const handleSavePlacement = async (placementData: any) => {
         onClose={() => setTactiqueDrawer(prev => ({ ...prev, isOpen: false }))}
         tactique={tactiqueDrawer.tactique}
         sectionId={tactiqueDrawer.sectionId}
-        mode={tactiqueDrawer.mode}  // 👈 AJOUT DE LA PROP MODE
+        mode={tactiqueDrawer.mode}
         onSave={handleSaveTactique}
       />
 

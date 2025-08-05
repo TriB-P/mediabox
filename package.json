@@ -24,6 +24,8 @@
     "react": "18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "18.2.0",
+    "react-snake-game": "^1.0.9",
+    "react-tetris-ts": "^1.0.2",
     "tailwindcss": "3.3.3",
     "typescript": "5.2.2"
   },
