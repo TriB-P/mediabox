@@ -1,3 +1,4 @@
+// app/components/Others/BudgetBucket.tsx
 /**
  * Ce fichier définit le composant React `BudgetBucket`.
  * Ce composant est responsable de l'affichage d'un "bucket" (une catégorie) de budget.
@@ -73,7 +74,8 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(bucket.name);
   const [editDescription, setEditDescription] = useState(bucket.description);
-  const [editTarget, setEditTarget] = useState(bucket.target);
+  // Changement : gérer editTarget comme string pour permettre l'effacement complet
+  const [editTarget, setEditTarget] = useState<string>(bucket.target.toString());
   const [editPercentage, setEditPercentage] = useState(bucket.percentage);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -108,7 +110,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
   useEffect(() => {
     setEditName(bucket.name);
     setEditDescription(bucket.description);
-    setEditTarget(bucket.target);
+    setEditTarget(bucket.target.toString());
     setEditPercentage(bucket.percentage);
   }, [bucket]);
 
@@ -118,11 +120,15 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
    */
   const handleEditSave = () => {
     console.log(`FIREBASE: ÉCRITURE - Fichier: BudgetBucket.tsx - Fonction: handleEditSave - Path: budgets/${bucket.id}`);
+    
+    // Conversion de editTarget string vers number, avec valeur par défaut 0
+    const targetNumber = editTarget === '' ? 0 : parseFloat(editTarget) || 0;
+    
     onUpdate({
       ...bucket,
       name: editName,
-      description: editDescription,
-      target: editTarget,
+      description: editDescription.trim(), // Trim pour éviter les espaces
+      target: targetNumber,
       percentage: editPercentage
     });
     setIsEditing(false);
@@ -135,7 +141,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
   const handleEditCancel = () => {
     setEditName(bucket.name);
     setEditDescription(bucket.description);
-    setEditTarget(bucket.target);
+    setEditTarget(bucket.target.toString());
     setEditPercentage(bucket.percentage);
     setIsEditing(false);
   };
@@ -146,12 +152,20 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
    * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement du champ de saisie.
    */
   const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newAmount = parseFloat(e.target.value) || 0;
-    setEditTarget(newAmount);
+    const inputValue = e.target.value;
     
-    if (totalBudget > 0) {
-      const newPercentage = Math.round((newAmount / totalBudget) * 100);
-      setEditPercentage(newPercentage);
+    // Permettre la saisie d'une chaîne vide ou de nombres valides
+    if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
+      setEditTarget(inputValue);
+      
+      // Calculer le nouveau pourcentage seulement si la valeur n'est pas vide
+      if (totalBudget > 0 && inputValue !== '') {
+        const newAmount = parseFloat(inputValue) || 0;
+        const newPercentage = Math.round((newAmount / totalBudget) * 100);
+        setEditPercentage(newPercentage);
+      } else if (inputValue === '') {
+        setEditPercentage(0);
+      }
     }
   };
 
@@ -165,7 +179,7 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
     setEditPercentage(newPercentage);
     
     const newTarget = Math.round(totalBudget * newPercentage / 100);
-    setEditTarget(newTarget);
+    setEditTarget(newTarget.toString());
   };
 
   const bucketPublishers = publisherLogos.filter(publisher => 
@@ -238,11 +252,18 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             <textarea
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
+              placeholder={t('strategy.descriptionPlaceholder')}
               className="w-full text-sm text-gray-600 border border-gray-300 rounded p-2 focus:outline-none focus:border-indigo-500"
               rows={2}
             />
           ) : (
-            <p className="text-sm text-gray-600">{bucket.description}</p>
+            <p className="text-sm text-gray-600">
+              {bucket.description || (
+                <span className="italic text-gray-400">
+                  {t('strategy.noDescription')}
+                </span>
+              )}
+            </p>
           )}
           
           {isEditing && (
@@ -290,11 +311,10 @@ const BudgetBucket: React.FC<BudgetBucketProps> = ({
             <div className="text-right">
               {isEditing ? (
                 <input
-                  type="number"
-                  min="0"
-                  max={totalBudget}
+                  type="text"
                   value={editTarget}
                   onChange={handleAmountInputChange}
+                  placeholder="0"
                   className="w-28 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               ) : (

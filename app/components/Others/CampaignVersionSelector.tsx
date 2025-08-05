@@ -426,7 +426,7 @@ export default function CampaignVersionSelector({
                     <div className="flex items-center space-x-2">
                       <span className="truncate">{version.name}</span>
                       {showVersionBadges && version.isOfficial && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           <StarIcon className="w-3 h-3 mr-1" />
                           Officielle
                         </span>

@@ -1,13 +1,16 @@
+// app/hooks/useAdvancedTableData.ts
+
 /**
- * Ce hook gère la logique complexe d'affichage et de modification des données
- * pour un tableau avancé hiérarchique (Sections > Tactiques > Placements > Créatifs).
- * Il fournit les données transformées pour l'affichage, gère l'état des modifications
- * en attente, les cellules en cours d'édition, les sélections de lignes et l'expansion
- * des sections. Il offre également des fonctions pour la mise à jour unitaire,
- * l'édition en masse, la copie et le remplissage vers le bas des valeurs,
- * ainsi que la sauvegarde et l'annulation des modifications.
- * C'est le cerveau derrière le tableau d'édition de masse.
+ * CORRECTION du bug de refresh des sections
+ * 
+ * Le problème : Après sauvegarde des sections, pendingChanges était vidé immédiatement
+ * mais les props sections n'étaient pas encore mises à jour, causant l'affichage 
+ * des anciennes valeurs.
+ * 
+ * Solution : Maintenir un état intermédiaire (savedChanges) qui garde les valeurs
+ * sauvegardées jusqu'à ce que les données soient effectivement mises à jour.
  */
+
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
 import { TableRow, TableLevel, EntityCounts } from '../components/Tactiques/Views/Table/TactiquesAdvancedTableView';
@@ -61,43 +64,19 @@ export function useAdvancedTableData({
   onUpdateCreatif
 }: UseAdvancedTableDataProps): UseAdvancedTableDataReturn {
 
-  /**
-   * État du niveau de sélection actuel dans le tableau (section, tactique, placement, créatif).
-   * @type {TableLevel}
-   */
   const [selectedLevel, setSelectedLevel] = useState<TableLevel>('tactique');
-  /**
-   * Carte des modifications en attente de sauvegarde. La clé est l'ID de l'entité, la valeur est un objet Partiel des champs modifiés.
-   * @type {Map<string, Partial<any>>}
-   */
   const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<any>>>(new Map());
-  /**
-   * Ensemble des clés de cellules actuellement en mode édition. Une clé de cellule est généralement `entityId-fieldKey`.
-   * @type {Set<string>}
-   */
+  
+  // NOUVEAU : État pour maintenir les changements sauvegardés jusqu'à synchronisation
+  const [savedChanges, setSavedChanges] = useState<Map<string, Partial<any>>>(new Map());
+  
   const [editingCells, setEditingCells] = useState<Set<string>>(new Set());
-  /**
-   * Ensemble des IDs de lignes sélectionnées dans le tableau.
-   * @type {Set<string>}
-   */
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  /**
-   * Ensemble des IDs de sections actuellement étendues dans l'affichage hiérarchique.
-   * @type {Set<string>}
-   */
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(sections.map(s => s.id))
   );
-  /**
-   * Indique si une opération de sauvegarde est en cours.
-   * @type {boolean}
-   */
   const [isSaving, setIsSaving] = useState(false);
 
-  /**
-   * Calcule le nombre d'entités (sections, tactiques, placements, créatifs).
-   * @returns {EntityCounts} Un objet contenant le compte de chaque type d'entité.
-   */
   const entityCounts = useMemo((): EntityCounts => {
     const tactiquesCount = Object.values(tactiques).reduce((sum, sectionTactiques) => sum + sectionTactiques.length, 0);
     const placementsCount = Object.values(placements).reduce((sum, tactiquePlacements) => sum + tactiquePlacements.length, 0);
@@ -112,18 +91,52 @@ export function useAdvancedTableData({
   }, [sections, tactiques, placements, creatifs]);
 
   /**
-   * Génère la liste aplatie des lignes du tableau à partir des données hiérarchiques (sections, tactiques, placements, créatifs).
-   * Inclut les informations de niveau et d'éditabilité basées sur le `selectedLevel` et `expandedSections`.
-   * @returns {TableRow[]} Un tableau d'objets TableRow représentant les lignes du tableau.
+   * MODIFIÉ : Fonction utilitaire pour obtenir la valeur effective d'un champ
+   * Prend en compte les modifications en attente ET les modifications sauvegardées
+   */
+  const getEffectiveValue = useCallback((entityId: string, fieldKey: string, originalData: any): any => {
+    // 1. Vérifier les modifications en attente (priorité haute)
+    const pendingChange = pendingChanges.get(entityId);
+    if (pendingChange && pendingChange[fieldKey] !== undefined) {
+      return pendingChange[fieldKey];
+    }
+
+    // 2. Vérifier les modifications sauvegardées (priorité moyenne)
+    const savedChange = savedChanges.get(entityId);
+    if (savedChange && savedChange[fieldKey] !== undefined) {
+      return savedChange[fieldKey];
+    }
+
+    // 3. Valeur originale (priorité basse)
+    return originalData[fieldKey];
+  }, [pendingChanges, savedChanges]);
+
+  /**
+   * MODIFIÉ : Génère les lignes du tableau avec support des valeurs sauvegardées
    */
   const tableRows = useMemo((): TableRow[] => {
     const rows: TableRow[] = [];
 
     sections.forEach(section => {
+      // Créer les données effectives pour la section
+      const effectiveData = { ...section };
+      
+      // Appliquer les modifications sauvegardées
+      const sectionSavedChanges = savedChanges.get(section.id);
+      if (sectionSavedChanges) {
+        Object.assign(effectiveData, sectionSavedChanges);
+      }
+      
+      // Appliquer les modifications en attente
+      const sectionPendingChanges = pendingChanges.get(section.id);
+      if (sectionPendingChanges) {
+        Object.assign(effectiveData, sectionPendingChanges);
+      }
+
       rows.push({
         id: section.id,
         type: 'section',
-        data: section,
+        data: effectiveData,
         level: 0,
         isEditable: selectedLevel === 'section',
         sectionId: section.id
@@ -133,10 +146,23 @@ export function useAdvancedTableData({
         const sectionTactiques = tactiques[section.id] || [];
         
         sectionTactiques.forEach(tactique => {
+          // Appliquer la même logique pour les tactiques
+          const effectiveTactiqueData = { ...tactique };
+          
+          const tactiqueSavedChanges = savedChanges.get(tactique.id);
+          if (tactiqueSavedChanges) {
+            Object.assign(effectiveTactiqueData, tactiqueSavedChanges);
+          }
+          
+          const tactiquePendingChanges = pendingChanges.get(tactique.id);
+          if (tactiquePendingChanges) {
+            Object.assign(effectiveTactiqueData, tactiquePendingChanges);
+          }
+
           rows.push({
             id: tactique.id,
             type: 'tactique',
-            data: tactique,
+            data: effectiveTactiqueData,
             level: 1,
             isEditable: selectedLevel === 'tactique',
             parentId: section.id,
@@ -147,10 +173,23 @@ export function useAdvancedTableData({
           const tactiquePlacements = placements[tactique.id] || [];
           
           tactiquePlacements.forEach(placement => {
+            // Appliquer la même logique pour les placements
+            const effectivePlacementData = { ...placement };
+            
+            const placementSavedChanges = savedChanges.get(placement.id);
+            if (placementSavedChanges) {
+              Object.assign(effectivePlacementData, placementSavedChanges);
+            }
+            
+            const placementPendingChanges = pendingChanges.get(placement.id);
+            if (placementPendingChanges) {
+              Object.assign(effectivePlacementData, placementPendingChanges);
+            }
+
             rows.push({
               id: placement.id,
               type: 'placement',
-              data: placement,
+              data: effectivePlacementData,
               level: 2,
               isEditable: selectedLevel === 'placement',
               parentId: tactique.id,
@@ -162,10 +201,23 @@ export function useAdvancedTableData({
             const placementCreatifs = creatifs[placement.id] || [];
             
             placementCreatifs.forEach(creatif => {
+              // Appliquer la même logique pour les créatifs
+              const effectiveCreatifData = { ...creatif };
+              
+              const creatifSavedChanges = savedChanges.get(creatif.id);
+              if (creatifSavedChanges) {
+                Object.assign(effectiveCreatifData, creatifSavedChanges);
+              }
+              
+              const creatifPendingChanges = pendingChanges.get(creatif.id);
+              if (creatifPendingChanges) {
+                Object.assign(effectiveCreatifData, creatifPendingChanges);
+              }
+
               rows.push({
                 id: creatif.id,
                 type: 'creatif',
-                data: creatif,
+                data: effectiveCreatifData,
                 level: 3,
                 isEditable: selectedLevel === 'creatif',
                 parentId: placement.id,
@@ -180,20 +232,83 @@ export function useAdvancedTableData({
     });
 
     return rows;
-  }, [sections, tactiques, placements, creatifs, selectedLevel, expandedSections]);
+  }, [sections, tactiques, placements, creatifs, selectedLevel, expandedSections, pendingChanges, savedChanges]);
 
-  /**
-   * Indique s'il y a des modifications en attente qui n'ont pas encore été sauvegardées.
-   * @type {boolean}
-   */
+  // NOUVEAU : Effet pour nettoyer les savedChanges quand les données sont synchronisées
+  useEffect(() => {
+    setSavedChanges(prev => {
+      const newSavedChanges = new Map(prev);
+      let hasChanges = false;
+
+      // Vérifier les sections
+      sections.forEach(section => {
+        const savedData = newSavedChanges.get(section.id);
+        if (savedData) {
+          // Vérifier si les données de la section incluent maintenant les changements sauvegardés
+          const isInSync = Object.keys(savedData).every(key => {
+            return section[key as keyof Section] === savedData[key];
+          });
+
+          if (isInSync) {
+            console.log(`✅ Section ${section.id} synchronisée, suppression des savedChanges`);
+            newSavedChanges.delete(section.id);
+            hasChanges = true;
+          }
+        }
+      });
+
+      // Faire de même pour les autres entités...
+      Object.values(tactiques).flat().forEach(tactique => {
+        const savedData = newSavedChanges.get(tactique.id);
+        if (savedData) {
+          const isInSync = Object.keys(savedData).every(key => {
+            return tactique[key as keyof Tactique] === savedData[key];
+          });
+
+          if (isInSync) {
+            console.log(`✅ Tactique ${tactique.id} synchronisée, suppression des savedChanges`);
+            newSavedChanges.delete(tactique.id);
+            hasChanges = true;
+          }
+        }
+      });
+
+      Object.values(placements).flat().forEach(placement => {
+        const savedData = newSavedChanges.get(placement.id);
+        if (savedData) {
+          const isInSync = Object.keys(savedData).every(key => {
+            return placement[key as keyof Placement] === savedData[key];
+          });
+
+          if (isInSync) {
+            console.log(`✅ Placement ${placement.id} synchronisé, suppression des savedChanges`);
+            newSavedChanges.delete(placement.id);
+            hasChanges = true;
+          }
+        }
+      });
+
+      Object.values(creatifs).flat().forEach(creatif => {
+        const savedData = newSavedChanges.get(creatif.id);
+        if (savedData) {
+          const isInSync = Object.keys(savedData).every(key => {
+            return creatif[key as keyof Creatif] === savedData[key];
+          });
+
+          if (isInSync) {
+            console.log(`✅ Créatif ${creatif.id} synchronisé, suppression des savedChanges`);
+            newSavedChanges.delete(creatif.id);
+            hasChanges = true;
+          }
+        }
+      });
+
+      return hasChanges ? newSavedChanges : prev;
+    });
+  }, [sections, tactiques, placements, creatifs]);
+
   const hasUnsavedChanges = pendingChanges.size > 0;
 
-  /**
-   * Met à jour une valeur de cellule spécifique pour une entité donnée dans les modifications en attente.
-   * @param {string} entityId L'ID de l'entité à modifier.
-   * @param {string} fieldKey La clé du champ à mettre à jour.
-   * @param {any} value La nouvelle valeur du champ.
-   */
   const updateCell = useCallback((entityId: string, fieldKey: string, value: any) => {
     setPendingChanges(prev => {
       const newChanges = new Map(prev);
@@ -208,10 +323,6 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Ajoute une clé de cellule à l'ensemble des cellules en cours d'édition.
-   * @param {string} cellKey La clé de la cellule (ex: "entityId-fieldKey").
-   */
   const startEdit = useCallback((cellKey: string) => {
     setEditingCells(prev => {
       const newEditingCells = new Set(prev);
@@ -220,10 +331,6 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Supprime une clé de cellule de l'ensemble des cellules en cours d'édition.
-   * @param {string} cellKey La clé de la cellule (ex: "entityId-fieldKey").
-   */
   const endEdit = useCallback((cellKey: string) => {
     setEditingCells(prev => {
       const newEditingCells = new Set(prev);
@@ -232,11 +339,6 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Ajoute ou retire une ligne de l'ensemble des lignes sélectionnées.
-   * @param {string} rowId L'ID de la ligne à sélectionner/désélectionner.
-   * @param {boolean} isSelected Indique si la ligne doit être sélectionnée (true) ou désélectionnée (false).
-   */
   const selectRow = useCallback((rowId: string, isSelected: boolean) => {
     setSelectedRows(prev => {
       const newSelected = new Set(prev);
@@ -251,11 +353,6 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Ajoute ou retire plusieurs lignes de l'ensemble des lignes sélectionnées.
-   * @param {string[]} rowIds Un tableau des IDs de lignes à sélectionner/désélectionner.
-   * @param {boolean} isSelected Indique si les lignes doivent être sélectionnées (true) ou désélectionnées (false).
-   */
   const selectMultipleRows = useCallback((rowIds: string[], isSelected: boolean) => {
     setSelectedRows(prev => {
       const newSelected = new Set(prev);
@@ -272,17 +369,10 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Désélectionne toutes les lignes actuellement sélectionnées.
-   */
   const clearSelection = useCallback(() => {
     setSelectedRows(new Set());
   }, []);
 
-  /**
-   * Bascule l'état d'expansion (étendu/réduit) d'une section donnée.
-   * @param {string} sectionId L'ID de la section à basculer.
-   */
   const toggleSectionExpansion = useCallback((sectionId: string) => {
     setExpandedSections(prev => {
       const newExpanded = new Set(prev);
@@ -297,26 +387,14 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Étend toutes les sections disponibles.
-   */
   const expandAllSections = useCallback(() => {
     setExpandedSections(new Set(sections.map(s => s.id)));
   }, [sections]);
 
-  /**
-   * Réduit toutes les sections.
-   */
   const collapseAllSections = useCallback(() => {
     setExpandedSections(new Set());
   }, []);
 
-  /**
-   * Applique une modification de champ unique à plusieurs entités sélectionnées.
-   * @param {string} fieldKey La clé du champ à modifier.
-   * @param {any} value La nouvelle valeur à appliquer.
-   * @param {string[]} entityIds Un tableau des IDs des entités à modifier.
-   */
   const bulkEdit = useCallback((fieldKey: string, value: any, entityIds: string[]) => {
     setPendingChanges(prev => {
       const newChanges = new Map(prev);
@@ -333,36 +411,24 @@ export function useAdvancedTableData({
     });
   }, []);
 
-  /**
-   * Remplit une colonne vers le bas avec la valeur d'une ligne source.
-   * @param {string} fromRowId L'ID de la ligne source dont la valeur doit être copiée.
-   * @param {string} fieldKey La clé du champ à copier.
-   * @param {string[]} toRowIds Un tableau des IDs des lignes cibles à mettre à jour.
-   */
   const fillDown = useCallback((fromRowId: string, fieldKey: string, toRowIds: string[]) => {
     const fromRow = tableRows.find(row => row.id === fromRowId);
     if (!fromRow) return;
 
-    const pendingChange = pendingChanges.get(fromRowId);
-    const sourceValue = pendingChange && pendingChange[fieldKey] !== undefined 
-      ? pendingChange[fieldKey] 
-      : (fromRow.data as any)[fieldKey];
-
+    const sourceValue = getEffectiveValue(fromRowId, fieldKey, fromRow.data);
     bulkEdit(fieldKey, sourceValue, toRowIds);
-  }, [tableRows, pendingChanges, bulkEdit]);
+  }, [tableRows, getEffectiveValue, bulkEdit]);
 
-  /**
-   * Copie toutes les valeurs éditables d'une ligne source vers plusieurs lignes cibles du même type.
-   * @param {string} fromRowId L'ID de la ligne source à partir de laquelle copier les valeurs.
-   * @param {string[]} toRowIds Un tableau des IDs des lignes cibles vers lesquelles copier les valeurs.
-   */
   const copyValues = useCallback((fromRowId: string, toRowIds: string[]) => {
     const fromRow = tableRows.find(row => row.id === fromRowId);
     if (!fromRow) return;
 
     const sourceData = fromRow.data as any;
     const sourcePendingChanges = pendingChanges.get(fromRowId) || {};
-    const allSourceValues = { ...sourceData, ...sourcePendingChanges };
+    const sourceSavedChanges = savedChanges.get(fromRowId) || {};
+    
+    // Combiner toutes les sources de données
+    const allSourceValues = { ...sourceData, ...sourceSavedChanges, ...sourcePendingChanges };
 
     const systemFields = ['id', 'createdAt', 'updatedAt', 'TC_SectionId', 'PL_TactiqueId', 'CR_PlacementId'];
     
@@ -390,21 +456,35 @@ export function useAdvancedTableData({
 
       return newChanges;
     });
-  }, [tableRows, pendingChanges]);
+  }, [tableRows, pendingChanges, savedChanges]);
 
   /**
-   * Sauvegarde toutes les modifications en attente en appelant les fonctions de mise à jour Firebase correspondantes.
-   * Réinitialise les états de modifications, d'édition et de sélection après une sauvegarde réussie.
-   * @returns {Promise<void>} Une promesse qui se résout une fois toutes les modifications sauvegardées ou se rejette en cas d'erreur.
+   * MODIFIÉ : Sauvegarde avec maintien des changements dans savedChanges
    */
   const saveAllChanges = useCallback(async () => {
     if (pendingChanges.size === 0) return;
 
     setIsSaving(true);
     
+    // Déclarer pendingChangesArray au niveau supérieur pour l'accessibilité dans le catch
+    const pendingChangesArray: [string, Partial<any>][] = Array.from(pendingChanges.entries());
+    
     try {
       const updatePromises: Promise<void>[] = [];
-      const pendingChangesArray = Array.from(pendingChanges.entries());
+
+      // Copier les modifications en attente vers savedChanges AVANT la sauvegarde
+      setSavedChanges(prev => {
+        const newSavedChanges = new Map(prev);
+        
+        pendingChangesArray.forEach(([entityId, changes]: [string, Partial<any>]) => {
+          const existing = newSavedChanges.get(entityId) || {};
+          newSavedChanges.set(entityId, { ...existing, ...changes });
+        });
+        
+        return newSavedChanges;
+      });
+
+      console.log(`🔄 Démarrage sauvegarde de ${pendingChangesArray.length} entité(s)`);
 
       for (const [entityId, changes] of pendingChangesArray) {
         const row = tableRows.find(r => r.id === entityId);
@@ -412,36 +492,53 @@ export function useAdvancedTableData({
 
         switch (row.type) {
           case 'section':
+            console.log(`📝 Sauvegarde section ${entityId}:`, changes);
             console.log("FIREBASE: ÉCRITURE - Fichier: useAdvancedTableData.ts - Fonction: saveAllChanges - Path: sections/${entityId}");
             updatePromises.push(onUpdateSection(entityId, changes));
             break;
           case 'tactique':
             if (row.sectionId) {
+              console.log(`📝 Sauvegarde tactique ${entityId}:`, changes);
               console.log("FIREBASE: ÉCRITURE - Fichier: useAdvancedTableData.ts - Fonction: saveAllChanges - Path: sections/${row.sectionId}/tactiques/${entityId}");
               updatePromises.push(onUpdateTactique(row.sectionId, entityId, changes));
             }
             break;
           case 'placement':
+            console.log(`📝 Sauvegarde placement ${entityId}:`, changes);
             console.log("FIREBASE: ÉCRITURE - Fichier: useAdvancedTableData.ts - Fonction: saveAllChanges - Path: placements/${entityId}");
             updatePromises.push(onUpdatePlacement(entityId, changes));
             break;
-            case 'creatif':
-              if (row.sectionId && row.tactiqueId && row.placementId) {
-                console.log("FIREBASE: ÉCRITURE - Fichier: useAdvancedTableData.ts - Fonction: saveAllChanges - Path: sections/${row.sectionId}/tactiques/${row.tactiqueId}/placements/${row.placementId}/creatifs/${entityId}");
-                updatePromises.push(onUpdateCreatif(row.sectionId, row.tactiqueId, row.placementId, entityId, changes));
-              }
-              break;
+          case 'creatif':
+            if (row.sectionId && row.tactiqueId && row.placementId) {
+              console.log(`📝 Sauvegarde créatif ${entityId}:`, changes);
+              console.log("FIREBASE: ÉCRITURE - Fichier: useAdvancedTableData.ts - Fonction: saveAllChanges - Path: sections/${row.sectionId}/tactiques/${row.tactiqueId}/placements/${row.placementId}/creatifs/${entityId}");
+              updatePromises.push(onUpdateCreatif(row.sectionId, row.tactiqueId, row.placementId, entityId, changes));
+            }
+            break;
         }
       }
 
       await Promise.all(updatePromises);
 
+      console.log(`✅ Sauvegarde terminée, vidage des pendingChanges`);
+      
+      // Vider seulement les modifications en attente, garder savedChanges jusqu'à synchronisation
       setPendingChanges(new Map());
       setEditingCells(new Set());
       setSelectedRows(new Set());
 
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error);
+      
+      // En cas d'erreur, retirer les changements de savedChanges
+      setSavedChanges(prev => {
+        const newSavedChanges = new Map(prev);
+        pendingChangesArray.forEach(([entityId]: [string, Partial<any>]) => {
+          newSavedChanges.delete(entityId);
+        });
+        return newSavedChanges;
+      });
+      
       throw error;
     } finally {
       setIsSaving(false);
@@ -449,18 +546,17 @@ export function useAdvancedTableData({
   }, [pendingChanges, tableRows, onUpdateSection, onUpdateTactique, onUpdatePlacement, onUpdateCreatif]);
 
   /**
-   * Annule toutes les modifications en attente et réinitialise les états d'édition et de sélection.
+   * MODIFIÉ : Annulation avec nettoyage des savedChanges
    */
   const cancelAllChanges = useCallback(() => {
     setPendingChanges(new Map());
     setEditingCells(new Set());
     setSelectedRows(new Set());
+    
+    // Optionnel : conserver savedChanges car elles représentent des données déjà sauvegardées
+    // setSavedChanges(new Map()); // Décommenter si on veut aussi annuler les changements sauvegardés
   }, []);
 
-  /**
-   * Effet qui met à jour les sections étendues lorsque la liste des sections change.
-   * Il assure que les sections existantes restent étendues et que les nouvelles sections sont automatiquement étendues.
-   */
   useEffect(() => {
     setExpandedSections(prev => {
       const currentSectionIds = new Set(sections.map(s => s.id));
@@ -482,14 +578,11 @@ export function useAdvancedTableData({
     });
   }, [sections]);
 
-  /**
-   * Effet qui réinitialise les modifications en attente, les cellules en édition et les sélections
-   * chaque fois que le niveau de sélection du tableau change.
-   */
   useEffect(() => {
     setPendingChanges(new Map());
     setEditingCells(new Set());
     setSelectedRows(new Set());
+    // Note: On ne vide pas savedChanges lors du changement de niveau
   }, [selectedLevel]);
 
   return {

@@ -277,7 +277,7 @@ export default function StrategiePage() {
       
       const newBucket = {
         name: t('strategy.newBucketName'),
-        description: t('strategy.newBucketDescription'),
+        description: '',
         target: 0,
         actual: 0,
         percentage: 0,

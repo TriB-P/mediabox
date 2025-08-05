@@ -1,10 +1,12 @@
+// app/components/Campaigns/CampaignFormBudget.tsx
+
 /**
  * @file Ce fichier contient le composant React `CampaignFormBudget`.
  * Ce composant est responsable de l'affichage de la section "Budget et coûts"
  * dans le formulaire de création ou d'édition d'une campagne. Il permet à
  * l'utilisateur de saisir le budget principal, de choisir une devise et
  * d'ajouter des frais personnalisés définis au niveau du client. Il affiche
- * également un récapitulatif du budget total.
+ * également un récapitulatif du budget média disponible (budget principal - frais).
  */
 
 'use client';
@@ -74,7 +76,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
 
   const totalCustomFees = getTotalCustomFees();
   const mainBudget = parseFloat(formData.CA_Budget || '0');
-  const totalBudget = mainBudget + totalCustomFees;
+  const mediaBudget = mainBudget - totalCustomFees; // MODIFICATION: soustraction au lieu d'addition
 
   return (
     <div className="p-8 space-y-6">
@@ -102,7 +104,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 required={!isDisabled}
                 value={formData.CA_Budget}
                 onChange={onChange}
-                className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-7 px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -123,7 +125,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               id="CA_Currency"
               value={formData.CA_Currency || 'CAD'}
               onChange={onChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               {currencyOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -166,7 +168,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                       id={feeValueName}
                       value={formData[feeValueName] as string || ''}
                       onChange={onChange}
-                      className="w-full pl-7 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-7 px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="0.00"
                       min="0"
                       step="0.01"
@@ -197,8 +199,8 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
             {totalCustomFees > 0 && (
               <div className="flex justify-between">
                 <span className="text-gray-600">{t('campaigns.formBudget.summaryCustomFees')}</span>
-                <span className="font-medium">
-                  {new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
+                <span className="font-medium text-gray-600">
+                  -{new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
                     style: 'currency',
                     currency: formData.CA_Currency || 'CAD',
                   }).format(totalCustomFees)}
@@ -207,14 +209,22 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
             )}
             
             <div className="flex justify-between pt-2 border-t border-gray-300">
-              <span className="font-medium text-gray-900">{t('campaigns.formBudget.summaryTotalBudget')}</span>
-              <span className="font-bold text-lg text-indigo-600">
+              <span className="font-medium text-gray-900">{t('campaigns.formBudget.summaryMediaBudget')}</span>
+              <span className={`font-bold text-lg ${mediaBudget >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
                 {new Intl.NumberFormat(language === 'fr' ? 'fr-CA' : 'en-CA', {
                   style: 'currency',
                   currency: formData.CA_Currency || 'CAD',
-                }).format(totalBudget)}
+                }).format(mediaBudget)}
               </span>
             </div>
+            
+            {mediaBudget < 0 && (
+              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-700">
+                  ⚠️ {t('campaigns.formBudget.negativeBudgetWarning')}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

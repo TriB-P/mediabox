@@ -2,10 +2,11 @@
 /**
  * Ce composant affiche la hiérarchie complète des sections, tactiques, placements et créatifs.
  * Il permet l'expansion des éléments, la sélection multiple pour des actions groupées,
- * et la réorganisation par glisser-déposer (drag and drop).
+ * et la réorganisation par glisser-déposer (drag and drop) pour tactiques/placements/créatifs.
+ * Pour les sections, utilise des boutons flèches pour la réorganisation.
  * Il intègre également des tiroirs (drawers) pour la création et l'édition de chaque type d'élément.
  * 
- * CORRECTION : Structure DOM des sections simplifiée pour corriger le drag and drop
+ * MODIFICATION : Remplacement du drag and drop des sections par des boutons flèches
  */
 'use client';
 
@@ -14,6 +15,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  ArrowUpIcon,
   PencilIcon,
   PlusIcon,
   Bars3Icon,
@@ -37,6 +39,7 @@ import { useClient } from '../../../../contexts/ClientContext';
 import { useSelection } from '../../../../contexts/SelectionContext';
 import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
 import { useSelectionValidation, useSelectionMessages, buildHierarchyMap, SelectionValidationResult } from '../../../../hooks/useSelectionValidation';
+import { reorderSections } from '../../../../lib/tactiqueService';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -149,6 +152,7 @@ export default function TactiquesHierarchyView({
 
   /**
    * Utilise le hook de glisser-déposer pour gérer la logique de réorganisation des éléments.
+   * Note: Exclu maintenant les sections qui utilisent les boutons flèches.
    */
   const { isDragLoading, handleDragEnd } = useDragAndDrop({
     sections,
@@ -300,6 +304,52 @@ export default function TactiquesHierarchyView({
   };
 
   /**
+   * NOUVELLE FONCTION : Fait monter une section d'une position vers le haut
+   * @param {string} sectionId - ID de la section à faire monter
+   * @param {number} currentIndex - Index actuel de la section dans le tableau
+   */
+  const handleMoveSectionUp = async (sectionId: string, currentIndex: number) => {
+    if (currentIndex === 0) return; // Déjà en première position
+
+    if (!selectedClient || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      console.error('Contexte client/campagne manquant pour la réorganisation');
+      return;
+    }
+
+    try {
+      // Créer les nouvelles positions
+      const newSectionOrders = sections.map((section, index) => {
+        if (index === currentIndex) {
+          // Section courante prend la position de celle du dessus
+          return { id: section.id, order: currentIndex - 1 };
+        } else if (index === currentIndex - 1) {
+          // Section du dessus prend la position de la courante
+          return { id: section.id, order: currentIndex };
+        } else {
+          // Les autres gardent leur position
+          return { id: section.id, order: index };
+        }
+      });
+
+      // Appliquer les changements dans Firestore
+      await reorderSections(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId,
+        selectedOngletId,
+        newSectionOrders
+      );
+
+      // Rafraîchir les données
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      console.error('Erreur lors du déplacement de la section:', error);
+    }
+  };
+
+  /**
    * Bascule l'état d'expansion d'une tactique.
    *
    * @param {string} tactiqueId - L'identifiant de la tactique à basculer.
@@ -364,12 +414,11 @@ export default function TactiquesHierarchyView({
   };
 
   /**
-   * Gère l'expansion d'une section - VERSION CORRIGÉE pour éviter les conflits avec le drag
+   * Gère l'expansion d'une section
    * @param {React.MouseEvent} e - L'événement de clic
    * @param {string} sectionId - L'ID de la section
    */
   const handleSectionExpandClick = (e: React.MouseEvent, sectionId: string) => {
-    // Empêcher le bubbling vers le drag handle
     e.stopPropagation();
     onSectionExpand(sectionId);
   };
@@ -583,7 +632,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // [Continues with save handlers...]
+  // Save handlers
   const handleSaveTactique = async (tactiqueData: any) => {
     if (!onUpdateTactique) return;
   
@@ -814,205 +863,198 @@ export default function TactiquesHierarchyView({
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <Droppable droppableId="sections" type="SECTION">
-            {(provided) => (
+          <div className="divide-y divide-gray-200">
+            {sections.map((section, sectionIndex) => (
               <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="divide-y divide-gray-200"
+                key={`section-${section.id}`}
+                onMouseEnter={() => setHoveredSection(section.id)}
+                onMouseLeave={() => setHoveredSection(null)}
               >
-                {sections.map((section, sectionIndex) => (
-                  <Draggable
-                    key={`section-${section.id}`}
-                    draggableId={`section-${section.id}`}
-                    index={sectionIndex}
+                {/* Section header */}
+                <div
+                  className="relative"
+                  onMouseEnter={() => setHoveredSection(section.id)}
+                  onMouseLeave={() => setHoveredSection(null)}
+                >
+                  <div
+                    className={`flex justify-between items-center px-4 py-3 bg-white hover:bg-gray-50 transition-colors ${
+                      section.isExpanded ? 'bg-gray-50' : ''
+                    } ${selectionLogic.isSelected(section.id) ? 'bg-indigo-50' : ''}`}
+                    style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
                   >
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`${snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''}`}
-                        onMouseEnter={() => setHoveredSection(section.id)}
-                        onMouseLeave={() => setHoveredSection(null)}
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
+                        checked={selectionLogic.isSelected(section.id)}
+                        onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      
+                      {/* Bouton flèche vers le haut pour remplacer le drag handle */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveSectionUp(section.id, sectionIndex);
+                        }}
+                        disabled={sectionIndex === 0}
+                        className={`pr-2 p-2 rounded transition-colors ${
+                          sectionIndex === 0 
+                            ? 'cursor-not-allowed text-gray-300' 
+                            : 'cursor-pointer text-gray-400 hover:text-gray-600 hover:bg-gray-200'
+                        }`}
+                        title={sectionIndex === 0 ? "Déjà en première position" : "Monter la section"}
                       >
-                        {/* Section header - STRUCTURE EXACTE DE L'ORIGINAL RESTAURÉE */}
-                        <div
-                          className="relative"
-                          onMouseEnter={() => setHoveredSection(section.id)}
-                          onMouseLeave={() => setHoveredSection(null)}
-                        >
-                          <div
-                            className={`flex justify-between items-center px-4 py-3 bg-white hover:bg-gray-50 transition-colors ${
-                              section.isExpanded ? 'bg-gray-50' : ''
-                            } ${selectionLogic.isSelected(section.id) ? 'bg-indigo-50' : ''}`}
-                            style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
-                          >
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
-                                checked={selectionLogic.isSelected(section.id)}
-                                onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              
-                              {/* ✅ EXACT comme les autres composants : dragHandleProps sur span */}
-                              <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
-                                <Bars3Icon className="h-4 w-4 text-gray-400" />
-                              </span>
+                        <ArrowUpIcon className="h-4 w-4" />
+                      </button>
 
-                              {/* ✅ COMME LES AUTRES COMPOSANTS : onClick seulement sur cette zone, pas sur le div principal */}
-                              <div 
-                                className="section-expand-area flex items-center cursor-pointer"
-                                onClick={() => onSectionExpand(section.id)}
-                              >
-                                {section.isExpanded ? (
-                                  <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
-                                ) : (
-                                  <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
-                                )}
+                      {/* Zone d'expansion */}
+                      <div 
+                        className="section-expand-area flex items-center cursor-pointer"
+                        onClick={() => onSectionExpand(section.id)}
+                      >
+                        {section.isExpanded ? (
+                          <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
+                        ) : (
+                          <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
+                        )}
 
-                                <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
+                        <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
 
-                                {section.tactiques.length > 0 && (
-                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                    {section.tactiques.length}
-                                  </span>
-                                )}
-                              </div>
+                        {section.tactiques.length > 0 && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            {section.tactiques.length}
+                          </span>
+                        )}
+                      </div>
 
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateTactiqueLocal(section.id);
+                        }}
+                        className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
+                          hoveredSection === section.id ? 'text-indigo-600' : 'text-indigo-400'
+                        }`}
+                        title="Ajouter une tactique"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <div className="relative min-w-[48px] h-6">
+                        {hoveredSection === section.id && (
+                          <div className="absolute right-0 top-0 flex items-center space-x-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyId(section.id, 'section');
+                              }}
+                              className="p-1 rounded hover:bg-gray-200 transition-colors"
+                              title={copiedId === section.id ? "ID copié !" : "Copier l'ID"}
+                            >
+                              <KeyIcon className={`h-3 w-3 ${copiedId === section.id ? 'text-green-500' : 'text-gray-300'}`} />
+                            </button>
+                            {onEditSection && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleCreateTactiqueLocal(section.id);
+                                  onEditSection(section.id);
                                 }}
-                                className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
-                                  hoveredSection === section.id ? 'text-indigo-600' : 'text-indigo-400'
-                                }`}
-                                title="Ajouter une tactique"
+                                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                title="Modifier la section"
                               >
-                                <PlusIcon className="h-4 w-4" />
+                                <PencilIcon className="h-4 w-4 text-gray-500" />
                               </button>
-                            </div>
-
-                            <div className="flex items-center space-x-4">
-                              <div className="relative min-w-[48px] h-6">
-                                {hoveredSection === section.id && (
-                                  <div className="absolute right-0 top-0 flex items-center space-x-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCopyId(section.id, 'section');
-                                      }}
-                                      className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                      title={copiedId === section.id ? "ID copié !" : "Copier l'ID"}
-                                    >
-                                      <KeyIcon className={`h-3 w-3 ${copiedId === section.id ? 'text-green-500' : 'text-gray-300'}`} />
-                                    </button>
-                                    {onEditSection && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onEditSection(section.id);
-                                        }}
-                                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                        title="Modifier la section"
-                                      >
-                                        <PencilIcon className="h-4 w-4 text-gray-500" />
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="text-right">
-                                <div className="text-sm font-medium">
-                                  {formatCurrency(section.SECTION_Budget || 0)}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {calculatePercentage(section.SECTION_Budget || 0)}% du budget
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Rendu des tactiques */}
-                        {section.isExpanded && (
-                          <div className="bg-white">
-                            {section.tactiques.length === 0 ? (
-                              <div className="pl-12 py-3 text-sm text-gray-500 italic">
-                                Aucune tactique dans cette section
-                              </div>
-                            ) : (
-                              <Droppable droppableId={`tactiques-${section.id}`} type="TACTIQUE">
-                                {(provided) => (
-                                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                                    {section.tactiques.map((tactique, tactiqueIndex) => {
-                                      const tactiquePlacements = tactique.placements || [];
-
-                                      return (
-                                        <TactiqueItem
-                                          key={tactique.id}
-                                          tactique={{
-                                            ...tactique,
-                                            isSelected: selectionLogic.isSelected(tactique.id)
-                                          }}
-                                          index={tactiqueIndex}
-                                          sectionId={section.id}
-                                          placements={tactiquePlacements.map(p => ({
-                                            ...p,
-                                            isSelected: selectionLogic.isSelected(p.id)
-                                          }))}
-                                          creatifs={Object.fromEntries(
-                                            Object.entries(creatifs).map(([placementId, placementCreatifs]) => [
-                                              placementId,
-                                              placementCreatifs.map(c => ({
-                                                ...c,
-                                                isSelected: selectionLogic.isSelected(c.id)
-                                              }))
-                                            ])
-                                          )}
-                                          expandedTactiques={expandedTactiques}
-                                          expandedPlacements={expandedPlacements}
-                                          hoveredTactique={hoveredTactique}
-                                          hoveredPlacement={hoveredPlacement}
-                                          hoveredCreatif={hoveredCreatif}
-                                          copiedId={copiedId}
-                                          onHoverTactique={setHoveredTactique}
-                                          onHoverPlacement={setHoveredPlacement}
-                                          onHoverCreatif={setHoveredCreatif}
-                                          onExpandTactique={handleTactiqueExpand}
-                                          onExpandPlacement={handlePlacementExpand}
-                                          onEdit={handleEditTactique}
-                                          onCreatePlacement={handleCreatePlacementLocal}
-                                          onEditPlacement={handleEditPlacement}
-                                          onCreateCreatif={handleCreateCreatifLocal}
-                                          onEditCreatif={handleEditCreatif}
-                                          formatCurrency={formatCurrency}
-                                          onSelect={handleTactiqueSelect}
-                                          onSelectPlacement={handlePlacementSelect}
-                                          onSelectCreatif={handleCreatifSelect}
-                                          onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
-                                          onCopyId={handleCopyId}
-                                        />
-                                      );
-                                    })}
-                                    {provided.placeholder}
-                                  </div>
-                                )}
-                              </Droppable>
                             )}
                           </div>
                         )}
                       </div>
+
+                      <div className="text-right">
+                        <div className="text-sm font-medium">
+                          {formatCurrency(section.SECTION_Budget || 0)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {calculatePercentage(section.SECTION_Budget || 0)}% du budget
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rendu des tactiques avec drag and drop maintenu */}
+                {section.isExpanded && (
+                  <div className="bg-white">
+                    {section.tactiques.length === 0 ? (
+                      <div className="pl-12 py-3 text-sm text-gray-500 italic">
+                        Aucune tactique dans cette section
+                      </div>
+                    ) : (
+                      <Droppable droppableId={`tactiques-${section.id}`} type="TACTIQUE">
+                        {(provided) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps}>
+                            {section.tactiques.map((tactique, tactiqueIndex) => {
+                              const tactiquePlacements = tactique.placements || [];
+
+                              return (
+                                <TactiqueItem
+                                  key={tactique.id}
+                                  tactique={{
+                                    ...tactique,
+                                    isSelected: selectionLogic.isSelected(tactique.id)
+                                  }}
+                                  index={tactiqueIndex}
+                                  sectionId={section.id}
+                                  placements={tactiquePlacements.map(p => ({
+                                    ...p,
+                                    isSelected: selectionLogic.isSelected(p.id)
+                                  }))}
+                                  creatifs={Object.fromEntries(
+                                    Object.entries(creatifs).map(([placementId, placementCreatifs]) => [
+                                      placementId,
+                                      placementCreatifs.map(c => ({
+                                        ...c,
+                                        isSelected: selectionLogic.isSelected(c.id)
+                                      }))
+                                    ])
+                                  )}
+                                  expandedTactiques={expandedTactiques}
+                                  expandedPlacements={expandedPlacements}
+                                  hoveredTactique={hoveredTactique}
+                                  hoveredPlacement={hoveredPlacement}
+                                  hoveredCreatif={hoveredCreatif}
+                                  copiedId={copiedId}
+                                  onHoverTactique={setHoveredTactique}
+                                  onHoverPlacement={setHoveredPlacement}
+                                  onHoverCreatif={setHoveredCreatif}
+                                  onExpandTactique={handleTactiqueExpand}
+                                  onExpandPlacement={handlePlacementExpand}
+                                  onEdit={handleEditTactique}
+                                  onCreatePlacement={handleCreatePlacementLocal}
+                                  onEditPlacement={handleEditPlacement}
+                                  onCreateCreatif={handleCreateCreatifLocal}
+                                  onEditCreatif={handleEditCreatif}
+                                  formatCurrency={formatCurrency}
+                                  onSelect={handleTactiqueSelect}
+                                  onSelectPlacement={handlePlacementSelect}
+                                  onSelectCreatif={handleCreatifSelect}
+                                  onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
+                                  onCopyId={handleCopyId}
+                                />
+                              );
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
                     )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+                  </div>
+                )}
               </div>
-            )}
-          </Droppable>
+            ))}
+          </div>
         </div>
       </DragDropContext>
 

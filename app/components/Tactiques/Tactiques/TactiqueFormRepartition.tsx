@@ -1,5 +1,6 @@
 // app/components/Tactiques/Tactiques/TactiqueFormRepartition.tsx
 /**
+ * CORRIGÉ: Validation numérique stricte pour masquer pourcentages/totaux sur valeurs non-numériques
  * CORRIGÉ: Problème de réinitialisation des valeurs dans le drawer de tactique
  * NOUVEAU: IDs de périodes standardisés compatibles avec la timeline
  * NOUVEAU: Support du type PEBs avec 3 inputs (coût/unité, volume, total calculé)
@@ -38,6 +39,29 @@ interface TactiqueFormRepartitionProps {
   loading?: boolean;
   clientId?: string;
 }
+
+/**
+ * NOUVEAU: Fonction helper pour valider qu'une valeur est strictement numérique
+ * Contrairement à parseFloat(), cette fonction rejette les chaînes partiellement numériques
+ */
+const isStrictlyNumeric = (value: string): boolean => {
+  if (!value || value.trim() === '') return false;
+  
+  const trimmedValue = value.trim();
+  const numericValue = Number(trimmedValue);
+  
+  // Number() retourne NaN pour les chaînes partiellement numériques comme "5 mai"
+  // et pour les chaînes vides, Number("") retourne 0, donc on vérifie aussi la longueur
+  return !isNaN(numericValue) && isFinite(numericValue) && trimmedValue !== '';
+};
+
+/**
+ * NOUVEAU: Extrait la valeur numérique d'une chaîne strictement numérique
+ * Retourne 0 si la valeur n'est pas strictement numérique
+ */
+const getStrictNumericValue = (value: string): number => {
+  return isStrictlyNumeric(value) ? Number(value.trim()) : 0;
+};
 
 export default function TactiqueFormRepartition({
   formData,
@@ -178,7 +202,7 @@ export default function TactiqueFormRepartition({
     }
   };
 
-  // Fonction pour vérifier s'il y a au moins une valeur numérique valide
+  // MODIFIÉ: Fonction pour vérifier s'il y a au moins une valeur numérique valide STRICTE
   const hasAtLeastOneNumericValue = (
     tactique: any,
     breakdownId: string,
@@ -202,24 +226,18 @@ export default function TactiqueFormRepartition({
 
     if (breakdownType === 'PEBs') {
       return relevantPeriods.some(period => {
-        const unitCost = period.unitCost?.trim();
-        const volume = period.value?.trim();
+        const unitCost = period.unitCost?.trim() || '';
+        const volume = period.value?.trim() || '';
         
-        if (!unitCost || !volume) return false;
-        
-        const unitCostNum = parseFloat(unitCost);
-        const volumeNum = parseFloat(volume);
-        return !isNaN(unitCostNum) && isFinite(unitCostNum) && 
-               !isNaN(volumeNum) && isFinite(volumeNum);
+        // MODIFIÉ: Validation stricte pour PEBs
+        return isStrictlyNumeric(unitCost) && isStrictlyNumeric(volume);
       });
     }
 
+    // MODIFIÉ: Validation stricte pour les autres types
     return relevantPeriods.some(period => {
-      const value = period.value?.trim();
-      if (!value) return false;
-      
-      const numValue = parseFloat(value);
-      return !isNaN(numValue) && isFinite(numValue);
+      const value = period.value?.trim() || '';
+      return isStrictlyNumeric(value);
     });
   };
 
@@ -396,8 +414,16 @@ export default function TactiqueFormRepartition({
                           const currentTotal = getPeriodValue(period.id, period.breakdownId, 'total');
                           
                           const valueForPercentage = isPEBs ? currentTotal : currentValue;
-                          const percentage = showCalculationsForBreakdown && totalValueForBreakdown > 0
-                            ? (parseFloat(valueForPercentage.trim()) || 0) / totalValueForBreakdown * 100
+                          
+                          // MODIFIÉ: Validation stricte pour l'affichage des pourcentages
+                          const isValueStrictlyNumeric = isPEBs 
+                            ? isStrictlyNumeric(currentTotal)
+                            : isStrictlyNumeric(currentValue);
+                          
+                          const percentage = showCalculationsForBreakdown && 
+                                           totalValueForBreakdown > 0 && 
+                                           isValueStrictlyNumeric
+                            ? getStrictNumericValue(valueForPercentage) / totalValueForBreakdown * 100
                             : 0;
 
                           const isActive = getPeriodActiveStatus(period.id, period.breakdownId);
@@ -502,8 +528,11 @@ export default function TactiqueFormRepartition({
                                   />
                                 )}
 
-                                {showCalculationsForBreakdown && valueForPercentage.trim() !== '' && isActive && 
-                                 !isNaN(parseFloat(valueForPercentage.trim())) && isFinite(parseFloat(valueForPercentage.trim())) && (
+                                {/* MODIFIÉ: Affichage conditionnel des pourcentages basé sur validation stricte */}
+                                {showCalculationsForBreakdown && 
+                                 isValueStrictlyNumeric && 
+                                 isActive && 
+                                 percentage > 0 && (
                                   <div className="mt-2 text-center space-y-1">
                                     <div className="text-sm font-medium text-indigo-600">
                                       {percentage.toFixed(1)}%

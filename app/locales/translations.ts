@@ -154,7 +154,7 @@ export const translations = {
         addBreakdown: "Ajouter une répartition",
         defaultBreakdownLabel: "(Par défaut - Synchronisé avec les dates de campagne)",
         updatedAutomatically: "Mis à jour automatiquement",
-        periodsCount: "{count} période(s)",
+        periodsCount: " période(s)",
         notEditable: "Non modifiable",
         defaultBreakdownInfoTitle: "📅 Breakdown par défaut :",
         defaultBreakdownInfoText: "Le breakdown \"Calendrier\" est automatiquement créé et synchronisé avec les dates de votre campagne. Il commence toujours un lundi et ne peut pas être modifié manuellement.",
@@ -176,7 +176,7 @@ export const translations = {
           customPeriodsLabel: "Périodes personnalisées *",
           customPeriodsHelp: "Définissez autant de périodes que nécessaire (ex: Q1, Q2, Phase 1, etc.). Seuls les noms sont requis.",
           addPeriod: "Ajouter une période",
-          period: "Période {number}",
+          period: "Période ",
           periodNameLabel: "Nom de la période *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
           saving: "Sauvegarde..."
@@ -195,7 +195,8 @@ export const translations = {
         summaryTitle: "Récapitulatif budgétaire",
         summaryMainBudget: "Budget principal :",
         summaryCustomFees: "Total frais personnalisés :",
-        summaryTotalBudget: "Budget total :"
+        summaryMediaBudget: "Budget média disponible :",
+        negativeBudgetWarning:" Le budget média disponible est négatif. Veuillez vérifier vos frais.",
       },
       formDates: {
         title: "Planification temporelle",
@@ -209,7 +210,7 @@ export const translations = {
         sprintPeriodHelp: "Ce champ est généré automatiquement à partir des dates de début et de fin.",
         sprintPeriodGenerated: "Généré avec les dates",
         campaignDuration: "Durée de la campagne :",
-        days: "{count} jours"
+        days: "jours"
       },
       formInfo: {
         title: "Informations générales",
@@ -507,6 +508,9 @@ export const translations = {
       selectVersion: "Veuillez sélectionner une version pour voir les enveloppes budgétaires.",
       noBuckets: "Aucune enveloppe budgétaire n'a été créée pour cette version.",
       createBucket: "Créer une enveloppe",
+      noDescription: "Aucune description",
+      descriptionPlaceholder : "Description de l'enveloppe",
+
     },
     budgetBucket: {
       changeColor: "Changer la couleur",
@@ -2068,7 +2072,7 @@ export const translations = {
         addBreakdown: "Add a breakdown",
         defaultBreakdownLabel: "(Default - Synchronized with campaign dates)",
         updatedAutomatically: "Updated automatically",
-        periodsCount: "{count} period(s)",
+        periodsCount: " period(s)",
         notEditable: "Not editable",
         defaultBreakdownInfoTitle: "📅 Default Breakdown:",
         defaultBreakdownInfoText: "The \"Calendar\" breakdown is automatically created and synchronized with your campaign dates. It always starts on a Monday and cannot be modified manually.",
@@ -2090,7 +2094,7 @@ export const translations = {
           customPeriodsLabel: "Custom Periods *",
           customPeriodsHelp: "Define as many periods as needed (e.g., Q1, Q2, Phase 1, etc.). Only names are required.",
           addPeriod: "Add a period",
-          period: "Period {number}",
+          period: "Period ",
           periodNameLabel: "Period Name *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
           saving: "Saving..."
@@ -2109,7 +2113,8 @@ export const translations = {
         summaryTitle: "Budget Summary",
         summaryMainBudget: "Main budget:",
         summaryCustomFees: "Total custom fees:",
-        summaryTotalBudget: "Total budget:"
+        summaryMediaBudget: "Available media budget:",
+        negativeBudgetWarning: "The total of custom fees cannot exceed the main budget. Please adjust your fees.",
       },
       formDates: {
         title: "Temporal Planning",
@@ -2123,7 +2128,7 @@ export const translations = {
         sprintPeriodHelp: "This field is automatically generated from the start and end dates.",
         sprintPeriodGenerated: "Generated with dates",
         campaignDuration: "Campaign duration:",
-        days: "{count} days"
+        days: "days"
       },
       formInfo: {
         title: "General Information",
@@ -2265,6 +2270,8 @@ export const translations = {
       selectVersion: "Please select a version to see the budget buckets.",
       noBuckets: "No budget buckets have been created for this version.",
       createBucket: "Create a bucket",
+      noDescription: "No description",
+      descriptionPlaceholder : "Bucket description",
     },
     budgetBucket: {
       changeColor: "Change color",

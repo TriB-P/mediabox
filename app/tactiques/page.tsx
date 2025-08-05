@@ -497,7 +497,7 @@ useEffect(() => {
         </div>
       )}
 
-      {selectedOnglet && !loadingStates.shouldShowFullLoader && (
+      {selectedOnglet && selectedVersion && !loadingStates.shouldShowFullLoader && (
         <TactiquesFooter
           viewMode={viewMode}
           setViewMode={setViewMode}

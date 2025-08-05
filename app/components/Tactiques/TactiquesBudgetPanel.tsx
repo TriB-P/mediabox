@@ -490,11 +490,15 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             Totaux {displayScope === 'allTabs' ? '(Tous les onglets)' : '(Onglet actuel)'}
           </h4>
         </div>
+        
+          
         <div className="p-3 space-y-2">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Budget de la campagne:</span>
-            <span className="font-medium">{formatCurrency(selectedCampaign.CA_Budget)}</span>
+
+        <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-600">Budget média:</span>
+            <span className="font-medium">{formatCurrency(totals.totalMediaBudgetWithBonification)}</span>
           </div>
+          
           
           {/* NOUVEAU : Affichage des frais personnalisés du client */}
           {totals.customClientFees.map((fee) => (
@@ -504,10 +508,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             </div>
           ))}
           
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Budget média:</span>
-            <span className="font-medium">{formatCurrency(totals.totalMediaBudgetWithBonification)}</span>
-          </div>
+          
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Bonification:</span>
             <span className="font-medium text-green-700">+{formatCurrency(totals.totalBonification)}</span>
@@ -521,6 +522,11 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             <span>{formatCurrency(totals.totalClientBudget)}</span>
           </div>
           <div className="flex justify-between items-center text-sm pt-2" style={{ borderTop: '1px dashed #e5e7eb' }}>
+
+            <span className="text-gray-600">Budget de la campagne:</span>
+            <span className="font-medium">{formatCurrency(selectedCampaign.CA_Budget)}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Différence:</span>
             <span className={`font-medium ${difference < 0 ? 'text-red-700' : 'text-green-700'}`}>
               {formatCurrency(difference)}
@@ -616,30 +622,46 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  {sectionBudgets.map(section => (
-                    <div key={`${section.name}-${section.ongletName || 'current'}`} className="flex justify-between items-center text-sm">
-                      <div className="flex items-center">
-                        <span
-                          className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                          style={{ backgroundColor: section.color }}
-                        ></span>
-                        <span className="text-gray-600">
-                          {section.name}
-                          {displayScope === 'allTabs' && section.ongletName && (
-                            <span className="text-xs text-gray-400 ml-1">
-                              ({section.ongletName})
-                            </span>
-                          )}
-                          :
-                        </span>
-                      </div>
-                      <span className="font-medium">
-                        {formatCurrency(section.amount)} ({section.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <div className="space-y-3">
+  {sectionBudgets.map(section => (
+    <div key={`${section.name}-${section.ongletName || 'current'}`} className="grid grid-cols-12 gap-2 items-center text-sm">
+      {/* Colonne 1-2: Indicateur de couleur */}
+      <div className="col-span-1 flex justify-start">
+        <span
+          className="w-3 h-3 rounded-full flex-shrink-0"
+          style={{ backgroundColor: section.color }}
+        ></span>
+      </div>
+      
+      {/* Colonne 3-6: Nom de la section */}
+      <div className="col-span-5">
+        <span className="text-gray-600">
+          {section.name}
+          {displayScope === 'allTabs' && section.ongletName && (
+            <span className="text-xs text-gray-400 ml-1">
+              ({section.ongletName})
+            </span>
+          )}
+          :
+        </span>
+      </div>
+      
+      {/* Colonne 7-9: Montant */}
+      <div className="col-span-3 text-right">
+        <span className="font-medium">
+          {formatCurrency(section.amount)}
+        </span>
+      </div>
+      
+      {/* Colonne 10-12: Pourcentage */}
+      <div className="col-span-3 text-right">
+        <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs">
+          {section.percentage.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  ))}
+</div>
               </div>
             ) : (
               <p className="text-sm text-gray-500 italic">

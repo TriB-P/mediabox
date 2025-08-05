@@ -465,6 +465,8 @@ export default function TactiquesAdvancedTableView({
     setSelectedLevel(level);
   };
 
+  
+
   const handleSaveAllChanges = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaign?.id) {
       // Fallback vers la sauvegarde normale si pas de contexte
@@ -562,6 +564,8 @@ export default function TactiquesAdvancedTableView({
       // TODO: Afficher un toast d'erreur
     }
   }, [saveAllChanges, pendingChanges, tableRows, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+
+  
   const handleCancelAllChanges = () => {
     if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
       return;

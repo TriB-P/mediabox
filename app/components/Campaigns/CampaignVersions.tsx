@@ -1,3 +1,4 @@
+// app/components/Campaigns/CampaignVersions.tsx
 /**
  * Ce composant React gère l'affichage et les interactions avec les versions d'une campagne spécifique.
  * Il permet aux utilisateurs de voir la liste des versions, d'en créer une nouvelle, de supprimer
@@ -47,7 +48,8 @@ export default function CampaignVersions({
   const { user } = useAuth();
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creatingInProgress, setCreatingInProgress] = useState(false);
   const [newVersionName, setNewVersionName] = useState('');
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
 
@@ -73,30 +75,69 @@ export default function CampaignVersions({
   };
 
   /**
+   * Vérifie si la création d'une version est possible
+   */
+  const canCreateVersion = () => {
+    const trimmedName = newVersionName.trim();
+    const hasValidName = trimmedName.length > 0;
+    const hasUser = !!user?.email;
+    const notCreating = !creatingInProgress;
+    const canCreate = hasValidName && hasUser && notCreating;
+    
+   
+    
+    return canCreate;
+  };
+
+  /**
    * Gère la création d'une nouvelle version pour la campagne.
    * La fonction est déclenchée par le formulaire de création.
    */
   const handleCreateVersion = async () => {
-    if (!newVersionName.trim() || !user?.email) return;
+
+
+    // Validation stricte
+    if (!newVersionName.trim()) {
+      return;
+    }
+    
+    if (!user?.email) {
+      return;
+    }
+
+    if (creatingInProgress) {
+      return;
+    }
 
     try {
-      setCreating(true);
+      setCreatingInProgress(true);
+      
       const formData: VersionFormData = {
-        name: newVersionName
+        name: newVersionName.trim()
       };
       
       console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignVersions.tsx - Fonction: handleCreateVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions`);
       await createVersion(clientId, campaignId, formData, user.email);
+      
       setNewVersionName('');
-      setCreating(false);
+      setShowCreateForm(false);
       await loadVersions();
       onVersionChange?.();
+      
     } catch (error) {
       console.error('Erreur lors de la création de la version:', error);
       alert(t('campaigns.versions.createError'));
     } finally {
-      setCreating(false);
+      setCreatingInProgress(false);
     }
+  };
+
+  /**
+   * Gère l'annulation de la création
+   */
+  const handleCancelCreation = () => {
+    setShowCreateForm(false);
+    setNewVersionName('');
   };
 
   /**
@@ -158,8 +199,8 @@ export default function CampaignVersions({
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-sm font-medium text-gray-900">{t('campaigns.versions.title')}</h3>
         <button
-          onClick={() => setCreating(true)}
-          disabled={creating}
+          onClick={() => setShowCreateForm(true)}
+          disabled={showCreateForm}
           className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
         >
           <PlusIcon className="h-4 w-4" />
@@ -228,45 +269,50 @@ export default function CampaignVersions({
           </div>
         ))}
 
-        {creating && (
+        {showCreateForm && (
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-primary-300">
             <input
               type="text"
               value={newVersionName}
-              onChange={(e) => setNewVersionName(e.target.value)}
+              onChange={(e) => {
+                setNewVersionName(e.target.value);
+              }}
               placeholder={t('campaigns.versions.namePlaceholder')}
               className="flex-1 text-sm border-none focus:ring-0"
               autoFocus
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
+                  console.log('Touche Enter pressée');
                   handleCreateVersion();
                 } else if (e.key === 'Escape') {
-                  setCreating(false);
-                  setNewVersionName('');
+                  handleCancelCreation();
                 }
               }}
             />
             <button
-              onClick={handleCreateVersion}
-              disabled={!newVersionName.trim() || creating}
-              className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('Bouton Créer cliqué');
+                handleCreateVersion();
+              }}
+              disabled={!canCreateVersion()}
+              className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
             >
-              {t('common.create')}
+              {creatingInProgress ? '...' : t('common.create')}
             </button>
             <button
-              onClick={() => {
-                setCreating(false);
-                setNewVersionName('');
-              }}
-              disabled={creating}
+              onClick={handleCancelCreation}
+              disabled={creatingInProgress}
               className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              type="button"
             >
               {t('common.cancel')}
             </button>
           </div>
         )}
 
-        {versions.length === 0 && !creating && (
+        {versions.length === 0 && !showCreateForm && (
           <div className="text-center py-4 text-sm text-gray-500">
             {t('campaigns.versions.noVersions')}
           </div>

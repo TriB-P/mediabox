@@ -118,14 +118,14 @@ const CampaignFormDates = memo<CampaignFormDatesProps>(({
 
           {formData.CA_Start_Date && formData.CA_End_Date && !dateValidationError && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-              <p className="text-sm">
-                <strong>{t('campaigns.formDates.campaignDuration')}</strong> {
-                  t('campaigns.formDates.days', { count: Math.ceil(
-                    (new Date(formData.CA_End_Date).getTime() - new Date(formData.CA_Start_Date).getTime())
-                    / (1000 * 60 * 60 * 24)
-                  )})
-                }
-              </p>
+            <p className="text-sm">
+              <strong>{t('campaigns.formDates.campaignDuration')}</strong> {
+                Math.ceil(
+                  (new Date(formData.CA_End_Date).getTime() - new Date(formData.CA_Start_Date).getTime())
+                  / (1000 * 60 * 60 * 24)
+                )
+              } {t('campaigns.formDates.days')}
+            </p>
             </div>
           )}
         </div>

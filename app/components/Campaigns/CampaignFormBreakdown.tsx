@@ -547,7 +547,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                             <> • {breakdown.startDate} → {breakdown.endDate}</>
                           )}
                           {breakdown.type === 'Custom' && breakdown.customPeriods && (
-                            <> • {t('campaigns.formBreakdown.periodsCount', { count: breakdown.customPeriods.length })}</>
+                            <> • {breakdown.customPeriods.length }{t('campaigns.formBreakdown.periodsCount')}</>
                           )}
                           {breakdown.isDefault && (
                             <> • {t('campaigns.formBreakdown.updatedAutomatically')}</>
@@ -785,7 +785,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         <div key={index} className={`border rounded-lg p-4 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-gray-700">
-                              {t('campaigns.formBreakdown.modal.period', { number: index + 1 })}
+                              {t('campaigns.formBreakdown.modal.period')} { index + 1 }
                             </span>
                             {(editingBreakdown.customPeriods || []).length > 1 && (
                               <button
