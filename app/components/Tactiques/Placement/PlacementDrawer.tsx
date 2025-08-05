@@ -3,6 +3,7 @@
 /**
  * PlacementDrawer avec ajout de l'onglet Tags.
  * Nouveaux champs : PL_Tag_Start_Date, PL_Tag_End_Date, TC_Tag_Type, TC_Third_Party_Measurement, TC_VPAID
+ * AJOUTÉ : PL_Creative_Rotation_Type, PL_Floodlight pour la gestion de la rotation des créatifs
  * Logique de calcul des dates par défaut : Start_Date - 30 jours, End_Date + 30 jours
  */
 'use client';
@@ -112,6 +113,9 @@ export default function PlacementDrawer({
       TC_Tag_Type: '',
       TC_Third_Party_Measurement: false,
       TC_VPAID: true,
+      // Nouveaux champs rotation créatifs
+      PL_Creative_Rotation_Type: '',
+      PL_Floodlight: '',
       ...emptyPlacementFields,
     };
   });
@@ -143,6 +147,9 @@ export default function PlacementDrawer({
           TC_Tag_Type: '',
           TC_Third_Party_Measurement: false,
           TC_VPAID: true,
+          // Nouveaux champs rotation créatifs
+          PL_Creative_Rotation_Type: '',
+          PL_Floodlight: '',
           ...emptyPlacementFields,
         });
       }
@@ -180,6 +187,9 @@ export default function PlacementDrawer({
         TC_Tag_Type: placement.TC_Tag_Type || '',
         TC_Third_Party_Measurement: placement.TC_Third_Party_Measurement ?? false,
         TC_VPAID: placement.TC_VPAID ?? true,
+        // Nouveaux champs rotation créatifs
+        PL_Creative_Rotation_Type: placement.PL_Creative_Rotation_Type || '',
+        PL_Floodlight: placement.PL_Floodlight || '',
         ...emptyPlacementFields,
         ...placementFieldsFromPlacement,
       });
@@ -203,6 +213,9 @@ export default function PlacementDrawer({
         TC_Tag_Type: '',
         TC_Third_Party_Measurement: false,
         TC_VPAID: true,
+        // Nouveaux champs rotation créatifs
+        PL_Creative_Rotation_Type: '',
+        PL_Floodlight: '',
         ...emptyPlacementFields,
       });
     }

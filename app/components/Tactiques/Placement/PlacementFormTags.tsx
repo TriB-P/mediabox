@@ -42,6 +42,14 @@ export default function PlacementFormTags({
     { id: 'false', label: 'Non' }
   ];
 
+  // Options pour PL_Creative_Rotation_Type
+  const rotationTypeOptions = [
+    { id: 'Even', label: 'Even' },
+    { id: 'Optimized by clicks', label: 'Optimized by clicks' },
+    { id: 'Weighted', label: 'Weighted' },
+    { id: 'Floodlight', label: 'Floodlight' }
+  ];
+
   return (
     <div className="space-y-6 p-4">
       <FormSection 
@@ -94,6 +102,58 @@ export default function PlacementFormTags({
               onTooltipChange
             )}
           />
+        </div>
+
+        {/* Section Rotation des créatifs */}
+        <div className="p-4 rounded-lg space-y-4">
+          <SmartSelect
+            id="PL_Creative_Rotation_Type"
+            name="PL_Creative_Rotation_Type"
+            value={formData.PL_Creative_Rotation_Type || ''}
+            onChange={onChange}
+            options={rotationTypeOptions}
+            placeholder="Sélectionner un type de rotation..."
+            label={createLabelWithHelp(
+              'Type de rotation créatif',
+              'Définit comment les créatifs de ce placement seront affichés en rotation',
+              onTooltipChange
+            )}
+          />
+
+          {/* Champ conditionnel pour Floodlight */}
+          {formData.PL_Creative_Rotation_Type === 'Floodlight' && (
+            <FormInput
+              id="PL_Floodlight"
+              name="PL_Floodlight"
+              value={formData.PL_Floodlight || ''}
+              onChange={onChange}
+              type="text"
+              placeholder="Entrez le nom ET le ID du floodlight"
+              label={createLabelWithHelp(
+                'Configuration Floodlight',
+                'Paramètres spécifiques pour la configuration Floodlight',
+                onTooltipChange
+              )}
+            />
+          )}
+
+          {/* Message informatif pour Weighted */}
+          {formData.PL_Creative_Rotation_Type === 'Weighted' && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Rotation pondérée activée :</strong> Vous pourrez définir un poids de rotation (%) pour chaque créatif de ce placement dans l'onglet Tags des créatifs.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section Options avancées */}

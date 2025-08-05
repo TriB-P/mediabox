@@ -1,3 +1,5 @@
+// app/lib/creatifService.ts
+
 /**
  * Ce fichier gère toutes les opérations CRUD (Create, Read, Update, Delete)
  * pour les créatifs dans Firebase Firestore. Il inclut également une logique complexe
@@ -8,6 +10,8 @@
  * Il assure que les données du créatif sont correctement préparées avant
  * d'être sauvegardées ou mises à jour dans la base de données, en intégrant
  * les chaînes de taxonomie générées automatiquement.
+ * 
+ * MISE À JOUR : Ajout des nouveaux champs Tags (CR_Tag_Start_Date, CR_Tag_End_Date, CR_Rotation_Weight)
  */
 import {
     collection,
@@ -240,7 +244,8 @@ async function generateLevelString(structure: string, context: ResolutionContext
  * Prépare les données du créatif pour le stockage dans Firestore.
  * Cela inclut la résolution des variables de taxonomie pour générer
  * les chaînes de niveau 5 et 6 pour les tags, plateformes et Media Ocean,
- * ainsi que la gestion des nouveaux champs specs.
+ * ainsi que la gestion des nouveaux champs specs et tags.
+ * MISE À JOUR : Inclut maintenant les nouveaux champs Tags.
  * @param creatifData Les données du formulaire du créatif.
  * @param clientId L'ID du client.
  * @param campaignData Les données de la campagne associée.
@@ -321,6 +326,13 @@ async function prepareDataForFirestore(
         CR_Spec_Notes: creatifData.CR_Spec_Notes || '',
     };
 
+    // 🔥 NOUVEAUX CHAMPS TAGS - Ajout explicite pour garantir la sauvegarde
+    const tagsFields = {
+        CR_Tag_Start_Date: creatifData.CR_Tag_Start_Date || '',
+        CR_Tag_End_Date: creatifData.CR_Tag_End_Date || '',
+        CR_Rotation_Weight: creatifData.CR_Rotation_Weight || '',
+    };
+
     const firestoreData = {
         CR_Label: creatifData.CR_Label || '',
         CR_Order: creatifData.CR_Order || 0,
@@ -339,6 +351,7 @@ async function prepareDataForFirestore(
         ...creatifFields,    // ✅ INCLUT maintenant directement CR_CTA, CR_Offer, etc.
         ...taxonomyChains,
         ...specFields,
+        ...tagsFields,       // 🔥 NOUVEAUX CHAMPS TAGS
         updatedAt: new Date().toISOString(),
         ...(!isUpdate && { createdAt: new Date().toISOString() })
     };

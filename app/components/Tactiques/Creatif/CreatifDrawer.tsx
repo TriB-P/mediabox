@@ -6,6 +6,7 @@
  * Élimination des appels Firebase redondants et des imports dynamiques inutiles.
  * Version corrigée pour maximiser l'utilisation du cache localStorage.
  * NOUVEAU : Héritage automatique des dates placement → tactique → campagne dans le formData.
+ * AJOUTÉ : Onglet Tags avec champs CR_Tag_Start_Date et CR_Tag_End_Date héritées du placement.
  */
 'use client';
 
@@ -15,8 +16,9 @@ import FormTabs, { FormTab } from '../FormTabs';
 import CreatifFormInfo from './CreatifFormInfo';
 import CreatifFormTaxonomy from './CreatifFormTaxonomy';
 import CreatifFormSpecs from './CreatifFormSpecs';
+import CreatifFormTags from './CreatifFormTags';
 import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
-import { DocumentTextIcon, TagIcon, CogIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, TagIcon, CogIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { Creatif, CreatifFormData, Tactique, Placement } from '../../../types/tactiques';
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
@@ -131,6 +133,35 @@ export default function CreatifDrawer({
     return { startDate, endDate };
   }, [placementData, tactiqueData, selectedCampaign]);
 
+  /**
+   * Calcule les valeurs héritées pour les dates TAGS depuis le placement
+   * Priorité : placementData.PL_Tag_* → dates placement → dates héritées
+   */
+  const getInheritedTagDates = useCallback(() => {
+    const convertToDateString = (date: any): string => {
+      if (!date) return '';
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      return String(date);
+    };
+
+    // Priorité : dates tags du placement, sinon dates placement, sinon dates héritées
+    const { startDate: placementStartDate, endDate: placementEndDate } = getInheritedDates();
+    
+    const tagStartDate = convertToDateString(
+      placementData?.PL_Tag_Start_Date || 
+      placementData?.PL_Start_Date || 
+      placementStartDate
+    );
+    const tagEndDate = convertToDateString(
+      placementData?.PL_Tag_End_Date || 
+      placementData?.PL_End_Date || 
+      placementEndDate
+    );
+    
+    return { tagStartDate, tagEndDate };
+  }, [placementData, getInheritedDates]);
+
   const [formData, setFormData] = useState<CreatifFormData>(() => {
     const emptyCreatifFields = createEmptyCreatifFieldsObject();
     return {
@@ -158,6 +189,11 @@ export default function CreatifDrawer({
       CR_Spec_Text: '',
       CR_Spec_SpecSheetLink: '',
       CR_Spec_Notes: '',
+      // Nouveaux champs Tags
+      CR_Tag_Start_Date: '',
+      CR_Tag_End_Date: '',
+      // Nouveau champ Rotation Weight
+      CR_Rotation_Weight: '',
       ...emptyCreatifFields,
     };
   });
@@ -254,12 +290,18 @@ export default function CreatifDrawer({
         CR_Spec_Text: (creatif as any).CR_Spec_Text || '',
         CR_Spec_SpecSheetLink: (creatif as any).CR_Spec_SpecSheetLink || '',
         CR_Spec_Notes: (creatif as any).CR_Spec_Notes || '',
+        // Champs Tags depuis le créatif existant
+        CR_Tag_Start_Date: (creatif as any).CR_Tag_Start_Date || '',
+        CR_Tag_End_Date: (creatif as any).CR_Tag_End_Date || '',
+        // Champ Rotation Weight depuis le créatif existant
+        CR_Rotation_Weight: (creatif as any).CR_Rotation_Weight || '',
         ...emptyCreatifFields,
         ...creatifFieldsFromCreatif,
       });
     } else {
       // Nouveau créatif - calculer les valeurs héritées
       const { startDate, endDate } = getInheritedDates();
+      const { tagStartDate, tagEndDate } = getInheritedTagDates();
       
       setFormData({
         CR_Label: '',
@@ -285,10 +327,15 @@ export default function CreatifDrawer({
         CR_Spec_Text: '',
         CR_Spec_SpecSheetLink: '',
         CR_Spec_Notes: '',
+        // Champs Tags héritées du placement
+        CR_Tag_Start_Date: tagStartDate,
+        CR_Tag_End_Date: tagEndDate,
+        // Champ Rotation Weight vide pour nouveau créatif
+        CR_Rotation_Weight: '',
         ...emptyCreatifFields,
       });
     }
-  }, [creatif, placementId, getInheritedDates]);
+  }, [creatif, placementId, getInheritedDates, getInheritedTagDates]);
 
  // NOUVEAU useEffect pour réinitialiser complètement le drawer
 useEffect(() => {
@@ -301,6 +348,7 @@ useEffect(() => {
     if (!creatif) {
       const emptyCreatifFields = createEmptyCreatifFieldsObject();
       const { startDate, endDate } = getInheritedDates();
+      const { tagStartDate, tagEndDate } = getInheritedTagDates();
       
       setFormData({
         CR_Label: '',
@@ -326,28 +374,38 @@ useEffect(() => {
         CR_Spec_Text: '',
         CR_Spec_SpecSheetLink: '',
         CR_Spec_Notes: '',
+        // Champs Tags héritées du placement
+        CR_Tag_Start_Date: tagStartDate,
+        CR_Tag_End_Date: tagEndDate,
+        // Champ Rotation Weight vide pour nouveau créatif
+        CR_Rotation_Weight: '',
         ...emptyCreatifFields,
       });
     }
   }
-}, [isOpen, creatif, placementId, getInheritedDates]);
+}, [isOpen, creatif, placementId, getInheritedDates, getInheritedTagDates]);
   
   // useEffect séparé pour réinitialiser les valeurs héritées quand les données sources changent
   useEffect(() => {
     // Seulement pour un nouveau créatif (pas d'édition) ET quand le drawer est ouvert
     if (isOpen && !creatif && (placementData || tactiqueData || selectedCampaign)) {
       const { startDate, endDate } = getInheritedDates();
+      const { tagStartDate, tagEndDate } = getInheritedTagDates();
       setFormData(prev => ({
         ...prev,
         CR_Start_Date: prev.CR_Start_Date || startDate,
         CR_End_Date: prev.CR_End_Date || endDate,
+        CR_Tag_Start_Date: prev.CR_Tag_Start_Date || tagStartDate,
+        CR_Tag_End_Date: prev.CR_Tag_End_Date || tagEndDate,
       }));
     }
-  }, [isOpen, placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates]);
+  }, [isOpen, placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates, getInheritedTagDates]);
+  
   const tabs: FormTab[] = [
     { id: 'infos', name: t('creatifDrawer.tabs.info'), icon: DocumentTextIcon },
     { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: TagIcon },
-    { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: CogIcon }
+    { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: CogIcon },
+    { id: 'tags', name: 'Tags', icon: BookOpenIcon }
   ];
 
   /**
@@ -427,6 +485,20 @@ useEffect(() => {
             onTooltipChange={handleTooltipChange}
             publishersList={dynamicLists.TC_Publisher || []}
             clientId={selectedClient.clientId}
+          />
+        );
+
+      case 'tags':
+        if (!selectedClient) return null;
+        return (
+          <CreatifFormTags
+            formData={formData}
+            onChange={handleChange}
+            onTooltipChange={handleTooltipChange}
+            clientId={selectedClient.clientId}
+            campaignData={selectedCampaign || undefined}
+            tactiqueData={tactiqueData}
+            placementData={placementData}
           />
         );
 

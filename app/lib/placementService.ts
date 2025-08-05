@@ -1,8 +1,11 @@
+// app/lib/placementService.ts
+
 /**
  * Ce fichier gère toutes les opérations liées aux placements dans Firebase Firestore.
  * Il inclut les fonctions pour créer, lire, mettre à jour et supprimer des placements,
  * ainsi que la logique complexe de résolution et de génération des taxonomies
  * pour s'assurer que les données sont correctement formatées avant d'être sauvegardées.
+ * MISE À JOUR : Ajout des nouveaux champs Tags (PL_Tag_Start_Date, PL_Tag_End_Date, TC_Tag_Type, etc.)
  */
 import {
   collection,
@@ -215,6 +218,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
 /**
  * Prépare les données d'un placement pour l'enregistrement dans Firestore.
  * Cela inclut la résolution des taxonomies et la fusion des données nécessaires.
+ * MISE À JOUR : Inclut maintenant les nouveaux champs Tags.
  * @param placementData Les données du formulaire de placement.
  * @param clientId L'identifiant du client.
  * @param campaignData Les données de la campagne associée.
@@ -268,6 +272,17 @@ async function prepareDataForFirestore(
           placementFields[fieldName] = (placementData as any)[fieldName] || '';
       }
   });
+
+  // 🔥 NOUVEAUX CHAMPS TAGS - Ajout explicite pour garantir la sauvegarde
+  const tagsFields = {
+    PL_Tag_Start_Date: placementData.PL_Tag_Start_Date || '',
+    PL_Tag_End_Date: placementData.PL_Tag_End_Date || '',
+    TC_Tag_Type: placementData.TC_Tag_Type || '',
+    TC_Third_Party_Measurement: placementData.TC_Third_Party_Measurement ?? false,
+    TC_VPAID: placementData.TC_VPAID ?? true,
+    PL_Creative_Rotation_Type: placementData.PL_Creative_Rotation_Type || '',
+    PL_Floodlight: placementData.PL_Floodlight || '',
+  };
   
   const firestoreData = {
       PL_Label: placementData.PL_Label || '',
@@ -281,6 +296,7 @@ async function prepareDataForFirestore(
 
       ...placementFields,  // ✅ INCLUT maintenant directement PL_Product, PL_Channel, etc.
       ...taxonomyChains,
+      ...tagsFields,       // 🔥 NOUVEAUX CHAMPS TAGS
       updatedAt: new Date().toISOString(),
       ...(!isUpdate && { createdAt: new Date().toISOString() })
   };

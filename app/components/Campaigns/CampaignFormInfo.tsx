@@ -1,3 +1,5 @@
+// app/components/Campaigns/CampaignFormInfo.tsx
+
 /**
  * @file Ce fichier contient le composant React CampaignFormInfo.
  * @description Ce composant est responsable de l'affichage de la section "Informations générales" du formulaire de création ou d'édition d'une campagne.
@@ -83,6 +85,38 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
   const { t } = useTranslation();
   const isDisabled = loading;
 
+  /**
+   * Nettoie la valeur du CA_Campaign_Identifier en supprimant les caractères spéciaux
+   * et en limitant la longueur à 50 caractères.
+   * Autorise seulement : lettres (a-z, A-Z), chiffres (0-9) et tiret (-)
+   */
+  const sanitizeCampaignIdentifier = (value: string): string => {
+    // Supprime tous les caractères qui ne sont pas des lettres, chiffres ou tiret
+    const cleanValue = value.replace(/[^a-zA-Z0-9-]/g, '');
+    // Limite à 50 caractères
+    return cleanValue.substring(0, 50);
+  };
+
+  /**
+   * Gestionnaire spécial pour le champ CA_Campaign_Identifier qui applique la validation
+   */
+  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const originalValue = e.target.value;
+    const sanitizedValue = sanitizeCampaignIdentifier(originalValue);
+    
+    // Seulement appeler onChange si la valeur a été modifiée par la sanitisation
+    // ou si c'est la même valeur (permet la saisie normale)
+    if (sanitizedValue !== originalValue) {
+      // La valeur a été nettoyée, on met à jour avec la valeur propre
+      e.target.value = sanitizedValue;
+    }
+    
+    onChange(e);
+  };
+
+  const identifierLength = formData.CA_Campaign_Identifier?.length || 0;
+  const identifierMaxLength = 50;
+
   return (
     <div className="p-8 space-y-6">
       <FormSection
@@ -105,20 +139,30 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             )}
           />
           
-          <FormInput
-            id="CA_Campaign_Identifier"
-            name="CA_Campaign_Identifier"
-            value={formData.CA_Campaign_Identifier}
-            onChange={onChange}
-            type="text"
-            placeholder={t('campaigns.formInfo.identifierPlaceholder')}
-            required={!isDisabled}
-            label={createLabelWithHelp(
-              t('campaigns.formInfo.identifierLabel'), 
-              t('campaigns.formInfo.identifierHelp'), 
-              onTooltipChange
-            )}
-          />
+          <div>
+            <FormInput
+              id="CA_Campaign_Identifier"
+              name="CA_Campaign_Identifier"
+              value={formData.CA_Campaign_Identifier}
+              onChange={handleIdentifierChange}
+              type="text"
+              placeholder={t('campaigns.formInfo.identifierPlaceholder')}
+              required={!isDisabled}
+              label={createLabelWithHelp(
+                t('campaigns.formInfo.identifierLabel'), 
+                t('campaigns.formInfo.identifierHelp') + ' (Lettres, chiffres et - seulement)', 
+                onTooltipChange
+              )}
+            />
+            <div className="flex justify-between items-center mt-1">
+              <div className="text-xs text-gray-500">
+                Caractères autorisés : lettres, chiffres et tiret (-)
+              </div>
+              <div className={`text-xs ${identifierLength >= identifierMaxLength ? 'text-red-500' : 'text-gray-500'}`}>
+                {identifierLength}/{identifierMaxLength}
+              </div>
+            </div>
+          </div>
 
           <FormInput
             id="CA_Creative_Folder"

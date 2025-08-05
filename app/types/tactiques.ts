@@ -173,6 +173,8 @@ export interface Placement {
   TC_Tag_Type?: string;               // Type de tag (Video-Hosted, Video-Tracked, Display-Hosted, Display-Tracked, Audio-Hosted, Audio-Tracked)
   TC_Third_Party_Measurement?: boolean; // Mesure tierce partie (défaut: false)
   TC_VPAID?: boolean;                 // VPAID activé (défaut: true)
+  PL_Creative_Rotation_Type?: string; // Type de rotation créatif (Even, Optimized by clicks, Weighted, Floodlight)
+  PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 
   createdAt?: string;
   updatedAt?: string;
@@ -203,6 +205,10 @@ export interface Creatif {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
+  CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)
+  CR_Tag_End_Date?: string;         // Date de fin tag créatif (héritée de PL_Tag_End_Date)
 
   // NOUVEAUX CHAMPS SPECS - AJOUTÉS
   CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
@@ -388,9 +394,11 @@ export interface PlacementFormData {
   TC_Tag_Type?: string;               // Type de tag
   TC_Third_Party_Measurement?: boolean; // Mesure tierce partie
   TC_VPAID?: boolean;                 // VPAID activé
+  PL_Creative_Rotation_Type?: string; // Type de rotation créatif (Even, Optimized by clicks, Weighted, Floodlight)
+  PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 }
 
-// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS ====================
+// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS + TAGS ====================
 
 export interface CreatifFormData {
   CR_Label: string;
@@ -413,6 +421,10 @@ export interface CreatifFormData {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
+  CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)
+  CR_Tag_End_Date?: string;         // Date de fin tag créatif (héritée de PL_Tag_End_Date)
 
   // NOUVEAUX CHAMPS SPECS - AJOUTÉS
   CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
