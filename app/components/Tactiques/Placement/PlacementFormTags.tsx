@@ -52,9 +52,9 @@ export default function PlacementFormTags({
         <div className="p-4 rounded-lg space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput
-              id="TC_Tag_Start_Date"
-              name="TC_Tag_Start_Date"
-              value={formData.TC_Tag_Start_Date || ''}
+              id="PL_Tag_Start_Date"
+              name="PL_Tag_Start_Date"
+              value={formData.PL_Tag_Start_Date || ''}
               onChange={onChange}
               type="date"
               label={createLabelWithHelp(
@@ -65,9 +65,9 @@ export default function PlacementFormTags({
             />
 
             <FormInput
-              id="TC_Tag_End_Date"
-              name="TC_Tag_End_Date"
-              value={formData.TC_Tag_End_Date || ''}
+              id="PL_Tag_End_Date"
+              name="PL_Tag_End_Date"
+              value={formData.PL_Tag_End_Date || ''}
               onChange={onChange}
               type="date"
               label={createLabelWithHelp(

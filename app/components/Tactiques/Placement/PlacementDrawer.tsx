@@ -2,7 +2,7 @@
 
 /**
  * PlacementDrawer avec ajout de l'onglet Tags.
- * Nouveaux champs : TC_Tag_Start_Date, TC_Tag_End_Date, TC_Tag_Type, TC_Third_Party_Measurement, TC_VPAID
+ * Nouveaux champs : PL_Tag_Start_Date, PL_Tag_End_Date, TC_Tag_Type, TC_Third_Party_Measurement, TC_VPAID
  * Logique de calcul des dates par défaut : Start_Date - 30 jours, End_Date + 30 jours
  */
 'use client';
@@ -85,8 +85,8 @@ export default function PlacementDrawer({
 
   /**
    * Calcule les dates par défaut pour les tags
-   * TC_Tag_Start_Date = PL_Start_Date - 30 jours
-   * TC_Tag_End_Date = PL_End_Date + 30 jours
+   * PL_Tag_Start_Date = PL_Start_Date - 30 jours
+   * PL_Tag_End_Date = PL_End_Date + 30 jours
    */
   const getDefaultTagDates = useCallback((placementStartDate: string, placementEndDate: string) => {
     const tagStartDate = addDaysToDate(placementStartDate, -30);
@@ -107,8 +107,8 @@ export default function PlacementDrawer({
       PL_Taxonomy_MediaOcean: '',
       PL_Taxonomy_Values: {},
       // Nouveaux champs Tags avec valeurs par défaut
-      TC_Tag_Start_Date: '',
-      TC_Tag_End_Date: '',
+      PL_Tag_Start_Date: '',
+      PL_Tag_End_Date: '',
       TC_Tag_Type: '',
       TC_Third_Party_Measurement: false,
       TC_VPAID: true,
@@ -138,8 +138,8 @@ export default function PlacementDrawer({
           PL_Taxonomy_Platform: '',
           PL_Taxonomy_MediaOcean: '',
           // Nouveaux champs Tags avec valeurs par défaut
-          TC_Tag_Start_Date: tagStartDate,
-          TC_Tag_End_Date: tagEndDate,
+          PL_Tag_Start_Date: tagStartDate,
+          PL_Tag_End_Date: tagEndDate,
           TC_Tag_Type: '',
           TC_Third_Party_Measurement: false,
           TC_VPAID: true,
@@ -175,8 +175,8 @@ export default function PlacementDrawer({
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
         // Nouveaux champs Tags - utiliser les valeurs existantes ou les valeurs par défaut
-        TC_Tag_Start_Date: convertToDateString(placement.TC_Tag_Start_Date) || tagStartDate,
-        TC_Tag_End_Date: convertToDateString(placement.TC_Tag_End_Date) || tagEndDate,
+        PL_Tag_Start_Date: convertToDateString(placement.PL_Tag_Start_Date) || tagStartDate,
+        PL_Tag_End_Date: convertToDateString(placement.PL_Tag_End_Date) || tagEndDate,
         TC_Tag_Type: placement.TC_Tag_Type || '',
         TC_Third_Party_Measurement: placement.TC_Third_Party_Measurement ?? false,
         TC_VPAID: placement.TC_VPAID ?? true,
@@ -198,8 +198,8 @@ export default function PlacementDrawer({
         PL_Taxonomy_Platform: '',
         PL_Taxonomy_MediaOcean: '',
         // Nouveaux champs Tags avec valeurs par défaut
-        TC_Tag_Start_Date: tagStartDate,
-        TC_Tag_End_Date: tagEndDate,
+        PL_Tag_Start_Date: tagStartDate,
+        PL_Tag_End_Date: tagEndDate,
         TC_Tag_Type: '',
         TC_Third_Party_Measurement: false,
         TC_VPAID: true,
@@ -219,8 +219,8 @@ export default function PlacementDrawer({
         ...prev,
         PL_Start_Date: prev.PL_Start_Date || startDate,
         PL_End_Date: prev.PL_End_Date || endDate,
-        TC_Tag_Start_Date: prev.TC_Tag_Start_Date || tagStartDate,
-        TC_Tag_End_Date: prev.TC_Tag_End_Date || tagEndDate,
+        PL_Tag_Start_Date: prev.PL_Tag_Start_Date || tagStartDate,
+        PL_Tag_End_Date: prev.PL_Tag_End_Date || tagEndDate,
       }));
     }
   }, [tactiqueData, selectedCampaign, placement, getInheritedDates, getDefaultTagDates]);
@@ -233,8 +233,8 @@ export default function PlacementDrawer({
       // Seulement mettre à jour si les champs tags sont vides ou correspondent aux anciennes valeurs calculées
       setFormData(prev => ({
         ...prev,
-        TC_Tag_Start_Date: prev.TC_Tag_Start_Date || tagStartDate,
-        TC_Tag_End_Date: prev.TC_Tag_End_Date || tagEndDate,
+        PL_Tag_Start_Date: prev.PL_Tag_Start_Date || tagStartDate,
+        PL_Tag_End_Date: prev.PL_Tag_End_Date || tagEndDate,
       }));
     }
   }, [formData.PL_Start_Date, formData.PL_End_Date, getDefaultTagDates]);
