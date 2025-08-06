@@ -100,6 +100,10 @@ export interface Tactique {
   TC_Real_Value?: number;         // Valeur réelle payée
   TC_Bonus_Value?: number;        // Bonification calculée
 
+  TC_Client_Budget_RefCurrency?: number;  // Budget client converti dans la devise de référence de la campagne
+  TC_Media_Budget_RefCurrency?: number;   // Budget média converti dans la devise de référence de la campagne
+  TC_Currency_Rate?: number;              // Taux de change utilisé pour la conversion (devise tactique → devise campagne)
+
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
@@ -175,6 +179,10 @@ export interface Placement {
   TC_VPAID?: boolean;                 // VPAID activé (défaut: true)
   PL_Creative_Rotation_Type?: string; // Type de rotation créatif (Even, Optimized by clicks, Weighted, Floodlight)
   PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
+
+  TC_Client_Budget_RefCurrency?: number;  // Budget client converti dans la devise de référence de la campagne
+  TC_Media_Budget_RefCurrency?: number;   // Budget média converti dans la devise de référence de la campagne
+  TC_Currency_Rate?: number;              // Taux de change utilisé pour la conversion (devise tactique → devise campagne)
 
   createdAt?: string;
   updatedAt?: string;

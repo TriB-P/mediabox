@@ -33,7 +33,7 @@ const CURRENCIES = [
   { id: 'CAD', label: 'CAD - Dollar Canadien' },
   { id: 'USD', label: 'USD - Dollar Américain' },
   { id: 'EUR', label: 'EUR - Euro' },
-  { value: 'CHF', label: 'CHF - Franc Suisse' },
+  { id: 'CHF', label: 'CHF - Franc Suisse' },
 
 ];
 

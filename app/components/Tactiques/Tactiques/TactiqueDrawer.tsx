@@ -296,6 +296,10 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Delta: tactique.TC_Delta || 0,
     TC_Unit_Type: tactique.TC_Unit_Type || '',
     TC_Has_Bonus: tactique.TC_Has_Bonus || false,
+
+    // NOUVEAU : Charger les budgets en devise de référence (toujours présents)
+    TC_Client_Budget_RefCurrency: tactique.TC_Client_Budget_RefCurrency || 0,
+    TC_Media_Budget_RefCurrency: tactique.TC_Media_Budget_RefCurrency || 0,
     
     // CORRECTION FRAIS : Charger les frais appliqués
     TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
@@ -358,6 +362,9 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     TC_Budget: round2(formDataAny.TC_Client_Budget || formData.TC_Budget),
     TC_Media_Budget: round2(formDataAny.TC_Media_Budget),
     TC_Client_Budget: round2(formDataAny.TC_Client_Budget),
+
+    TC_Client_Budget_RefCurrency: round2(formDataAny.TC_Client_Budget_RefCurrency),
+    TC_Media_Budget_RefCurrency: round2(formDataAny.TC_Media_Budget_RefCurrency),
     
     // Paramètres budgétaires arrondis
     TC_BudgetInput: round2(formDataAny.TC_BudgetInput),

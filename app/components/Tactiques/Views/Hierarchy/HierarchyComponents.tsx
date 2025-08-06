@@ -725,7 +725,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
               </div>
 
               <div className="text-sm font-medium">
-                {formatCurrency(tactique.TC_Budget)}
+                {formatCurrency(tactique.TC_Client_Budget_RefCurrency)}
               </div>
             </div>
           </div>

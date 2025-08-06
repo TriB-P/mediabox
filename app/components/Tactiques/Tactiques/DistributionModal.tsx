@@ -3,6 +3,7 @@
  * Modal pour la distribution de montants sur les périodes de breakdown.
  * Permet de choisir des dates personnalisées, le champ à distribuer pour PEBs,
  * et affiche un aperçu en temps réel de la distribution.
+ * CORRIGÉ: Ajout de stopPropagation pour éviter la fermeture du drawer parent
  */
 
 'use client';
@@ -69,8 +70,11 @@ export default function DistributionModal({
 
   /**
    * Confirme et applique la distribution
+   * CORRIGÉ: Ajout de stopPropagation
    */
-  const handleConfirmDistribution = () => {
+  const handleConfirmDistribution = (e: React.MouseEvent) => {
+    e.stopPropagation(); // NOUVEAU: Empêcher la propagation
+
     if (!modalState.breakdownId || !modalState.totalAmount || 
         !modalState.startDate || !modalState.endDate || !breakdown) return;
 
@@ -116,11 +120,42 @@ export default function DistributionModal({
     onClose();
   };
 
+  /**
+   * NOUVEAU: Handler pour le bouton Annuler avec stopPropagation
+   */
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Empêcher la propagation
+    onClose();
+  };
+
+  /**
+   * NOUVEAU: Handler pour empêcher la fermeture sur clic à l'intérieur du modal
+   */
+  const handleModalContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Empêcher la propagation des clics internes
+  };
+
+  /**
+   * NOUVEAU: Handler pour l'overlay - ferme seulement si clic direct sur l'overlay
+   */
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // Fermer seulement si le clic est directement sur l'overlay (pas sur le contenu)
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={handleOverlayClick} // NOUVEAU: Handler pour l'overlay
+    >
+      <div 
+        className="bg-white rounded-xl p-6 w-full max-w-lg mx-4"
+        onClick={handleModalContentClick} // NOUVEAU: Empêcher propagation
+      >
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
           Distribuer le montant
         </h3>
@@ -137,6 +172,7 @@ export default function DistributionModal({
                 value={modalState.startDate}
                 onChange={(e) => setModalState(prev => ({ ...prev, startDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
               />
             </div>
             <div>
@@ -148,6 +184,7 @@ export default function DistributionModal({
                 value={modalState.endDate}
                 onChange={(e) => setModalState(prev => ({ ...prev, endDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
               />
             </div>
           </div>
@@ -161,7 +198,10 @@ export default function DistributionModal({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setModalState(prev => ({ ...prev, pebsField: 'unitCost' }))}
+                  onClick={(e) => {
+                    e.stopPropagation(); // NOUVEAU: Empêcher propagation
+                    setModalState(prev => ({ ...prev, pebsField: 'unitCost' }));
+                  }}
                   className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
                     modalState.pebsField === 'unitCost'
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
@@ -172,7 +212,10 @@ export default function DistributionModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setModalState(prev => ({ ...prev, pebsField: 'value' }))}
+                  onClick={(e) => {
+                    e.stopPropagation(); // NOUVEAU: Empêcher propagation
+                    setModalState(prev => ({ ...prev, pebsField: 'value' }));
+                  }}
                   className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
                     modalState.pebsField === 'value'
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
@@ -197,6 +240,7 @@ export default function DistributionModal({
               onChange={(e) => setModalState(prev => ({ ...prev, totalAmount: e.target.value }))}
               placeholder="Ex: 10000"
               className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
             />
           </div>
 
@@ -239,13 +283,13 @@ export default function DistributionModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={onClose}
+            onClick={handleCancel} // MODIFIÉ: Utiliser le nouveau handler
             className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
             Annuler
           </button>
           <button
-            onClick={handleConfirmDistribution}
+            onClick={handleConfirmDistribution} // MODIFIÉ: Utiliser le nouveau handler
             disabled={!modalState.totalAmount || !modalState.startDate || !modalState.endDate}
             className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

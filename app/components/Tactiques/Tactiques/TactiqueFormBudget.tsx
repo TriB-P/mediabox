@@ -121,10 +121,34 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return budgetData.TC_Media_Value > 0 || !!formData.TC_Has_Bonus;
   });
 
+  const calculatedMediaBudget = budgetData.TC_Media_Budget || 0;
+
+
   useEffect(() => {
     const dataForParent = getDataForFirestore();
-    onCalculatedChange(dataForParent);
-  }, [budgetData, getDataForFirestore, onCalculatedChange]);
+    
+    // NOUVEAU : Calculer TOUJOURS les budgets en devise de référence
+    const currency = budgetData.TC_BuyCurrency;
+    const effectiveRate = budgetData.TC_Currency_Rate || 1;
+    const needsConversion = currency !== campaignCurrency;
+    
+    // Toujours calculer ces champs
+    const finalRate = needsConversion ? effectiveRate : 1;
+    const refCurrencyData = {
+      TC_Client_Budget_RefCurrency: budgetData.TC_Client_Budget * finalRate,
+      TC_Media_Budget_RefCurrency: calculatedMediaBudget * finalRate,
+      TC_Currency_Rate: finalRate
+    };
+    
+    // Fusionner avec les données existantes
+    const enhancedData = {
+      ...dataForParent,
+      ...refCurrencyData
+    };
+    
+    onCalculatedChange(enhancedData);
+  }, [budgetData, getDataForFirestore, onCalculatedChange, calculatedMediaBudget, campaignCurrency]);
+  
 
   /**
    * Gère le changement d'une valeur d'un champ unique du hook de calcul.
@@ -215,7 +239,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields]);
 
-  const calculatedMediaBudget = budgetData.TC_Media_Budget || 0;
   
   const calculatedTotalFees = useMemo(() => {
     let total = 0;
