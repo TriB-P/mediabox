@@ -28,10 +28,5 @@ export const CURRENCIES = [
   "CAD",
   "USD",
   "EUR",
-  "GBP",
-  "JPY",
-  "AUD",
-  "CHF",
-  "CNY",
-  "MXN",
+  "CHF"
 ];

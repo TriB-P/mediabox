@@ -103,7 +103,7 @@ export const CURRENCY_OPTIONS = [
   { id: 'CAD', label: 'CAD' },
   { id: 'USD', label: 'USD' },
   { id: 'EUR', label: 'EUR' },
-  { id: 'GBP', label: 'GBP' }
+  { id: 'CHF', label: 'CHF' }
 ];
 
 /**

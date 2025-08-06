@@ -56,6 +56,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
     { value: 'CAD', label: 'CAD - Dollar Canadien' },
     { value: 'USD', label: 'USD - Dollar Américain' },
     { value: 'EUR', label: 'EUR - Euro' },
+    { value: 'CHF', label: 'CHF - Franc Suisse' },
   ];
 
   /**
