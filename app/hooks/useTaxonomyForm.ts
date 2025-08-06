@@ -1,16 +1,17 @@
-// app/hooks/useTaxonomyForm.ts - FILTRAGE CORRIGÉ PAR SOURCE
+// app/hooks/useTaxonomyForm.ts - FILTRAGE CORRIGÉ PAR SOURCE + EXCLUSION CHAMPS CALCULÉS
 
 /**
  * Ce hook gère la logique complexe des formulaires de taxonomie pour les créatifs et les placements.
  * OPTIMISÉ VERSION: Utilise le système de cache pour éliminer 80% des appels Firebase.
  * CORRIGÉ: Filtrage simplifié par source directe au lieu de l'ancienne logique "manual".
+ * NOUVEAU: Exclusion des champs calculés automatiquement (ex: CR_Sprint_Dates) du rendu.
  * 
  * Optimisations appliquées:
  * A) loadShortcode() → utilise getCachedAllShortcodes() au lieu de getDoc()
  * B) loadFieldOptions() → utilise getListForClient() au lieu de getDynamicList()
- * C) manualVariables → filtrage direct par source ('placement' ou 'créatif')
+ * C) manualVariables → filtrage direct par source ('placement' ou 'créatif') + exclusion calculés
  * 
- * Résultat: Chaque drawer ne voit que SES champs spécifiques
+ * Résultat: Chaque drawer ne voit que SES champs spécifiques (sans les champs calculés)
  */
 'use client';
 
@@ -126,22 +127,33 @@ export function useTaxonomyForm({
   const hasTaxonomies = Boolean(selectedTaxonomyIds.tags || selectedTaxonomyIds.platform || selectedTaxonomyIds.mediaocean);
 
   /**
-   * 🔥 CORRIGÉ: Filtrage simplifié par source directe
+   * 🔥 NOUVEAU : Filtrage par source + exclusion des champs calculés automatiquement
    * Chaque formType ne voit que SES champs spécifiques :
    * - placement → source === 'placement'
    * - creatif → source === 'créatif'
    * 
-   * Plus de logique complexe avec isManualVariable, isCreatifVariable, etc.
-   * @returns Un tableau de variables de taxonomie filtrées par source.
+   * Les champs calculés (comme CR_Sprint_Dates) sont exclus du rendu mais restent
+   * utilisables dans les structures de taxonomie.
+   * @returns Un tableau de variables de taxonomie filtrées par source et non calculées.
    */
   const manualVariables = useMemo(() => {
     // Déterminer la source cible selon le type de formulaire
     const targetSource: FieldSource = formType === 'creatif' ? 'créatif' : 'placement';
     
+    // 🔥 NOUVEAU : Liste des champs calculés à exclure du rendu
+    const CALCULATED_FIELDS = [
+      'CR_Sprint_Dates',  // Calculé automatiquement à partir de CR_Start_Date + CR_End_Date
+      // Ajouter d'autres champs calculés ici si nécessaire
+    ];
+    
     // Filtrer les variables qui correspondent à la source cible
     const filteredVariables = parsedVariables.filter(variable => {
       const variableSource = getFieldSource(variable.variable);
-      return variableSource === targetSource;
+      const isTargetSource = variableSource === targetSource;
+      const isCalculated = CALCULATED_FIELDS.includes(variable.variable);
+      
+      // Inclure seulement si c'est la bonne source ET pas un champ calculé
+      return isTargetSource && !isCalculated;
     });
     
     // Déduplication par nom de variable (garder seulement la première occurrence)
@@ -154,7 +166,7 @@ export function useTaxonomyForm({
     });
     
     const result = Array.from(uniqueByVariable.values());
-    console.log(`[TAXONOMY] ${formType} → ${result.length} variables filtrées:`, result.map(v => v.variable));
+    console.log(`[TAXONOMY] ${formType} → ${result.length} variables filtrées (calculés exclus):`, result.map(v => v.variable));
     
     return result;
   }, [parsedVariables, formType]);
@@ -490,6 +502,7 @@ export function useTaxonomyForm({
   /**
    * Résout la valeur d'une variable de taxonomie en fonction de sa source et du format demandé.
    * Priorise les valeurs manuelles, puis recherche dans les données de campagne, tactique ou placement.
+   * NOUVEAU : Gestion spéciale des champs calculés (ex: CR_Sprint_Dates)
    * @param variable L'objet ParsedTaxonomyVariable à résoudre.
    * @param format Le format de sortie souhaité.
    * @returns La valeur résolue et formatée de la variable.
@@ -497,6 +510,51 @@ export function useTaxonomyForm({
   const resolveVariableValue = useCallback((variable: ParsedTaxonomyVariable, format: TaxonomyFormat): string => {
     const variableName = variable.variable;
     const variableSource = getFieldSource(variableName);
+  
+    // 🔥 NOUVEAU : Gestion spéciale des champs calculés
+    if (variableName === 'CR_Sprint_Dates' && formData) {
+      // Recalculer CR_Sprint_Dates à partir des dates actuelles
+      const startDate = (formData as any).CR_Start_Date || '';
+      const endDate = (formData as any).CR_End_Date || '';
+      
+      if (startDate && endDate) {
+        // Utiliser la même logique de calcul que dans creatifService.ts
+        const formatDateToMMMdd = (dateString: string): string => {
+          if (!dateString) return '';
+          
+          try {
+            const dateParts = dateString.split('-');
+            if (dateParts.length !== 3) return '';
+            
+            const year = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10) - 1;
+            const day = parseInt(dateParts[2], 10);
+            
+            if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
+            if (month < 0 || month > 11 || day < 1 || day > 31) return '';
+            
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            const monthName = monthNames[month];
+            const dayFormatted = day.toString().padStart(2, '0');
+            
+            return `${monthName}${dayFormatted}`;
+          } catch (error) {
+            return '';
+          }
+        };
+        
+        const startFormatted = formatDateToMMMdd(startDate);
+        const endFormatted = formatDateToMMMdd(endDate);
+        
+        if (startFormatted && endFormatted) {
+          return `${startFormatted}-${endFormatted}`;
+        }
+      }
+      
+      return '';
+    }
   
     // 1. Vérifier d'abord dans formData (valeurs actuelles du formulaire)
     if (formData && (formData as any)[variableName] !== undefined && (formData as any)[variableName] !== '') {

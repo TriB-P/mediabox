@@ -7,11 +7,13 @@
  * Il permet à l'utilisateur de définir un nom pour le créatif, les dates de début/fin,
  * et d'associer des taxonomies (catégories pré-définies) qui sont récupérées depuis Firebase
  * en fonction du client sélectionné.
+ * 
+ * AJOUT : Champ calculé CR_Sprint_Dates en lecture seule (format MMMdd-MMMdd)
  */
 
 'use client';
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useMemo } from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import { 
   FormInput, 
@@ -26,6 +28,7 @@ interface CreatifFormInfoProps {
     CR_Label?: string;
     CR_Start_Date?: string;
     CR_End_Date?: string;
+    CR_Sprint_Dates?: string;
     CR_Taxonomy_Tags?: string;
     CR_Taxonomy_Platform?: string;
     CR_Taxonomy_MediaOcean?: string;
@@ -40,10 +43,44 @@ interface CreatifFormInfoProps {
 }
 
 /**
+ * Formate une date en format MMMdd (ex: "Jan15", "Feb28")
+ * @param dateString Date au format ISO (YYYY-MM-DD)
+ * @returns Date formatée en MMMdd ou chaîne vide si invalide
+ */
+const formatDateToMMMdd = (dateString: string): string => {
+  if (!dateString) return '';
+  
+  try {
+    // Parse directement la chaîne pour éviter les problèmes de fuseau horaire
+    const dateParts = dateString.split('-');
+    if (dateParts.length !== 3) return '';
+    
+    const year = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1; // Les mois JavaScript commencent à 0
+    const day = parseInt(dateParts[2], 10);
+    
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
+    if (month < 0 || month > 11 || day < 1 || day > 31) return '';
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const monthName = monthNames[month];
+    const dayFormatted = day.toString().padStart(2, '0');
+    
+    return `${monthName}${dayFormatted}`;
+  } catch (error) {
+    console.error('Erreur lors du formatage de la date:', error);
+    return '';
+  }
+};
+
+/**
  * Affiche la section du formulaire dédiée aux informations générales du créatif.
  * Ce composant gère la saisie du nom du créatif, les dates et la sélection des taxonomies
  * applicables pour les tags, la plateforme et MediaOcean.
  * Il récupère dynamiquement les taxonomies disponibles pour le client spécifié.
+ * AJOUT : Calcul et affichage du champ CR_Sprint_Dates en lecture seule.
  *
  * @param {CreatifFormInfoProps} props - Les propriétés du composant.
  * @param {object} props.formData - Les données actuelles du formulaire pour ce composant.
@@ -70,6 +107,17 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [taxonomiesLoading, setTaxonomiesLoading] = useState(true);
   const [taxonomiesError, setTaxonomiesError] = useState<string | null>(null);
+
+  // Calcul automatique du champ CR_Sprint_Dates
+  const sprintDates = useMemo(() => {
+    const startFormatted = formatDateToMMMdd(formData.CR_Start_Date || '');
+    const endFormatted = formatDateToMMMdd(formData.CR_End_Date || '');
+    
+    if (startFormatted && endFormatted) {
+      return `${startFormatted}-${endFormatted}`;
+    }
+    return '';
+  }, [formData.CR_Start_Date, formData.CR_End_Date]);
 
   useEffect(() => {
     if (clientId) {
@@ -165,6 +213,21 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
             )}
           />
         </div>
+
+        {/* NOUVEAU CHAMP CR_Sprint_Dates EN LECTURE SEULE */}
+        <FormInput
+          id="CR_Sprint_Dates"
+          name="CR_Sprint_Dates"
+          value={sprintDates}
+          onChange={() => {}} // Fonction vide car le champ est en lecture seule
+          type="text"
+          label={createLabelWithHelp(
+            'Sprint Dates',
+            'Dates du sprint calculées automatiquement (format: MMMdd-MMMdd)',
+            onTooltipChange
+          )}
+          className="bg-gray-50 text-gray-600"
+        />
 
         {taxonomiesError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">

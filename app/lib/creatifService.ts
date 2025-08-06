@@ -12,6 +12,7 @@
  * les chaînes de taxonomie générées automatiquement.
  * 
  * MISE À JOUR : Ajout des nouveaux champs Tags (CR_Tag_Start_Date, CR_Tag_End_Date, CR_Rotation_Weight)
+ * NOUVEAU : Calcul automatique du champ CR_Sprint_Dates (format MMMdd-MMMdd)
  */
 import {
     collection,
@@ -50,6 +51,55 @@ interface ResolutionContext {
         shortcodes: Map<string, any>;
         customCodes: Map<string, string | null>;
     };
+}
+
+/**
+ * Formate une date en format MMMdd (ex: "Jan15", "Feb28")
+ * @param dateString Date au format ISO (YYYY-MM-DD)
+ * @returns Date formatée en MMMdd ou chaîne vide si invalide
+ */
+function formatDateToMMMdd(dateString: string): string {
+    if (!dateString) return '';
+    
+    try {
+        // Parse directement la chaîne pour éviter les problèmes de fuseau horaire
+        const dateParts = dateString.split('-');
+        if (dateParts.length !== 3) return '';
+        
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1; // Les mois JavaScript commencent à 0
+        const day = parseInt(dateParts[2], 10);
+        
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
+        if (month < 0 || month > 11 || day < 1 || day > 31) return '';
+        
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const monthName = monthNames[month];
+        const dayFormatted = day.toString().padStart(2, '0');
+        
+        return `${monthName}${dayFormatted}`;
+    } catch (error) {
+        console.error('Erreur lors du formatage de la date:', error);
+        return '';
+    }
+}
+
+/**
+ * Calcule le champ CR_Sprint_Dates basé sur CR_Start_Date et CR_End_Date
+ * @param startDate Date de début au format ISO
+ * @param endDate Date de fin au format ISO
+ * @returns Chaîne formatée "MMMdd-MMMdd" ou chaîne vide si dates invalides
+ */
+function calculateSprintDates(startDate: string, endDate: string): string {
+    const startFormatted = formatDateToMMMdd(startDate);
+    const endFormatted = formatDateToMMMdd(endDate);
+    
+    if (startFormatted && endFormatted) {
+        return `${startFormatted}-${endFormatted}`;
+    }
+    return '';
 }
 
 /**
@@ -245,7 +295,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
  * Cela inclut la résolution des variables de taxonomie pour générer
  * les chaînes de niveau 5 et 6 pour les tags, plateformes et Media Ocean,
  * ainsi que la gestion des nouveaux champs specs et tags.
- * MISE À JOUR : Inclut maintenant les nouveaux champs Tags.
+ * MISE À JOUR : Inclut maintenant les nouveaux champs Tags et le calcul de CR_Sprint_Dates.
  * @param creatifData Les données du formulaire du créatif.
  * @param clientId L'ID du client.
  * @param campaignData Les données de la campagne associée.
@@ -333,12 +383,19 @@ async function prepareDataForFirestore(
         CR_Rotation_Weight: creatifData.CR_Rotation_Weight || '',
     };
 
+    // 🔥 NOUVEAU CHAMP CALCULÉ - Sprint Dates
+    const sprintDates = calculateSprintDates(
+        creatifData.CR_Start_Date || '',
+        creatifData.CR_End_Date || ''
+    );
+
     const firestoreData = {
         CR_Label: creatifData.CR_Label || '',
         CR_Order: creatifData.CR_Order || 0,
         CR_PlacementId: creatifData.CR_PlacementId,
         CR_Start_Date: creatifData.CR_Start_Date || '',
         CR_End_Date: creatifData.CR_End_Date || '',
+        CR_Sprint_Dates: sprintDates, // 🔥 NOUVEAU CHAMP CALCULÉ
         CR_Taxonomy_Tags: creatifData.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatifData.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatifData.CR_Taxonomy_MediaOcean || '',

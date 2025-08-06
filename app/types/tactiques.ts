@@ -181,7 +181,7 @@ export interface Placement {
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
-// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS + SPECS ====================
+// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS + SPECS + SPRINT_DATES ====================
 
 export interface Creatif {
   id: string;
@@ -205,6 +205,9 @@ export interface Creatif {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // 🔥 NOUVEAU CHAMP CALCULÉ - AJOUTÉ
+  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
 
   // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
   CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)
@@ -398,7 +401,7 @@ export interface PlacementFormData {
   PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 }
 
-// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS + TAGS ====================
+// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS + TAGS + SPRINT_DATES ====================
 
 export interface CreatifFormData {
   CR_Label: string;
@@ -421,6 +424,9 @@ export interface CreatifFormData {
   CR_Primary_Product?: string;      // Produit principal
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
+
+  // 🔥 NOUVEAU CHAMP CALCULÉ - AJOUTÉ
+  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
 
   // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
   CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)

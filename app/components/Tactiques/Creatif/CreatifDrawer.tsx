@@ -7,6 +7,7 @@
  * Version corrigée pour maximiser l'utilisation du cache localStorage.
  * NOUVEAU : Héritage automatique des dates placement → tactique → campagne dans le formData.
  * AJOUTÉ : Onglet Tags avec champs CR_Tag_Start_Date et CR_Tag_End_Date héritées du placement.
+ * NOUVEAU : Gestion du champ calculé CR_Sprint_Dates (format MMMdd-MMMdd).
  */
 'use client';
 
@@ -63,6 +64,7 @@ interface CreatifDrawerProps {
 /**
  * Composant principal du tiroir de formulaire pour les créatifs OPTIMISÉ avec héritage dates.
  * Utilise le système de cache pour réduire drastiquement les appels Firebase.
+ * NOUVEAU : Gestion du champ calculé CR_Sprint_Dates.
  * @param {boolean} isOpen - Contrôle la visibilité du tiroir.
  * @param {() => void} onClose - Fonction pour fermer le tiroir.
  * @param {Creatif | null} [creatif] - L'objet créatif à modifier. Si null, le formulaire est en mode création.
@@ -170,6 +172,7 @@ export default function CreatifDrawer({
       CR_PlacementId: placementId,
       CR_Start_Date: '',
       CR_End_Date: '',
+      CR_Sprint_Dates: '', // 🔥 NOUVEAU CHAMP CALCULÉ
       CR_Taxonomy_Tags: '',
       CR_Taxonomy_Platform: '',
       CR_Taxonomy_MediaOcean: '',
@@ -272,6 +275,7 @@ export default function CreatifDrawer({
         CR_PlacementId: creatif.CR_PlacementId,
         CR_Start_Date: creatif.CR_Start_Date || '',
         CR_End_Date: creatif.CR_End_Date || '',
+        CR_Sprint_Dates: creatif.CR_Sprint_Dates || '', // 🔥 RÉCUPÉRATION DU CHAMP EXISTANT
         CR_Taxonomy_Tags: creatif.CR_Taxonomy_Tags || '',
         CR_Taxonomy_Platform: creatif.CR_Taxonomy_Platform || '',
         CR_Taxonomy_MediaOcean: creatif.CR_Taxonomy_MediaOcean || '',
@@ -309,6 +313,7 @@ export default function CreatifDrawer({
         CR_PlacementId: placementId,
         CR_Start_Date: startDate,
         CR_End_Date: endDate,
+        CR_Sprint_Dates: '', // 🔥 SERA CALCULÉ AUTOMATIQUEMENT CÔTÉ SERVEUR
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
         CR_Taxonomy_MediaOcean: '',
@@ -356,6 +361,7 @@ useEffect(() => {
         CR_PlacementId: placementId,
         CR_Start_Date: startDate,
         CR_End_Date: endDate,
+        CR_Sprint_Dates: '', // 🔥 SERA CALCULÉ AUTOMATIQUEMENT CÔTÉ SERVEUR
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
         CR_Taxonomy_MediaOcean: '',
@@ -397,6 +403,7 @@ useEffect(() => {
         CR_End_Date: prev.CR_End_Date || endDate,
         CR_Tag_Start_Date: prev.CR_Tag_Start_Date || tagStartDate,
         CR_Tag_End_Date: prev.CR_Tag_End_Date || tagEndDate,
+        // 🔥 NE PAS METTRE À JOUR CR_Sprint_Dates ICI - sera calculé côté serveur
       }));
     }
   }, [isOpen, placementData, tactiqueData, selectedCampaign, creatif, getInheritedDates, getInheritedTagDates]);
@@ -415,7 +422,11 @@ useEffect(() => {
    */
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: value 
+      // 🔥 CR_Sprint_Dates sera automatiquement calculé côté serveur lors de la sauvegarde
+    }));
   }, []);
 
   /**
@@ -435,6 +446,8 @@ useEffect(() => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // 🔥 IMPORTANT : CR_Sprint_Dates sera calculé automatiquement dans creatifService.ts
+      // Pas besoin de le calculer ici, on passe les données telles quelles
       await onSave(formData);
       onClose();
     } catch (error) {
