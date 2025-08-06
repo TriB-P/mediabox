@@ -72,8 +72,8 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
       const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(shortcode =>
         shortcode.SH_Code.toLowerCase().includes(searchLower) ||
-        shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower) ||
-        (shortcode.SH_Display_Name_FR?.toLowerCase().includes(searchLower)) ||
+        shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+        (shortcode.SH_Display_Name_EN?.toLowerCase().includes(searchLower)) ||
         (shortcode.SH_Default_UTM?.toLowerCase().includes(searchLower)) ||
         (shortcode.SH_Type?.toLowerCase().includes(searchLower))
       );
@@ -95,7 +95,7 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
           return bAssigned ? 1 : -1; // assignés en premier
         }
       }
-      return a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' });
+      return a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' });
     });
   }, [allShortcodes, searchQuery, filterStatus, assignedIds]);
 
@@ -106,8 +106,8 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
     setEditingId(shortcode.id);
     setEditingData({
       SH_Code: shortcode.SH_Code,
-      SH_Display_Name_EN: shortcode.SH_Display_Name_EN,
-      SH_Display_Name_FR: shortcode.SH_Display_Name_FR || '',
+      SH_Display_Name_FR: shortcode.SH_Display_Name_FR,
+      SH_Display_Name_EN: shortcode.SH_Display_Name_EN || '',
       SH_Default_UTM: shortcode.SH_Default_UTM || '',
       SH_Type: shortcode.SH_Type || ''
     });
@@ -372,13 +372,13 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
                               {isEditing ? (
                                 <input
                                   type="text"
-                                  value={editingData.SH_Display_Name_EN || ''}
-                                  onChange={(e) => setEditingData({...editingData, SH_Display_Name_EN: e.target.value})}
+                                  value={editingData.SH_Display_Name_FR || ''}
+                                  onChange={(e) => setEditingData({...editingData, SH_Display_Name_FR: e.target.value})}
                                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 />
                               ) : (
                                 <div className="text-sm text-gray-900 break-words">
-                                  {shortcode.SH_Display_Name_EN}
+                                  {shortcode.SH_Display_Name_FR}
                                 </div>
                               )}
                             </td>
@@ -388,13 +388,13 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
                               {isEditing ? (
                                 <input
                                   type="text"
-                                  value={editingData.SH_Display_Name_FR || ''}
-                                  onChange={(e) => setEditingData({...editingData, SH_Display_Name_FR: e.target.value})}
+                                  value={editingData.SH_Display_Name_EN || ''}
+                                  onChange={(e) => setEditingData({...editingData, SH_Display_Name_EN: e.target.value})}
                                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 />
                               ) : (
                                 <div className="text-sm text-gray-500 break-words">
-                                  {shortcode.SH_Display_Name_FR || '—'}
+                                  {shortcode.SH_Display_Name_EN || '—'}
                                 </div>
                               )}
                             </td>

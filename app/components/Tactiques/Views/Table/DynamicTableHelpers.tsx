@@ -22,7 +22,7 @@ interface CampaignBucket {
 
 interface ListItem {
   id: string;
-  SH_Display_Name_EN: string;
+  SH_Display_Name_FR: string;
 }
 
 interface SortConfig {
@@ -67,7 +67,7 @@ export function enrichColumnsWithData(
             const listData = dynamicLists[column.key] || [];
             enrichedColumn.options = listData.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             }));
             break;
 
@@ -154,7 +154,7 @@ export function formatDisplayValue(
   // Cas spéciaux pour les listes dynamiques : afficher le label au lieu de l'ID
   if (value && dynamicLists[columnKey]) {
     const item = dynamicLists[columnKey].find(item => item.id === value);
-    return item ? item.SH_Display_Name_EN : value;
+    return item ? item.SH_Display_Name_FR : value;
   }
   
   // MODIFIÉ : Cas spéciaux pour TOUS les champs avec options (taxonomies ET variables manuelles)

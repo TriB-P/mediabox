@@ -1,8 +1,14 @@
+// Fichier: app/lib/clientService.ts
+// Chemin: app/lib/clientService.ts
+
 /**
  * Ce fichier contient des fonctions pour interagir avec les données des clients
  * stockées dans Firebase (Firestore et Storage). Il permet de récupérer les informations
  * des clients, de gérer les permissions des utilisateurs sur ces clients, de mettre à jour
  * les données des clients et d'uploader leurs logos.
+ * 
+ * MODIFICATION : getUserClients() récupère maintenant les logos depuis la collection racine "clients"
+ * au lieu de la sous-collection "userPermissions/{email}/clients"
  */
 import {
   collection,
@@ -53,6 +59,9 @@ export interface ClientInfo {
 
 /**
  * Récupère la liste de tous les clients auxquels un utilisateur spécifique a accès.
+ * NOUVELLE VERSION : Récupère les données de base depuis userPermissions puis les données 
+ * complètes (incluant CL_Logo) depuis la collection racine "clients".
+ * 
  * @param userEmail L'adresse e-mail de l'utilisateur pour lequel récupérer les permissions.
  * @returns Une promesse qui résout en un tableau d'objets ClientPermission.
  */
@@ -60,6 +69,7 @@ export async function getUserClients(
   userEmail: string
 ): Promise<ClientPermission[]> {
   try {
+    // 1. Récupérer d'abord les permissions/rôles depuis userPermissions
     const permissionsRef = collection(
       db,
       'userPermissions',
@@ -68,16 +78,54 @@ export async function getUserClients(
     );
     console.log("FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getUserClients - Path: userPermissions/${userEmail}/clients");
     const permissionsSnapshot = await getDocs(permissionsRef);
-    const clients: ClientPermission[] = permissionsSnapshot.docs.map((doc) => {
+    
+    // 2. Extraire les informations de permissions (rôle, grantedAt)
+    const permissionsData = permissionsSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         clientId: doc.id,
-        CL_Name: data.CL_Name,
-        CL_Logo: data.CL_Logo,
         role: data.role || 'viewer',
         grantedAt: data.grantedAt,
       };
     });
+
+    // 3. Pour chaque client autorisé, récupérer les données complètes depuis la collection racine
+    const clients: ClientPermission[] = [];
+    
+    for (const permission of permissionsData) {
+      try {
+        const clientRef = doc(db, 'clients', permission.clientId);
+        console.log(`FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getUserClients - Path: clients/${permission.clientId}`);
+        const clientDoc = await getDoc(clientRef);
+        
+        if (clientDoc.exists()) {
+          const clientData = clientDoc.data();
+          
+          // 4. Fusionner les données de permissions avec les données maîtres
+          clients.push({
+            clientId: permission.clientId,
+            CL_Name: clientData.CL_Name || '',
+            CL_Logo: clientData.CL_Logo || '', // MAINTENANT DEPUIS LA COLLECTION RACINE
+            role: permission.role,
+            grantedAt: permission.grantedAt,
+          });
+        } else {
+          console.warn(`Client ${permission.clientId} introuvable dans la collection racine clients`);
+          // Garder une entrée minimale pour éviter les erreurs
+          clients.push({
+            clientId: permission.clientId,
+            CL_Name: 'Client introuvable',
+            CL_Logo: '',
+            role: permission.role,
+            grantedAt: permission.grantedAt,
+          });
+        }
+      } catch (error) {
+        console.error(`Erreur lors de la récupération du client ${permission.clientId}:`, error);
+        // Continuer avec les autres clients même si un échoue
+      }
+    }
+    
     return clients;
   } catch (error) {
     console.error('Erreur lors de la récupération des clients:', error);

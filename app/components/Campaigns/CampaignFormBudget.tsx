@@ -104,7 +104,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                 required={!isDisabled}
                 value={formData.CA_Budget}
                 onChange={onChange}
-                className="w-full pl-7 px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-7 px-4 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -125,7 +125,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
               id="CA_Currency"
               value={formData.CA_Currency || 'CAD'}
               onChange={onChange}
-              className="w-full px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               {currencyOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -168,7 +168,7 @@ const CampaignFormBudget = memo<CampaignFormBudgetProps>(({
                       id={feeValueName}
                       value={formData[feeValueName] as string || ''}
                       onChange={onChange}
-                      className="w-full pl-7 px-4 py-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-7 px-4 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="0.00"
                       min="0"
                       step="0.01"

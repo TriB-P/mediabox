@@ -22,7 +22,7 @@ import SearchableSelect from '../SearchableSelect';
 
 interface ListItem {
   id: string;
-  SH_Display_Name_EN: string;
+  SH_Display_Name_FR: string;
 }
 
 interface KPIData {
@@ -138,7 +138,7 @@ const KPIItem = memo<{
               <SelectionButtons
                 options={kpiOptions.map(item => ({ 
                   id: item.id, 
-                  label: item.SH_Display_Name_EN 
+                  label: item.SH_Display_Name_FR 
                 }))}
                 value={kpi.TC_Kpi}
                 onChange={handleKpiTypeChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
@@ -153,7 +153,7 @@ const KPIItem = memo<{
                 onChange={handleKpiTypeChange}
                 options={kpiOptions.map(item => ({ 
                   id: item.id, 
-                  label: item.SH_Display_Name_EN 
+                  label: item.SH_Display_Name_FR 
                 }))}
                 placeholder="Sélectionner un KPI..."
                 label=""
@@ -267,7 +267,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           onChange={onChange}
           options={dynamicLists.TC_Media_Objective?.map(item => ({ 
             id: item.id, 
-            label: item.SH_Display_Name_EN 
+            label: item.SH_Display_Name_FR 
           })) || []}
           placeholder="Sélectionner un objectif média..."
           label={createLabelWithHelp(

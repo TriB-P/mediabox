@@ -1,3 +1,5 @@
+// app/components/Client/FeeOptionForm.tsx
+
 /**
  * Ce fichier définit le composant React `FeeOptionForm`.
  * Il s'agit d'un formulaire réutilisable pour créer ou modifier une "option de frais".
@@ -51,7 +53,13 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
    */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Convertir NaN en 0 au moment de la soumission
+    const submitData = {
+      ...formData,
+      FO_Value: isNaN(formData.FO_Value) ? 0 : formData.FO_Value,
+      FO_Buffer: isNaN(formData.FO_Buffer) ? 0 : formData.FO_Buffer,
+    };
+    onSubmit(submitData);
   };
 
   /**
@@ -67,7 +75,8 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
     let newValue: string | number | boolean = value;
     
     if (type === 'number' || type === 'range') {
-      newValue = parseFloat(value) || 0;
+      // Permettre NaN temporairement pour les champs vides
+      newValue = value === '' ? NaN : parseFloat(value);
     } else if (type === 'checkbox') {
       newValue = (e.target as HTMLInputElement).checked;
     }
@@ -104,7 +113,7 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
           type="number"
           id="FO_Value"
           name="FO_Value"
-          value={formData.FO_Value}
+          value={isNaN(formData.FO_Value) ? '' : formData.FO_Value}
           onChange={handleChange}
           step="0.01"
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -117,7 +126,7 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
             {t('feeOptionForm.labels.buffer')}
           </label>
           <span className="text-sm font-medium text-indigo-600">
-            {formData.FO_Buffer}%
+            {isNaN(formData.FO_Buffer) ? '0' : formData.FO_Buffer}%
           </span>
         </div>
         <input
@@ -127,7 +136,7 @@ export default function FeeOptionForm({ option, onSubmit, onCancel }: FeeOptionF
           min="0"
           max="100"
           step="5"
-          value={formData.FO_Buffer}
+          value={isNaN(formData.FO_Buffer) ? 0 : formData.FO_Buffer}
           onChange={handleChange}
           className="mt-2 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
         />

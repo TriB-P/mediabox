@@ -93,8 +93,8 @@ export default function CampaignTable({
           const convertedQuarters: CachedShortcodeItem[] = quartersData.map(item => ({
             id: item.id,
             SH_Code: item.SH_Code,
-            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Default_UTM: item.SH_Default_UTM,
             SH_Logo: item.SH_Logo,
             SH_Type: item.SH_Type,
@@ -125,8 +125,8 @@ export default function CampaignTable({
           const convertedYears: CachedShortcodeItem[] = yearsData.map(item => ({
             id: item.id,
             SH_Code: item.SH_Code,
-            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Default_UTM: item.SH_Default_UTM,
             SH_Logo: item.SH_Logo,
             SH_Type: item.SH_Type,
@@ -183,7 +183,7 @@ export default function CampaignTable({
   const getDivisionName = (divisionId: string | undefined): string => {
     if (!divisionId) return '';
     const division = divisions.find(d => d.id === divisionId);
-    return division ? division.SH_Display_Name_EN || division.SH_Code || divisionId : divisionId;
+    return division ? division.SH_Display_Name_FR || division.SH_Code || divisionId : divisionId;
   };
 
   /**
@@ -194,7 +194,7 @@ export default function CampaignTable({
   const getQuarterName = (quarterId: string | undefined): string => {
     if (!quarterId) return '';
     const quarter = quarters.find(q => q.id === quarterId);
-    return quarter ? quarter.SH_Display_Name_EN || quarter.SH_Code || quarterId : quarterId;
+    return quarter ? quarter.SH_Display_Name_FR || quarter.SH_Code || quarterId : quarterId;
   };
 
   /**
@@ -205,7 +205,7 @@ export default function CampaignTable({
   const getYearName = (yearId: string | undefined): string => {
     if (!yearId) return '';
     const year = years.find(y => y.id === yearId);
-    return year ? year.SH_Display_Name_EN || year.SH_Code || yearId : yearId;
+    return year ? year.SH_Display_Name_FR || year.SH_Code || yearId : yearId;
   };
 
   /**

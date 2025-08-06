@@ -17,8 +17,8 @@ export type ShortcodeFormat = 'code' | 'display_fr' | 'display_en' | 'utm' | 'cu
 interface ShortcodeData {
   id: string;
   SH_Code: string;
-  SH_Display_Name_EN: string;
-  SH_Display_Name_FR?: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
   SH_Default_UTM?: string;
 }
 
@@ -78,8 +78,8 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
       const shortcodeData: ShortcodeData = {
         id: shortcodeSnap.id,
         SH_Code: data.SH_Code || shortcodeSnap.id,
-        SH_Display_Name_EN: data.SH_Display_Name_EN || data.SH_Code || shortcodeSnap.id,
-        SH_Display_Name_FR: data.SH_Display_Name_FR,
+        SH_Display_Name_FR: data.SH_Display_Name_FR || data.SH_Code || shortcodeSnap.id,
+        SH_Display_Name_EN: data.SH_Display_Name_EN,
         SH_Default_UTM: data.SH_Default_UTM,
       };
 
@@ -184,10 +184,10 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
             formattedValue = shortcodeData.SH_Code;
             break;
           case 'display_fr':
-            formattedValue = shortcodeData.SH_Display_Name_EN;
+            formattedValue = shortcodeData.SH_Display_Name_FR;
             break;
           case 'display_en':
-            formattedValue = shortcodeData.SH_Display_Name_FR || shortcodeData.SH_Display_Name_EN;
+            formattedValue = shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR;
             break;
           case 'utm':
             formattedValue = shortcodeData.SH_Default_UTM || shortcodeData.SH_Code;
@@ -204,7 +204,7 @@ export function useShortcodeFormatter(clientId: string): UseShortcodeFormatterRe
             break;
 
           default:
-            formattedValue = shortcodeData.SH_Display_Name_EN;
+            formattedValue = shortcodeData.SH_Display_Name_FR;
         }
 
       } catch (error) {

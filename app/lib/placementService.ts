@@ -94,9 +94,9 @@ switch (format) {
   case 'code':
     return shortcodeData.SH_Code || '';
   case 'display_fr':
-    return shortcodeData.SH_Display_Name_EN || '';
+    return shortcodeData.SH_Display_Name_FR || '';
   case 'display_en':
-    return shortcodeData.SH_Display_Name_FR || shortcodeData.SH_Display_Name_EN || '';
+    return shortcodeData.SH_Display_Name_EN || shortcodeData.SH_Display_Name_FR || '';
   case 'utm':
     return shortcodeData.SH_Default_UTM || shortcodeData.SH_Code || '';
   case 'custom_utm':
@@ -104,7 +104,7 @@ switch (format) {
   case 'custom_code':
     return customCode || shortcodeData.SH_Code || '';
   default:
-    return shortcodeData.SH_Display_Name_EN || '';
+    return shortcodeData.SH_Display_Name_FR || '';
 }
 }
 

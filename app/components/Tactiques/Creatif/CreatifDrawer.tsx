@@ -42,8 +42,8 @@ const hasCachedList = (fieldId: string, clientId: string): boolean => {
 
 interface ListItem {
   id: string;
-  SH_Display_Name_EN: string;
-  SH_Display_Name_FR?: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -226,8 +226,8 @@ export default function CreatifDrawer({
             // Conversion directe ShortcodeItem[] vers ListItem[]
             newDynamicLists[field] = cachedList.map(item => ({
               id: item.id,
-              SH_Display_Name_EN: item.SH_Display_Name_EN,
               SH_Display_Name_FR: item.SH_Display_Name_FR,
+              SH_Display_Name_EN: item.SH_Display_Name_EN,
               SH_Default_UTM: item.SH_Default_UTM,
               SH_Logo: item.SH_Logo,
               SH_Type: item.SH_Type,

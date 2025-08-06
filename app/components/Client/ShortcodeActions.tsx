@@ -1,7 +1,8 @@
 /**
  * app/components/Client/ShortcodeActions.tsx
- * * Version restructurée avec interface plus intuitive et bouton "Voir tous les shortcodes".
+ * Version restructurée avec interface plus intuitive et bouton "Voir tous les shortcodes".
  * Simplifie l'interface en regroupant les actions principales et améliore l'UX.
+ * Ajout du champ SH_Type avec menu déroulant dans le modal de création.
  */
 'use client';
 
@@ -27,12 +28,25 @@ interface ShortcodeActionsProps {
     SH_Default_UTM: string;
     SH_Display_Name_EN: string;
     SH_Display_Name_FR: string;
+    SH_Type: string;
   }) => Promise<void>;
   onAddShortcode: (shortcodeId: string) => Promise<void>;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onOpenAllShortcodesModal?: () => void; // Nouvelle prop pour ouvrir le modal global
+  onOpenAllShortcodesModal?: () => void;
 }
+
+// Options pour le menu déroulant SH_Type
+const SH_TYPE_OPTIONS = [
+  'Print Publisher',
+  'TV Station',
+  'Digital Publisher',
+  'Radio Station',
+  'OOH Publisher',
+  'Social Publisher',
+  'Programmatic Publisher',
+  'Search Publisher'
+];
 
 /**
  * Le composant `ShortcodeActions` affiche une interface restructurée pour la gestion des shortcodes.
@@ -57,7 +71,79 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
     SH_Default_UTM: '',
     SH_Display_Name_EN: '',
     SH_Display_Name_FR: '',
+    SH_Type: '',
   });
+
+  // États pour traquer les modifications manuelles
+  const [isENManuallyEdited, setIsENManuallyEdited] = useState(false);
+  const [isUTMManuallyEdited, setIsUTMManuallyEdited] = useState(false);
+
+  /**
+   * Transforme un texte en format UTM (sans caractères spéciaux, espaces → tirets, accents normalisés)
+   */
+  const transformToUTM = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/é/g, 'e')
+      .replace(/è/g, 'e')
+      .replace(/ê/g, 'e')
+      .replace(/ë/g, 'e')
+      .replace(/à/g, 'a')
+      .replace(/â/g, 'a')
+      .replace(/ä/g, 'a')
+      .replace(/ç/g, 'c')
+      .replace(/ô/g, 'o')
+      .replace(/ö/g, 'o')
+      .replace(/ù/g, 'u')
+      .replace(/û/g, 'u')
+      .replace(/ü/g, 'u')
+      .replace(/î/g, 'i')
+      .replace(/ï/g, 'i')
+      .replace(/[^a-z0-9\s-]/g, '') // Supprime tous les caractères spéciaux sauf espaces et tirets
+      .replace(/\s+/g, '-') // Remplace les espaces par des tirets
+      .replace(/-+/g, '-') // Élimine les tirets multiples
+      .replace(/^-|-$/g, ''); // Supprime les tirets en début et fin
+  };
+
+  /**
+   * Gère le changement du nom français avec auto-remplissage du nom anglais
+   */
+  const handleDisplayNameFRChange = (value: string) => {
+    setNewShortcode(prev => {
+      const newEN = isENManuallyEdited ? prev.SH_Display_Name_EN : value;
+      const newUTM = isUTMManuallyEdited ? prev.SH_Default_UTM : transformToUTM(newEN);
+      
+      return {
+        ...prev,
+        SH_Display_Name_FR: value,
+        SH_Display_Name_EN: newEN,
+        SH_Default_UTM: newUTM
+      };
+    });
+  };
+
+  /**
+   * Gère le changement du nom anglais avec auto-génération de l'UTM
+   */
+  const handleDisplayNameENChange = (value: string) => {
+    setIsENManuallyEdited(true);
+    setNewShortcode(prev => ({
+      ...prev,
+      SH_Display_Name_EN: value,
+      SH_Default_UTM: isUTMManuallyEdited ? prev.SH_Default_UTM : transformToUTM(value)
+    }));
+  };
+
+  /**
+   * Gère le changement manuel de l'UTM
+   */
+  const handleUTMChange = (value: string) => {
+    setIsUTMManuallyEdited(true);
+    setNewShortcode(prev => ({
+      ...prev,
+      SH_Default_UTM: value
+    }));
+  };
 
   /**
    * Gère la soumission du formulaire de création de shortcode.
@@ -70,11 +156,31 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         SH_Default_UTM: '',
         SH_Display_Name_EN: '',
         SH_Display_Name_FR: '',
+        SH_Type: '',
       });
+      // Réinitialiser les états de suivi
+      setIsENManuallyEdited(false);
+      setIsUTMManuallyEdited(false);
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error("Erreur lors de la création du shortcode:", error);
     }
+  };
+
+  /**
+   * Gère la fermeture du modal en réinitialisant tout
+   */
+  const handleModalClose = () => {
+    setNewShortcode({
+      SH_Code: '',
+      SH_Default_UTM: '',
+      SH_Display_Name_EN: '',
+      SH_Display_Name_FR: '',
+      SH_Type: '',
+    });
+    setIsENManuallyEdited(false);
+    setIsUTMManuallyEdited(false);
+    setIsCreateModalOpen(false);
   };
 
   return (
@@ -130,9 +236,9 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         </div>
       </div>
 
-      {/* Modal de création de shortcode - simplifié */}
+      {/* Modal de création de shortcode - avec champ SH_Type */}
       <Transition show={isCreateModalOpen} as={Fragment}>
-        <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={() => setIsCreateModalOpen(false)}>
+        <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={handleModalClose}>
           <div className="min-h-screen px-4 text-center">
             <Transition.Child
               as={Fragment}
@@ -165,7 +271,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                    onClick={() => setIsCreateModalOpen(false)}
+                    onClick={handleModalClose}
                   >
                     <span className="sr-only">{t('common.close')}</span>
                     <XMarkIcon className="h-6 w-6" />
@@ -186,44 +292,65 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                       required
                     />
                   </div>
-                  
+
                   <div>
-                    <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeActions.createModal.form.nameFRLabel')} <span className="text-red-500">*</span>
+                    <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700 mb-1">
+                      Type
                     </label>
-                    <input
-                      type="text"
-                      id="SH_Display_Name_EN"
+                    <select
+                      id="SH_Type"
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      value={newShortcode.SH_Display_Name_EN}
-                      onChange={(e) => setNewShortcode({...newShortcode, SH_Display_Name_EN: e.target.value})}
-                      required
-                    />
+                      value={newShortcode.SH_Type}
+                      onChange={(e) => setNewShortcode({...newShortcode, SH_Type: e.target.value})}
+                    >
+                      <option value="">Sélectionnez un type</option>
+                      {SH_TYPE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div>
                     <label htmlFor="SH_Display_Name_FR" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeActions.createModal.form.nameENLabel')}
+                      {t('shortcodeActions.createModal.form.nameFRLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       id="SH_Display_Name_FR"
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       value={newShortcode.SH_Display_Name_FR}
-                      onChange={(e) => setNewShortcode({...newShortcode, SH_Display_Name_FR: e.target.value})}
+                      onChange={(e) => handleDisplayNameFRChange(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="SH_Display_Name_EN" className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('shortcodeActions.createModal.form.nameENLabel')} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="SH_Display_Name_EN"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      value={newShortcode.SH_Display_Name_EN}
+                      onChange={(e) => handleDisplayNameENChange(e.target.value)}
+                      required
                     />
                   </div>
                   
                   <div>
                     <label htmlFor="SH_Default_UTM" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('shortcodeActions.createModal.form.defaultUTMLabel')}
+                      {t('shortcodeActions.createModal.form.defaultUTMLabel')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       id="SH_Default_UTM"
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       value={newShortcode.SH_Default_UTM}
-                      onChange={(e) => setNewShortcode({...newShortcode, SH_Default_UTM: e.target.value})}
+                      onChange={(e) => handleUTMChange(e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -232,7 +359,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                   <button
                     type="button"
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                    onClick={() => setIsCreateModalOpen(false)}
+                    onClick={handleModalClose}
                   >
                     {t('common.cancel')}
                   </button>

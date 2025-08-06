@@ -6,6 +6,7 @@
  * les formats de sortie autorisés pour chaque variable,
  * et fournit des fonctions utilitaires pour interagir avec cette configuration.
  * CORRIGÉ : Fonctions spécifiques pour les placements ajoutées.
+ * AJOUTÉ : CR_Sprint_Dates pour les créatifs (même logique que CA_Sprint_Dates)
  */
 
 export type FieldSource = 'campaign' | 'tactique' | 'placement' | 'créatif';
@@ -106,6 +107,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'CR_Primary_Product': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'CR_URL': { source: 'créatif',  allowedFormats: ['open'] },
   'CR_Version': { source: 'créatif',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'CR_Sprint_Dates': { source: 'créatif',  allowedFormats: ['open'] },
 };
 
 export const TAXONOMY_FORMATS: FormatOption[] = [

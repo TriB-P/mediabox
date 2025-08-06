@@ -194,7 +194,7 @@ export class BudgetService {
     clientFees: ClientFee[],
     exchangeRates: { [key: string]: number },
     campaignCurrency: string,
-    unitTypeOptions: Array<{ id: string; SH_Display_Name_EN: string }>
+    unitTypeOptions: Array<{ id: string; SH_Display_Name_FR: string }>
   ): BudgetCalculationResult {
     this.log('🧮 Début calculs complets');
 
@@ -207,7 +207,7 @@ export class BudgetService {
       this.log('Frais pour calcul', feeDefinitions);
 
       const selectedUnitType = unitTypeOptions.find(option => option.id === data.TC_Unit_Type);
-      const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_EN;
+      const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_FR;
 
       const budgetInputs: BudgetInputs = {
         costPerUnit: data.TC_Unit_Price,

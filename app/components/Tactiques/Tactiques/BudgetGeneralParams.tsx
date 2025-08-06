@@ -14,7 +14,7 @@ import { SmartSelect, createLabelWithHelp } from './TactiqueFormComponents';
 
 interface ListItem {
   id: string;
-  SH_Display_Name_EN: string;
+  SH_Display_Name_FR: string;
 }
 
 interface BudgetGeneralParamsProps {
@@ -79,7 +79,7 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
           onChange={onChange}
           options={unitTypeOptions.map(item => ({ 
             id: item.id, 
-            label: item.SH_Display_Name_EN 
+            label: item.SH_Display_Name_FR 
           }))}
           placeholder="Sélectionner un type d'unité..."
           label={createLabelWithHelp(

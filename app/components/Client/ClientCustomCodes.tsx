@@ -237,7 +237,7 @@ const ClientCustomCodes: React.FC = () => {
       code.customCode.toLowerCase().includes(searchLower) ||
       code.shortcodeId.toLowerCase().includes(searchLower) ||
       (shortcode?.SH_Code && shortcode.SH_Code.toLowerCase().includes(searchLower)) ||
-      (shortcode?.SH_Display_Name_EN && shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower))
+      (shortcode?.SH_Display_Name_FR && shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower))
     );
   });
 
@@ -248,7 +248,7 @@ const ClientCustomCodes: React.FC = () => {
     const searchLower = shortcodeSearchTerm.toLowerCase();
     return (
       shortcode.SH_Code.toLowerCase().includes(searchLower) ||
-      shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower) ||
+      shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
       shortcode.id.toLowerCase().includes(searchLower)
     );
   });
@@ -366,7 +366,7 @@ const ClientCustomCodes: React.FC = () => {
                         {shortcode?.SH_Code || t('clientCustomCodes.table.notAvailable')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {shortcode?.SH_Display_Name_EN || t('clientCustomCodes.table.notAvailable')}
+                        {shortcode?.SH_Display_Name_FR || t('clientCustomCodes.table.notAvailable')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {code.customCode}
@@ -498,7 +498,7 @@ const ClientCustomCodes: React.FC = () => {
                                         {shortcode.SH_Code}
                                         {isDisabled && <span className="ml-2 text-xs text-red-500">{t('clientCustomCodes.modal.alreadyCustomized')}</span>}
                                       </p>
-                                      <p className="text-xs text-gray-500">{shortcode.SH_Display_Name_EN}</p>
+                                      <p className="text-xs text-gray-500">{shortcode.SH_Display_Name_FR}</p>
                                       <p className="text-xs font-mono text-gray-400 mt-1">ID: {shortcode.id}</p>
                                     </div>
                                     {selectedShortcode?.id === shortcode.id && (
@@ -521,7 +521,7 @@ const ClientCustomCodes: React.FC = () => {
                   {editingCode && selectedShortcode && (
                     <div className="bg-gray-50 p-3 rounded-md">
                       <p className="text-sm font-medium text-gray-900">{selectedShortcode.SH_Code}</p>
-                      <p className="text-xs text-gray-500">{selectedShortcode.SH_Display_Name_EN}</p>
+                      <p className="text-xs text-gray-500">{selectedShortcode.SH_Display_Name_FR}</p>
                       <p className="text-xs font-mono text-gray-500 mt-1">ID: {selectedShortcode.id}</p>
                     </div>
                   )}

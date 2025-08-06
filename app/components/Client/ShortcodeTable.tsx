@@ -55,8 +55,8 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
     const searchLower = searchQuery.toLowerCase();
     return shortcodes.filter(shortcode => 
       shortcode.SH_Code.toLowerCase().includes(searchLower) ||
-      shortcode.SH_Display_Name_EN.toLowerCase().includes(searchLower) ||
-      (shortcode.SH_Display_Name_FR?.toLowerCase().includes(searchLower)) ||
+      shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
+      (shortcode.SH_Display_Name_EN?.toLowerCase().includes(searchLower)) ||
       (shortcode.SH_Default_UTM?.toLowerCase().includes(searchLower)) ||
       (shortcode.SH_Type?.toLowerCase().includes(searchLower))
     );
@@ -238,14 +238,14 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                     {/* Nom FR */}
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-900 break-words max-w-xs">
-                        {shortcode.SH_Display_Name_EN}
+                        {shortcode.SH_Display_Name_FR}
                       </div>
                     </td>
 
                     {/* Nom EN */}
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-600 break-words max-w-xs">
-                        {shortcode.SH_Display_Name_FR || (
+                        {shortcode.SH_Display_Name_EN || (
                           <span className="text-gray-400 italic">{t('shortcodeTable.cell.notDefined')}</span>
                         )}
                       </div>
@@ -309,7 +309,7 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
                         
                         {/* Bouton supprimer */}
                         <button
-                          onClick={() => handleRemove(shortcode.id, shortcode.SH_Display_Name_EN)}
+                          onClick={() => handleRemove(shortcode.id, shortcode.SH_Display_Name_FR)}
                           className={`p-2 rounded-md transition-all duration-150 ${
                             hasPermission && !isRemoving
                               ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 

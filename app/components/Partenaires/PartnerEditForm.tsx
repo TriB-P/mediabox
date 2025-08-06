@@ -13,8 +13,8 @@ import { useTranslation } from '../../contexts/LanguageContext';
 interface Partner {
   id: string;
   SH_Code: string;
-  SH_Display_Name_EN: string;
-  SH_Display_Name_FR?: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
   SH_Default_UTM?: string;
   SH_Logo?: string;
   SH_Type?: string;
@@ -44,8 +44,8 @@ export default function PartnerEditForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     SH_Code: '',
-    SH_Display_Name_EN: '',
     SH_Display_Name_FR: '',
+    SH_Display_Name_EN: '',
     SH_Default_UTM: '',
     SH_Logo: '',
     SH_Type: ''
@@ -61,8 +61,8 @@ export default function PartnerEditForm({
     if (selectedPartner) {
       setFormData({
         SH_Code: selectedPartner.SH_Code || '',
-        SH_Display_Name_EN: selectedPartner.SH_Display_Name_EN || '',
         SH_Display_Name_FR: selectedPartner.SH_Display_Name_FR || '',
+        SH_Display_Name_EN: selectedPartner.SH_Display_Name_EN || '',
         SH_Default_UTM: selectedPartner.SH_Default_UTM || '',
         SH_Logo: selectedPartner.SH_Logo || '',
         SH_Type: selectedPartner.SH_Type || ''
@@ -139,7 +139,7 @@ export default function PartnerEditForm({
             <div className="mb-4 flex justify-center">
               <img
                 src={selectedPartner.SH_Logo}
-                alt={`${t('partnerEditForm.view.logoAlt')} ${selectedPartner.SH_Display_Name_EN}`}
+                alt={`${t('partnerEditForm.view.logoAlt')} ${selectedPartner.SH_Display_Name_FR}`}
                 className="h-20 object-contain"
               />
             </div>
@@ -156,11 +156,11 @@ export default function PartnerEditForm({
             </div>
             <div>
               <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.displayNameFR')}</span>
-              <p className="mt-1">{selectedPartner.SH_Display_Name_EN}</p>
+              <p className="mt-1">{selectedPartner.SH_Display_Name_FR}</p>
             </div>
             <div>
               <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.displayNameEN')}</span>
-              <p className="mt-1">{selectedPartner.SH_Display_Name_FR || '-'}</p>
+              <p className="mt-1">{selectedPartner.SH_Display_Name_EN || '-'}</p>
             </div>
             <div>
               <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.defaultUTM')}</span>
@@ -215,12 +215,12 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Display_Name_EN" className="form-label">{t('partnerEditForm.common.displayNameFR')}</label>
+          <label htmlFor="SH_Display_Name_FR" className="form-label">{t('partnerEditForm.common.displayNameFR')}</label>
           <input
-            id="SH_Display_Name_EN"
-            name="SH_Display_Name_EN"
+            id="SH_Display_Name_FR"
+            name="SH_Display_Name_FR"
             type="text"
-            value={formData.SH_Display_Name_EN}
+            value={formData.SH_Display_Name_FR}
             onChange={handleChange}
             className="form-input"
             required
@@ -228,12 +228,12 @@ export default function PartnerEditForm({
         </div>
 
         <div>
-          <label htmlFor="SH_Display_Name_FR" className="form-label">{t('partnerEditForm.common.displayNameEN')}</label>
+          <label htmlFor="SH_Display_Name_EN" className="form-label">{t('partnerEditForm.common.displayNameEN')}</label>
           <input
-            id="SH_Display_Name_FR"
-            name="SH_Display_Name_FR"
+            id="SH_Display_Name_EN"
+            name="SH_Display_Name_EN"
             type="text"
-            value={formData.SH_Display_Name_FR}
+            value={formData.SH_Display_Name_EN}
             onChange={handleChange}
             className="form-input"
           />

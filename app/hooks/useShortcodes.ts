@@ -52,8 +52,8 @@ interface UseShortcodesReturn {
   handleCreateShortcode: (shortcodeData: {
     SH_Code: string;
     SH_Default_UTM: string;
-    SH_Display_Name_EN: string;
     SH_Display_Name_FR: string;
+    SH_Display_Name_EN: string;
   }) => Promise<void>;
   handleUpdateShortcode: (shortcodeId: string, data: Partial<Shortcode>) => Promise<void>;
   
@@ -436,7 +436,7 @@ export function useShortcodes(): UseShortcodesReturn {
       const shortcodeToAdd = allShortcodes.find(s => s.id === shortcodeId);
       if (shortcodeToAdd) {
         setShortcodes(prev => [...prev, shortcodeToAdd].sort((a, b) => 
-          a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
+          a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
         ));
       }
 
@@ -499,8 +499,8 @@ export function useShortcodes(): UseShortcodesReturn {
   const handleCreateShortcode = useCallback(async (shortcodeData: {
     SH_Code: string;
     SH_Default_UTM: string;
-    SH_Display_Name_EN: string;
     SH_Display_Name_FR: string;
+    SH_Display_Name_EN: string;
   }) => {
     if (!selectedClient || !selectedDimension) return;
 
@@ -530,7 +530,7 @@ export function useShortcodes(): UseShortcodesReturn {
       
       // Mise à jour optimiste de l'interface
       setShortcodes(prev => [...prev, newShortcode].sort((a, b) => 
-        a.SH_Display_Name_EN.localeCompare(b.SH_Display_Name_EN, 'fr', { sensitivity: 'base' })
+        a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
       ));
       
       setSuccess('Shortcode créé et ajouté avec succès');

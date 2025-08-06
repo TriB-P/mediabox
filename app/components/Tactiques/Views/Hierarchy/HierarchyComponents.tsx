@@ -585,7 +585,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
           setPartnerImageUrl(partner.SH_Logo);
         }
         
-        console.log(`[CACHE] ✅ Logo chargé pour partenaire ${partner.SH_Display_Name_EN}`);
+        console.log(`[CACHE] ✅ Logo chargé pour partenaire ${partner.SH_Display_Name_FR}`);
       } catch (error) {
         console.error('[CACHE] Erreur chargement logo partenaire:', error);
         setImageError(true);
@@ -664,7 +664,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                   />
                 ) : tactique.TC_Publisher && partner ? (
                   <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
-                    {partner.SH_Display_Name_EN?.charAt(0) || '?'}
+                    {partner.SH_Display_Name_FR?.charAt(0) || '?'}
                   </div>
                 ) : null}
               </div>

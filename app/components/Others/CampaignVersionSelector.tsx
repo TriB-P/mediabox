@@ -113,8 +113,8 @@ export default function CampaignVersionSelector({
           const convertedQuarters: CachedShortcodeItem[] = quartersData.map(item => ({
             id: item.id,
             SH_Code: item.SH_Code,
-            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Default_UTM: item.SH_Default_UTM,
             SH_Logo: item.SH_Logo,
             SH_Type: item.SH_Type,
@@ -145,8 +145,8 @@ export default function CampaignVersionSelector({
           const convertedYears: CachedShortcodeItem[] = yearsData.map(item => ({
             id: item.id,
             SH_Code: item.SH_Code,
-            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Display_Name_FR: item.SH_Display_Name_FR,
+            SH_Display_Name_EN: item.SH_Display_Name_EN,
             SH_Default_UTM: item.SH_Default_UTM,
             SH_Logo: item.SH_Logo,
             SH_Type: item.SH_Type,
@@ -172,7 +172,7 @@ export default function CampaignVersionSelector({
   const getQuarterName = useCallback((quarterId: string | undefined): string => {
     if (!quarterId) return '';
     const quarter = quarters.find(q => q.id === quarterId);
-    return quarter ? quarter.SH_Display_Name_EN || quarter.SH_Code || quarterId : quarterId;
+    return quarter ? quarter.SH_Display_Name_FR || quarter.SH_Code || quarterId : quarterId;
   }, [quarters]);
 
   /**
@@ -183,7 +183,7 @@ export default function CampaignVersionSelector({
   const getYearName = useCallback((yearId: string | undefined): string => {
     if (!yearId) return '';
     const year = years.find(y => y.id === yearId);
-    return year ? year.SH_Display_Name_EN || year.SH_Code || yearId : yearId;
+    return year ? year.SH_Display_Name_FR || year.SH_Code || yearId : yearId;
   }, [years]);
 
   useEffect(() => {

@@ -6,10 +6,12 @@
  * 1. Dimension configurée + liste existe → SmartSelect avec label personnalisé
  * 2. Dimension configurée + pas de liste → FormInput avec label personnalisé  
  * 3. Dimension non configurée → Masqué
+ * 
+ * NOUVEAU : Ajout du filtrage dynamique des Publishers basé sur TC_Media_Type
  */
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo, useEffect } from 'react';
 import {
   FormInput,
   FormTextarea,
@@ -20,7 +22,8 @@ import {
 
 interface ListItem {
   id: string;
-  SH_Display_Name_EN: string;
+  SH_Display_Name_FR: string;
+  SH_Type?: string; // NOUVEAU : Propriété pour le filtrage des publishers
 }
 
 // MODIFIÉ : Interface corrigée pour correspondre à CustomDimensionsState du TactiqueDrawer
@@ -75,11 +78,29 @@ interface TactiqueFormStrategieProps {
   onTooltipChange: (tooltip: string | null) => void;
   dynamicLists: { [key: string]: ListItem[] };
   visibleFields: VisibleFields;
-  customDimensions: CustomDimensionsState; // MODIFIÉ : Type corrigé
+  customDimensions: CustomDimensionsState;
   publishersOptions: { id: string; label: string }[]; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
   loading?: boolean;
   isPublishersLoading?: boolean; // DEPRECATED: Plus utilisé mais gardé pour compatibilité
 }
+
+/**
+ * NOUVEAU : Mapping entre TC_Media_Type et SH_Type pour filtrer les publishers
+ */
+const getPublisherTypeFromMediaType = (mediaType: string): string | null => {
+  const mapping: { [key: string]: string } = {
+    'DIG': 'Digital Publisher',
+    'SEA': 'Search Publisher',
+    'TV': 'TV Station',
+    'RAD': 'Radio Station',
+    'PRI': 'Print Publisher',
+    'OOH': 'OOH Publisher',
+    'SH_DNEQYAVD': 'Social Publisher',
+    'SH_R3Z3VC6B': 'Programmatic Publisher'
+  };
+  
+  return mapping[mediaType] || null;
+};
 
 /**
  * NOUVEAU : Fonction utilitaire pour rendre une dimension personnalisée selon sa configuration
@@ -122,7 +143,7 @@ const renderCustomDimension = (
         onChange={onChange}
         options={dynamicLists[fieldName].map(item => ({
           id: item.id,
-          label: item.SH_Display_Name_EN
+          label: item.SH_Display_Name_FR
         }))}
         placeholder={`Sélectionner ${labelText}...`}
         label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
@@ -161,6 +182,43 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
 }) => {
   const isDisabled = loading;
 
+  // NOUVEAU : Filtrage des publishers basé sur TC_Media_Type
+  const filteredPublishers = useMemo(() => {
+    if (!dynamicLists.TC_Publisher || !formData.TC_Media_Type) {
+      return dynamicLists.TC_Publisher || [];
+    }
+    
+    const targetPublisherType = getPublisherTypeFromMediaType(formData.TC_Media_Type);
+    if (!targetPublisherType) {
+      return dynamicLists.TC_Publisher;
+    }
+    
+    return dynamicLists.TC_Publisher.filter(publisher => 
+      publisher.SH_Type === targetPublisherType
+    );
+  }, [dynamicLists.TC_Publisher, formData.TC_Media_Type]);
+
+  // NOUVEAU : Effet pour réinitialiser TC_Publisher si la valeur actuelle n'est plus valide
+  useEffect(() => {
+    if (formData.TC_Publisher && filteredPublishers.length > 0) {
+      const isCurrentPublisherValid = filteredPublishers.some(
+        publisher => publisher.id === formData.TC_Publisher
+      );
+      
+      if (!isCurrentPublisherValid) {
+        // Créer un événement synthétique pour réinitialiser la valeur
+        const syntheticEvent = {
+          target: {
+            name: 'TC_Publisher',
+            value: ''
+          }
+        } as React.ChangeEvent<HTMLSelectElement>;
+        
+        onChange(syntheticEvent);
+      }
+    }
+  }, [filteredPublishers, formData.TC_Publisher, onChange]);
+
   // NOUVEAU : Vérifier si au moins une dimension personnalisée doit être affichée
   const hasAnyCustomDimension = 
     customDimensions.configured.TC_Custom_Dim_1 ||
@@ -187,7 +245,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_LOB?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner une ligne d'affaire..."
             label={createLabelWithHelp(
@@ -206,7 +264,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_Media_Type?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner un type de média..."
             label={createLabelWithHelp(
@@ -225,7 +283,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_Buying_Method?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner une méthode d'achat..."
             label={createLabelWithHelp(
@@ -236,16 +294,17 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
         
-        {(dynamicLists.TC_Publisher && dynamicLists.TC_Publisher.length > 0) && (
+        {/* MODIFIÉ : Publisher maintenant utilise filteredPublishers */}
+        {(filteredPublishers && filteredPublishers.length > 0) && (
           <SmartSelect
             id="TC_Publisher"
             name="TC_Publisher"
             value={formData.TC_Publisher || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Publisher?.map(item => ({
+            options={filteredPublishers.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
-            })) || []}
+              label: item.SH_Display_Name_FR
+            }))}
             placeholder="Sélectionner un partenaire..."
             label={createLabelWithHelp(
               'Partenaire',
@@ -263,7 +322,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_Inventory?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner un inventaire..."
             label={createLabelWithHelp(
@@ -366,7 +425,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_Market?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner un marché..."
             label={createLabelWithHelp(
@@ -384,7 +443,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             onChange={onChange}
             options={dynamicLists.TC_Language_Open?.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_EN
+              label: item.SH_Display_Name_FR
             })) || []}
             placeholder="Sélectionner une langue..."
             label={createLabelWithHelp(

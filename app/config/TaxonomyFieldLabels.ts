@@ -85,6 +85,7 @@ export const CREATIF_FIELD_LABELS: Record<string, string> = {
   CR_PlacementId: 'Placement ID',
   CR_Start_Date: 'Start Date',
   CR_End_Date: 'End Date',
+  CR_Sprint_Dates: 'Sprint Dates',
   CR_Taxonomy_Tags: 'Taxonomy Tags',
   CR_Taxonomy_Platform: 'Taxonomy Platform',
   CR_Taxonomy_MediaOcean: 'Taxonomy MediaOcean',
