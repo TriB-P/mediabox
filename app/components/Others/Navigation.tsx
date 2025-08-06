@@ -25,7 +25,8 @@ import {
   Users,
   HelpCircle,
   Settings,
-  ShieldPlus
+  ShieldPlus,
+  Tag
 } from 'lucide-react';
 
 import { useTranslation } from '../../contexts/LanguageContext';
@@ -51,6 +52,7 @@ export default function Navigation() {
   const navigationItems = [
     { name: t('navigation.menus.campaigns'), href: '/campaigns', icon: LayoutDashboard },
     { name: t('navigation.menus.strategy'), href: '/strategy', icon: LineChart },
+    { name: 'AdOps', href: '/adops', icon: Tag },
     { name: t('navigation.menus.tactics'), href: '/tactiques', icon: Layers },
     { name: t('navigation.menus.documents'), href: '/documents', icon: FileText },
     { name: t('navigation.menus.costGuide'), href: '/guide-de-cout', icon: DollarSign },

@@ -9,7 +9,7 @@
 
 export interface BudgetRowData {
     // Champs de base
-    TC_BudgetChoice?: 'media' | 'client';
+    TC_Budget_Mode?: 'media' | 'client';
     TC_BudgetInput?: number;
     TC_Unit_Type?: string;
     TC_Unit_Price?: number;
@@ -233,7 +233,7 @@ export interface BudgetRowData {
     rowData: BudgetRowData,
     clientFees: ClientFee[]
   ): BudgetCalculationResult {
-    const budgetChoice = rowData.TC_BudgetChoice || 'media';
+    const budgetChoice = rowData.TC_Budget_Mode || 'media';
     const budgetInput = rowData.TC_BudgetInput || 0;
     const unitPrice = rowData.TC_Unit_Price || 0;
     const unitType = rowData.TC_Unit_Type || '';
@@ -360,7 +360,7 @@ export interface BudgetRowData {
   
     // Champs qui affectent tous les calculs
     const masterFields = [
-      'TC_BudgetChoice',
+      'TC_Budget_Mode',
       'TC_BudgetInput',
       'TC_Unit_Price',
       'TC_Unit_Type',
@@ -393,7 +393,7 @@ export interface BudgetRowData {
    */
   export function shouldRecalculate(changedField: string): boolean {
     const triggerFields = [
-      'TC_BudgetChoice',
+      'TC_Budget_Mode',
       'TC_BudgetInput',
       'TC_Unit_Price',
       'TC_Unit_Type',

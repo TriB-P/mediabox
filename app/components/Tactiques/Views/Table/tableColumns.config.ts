@@ -701,7 +701,7 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
  */
 const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   {
-    key: 'TC_BudgetChoice',
+    key: 'TC_Budget_Mode',
     label: 'Mode de saisie',
     type: 'select',
     width: 150,

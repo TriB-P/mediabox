@@ -4,7 +4,14 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { Taxonomy, TaxonomyFormData } from '../../types/taxonomy';
 import defaultTaxonomyService from '../../lib/defaultTaxonomyService';
-import { ChevronDownIcon, ChevronRightIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { 
+  ChevronDownIcon, 
+  ChevronRightIcon, 
+  ArrowPathIcon, 
+  PlusIcon,
+  InformationCircleIcon,
+  ClipboardDocumentIcon
+} from '@heroicons/react/24/outline';
 import { 
   getAvailableVariables, 
   getAllowedFormatOptions, 
@@ -53,6 +60,9 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     5: false,
     6: false
   });
+
+  // 🔥 NOUVEAU : État pour la section d'aide
+  const [helpExpanded, setHelpExpanded] = useState<boolean>(false);
   
   // États pour le menu des variables et des formats
   const [variableMenuOpen, setVariableMenuOpen] = useState<boolean>(false);
@@ -243,6 +253,16 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     }));
   };
 
+  // 🔥 NOUVEAU : Fonction pour copier du texte dans le presse-papiers
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Vous pouvez ajouter une notification de succès ici si vous le souhaitez
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+    }
+  };
+
   // Fonction pour obtenir en toute sécurité une valeur de chaîne pour un textarea
   const getStringValue = (key: keyof TaxonomyFormData): string => {
     const value = formData[key];
@@ -351,7 +371,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     return isFormatAllowed(variableName, format as any);
   };
   
-  // Fonction pour formater le contenu avec des variables dynamiques en surbrillance
+  // 🔥 MODIFIÉ : Fonction pour formater le contenu avec breaks intelligents
   const formatContent = (content: string) => {
     if (!content) return null;
     
@@ -363,10 +383,10 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     
     // Parcourir toutes les correspondances
     while ((match = regex.exec(content)) !== null) {
-      // Ajouter le texte avant la variable
+      // Ajouter le texte avant la variable avec word-break intelligent
       if (match.index > lastIndex) {
         parts.push(
-          <span key={`text-${lastIndex}`}>
+          <span key={`text-${lastIndex}`} className="break-words">
             {content.substring(lastIndex, match.index)}
           </span>
         );
@@ -395,15 +415,17 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
         title = 'Format manquant - utiliser variable:format';
       }
       
-      // Ajouter la variable formatée
+      // Ajouter la variable formatée + possibilité de break après ]
       parts.push(
-        <span 
-          key={`var-${match.index}`}
-          className={`px-1 rounded font-medium ${isValid ? 'bg-indigo-100 text-indigo-800' : 'bg-red-100 text-red-800'}`}
-          title={title}
-        >
-          {match[0]}
-        </span>
+        <React.Fragment key={`var-${match.index}`}>
+          <span 
+            className={`px-1 rounded font-medium whitespace-nowrap ${isValid ? 'bg-indigo-100 text-indigo-800' : 'bg-red-100 text-red-800'}`}
+            title={title}
+          >
+            {match[0]}
+          </span>
+          <wbr />
+        </React.Fragment>
       );
       
       lastIndex = match.index + match[0].length;
@@ -412,13 +434,17 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
     // Ajouter le texte restant après la dernière variable
     if (lastIndex < content.length) {
       parts.push(
-        <span key={`text-${lastIndex}`}>
+        <span key={`text-${lastIndex}`} className="break-words">
           {content.substring(lastIndex)}
         </span>
       );
     }
     
-    return <div className="text-sm font-mono mt-2 p-2 bg-gray-50 rounded border border-gray-200">{parts}</div>;
+    return (
+      <div className="text-sm font-mono mt-2 p-2 bg-gray-50 rounded border border-gray-200 overflow-wrap-break-word">
+        {parts}
+      </div>
+    );
   };
 
   return (
@@ -479,6 +505,131 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
               rows={3}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+          </div>
+        </div>
+
+        {/* 🔥 NOUVELLE SECTION : Guide des règles de taxonomie */}
+        <div className="pt-6 pb-6">
+          <div className="mb-4 border border-blue-200 rounded-md overflow-hidden">
+            <div 
+              className="bg-blue-50 p-3 flex justify-between items-center cursor-pointer"
+              onClick={() => setHelpExpanded(!helpExpanded)}
+            >
+              <div className="flex items-center">
+                {helpExpanded ? (
+                  <ChevronDownIcon className="h-5 w-5 text-blue-500 mr-2" />
+                ) : (
+                  <ChevronRightIcon className="h-5 w-5 text-blue-500 mr-2" />
+                )}
+                <InformationCircleIcon className="h-5 w-5 text-blue-500 mr-2" />
+                <h4 className="text-md font-medium text-blue-700">Fonctions spéciales</h4>
+              </div>
+            </div>
+            
+            {helpExpanded && (
+              <div className="p-4 bg-white">
+                <div className="space-y-4 text-sm">
+        
+
+                  {/* Variables de base */}
+                  <div className="border-l-4 border-gray-300 pl-3">
+                    <h5 className="font-medium text-gray-800 mb-2">Variables de base</h5>
+                    <div className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
+                      <code className="text-sm">[variable:format]</code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('[variable:format]')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Copier"
+                      >
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-gray-600 text-xs">Insérez vos variables avec le format souhaité.</p>
+                  </div>
+
+                  {/* Groupes conditionnels */}
+                  <div className="border-l-4 border-green-300 pl-3">
+                    <h5 className="font-medium text-green-800 mb-2">Concatenation</h5>
+                    <div className="flex items-center justify-between bg-green-50 p-2 rounded mb-2">
+                      <code className="text-sm">&lt;contenu&gt;</code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('<>')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Copier les caractères"
+                      >
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-gray-600 text-xs">Affiche les délimiteurs seulement si les variables ont des valeurs</p>
+                    <p className="text-xs text-green-600 mt-1">
+                      {'Exemple : <[CR_CTA]-[CR_Offer]-[PL_Format]> → "ABC-DEF" au lieu de "ABC--DEF"'}
+                    </p>
+                  </div>
+
+                  {/* Conversion minuscules */}
+                  <div className="border-l-4 border-blue-300 pl-3">
+                    <h5 className="font-medium text-blue-800 mb-2">Conversion en minuscules</h5>
+                    <div className="flex items-center justify-between bg-blue-50 p-2 rounded mb-2">
+                      <code className="text-sm">▶contenu◀</code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('▶◀')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Copier les caractères"
+                      >
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-gray-600 text-xs">Convertit tout le contenu en lettres minuscules.</p>
+                    <p className="text-xs text-blue-600 mt-1">Exemple : ▶FACEBOOK◀ → facebook</p>
+                  </div>
+
+                  {/* Nettoyage caractères spéciaux */}
+                  <div className="border-l-4 border-purple-300 pl-3">
+                    <h5 className="font-medium text-purple-800 mb-2">Nettoyage des caractères spéciaux</h5>
+                    <div className="flex items-center justify-between bg-purple-50 p-2 rounded mb-2">
+                      <code className="text-sm">〔contenu〕</code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('〔〕')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Copier les caractères"
+                      >
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-gray-600 text-xs">
+                      Supprime les caractères spéciaux, convertit les accents (é→e), remplace espaces et _ par des tirets.
+                    </p>
+                    <p className="text-xs text-purple-600 mt-1">Exemple : 〔Café & Co_Ltd!〕 → cafe-co-ltd</p>
+                  </div>
+
+                  {/* Remplacement conditionnel */}
+                  <div className="border-l-4 border-orange-300 pl-3">
+                    <h5 className="font-medium text-orange-800 mb-2">Remplacement conditionnel</h5>
+                    <div className="flex items-center justify-between bg-orange-50 p-2 rounded mb-2">
+                      <code className="text-sm">〈contenu〉</code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('〈〉')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Copier les caractères"
+                      >
+                        <ClipboardDocumentIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-gray-600 text-xs">
+                      Première occurrence : affiche le contenu. Occurrences suivantes : remplace par "&".
+                    </p>
+                    <p className="text-xs text-orange-600 mt-1">Exemple : www.taxo?fun.com〈?〉utm_medium... →  www.taxo?fun.com&utm_medium...</p>
+                  </div>
+
+                  
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
@@ -571,7 +722,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono"
                       />
                       
-                      {/* Aperçu avec mise en forme des variables */}
+                      {/* Aperçu avec mise en forme des variables et word-break */}
                       {formatContent(getStringValue(`NA_Name_Level_${level}` as keyof TaxonomyFormData))}
                     </div>
                   </div>

@@ -327,7 +327,7 @@ export interface TactiqueFormData {
   // 🔥 CORRECTION BUDGET : Ajout des champs budgétaires manquants
   TC_Media_Budget?: number; // Budget média calculé
   TC_Client_Budget?: number; // Budget client calculé
-  TC_BudgetChoice?: 'client' | 'media'; // Mode de saisie du budget
+  TC_Budget_Mode?: 'client' | 'media'; // Mode de saisie du budget
   TC_BudgetInput?: number; // Valeur saisie par l'utilisateur
   TC_Unit_Price?: number; // Prix unitaire
   TC_Unit_Volume?: number; // Volume d'unités

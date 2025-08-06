@@ -54,7 +54,7 @@ const CALCULATED_FIELDS = [
  * Champs budget qui nécessitent une validation spécialisée
  */
 const BUDGET_FIELDS = [
-  'TC_BudgetChoice',
+  'TC_Budget_Mode',
   'TC_BudgetInput',
   'TC_Unit_Price',
   'TC_Unit_Type',
@@ -106,7 +106,7 @@ export default function ReactiveBudgetCell({
         const numValue = Number(val);
         return !isNaN(numValue) && numValue >= 0;
         
-      case 'TC_BudgetChoice':
+      case 'TC_Budget_Mode':
         return ['media', 'client'].includes(val);
         
       case 'TC_BuyCurrency':

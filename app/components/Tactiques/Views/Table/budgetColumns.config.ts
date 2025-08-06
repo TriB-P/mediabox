@@ -77,7 +77,7 @@ export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
     options: CURRENCY_OPTIONS
   },
   {
-    key: 'TC_BudgetChoice',
+    key: 'TC_Budget_Mode',
     label: 'Mode de saisie',
     type: 'select', 
     width: 130,
@@ -211,7 +211,7 @@ export function shouldTriggerBudgetRecalculation(fieldKey: string): boolean {
   const triggerFields = [
     'TC_Unit_Type',
     'TC_BuyCurrency', 
-    'TC_BudgetChoice',
+    'TC_Budget_Mode',
     'TC_BudgetInput',
     'TC_Unit_Price',
     'TC_Media_Value', // Valeur réelle pour bonification

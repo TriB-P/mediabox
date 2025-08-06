@@ -205,6 +205,7 @@ export function useTactiquesCrud({
       );
       await onRefresh();
     } catch (error) {
+      console.log("DEBUG",data)
       console.error('❌ Erreur modification tactique:', error);
       throw error;
     }

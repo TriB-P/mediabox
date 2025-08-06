@@ -21,7 +21,7 @@ interface ClientFee {
   }
   
   interface BudgetData {
-    TC_BudgetChoice?: string;
+    TC_Budget_Mode?: string;
     TC_BudgetInput?: number;
     TC_BuyCurrency?: string;
     TC_Unit_Type?: string;
@@ -233,7 +233,7 @@ interface ClientFee {
     budgetData: BudgetData,
     clientFees: ClientFee[]
   ): TableBudgetCalculations {
-    const budgetChoice = budgetData.TC_BudgetChoice || 'media';
+    const budgetChoice = budgetData.TC_Budget_Mode || 'media';
     const budgetInput = budgetData.TC_BudgetInput || 0;
     const unitPrice = budgetData.TC_Unit_Price || 0;
     const unitType = budgetData.TC_Unit_Type || '';
@@ -322,7 +322,7 @@ interface ClientFee {
     ];
   
     switch (changedField) {
-      case 'TC_BudgetChoice':
+      case 'TC_Budget_Mode':
       case 'TC_BudgetInput':
       case 'TC_Unit_Price':
       case 'TC_Unit_Type':

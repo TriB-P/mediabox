@@ -209,7 +209,7 @@ export function useBudgetCalculations({
   }, [
     budgetData.TC_BudgetInput, 
     budgetData.TC_Unit_Price, 
-    budgetData.TC_BudgetChoice,
+    budgetData.TC_Budget_Mode,
     budgetData.TC_Media_Value,
     budgetData.TC_BuyCurrency,
     budgetData.TC_Unit_Type,

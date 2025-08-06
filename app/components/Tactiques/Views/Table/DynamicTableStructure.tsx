@@ -123,7 +123,7 @@ type TableColumn = DynamicColumn | FeeColumnDefinition;
 
 // Champs budget qui déclenchent des recalculs
 const BUDGET_FIELDS = [
-  'TC_BudgetChoice', 'TC_BudgetInput', 'TC_Unit_Price', 'TC_Unit_Type', 
+  'TC_Budget_Mode', 'TC_BudgetInput', 'TC_Unit_Price', 'TC_Unit_Type', 
   'TC_BuyCurrency', 'TC_Media_Value'
 ];
 

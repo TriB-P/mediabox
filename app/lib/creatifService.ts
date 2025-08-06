@@ -52,6 +52,8 @@ interface ResolutionContext {
         customCodes: Map<string, string | null>;
     };
 }
+import { processTaxonomyDelimiters } from './taxonomyParser';
+
 
 /**
  * Formate une date en format MMMdd (ex: "Jan15", "Feb28")
@@ -234,61 +236,14 @@ async function isExistingShortcode(value: string, cache: Map<string, any>): Prom
     return finalValue;
 }
 
-/**
- * Génère une chaîne de taxonomie en résolvant les variables contenues dans une structure donnée.
- * La fonction parcourt la structure, identifie les variables (ex: [PL_Product:code]) et les groupes (<...>),
- * puis résout chaque variable en utilisant le contexte fourni.
- * @param structure La chaîne de structure de taxonomie à traiter (ex: "[PL_Product:code]_[PL_Audience:display_fr]").
- * @param context Le contexte de résolution.
- * @returns La chaîne de taxonomie finale avec les variables résolues.
- */
+
 async function generateLevelString(structure: string, context: ResolutionContext): Promise<string> {
-    if (!structure) return '';
-
-    const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
-    const segments = structure.split(MASTER_REGEX).filter(Boolean);
-    let finalString = '';
-
-    for (const segment of segments) {
-        if (segment.startsWith('[') && segment.endsWith(']')) {
-            const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
-            if (variableMatch) {
-                const [, variableName, format] = variableMatch;
-                const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
-                finalString += resolvedValue;
-            }
-        } else if (segment.startsWith('<') && segment.endsWith('>')) {
-            const groupContent = segment.slice(1, -1);
-
-            const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-            if (variablesInGroup.length === 0) {
-                finalString += groupContent;
-                continue;
-            }
-
-            const resolvedValues = [];
-            for (const match of variablesInGroup) {
-                const [, variableName, format] = match;
-                const resolved = await resolveVariable(variableName, format as TaxonomyFormat, context);
-                if (resolved && !resolved.startsWith('[')) {
-                    resolvedValues.push(resolved);
-                }
-            }
-
-            if (resolvedValues.length === 0) {
-                continue;
-            }
-
-            const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
-            const delimiter = delimiterMatch ? delimiterMatch[1] : '';
-            finalString += resolvedValues.join(delimiter);
-
-        } else {
-            finalString += segment;
-        }
-    }
-    return finalString;
-}
+    const variableResolver = async (variableName: string, format: string) => {
+      return await resolveVariable(variableName, format as TaxonomyFormat, context);
+    };
+    
+    return await processTaxonomyDelimiters(structure, variableResolver);
+  }
 
 /**
  * Prépare les données du créatif pour le stockage dans Firestore.

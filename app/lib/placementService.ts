@@ -32,6 +32,9 @@ import {
   TaxonomyFormat 
 } from '../config/taxonomyFields';
 
+import { processTaxonomyDelimiters } from './taxonomyParser';
+
+
 interface ResolutionContext {
   clientId: string;
   campaignData: any;
@@ -160,59 +163,13 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
   return finalValue;
 }
 
-/**
- * Génère une chaîne de caractères pour un niveau de taxonomie en résolvant les variables qu'elle contient.
- * @param structure La chaîne de structure du niveau (ex: "[VAR_NAME:format]-<GroupContent>").
- * @param context Le contexte de résolution.
- * @returns La chaîne de caractères générée avec les variables résolues.
- */
+
 async function generateLevelString(structure: string, context: ResolutionContext): Promise<string> {
-  if (!structure) return '';
+  const variableResolver = async (variableName: string, format: string) => {
+    return await resolveVariable(variableName, format as TaxonomyFormat, context);
+  };
   
-  const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
-  const segments = structure.split(MASTER_REGEX).filter(Boolean);
-  let finalString = '';
-
-  for (const segment of segments) {
-      if (segment.startsWith('[') && segment.endsWith(']')) {
-          const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
-          if (variableMatch) {
-              const [, variableName, format] = variableMatch;
-              const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context);
-              finalString += resolvedValue;
-          }
-      } else if (segment.startsWith('<') && segment.endsWith('>')) {
-          const groupContent = segment.slice(1, -1);
-          
-          const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-          if (variablesInGroup.length === 0) {
-              finalString += groupContent;
-              continue;
-          }
-
-          const resolvedValues = [];
-          for (const match of variablesInGroup) {
-              const [, variableName, format] = match;
-              const resolved = await resolveVariable(variableName, format as TaxonomyFormat, context);
-              if (resolved && !resolved.startsWith('[')) {
-                  resolvedValues.push(resolved);
-              }
-          }
-          
-          if (resolvedValues.length === 0) {
-              continue;
-          }
-
-          const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
-          const delimiter = delimiterMatch ? delimiterMatch[1] : '';
-          finalString += resolvedValues.join(delimiter);
-          
-      } else {
-          finalString += segment;
-      }
-  }
-  
-  return finalString;
+  return await processTaxonomyDelimiters(structure, variableResolver);
 }
 
 /**

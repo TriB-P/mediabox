@@ -16,7 +16,7 @@ import {
 } from './budgetCalculations';
 
 export interface BudgetData {
-  TC_BudgetChoice: 'media' | 'client';
+  TC_Budget_Mode: 'media' | 'client';
   TC_BudgetInput: number;
   TC_Unit_Price: number;
   TC_Unit_Volume: number;
@@ -107,7 +107,7 @@ export class BudgetService {
     this.log('Création données par défaut');
 
     const defaultData: BudgetData = {
-      TC_BudgetChoice: 'media',
+      TC_Budget_Mode: 'media',
       TC_BudgetInput: 0,
       TC_Unit_Price: 0,
       TC_Unit_Volume: 0,
@@ -152,7 +152,7 @@ export class BudgetService {
     const data = this.createDefaultData(clientFees);
 
     if (firestoreData) {
-      data.TC_BudgetChoice = firestoreData.TC_BudgetChoice || firestoreData.TC_Budget_Mode || 'media';
+      data.TC_Budget_Mode = firestoreData.TC_Budget_Mode || firestoreData.TC_Budget_Mode || 'media';
       data.TC_BudgetInput = firestoreData.TC_BudgetInput || firestoreData.TC_Budget || 0;
       data.TC_Unit_Price = firestoreData.TC_Unit_Price || firestoreData.TC_Cost_Per_Unit || 0;
       data.TC_Unit_Volume = firestoreData.TC_Unit_Volume || 0;
@@ -217,7 +217,7 @@ export class BudgetService {
         unitTypeDisplayName
       };
 
-      if (data.TC_BudgetChoice === 'client') {
+      if (data.TC_Budget_Mode === 'client') {
         budgetInputs.clientBudget = data.TC_BudgetInput;
       } else {
         budgetInputs.mediaBudget = data.TC_BudgetInput;

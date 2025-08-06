@@ -153,13 +153,7 @@ const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors =>
     }
   });
 
-  // VALIDATION SPÉCIALE pour TC_CM360_Volume : doit être > 0
-  const cm360Volume = (formData as any).TC_CM360_Volume;
-  if (cm360Volume !== undefined && cm360Volume !== null && cm360Volume !== '') {
-    if (Number(cm360Volume) <= 0) {
-      errors.TC_CM360_Volume = 'Le volume CM360 doit être supérieur à 0.';
-    }
-  }
+
   
   return errors;
 };
@@ -291,7 +285,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     // CORRECTION BUDGET : Charger tous les champs budgétaires
     TC_Media_Budget: tactique.TC_Media_Budget || 0,
     TC_Client_Budget: tactique.TC_Client_Budget || 0,
-    TC_BudgetChoice: tactique.TC_BudgetChoice || 'client',
+    TC_Budget_Mode: tactique.TC_Budget_Mode || 'client',
     TC_BudgetInput: tactique.TC_BudgetInput || 0,
     TC_Unit_Price: tactique.TC_Unit_Price || 0,
     TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
@@ -375,7 +369,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     TC_Delta: round2(formDataAny.TC_Delta),
     
     // Autres champs non-numériques
-    TC_BudgetChoice: formDataAny.TC_BudgetChoice,
+    TC_Budget_Mode: formDataAny.TC_Budget_Mode,
     TC_BuyCurrency: formDataAny.TC_BuyCurrency,
     TC_Unit_Type: formDataAny.TC_Unit_Type,
     TC_Has_Bonus: formDataAny.TC_Has_Bonus || false,
@@ -425,6 +419,10 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Order: 0,
   TC_SectionId: '',
   TC_Status: 'Planned',
+  TC_Budget_Mode: 'media',
+  TC_BuyCurrency: 'CAD',
+  TC_Unit_Type:'SH_48HPEEYW',
+
 });
 
 /**

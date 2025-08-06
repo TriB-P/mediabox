@@ -28,7 +28,7 @@ interface ListItem {
 
 interface TactiqueFormBudgetProps {
   formData: {
-    TC_BudgetChoice?: 'client' | 'media';
+    TC_Budget_Mode?: 'client' | 'media';
     TC_BudgetInput?: number;
     TC_Unit_Price?: number;
     TC_Unit_Volume?: number;
@@ -229,7 +229,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   const legacyFormData = useMemo(() => ({
     TC_Currency: budgetData.TC_BuyCurrency,
     TC_Unit_Type: budgetData.TC_Unit_Type,
-    TC_Budget_Mode: budgetData.TC_BudgetChoice,
+    TC_Budget_Mode: budgetData.TC_Budget_Mode,
     TC_Budget: budgetData.TC_BudgetInput,
     TC_Cost_Per_Unit: budgetData.TC_Unit_Price,
     TC_Unit_Volume: budgetData.TC_Unit_Volume,
@@ -519,7 +519,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="font-medium text-gray-800">Données Budget:</div>
-                <div>Choice: {budgetData.TC_BudgetChoice}</div>
+                <div>Choice: {budgetData.TC_Budget_Mode}</div>
                 <div>Input: {budgetData.TC_BudgetInput}</div>
                 <div>Unit Price: {budgetData.TC_Unit_Price}</div>
                 <div>Media Value: {budgetData.TC_Media_Value}</div>
@@ -565,7 +565,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 function mapLegacyFieldName(field: string): string {
   const mapping: Record<string, string> = {
     'TC_Budget': 'TC_BudgetInput',
-    'TC_Budget_Mode': 'TC_BudgetChoice', 
+    'TC_Budget_Mode': 'TC_Budget_Mode', 
     'TC_Cost_Per_Unit': 'TC_Unit_Price',
     'TC_Real_Value': 'TC_Media_Value',
     'TC_Bonus_Value': 'TC_Bonification',

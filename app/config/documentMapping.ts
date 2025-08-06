@@ -83,7 +83,7 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
-        field: 'TC_BudgetChoice',
+        field: 'TC_Budget_Mode',
         column: 'Type de budget',
         type: 'text' as FieldType,
       },
