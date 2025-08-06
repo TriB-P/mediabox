@@ -37,6 +37,8 @@ import type {
   FieldSource
 } from '../types/tactiques';
 import type { TaxonomyFormat } from '../config/taxonomyFields';
+import { processTaxonomyDelimiters } from '../lib/taxonomyParser';
+
 
 // OPTIMISÉ : Import du système de cache
 import { getCachedAllShortcodes, getListForClient } from '../lib/cacheService';
@@ -616,7 +618,7 @@ export function useTaxonomyForm({
    * @param taxonomyType Le type de taxonomie ('tags', 'platform' ou 'mediaocean').
    * @returns La chaîne de prévisualisation formatée.
    */
-  const getFormattedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean'): string => {
+  const getFormattedPreview = useCallback(async (taxonomyType: 'tags' | 'platform' | 'mediaocean'): Promise<string> => {
     const taxonomy = selectedTaxonomyData[taxonomyType];
     if (!taxonomy) return '';
   
@@ -627,11 +629,11 @@ export function useTaxonomyForm({
       structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
     }
   
-    TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
+    const variableResolver = (variableName: string, format: string) => {
+      return getFormattedValue(variableName, format) || `[${variableName}:${format}]`;
+    };
   
-    return structure.replace(TAXONOMY_VARIABLE_REGEX, (match, variableName, format) => {
-      return getFormattedValue(variableName, format) || match;
-    });
+    return await processTaxonomyDelimiters(structure, variableResolver);
   }, [selectedTaxonomyData, getFormattedValue, previewUpdateTime, formType]);
 
   return {

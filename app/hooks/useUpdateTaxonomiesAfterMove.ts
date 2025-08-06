@@ -25,6 +25,8 @@ import {
   isCreatifVariable,
   TaxonomyFormat
 } from '../config/taxonomyFields';
+import { processTaxonomyDelimiters } from '../lib/taxonomyParser';
+
 
 type ParentType = 'campaign' | 'tactic' | 'placement';
 
@@ -228,50 +230,11 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
  * Génère une chaîne de caractères de taxonomie en résolvant les variables et les groupes.
  */
 async function generateLevelString(structure: string, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
-  if (!structure) return '';
-
-  const MASTER_REGEX = /(<[^>]*>|\[[^\]]+\])/g;
-  const segments = structure.split(MASTER_REGEX).filter(Boolean);
-  let finalString = '';
-
-  for (const segment of segments) {
-    if (segment.startsWith('[') && segment.endsWith(']')) {
-      const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
-      if (variableMatch) {
-        const [, variableName, format] = variableMatch;
-        const resolvedValue = await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
-        finalString += resolvedValue;
-      }
-    } else if (segment.startsWith('<') && segment.endsWith('>')) {
-      const groupContent = segment.slice(1, -1);
-
-      const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
-      if (variablesInGroup.length === 0) {
-        finalString += groupContent;
-        continue;
-      }
-
-      const resolvedValues = [];
-      for (const match of variablesInGroup) {
-        const [, variableName, format] = match;
-        const resolved = await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
-        if (resolved && !resolved.startsWith('[')) {
-          resolvedValues.push(resolved);
-        }
-      }
-
-      if (resolvedValues.length === 0) continue;
-
-      const delimiterMatch = groupContent.match(/\](.*?)\s*\[/);
-      const delimiter = delimiterMatch ? delimiterMatch[1] : '';
-      finalString += resolvedValues.join(delimiter);
-
-    } else {
-      finalString += segment;
-    }
-  }
-
-  return finalString;
+  const variableResolver = async (variableName: string, format: string) => {
+    return await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
+  };
+  
+  return await processTaxonomyDelimiters(structure, variableResolver);
 }
 
 /**

@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { getSourceColor } from '../../../config/taxonomyFields';
 import { Taxonomy } from '../../../types/taxonomy';
 import type {
@@ -80,11 +80,32 @@ export default function TaxonomyPreview({
     return variableRegex.test(fullStructure);
   }, [levelsToShow]);
 
-  const getMemoizedPreview = useMemo(() => {
-    return (taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
-      return getFormattedPreview(taxonomyType);
-    };
-  }, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, highlightState]);
+// Remplacer le useMemo par un useState + useEffect
+const [previewCache, setPreviewCache] = useState<{
+  tags: string;
+  platform: string;
+  mediaocean: string;
+}>({ tags: '', platform: '', mediaocean: '' });
+
+// Nouveau useEffect pour gérer l'async
+useEffect(() => {
+  const updatePreviews = async () => {
+    const [tags, platform, mediaocean] = await Promise.all([
+      selectedTaxonomyData.tags ? getFormattedPreview('tags') : '',
+      selectedTaxonomyData.platform ? getFormattedPreview('platform') : '',
+      selectedTaxonomyData.mediaocean ? getFormattedPreview('mediaocean') : '',
+    ]);
+    
+    setPreviewCache({ tags, platform, mediaocean });
+  };
+  
+  updatePreviews();
+}, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, highlightState]);
+
+const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
+  return previewCache[taxonomyType];
+}, [previewCache]);
+
 
   const renderLevelWithVariables = (levelStructure: string) => {
     const parts: React.ReactNode[] = [];
