@@ -1,4 +1,4 @@
-// app/lib/taxonomyParser.ts - VERSION CORRIGÉE
+// app/lib/taxonomyParser.ts - VERSION FINALE CORRIGÉE
 
 import {
   TAXONOMY_VARIABLE_CONFIG,
@@ -514,13 +514,11 @@ function generatePlaceholder(variable: ParsedTaxonomyVariable): string {
 
 // ==================== FONCTIONS CENTRALISÉES POUR DÉLIMITEURS SPÉCIAUX ====================
 
+// app/lib/taxonomyParser.ts - CORRECTION de la logique des délimiteurs
+
 /**
- * Version asynchrone - Traite tous les délimiteurs spéciaux dans une structure de taxonomie
- * Centralise la gestion des règles : <>, ▶◀, 〔〕, 〈〉
- * 
- * @param structure - Structure de taxonomie avec délimiteurs
- * @param variableResolver - Fonction qui résout les variables [variableName:format]
- * @returns Structure traitée avec toutes les règles appliquées
+ * Version asynchrone - CORRIGÉE - Traite tous les délimiteurs spéciaux
+ * Les délimiteurs sont correctement supprimés du résultat final
  */
 export async function processTaxonomyDelimiters(
   structure: string,
@@ -528,73 +526,92 @@ export async function processTaxonomyDelimiters(
 ): Promise<string> {
   if (!structure) return '';
 
-  // Regex pour capturer tous les types de délimiteurs
-  const DELIMITERS_REGEX = /(<[^>]*>|▶[^◀]*◀|〔[^〕]*〕|〈[^〉]*〉|\[[^\]]+\])/g;
-  
-  const segments = structure.split(DELIMITERS_REGEX).filter(Boolean);
-  let finalString = '';
+  let result = structure;
+  let hasChanges = true;
 
-  for (const segment of segments) {
-    
-    // 1. Variables individuelles [variableName:format]
-    if (segment.startsWith('[') && segment.endsWith(']')) {
-      const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
-      if (variableMatch) {
-        const [, variableName, format] = variableMatch;
-        const resolvedValue = await variableResolver(variableName, format);
-        finalString += resolvedValue;
-      }
-      continue;
+  // Continuer jusqu'à ce qu'il n'y ait plus de transformations
+  while (hasChanges) {
+    hasChanges = false;
+    const originalResult = result;
+
+    // 1. Traiter les groupes conditionnels <content>
+    const conditionalRegex = /<([^>]+)>/g;
+    let match;
+    while ((match = conditionalRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedGroup = await processConditionalGroup(content, variableResolver);
+      result = result.replace(fullMatch, processedGroup);
+      hasChanges = true;
     }
 
-    // 2. Groupes conditionnels <content> - Règle existante
-    if (segment.startsWith('<') && segment.endsWith('>')) {
-      const processedGroup = await processConditionalGroup(segment.slice(1, -1), variableResolver);
-      finalString += processedGroup;
-      continue;
+    // 2. Traiter les règles ▶content◀ (minuscules aux variables)
+    const lowercaseRegex = /▶([^◀]+)◀/g;
+    conditionalRegex.lastIndex = 0;
+    while ((match = lowercaseRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedContent = await processContentWithVariableTransform(
+        content,
+        variableResolver,
+        (value: string) => value.toLowerCase()
+      );
+      result = result.replace(fullMatch, processedContent);
+      hasChanges = true;
     }
 
-    // 3. Nouvelle règle ▶content◀ - Conversion en minuscules
-    if (segment.startsWith('▶') && segment.endsWith('◀')) {
-      const content = segment.slice(1, -1);
-      const processedContent = await processContentRecursively(content, variableResolver);
-      finalString += processedContent.toLowerCase();
-      continue;
+    // 3. Traiter les règles 〔content〕 (nettoyage aux variables)
+    const cleanRegex = /〔([^〕]+)〕/g;
+    while ((match = cleanRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedContent = await processContentWithVariableTransform(
+        content,
+        variableResolver,
+        cleanSpecialCharacters
+      );
+      result = result.replace(fullMatch, processedContent);
+      hasChanges = true;
     }
 
-    // 4. Nouvelle règle 〔content〕 - Nettoyage des caractères spéciaux
-    if (segment.startsWith('〔') && segment.endsWith('〕')) {
-      const content = segment.slice(1, -1);
-      const processedContent = await processContentRecursively(content, variableResolver);
-      const cleanedContent = cleanSpecialCharacters(processedContent);
-      finalString += cleanedContent;
-      continue;
-    }
-
-    // 5. ✅ CORRIGÉ - Nouvelle règle 〈content〉 - Remplacement conditionnel par &
-    if (segment.startsWith('〈') && segment.endsWith('〉')) {
-      const content = segment.slice(1, -1);
-      const processedContent = await processContentRecursively(content, variableResolver);
+    // 4. Traiter les règles 〈content〉 (remplacement conditionnel par &)
+    const ampersandRegex = /〈([^〉]+)〉/g;
+    while ((match = ampersandRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
       
-      // Si le contenu existe déjà dans finalString, remplacer par &
-      if (finalString.includes(processedContent)) {
-        finalString += '&';
+      // Vérifier s'il y a déjà eu des occurrences de ces caractères
+      if (originalResult.indexOf('〈') !== originalResult.lastIndexOf('〈')) {
+        result = result.replace(fullMatch, '&');
       } else {
-        finalString += processedContent;
+        const processedContent = await processContentWithVariableTransform(
+          content,
+          variableResolver,
+          (value: string) => value
+        );
+        result = result.replace(fullMatch, processedContent);
       }
-      continue;
+      hasChanges = true;
     }
 
-    // 6. Texte normal - ajouter tel quel
-    finalString += segment;
+    // 5. Traiter les variables individuelles [variableName:format]
+    const variableRegex = /\[([^:]+):([^\]]+)\]/g;
+    while ((match = variableRegex.exec(result)) !== null) {
+      const [fullMatch, variableName, format] = match;
+      const resolvedValue = await variableResolver(variableName, format);
+      result = result.replace(fullMatch, resolvedValue);
+      hasChanges = true;
+    }
+
+    // Réinitialiser les regex pour le prochain tour
+    conditionalRegex.lastIndex = 0;
+    lowercaseRegex.lastIndex = 0;
+    cleanRegex.lastIndex = 0;
+    ampersandRegex.lastIndex = 0;
+    variableRegex.lastIndex = 0;
   }
 
-  return finalString;
+  return result;
 }
 
 /**
- * Version synchrone - Pour compatibilité avec l'interface existante (TaxonomyPreview)
- * Traite tous les délimiteurs spéciaux de manière synchrone
+ * Version synchrone - CORRIGÉE
  */
 export function processTaxonomyDelimitersSync(
   structure: string,
@@ -602,71 +619,94 @@ export function processTaxonomyDelimitersSync(
 ): string {
   if (!structure) return '';
 
-  const DELIMITERS_REGEX = /(<[^>]*>|▶[^◀]*◀|〔[^〕]*〕|〈[^〉]*〉|\[[^\]]+\])/g;
-  const segments = structure.split(DELIMITERS_REGEX).filter(Boolean);
-  let finalString = '';
+  let result = structure;
+  let hasChanges = true;
 
-  for (const segment of segments) {
-    
-    // 1. Variables individuelles [variableName:format]
-    if (segment.startsWith('[') && segment.endsWith(']')) {
-      const variableMatch = segment.match(/\[([^:]+):([^\]]+)\]/);
-      if (variableMatch) {
-        const [, variableName, format] = variableMatch;
-        const resolvedValue = variableResolver(variableName, format);
-        finalString += resolvedValue;
-      }
-      continue;
+  while (hasChanges) {
+    hasChanges = false;
+    const originalResult = result;
+
+    // 1. Groupes conditionnels <content>
+    const conditionalRegex = /<([^>]+)>/g;
+    let match;
+    while ((match = conditionalRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedGroup = processConditionalGroupSync(content, variableResolver);
+      result = result.replace(fullMatch, processedGroup);
+      hasChanges = true;
     }
 
-    // 2. Groupes conditionnels <content>
-    if (segment.startsWith('<') && segment.endsWith('>')) {
-      const processedGroup = processConditionalGroupSync(segment.slice(1, -1), variableResolver);
-      finalString += processedGroup;
-      continue;
+    // 2. Règles ▶content◀
+    const lowercaseRegex = /▶([^◀]+)◀/g;
+    while ((match = lowercaseRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedContent = processContentWithVariableTransformSync(
+        content,
+        variableResolver,
+        (value: string) => value.toLowerCase()
+      );
+      result = result.replace(fullMatch, processedContent);
+      hasChanges = true;
     }
 
-    // 3. Règle ▶content◀ - Conversion en minuscules
-    if (segment.startsWith('▶') && segment.endsWith('◀')) {
-      const content = segment.slice(1, -1);
-      const processedContent = processContentRecursivelySync(content, variableResolver);
-      finalString += processedContent.toLowerCase();
-      continue;
+    // 3. Règles 〔content〕
+    const cleanRegex = /〔([^〕]+)〕/g;
+    while ((match = cleanRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
+      const processedContent = processContentWithVariableTransformSync(
+        content,
+        variableResolver,
+        cleanSpecialCharacters
+      );
+      result = result.replace(fullMatch, processedContent);
+      hasChanges = true;
     }
 
-    // 4. Règle 〔content〕 - Nettoyage des caractères spéciaux
-    if (segment.startsWith('〔') && segment.endsWith('〕')) {
-      const content = segment.slice(1, -1);
-      const processedContent = processContentRecursivelySync(content, variableResolver);
-      const cleanedContent = cleanSpecialCharacters(processedContent);
-      finalString += cleanedContent;
-      continue;
-    }
-
-    // 5. ✅ CORRIGÉ - Règle 〈content〉 - Remplacement conditionnel par &
-    if (segment.startsWith('〈') && segment.endsWith('〉')) {
-      const content = segment.slice(1, -1);
-      const processedContent = processContentRecursivelySync(content, variableResolver);
+    // 4. Règles 〈content〉
+    const ampersandRegex = /〈([^〉]+)〉/g;
+    while ((match = ampersandRegex.exec(result)) !== null) {
+      const [fullMatch, content] = match;
       
-      // Si le contenu existe déjà dans finalString, remplacer par &
-      if (finalString.includes(processedContent)) {
-        finalString += '&';
+      if (originalResult.indexOf('〈') !== originalResult.lastIndexOf('〈')) {
+        result = result.replace(fullMatch, '&');
       } else {
-        finalString += processedContent;
+        const processedContent = processContentWithVariableTransformSync(
+          content,
+          variableResolver,
+          (value: string) => value
+        );
+        result = result.replace(fullMatch, processedContent);
       }
-      continue;
+      hasChanges = true;
     }
 
-    // 6. Texte normal
-    finalString += segment;
+    // 5. Variables individuelles
+    const variableRegex = /\[([^:]+):([^\]]+)\]/g;
+    while ((match = variableRegex.exec(result)) !== null) {
+      const [fullMatch, variableName, format] = match;
+      const resolvedValue = variableResolver(variableName, format);
+      result = result.replace(fullMatch, resolvedValue);
+      hasChanges = true;
+    }
+
+    // Réinitialiser les regex
+    conditionalRegex.lastIndex = 0;
+    lowercaseRegex.lastIndex = 0;
+    cleanRegex.lastIndex = 0;
+    ampersandRegex.lastIndex = 0;
+    variableRegex.lastIndex = 0;
   }
 
-  return finalString;
+  return result;
 }
 
+// ==================== FONCTIONS HELPER POUR DÉLIMITEURS ====================
+
 /**
- * Traite les groupes conditionnels <content> - Logique corrigée pour préserver les délimiteurs
- * Affiche le contenu en préservant la structure, mais seulement pour les variables avec des valeurs
+ * Traite les groupes conditionnels <content> - Version simplifiée
+ * 1. Trouve toutes les variables avec des valeurs non vides
+ * 2. Identifie le délimiteur entre les deux premières variables
+ * 3. Réassemble avec 1x délimiteur entre chaque variable non vide
  */
 async function processConditionalGroup(
   groupContent: string,
@@ -675,160 +715,177 @@ async function processConditionalGroup(
   
   // Regex pour trouver les variables dans le groupe
   const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-  const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
+  const variableMatches = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
   
-  if (variablesInGroup.length === 0) {
-    // Pas de variables, traiter le contenu directement
-    return await processContentRecursively(groupContent, variableResolver);
+  if (variableMatches.length === 0) {
+    return await processContentWithVariableTransform(groupContent, variableResolver, (value: string) => value);
   }
 
-  // Créer une map des variables résolues
-  const resolvedVariables = new Map<string, string>();
-  
-  for (const match of variablesInGroup) {
-    const [fullMatch, variableName, format] = match;
+  // Résoudre toutes les variables et collecter celles qui ont des valeurs
+  const nonEmptyValues = [];
+  for (const match of variableMatches) {
+    const [, variableName, format] = match;
     const resolved = await variableResolver(variableName, format);
     
-    // Garder seulement les variables qui ont des valeurs valides
-    if (resolved && !resolved.startsWith('[') && resolved.trim() !== '') {
-      resolvedVariables.set(fullMatch, resolved);
+    // Vérifier que la valeur existe et n'est pas un placeholder non résolu
+    if (resolved && resolved.trim() !== '' && !resolved.startsWith('[')) {
+      nonEmptyValues.push(resolved);
     }
   }
 
-  // Si aucune variable n'a de valeur, ne pas afficher le groupe
-  if (resolvedVariables.size === 0) return '';
-
-  // ✅ NOUVELLE LOGIQUE : Reconstituer la structure en gardant seulement les parties avec valeurs
-  let result = groupContent;
-  
-  // Remplacer d'abord toutes les variables par leurs valeurs ou les marquer pour suppression
-  for (const match of variablesInGroup) {
-    const [fullMatch] = match;
-    if (resolvedVariables.has(fullMatch)) {
-      result = result.replace(fullMatch, resolvedVariables.get(fullMatch)!);
-    } else {
-      // Marquer les variables vides avec un placeholder unique
-      result = result.replace(fullMatch, '___EMPTY_VAR___');
-    }
+  // Si aucune variable n'a de valeur, retourner vide
+  if (nonEmptyValues.length === 0) {
+    return '';
   }
+
+  // Si une seule variable, la retourner directement
+  if (nonEmptyValues.length === 1) {
+    return nonEmptyValues[0];
+  }
+
+  // Identifier le délimiteur en cherchant entre les deux premières variables
+  const delimiter = findDelimiterBetweenFirstTwoVariables(groupContent, variableMatches);
   
-  // Nettoyer les délimiteurs autour des variables vides
-  result = cleanEmptyDelimiters(result);
-  
-  return result;
+  // Réassembler avec le délimiteur
+  return nonEmptyValues.join(delimiter);
 }
 
-
 /**
- * Version synchrone des fonctions helper
+ * Version synchrone de processConditionalGroup
  */
 function processConditionalGroupSync(
   groupContent: string,
   variableResolver: (variableName: string, format: string) => string
 ): string {
-  const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-  const variablesInGroup = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
   
-  if (variablesInGroup.length === 0) {
-    return processContentRecursivelySync(groupContent, variableResolver);
+  const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+  const variableMatches = Array.from(groupContent.matchAll(TAXONOMY_VARIABLE_REGEX));
+  
+  if (variableMatches.length === 0) {
+    return processContentWithVariableTransformSync(groupContent, variableResolver, (value: string) => value);
   }
 
-  // Créer une map des variables résolues
-  const resolvedVariables = new Map<string, string>();
-  
-  for (const match of variablesInGroup) {
-    const [fullMatch, variableName, format] = match;
+  // Résoudre toutes les variables et collecter celles qui ont des valeurs
+  const nonEmptyValues = [];
+  for (const match of variableMatches) {
+    const [, variableName, format] = match;
     const resolved = variableResolver(variableName, format);
     
-    // Garder seulement les variables qui ont des valeurs valides
-    if (resolved && !resolved.startsWith('[') && resolved.trim() !== '') {
-      resolvedVariables.set(fullMatch, resolved);
+    if (resolved && resolved.trim() !== '' && !resolved.startsWith('[')) {
+      nonEmptyValues.push(resolved);
     }
   }
 
-  // Si aucune variable n'a de valeur, ne pas afficher le groupe
-  if (resolvedVariables.size === 0) return '';
-
-  // ✅ MÊME LOGIQUE : Reconstituer la structure en gardant seulement les parties avec valeurs
-  let result = groupContent;
-  
-  // Remplacer d'abord toutes les variables par leurs valeurs ou les marquer pour suppression
-  for (const match of variablesInGroup) {
-    const [fullMatch] = match;
-    if (resolvedVariables.has(fullMatch)) {
-      result = result.replace(fullMatch, resolvedVariables.get(fullMatch)!);
-    } else {
-      // Marquer les variables vides avec un placeholder unique
-      result = result.replace(fullMatch, '___EMPTY_VAR___');
-    }
+  if (nonEmptyValues.length === 0) {
+    return '';
   }
+
+  if (nonEmptyValues.length === 1) {
+    return nonEmptyValues[0];
+  }
+
+  const delimiter = findDelimiterBetweenFirstTwoVariables(groupContent, variableMatches);
+  return nonEmptyValues.join(delimiter);
+}
+
+/**
+ * Trouve le délimiteur entre les deux premières variables dans le contenu
+ * Par exemple: dans "[Var1:format]-[Var2:format]-[Var3:format]", retourne "-"
+ */
+function findDelimiterBetweenFirstTwoVariables(
+  content: string, 
+  variableMatches: RegExpMatchArray[]
+): string {
   
-  // Nettoyer les délimiteurs autour des variables vides
-  result = cleanEmptyDelimiters(result);
+  if (variableMatches.length < 2) {
+    return ''; // Pas assez de variables pour déterminer un délimiteur
+  }
+
+  const firstVariableMatch = variableMatches[0];
+  const secondVariableMatch = variableMatches[1];
+
+  // Calculer les positions de fin de la première variable et début de la seconde
+  const firstVariableEnd = (firstVariableMatch.index || 0) + firstVariableMatch[0].length;
+  const secondVariableStart = secondVariableMatch.index || 0;
+
+  // Extraire ce qui se trouve entre les deux
+  const delimiterSection = content.substring(firstVariableEnd, secondVariableStart);
+  
+  // Retourner le délimiteur (en supprimant les espaces de début/fin)
+  return delimiterSection.trim();
+}
+
+/**
+ * Traite le contenu en appliquant une transformation uniquement aux variables
+ * Version asynchrone
+ */
+async function processContentWithVariableTransform(
+  content: string,
+  variableResolver: (variableName: string, format: string) => Promise<string> | string,
+  transform: (value: string) => string
+): Promise<string> {
+  
+  // Regex pour trouver les variables
+  const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+  
+  let result = content;
+  let match;
+  
+  // Réinitialiser le regex
+  VARIABLE_REGEX.lastIndex = 0;
+  
+  while ((match = VARIABLE_REGEX.exec(content)) !== null) {
+    const [fullMatch, variableName, format] = match;
+    
+    // Résoudre la variable
+    const resolvedValue = await variableResolver(variableName, format);
+    
+    // Appliquer la transformation seulement à la valeur résolue
+    const transformedValue = transform(resolvedValue);
+    
+    // Remplacer dans le résultat
+    result = result.replace(fullMatch, transformedValue);
+  }
   
   return result;
 }
 
 /**
- * Traite récursivement le contenu qui peut contenir d'autres délimiteurs ou variables
+ * Traite le contenu en appliquant une transformation uniquement aux variables
+ * Version synchrone
  */
-async function processContentRecursively(
+function processContentWithVariableTransformSync(
   content: string,
-  variableResolver: (variableName: string, format: string) => Promise<string> | string
-): Promise<string> {
-  
-  // Si le contenu contient d'autres délimiteurs, les traiter récursivement
-  if (content.match(/(<[^>]*>|▶[^◀]*◀|〔[^〕]*〕|〈[^〉]*〉|\[[^\]]+\])/)) {
-    return await processTaxonomyDelimiters(content, variableResolver);
-  }
-  
-  return content;
-}
-
-function processContentRecursivelySync(
-  content: string,
-  variableResolver: (variableName: string, format: string) => string
+  variableResolver: (variableName: string, format: string) => string,
+  transform: (value: string) => string
 ): string {
-  if (content.match(/(<[^>]*>|▶[^◀]*◀|〔[^〕]*〕|〈[^〉]*〉|\[[^\]]+\])/)) {
-    return processTaxonomyDelimitersSync(content, variableResolver);
+  
+  const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+  
+  let result = content;
+  let match;
+  
+  VARIABLE_REGEX.lastIndex = 0;
+  
+  while ((match = VARIABLE_REGEX.exec(content)) !== null) {
+    const [fullMatch, variableName, format] = match;
+    
+    const resolvedValue = variableResolver(variableName, format);
+    const transformedValue = transform(resolvedValue);
+    
+    result = result.replace(fullMatch, transformedValue);
   }
-  return content;
-}
-
-/**
- * Nettoie les délimiteurs autour des variables vides pour éviter les délimiteurs consécutifs
- */
-function cleanEmptyDelimiters(text: string): string {
-  // Remplacer les patterns avec variables vides et leurs délimiteurs
-  return text
-    // Cas : délimiteur + variable vide + délimiteur → garder un seul délimiteur si autres valeurs existent
-    .replace(/([^\w])___EMPTY_VAR___([^\w])/g, (match, before, after) => {
-      // Si c'est entre deux délimiteurs identiques, garder un seul
-      return before === after ? before : '';
-    })
-    // Cas : début + variable vide + délimiteur
-    .replace(/^___EMPTY_VAR___([^\w])/g, '')
-    // Cas : délimiteur + variable vide + fin  
-    .replace(/([^\w])___EMPTY_VAR___$/g, '')
-    // Cas : variable vide seule
-    .replace(/^___EMPTY_VAR___$/g, '')
-    // Nettoyer les délimiteurs multiples consécutifs (ex: "A--B" → "A-B")
-    .replace(/([^\w])\1+/g, '$1')
-    // Nettoyer délimiteurs en début/fin
-    .replace(/^[^\w]+|[^\w]+$/g, '');
+  
+  return result;
 }
 
 /**
  * Nettoie les caractères spéciaux selon la règle 〔〕
- * - Normalise les caractères accentués (é→e, à→a, ç→c, etc.)
+ * - Supprime tous les caractères spéciaux sauf espaces et underscores
  * - Convertit espaces et underscores en tirets
- * - Supprime tous les autres caractères spéciaux
  */
 function cleanSpecialCharacters(text: string): string {
   return text
-    // ✅ NOUVEAU : Normaliser les caractères accentués (é→e, à→a, ç→c, etc.)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
     // Remplacer espaces et underscores par des tirets
     .replace(/[\s_]+/g, '-')
     // Supprimer tous les caractères spéciaux sauf lettres, chiffres et tirets

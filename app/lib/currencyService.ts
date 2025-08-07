@@ -1,6 +1,9 @@
+// app/lib/currencyService.ts
+
 /**
  * Ce fichier contient des fonctions pour interagir avec la collection 'currencies' d'un client spécifique dans Firebase Firestore.
  * Il permet de récupérer, ajouter, mettre à jour et supprimer des informations sur les devises gérées pour chaque client.
+ * MODIFIÉ : Ajout de fonctions pour récupérer les taux par paire de devises avec support des versions personnalisées.
  */
 import {
   collection,
@@ -26,7 +29,7 @@ export const getClientCurrencies = async (clientId: string): Promise<Currency[]>
   try {
     const currenciesCollection = collection(db, 'clients', clientId, 'currencies');
     const q = query(currenciesCollection, orderBy('CU_Year', 'desc'));
-    console.log("FIREBASE: LECTURE - Fichier: [NOM_DU_FICHIER] - Fonction: getClientCurrencies - Path: clients/${clientId}/currencies");
+    console.log("FIREBASE: LECTURE - Fichier: currencyService.ts - Fonction: getClientCurrencies - Path: clients/${clientId}/currencies");
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => ({
@@ -40,6 +43,108 @@ export const getClientCurrencies = async (clientId: string): Promise<Currency[]>
 };
 
 /**
+ * NOUVEAU : Récupère tous les taux de change disponibles pour une paire de devises spécifique.
+ * Utile pour afficher un sélecteur de versions (ex: "2025 v1", "2025 v2") à l'utilisateur.
+ * @param clientId L'ID du client.
+ * @param fromCurrency La devise de départ (ex: "USD").
+ * @param toCurrency La devise d'arrivée (ex: "CAD").
+ * @returns Une promesse qui résout en un tableau d'objets Currency triés par CU_Year décroissant.
+ */
+export const getCurrencyRatesByPair = async (
+  clientId: string, 
+  fromCurrency: string, 
+  toCurrency: string
+): Promise<Currency[]> => {
+  try {
+    const currenciesCollection = collection(db, 'clients', clientId, 'currencies');
+    // TEMPORAIRE : Supprimer orderBy pour éviter l'erreur d'index
+    const q = query(
+      currenciesCollection,
+      where('CU_From', '==', fromCurrency),
+      where('CU_To', '==', toCurrency)
+      // orderBy('CU_Year', 'desc') // COMMENTÉ temporairement
+    );
+    console.log(`FIREBASE: LECTURE - Fichier: currencyService.ts - Fonction: getCurrencyRatesByPair - Path: clients/${clientId}/currencies - Filter: ${fromCurrency} -> ${toCurrency}`);
+    const snapshot = await getDocs(q);
+
+    const results = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Currency));
+    
+    // TEMPORAIRE : Trier côté client en attendant l'index
+    return results.sort((a, b) => {
+      // Tri par CU_Year décroissant (versions les plus récentes en premier)
+      return b.CU_Year.localeCompare(a.CU_Year);
+    });
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des taux ${fromCurrency} -> ${toCurrency}:`, error);
+    return [];
+  }
+};
+
+/**
+ * NOUVEAU : Récupère un taux de change spécifique pour une paire de devises et une version.
+ * @param clientId L'ID du client.
+ * @param fromCurrency La devise de départ (ex: "USD").
+ * @param toCurrency La devise d'arrivée (ex: "CAD").
+ * @param yearVersion La version/année spécifique (ex: "2025 v1").
+ * @returns Une promesse qui résout en un objet Currency si trouvé, sinon null.
+ */
+export const getCurrencyRateByVersion = async (
+  clientId: string,
+  fromCurrency: string,
+  toCurrency: string,
+  yearVersion: string
+): Promise<Currency | null> => {
+  try {
+    const currenciesCollection = collection(db, 'clients', clientId, 'currencies');
+    const q = query(
+      currenciesCollection,
+      where('CU_From', '==', fromCurrency),
+      where('CU_To', '==', toCurrency),
+      where('CU_Year', '==', yearVersion)
+    );
+    console.log(`FIREBASE: LECTURE - Fichier: currencyService.ts - Fonction: getCurrencyRateByVersion - Path: clients/${clientId}/currencies - Filter: ${fromCurrency} -> ${toCurrency} (${yearVersion})`);
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0]; // Il ne devrait y avoir qu'un seul résultat
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Currency;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération du taux ${fromCurrency} -> ${toCurrency} (${yearVersion}):`, error);
+    return null;
+  }
+};
+
+/**
+ * NOUVEAU : Vérifie s'il existe des taux de change pour une paire de devises.
+ * @param clientId L'ID du client.
+ * @param fromCurrency La devise de départ.
+ * @param toCurrency La devise d'arrivée.
+ * @returns Une promesse qui résout en true si au moins un taux existe, sinon false.
+ */
+export const hasRatesForCurrencyPair = async (
+  clientId: string,
+  fromCurrency: string,
+  toCurrency: string
+): Promise<boolean> => {
+  try {
+    const rates = await getCurrencyRatesByPair(clientId, fromCurrency, toCurrency);
+    return rates.length > 0;
+  } catch (error) {
+    console.error(`Erreur lors de la vérification des taux ${fromCurrency} -> ${toCurrency}:`, error);
+    return false;
+  }
+};
+
+/**
  * Récupère une devise spécifique par son ID pour un client donné.
  * @param clientId L'ID du client propriétaire de la devise.
  * @param currencyId L'ID de la devise à récupérer.
@@ -48,7 +153,7 @@ export const getClientCurrencies = async (clientId: string): Promise<Currency[]>
 export const getCurrencyById = async (clientId: string, currencyId: string): Promise<Currency | null> => {
   try {
     const currencyRef = doc(db, 'clients', clientId, 'currencies', currencyId);
-    console.log("FIREBASE: LECTURE - Fichier: [NOM_DU_FICHIER] - Fonction: getCurrencyById - Path: clients/${clientId}/currencies/${currencyId}");
+    console.log("FIREBASE: LECTURE - Fichier: currencyService.ts - Fonction: getCurrencyById - Path: clients/${clientId}/currencies/${currencyId}");
     const snapshot = await getDoc(currencyRef);
 
     if (!snapshot.exists()) {
@@ -66,10 +171,10 @@ export const getCurrencyById = async (clientId: string, currencyId: string): Pro
 };
 
 /**
- * Vérifie si une paire de devises (De/À) existe déjà pour une année donnée pour un client.
+ * Vérifie si une paire de devises (De/À) existe déjà pour une année/version donnée pour un client.
  * Peut exclure un ID de devise spécifique lors de la vérification (utile pour les mises à jour).
  * @param clientId L'ID du client.
- * @param year L'année de la devise.
+ * @param year L'année/version de la devise (ex: "2025 v1").
  * @param fromCurrency La devise de départ.
  * @param toCurrency La devise d'arrivée.
  * @param excludeId (Optionnel) L'ID de la devise à exclure de la vérification (pour les mises à jour).
@@ -90,7 +195,7 @@ export const checkCurrencyExists = async (
       where('CU_From', '==', fromCurrency),
       where('CU_To', '==', toCurrency)
     );
-    console.log("FIREBASE: LECTURE - Fichier: [NOM_DU_FICHIER] - Fonction: checkCurrencyExists - Path: clients/${clientId}/currencies");
+    console.log("FIREBASE: LECTURE - Fichier: currencyService.ts - Fonction: checkCurrencyExists - Path: clients/${clientId}/currencies");
     const snapshot = await getDocs(q);
     
     if (excludeId) {
@@ -106,7 +211,7 @@ export const checkCurrencyExists = async (
 
 /**
  * Ajoute une nouvelle devise pour un client spécifique.
- * Vérifie préalablement si la combinaison de devises et l'année existe déjà pour ce client.
+ * Vérifie préalablement si la combinaison de devises et l'année/version existe déjà pour ce client.
  * @param clientId L'ID du client auquel ajouter la devise.
  * @param currencyData Les données de la nouvelle devise.
  * @returns Une promesse qui résout en l'ID de la nouvelle devise ajoutée.
@@ -122,7 +227,7 @@ export const addCurrency = async (clientId: string, currencyData: CurrencyFormDa
     );
     
     if (exists) {
-      throw new Error('Cette combinaison de devises pour cette année existe déjà.');
+      throw new Error('Cette combinaison de devises pour cette version existe déjà.');
     }
     
     const currenciesCollection = collection(db, 'clients', clientId, 'currencies');
@@ -136,7 +241,7 @@ export const addCurrency = async (clientId: string, currencyData: CurrencyFormDa
       createdAt: now,
       updatedAt: now,
     };
-    console.log("FIREBASE: ÉCRITURE - Fichier: [NOM_DU_FICHIER] - Fonction: addCurrency - Path: clients/${clientId}/currencies");
+    console.log("FIREBASE: ÉCRITURE - Fichier: currencyService.ts - Fonction: addCurrency - Path: clients/${clientId}/currencies");
     const docRef = await addDoc(currenciesCollection, newCurrency);
     return docRef.id;
   } catch (error) {
@@ -147,7 +252,7 @@ export const addCurrency = async (clientId: string, currencyData: CurrencyFormDa
 
 /**
  * Met à jour une devise existante pour un client spécifique.
- * Vérifie si la nouvelle combinaison de devises et l'année entre en conflit avec une autre devise existante.
+ * Vérifie si la nouvelle combinaison de devises et l'année/version entre en conflit avec une autre devise existante.
  * @param clientId L'ID du client propriétaire de la devise.
  * @param currencyId L'ID de la devise à mettre à jour.
  * @param currencyData Les nouvelles données de la devise.
@@ -169,7 +274,7 @@ export const updateCurrency = async (
     );
     
     if (exists) {
-      throw new Error('Cette combinaison de devises pour cette année existe déjà.');
+      throw new Error('Cette combinaison de devises pour cette version existe déjà.');
     }
     
     const currencyRef = doc(db, 'clients', clientId, 'currencies', currencyId);
@@ -180,7 +285,7 @@ export const updateCurrency = async (
         : currencyData.CU_Rate,
       updatedAt: new Date().toISOString(),
     };
-    console.log("FIREBASE: ÉCRITURE - Fichier: [NOM_DU_FICHIER] - Fonction: updateCurrency - Path: clients/${clientId}/currencies/${currencyId}");
+    console.log("FIREBASE: ÉCRITURE - Fichier: currencyService.ts - Fonction: updateCurrency - Path: clients/${clientId}/currencies/${currencyId}");
     await updateDoc(currencyRef, updatedCurrency);
   } catch (error) {
     console.error(`Erreur lors de la mise à jour de la devise ${currencyId}:`, error);
@@ -197,7 +302,7 @@ export const updateCurrency = async (
 export const deleteCurrency = async (clientId: string, currencyId: string): Promise<void> => {
   try {
     const currencyRef = doc(db, 'clients', clientId, 'currencies', currencyId);
-    console.log("FIREBASE: ÉCRITURE - Fichier: [NOM_DU_FICHIER] - Fonction: deleteCurrency - Path: clients/${clientId}/currencies/${currencyId}");
+    console.log("FIREBASE: ÉCRITURE - Fichier: currencyService.ts - Fonction: deleteCurrency - Path: clients/${clientId}/currencies/${currencyId}");
     await deleteDoc(currencyRef);
   } catch (error) {
     console.error(`Erreur lors de la suppression de la devise ${currencyId}:`, error);

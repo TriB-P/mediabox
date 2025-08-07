@@ -1,4 +1,4 @@
-// app/components/Tactiques/TactiqueFormBudget.tsx
+// app/components/Tactiques/Tactiques/TactiqueFormBudget.tsx
 
 /**
  * Ce fichier contient le composant React `TactiqueFormBudget`.
@@ -7,11 +7,12 @@
  * la bonification, et d'appliquer divers frais client.
  * Le composant utilise le hook `useBudgetCalculations` pour encapsuler la logique de calcul complexe
  * et remonte les données formatées au composant parent via la prop `onCalculatedChange`.
+ * MODIFIÉ : Ajout de la sélection de versions de taux de change personnalisées avec persistance.
  */
 
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { FormSection } from './TactiqueFormComponents';
 import BudgetGeneralParams from './BudgetGeneralParams';
 import BudgetMainSection from './BudgetMainSection';
@@ -20,6 +21,14 @@ import BudgetFeesSection from './BudgetFeesSection';
 import BudgetSummarySection from './BudgetSummarySection';
 import { useBudgetCalculations } from '../../../hooks/useBudgetCalculations';
 import { ClientFee } from '../../../lib/budgetService';
+
+// IMPORTS pour la gestion des taux de change par versions
+import {
+  getCurrencyRatesByPair,
+  getCurrencyRateByVersion,
+  hasRatesForCurrencyPair
+} from '../../../lib/currencyService';
+import { Currency } from '../../../types/currency';
 
 interface ListItem {
   id: string;
@@ -41,6 +50,7 @@ interface TactiqueFormBudgetProps {
     TC_Delta?: number;
     TC_Unit_Type?: string;
     TC_Has_Bonus?: boolean;
+    TC_Currency_Version?: string; // NOUVEAU : Version de taux sélectionnée
     [key: string]: any;
   };
   
@@ -57,20 +67,150 @@ interface TactiqueFormBudgetProps {
   loading?: boolean;
 }
 
+// INTERFACE pour les options de taux de change
+interface CurrencyRateOption {
+  id: string;
+  label: string;
+  rate: number;
+  year: string;
+  fromCurrency: string;
+  toCurrency: string;
+}
+
+/**
+ * COMPOSANT : Sélecteur de version de taux de change
+ */
+const CurrencyVersionSelector = memo<{
+  tacticCurrency: string;
+  campaignCurrency: string;
+  availableRates: Currency[];
+  selectedVersion: string;
+  onVersionChange: (version: string) => void;
+  loading: boolean;
+  error: string | null;
+  onTooltipChange: (tooltip: string | null) => void;
+}>(({ 
+  tacticCurrency, 
+  campaignCurrency, 
+  availableRates, 
+  selectedVersion, 
+  onVersionChange, 
+  loading, 
+  error,
+  onTooltipChange 
+}) => {
+
+  const formatRateDisplay = useCallback((rate: Currency) => {
+    return `${rate.CU_Year} (Taux: ${rate.CU_Rate.toFixed(4)})`;
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-sm text-blue-800">Chargement des taux de change...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <span className="text-red-500 text-lg">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-red-800">Taux de change non disponible</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <p className="text-xs text-red-600 mt-2">
+              Veuillez configurer au moins un taux de change pour {tacticCurrency} → {campaignCurrency} dans la section Devises du client.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (availableRates.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <span className="text-yellow-600 text-lg">💱</span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-yellow-800">Conversion de devise requise</p>
+            <p className="text-sm text-yellow-700 mt-1">
+              La devise d'achat ({tacticCurrency}) diffère de la devise de campagne ({campaignCurrency}). 
+              Veuillez sélectionner la version de taux à utiliser.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="currency-version-select" className="block text-sm font-medium text-gray-700 mb-2">
+          Version du taux de change à utiliser *
+          <button
+            type="button"
+            onMouseEnter={() => onTooltipChange('Sélectionnez la version du taux de change à appliquer pour convertir le budget de la devise d\'achat vers la devise de campagne.')}
+            onMouseLeave={() => onTooltipChange(null)}
+            className="ml-2 text-indigo-600 hover:text-indigo-800"
+          >
+            ℹ️
+          </button>
+        </label>
+        
+        <select
+          id="currency-version-select"
+          value={selectedVersion}
+          onChange={(e) => onVersionChange(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+        >
+          <option value="">Sélectionner une version de taux...</option>
+          {availableRates.map(rate => (
+            <option key={rate.id} value={rate.CU_Year}>
+              {formatRateDisplay(rate)}
+            </option>
+          ))}
+        </select>
+        
+        {!selectedVersion && (
+          <div className="mt-2 text-sm text-red-600">
+            ⚠️ Veuillez sélectionner une version de taux pour continuer
+          </div>
+        )}
+      </div>
+
+      {selectedVersion && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-green-600">✅</span>
+            <div className="text-sm">
+              <span className="font-medium text-green-800">Taux sélectionné :</span>
+              <span className="text-green-700 ml-1">
+                {availableRates.find(r => r.CU_Year === selectedVersion)?.CU_Rate.toFixed(4)} 
+                ({tacticCurrency} → {campaignCurrency})
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+CurrencyVersionSelector.displayName = 'CurrencyVersionSelector';
+
 /**
  * Composant principal du formulaire de budget pour une tactique.
- * @param {TactiqueFormBudgetProps} props - Les propriétés du composant.
- * @param {object} props.formData - Les données initiales du formulaire pour la tactique.
- * @param {object} props.dynamicLists - Listes de valeurs dynamiques pour les menus déroulants (ex: types d'unité).
- * @param {ClientFee[]} props.clientFees - Un tableau des frais configurés pour le client.
- * @param {string} props.campaignCurrency - La devise par défaut de la campagne.
- * @param {object} props.exchangeRates - Les taux de change disponibles.
- * @param {string} [props.clientId] - L'identifiant du client pour récupérer le guide de coûts.
- * @param {Function} props.onChange - Callback déclenché lors d'un changement sur un champ de formulaire standard.
- * @param {Function} props.onCalculatedChange - Callback pour remonter les données calculées et formatées au parent.
- * @param {Function} props.onTooltipChange - Callback pour afficher des infobulles d'aide.
- * @param {boolean} [props.loading=false] - Indique si le composant est en état de chargement.
- * @returns {React.ReactElement} Le formulaire de budget.
  */
 const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   formData,
@@ -86,6 +226,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 }) => {
   
   const unitTypeOptions = dynamicLists.TC_Unit_Type || [];
+
+  // ÉTATS pour la gestion des taux de change par versions (SUPPRIMÉ selectedCurrencyVersion)
+  const [availableCurrencyRates, setAvailableCurrencyRates] = useState<Currency[]>([]);
+  const [currencyConversionError, setCurrencyConversionError] = useState<string | null>(null);
+  const [loadingCurrencyRates, setLoadingCurrencyRates] = useState(false);
   
   const {
     budgetData,
@@ -123,11 +268,158 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 
   const calculatedMediaBudget = budgetData.TC_Media_Budget || 0;
 
+  /**
+   * NOUVELLES FONCTIONS pour la persistance de la version de taux
+   */
 
+  /**
+   * Obtient la version de taux actuellement sélectionnée depuis les données du formulaire
+   */
+  const getSelectedCurrencyVersion = useCallback((): string => {
+    return (formData as any).TC_Currency_Version || '';
+  }, [formData.TC_Currency_Version]);
+
+  /**
+   * Vérifie si une conversion de devise est nécessaire
+   */
+  const needsCurrencyConversion = useCallback((tacticCurrency: string, campaignCurrency: string): boolean => {
+    if (!tacticCurrency || !campaignCurrency) return false;
+    return tacticCurrency !== campaignCurrency;
+  }, []);
+
+
+
+  // CORRECTION : Utiliser useRef pour stabiliser onCalculatedChange
+  const onCalculatedChangeRef = useRef(onCalculatedChange);
+  useEffect(() => {
+    onCalculatedChangeRef.current = onCalculatedChange;
+  }, [onCalculatedChange]);
+
+  /**
+   * Charge les taux de change disponibles pour une paire de devises spécifique
+   */
+  const loadCurrencyRatesForPair = useCallback(async (fromCurrency: string, toCurrency: string) => {
+    if (!clientId || !needsCurrencyConversion(fromCurrency, toCurrency)) {
+      return;
+    }
+
+    try {
+      setLoadingCurrencyRates(true);
+      setCurrencyConversionError(null);
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueFormBudget.tsx - Fonction: loadCurrencyRatesForPair - Path: clients/${clientId}/currencies - Pair: ${fromCurrency} -> ${toCurrency}`);
+      
+      const rates = await getCurrencyRatesByPair(clientId, fromCurrency, toCurrency);
+      
+      if (rates.length === 0) {
+        setCurrencyConversionError(`Aucun taux de change configuré pour ${fromCurrency} → ${toCurrency}`);
+        setAvailableCurrencyRates([]);
+      } else {
+        setAvailableCurrencyRates(rates);
+        
+        // CORRECTION : Simplifier la logique pour éviter les appels en cascade
+        const currentSelectedVersion = (formData as any).TC_Currency_Version || '';
+        
+        if (!currentSelectedVersion && rates.length > 0) {
+          // Auto-sélectionner la première version seulement si aucune n'est sauvegardée
+          const firstRate = rates[0];
+          
+          // Appliquer le taux directement sans passer par setSelectedCurrencyVersion
+          updateField('TC_Currency_Rate' as any, firstRate.CU_Rate);
+          onCalculatedChangeRef.current({
+            TC_Currency_Version: firstRate.CU_Year,
+            TC_Currency_Rate: firstRate.CU_Rate
+          });
+        } else if (currentSelectedVersion) {
+          // Vérifier que la version sauvegardée existe et appliquer son taux
+          const savedRate = rates.find(r => r.CU_Year === currentSelectedVersion);
+          if (savedRate) {
+            updateField('TC_Currency_Rate' as any, savedRate.CU_Rate);
+          } else {
+            // La version sauvegardée n'existe plus, prendre la première disponible
+            const firstRate = rates[0];
+            updateField('TC_Currency_Rate' as any, firstRate.CU_Rate);
+            onCalculatedChangeRef.current({
+              TC_Currency_Version: firstRate.CU_Year,
+              TC_Currency_Rate: firstRate.CU_Rate
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Erreur lors du chargement des taux ${fromCurrency} -> ${toCurrency}:`, error);
+      setCurrencyConversionError(`Erreur lors du chargement des taux de change pour ${fromCurrency} → ${toCurrency}`);
+      setAvailableCurrencyRates([]);
+    } finally {
+      setLoadingCurrencyRates(false);
+    }
+  }, [clientId, formData.TC_Currency_Version, updateField]); // CORRECTION : onCalculatedChange retiré des dépendances
+
+  /**
+   * Gère le changement de version de taux de change sélectionnée
+   */
+  const handleCurrencyVersionChange = useCallback(async (version: string) => {
+    if (!clientId || !version) return;
+
+    const tacticCurrency = budgetData.TC_BuyCurrency;
+    if (!tacticCurrency || !campaignCurrency) return;
+
+    try {
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueFormBudget.tsx - Fonction: handleCurrencyVersionChange - Path: clients/${clientId}/currencies - Version: ${version}`);
+      
+      const rateData = await getCurrencyRateByVersion(
+        clientId,
+        tacticCurrency,
+        campaignCurrency,
+        version
+      );
+
+      if (rateData) {
+        // CORRECTION : Appliquer le taux et sauvegarder la version en une seule fois
+        updateField('TC_Currency_Rate' as any, rateData.CU_Rate);
+        onCalculatedChangeRef.current({
+          TC_Currency_Version: version,
+          TC_Currency_Rate: rateData.CU_Rate
+        });
+        setCurrencyConversionError(null);
+      } else {
+        setCurrencyConversionError(`Taux de change non trouvé pour la version "${version}"`);
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'application du taux de change:', error);
+      setCurrencyConversionError(`Erreur lors de l'application du taux de change pour "${version}"`);
+    }
+  }, [clientId, budgetData.TC_BuyCurrency, campaignCurrency, updateField]); // CORRECTION : Référence stable
+
+  /**
+   * EFFET pour surveiller les changements de devise d'achat
+   */
+  useEffect(() => {
+    const tacticCurrency = budgetData.TC_BuyCurrency;
+    
+    if (tacticCurrency && campaignCurrency && needsCurrencyConversion(tacticCurrency, campaignCurrency)) {
+      loadCurrencyRatesForPair(tacticCurrency, campaignCurrency);
+    } else {
+      // Nettoyer les erreurs et sélections si pas de conversion nécessaire
+      setCurrencyConversionError(null);
+      setAvailableCurrencyRates([]);
+      
+      // CORRECTION : Nettoyer TC_Currency_Version seulement si elle existe pour éviter la boucle
+      const currentVersion = (formData as any).TC_Currency_Version || '';
+      if (currentVersion) {
+        onCalculatedChangeRef.current({
+          TC_Currency_Version: ''
+        });
+      }
+    }
+  }, [budgetData.TC_BuyCurrency, campaignCurrency, loadCurrencyRatesForPair, formData.TC_Currency_Version]); // CORRECTION : Reference stable
+
+  /**
+   * LOGIQUE EXISTANTE (inchangée)
+   */
   useEffect(() => {
     const dataForParent = getDataForFirestore();
     
-    // NOUVEAU : Calculer TOUJOURS les budgets en devise de référence
+    // Calculer TOUJOURS les budgets en devise de référence
     const currency = budgetData.TC_BuyCurrency;
     const effectiveRate = budgetData.TC_Currency_Rate || 1;
     const needsConversion = currency !== campaignCurrency;
@@ -149,23 +441,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     onCalculatedChange(enhancedData);
   }, [budgetData, getDataForFirestore, onCalculatedChange, calculatedMediaBudget, campaignCurrency]);
   
-
-  /**
-   * Gère le changement d'une valeur d'un champ unique du hook de calcul.
-   * @param {string} field - Le nom du champ à mettre à jour.
-   * @param {any} value - La nouvelle valeur du champ.
-   * @returns {void}
-   */
   const handleFieldChange = useCallback((field: string, value: any) => {
     const mappedField = mapLegacyFieldName(field);
     updateField(mappedField as any, value);
   }, [updateField]);
 
-  /**
-   * Gère les changements provenant des éléments de formulaire HTML natifs (input, select).
-   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
-   * @returns {void}
-   */
   const handleFormChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -181,11 +461,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     handleFieldChange(name, processedValue);
   }, [onChange, handleFieldChange]);
 
-  /**
-   * Gère l'activation ou la désactivation de la section bonification.
-   * @param {boolean} hasBonus - Indique si la bonification est activée.
-   * @returns {void}
-   */
   const handleBonusToggle = useCallback((hasBonus: boolean) => {
     setBonusIntention(hasBonus);
     
@@ -201,12 +476,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     }
   }, [budgetData.TC_Media_Value, updateMultipleFields]);
 
-  /**
-   * Gère l'activation ou la désactivation d'un frais spécifique.
-   * @param {string} feeId - L'ID du frais à basculer.
-   * @param {boolean} isActive - Le nouvel état d'activité du frais.
-   * @returns {void}
-   */
   const handleToggleFee = useCallback((feeId: string, isActive: boolean) => {
     setFeeIntentions(prev => ({
       ...prev,
@@ -238,8 +507,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     
     updateMultipleFields(updates);
   }, [clientFees, updateMultipleFields]);
-
-  
   
   const calculatedTotalFees = useMemo(() => {
     let total = 0;
@@ -314,11 +581,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     });
   }, [budgetData, clientFees, feeIntentions]);
 
-  /**
-   * Met à jour l'état des frais appliqués en fonction des interactions de l'utilisateur.
-   * @param {any} value - La nouvelle structure des frais appliqués, ou une fonction pour la mettre à jour.
-   * @returns {void}
-   */
   const setAppliedFees = useCallback((value: any) => {
     const newAppliedFees = typeof value === 'function' ? value(appliedFees) : value;
     
@@ -414,6 +676,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     };
   }, [budgetData, calculatedMediaBudget, calculatedTotalFees, campaignCurrency, lastResult]);
 
+  // Vérifier si la devise nécessite une sélection de version
+  const shouldShowCurrencyVersionSelector = useMemo(() => {
+    const tacticCurrency = budgetData.TC_BuyCurrency;
+    return needsCurrencyConversion(tacticCurrency, campaignCurrency);
+  }, [budgetData.TC_BuyCurrency, campaignCurrency, needsCurrencyConversion]);
+
   return (
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
@@ -461,6 +729,25 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         unitTypeOptions={unitTypeOptions}
         disabled={loading}
       />
+
+      {/* SECTION : Sélecteur de version de taux de change */}
+      {shouldShowCurrencyVersionSelector && (
+        <FormSection 
+          title="Conversion de devise"
+          description="Sélection du taux de change à appliquer"
+        >
+          <CurrencyVersionSelector
+            tacticCurrency={budgetData.TC_BuyCurrency}
+            campaignCurrency={campaignCurrency}
+            availableRates={availableCurrencyRates}
+            selectedVersion={getSelectedCurrencyVersion()} // MODIFIÉ : utiliser la fonction
+            onVersionChange={handleCurrencyVersionChange}
+            loading={loadingCurrencyRates}
+            error={currencyConversionError}
+            onTooltipChange={onTooltipChange}
+          />
+        </FormSection>
+      )}
 
       <FormSection 
         title="Budget principal"
@@ -566,6 +853,16 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
               <div>Bonus Intention: {bonusIntention.toString()}</div>
               <div>Fee Intentions: {JSON.stringify(feeIntentions)}</div>
             </div>
+
+            {/* Debug des taux de change */}
+            <div className="border-t pt-2 mt-2">
+              <div className="font-medium text-gray-800">Debug Currency Rates:</div>
+              <div>Needs Conversion: {shouldShowCurrencyVersionSelector.toString()}</div>
+              <div>Available Rates: {availableCurrencyRates.length}</div>
+              <div>Selected Version: {getSelectedCurrencyVersion()}</div> {/* MODIFIÉ : utiliser la fonction */}
+              <div>Currency Error: {currencyConversionError || 'None'}</div>
+              <div>Loading Rates: {loadingCurrencyRates.toString()}</div>
+            </div>
           </div>
         </div>
       )}
@@ -574,17 +871,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">Chargement des données budgétaires...</p>
         </div>
-        )}
+      )}
     </div>
   );
 });
 
-
 /**
  * Mappe les anciens noms de champs de formulaire vers les nouveaux noms utilisés par le hook `useBudgetCalculations`.
- * Assure la rétrocompatibilité lors de la gestion des changements de champs.
- * @param {string} field - L'ancien nom du champ.
- * @returns {string} Le nouveau nom du champ, ou l'ancien nom si aucune correspondance n'est trouvée.
  */
 function mapLegacyFieldName(field: string): string {
   const mapping: Record<string, string> = {

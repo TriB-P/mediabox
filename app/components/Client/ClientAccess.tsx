@@ -1,10 +1,11 @@
+// app/components/Client/ClientAccess.tsx
 /**
  * Ce fichier contient le composant React `ClientAccess`.
  * Ce composant a pour rôle de gérer les permissions d'accès des utilisateurs à un client spécifique.
  * Il permet d'afficher la liste des utilisateurs ayant déjà un accès, d'ajouter de nouveaux accès,
  * de modifier les droits existants (par exemple, passer un utilisateur d'un rôle "Utilisateur" à "Éditeur"),
  * et de révoquer l'accès d'un utilisateur.
- * Le composant interagit avec Firebase pour récupérer les listes d'utilisateurs et pour mettre à jour les permissions.
+ * Le composant interagit avec Firebase pour récupérer les listes d'utilisateurs (actifs + invités) et pour mettre à jour les permissions.
  */
 'use client';
 
@@ -12,20 +13,21 @@ import React, { useState, useEffect, Fragment } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { 
-  getAllUsers, 
   getClientUsers, 
   addUserAccess, 
   updateUserAccess, 
   removeUserAccess,
-  User,
   UserAccess
 } from '../../lib/userService';
+import { getAllUsersWithStatus, UserWithStatus } from '../../lib/invitationService';
 import { Dialog } from '@headlessui/react';
 import { 
   PencilIcon, 
   TrashIcon,
   XMarkIcon,
-  UserPlusIcon 
+  UserPlusIcon,
+  CheckCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../contexts/LanguageContext';
 
@@ -44,7 +46,7 @@ const ClientAccess: React.FC = () => {
 
   const { selectedClient } = useClient();
   const { canPerformAction } = usePermissions();
-  const [users, setUsers] = useState<User[]>([]);
+  const [usersWithStatus, setUsersWithStatus] = useState<UserWithStatus[]>([]);
   const [clientUsers, setClientUsers] = useState<UserAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +57,11 @@ const ClientAccess: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserAccess | null>(null);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithStatus | null>(null);
   const [selectedAccessLevel, setSelectedAccessLevel] = useState(ACCESS_LEVELS[1]);
   const [note, setNote] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   useEffect(() => {
     if (selectedClient) {
@@ -66,8 +69,23 @@ const ClientAccess: React.FC = () => {
     }
   }, [selectedClient]);
 
+  // Fermer le drop down quand on clique à l'extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isDropdownOpen && !target.closest('.user-dropdown')) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   /**
-   * Charge les données depuis Firebase : la liste de tous les utilisateurs du système
+   * Charge les données depuis Firebase : la liste de tous les utilisateurs du système (actifs + invités)
    * et la liste des utilisateurs ayant un accès spécifique au client sélectionné.
    * @async
    * @returns {Promise<void>}
@@ -79,9 +97,9 @@ const ClientAccess: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      console.log("FIREBASE: [LECTURE] - Fichier: ClientAccess.tsx - Fonction: loadData - Path: users");
-      const allUsers = await getAllUsers();
-      setUsers(allUsers);
+      console.log("FIREBASE: [LECTURE] - Fichier: ClientAccess.tsx - Fonction: loadData - Path: users + invitations");
+      const allUsersWithStatus = await getAllUsersWithStatus();
+      setUsersWithStatus(allUsersWithStatus);
       
       console.log(`FIREBASE: [LECTURE] - Fichier: ClientAccess.tsx - Fonction: loadData - Path: clients/${selectedClient.clientId}/userAccess`);
       const clientUsersList = await getClientUsers(selectedClient.clientId);
@@ -109,6 +127,7 @@ const ClientAccess: React.FC = () => {
     setSelectedAccessLevel(ACCESS_LEVELS[1]);
     setNote('');
     setUserSearchQuery('');
+    setIsDropdownOpen(false);
     setIsModalOpen(true);
   };
   
@@ -138,6 +157,9 @@ const ClientAccess: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentUser(null);
+    setIsDropdownOpen(false);
+    setSelectedUser(null);
+    setUserSearchQuery('');
   };
 
   /**
@@ -238,8 +260,41 @@ const ClientAccess: React.FC = () => {
     }
   };
   
-  const filteredUsers = users.filter(user => {
-    if (!userSearchQuery) return true;
+  /**
+   * Retourne le badge de statut approprié pour un utilisateur
+   * @param {UserWithStatus['status']} status - Le statut de l'utilisateur
+   * @returns {JSX.Element} Badge JSX avec icône et texte
+   */
+  const getUserStatusBadge = (status: UserWithStatus['status']) => {
+    switch (status) {
+      case 'active':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <CheckCircleIcon className="w-3 h-3 mr-1" />
+            Actif
+          </span>
+        );
+      case 'invited':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Invité
+          </span>
+        );
+      case 'expired':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <XMarkIcon className="w-3 h-3 mr-1" />
+            Expiré
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  const filteredUsers = usersWithStatus.filter(user => {
+    if (!userSearchQuery.trim()) return true;
     
     const searchLower = userSearchQuery.toLowerCase();
     return (
@@ -248,8 +303,10 @@ const ClientAccess: React.FC = () => {
     );
   });
   
+  // Filtrer pour exclure les utilisateurs qui ont déjà un accès et les invitations expirées
   const availableUsers = filteredUsers.filter(user => 
-    !clientUsers.some(clientUser => clientUser.userEmail === user.email)
+    !clientUsers.some(clientUser => clientUser.userEmail === user.email) &&
+    user.status !== 'expired'
   );
 
   if (!selectedClient) {
@@ -347,8 +404,11 @@ const ClientAccess: React.FC = () => {
                           )}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.displayName}
+                          <div className="flex items-center space-x-2">
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.displayName}
+                            </div>
+                            {user.status && getUserStatusBadge(user.status)}
                           </div>
                           <div className="text-sm text-gray-500">
                             {user.userEmail}
@@ -432,69 +492,128 @@ const ClientAccess: React.FC = () => {
                         {t('clientAccess.form.label.selectUser')}
                       </label>
                       
-                      <div className="mb-2">
+                      <div className="relative user-dropdown">
                         <input
                           type="text"
                           className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                          placeholder={t('clientAccess.form.placeholder.filterUsers')}
-                          value={userSearchQuery}
-                          onChange={(e) => setUserSearchQuery(e.target.value)}
-                        />
-                      </div>
-                      
-                      <div className="relative">
-                        <select
-                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                          value={selectedUser?.id || ""}
+                          placeholder="Rechercher un utilisateur..."
+                          value={selectedUser ? `${selectedUser.displayName} (${selectedUser.email})` : userSearchQuery}
                           onChange={(e) => {
-                            const selectedUserId = e.target.value;
-                            const user = users.find(u => u.id === selectedUserId);
-                            setSelectedUser(user || null);
+                            if (!selectedUser) {
+                              setUserSearchQuery(e.target.value);
+                            }
+                            setIsDropdownOpen(true);
                           }}
-                        >
-                          <option value="">{t('clientAccess.form.option.selectUser')}</option>
-                          {availableUsers.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.displayName} ({user.email})
-                            </option>
-                          ))}
-                        </select>
+                          onFocus={() => {
+                            if (!selectedUser) {
+                              setIsDropdownOpen(true);
+                            }
+                          }}
+                          onClick={() => {
+                            if (selectedUser) {
+                              setSelectedUser(null);
+                              setUserSearchQuery('');
+                              setIsDropdownOpen(true);
+                            }
+                          }}
+                        />
+                        
+                        {isDropdownOpen && !selectedUser && (
+                          <div className="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                            {availableUsers.length === 0 ? (
+                              <div className="px-4 py-2 text-gray-500 text-sm">
+                                {userSearchQuery ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur disponible'}
+                              </div>
+                            ) : (
+                              availableUsers.map((user) => (
+                                <div
+                                  key={user.id}
+                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setUserSearchQuery('');
+                                    setIsDropdownOpen(false);
+                                  }}
+                                >
+                                  <div className="flex items-center">
+                                    {user.photoURL ? (
+                                      <img
+                                        src={user.photoURL}
+                                        alt=""
+                                        className="h-8 w-8 rounded-full mr-3"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
+                                        <span className="text-sm text-indigo-800">
+                                          {user.displayName.charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium text-gray-900">{user.displayName}</div>
+                                          <div className="text-gray-500 text-sm">{user.email}</div>
+                                        </div>
+                                        {getUserStatusBadge(user.status)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
                       
                       {selectedUser && (
-                        <div className="mt-2 flex items-center bg-gray-50 p-2 rounded-md">
+                        <div className="mt-2 flex items-center bg-gray-50 p-3 rounded-md">
                           {selectedUser.photoURL ? (
                             <img
                               src={selectedUser.photoURL}
                               alt=""
-                              className="h-8 w-8 rounded-full mr-2"
+                              className="h-8 w-8 rounded-full mr-3"
                             />
                           ) : (
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
                               <span className="text-md text-indigo-800">
                                 {selectedUser.displayName.charAt(0).toUpperCase()}
                               </span>
                             </div>
                           )}
-                          <div>
-                            <p className="text-sm font-medium">{selectedUser.displayName}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-medium">{selectedUser.displayName}</p>
+                              {getUserStatusBadge(selectedUser.status)}
+                            </div>
                             <p className="text-xs text-gray-500">{selectedUser.email}</p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedUser(null);
+                              setUserSearchQuery('');
+                              setIsDropdownOpen(false);
+                            }}
+                            className="text-gray-400 hover:text-gray-500 p-1"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
                         </div>
                       )}
                     </div>
                   )}
                   
                   {isEditing && currentUser && (
-                    <div className="mb-4 flex items-center bg-gray-50 p-2 rounded-md">
+                    <div className="mb-4 flex items-center bg-gray-50 p-3 rounded-md">
                       {currentUser.photoURL ? (
                         <img
                           src={currentUser.photoURL}
                           alt=""
-                          className="h-8 w-8 rounded-full mr-2"
+                          className="h-8 w-8 rounded-full mr-3"
                         />
                       ) : (
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
                           <span className="text-md text-indigo-800">
                             {currentUser.displayName.charAt(0).toUpperCase()}
                           </span>
@@ -542,6 +661,18 @@ const ClientAccess: React.FC = () => {
                       placeholder={t('clientAccess.form.placeholder.addNote')}
                     />
                   </div>
+                  
+                  {selectedUser && selectedUser.status === 'invited' && (
+                    <div className="p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-sm">
+                      <div className="flex">
+                        <ClockIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Utilisateur invité</p>
+                          <p className="text-xs mt-1">Cet utilisateur verra ce client dès sa première connexion.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 flex justify-end">

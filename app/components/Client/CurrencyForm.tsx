@@ -1,6 +1,9 @@
+// app/components/Client/CurrencyForm.tsx
+
 /**
  * Ce fichier définit un composant React nommé CurrencyForm.
- * Il s'agit d'un formulaire réutilisable permettant de créer ou de modifier un taux de change entre deux devises pour une année donnée.
+ * Il s'agit d'un formulaire réutilisable permettant de créer ou de modifier un taux de change entre deux devises 
+ * avec une version/année personnalisée (ex: "2025 v1", "2025 v2").
  * Le formulaire est pré-rempli si une devise existante est fournie et gère la soumission et l'annulation via des fonctions passées en props.
  */
 'use client';
@@ -26,11 +29,10 @@ interface CurrencyFormProps {
 const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCancel }) => {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => (currentYear - 5 + i).toString());
   
   const [formData, setFormData] = useState<CurrencyFormData>({
     CU_Rate: 1,
-    CU_Year: currentYear.toString(),
+    CU_Year: currentYear.toString(), // Valeur par défaut : année courante
     CU_From: 'CAD',
     CU_To: 'USD',
   });
@@ -87,19 +89,19 @@ const CurrencyForm: React.FC<CurrencyFormProps> = ({ currency, onSubmit, onCance
           <label htmlFor="CU_Year" className="block text-sm font-medium text-gray-700">
             {t('currencyForm.labels.year')}
           </label>
-          <select
+          <input
+            type="text"
             id="CU_Year"
             name="CU_Year"
             value={formData.CU_Year}
             onChange={handleChange}
+            required
+            placeholder="Ex: 2025, 2025 v1, 2025 Q1..."
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Vous pouvez saisir une version personnalisée (ex: "2025 v1", "2025 v2")
+          </p>
         </div>
 
         <div>

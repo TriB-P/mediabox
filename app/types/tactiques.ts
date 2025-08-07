@@ -92,6 +92,8 @@ export interface Tactique {
 
   // Nouveaux champs Budget
   TC_Currency?: string;           // Devise d'achat (CAD, USD, EUR...)
+  TC_Currency_Version?: string;        // Version de taux sélectionnée (ex: "2025 v1")
+
   TC_Unit_Type?: string;          // Type d'unité (CPM, CPC, etc.)
   TC_Budget_Mode?: 'client' | 'media';  // Mode de saisie
   TC_Cost_Per_Unit?: number;      // Coût par unité
@@ -345,6 +347,7 @@ export interface TactiqueFormData {
   TC_Bonification?: number; // Bonification calculée
   TC_Currency_Rate?: number; // Taux de change appliqué
   TC_BuyCurrency?: string; // Devise d'achat
+  TC_Currency_Version?: string;  
   TC_Delta?: number; // Écart de budget
   TC_Unit_Type?: string; // Type d'unité (CPM, CPC, etc.)
   TC_Has_Bonus?: boolean; // Indicateur de bonification

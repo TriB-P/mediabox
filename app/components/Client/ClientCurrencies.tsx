@@ -1,8 +1,11 @@
+// app/components/Client/ClientCurrencies.tsx
+
 /**
  * Ce fichier définit le composant `ClientCurrencies`, qui est responsable de l'affichage et de la gestion
  * des taux de conversion de devises pour un client sélectionné. Il permet de visualiser, ajouter,
  * modifier et supprimer des taux, tout en gérant les permissions utilisateurs pour ces actions.
  * Le composant interagit avec les services Firebase pour la persistance des données.
+ * MODIFIÉ : Support des versions personnalisées (ex: "2025 v1", "2025 v2") au lieu d'années strictes.
  */
 'use client';
 
@@ -37,7 +40,7 @@ const ClientCurrencies: React.FC = () => {
   const [currentCurrency, setCurrentCurrency] = useState<Currency | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedVersion, setSelectedVersion] = useState<string>('all'); // MODIFIÉ : selectedYear -> selectedVersion
 
   useEffect(() => {
     if (selectedClient) {
@@ -68,17 +71,37 @@ const ClientCurrencies: React.FC = () => {
     }
   };
 
+  // MODIFIÉ : Logique de filtrage adaptée aux versions personnalisées
   const filteredCurrencies = currencies.filter(currency => {
     const searchMatch =
       currency.CU_From.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      currency.CU_To.toLowerCase().includes(searchTerm.toLowerCase());
+      currency.CU_To.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      currency.CU_Year.toLowerCase().includes(searchTerm.toLowerCase()); // NOUVEAU : recherche aussi dans les versions
 
-    const yearMatch = selectedYear === 'all' || currency.CU_Year === selectedYear;
+    const versionMatch = selectedVersion === 'all' || currency.CU_Year === selectedVersion;
 
-    return searchMatch && yearMatch;
+    return searchMatch && versionMatch;
   });
 
-  const uniqueYears = Array.from(new Set(currencies.map(c => c.CU_Year))).sort().reverse();
+  // MODIFIÉ : Génération des versions uniques disponibles
+  const uniqueVersions = Array.from(new Set(currencies.map(c => c.CU_Year)))
+    .sort((a, b) => {
+      // Tri intelligent : d'abord par année extraite, puis par version
+      const extractYear = (version: string) => {
+        const match = version.match(/(\d{4})/);
+        return match ? parseInt(match[1]) : 0;
+      };
+      
+      const yearA = extractYear(a);
+      const yearB = extractYear(b);
+      
+      if (yearA !== yearB) {
+        return yearB - yearA; // Années décroissantes
+      }
+      
+      // Si même année, tri alphabétique inverse (v2 avant v1)
+      return b.localeCompare(a);
+    });
 
   /**
    * Gère l'ajout d'un nouveau taux de conversion dans Firebase.
@@ -154,12 +177,10 @@ const ClientCurrencies: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800">{t('clientCurrencies.header.title')}</h2>
 
           <div className="flex items-center gap-2">
-
-
             <div className="relative">
               <input
                 type="text"
-                placeholder={t('clientCurrencies.filters.searchPlaceholder')}
+                placeholder="Rechercher devises ou versions..." // MODIFIÉ : placeholder plus inclusif
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -175,13 +196,13 @@ const ClientCurrencies: React.FC = () => {
             </div>
 
             <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              value={selectedVersion} // MODIFIÉ : selectedYear -> selectedVersion
+              onChange={(e) => setSelectedVersion(e.target.value)} // MODIFIÉ : setSelectedYear -> setSelectedVersion
               className="border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
-              <option value="all">{t('clientCurrencies.filters.allYears')}</option>
-              {uniqueYears.map(year => (
-                <option key={year} value={year}>{year}</option>
+              <option value="all">Toutes les versions</option> {/* MODIFIÉ : libellé */}
+              {uniqueVersions.map(version => (
+                <option key={version} value={version}>{version}</option> // MODIFIÉ : year -> version
               ))}
             </select>
 
@@ -220,7 +241,10 @@ const ClientCurrencies: React.FC = () => {
         ) : filteredCurrencies.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
             {currencies.length === 0 ? (
-              <p>{t('clientCurrencies.messages.noRatesConfigured')}</p>
+              <div>
+                <p className="font-medium">Aucun taux de change configuré</p>
+                <p className="text-sm mt-1">Ajoutez des taux de change avec des versions personnalisées (ex: "2025 v1", "2025 v2")</p>
+              </div>
             ) : (
               <p>{t('clientCurrencies.messages.noFilterResults')}</p>
             )}
@@ -231,7 +255,7 @@ const ClientCurrencies: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('clientCurrencies.table.year')}
+                    Version {/* MODIFIÉ : Année -> Version */}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('clientCurrencies.table.from')}
@@ -251,16 +275,18 @@ const ClientCurrencies: React.FC = () => {
                 {filteredCurrencies.map((currency) => (
                   <tr key={currency.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {currency.CU_Year}
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {currency.CU_Year} {/* Affichage avec badge pour mettre en évidence les versions */}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {currency.CU_From}
+                      <span className="font-mono font-medium">{currency.CU_From}</span> {/* NOUVEAU : style monospace pour devises */}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {currency.CU_To}
+                      <span className="font-mono font-medium">{currency.CU_To}</span> {/* NOUVEAU : style monospace pour devises */}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {currency.CU_Rate.toFixed(4)}
+                      <span className="font-mono">{currency.CU_Rate.toFixed(4)}</span> {/* NOUVEAU : style monospace pour taux */}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
@@ -303,6 +329,26 @@ const ClientCurrencies: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* NOUVEAU : Affichage d'information sur les versions personnalisées */}
+        {currencies.length > 0 && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <span className="text-blue-500">💡</span>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Versions personnalisées</strong>
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Vous pouvez créer des versions comme "2025 v1", "2025 v2" ou "2025 Q1" pour gérer plusieurs taux 
+                  pour une même paire de devises. Cela permet de choisir précisément quel taux utiliser lors de la création des tactiques.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@
  * - Si non configurée → Masqué
  * VERSION VALIDATION : Ajout de la validation des champs obligatoires
  * VERSION TAGS : Ajout du nouvel onglet Tags avec TC_Buy_Type, TC_CM360_Volume et TC_CM360_Rate
+ * VERSION CURRENCY : Ajout du support des versions personnalisées de taux de change
  */
 'use client';
 
@@ -21,7 +22,7 @@ import TactiqueFormKPI from './TactiqueFormKPI';
 import TactiqueFormBudget from './TactiqueFormBudget';
 import TactiqueFormAdmin from './TactiqueFormAdmin';
 import TactiqueFormRepartition from './TactiqueFormRepartition';
-import TactiqueFormTags from './TactiqueFormTags';  // NOUVEAU IMPORT
+import TactiqueFormTags from './TactiqueFormTags';
 import { TooltipBanner } from './TactiqueFormComponents';
 import {
   DocumentTextIcon,
@@ -30,7 +31,7 @@ import {
   CurrencyDollarIcon,
   CogIcon,
   CalendarDaysIcon,
-  TagIcon,  // NOUVEAU ICÔNE
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../../types/tactiques';
 import { Breakdown } from '../../../types/breakdown';
@@ -87,7 +88,7 @@ interface TactiqueDrawerProps {
   onClose: () => void;
   tactique?: Tactique | null;
   sectionId: string;
-  mode: 'create' | 'edit';  // 👈 AJOUT
+  mode: 'create' | 'edit';
   onSave: (tactiqueData: TactiqueFormData) => Promise<void>;
 }
 
@@ -121,7 +122,7 @@ interface ValidationErrors {
   [fieldName: string]: string;
 }
 
-// NOUVEAU : Interface pour distinguer les dimensions configurées de celles ayant des listes
+// Interface pour distinguer les dimensions configurées de celles ayant des listes
 interface CustomDimensionsState {
   configured: {
     TC_Custom_Dim_1?: string;
@@ -137,7 +138,6 @@ interface CustomDimensionsState {
 
 /**
  * Fonction de validation des champs obligatoires
- * MODIFIÉE : Ajout de validation spéciale pour TC_CM360_Volume > 0
  * @param formData - Les données du formulaire à valider
  * @returns Un objet contenant les erreurs de validation (vide si tout est valide)
  */
@@ -152,8 +152,6 @@ const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors =>
       errors[field] = `Le champ "${label}" est obligatoire.`;
     }
   });
-
-
   
   return errors;
 };
@@ -173,73 +171,12 @@ const getFirstErrorTab = (errors: ValidationErrors): string | null => {
   return null;
 };
 
-/**
- * Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
- */
-const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
-  try {
-    console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
-    
-    const cachedList = getListForClient(fieldId, clientId);
-    
-    if (cachedList && cachedList.length > 0) {
-      console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
-      
-      return cachedList.map(item => ({
-        id: item.id,
-        SH_Code: item.SH_Code,
-        SH_Display_Name_FR: item.SH_Display_Name_FR,
-        SH_Display_Name_EN: item.SH_Display_Name_EN,
-        SH_Default_UTM: item.SH_Default_UTM,
-        SH_Logo: item.SH_Logo,
-        SH_Type: item.SH_Type,
-        SH_Tags: item.SH_Tags
-      }));
-    }
-    
-    console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
-    return await getDynamicList(fieldId, clientId);
-    
-  } catch (error) {
-    console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
-    
-    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
-    return await getDynamicList(fieldId, clientId);
-  }
-};
-
-/**
- * Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
- */
-const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<boolean> => {
-  try {
-    const cachedList = getListForClient(fieldId, clientId);
-    
-    if (cachedList !== null) {
-      const hasItems = cachedList.length > 0;
-      console.log(`[CACHE] ${fieldId} existe dans le cache: ${hasItems}`);
-      return hasItems;
-    }
-    
-    console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
-    return await hasDynamicList(fieldId, clientId);
-    
-  } catch (error) {
-    console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
-    
-    console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
-    return await hasDynamicList(fieldId, clientId);
-  }
-};
 
 
 const round2 = (val: any) => val ? Math.round(Number(val) * 100) / 100 : 0;
 
 /**
  * Convertit un objet tactique provenant de Firestore en un format adapté au formulaire.
- * MODIFIÉE : Ajout des nouveaux champs Tags
  */
 const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
   const baseData = {
@@ -277,12 +214,12 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Placement: tactique.TC_Placement || '',
     TC_Format: tactique.TC_Format || '',
     
-    // NOUVEAUX CHAMPS TAGS
+    // CHAMPS TAGS
     TC_Buy_Type: tactique.TC_Buy_Type || '',
     TC_CM360_Volume: tactique.TC_CM360_Volume || 0,
     TC_CM360_Rate: tactique.TC_CM360_Rate || 0,
     
-    // CORRECTION BUDGET : Charger tous les champs budgétaires
+    // CHAMPS BUDGÉTAIRES
     TC_Media_Budget: tactique.TC_Media_Budget || 0,
     TC_Client_Budget: tactique.TC_Client_Budget || 0,
     TC_Budget_Mode: tactique.TC_Budget_Mode || 'client',
@@ -296,12 +233,14 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Delta: tactique.TC_Delta || 0,
     TC_Unit_Type: tactique.TC_Unit_Type || '',
     TC_Has_Bonus: tactique.TC_Has_Bonus || false,
+    TC_Currency_Version: tactique.TC_Currency_Version || '',
 
-    // NOUVEAU : Charger les budgets en devise de référence (toujours présents)
+
+    // Budgets en devise de référence
     TC_Client_Budget_RefCurrency: tactique.TC_Client_Budget_RefCurrency || 0,
     TC_Media_Budget_RefCurrency: tactique.TC_Media_Budget_RefCurrency || 0,
     
-    // CORRECTION FRAIS : Charger les frais appliqués
+    // FRAIS
     TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
     TC_Fee_1_Volume: tactique.TC_Fee_1_Volume || 0,
     TC_Fee_1_Value: tactique.TC_Fee_1_Value || 0,
@@ -318,7 +257,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Fee_5_Volume: tactique.TC_Fee_5_Volume || 0,
     TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
     
-    // Conserver les autres champs dynamiques
+    // Autres champs dynamiques
     ...Object.fromEntries(
       Object.entries(tactique).filter(([key]) =>
         key.startsWith('TC_Budget') ||
@@ -337,7 +276,6 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
       )
     )
   };
-
 
   if (tactique.breakdowns) {
     baseData.breakdowns = tactique.breakdowns;
@@ -358,7 +296,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
   return {
     ...formData,
     
-    // CORRECTION : Budgets arrondis à 2 décimales
+    // Budgets arrondis à 2 décimales
     TC_Budget: round2(formDataAny.TC_Client_Budget || formData.TC_Budget),
     TC_Media_Budget: round2(formDataAny.TC_Media_Budget),
     TC_Client_Budget: round2(formDataAny.TC_Client_Budget),
@@ -374,6 +312,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     TC_Bonification: round2(formDataAny.TC_Bonification),
     TC_Currency_Rate: round2(formDataAny.TC_Currency_Rate) || 1,
     TC_Delta: round2(formDataAny.TC_Delta),
+    TC_Currency_Version: formDataAny.TC_Currency_Version || '',
     
     // Autres champs non-numériques
     TC_Budget_Mode: formDataAny.TC_Budget_Mode,
@@ -429,12 +368,10 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Budget_Mode: 'media',
   TC_BuyCurrency: 'CAD',
   TC_Unit_Type:'SH_48HPEEYW',
-
 });
 
 /**
- * Composant principal TactiqueDrawer CORRIGÉ pour les dimensions personnalisées et avec validation.
- * MODIFIÉ : Ajout de l'onglet Tags
+ * Composant principal TactiqueDrawer
  */
 export default function TactiqueDrawer({
   isOpen,
@@ -468,7 +405,6 @@ export default function TactiqueDrawer({
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
   
-  // MODIFIÉ : Séparer les dimensions configurées de celles ayant des listes
   const [customDimensions, setCustomDimensions] = useState<CustomDimensionsState>({
     configured: {},
     hasLists: {
@@ -488,10 +424,9 @@ export default function TactiqueDrawer({
   const [campaignCurrency, setCampaignCurrency] = useState('CAD');
   const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
   
-  // NOUVEAU : État pour les erreurs de validation
+  // État pour les erreurs de validation
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
-  // MODIFIÉ : Ajout de l'onglet Tags
   const tabs: FormTab[] = useMemo(() => [
     { id: 'info', name: 'Info', icon: DocumentTextIcon },
     { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
@@ -499,16 +434,75 @@ export default function TactiqueDrawer({
     { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
     { id: 'repartition', name: 'Répartition', icon: CalendarDaysIcon },
     { id: 'admin', name: 'Admin', icon: CogIcon },
-    { id: 'tags', name: 'Tags', icon: TagIcon }, // NOUVEAU ONGLET TAGS
-
+    { id: 'tags', name: 'Tags', icon: TagIcon },
   ], []);
 
-  // MODIFIÉ : Exclure les dimensions personnalisées de cette liste car elles sont traitées séparément
   const dynamicListFields = useMemo(() => [
     'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 
     'TC_Inventory', 'TC_Market', 'TC_Language_Open',
     'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);
+
+  /**
+   * Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
+   */
+  const getCachedOrFirebaseList = useCallback(async (fieldId: string, clientId: string): Promise<ListItem[]> => {
+    try {
+      console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
+      
+      const cachedList = getListForClient(fieldId, clientId);
+      
+      if (cachedList && cachedList.length > 0) {
+        console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
+        
+        return cachedList.map(item => ({
+          id: item.id,
+          SH_Code: item.SH_Code,
+          SH_Display_Name_FR: item.SH_Display_Name_FR,
+          SH_Display_Name_EN: item.SH_Display_Name_EN,
+          SH_Default_UTM: item.SH_Default_UTM,
+          SH_Logo: item.SH_Logo,
+          SH_Type: item.SH_Type,
+          SH_Tags: item.SH_Tags
+        }));
+      }
+      
+      console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+      return await getDynamicList(fieldId, clientId);
+      
+    } catch (error) {
+      console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
+      
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+      return await getDynamicList(fieldId, clientId);
+    }
+  }, []);
+
+  /**
+   * Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
+   */
+  const hasCachedOrFirebaseList = useCallback(async (fieldId: string, clientId: string): Promise<boolean> => {
+    try {
+      const cachedList = getListForClient(fieldId, clientId);
+      
+      if (cachedList !== null) {
+        const hasItems = cachedList.length > 0;
+        console.log(`[CACHE] ${fieldId} existe dans le cache: ${hasItems}`);
+        return hasItems;
+      }
+      
+      console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
+      return await hasDynamicList(fieldId, clientId);
+      
+    } catch (error) {
+      console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
+      
+      console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+      return await hasDynamicList(fieldId, clientId);
+    }
+  }, []);
 
   useEffect(() => {
     // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
@@ -532,7 +526,7 @@ export default function TactiqueDrawer({
 
   useEffect(() => {
     if (mode === 'edit' && tactique) {
-      // ✅ Mode édition - charger les données existantes
+      // Mode édition - charger les données existantes
       const mappedFormData = mapTactiqueToForm(tactique);
       setFormData(mappedFormData);
 
@@ -556,7 +550,7 @@ export default function TactiqueDrawer({
       setActiveTab('info');
       setIsDirty(false);
     } else if (mode === 'create') {
-      // ✅ Mode création - données par défaut
+      // Mode création - données par défaut
       setFormData({
         ...getDefaultFormData(),
         TC_SectionId: sectionId,
@@ -575,7 +569,7 @@ export default function TactiqueDrawer({
     }
   }, [isOpen, selectedClient, selectedCampaign, selectedVersion]);
 
-  // NOUVEAU : useEffect pour nettoyer les erreurs quand on change de données
+  // useEffect pour nettoyer les erreurs quand on change de données
   useEffect(() => {
     // Nettoyer les erreurs de validation quand les données changent
     if (Object.keys(validationErrors).length > 0) {
@@ -585,7 +579,7 @@ export default function TactiqueDrawer({
   }, [formData, validationErrors]);
 
   /**
-   * CORRIGÉE : Charge toutes les données avec logique correcte pour les dimensions personnalisées
+   * Charge toutes les données avec logique correcte pour les dimensions personnalisées
    */
   const loadAllData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) return;
@@ -596,18 +590,17 @@ export default function TactiqueDrawer({
     try {
       console.log(`[CACHE] 🚀 Début chargement données avec cache pour TactiqueDrawer`);
       
-      // 1. CORRIGÉ : Charger les dimensions personnalisées pour les tactiques (TC)
+      // 1. Charger les dimensions personnalisées pour les tactiques (TC)
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/config/dimensions`);
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       
-      // CORRIGÉ : Utiliser les bonnes dimensions pour les tactiques
       const configuredDimensions = {
         TC_Custom_Dim_1: clientDimensions.Custom_Dim_TC_1,
         TC_Custom_Dim_2: clientDimensions.Custom_Dim_TC_2,
         TC_Custom_Dim_3: clientDimensions.Custom_Dim_TC_3,
       };
 
-      // 2. NOUVEAU : Vérifier l'existence des listes pour les dimensions configurées
+      // 2. Vérifier l'existence des listes pour les dimensions configurées
       const dimensionsHasLists = {
         TC_Custom_Dim_1: false,
         TC_Custom_Dim_2: false,
@@ -648,7 +641,7 @@ export default function TactiqueDrawer({
 
       await Promise.all(customDimPromises);
 
-      // 3. NOUVEAU : Mettre à jour l'état des dimensions personnalisées
+      // 3. Mettre à jour l'état des dimensions personnalisées
       setCustomDimensions({
         configured: configuredDimensions,
         hasLists: dimensionsHasLists
@@ -676,7 +669,7 @@ export default function TactiqueDrawer({
         }
       }
 
-      // 7. NOUVEAU : Charger les listes des dimensions personnalisées qui en ont
+      // 7. Charger les listes des dimensions personnalisées qui en ont
       if (dimensionsHasLists.TC_Custom_Dim_1) {
         console.log(`[CACHE] Chargement de TC_Custom_Dim_1`);
         const list = await getCachedOrFirebaseList('TC_Custom_Dim_1', selectedClient.clientId);
@@ -697,7 +690,7 @@ export default function TactiqueDrawer({
 
       setDynamicLists(newDynamicLists);
 
-      // 8. Charger les autres données (inchangé)
+      // 8. Charger les autres données
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/buckets`);
       console.log(`FIREBASE: LECTURE - Fichier: TactiqueDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}`);
       const [campaignBuckets, adminValues] = await Promise.all([
@@ -745,7 +738,7 @@ export default function TactiqueDrawer({
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields]);
+  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, hasCachedOrFirebaseList, getCachedOrFirebaseList]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -774,7 +767,7 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
 
-  const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number | undefined) => { // MODIFIÉ : Accepter undefined
+  const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number | undefined) => {
     setKpis(prev => {
       const newKpis = [...prev];
       newKpis[index] = { ...newKpis[index], [field]: value };
@@ -786,7 +779,7 @@ export default function TactiqueDrawer({
   const addKpi = useCallback(() => {
     setKpis(prev => {
       if (prev.length < 5) {
-        return [...prev, { TC_Kpi: '' }]; // MODIFIÉ : Supprimer les valeurs par défaut 0
+        return [...prev, { TC_Kpi: '' }];
       }
       return prev;
     });
@@ -804,7 +797,7 @@ export default function TactiqueDrawer({
   }, []);
 
   /**
-   * FONCTION MODIFIÉE : handleSubmit avec validation
+   * Gestion de la soumission avec validation
    */
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -823,7 +816,7 @@ export default function TactiqueDrawer({
       
       // Afficher un message d'erreur général
       setError('Veuillez remplir tous les champs obligatoires avant de sauvegarder.');
-      return; // 🚫 ARRÊTER LA SOUMISSION
+      return;
     }
 
     // 2. NETTOYER LES ERREURS SI VALIDATION RÉUSSIE
@@ -835,7 +828,7 @@ export default function TactiqueDrawer({
 
       let dataToSave = { ...formData };
 
-      // Traitement des KPIs (inchangé)
+      // Traitement des KPIs
       kpis.forEach((kpi, index) => {
         const suffix = index === 0 ? '' : `_${index + 1}`;
         (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
@@ -843,7 +836,7 @@ export default function TactiqueDrawer({
         (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
       });
 
-      // Traitement héritage (inchangé)
+      // Traitement héritage
       if (useInheritedBilling) {
         (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
       }
@@ -853,14 +846,12 @@ export default function TactiqueDrawer({
 
       const mappedData = mapFormToTactique(dataToSave);
 
-      // ✅ CORRECTION : Appeler onSave directement
-      // Le parent (TactiquesHierarchyView) gère création vs mise à jour
       await onSave(mappedData);
 
       setIsDirty(false);
       onClose();
 
-      // Mise à jour taxonomies (inchangé)
+      // Mise à jour taxonomies
       if (mode === 'edit' && tactique && tactique.id && selectedClient && selectedCampaign) {
         updateTaxonomiesAsync('tactic', {
           id: tactique.id,
@@ -880,7 +871,7 @@ export default function TactiqueDrawer({
   }, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
 
   /**
-   * FONCTION MODIFIÉE : handleClose pour prendre en compte les erreurs de validation
+   * Gestion de la fermeture avec prise en compte des erreurs de validation
    */
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -907,7 +898,7 @@ export default function TactiqueDrawer({
   };
 
   /**
-   * MODIFICATION : Affichage des erreurs de validation dans le JSX
+   * Affichage des erreurs de validation
    */
   const renderErrorSection = () => {
     if (!error && Object.keys(validationErrors).length === 0) return null;
@@ -936,7 +927,6 @@ export default function TactiqueDrawer({
     );
   };
 
-  // MODIFIÉ : Ajout du cas 'tags' dans le switch
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -996,7 +986,6 @@ export default function TactiqueDrawer({
           />
         );
 
-      // NOUVEAU CAS : ONGLET TAGS
       case 'tags':
         return (
           <TactiqueFormTags
