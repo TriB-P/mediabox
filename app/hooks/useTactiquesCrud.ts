@@ -162,6 +162,9 @@ export function useTactiquesCrud({
           TC_Order: sectionTactiques.length,
           TC_SectionId: sectionId,
           TC_Unit_Type: '',
+          TC_Client_Budget_RefCurrency:0,
+          TC_Media_Budget_RefCurrency:0,
+      
         }
       );
       const newTactique: Tactique = {
@@ -172,6 +175,8 @@ export function useTactiquesCrud({
         TC_Order: sectionTactiques.length,
         TC_SectionId: sectionId,
         TC_Unit_Type: '',
+        TC_Client_Budget_RefCurrency:0,
+        TC_Media_Budget_RefCurrency:0,
       };
       return newTactique;
     } catch (error) {

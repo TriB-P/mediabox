@@ -130,99 +130,109 @@ export interface BudgetRowData {
   
   // ==================== CALCUL DES FRAIS ====================
   
-  /**
-   * Calcule les montants des frais selon leur configuration
-   */
-  function calculateFeesAmounts(
-    rowData: BudgetRowData,
-    clientFees: ClientFee[],
-    mediaBudget: number,
-    unitVolume: number
-  ): { totalFees: number; feeAmounts: { [key: string]: number } } {
-    const feeAmounts: { [key: string]: number } = {};
-    let totalFees = 0;
+
+/**
+ * CORRIGÉ : Calcule les montants des frais en utilisant l'index séquentiel comme le drawer
+ * Les champs de données utilisent TC_Fee_1_, TC_Fee_2_, TC_Fee_3_... (index + 1)
+ * Mais on trie par FE_Order pour l'ordre d'affichage et de calcul
+ */
+function calculateFeesAmounts(
+  rowData: BudgetRowData,
+  clientFees: ClientFee[],
+  mediaBudget: number,
+  unitVolume: number
+): { totalFees: number; feeAmounts: { [key: string]: number } } {
+  const feeAmounts: { [key: string]: number } = {};
+  let totalFees = 0;
+  
+  // Trier les frais par ordre (pour l'affichage et calcul dans le bon ordre)
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  
+  let cumulativeBase = mediaBudget;
+  
+  sortedFees.forEach((fee, index) => {
+    // CORRIGÉ : Utiliser l'index séquentiel pour les champs (comme le drawer)
+    const sequentialNumber = index + 1; // 1, 2, 3... selon l'index dans sortedFees
+    const isEnabled = rowData[`TC_Fee_${sequentialNumber}_Enabled`];
+    const selectedOptionId = rowData[`TC_Fee_${sequentialNumber}_Option`];
+    const customVolume = rowData[`TC_Fee_${sequentialNumber}_Volume`] || 0;
+    const valueKey = `TC_Fee_${sequentialNumber}_Value`;
     
-    // Trier les frais par ordre
-    const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+    console.log(`[DEBUG FRAIS] Fee ${fee.FE_Name} (FE_Order=${fee.FE_Order}) → TC_Fee_${sequentialNumber}`, {
+      isEnabled, selectedOptionId, customVolume
+    });
     
-    let cumulativeBase = mediaBudget;
+    if (!isEnabled || !selectedOptionId) {
+      feeAmounts[valueKey] = 0;
+      return;
+    }
     
-    for (const fee of sortedFees) {
-      const feeNumber = fee.FE_Order;
-      const isEnabled = rowData[`TC_Fee_${feeNumber}_Enabled`];
-      const selectedOptionId = rowData[`TC_Fee_${feeNumber}_Option`];
-      const customVolume = rowData[`TC_Fee_${feeNumber}_Volume`] || 0;
-      const valueKey = `TC_Fee_${feeNumber}_Value`;
-      
-      if (!isEnabled || !selectedOptionId) {
-        feeAmounts[valueKey] = 0;
-        continue;
-      }
-      
-      const selectedOption = fee.options.find(opt => opt.id === selectedOptionId);
-      if (!selectedOption) {
-        feeAmounts[valueKey] = 0;
-        continue;
-      }
-      
-      // Valeur de base avec personnalisation si éditable
-      let baseValue = selectedOption.FO_Value;
-      if (selectedOption.FO_Editable && customVolume > 0) {
-        switch (fee.FE_Calculation_Type) {
-          case 'Pourcentage budget':
-            baseValue = customVolume / 100; // Convertir en décimal
-            break;
-          case 'Frais fixe':
-            baseValue = customVolume;
-            break;
-          // Pour Volume d'unité et Unités, la valeur custom est utilisée différemment
-        }
-      }
-      
-      // Appliquer le buffer
-      const bufferMultiplier = (100 + selectedOption.FO_Buffer) / 100;
-      const finalValue = baseValue * bufferMultiplier;
-      
-      // Calculer le montant selon le type
-      let calculatedAmount = 0;
-      
+    const selectedOption = fee.options.find(opt => opt.id === selectedOptionId);
+    if (!selectedOption) {
+      feeAmounts[valueKey] = 0;
+      return;
+    }
+    
+    // Valeur de base avec personnalisation si éditable
+    let baseValue = selectedOption.FO_Value;
+    if (selectedOption.FO_Editable && customVolume > 0) {
       switch (fee.FE_Calculation_Type) {
         case 'Pourcentage budget':
-          const baseForPercentage = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
-            ? mediaBudget 
-            : cumulativeBase;
-          calculatedAmount = finalValue * baseForPercentage;
+          baseValue = customVolume / 100; // Convertir en décimal
           break;
-          
-        case 'Volume d\'unité':
-          const volume = customVolume > 0 ? customVolume : unitVolume;
-          calculatedAmount = finalValue * volume;
-          break;
-          
-        case 'Unités':
-          const units = customVolume > 0 ? customVolume : 1;
-          calculatedAmount = finalValue * units;
-          break;
-          
         case 'Frais fixe':
-          calculatedAmount = finalValue;
+          baseValue = customVolume;
           break;
-      }
-      
-      // Arrondir à 2 décimales
-      calculatedAmount = Math.round(calculatedAmount * 100) / 100;
-      
-      feeAmounts[valueKey] = calculatedAmount;
-      totalFees += calculatedAmount;
-      
-      // Mettre à jour la base cumulative
-      if (fee.FE_Calculation_Mode === 'Applicable sur les frais précédents') {
-        cumulativeBase += calculatedAmount;
+        // Pour Volume d'unité et Unités, la valeur custom est utilisée différemment
       }
     }
     
-    return { totalFees, feeAmounts };
-  }
+    // Appliquer le buffer
+    const bufferMultiplier = (100 + selectedOption.FO_Buffer) / 100;
+    const finalValue = baseValue * bufferMultiplier;
+    
+    // Calculer le montant selon le type
+    let calculatedAmount = 0;
+    
+    switch (fee.FE_Calculation_Type) {
+      case 'Pourcentage budget':
+        const baseForPercentage = fee.FE_Calculation_Mode === 'Directement sur le budget média' 
+          ? mediaBudget 
+          : cumulativeBase;
+        calculatedAmount = finalValue * baseForPercentage;
+        break;
+        
+      case 'Volume d\'unité':
+        const volume = customVolume > 0 ? customVolume : unitVolume;
+        calculatedAmount = finalValue * volume;
+        break;
+        
+      case 'Unités':
+        const units = customVolume > 0 ? customVolume : 1;
+        calculatedAmount = finalValue * units;
+        break;
+        
+      case 'Frais fixe':
+        calculatedAmount = finalValue;
+        break;
+    }
+    
+    // Arrondir à 2 décimales
+    calculatedAmount = Math.round(calculatedAmount * 100) / 100;
+    
+    feeAmounts[valueKey] = calculatedAmount;
+    totalFees += calculatedAmount;
+    
+    // Mettre à jour la base cumulative
+    if (fee.FE_Calculation_Mode === 'Applicable sur les frais précédents') {
+      cumulativeBase += calculatedAmount;
+    }
+    
+    console.log(`[BUDGET CALCUL] ${fee.FE_Name}: ${calculatedAmount.toFixed(2)} (sauvé dans ${valueKey})`);
+  });
+  
+  return { totalFees, feeAmounts };
+}
   
   // ==================== CALCUL PRINCIPAL ====================
   

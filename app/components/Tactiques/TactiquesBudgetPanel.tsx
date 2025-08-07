@@ -353,9 +353,9 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
     // Calculs des tactiques (existant)
     allTactiquesInScope.forEach(tactique => {
-      totalMediaBudgetInput += tactique.TC_Budget || 0; 
-      totalMediaBudgetWithBonification += (tactique as any).TC_Media_Budget || 0;
-      totalClientBudget += (tactique as any).TC_Client_Budget || 0;
+      totalMediaBudgetInput += tactique.TC_Media_Budget_RefCurrency || 0; 
+      totalMediaBudgetWithBonification += (tactique as any).TC_Media_Budget_RefCurrency || 0;
+      totalClientBudget += (tactique as any).TC_Client_Budget_RefCurrency || 0;
       totalBonification += (tactique as any).TC_Bonification || 0;
 
       for (let i = 1; i <= 5; i++) {
@@ -401,7 +401,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     }
 
     filteredSections.forEach(section => {
-      const sectionAmount = (filteredTactiques[section.id] || []).reduce((sum, t) => sum + t.TC_Budget, 0);
+      const sectionAmount = (filteredTactiques[section.id] || []).reduce((sum, t) => sum + t.TC_Media_Budget_RefCurrency, 0);
       budgets.push({
         name: section.SECTION_Name,
         amount: sectionAmount,
@@ -509,10 +509,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           ))}
           
           
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Bonification:</span>
-            <span className="font-medium text-green-700">+{formatCurrency(totals.totalBonification)}</span>
-          </div>
+  
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Frais tactiques:</span>
             <span className="font-medium text-blue-700">+{formatCurrency(totals.totalTactiqueFees)}</span>

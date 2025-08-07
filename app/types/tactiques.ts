@@ -100,8 +100,8 @@ export interface Tactique {
   TC_Real_Value?: number;         // Valeur réelle payée
   TC_Bonus_Value?: number;        // Bonification calculée
 
-  TC_Client_Budget_RefCurrency?: number;  // Budget client converti dans la devise de référence de la campagne
-  TC_Media_Budget_RefCurrency?: number;   // Budget média converti dans la devise de référence de la campagne
+  TC_Client_Budget_RefCurrency: number;  // Budget client converti dans la devise de référence de la campagne
+  TC_Media_Budget_RefCurrency: number;   // Budget média converti dans la devise de référence de la campagne
   TC_Currency_Rate?: number;              // Taux de change utilisé pour la conversion (devise tactique → devise campagne)
 
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
@@ -335,6 +335,8 @@ export interface TactiqueFormData {
   // 🔥 CORRECTION BUDGET : Ajout des champs budgétaires manquants
   TC_Media_Budget?: number; // Budget média calculé
   TC_Client_Budget?: number; // Budget client calculé
+  TC_Media_Budget_RefCurrency?: number; // Budget média calculé
+  TC_Client_Budget_RefCurrency?: number; // Budget client calculé
   TC_Budget_Mode?: 'client' | 'media'; // Mode de saisie du budget
   TC_BudgetInput?: number; // Valeur saisie par l'utilisateur
   TC_Unit_Price?: number; // Prix unitaire

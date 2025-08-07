@@ -5,6 +5,8 @@
  * Ces fournisseurs (AuthContext, ClientContext, PermissionsContext, SelectionContext, LanguageContext)
  * rendent les données d'authentification, les informations client, les permissions, les sélections et la langue disponibles
  * à tous les composants enfants de l'application.
+ * 
+ * VERSION MISE À JOUR : Inclut le composant EnterAsTabHandler pour améliorer la navigation au clavier.
  */
 import './globals.css';
 import type { Metadata } from 'next';
@@ -13,6 +15,7 @@ import { ClientProvider } from './contexts/ClientContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import EnterAsTabHandler from './components/EnterAsTabHandler';
 
 export const metadata: Metadata = {
   title: 'MediaBox',
@@ -23,6 +26,9 @@ export const metadata: Metadata = {
  * Composant RootLayout.
  * Il sert de mise en page principale pour toutes les pages de l'application.
  * Il inclut la balise HTML, le corps et les différents fournisseurs de contexte.
+ * 
+ * NOUVEAU : Inclut EnterAsTabHandler pour transformer "Enter" en "Tab" globalement.
+ * 
  * @param {object} props - Les propriétés du composant.
  * @param {React.ReactNode} props.children - Les éléments enfants à rendre à l'intérieur du layout.
  * @returns {JSX.Element} L'élément JSX du layout racine.
@@ -40,6 +46,8 @@ export default function RootLayout({
             <ClientProvider>
               <PermissionsProvider>
                 <SelectionProvider>
+                  {/* Gestionnaire global pour Enter = Tab */}
+                  <EnterAsTabHandler />
                   {children}
                 </SelectionProvider>
               </PermissionsProvider>

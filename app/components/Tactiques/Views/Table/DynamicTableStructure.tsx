@@ -817,83 +817,65 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
   // [Le reste des fonctions renderDataCell reste identique...]
   // Je continue dans la prochaine partie car le fichier devient très long
 
-  const renderDataCell = useCallback((row: TableRow, column: TableColumn, rowIndex: number) => {
-    const cellKey = `${row.id}_${column.key}`;
-    const value = getCellValue(row, column.key);
-    const isEditing = editingCells.has(cellKey);  
-    const isSelected = isCellSelected(rowIndex, column.key);
-    const hasError = hasValidationError(cellKey);
-    const isBudgetMode = selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget';
+// app/components/Tactiques/Views/Table/DynamicTableStructure.tsx
 
-    // Si c'est une colonne budget mais pas une ligne tactique, ne rien afficher
-    if (isBudgetMode && row.type !== 'tactique' && (isBudgetField(column.key) || isFeeCompositeColumn(column))) {
-      return (
-        <div 
-          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
-            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
-          }`}
-          onClick={() => handleCellClick(rowIndex, column.key)}
-        >
-          -
-        </div>
-      );
-    }
+const renderDataCell = useCallback((row: TableRow, column: TableColumn, rowIndex: number) => {
+  const cellKey = `${row.id}_${column.key}`;
+  const value = getCellValue(row, column.key);
+  const isEditing = editingCells.has(cellKey);  
+  const isSelected = isCellSelected(rowIndex, column.key);
+  const hasError = hasValidationError(cellKey);
+  const isBudgetMode = selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget';
 
-    // NOUVEAU : Mode taxonomie placement - ne montrer que pour les lignes placement
-    if (selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie' && row.type !== 'placement') {
-      return (
-        <div 
-          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
-            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
-          }`}
-          onClick={() => handleCellClick(rowIndex, column.key)}
-        >
-          -
-        </div>
-      );
-    }
+  // Si c'est une colonne budget mais pas une ligne tactique, ne rien afficher
+  if (isBudgetMode && row.type !== 'tactique' && (isBudgetField(column.key) || isFeeCompositeColumn(column))) {
+    return (
+      <div 
+        className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+        }`}
+        onClick={() => handleCellClick(rowIndex, column.key)}
+      >
+        -
+      </div>
+    );
+  }
 
-    if (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie' && row.type !== 'creatif') {
-      return (
-        <div 
-          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
-            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
-          }`}
-          onClick={() => handleCellClick(rowIndex, column.key)}
-        >
-          -
-        </div>
-      );
-    }
+  // Mode taxonomie - ne montrer que pour les bonnes lignes
+  if (selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie' && row.type !== 'placement') {
+    return (
+      <div 
+        className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+        }`}
+        onClick={() => handleCellClick(rowIndex, column.key)}
+      >
+        -
+      </div>
+    );
+  }
 
-    // Gestion des colonnes de frais composites
-    if (isFeeCompositeColumn(column)) {
-      const rowDataWithPending: BudgetRowData = {
-        ...row.data,
-        ...pendingChanges.get(row.id)
-      };
+  if (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie' && row.type !== 'creatif') {
+    return (
+      <div 
+        className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+        }`}
+        onClick={() => handleCellClick(rowIndex, column.key)}
+      >
+        -
+      </div>
+    );
+  }
 
-      if (!row.isEditable) {
-        return (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCellClick(rowIndex, column.key, e);
-            }}
-          >
-            <ReactiveFeeCompositeReadonly
-              column={column}
-              rowData={rowDataWithPending}
-              clientFees={clientFees}
-              currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
-              isSelected={isSelected}
-              onClick={() => {}}
-              pendingChanges={pendingChanges.get(row.id) || {}}
-            />
-          </div>
-        );
-      }
+  // Gestion des colonnes de frais composites
+  if (isFeeCompositeColumn(column)) {
+    const rowDataWithPending: BudgetRowData = {
+      ...row.data,
+      ...pendingChanges.get(row.id)
+    };
 
+    if (!row.isEditable) {
       return (
         <div
           onClick={(e) => {
@@ -901,17 +883,12 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
             handleCellClick(rowIndex, column.key, e);
           }}
         >
-          <ReactiveFeeComposite
-            entityId={row.id}
+          <ReactiveFeeCompositeReadonly
             column={column}
             rowData={rowDataWithPending}
-            isEditable={row.isEditable}
             clientFees={clientFees}
             currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
             isSelected={isSelected}
-            hasValidationError={hasError}
-            onChange={onCellChange}
-            onCalculatedChange={handleCalculatedChange}
             onClick={() => {}}
             pendingChanges={pendingChanges.get(row.id) || {}}
           />
@@ -919,168 +896,198 @@ console.log('📋 Variables connues pour', targetType, ':', knownVariables);
       );
     }
 
-    // Cellules budget avec le nouveau composant réactif
-    if (isBudgetMode && isBudgetField(column.key)) {
-      const rowDataWithPending: BudgetRowData = {
-        ...row.data,
-        ...pendingChanges.get(row.id)
-      };
-      
-      return (
-        <div 
-          className={`relative ${isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleCellClick(rowIndex, column.key, e);
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            handleCellDoubleClick(rowIndex, column.key, e);
-          }}
-        >
-          <ReactiveBudgetCell
-            entityId={row.id}
-            fieldKey={column.key}
-            value={value}
-            column={column as DynamicColumn}
-            rowData={rowDataWithPending}
-            isEditable={row.isEditable}
-            isEditing={isEditing}
-            clientFees={clientFees}
-            campaignCurrency={campaignCurrency}
-            onChange={onCellChange}
-            onCalculatedChange={handleCalculatedChange}
-            onStartEdit={onStartEdit}
-            onEndEdit={onEndEdit}
-          />
-        </div>
-      );
-    }
-
-    // Cellules readonly normales
-    if (column.type === 'readonly' || !row.isEditable) {
-      const subCategory = selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
-      selectedLevel === 'placement' ? selectedPlacementSubCategory : 
-      selectedLevel === 'creatif' ? selectedCreatifSubCategory :
-      undefined;
-      
-      const formattedValue = isBudgetMode ? 
-        value : 
-        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory);
-      
-      return (
-        <div 
-          className={`min-h-[32px] flex items-center justify-center px-2 py-1 cursor-pointer ${
-            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
-          } ${!row.isEditable ? 'text-gray-400' : 'text-gray-900'}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleCellClick(rowIndex, column.key, e);
-          }}
-        >
-          <span>{formattedValue || '-'}</span>
-        </div>
-      );
-    }
-
-    // Cellules éditables normales
     return (
       <div
-        className={`min-h-[32px] flex items-center relative group cursor-pointer ${
-          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
-        } ${hasError ? 'ring-2 ring-red-500 ring-inset bg-red-50 animate-pulse' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCellClick(rowIndex, column.key, e);
+        }}
+      >
+        <ReactiveFeeComposite
+          entityId={row.id}
+          column={column}
+          rowData={rowDataWithPending}
+          isEditable={row.isEditable}
+          clientFees={clientFees}
+          currency={(row.data as any).TC_BuyCurrency || campaignCurrency}
+          isSelected={isSelected}
+          hasValidationError={hasError}
+          onChange={onCellChange}
+          onCalculatedChange={handleCalculatedChange}
+          onClick={() => {}}
+          pendingChanges={pendingChanges.get(row.id) || {}}
+        />
+      </div>
+    );
+  }
+
+  // CORRIGÉ : Cellules budget avec vérification du type readonly
+  if (isBudgetMode && isBudgetField(column.key)) {
+    const rowDataWithPending: BudgetRowData = {
+      ...row.data,
+      ...pendingChanges.get(row.id)
+    };
+    
+    // AJOUTÉ : Une colonne readonly ne peut jamais être éditée, même si la ligne est éditable
+    const isCellEditable = row.isEditable && column.type !== 'readonly';
+    
+    return (
+      <div 
+        className={`relative ${isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : ''}`}
         onClick={(e) => {
           e.stopPropagation();
           handleCellClick(rowIndex, column.key, e);
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          handleCellDoubleClick(rowIndex, column.key, e);
+          // Seulement permettre l'édition si la cellule est vraiment éditable
+          if (isCellEditable) {
+            handleCellDoubleClick(rowIndex, column.key, e);
+          }
         }}
       >
-        {isEditing ? (
-          <>
-            {column.type === 'select' ? (
-              <select
-                value={value || ''}
-                onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
-                onBlur={() => onEndEdit(cellKey)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
-                  if (e.key === 'Escape') onEndEdit(cellKey);
-                }}
-                className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="">-- Sélectionner --</option>
-                {(column as DynamicColumn).options?.map(option => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={column.type === 'number' || column.type === 'currency' ? 'number' :
-                  column.type === 'date' ? 'date' : 'text'}
-                value={value || ''}
-                onChange={(e) => {
-                  const newValue = column.type === 'number' || column.type === 'currency' ? 
-                    (parseFloat(e.target.value) || 0) : e.target.value;
-                  onCellChange(row.id, column.key, newValue);
-                }}
-                onBlur={() => onEndEdit(cellKey)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
-                  if (e.key === 'Escape') onEndEdit(cellKey);
-                }}
-                className={`w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
-                  column.type === 'number' || column.type === 'currency' ? 'text-center' : 'text-left'
-                }`}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                step="0.01"
-                min={column.type === 'number' || column.type === 'currency' ? '0' : undefined}
-              />
-            )}
-          </>
-        ) : (
-          <div className={`w-full px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors ${
-            column.type === 'number' || column.type === 'currency' ? 'justify-center' : 'justify-start'
-          }`}>
-           {formatDisplayValue(
-              column.key, 
-              value, 
-              buckets, 
-              dynamicLists, 
-              selectedLevel, 
-              selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
-              selectedLevel === 'placement' ? selectedPlacementSubCategory : 
-              selectedLevel === 'creatif' ? selectedCreatifSubCategory :
-
-              undefined,
-              // NOUVEAU : Passer les options de la colonne pour les taxonomies
-              (column as DynamicColumn).options
-            ) || (
-              <span className="text-gray-400 italic">Double-clic pour modifier</span>
-            )}
-          </div>
-        )}
-
-        {hasError && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
-            <span className="text-white text-xs font-bold">!</span>
-          </div>
-        )}
+        <ReactiveBudgetCell
+          entityId={row.id}
+          fieldKey={column.key}
+          value={value}
+          column={column as DynamicColumn}
+          rowData={rowDataWithPending}
+          isEditable={isCellEditable} // CORRIGÉ : Utilise la logique combinée
+          isEditing={isEditing}
+          clientFees={clientFees}
+          campaignCurrency={campaignCurrency}
+          onChange={onCellChange}
+          onCalculatedChange={handleCalculatedChange}
+          onStartEdit={onStartEdit}
+          onEndEdit={onEndEdit}
+        />
       </div>
     );
-  }, [
-    getCellValue, editingCells, isCellSelected, hasValidationError, buckets, dynamicLists, 
-    selectedLevel, selectedTactiqueSubCategory, selectedPlacementSubCategory, onCellChange, onEndEdit, onStartEdit,
-    handleCellClick, handleCellDoubleClick, clientFees, campaignCurrency, 
-    handleCalculatedChange, pendingChanges
-  ]);
+  }
+
+  // Cellules readonly normales
+  if (column.type === 'readonly' || !row.isEditable) {
+    const subCategory = selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
+    selectedLevel === 'placement' ? selectedPlacementSubCategory : 
+    selectedLevel === 'creatif' ? selectedCreatifSubCategory :
+    undefined;
+    
+    const formattedValue = isBudgetMode ? 
+      value : 
+      formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory);
+    
+    return (
+      <div 
+        className={`min-h-[32px] flex items-center justify-center px-2 py-1 cursor-pointer ${
+          isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
+        } ${!row.isEditable || column.type === 'readonly' ? 'text-gray-400' : 'text-gray-900'}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCellClick(rowIndex, column.key, e);
+        }}
+      >
+        <span>{formattedValue || '-'}</span>
+      </div>
+    );
+  }
+
+  // Cellules éditables normales
+  return (
+    <div
+      className={`min-h-[32px] flex items-center relative group cursor-pointer ${
+        isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-50'
+      } ${hasError ? 'ring-2 ring-red-500 ring-inset bg-red-50 animate-pulse' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleCellClick(rowIndex, column.key, e);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        handleCellDoubleClick(rowIndex, column.key, e);
+      }}
+    >
+      {isEditing ? (
+        <>
+          {column.type === 'select' ? (
+            <select
+              value={value || ''}
+              onChange={(e) => onCellChange(row.id, column.key, e.target.value)}
+              onBlur={() => onEndEdit(cellKey)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
+                if (e.key === 'Escape') onEndEdit(cellKey);
+              }}
+              className="w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="">-- Sélectionner --</option>
+              {(column as DynamicColumn).options?.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={column.type === 'number' || column.type === 'currency' ? 'number' :
+                column.type === 'date' ? 'date' : 'text'}
+              value={value || ''}
+              onChange={(e) => {
+                const newValue = column.type === 'number' || column.type === 'currency' ? 
+                  (parseFloat(e.target.value) || 0) : e.target.value;
+                onCellChange(row.id, column.key, newValue);
+              }}
+              onBlur={() => onEndEdit(cellKey)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Tab') onEndEdit(cellKey);
+                if (e.key === 'Escape') onEndEdit(cellKey);
+              }}
+              className={`w-full px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                column.type === 'number' || column.type === 'currency' ? 'text-center' : 'text-left'
+              }`}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              step="0.01"
+              min={column.type === 'number' || column.type === 'currency' ? '0' : undefined}
+            />
+          )}
+        </>
+      ) : (
+        <div className={`w-full px-2 py-1 text-sm min-h-[20px] flex items-center transition-colors ${
+          column.type === 'number' || column.type === 'currency' ? 'justify-center' : 'justify-start'
+        }`}>
+         {formatDisplayValue(
+            column.key, 
+            value, 
+            buckets, 
+            dynamicLists, 
+            selectedLevel, 
+            selectedLevel === 'tactique' ? selectedTactiqueSubCategory : 
+            selectedLevel === 'placement' ? selectedPlacementSubCategory : 
+            selectedLevel === 'creatif' ? selectedCreatifSubCategory :
+
+            undefined,
+            (column as DynamicColumn).options
+          ) || (
+            <span className="text-gray-400 italic">Double-clic pour modifier</span>
+          )}
+        </div>
+      )}
+
+      {hasError && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
+          <span className="text-white text-xs font-bold">!</span>
+        </div>
+      )}
+    </div>
+  );
+}, [
+  getCellValue, editingCells, isCellSelected, hasValidationError, buckets, dynamicLists, 
+  selectedLevel, selectedTactiqueSubCategory, selectedPlacementSubCategory, onCellChange, onEndEdit, onStartEdit,
+  handleCellClick, handleCellDoubleClick, clientFees, campaignCurrency, 
+  handleCalculatedChange, pendingChanges
+]);
 
   return (
     <div className="space-y-3">

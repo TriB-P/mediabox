@@ -105,48 +105,39 @@ export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-/**
- * CORRIGÉ : Fonction pour créer les colonnes de frais avec des noms dynamiques
- */
+
 export function createFeeColumns(clientFees: ClientFee[]): FeeColumnDefinition[] {
   const feeColumns: FeeColumnDefinition[] = [];
   
-  // Créer jusqu'à 5 colonnes de frais basées sur les frais disponibles
-  for (let i = 1; i <= 5; i++) {
-    const associatedFee = clientFees.find(fee => fee.FE_Order === i);
-    const feeLabel = associatedFee ? associatedFee.FE_Name : `Frais ${i}`;
-    
-    // NOUVEAU : Seulement créer la colonne si le frais existe
-    if (associatedFee) {
-      feeColumns.push({
-        key: `TC_Fee_${i}`,
-        label: feeLabel, // CORRIGÉ : Utiliser le vrai nom du frais
-        type: 'fee-composite',
-        width: 280,
-        feeNumber: i,
-        subColumns: {
-          enabled: true,
-          option: true, 
-          customValue: true,
-          calculatedAmount: true
-        }
-      });
-    }
-  }
+  // Trier les frais par leur FE_Order et créer une colonne pour chaque frais existant
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  
+  sortedFees.forEach((fee) => {
+    feeColumns.push({
+      key: `TC_Fee_${fee.FE_Order}`,
+      label: fee.FE_Name,
+      type: 'fee-composite',
+      width: 280,
+      feeNumber: fee.FE_Order, // Utilise le FE_Order original
+      subColumns: {
+        enabled: true,
+        option: true, 
+        customValue: true,
+        calculatedAmount: true
+      }
+    });
+  });
+  
+  console.log(`[BUDGET COLONNES] ✅ ${feeColumns.length} colonnes de frais créées :`, 
+    sortedFees.map(fee => `${fee.FE_Name} (TC_Fee_${fee.FE_Order})`));
   
   return feeColumns;
 }
-
 /**
  * Configuration des colonnes de totaux calculés
  */
 export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'TC_Total_Fees',
-    label: 'Total frais',
-    type: 'readonly',
-    width: 120
-  },
+
   {
     key: 'TC_Media_Budget',
     label: 'Total média',

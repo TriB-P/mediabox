@@ -30,6 +30,8 @@ interface ReactiveFeeCompositeProps {
   pendingChanges?: Partial<BudgetRowData>;
 }
 
+
+
 export default function ReactiveFeeComposite({
   entityId,
   column,
@@ -45,28 +47,42 @@ export default function ReactiveFeeComposite({
   pendingChanges = {}
 }: ReactiveFeeCompositeProps) {
   
-  const feeNumber = column.feeNumber;
+  const feeNumber = column.feeNumber; // C'est le FE_Order du frais
   
-  // Clés des champs pour ce frais
+  // CORRIGÉ : Trouver l'index séquentiel pour les champs de données
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  const feeIndex = sortedFees.findIndex(fee => fee.FE_Order === feeNumber);
+  const sequentialNumber = feeIndex + 1; // Convertir index 0,1,2... vers 1,2,3...
+  
+  // Utiliser sequentialNumber pour les clés des champs (comme le drawer)
   const fieldKeys = useMemo(() => ({
-    enabled: `TC_Fee_${feeNumber}_Enabled`,
-    option: `TC_Fee_${feeNumber}_Option`,
-    volume: `TC_Fee_${feeNumber}_Volume`,
-    value: `TC_Fee_${feeNumber}_Value`
-  }), [feeNumber]);
+    option: `TC_Fee_${sequentialNumber}_Option`,
+    volume: `TC_Fee_${sequentialNumber}_Volume`,
+    value: `TC_Fee_${sequentialNumber}_Value`
+  }), [sequentialNumber]);
   
-  // Valeurs actuelles (avec pendingChanges prioritaires)
-  const currentValues = useMemo(() => ({
-    isEnabled: Boolean(pendingChanges[fieldKeys.enabled] ?? rowData[fieldKeys.enabled] ?? false),
-    selectedOptionId: pendingChanges[fieldKeys.option] ?? rowData[fieldKeys.option] ?? '',
-    customVolume: Number(pendingChanges[fieldKeys.volume] ?? rowData[fieldKeys.volume] ?? 0),
-    calculatedAmount: Number(pendingChanges[fieldKeys.value] ?? rowData[fieldKeys.value] ?? 0)
-  }), [pendingChanges, rowData, fieldKeys]);
+  // CORRIGÉ : Valeurs actuelles - activation basée sur option sélectionnée (comme le drawer)
+  const currentValues = useMemo(() => {
+    const selectedOptionId = pendingChanges[fieldKeys.option] ?? rowData[fieldKeys.option] ?? '';
+    
+    return {
+      isEnabled: Boolean(selectedOptionId && selectedOptionId !== ''), // Activé si option sélectionnée
+      selectedOptionId,
+      customVolume: Number(pendingChanges[fieldKeys.volume] ?? rowData[fieldKeys.volume] ?? 0),
+      calculatedAmount: Number(pendingChanges[fieldKeys.value] ?? rowData[fieldKeys.value] ?? 0)
+    };
+  }, [pendingChanges, rowData, fieldKeys]);
   
-  // Trouve le frais associé
+  // Trouve le frais associé par FE_Order
   const associatedFee = useMemo(() => {
     return clientFees.find(fee => fee.FE_Order === feeNumber);
   }, [clientFees, feeNumber]);
+  
+  console.log(`[DEBUG FRAIS COMPOSITE] Fee FE_Order=${feeNumber} → sequentialNumber=${sequentialNumber}`, {
+    selectedOptionId: currentValues.selectedOptionId,
+    isEnabled: currentValues.isEnabled,
+    calculatedAmount: currentValues.calculatedAmount
+  });
   
   // Options et option sélectionnée
   const availableOptions = associatedFee?.options || [];
@@ -99,17 +115,22 @@ export default function ReactiveFeeComposite({
   }, [entityId, clientFees, onCalculatedChange]);
   
   /**
-   * Gère le changement de l'état activé/désactivé
+   * CORRIGÉ : Gère le changement de l'état activé/désactivé via la checkbox
+   * Logique : cocher = sélectionner première option, décocher = vider l'option
    */
   const handleEnabledChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     const checked = e.target.checked;
     
-    // Mettre à jour l'état enabled
-    onChange(entityId, fieldKeys.enabled, checked);
-    
-    if (!checked) {
-      // Si désactivé, vider les autres champs
+    if (checked) {
+      // Activer : sélectionner la première option disponible
+      if (availableOptions.length === 1) {
+        onChange(entityId, fieldKeys.option, availableOptions[0].id);
+      } else if (availableOptions.length > 1) {
+        onChange(entityId, fieldKeys.option, 'ACTIVE_NO_SELECTION');
+      }
+    } else {
+      // Désactiver : vider l'option et les autres champs
       onChange(entityId, fieldKeys.option, '');
       onChange(entityId, fieldKeys.volume, 0);
     }
@@ -118,15 +139,12 @@ export default function ReactiveFeeComposite({
     const updatedRowData = {
       ...rowData,
       ...pendingChanges,
-      [fieldKeys.enabled]: checked,
-      ...(checked ? {} : {
-        [fieldKeys.option]: '',
-        [fieldKeys.volume]: 0
-      })
+      [fieldKeys.option]: checked ? (availableOptions[0]?.id || 'ACTIVE_NO_SELECTION') : '',
+      [fieldKeys.volume]: checked ? pendingChanges[fieldKeys.volume] ?? rowData[fieldKeys.volume] ?? 0 : 0
     };
     
     triggerRecalculation(updatedRowData);
-  }, [entityId, fieldKeys, onChange, rowData, pendingChanges, triggerRecalculation]);
+  }, [entityId, fieldKeys, onChange, rowData, pendingChanges, triggerRecalculation, availableOptions]);
   
   /**
    * Gère le changement d'option sélectionnée
@@ -171,8 +189,8 @@ export default function ReactiveFeeComposite({
     triggerRecalculation(updatedRowData);
   }, [entityId, fieldKeys, onChange, rowData, pendingChanges, triggerRecalculation]);
   
-  // Si pas de frais associé
-  if (!associatedFee) {
+  // Si pas de frais associé ou index introuvable
+  if (!associatedFee || feeIndex === -1) {
     return (
       <div 
         className={`h-12 flex items-center justify-center text-gray-400 text-sm ${
@@ -180,7 +198,7 @@ export default function ReactiveFeeComposite({
         }`}
         onClick={onClick}
       >
-        <span>Aucun frais #{feeNumber}</span>
+        <span>Frais #{feeNumber} introuvable</span>
       </div>
     );
   }
@@ -290,25 +308,32 @@ export function ReactiveFeeCompositeReadonly({
   pendingChanges = {}
 }: Omit<ReactiveFeeCompositeProps, 'entityId' | 'isEditable' | 'hasValidationError' | 'onChange' | 'onCalculatedChange'>) {
   
-  const feeNumber = column.feeNumber;
+  const feeNumber = column.feeNumber; // C'est le FE_Order du frais
+  
+  // Trouver l'index séquentiel pour les champs de données (même logique que version éditable)
+  const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
+  const feeIndex = sortedFees.findIndex(fee => fee.FE_Order === feeNumber);
+  const sequentialNumber = feeIndex + 1; // Convertir index 0,1,2... vers 1,2,3...
   
   const fieldKeys = {
-    enabled: `TC_Fee_${feeNumber}_Enabled`,
-    option: `TC_Fee_${feeNumber}_Option`,
-    value: `TC_Fee_${feeNumber}_Value`
+    option: `TC_Fee_${sequentialNumber}_Option`,
+    value: `TC_Fee_${sequentialNumber}_Value`
   };
   
-  const isEnabled = Boolean(pendingChanges[fieldKeys.enabled] ?? rowData[fieldKeys.enabled] ?? false);
+  // Valeurs actuelles avec logique d'activation basée sur option sélectionnée
   const selectedOptionId = pendingChanges[fieldKeys.option] ?? rowData[fieldKeys.option] ?? '';
   const calculatedAmount = Number(pendingChanges[fieldKeys.value] ?? rowData[fieldKeys.value] ?? 0);
+  const isEnabled = Boolean(selectedOptionId && selectedOptionId !== '');
 
-  const associatedFee = clientFees.find(fee => fee.FE_Order === feeNumber);
+  // Trouve le frais associé par FE_Order
+  const associatedFee = sortedFees[feeIndex];
   const selectedOption = associatedFee?.options.find(opt => opt.id === selectedOptionId);
 
   const formattedAmount = calculatedAmount > 0 ? 
     formatCurrency(calculatedAmount, currency) : '-';
 
-  if (!associatedFee) {
+  // Si pas de frais associé ou index introuvable
+  if (!associatedFee || feeIndex === -1) {
     return (
       <div 
         className={`h-12 flex items-center justify-center text-gray-400 text-sm ${
@@ -316,7 +341,7 @@ export function ReactiveFeeCompositeReadonly({
         }`}
         onClick={onClick}
       >
-        Aucun frais #{feeNumber}
+        Frais #{feeNumber} introuvable
       </div>
     );
   }
@@ -326,14 +351,24 @@ export function ReactiveFeeCompositeReadonly({
       className={`relative border border-gray-200 rounded bg-gray-50 cursor-pointer transition-colors ${
         isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'hover:bg-gray-100'
       }`}
+      onClick={onClick}
     >
       <div className="flex h-12 items-center px-2 text-xs text-gray-600">
         <div className="flex items-center space-x-2 flex-1">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+          {/* Indicateur activé/désactivé */}
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            isEnabled ? 'bg-green-500' : 'bg-gray-300'
+          }`}></span>
+          
+          {/* Nom de l'option sélectionnée */}
           <span className="flex-1 truncate">
             {selectedOption?.FO_Option || 'Aucune option'}
           </span>
-          <span className="font-medium text-gray-800 text-center">
+          
+          {/* Montant calculé */}
+          <span className={`font-medium text-center ${
+            calculatedAmount > 0 ? 'text-green-700' : 'text-gray-400'
+          }`}>
             {formattedAmount}
           </span>
         </div>

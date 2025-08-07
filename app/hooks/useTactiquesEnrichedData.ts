@@ -75,7 +75,7 @@ export function useTactiquesEnrichedData({
       const sectionTactiques = tactiques[section.id] || [];
       
       const calculatedSectionBudget = sectionTactiques.reduce((total, tactique) => {
-        return total + (tactique.TC_Budget || 0);
+        return total + (tactique.TC_Client_Budget_RefCurrency || 0);
       }, 0);
       
       const mappedTactiques = sectionTactiques.map(tactique => {
