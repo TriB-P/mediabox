@@ -1,35 +1,26 @@
 // app/components/Tactiques/Views/Table/ReactiveBudgetCell.tsx
 
 /**
- * Composant de cellule budget réactif pour la vue tableau
- * Gère automatiquement les calculs et les mises à jour en temps réel
+ * Version simplifiée qui n'effectue AUCUN calcul
+ * Tous les calculs sont gérés par DynamicTableStructure via budgetService
  */
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DynamicColumn } from './TactiquesAdvancedTableView';
-import { 
-  BudgetRowData, 
-  ClientFee, 
-  calculateBudgetForRow, 
-  shouldRecalculate, 
-  getDependentFields,
-  formatCurrency,
-  formatNumber
-} from './TableBudgetCalculations';
+import { ClientFee as BudgetClientFee } from '../../../../lib/budgetService';
 
 interface ReactiveBudgetCellProps {
   entityId: string;
   fieldKey: string;
   value: any;
   column: DynamicColumn;
-  rowData: BudgetRowData;
+  rowData: any; // Données complètes de la ligne
   isEditable: boolean;
   isEditing: boolean;
-  clientFees: ClientFee[];
+  clientFees: BudgetClientFee[];
   campaignCurrency: string;
   onChange: (entityId: string, fieldKey: string, value: any) => void;
-  onCalculatedChange: (entityId: string, updates: { [key: string]: any }) => void;
   onStartEdit: (cellKey: string) => void;
   onEndEdit: (cellKey: string) => void;
 }
@@ -43,6 +34,8 @@ const CALCULATED_FIELDS = [
   'TC_Client_Budget',
   'TC_Bonification',
   'TC_Total_Fees',
+  'TC_Currency_Rate',
+  'TC_Delta',
   'TC_Fee_1_Value',
   'TC_Fee_2_Value',
   'TC_Fee_3_Value',
@@ -51,17 +44,8 @@ const CALCULATED_FIELDS = [
 ];
 
 /**
- * Champs budget qui nécessitent une validation spécialisée
+ * Composant de cellule budget simplifié - ne fait AUCUN calcul
  */
-const BUDGET_FIELDS = [
-  'TC_Budget_Mode',
-  'TC_BudgetInput',
-  'TC_Unit_Price',
-  'TC_Unit_Type',
-  'TC_BuyCurrency',
-  'TC_Media_Value'
-];
-
 export default function ReactiveBudgetCell({
   entityId,
   fieldKey,
@@ -73,7 +57,6 @@ export default function ReactiveBudgetCell({
   clientFees,
   campaignCurrency,
   onChange,
-  onCalculatedChange,
   onStartEdit,
   onEndEdit
 }: ReactiveBudgetCellProps) {
@@ -83,7 +66,6 @@ export default function ReactiveBudgetCell({
   
   const cellKey = `${entityId}_${fieldKey}`;
   const isCalculated = CALCULATED_FIELDS.includes(fieldKey);
-  const isBudgetField = BUDGET_FIELDS.includes(fieldKey) || CALCULATED_FIELDS.includes(fieldKey);
   const isActuallyEditable = isEditable && !isCalculated;
 
   /**
@@ -94,7 +76,7 @@ export default function ReactiveBudgetCell({
   }, [value]);
 
   /**
-   * Validation spécialisée pour les champs budget
+   * Validation de base (sans calculs)
    */
   const validateValue = useCallback((val: any): boolean => {
     if (val === null || val === undefined || val === '') return true;
@@ -118,54 +100,22 @@ export default function ReactiveBudgetCell({
   }, [fieldKey]);
 
   /**
-   * Met à jour la validation quand la valeur locale change
+   * Met à jour la validation
    */
   useEffect(() => {
     setIsValid(validateValue(localValue));
   }, [localValue, validateValue]);
 
   /**
-   * Gère les changements de valeur avec recalculs automatiques
+   * SIMPLIFIÉ : Gère les changements sans calculs
+   * Les calculs sont maintenant gérés par DynamicTableStructure
    */
   const handleChange = useCallback((newValue: any) => {
     setLocalValue(newValue);
     
-    // Appliquer le changement immédiatement
+    // Appliquer le changement - les calculs sont gérés ailleurs
     onChange(entityId, fieldKey, newValue);
-    
-    // Déclencher recalcul si nécessaire
-    if (shouldRecalculate(fieldKey)) {
-      // Créer les données mises à jour pour le calcul
-      const updatedRowData = { ...rowData, [fieldKey]: newValue };
-      
-      // Effectuer le calcul complet
-      const result = calculateBudgetForRow(updatedRowData, clientFees);
-      
-      // Préparer les mises à jour calculées
-      const updates: { [key: string]: any } = {
-        TC_Unit_Volume: result.unitVolume,
-        TC_Media_Budget: result.mediaBudget,
-        TC_Client_Budget: result.clientBudget,
-        TC_Bonification: result.bonification,
-        TC_Total_Fees: result.totalFees,
-        ...result.feeAmounts
-      };
-      
-      // Appliquer seulement les champs qui ont réellement changé
-      const dependentFields = getDependentFields(fieldKey);
-      const filteredUpdates: { [key: string]: any } = {};
-      
-      dependentFields.forEach(field => {
-        if (updates[field] !== undefined) {
-          filteredUpdates[field] = updates[field];
-        }
-      });
-      
-      if (Object.keys(filteredUpdates).length > 0) {
-        onCalculatedChange(entityId, filteredUpdates);
-      }
-    }
-  }, [entityId, fieldKey, rowData, clientFees, onChange, onCalculatedChange]);
+  }, [entityId, fieldKey, onChange]);
 
   /**
    * Gère les événements clavier
@@ -193,34 +143,39 @@ export default function ReactiveBudgetCell({
 
     switch (column.type) {
       case 'select':
-        // Pour les selects, afficher le label au lieu de l'ID
         const selectedOption = column.options?.find(option => option.id === value);
         return selectedOption ? selectedOption.label : String(value);
         
       case 'currency':
+      case 'readonly': // Pour les champs calculés
         const numValue = Number(value);
         if (isNaN(numValue)) return String(value);
-        return formatCurrency(numValue, rowData.TC_BuyCurrency || campaignCurrency);
+        
+        // Formater en devise
+        const currency = rowData.TC_BuyCurrency || campaignCurrency;
+        return new Intl.NumberFormat('fr-CA', {
+          style: 'currency',
+          currency: currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(numValue);
         
       case 'number':
         const numberValue = Number(value);
         if (isNaN(numberValue)) return String(value);
-        return formatNumber(numberValue);
         
-      case 'readonly':
-        // Pour les champs readonly calculés, forcer le formatage selon le type de données
-        if (fieldKey.includes('Budget') || fieldKey.includes('Fees') || fieldKey.includes('Value') || fieldKey.includes('Bonification')) {
-          const currencyValue = Number(value);
-          if (!isNaN(currencyValue)) {
-            return formatCurrency(currencyValue, rowData.TC_BuyCurrency || campaignCurrency);
-          }
-        } else if (fieldKey.includes('Volume')) {
-          const numericValue = Number(value);
-          if (!isNaN(numericValue)) {
-            return formatNumber(numericValue);
-          }
+        // Formatage spécial pour le volume (sans décimales)
+        if (fieldKey === 'TC_Unit_Volume') {
+          return new Intl.NumberFormat('fr-CA', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          }).format(numberValue);
         }
-        return String(value);
+        
+        return new Intl.NumberFormat('fr-CA', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6
+        }).format(numberValue);
         
       default:
         return String(value);
@@ -269,7 +224,7 @@ export default function ReactiveBudgetCell({
                 ? 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500' 
                 : 'border-red-300 focus:border-red-500 focus:ring-red-500'
             }`}
-            step="0.01"
+            step={fieldKey === 'TC_Unit_Price' ? '0.0001' : '0.01'}
             min="0"
             autoFocus
           />
@@ -303,10 +258,15 @@ export default function ReactiveBudgetCell({
         <div className={`w-full h-full flex items-center px-2 py-1 ${
           column.type === 'number' || column.type === 'currency' ? 'justify-center' : 'justify-start'
         } ${
-          isCalculated ? 'text-green-700 font-medium' : 
-          !isEditable ? 'text-gray-400' : 'text-gray-900'
+          isCalculated ? 'text-green-700 font-medium bg-green-50' : 
+          !isEditable ? 'text-gray-400 bg-gray-50' : 'text-gray-900'
         }`}>
           <span className="text-sm">{formattedValue || '-'}</span>
+          {isCalculated && (
+            <span className="ml-1 text-xs text-green-600" title="Valeur calculée automatiquement">
+              ✓
+            </span>
+          )}
         </div>
       );
     }
@@ -362,7 +322,6 @@ export default function ReactiveBudgetCell({
       ) : (
         renderDisplayValue()
       )}
- 
     </div>
   );
 }

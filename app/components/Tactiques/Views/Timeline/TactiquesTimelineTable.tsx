@@ -775,7 +775,7 @@ export default function TactiquesTimelineTable({
                   {period.label}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] ">
                 Total Budget
               </th>
               {/* NOUVEAU: Colonnes supplémentaires pour PEBs */}

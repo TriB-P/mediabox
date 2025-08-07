@@ -240,6 +240,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   }, [clientFees, updateMultipleFields]);
 
   
+  
   const calculatedTotalFees = useMemo(() => {
     let total = 0;
     for (let i = 1; i <= 5; i++) {

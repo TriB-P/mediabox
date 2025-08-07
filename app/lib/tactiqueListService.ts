@@ -361,7 +361,7 @@ export async function getCampaignCurrency(clientId: string, campaignId: string):
     }
 
     const campaignData = campaignSnap.data();
-    return campaignData.currency || 'CAD';
+    return campaignData.CA_Currency || 'CAD';
   } catch (error) {
     console.error('Erreur lors de la récupération de la devise de campagne:', error);
     return 'CAD';
@@ -390,7 +390,6 @@ export async function getExchangeRates(clientId: string): Promise<{ [key: string
       const rateKey = `${fromCurrency}_${toCurrency}`;
       rates[rateKey] = rate;
 
-      rates[fromCurrency] = rate;
     });
 
     return rates;

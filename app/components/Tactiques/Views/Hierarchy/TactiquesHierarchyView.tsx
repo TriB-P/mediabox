@@ -40,6 +40,7 @@ import { useSelection } from '../../../../contexts/SelectionContext';
 import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
 import { useSelectionValidation, useSelectionMessages, buildHierarchyMap, SelectionValidationResult } from '../../../../hooks/useSelectionValidation';
 import { reorderSections } from '../../../../lib/tactiqueService';
+import { useCampaignData, formatCurrencyAmount } from '../../../../hooks/useCampaignData';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -107,6 +108,21 @@ export default function TactiquesHierarchyView({
 
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
+
+  /**
+ * Charge les données de la campagne pour récupérer la devise (CA_Currency).
+ */
+const { currency, loading: campaignLoading } = useCampaignData();
+
+/**
+ * Fonction de formatage des montants avec la devise de la campagne.
+ * Remplace la prop formatCurrency pour utiliser la bonne devise.
+ * @param {number} amount - Le montant à formater.
+ * @returns {string} Le montant formaté avec le bon symbole de devise.
+ */
+const formatCurrencyWithCampaignCurrency = (amount: number): string => {
+  return formatCurrencyAmount(amount, currency);
+};
 
   /**
    * Initialise la logique de sélection pour gérer les éléments choisis dans la hiérarchie.
@@ -974,7 +990,7 @@ export default function TactiquesHierarchyView({
 
                       <div className="text-right">
                         <div className="text-sm font-medium">
-                          {formatCurrency(section.SECTION_Budget || 0)}
+                        {formatCurrencyWithCampaignCurrency(section.SECTION_Budget || 0)}
                         </div>
                         <div className="text-xs text-gray-500">
                           {calculatePercentage(section.SECTION_Budget || 0)}% du budget
@@ -1036,7 +1052,7 @@ export default function TactiquesHierarchyView({
                                   onEditPlacement={handleEditPlacement}
                                   onCreateCreatif={handleCreateCreatifLocal}
                                   onEditCreatif={handleEditCreatif}
-                                  formatCurrency={formatCurrency}
+                                  formatCurrency={formatCurrencyWithCampaignCurrency}
                                   onSelect={handleTactiqueSelect}
                                   onSelectPlacement={handlePlacementSelect}
                                   onSelectCreatif={handleCreatifSelect}

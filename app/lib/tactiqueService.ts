@@ -949,7 +949,9 @@ export async function duplicateOnglet(
             TC_MPA:tactiqueData.TC_MPA,
             TC_Order: tactiqueData.TC_Order,
             TC_Budget: tactiqueData.TC_Budget,
-            TC_SectionId: newSectionId
+            TC_SectionId: newSectionId,
+            TC_Client_Budget_RefCurrency: tactiqueData.TC_Client_Budget_RefCurrency,
+            TC_Media_Budget_RefCurrency: tactiqueData.TC_Media_Budget_RefCurrency,
           }
         );
       }
@@ -1033,7 +1035,6 @@ export async function getExchangeRates(clientId: string): Promise<{ [key: string
       const rate = currencyData.CU_Rate;
       const rateKey = `${fromCurrency}_${toCurrency}`;
       rates[rateKey] = rate;
-      rates[fromCurrency] = rate;
     });
     return rates;
   } catch (error) {

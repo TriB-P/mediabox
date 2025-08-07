@@ -1,12 +1,8 @@
 // app/components/Tactiques/Views/Table/TactiquesAdvancedTableView.tsx
 
 /**
- * Ce composant affiche une vue de tableau avancée pour gérer les tactiques,
- * placements et créatifs d'une campagne. Il permet l'édition en ligne des données,
- * la gestion des niveaux d'affichage (section, tactique, placement, créatif)
- * et intègre des listes dynamiques (comme les éditeurs ou les dimensions personnalisées)
- * pour enrichir les options de sélection dans le tableau.
- * VERSION BUDGET : Ajoute le support pour les calculs budgétaires automatiques
+ * Version refactorisée utilisant la même logique de calcul que le drawer
+ * SUPPRIME TableBudgetCalculations.tsx et utilise budgetService directement
  */
 'use client';
 
@@ -35,8 +31,10 @@ import {
 
 import { useAsyncTaxonomyUpdate } from '../../../../hooks/useAsyncTaxonomyUpdate';
 
+// NOUVEAU : Import du service budget unifié (remplace TableBudgetCalculations)
+import { budgetService, BudgetData, ClientFee as BudgetClientFee } from '../../../../lib/budgetService';
 
-// NOUVEAU : Import des fonctions de cache
+// Import des fonctions de cache
 import {
   getListForClient,
   getCachedAllShortcodes,
@@ -105,17 +103,13 @@ interface TactiquesAdvancedTableViewProps {
 }
 
 /**
- * NOUVEAU : Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
+ * Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
  */
 const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<ListItem[]> => {
   try {
-    console.log(`[CACHE] Tentative de récupération de ${fieldId} pour client ${clientId}`);
-    
     const cachedList = getListForClient(fieldId, clientId);
     
     if (cachedList && cachedList.length > 0) {
-      console.log(`[CACHE] ✅ ${fieldId} trouvé dans le cache (${cachedList.length} éléments)`);
-      
       return cachedList.map(item => ({
         id: item.id,
         SH_Code: item.SH_Code,
@@ -128,44 +122,56 @@ const getCachedOrFirebaseList = async (fieldId: string, clientId: string): Promi
       }));
     }
     
-    console.log(`[CACHE] ⚠️ ${fieldId} non trouvé dans le cache, fallback Firebase`);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
     return await getDynamicList(fieldId, clientId);
     
   } catch (error) {
-    console.error(`[CACHE] Erreur récupération ${fieldId}:`, error);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: getCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    console.error(`Erreur récupération ${fieldId}:`, error);
     return await getDynamicList(fieldId, clientId);
   }
 };
 
 /**
- * NOUVEAU : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
+ * Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache ou Firebase
  */
 const hasCachedOrFirebaseList = async (fieldId: string, clientId: string): Promise<boolean> => {
   try {
     const cachedList = getListForClient(fieldId, clientId);
     
     if (cachedList !== null) {
-      const hasItems = cachedList.length > 0;
-      console.log(`[CACHE] ${fieldId} existe dans le cache: ${hasItems}`);
-      return hasItems;
+      return cachedList.length > 0;
     }
     
-    console.log(`[CACHE] Vérification ${fieldId} via Firebase (fallback)`);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId}`);
     return await hasDynamicList(fieldId, clientId);
     
   } catch (error) {
-    console.error(`[CACHE] Erreur vérification ${fieldId}:`, error);
-    console.log(`FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: hasCachedOrFirebaseList - Path: dynamic_lists/${fieldId} (FALLBACK)`);
+    console.error(`Erreur vérification ${fieldId}:`, error);
     return await hasDynamicList(fieldId, clientId);
   }
 };
 
 /**
+ * NOUVEAU : Fonction pour convertir Fee vers BudgetClientFee (compatibilité types)
+ */
+function convertToBudgetClientFee(fee: Fee): BudgetClientFee {
+  return {
+    id: fee.id,
+    FE_Name: fee.FE_Name,
+    FE_Calculation_Type: fee.FE_Calculation_Type as any,
+    FE_Calculation_Mode: fee.FE_Calculation_Mode as any,
+    FE_Order: fee.FE_Order,
+    options: fee.options.map(option => ({
+      id: option.id,
+      FO_Option: option.FO_Option,
+      FO_Value: option.FO_Value,
+      FO_Buffer: option.FO_Buffer,
+      FO_Editable: option.FO_Editable
+    }))
+  };
+}
+
+/**
  * Composant principal de la vue de tableau avancée des tactiques.
- * VERSION BUDGET : Supporte maintenant les calculs budgétaires automatiques
+ * VERSION REFACTORISÉE : Utilise maintenant budgetService au lieu de TableBudgetCalculations
  */
 export default function TactiquesAdvancedTableView({
   sections,
@@ -183,7 +189,6 @@ export default function TactiquesAdvancedTableView({
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
 
-
   // États existants
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
   const [buckets, setBuckets] = useState<CampaignBucket[]>([]);
@@ -191,15 +196,14 @@ export default function TactiquesAdvancedTableView({
   const [visibleFields, setVisibleFields] = useState<VisibleFields>({});
   const [listsLoading, setListsLoading] = useState(false);
 
-// NOUVEAU : États pour les données budget
+  // MODIFIÉ : États pour les données budget (simplifiés)
   const [clientFees, setClientFees] = useState<Fee[]>([]);
   const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
   const [campaignCurrency, setCampaignCurrency] = useState<string>('CAD');
   const [budgetDataLoading, setBudgetDataLoading] = useState(false);
 
   /**
-   * MODIFIÉ : Charge toutes les données dynamiques incluant les données budget
-   * VERSION BUDGET : Ajoute le chargement des frais client, taux de change et devise de campagne
+   * MODIFIÉ : Charge toutes les données dynamiques avec logique budget simplifiée
    */
   const loadAllDynamicData = useCallback(async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
@@ -210,39 +214,35 @@ export default function TactiquesAdvancedTableView({
     setBudgetDataLoading(true);
 
     try {
-      console.log(`[BUDGET] 🚀 Début chargement données avec budget pour TactiquesAdvancedTableView`);
+      console.log(`🚀 Début chargement données pour TactiquesAdvancedTableView (version refactorisée)`);
       
       // Chargement des dimensions client
-      console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/customDimensions");
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
       setCustomDimensions(clientDimensions);
 
-      // NOUVEAU : Chargement des données budget séparément pour éviter les problèmes de types
+      // MODIFIÉ : Chargement des données budget avec gestion d'erreur simplifiée
       try {
-        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/fees");
         const budgetClientFees = await getClientFees(selectedClient.clientId);
         setClientFees(budgetClientFees);
-        console.log(`[BUDGET] ✅ Frais client chargés: ${Array.isArray(budgetClientFees) ? budgetClientFees.length : 0} frais`);
+        console.log(`✅ Frais client chargés: ${Array.isArray(budgetClientFees) ? budgetClientFees.length : 0} frais`);
       } catch (error) {
         console.warn('Erreur chargement frais client:', error);
         setClientFees([]);
       }
 
       try {
-        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/currencies");
         const budgetExchangeRates = await getExchangeRates(selectedClient.clientId);
         setExchangeRates(budgetExchangeRates);
-        console.log(`[BUDGET] ✅ Taux de change chargés: ${Object.keys(budgetExchangeRates).length} taux`);
+        console.log(`✅ Taux de change chargés: ${Object.keys(budgetExchangeRates).length} taux`);
       } catch (error) {
         console.warn('Erreur chargement taux de change:', error);
         setExchangeRates({});
       }
 
       try {
-        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}");
         const budgetCampaignCurrency = await getCampaignCurrency(selectedClient.clientId, selectedCampaign.id);
         setCampaignCurrency(budgetCampaignCurrency);
-        console.log(`[BUDGET] ✅ Devise campagne chargée: ${budgetCampaignCurrency}`);
+        console.log(`✅ Devise campagne chargée: ${budgetCampaignCurrency}`);
       } catch (error) {
         console.warn('Erreur chargement devise campagne:', error);
         setCampaignCurrency('CAD');
@@ -269,12 +269,10 @@ export default function TactiquesAdvancedTableView({
         }
         
         try {
-          console.log(`[CACHE] Vérification existence de ${field}`);
           const hasListResult = await hasCachedOrFirebaseList(field, selectedClient.clientId);
           newVisibleFields[field] = hasListResult;
           
           if (hasListResult) {
-            console.log(`[CACHE] Chargement de ${field}`);
             const list = await getCachedOrFirebaseList(field, selectedClient.clientId);
             newDynamicLists[field] = list;
           }
@@ -289,7 +287,6 @@ export default function TactiquesAdvancedTableView({
 
       // Chargement des buckets
       try {
-        console.log("FIREBASE: LECTURE - Fichier: TactiquesAdvancedTableView.tsx - Fonction: loadAllDynamicData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/buckets");
         const campaignBuckets = await getCampaignBuckets(
           selectedClient.clientId,
           selectedCampaign.id,
@@ -301,26 +298,74 @@ export default function TactiquesAdvancedTableView({
         setBuckets([]);
       }
 
-      console.log(`[BUDGET] ✅ Chargement terminé avec données budget pour TactiquesAdvancedTableView`);
+      console.log(`✅ Chargement terminé pour TactiquesAdvancedTableView (version refactorisée)`);
 
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des listes dynamiques et données budget:', error);
+      console.error('❌ Erreur lors du chargement des données:', error);
     } finally {
       setListsLoading(false);
       setBudgetDataLoading(false);
     }
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
-  const handleUpdateTactiqueWithTaxonomy = useCallback(async (
+  /**
+   * NOUVEAU : Wrapper pour onUpdateTactique avec validation budget
+   * Utilise budgetService pour valider les données avant la sauvegarde
+   */
+  const handleUpdateTactiqueWithBudget = useCallback(async (
     sectionId: string, 
     tactiqueId: string, 
     data: Partial<Tactique>
   ): Promise<void> => {
     try {
-      // 1. Effectuer la mise à jour normale
+      // 1. Si ce sont des données budget, les valider avec budgetService
+      const isBudgetUpdate = Object.keys(data).some(key => 
+        key.startsWith('TC_Budget') || key.startsWith('TC_Unit_') || 
+        key.startsWith('TC_Media_') || key.startsWith('TC_Client_') ||
+        key.startsWith('TC_Fee_') || key.includes('Currency')
+      );
+
+      if (isBudgetUpdate && clientFees.length > 0) {
+        console.log(`🧮 Validation budget pour tactique ${tactiqueId}:`, data);
+        
+        // Convertir les frais pour budgetService
+        const budgetClientFees = clientFees.map(convertToBudgetClientFee);
+        
+        // Créer BudgetData à partir des données de la tactique
+        const currentTactique = Object.values(tactiques).flat().find(t => t.id === tactiqueId);
+        if (currentTactique) {
+          const budgetData = budgetService.loadFromFirestore({
+            ...currentTactique,
+            ...data
+          }, budgetClientFees);
+
+          // Valider avec budgetService
+          const unitTypeOptions = (dynamicLists.TC_Unit_Type || []).map(item => ({
+            id: item.id,
+            SH_Display_Name_FR: item.SH_Display_Name_FR
+          }));
+
+          const result = budgetService.calculateComplete(
+            budgetData,
+            budgetClientFees,
+            exchangeRates,
+            campaignCurrency,
+            unitTypeOptions
+          );
+
+          if (!result.success) {
+            console.warn(`⚠️ Validation budget échouée pour ${tactiqueId}:`, result.error);
+            // On continue quand même la sauvegarde (les erreurs ne sont que des avertissements)
+          } else {
+            console.log(`✅ Validation budget réussie pour ${tactiqueId}`);
+          }
+        }
+      }
+
+      // 2. Effectuer la mise à jour normale
       await onUpdateTactique(sectionId, tactiqueId, data);
 
-      // 2. Déclencher la mise à jour des taxonomies si client et campagne sont sélectionnés
+      // 3. Déclencher la mise à jour des taxonomies si nécessaire
       if (selectedClient?.clientId && selectedCampaign?.id) {
         await updateTaxonomiesAsync('tactic', {
           id: tactiqueId,
@@ -330,23 +375,22 @@ export default function TactiquesAdvancedTableView({
         });
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la mise à jour de la tactique avec taxonomies:', error);
+      console.error('❌ Erreur lors de la mise à jour de la tactique avec budget:', error);
       throw error;
     }
-  }, [onUpdateTactique, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+  }, [onUpdateTactique, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync, 
+      clientFees, dynamicLists.TC_Unit_Type, exchangeRates, campaignCurrency, tactiques]);
 
   /**
-   * AJOUT : Wrapper pour onUpdatePlacement avec mise à jour taxonomique
+   * Wrapper pour onUpdatePlacement avec mise à jour taxonomique
    */
   const handleUpdatePlacementWithTaxonomy = useCallback(async (
     placementId: string, 
     data: Partial<Placement>
   ): Promise<void> => {
     try {
-      // 1. Effectuer la mise à jour normale
       await onUpdatePlacement(placementId, data);
 
-      // 2. Déclencher la mise à jour des taxonomies si client et campagne sont sélectionnés
       if (selectedClient?.clientId && selectedCampaign?.id) {
         await updateTaxonomiesAsync('placement', {
           id: placementId,
@@ -362,7 +406,7 @@ export default function TactiquesAdvancedTableView({
   }, [onUpdatePlacement, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
 
   /**
-   * Effet de bord qui déclenche le chargement des données dynamiques et budget
+   * Effet de bord qui déclenche le chargement des données
    */
   useEffect(() => {
     loadAllDynamicData();
@@ -376,59 +420,18 @@ export default function TactiquesAdvancedTableView({
     setBuckets([]);
     setCustomDimensions({});
     setVisibleFields({});
-    // NOUVEAU : Réinitialiser les données budget
     setClientFees([]);
     setExchangeRates({});
     setCampaignCurrency('CAD');
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
 
   /**
-   * Enrichit les colonnes de tableau avec des options de listes dynamiques
+   * SUPPRIMÉ : enrichedColumns (plus nécessaire, géré dans DynamicTableStructure)
    */
-  const enrichedColumns = useCallback((level: TableLevel, tactiqueSubCategory?: TactiqueSubCategory) => {
-    const baseColumns = getColumnsForLevel(level, tactiqueSubCategory);
-    
-    return baseColumns.map(column => {
-      const enrichedColumn = { ...column };
 
-      if (column.type === 'select') {
-        switch (column.key) {
-          case 'TC_Bucket':
-            enrichedColumn.options = buckets.map(bucket => ({
-              id: bucket.id,
-              label: bucket.name
-            }));
-            break;
-
-          case 'TC_LOB':
-          case 'TC_Media_Type':
-          case 'TC_Publisher':
-          case 'TC_Buying_Method':
-          case 'TC_Custom_Dim_1':
-          case 'TC_Custom_Dim_2':
-          case 'TC_Custom_Dim_3':
-          case 'TC_Inventory':
-          case 'TC_Market':
-          case 'TC_Language_Open':
-          case 'TC_Media_Objective':
-          case 'TC_Kpi':
-          case 'TC_Unit_Type':
-            const listData = dynamicLists[column.key] || [];
-            enrichedColumn.options = listData.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            }));
-            break;
-
-          default:
-            break;
-        }
-      }
-
-      return enrichedColumn;
-    });
-  }, [dynamicLists, buckets]);
-
+  /**
+   * MODIFIÉ : useAdvancedTableData avec le nouveau wrapper budget
+   */
   const {
     tableRows,
     entityCounts,
@@ -453,23 +456,24 @@ export default function TactiquesAdvancedTableView({
     placements,
     creatifs,
     onUpdateSection,
-    onUpdateTactique: handleUpdateTactiqueWithTaxonomy, // ✅ Utiliser le wrapper
-    onUpdatePlacement: handleUpdatePlacementWithTaxonomy, // ✅ Utiliser le wrapper
-    onUpdateCreatif // ✅ Pas de wrapper pour les créatifs (pas d'enfants)
+    onUpdateTactique: handleUpdateTactiqueWithBudget, // ✅ Utiliser le wrapper budget
+    onUpdatePlacement: handleUpdatePlacementWithTaxonomy,
+    onUpdateCreatif
   });
 
-  const columns = useMemo(() => enrichedColumns(selectedLevel), [enrichedColumns, selectedLevel]);
-  const navigate = useTableNavigation(tableRows, columns, editingCells, startEdit);
+  /**
+   * SUPPRIMÉ : columns et navigate (maintenant gérés dans DynamicTableStructure)
+   */
 
   const handleLevelChange = (level: TableLevel) => {
     setSelectedLevel(level);
   };
 
-  
-
+  /**
+   * MODIFIÉ : Sauvegarde avec validation budget optionnelle
+   */
   const handleSaveAllChanges = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaign?.id) {
-      // Fallback vers la sauvegarde normale si pas de contexte
       try {
         await saveAllChanges();
       } catch (error) {
@@ -483,7 +487,6 @@ export default function TactiquesAdvancedTableView({
       const modifiedTactiques = new Set<string>();
       const modifiedPlacements = new Set<string>();
   
-      // ✅ CORRECTION : Utiliser Array.from() pour l'itération
       const pendingEntries = Array.from(pendingChanges.entries());
       for (const [entityId, changes] of pendingEntries) {
         const row = tableRows.find(r => r.id === entityId);
@@ -516,7 +519,6 @@ export default function TactiquesAdvancedTableView({
       // 3. Déclencher les mises à jour de taxonomies seulement si nécessaire
       const taxonomyPromises: Promise<void>[] = [];
   
-      // ✅ CORRECTION : Utiliser Array.from() pour l'itération des Sets
       // Mise à jour pour les tactiques modifiées
       const tactiqueIds = Array.from(modifiedTactiques);
       for (const tactiqueId of tactiqueIds) {
@@ -557,15 +559,12 @@ export default function TactiquesAdvancedTableView({
         await Promise.all(taxonomyPromises);
         console.log(`✅ Mises à jour taxonomiques terminées`);
       }
-  
-      // TODO: Afficher un toast de succès
+
     } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde avec taxonomies:', error);
-      // TODO: Afficher un toast d'erreur
+      console.error('❌ Erreur lors de la sauvegarde avec budget:', error);
     }
   }, [saveAllChanges, pendingChanges, tableRows, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
 
-  
   const handleCancelAllChanges = () => {
     if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
       return;
@@ -615,7 +614,8 @@ export default function TactiquesAdvancedTableView({
         </div>
       )}
 
-<DynamicTableStructure
+      {/* MODIFIÉ : DynamicTableStructure avec nouvelles props budget unifiées */}
+      <DynamicTableStructure
         tableRows={tableRows}
         selectedLevel={selectedLevel}
         pendingChanges={pendingChanges}
@@ -629,13 +629,10 @@ export default function TactiquesAdvancedTableView({
         entityCounts={entityCounts}
         buckets={buckets}
         dynamicLists={dynamicLists}
-        // NOUVEAU : Ajout des props budget
         clientFees={clientFees}
         exchangeRates={exchangeRates}
         campaignCurrency={campaignCurrency}
       />
-
-
     </div>
   );
 }

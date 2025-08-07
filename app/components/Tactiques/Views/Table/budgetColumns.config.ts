@@ -1,12 +1,13 @@
 // app/components/Tactiques/Views/Table/budgetColumns.config.ts
 
 /**
- * Configuration spécialisée pour les colonnes budget
- * CORRIGÉ : Headers dynamiques basés sur les vrais noms des frais
- * CORRIGÉ : Fonctions utilitaires pour filtrer par type de ligne
+ * Configuration simplifiée pour les colonnes budget
+ * SUPPRIME toute logique de calcul (maintenant dans budgetService)
+ * GARDE uniquement la configuration des colonnes
  */
 
 import { DynamicColumn } from './TactiquesAdvancedTableView';
+import { ClientFee as BudgetClientFee } from '../../../../lib/budgetService';
 
 /**
  * Options pour le mode de saisie budget
@@ -24,8 +25,6 @@ export const CURRENCY_OPTIONS = [
   { id: 'USD', label: 'USD ($)' },
   { id: 'EUR', label: 'EUR (€)' },
   { id: 'CHF', label: 'CHF' },
-
-
 ];
 
 /**
@@ -33,31 +32,13 @@ export const CURRENCY_OPTIONS = [
  */
 export interface FeeColumnDefinition extends Omit<DynamicColumn, 'type'> {
   type: 'fee-composite';
-  feeNumber: number; // 1 à 5
+  feeNumber: number; // FE_Order du frais
   subColumns: {
     enabled: boolean;    // Checkbox pour activer/désactiver
     option: boolean;     // Menu déroulant des options
     customValue: boolean; // Champ valeur personnalisée
     calculatedAmount: boolean; // Montant calculé (readonly)
   };
-}
-
-/**
- * Interface pour les frais client (pour typage)
- */
-export interface ClientFee {
-  id: string;
-  FE_Name: string;
-  FE_Calculation_Type: 'Pourcentage budget' | 'Volume d\'unité' | 'Unités' | 'Frais fixe';
-  FE_Calculation_Mode: 'Directement sur le budget média' | 'Applicable sur les frais précédents';
-  FE_Order: number;
-  options: {
-    id: string;
-    FO_Option: string;
-    FO_Value: number;
-    FO_Buffer: number;
-    FO_Editable: boolean;
-  }[];
 }
 
 /**
@@ -105,8 +86,10 @@ export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-
-export function createFeeColumns(clientFees: ClientFee[]): FeeColumnDefinition[] {
+/**
+ * SIMPLIFIÉ : Création des colonnes de frais sans logique de calcul
+ */
+export function createFeeColumns(clientFees: BudgetClientFee[]): FeeColumnDefinition[] {
   const feeColumns: FeeColumnDefinition[] = [];
   
   // Trier les frais par leur FE_Order et créer une colonne pour chaque frais existant
@@ -133,11 +116,11 @@ export function createFeeColumns(clientFees: ClientFee[]): FeeColumnDefinition[]
   
   return feeColumns;
 }
+
 /**
  * Configuration des colonnes de totaux calculés
  */
 export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
-
   {
     key: 'TC_Media_Budget',
     label: 'Total média',
@@ -153,10 +136,9 @@ export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
 ];
 
 /**
- * CORRIGÉ : Fonction pour créer la configuration complète des colonnes budget
- * avec des noms de frais dynamiques
+ * SIMPLIFIÉ : Fonction pour créer la configuration complète des colonnes budget
  */
-export function createBudgetColumnsComplete(clientFees: ClientFee[]): (DynamicColumn | FeeColumnDefinition)[] {
+export function createBudgetColumnsComplete(clientFees: BudgetClientFee[]): (DynamicColumn | FeeColumnDefinition)[] {
   const feeColumns = createFeeColumns(clientFees);
   
   return [
@@ -167,7 +149,7 @@ export function createBudgetColumnsComplete(clientFees: ClientFee[]): (DynamicCo
 }
 
 /**
- * NOUVEAU : Fonction pour vérifier si une ligne doit afficher les colonnes budget
+ * Fonction pour vérifier si une ligne doit afficher les colonnes budget
  */
 export function shouldShowBudgetColumns(rowType: string): boolean {
   return rowType === 'tactique';
@@ -181,7 +163,8 @@ export function isFeeCompositeColumn(column: DynamicColumn | FeeColumnDefinition
 }
 
 /**
- * Fonction utilitaire pour récupérer les champs liés à un frais
+ * SIMPLIFIÉ : Fonction utilitaire pour récupérer les champs liés à un frais
+ * (garde seulement les noms des champs, sans logique de calcul)
  */
 export function getFeeFieldKeys(feeNumber: number): {
   enabled: string;
@@ -198,80 +181,60 @@ export function getFeeFieldKeys(feeNumber: number): {
 }
 
 /**
- * Fonction pour déterminer si un champ budget nécessite un recalcul
+ * NOUVEAU : Liste des champs budget qui déclenchent des recalculs
+ * (utilisé par DynamicTableStructure, remplace shouldTriggerBudgetRecalculation)
  */
-export function shouldTriggerBudgetRecalculation(fieldKey: string): boolean {
-  const triggerFields = [
-    'TC_Unit_Type',
-    'TC_BuyCurrency', 
-    'TC_Budget_Mode',
-    'TC_BudgetInput',
-    'TC_Unit_Price',
-    'TC_Media_Value', // Valeur réelle pour bonification
-    // Frais
-    'TC_Fee_1_Enabled', 'TC_Fee_1_Option', 'TC_Fee_1_Volume',
-    'TC_Fee_2_Enabled', 'TC_Fee_2_Option', 'TC_Fee_2_Volume', 
-    'TC_Fee_3_Enabled', 'TC_Fee_3_Option', 'TC_Fee_3_Volume',
-    'TC_Fee_4_Enabled', 'TC_Fee_4_Option', 'TC_Fee_4_Volume',
-    'TC_Fee_5_Enabled', 'TC_Fee_5_Option', 'TC_Fee_5_Volume'
-  ];
+export const BUDGET_TRIGGER_FIELDS = [
+  'TC_Unit_Type',
+  'TC_BuyCurrency', 
+  'TC_Budget_Mode',
+  'TC_BudgetInput',
+  'TC_Unit_Price',
+  'TC_Media_Value', // Valeur réelle pour bonification
+  // Frais
+  'TC_Fee_1_Option', 'TC_Fee_1_Volume',
+  'TC_Fee_2_Option', 'TC_Fee_2_Volume', 
+  'TC_Fee_3_Option', 'TC_Fee_3_Volume',
+  'TC_Fee_4_Option', 'TC_Fee_4_Volume',
+  'TC_Fee_5_Option', 'TC_Fee_5_Volume'
+];
 
-  return triggerFields.includes(fieldKey);
+/**
+ * NOUVEAU : Liste des champs calculés automatiquement (readonly)
+ * (utilisé par DynamicTableStructure, remplace getCalculatedBudgetFields)
+ */
+export const BUDGET_CALCULATED_FIELDS = [
+  'TC_Unit_Volume',
+  'TC_Media_Budget', 
+  'TC_Client_Budget',
+  'TC_Bonification',
+  'TC_Total_Fees',
+  'TC_Currency_Rate',
+  'TC_Delta',
+  'TC_Fee_1_Value',
+  'TC_Fee_2_Value',
+  'TC_Fee_3_Value', 
+  'TC_Fee_4_Value',
+  'TC_Fee_5_Value'
+];
+
+/**
+ * NOUVEAU : Fonction helper pour vérifier si un champ déclenche un recalcul
+ */
+export function shouldTriggerRecalculation(fieldKey: string): boolean {
+  return BUDGET_TRIGGER_FIELDS.includes(fieldKey);
 }
 
 /**
- * Fonction pour obtenir les champs calculés automatiquement
+ * NOUVEAU : Fonction helper pour vérifier si un champ est calculé automatiquement
  */
-export function getCalculatedBudgetFields(): string[] {
-  return [
-    'TC_Unit_Volume',
-    'TC_Media_Budget', 
-    'TC_Client_Budget',
-    'TC_Bonification',
-    'TC_Total_Fees',
-    'TC_Fee_1_Value',
-    'TC_Fee_2_Value',
-    'TC_Fee_3_Value', 
-    'TC_Fee_4_Value',
-    'TC_Fee_5_Value'
-  ];
+export function isCalculatedField(fieldKey: string): boolean {
+  return BUDGET_CALCULATED_FIELDS.includes(fieldKey);
 }
 
 /**
- * Fonction pour formater les valeurs budget selon leur type
+ * SUPPRIMÉ : calculateFeesAmounts (maintenant dans budgetService)
+ * SUPPRIMÉ : shouldTriggerBudgetRecalculation (remplacé par shouldTriggerRecalculation)
+ * SUPPRIMÉ : getCalculatedBudgetFields (remplacé par BUDGET_CALCULATED_FIELDS)
+ * SUPPRIMÉ : formatBudgetDisplayValue (formatage maintenant dans les composants réactifs)
  */
-export function formatBudgetDisplayValue(
-  fieldKey: string, 
-  value: any, 
-  currency: string = 'CAD'
-): string {
-  if (value === null || value === undefined || value === '') return '';
-
-  // Champs monétaires
-  if (fieldKey.includes('Budget') || fieldKey.includes('Price') || fieldKey.includes('Value') || 
-      fieldKey.includes('Fees') || fieldKey === 'TC_Bonification') {
-    const numValue = Number(value);
-    if (isNaN(numValue)) return String(value);
-    
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(numValue);
-  }
-
-  // Volume d'unités
-  if (fieldKey === 'TC_Unit_Volume') {
-    const numValue = Number(value);
-    if (isNaN(numValue)) return String(value);
-    
-    return new Intl.NumberFormat('fr-CA', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(numValue);
-  }
-
-  // Valeurs par défaut
-  return String(value);
-}

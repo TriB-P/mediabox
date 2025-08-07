@@ -11,6 +11,11 @@
  * NOUVELLE FONCTIONNALITÉ : Intégration des frais personnalisés du client
  * - Affichage des frais définis dans CL_Custom_Fee_1,2,3 avec montants CA_Custom_Fee_1,2,3
  * - Inclusion dans les calculs de budget client total et différence
+ * 
+ * MISE À JOUR : Conversion des frais tactiques en devise de référence
+ * - Les frais tactiques sont maintenant multipliés par TC_Currency_Rate
+ * - Ajout d'un indicateur de devise dans le header
+ * - Cohérence du symbole de devise partout
  */
 'use client';
 
@@ -29,6 +34,8 @@ import { getSections, getTactiques } from '../../lib/tactiqueService';
 import { getClientInfo, ClientInfo } from '../../lib/clientService';
 import { useClient } from '../../contexts/ClientContext';
 import { useSelection } from '../../contexts/SelectionContext';
+import { useCampaignData, formatCurrencyAmount } from '../../hooks/useCampaignData';
+
 
 interface TactiquesBudgetPanelProps {
   selectedCampaign: Campaign | null;
@@ -342,6 +349,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
 
   /**
    * Calcule les totaux budgétaires (budget média, bonification, frais tactiques, frais personnalisés, budget client).
+   * MISE À JOUR : Les frais tactiques sont maintenant convertis en devise de référence.
    */
   const calculateTotals = useCallback(() => {
     let totalMediaBudgetInput = 0;
@@ -351,25 +359,29 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     
     const rawFeeTotals: { [key: string]: number } = {};
 
-    // Calculs des tactiques (existant)
+    // Calculs des tactiques (existant + conversion des frais)
     allTactiquesInScope.forEach(tactique => {
       totalMediaBudgetInput += tactique.TC_Media_Budget_RefCurrency || 0; 
       totalMediaBudgetWithBonification += (tactique as any).TC_Media_Budget_RefCurrency || 0;
       totalClientBudget += (tactique as any).TC_Client_Budget_RefCurrency || 0;
       totalBonification += (tactique as any).TC_Bonification || 0;
 
+      // NOUVEAU : Conversion des frais tactiques en devise de référence
+      const currencyRate = (tactique as any).TC_Currency_Rate || 1;
+      
       for (let i = 1; i <= 5; i++) {
         const feeValueKey = `TC_Fee_${i}_Value`;
-        rawFeeTotals[feeValueKey] = (rawFeeTotals[feeValueKey] || 0) + ((tactique as any)[feeValueKey] || 0);
+        const feeAmount = ((tactique as any)[feeValueKey] || 0) * currencyRate;
+        rawFeeTotals[feeValueKey] = (rawFeeTotals[feeValueKey] || 0) + feeAmount;
       }
     });
 
     const totalTactiqueFees = Object.values(rawFeeTotals).reduce((sum, current) => sum + current, 0);
     
-    // NOUVEAU : Calcul des frais personnalisés du client
+    // Calcul des frais personnalisés du client (restent en devise de référence)
     const totalCustomClientFees = customClientFees.reduce((sum, fee) => sum + fee.amount, 0);
     
-    // NOUVEAU : Ajout des frais personnalisés au budget client total
+    // Ajout des frais personnalisés au budget client total
     const finalClientBudget = totalClientBudget + totalCustomClientFees;
 
     return {
@@ -379,8 +391,8 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       totalBonification,
       rawFeeTotals,
       totalTactiqueFees,
-      totalCustomClientFees, // NOUVEAU
-      customClientFees, // NOUVEAU
+      totalCustomClientFees,
+      customClientFees,
     };
   }, [allTactiquesInScope, customClientFees]);
 
@@ -500,7 +512,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           </div>
           
           
-          {/* NOUVEAU : Affichage des frais personnalisés du client */}
+          {/* Affichage des frais personnalisés du client */}
           {totals.customClientFees.map((fee) => (
             <div key={fee.key} className="flex justify-between items-center text-sm">
               <span className="text-gray-600">{fee.label}:</span>
@@ -546,7 +558,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
         </button>
         {showFeeDetails && (
           <div className="p-3 space-y-2">
-            {/* NOUVEAU : Affichage détaillé des frais personnalisés */}
+            {/* Affichage détaillé des frais personnalisés */}
             {totals.customClientFees.length > 0 && (
               <>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -569,7 +581,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
               </>
             )}
             
-            {/* Frais tactiques existants */}
+            {/* Frais tactiques avec conversion en devise de référence */}
             {Object.entries(totals.rawFeeTotals)
                 .filter(([, amount]) => amount > 0)
                 .map(([feeKey, amount]) => (
@@ -727,7 +739,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   const [activeTab, setActiveTab] = useState<PanelTab>('totals');
   const [displayScope, setDisplayScope] = useState<DisplayScope>('currentTab');
   
-  // NOUVEAU : État pour les informations client
+  // État pour les informations client
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [loadingClientInfo, setLoadingClientInfo] = useState(false);
   const [clientInfoError, setClientInfoError] = useState<string | null>(null);
@@ -735,7 +747,22 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   const { selectedClient } = useClient();
 
   /**
-   * NOUVEAU : Charge les informations du client pour récupérer les labels des frais personnalisés
+ * Charge les données de la campagne pour récupérer la devise (CA_Currency).
+ */
+const { currency, loading: campaignLoading } = useCampaignData();
+
+/**
+ * Fonction de formatage des montants avec la devise de la campagne.
+ * Remplace la prop formatCurrency pour utiliser la bonne devise.
+ * @param {number} amount - Le montant à formater.
+ * @returns {string} Le montant formaté avec le bon symbole de devise.
+ */
+const formatCurrencyWithCampaignCurrency = (amount: number): string => {
+  return formatCurrencyAmount(amount, currency);
+};
+
+  /**
+   * Charge les informations du client pour récupérer les labels des frais personnalisés
    */
   const loadClientInfo = useCallback(async () => {
     if (!selectedClient?.clientId) return;
@@ -757,7 +784,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   }, [selectedClient?.clientId]);
 
   /**
-   * NOUVEAU : Effet pour charger les informations client quand le client sélectionné change
+   * Effet pour charger les informations client quand le client sélectionné change
    */
   useEffect(() => {
     loadClientInfo();
@@ -773,7 +800,18 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-lg overflow-hidden">
-      <div className="p-4 border-b border-gray-200">
+      {/* NOUVEAU : Header avec indicateur de devise */}
+      <div className="p-4 border-b border-gray-200 bg-indigo-50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900">Budget</h3>
+          {selectedCampaign.CA_Currency && (
+            <div className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md text-xs font-medium">
+              <CurrencyDollarIcon className="h-3 w-3" />
+              {selectedCampaign.CA_Currency}
+            </div>
+          )}
+        </div>
+        
         <div className="flex rounded-md shadow-sm">
           <button
             type="button"
@@ -797,7 +835,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {/* NOUVEAU : Affichage d'erreur client info si nécessaire */}
+        {/* Affichage d'erreur client info si nécessaire */}
         {clientInfoError && (
           <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
             ⚠️ {clientInfoError}
@@ -816,11 +854,11 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
             sections={sections}
             tactiques={tactiques}
             onglets={onglets}
-            formatCurrency={formatCurrency}
+            formatCurrency={formatCurrencyWithCampaignCurrency}
             clientFees={clientFees}
             displayScope={displayScope}
             setDisplayScope={setDisplayScope}
-            clientInfo={clientInfo} // NOUVEAU : Passage des informations client
+            clientInfo={clientInfo}
           />
         )}
         
