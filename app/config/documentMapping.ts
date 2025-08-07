@@ -79,27 +79,257 @@ export const documentMappingConfig = {
     fields: [
       {
         field: 'TC_Label',
-        column: 'Label',
-        type: 'text' as FieldType,
-      },
-      {
-        field: 'TC_Budget_Mode',
-        column: 'Type de budget',
+        column: 'TC_Label',
         type: 'text' as FieldType,
       },
       {
         field: 'TC_BuyCurrency',
-        column: 'Devise',
+        column: 'TC_BuyCurrency',
         type: 'text' as FieldType,
       },
       {
-        field: 'TC_Order',
-        column: 'Order',
+        field: 'TC_Billing_ID',
+        column: 'TC_Billing_ID',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_AssetDate',
+        column: 'TC_AssetDate',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Buying_Method',
+        column: 'TC_Buying_Method',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Custom_Dim_1',
+        column: 'TC_Custom_Dim_1',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Custom_Dim_2',
+        column: 'TC_Custom_Dim_2',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Custom_Dim_3',
+        column: 'TC_Custom_Dim_3',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Emplacement',
+        column: 'TC_Emplacement',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_End_Date',
+        column: 'TC_End_Date',
+        type: 'date' as FieldType,
+      },
+      {
+        field: 'TC_Fee_1_Value',
+        column: 'TC_Fee_1_Value',
         type: 'number' as FieldType,
       },
       {
+        field: 'TC_Fee_2_Value',
+        column: 'TC_Fee_2_Value',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_3_Value',
+        column: 'TC_Fee_3_Value',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_4_Value',
+        column: 'TC_Fee_4_Value',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_5_Value',
+        column: 'TC_Fee_5_Value',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Format_Open',
+        column: 'TC_Format_Open',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Frequence',
+        column: 'TC_Frequence',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Inventory',
+        column: 'TC_Inventory',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_1',
+        column: 'TC_Kpi_1',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_CostPer_1',
+        column: 'TC_Kpi_CostPer_1',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_Volume_1',
+        column: 'TC_Kpi_Volume_1',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_2',
+        column: 'TC_Kpi_2',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_CostPer_2',
+        column: 'TC_Kpi_CostPer_2',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_Volume_2',
+        column: 'TC_Kpi_Volume_2',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_3',
+        column: 'TC_Kpi_3',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_CostPer_3',
+        column: 'TC_Kpi_CostPer_3',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_Volume_3',
+        column: 'TC_Kpi_Volume_3',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_4',
+        column: 'TC_Kpi_4',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_CostPer_4',
+        column: 'TC_Kpi_CostPer_4',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_Volume_4',
+        column: 'TC_Kpi_Volume_4',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_5',
+        column: 'TC_Kpi_5',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_CostPer_5',
+        column: 'TC_Kpi_CostPer_5',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Kpi_Volume_5',
+        column: 'TC_Kpi_Volume_5',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Language_Open',
+        column: 'TC_Language_Open',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_LOB',
+        column: 'TC_LOB',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Market',
+        column: 'TC_Market',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Market_Open',
+        column: 'TC_Market_Open',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Media_Objective',
+        column: 'TC_Media_Objective',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Media_Type',
+        column: 'TC_Media_Type',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_NumberCreative',
+        column: 'TC_NumberCreative',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_PO',
+        column: 'TC_PO',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Product_Open',
+        column: 'TC_Product_Open',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Publisher',
+        column: 'TC_Publisher',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Start_Date',
+        column: 'TC_Start_Date',
+        type: 'date' as FieldType,
+      },
+      {
+        field: 'TC_Targeting_Open',
+        column: 'TC_Targeting_Open',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Unit_Type',
+        column: 'TC_Unit_Type',
+        type: 'text' as FieldType,
+      },
+      {
         field: 'TC_Unit_Volume',
-        column: 'Volume unité',
+        column: 'TC_Unit_Volume',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Media_Budget',
+        column: 'TC_Media_Budget',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Client_Budget',
+        column: 'TC_Client_Budget',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Media_Value',
+        column: 'TC_Media_Value',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Unit_Price',
+        column: 'TC_Unit_Price',
         type: 'number' as FieldType,
       },
     ]

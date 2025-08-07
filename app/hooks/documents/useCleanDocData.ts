@@ -185,7 +185,7 @@ export function useCleanDocData(): UseCleanDocDataReturn {
     });
 
     // 2. Créer les en-têtes du tableau avec les colonnes d'ID parents fixes
-    const fixedHeaders = ['Niveau', 'Onglet', 'Section', 'Tactique', 'Placement'];
+    const fixedHeaders = ['Niveau', 'Element_ID', 'Onglet', 'Section', 'Tactique', 'Placement'];
     const finalHeaders = [...fixedHeaders, ...allColumns.filter(col => col !== 'Niveau')];
     table.push(finalHeaders);
 
@@ -205,7 +205,7 @@ export function useCleanDocData(): UseCleanDocDataReturn {
           if (mapping.field === 'level_indicator') {
             return elementType;
           } else {
-            return element[mapping.field] != null ? String(element[mapping.field]) : 'XXX';
+            return element[mapping.field] != null ? String(element[mapping.field]) : 'XXXX';
           }
         } else if (mapping.source === 'parent_id' && mapping.field === 'level_indicator') {
           return elementType;
@@ -235,6 +235,8 @@ export function useCleanDocData(): UseCleanDocDataReturn {
 
         if (columnName === 'Niveau') {
           value = elementType;
+        } else if (columnName === 'Element_ID') {
+          value = element.id;
         } else if (columnName === 'Onglet') {
           if (elementType === 'Onglet') {
             value = element.id;
