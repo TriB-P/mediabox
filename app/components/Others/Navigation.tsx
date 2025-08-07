@@ -52,9 +52,9 @@ export default function Navigation() {
   const navigationItems = [
     { name: t('navigation.menus.campaigns'), href: '/campaigns', icon: LayoutDashboard },
     { name: t('navigation.menus.strategy'), href: '/strategy', icon: LineChart },
-    { name: 'AdOps', href: '/adops', icon: Tag },
     { name: t('navigation.menus.tactics'), href: '/tactiques', icon: Layers },
     { name: t('navigation.menus.documents'), href: '/documents', icon: FileText },
+    { name: 'AdOps', href: '/adops', icon: Tag },
     { name: t('navigation.menus.costGuide'), href: '/guide-de-cout', icon: DollarSign },
     { name: t('navigation.menus.partners'), href: '/partenaires', icon: Users },
     { name: t('navigation.menus.clientConfig'), href: '/client-config', icon: Settings },

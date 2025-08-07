@@ -1,4 +1,4 @@
-// app/components/forms/TactiqueFormKPI.tsx
+// app/components/Tactiques/Tactiques/TactiqueFormKPI.tsx
 /**
  * @file app/components/forms/TactiqueFormKPI.tsx
  * Ce fichier définit les composants React nécessaires pour la section "KPIs et objectifs"
@@ -8,6 +8,7 @@
  * média et une liste dynamique de composants KPIItem.
  * Ce fichier est purement présentationnel ("dumb component") ; il reçoit toutes les données
  * et les fonctions de gestion d'état via ses props depuis un composant parent.
+ * VERSION MODIFIÉE : Les valeurs numériques des KPIs sont initialement vides au lieu de 0
  */
 
 'use client';
@@ -25,10 +26,14 @@ interface ListItem {
   SH_Display_Name_FR: string;
 }
 
+/**
+ * MODIFIÉ : Interface KPIData avec valeurs numériques optionnelles
+ * Les champs TC_Kpi_CostPer et TC_Kpi_Volume peuvent être undefined pour rester vides initialement
+ */
 interface KPIData {
   TC_Kpi: string;
-  TC_Kpi_CostPer: number;
-  TC_Kpi_Volume: number;
+  TC_Kpi_CostPer?: number; // MODIFIÉ : Optionnel pour permettre valeurs vides
+  TC_Kpi_Volume?: number;  // MODIFIÉ : Optionnel pour permettre valeurs vides
 }
 
 interface TactiqueFormKPIProps {
@@ -38,7 +43,7 @@ interface TactiqueFormKPIProps {
   kpis: KPIData[];
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  onKpiChange: (index: number, field: keyof KPIData, value: string | number) => void;
+  onKpiChange: (index: number, field: keyof KPIData, value: string | number | undefined) => void; // MODIFIÉ : Accepter undefined
   onAddKpi: () => void;
   onRemoveKpi: (index: number) => void;
   dynamicLists: { [key: string]: ListItem[] };
@@ -48,22 +53,14 @@ interface TactiqueFormKPIProps {
 /**
  * Affiche un formulaire pour un seul KPI.
  * Ce composant est mémoïsé pour optimiser les performances lors de la mise à jour de la liste de KPIs.
- * @param {object} props - Les propriétés du composant.
- * @param {KPIData} props.kpi - Les données du KPI à afficher.
- * @param {number} props.index - L'index du KPI dans la liste, utilisé pour les callbacks et l'affichage.
- * @param {boolean} props.canRemove - Indique si le bouton de suppression doit être affiché.
- * @param {ListItem[]} props.kpiOptions - La liste des options de KPIs disponibles pour la sélection.
- * @param {(index: number, field: keyof KPIData, value: string | number) => void} props.onKpiChange - Callback pour mettre à jour une propriété du KPI.
- * @param {(index: number) => void} props.onRemove - Callback pour supprimer ce KPI de la liste.
- * @param {(tooltip: string | null) => void} props.onTooltipChange - Callback pour afficher une infobulle d'aide.
- * @returns {React.ReactElement} Le JSX du formulaire pour un KPI.
+ * MODIFIÉ : Gestion des valeurs vides pour les champs numériques
  */
 const KPIItem = memo<{
   kpi: KPIData;
   index: number;
   canRemove: boolean;
   kpiOptions: ListItem[];
-  onKpiChange: (index: number, field: keyof KPIData, value: string | number) => void;
+  onKpiChange: (index: number, field: keyof KPIData, value: string | number | undefined) => void;
   onRemove: (index: number) => void;
   onTooltipChange: (tooltip: string | null) => void;
 }>(({ 
@@ -85,19 +82,25 @@ const KPIItem = memo<{
   }, [index, onKpiChange]);
 
   /**
-   * Gère le changement de la valeur du champ "Coût par".
+   * MODIFIÉ : Gère le changement de la valeur du champ "Coût par" avec support des valeurs vides.
    * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
    */
   const handleCostPerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onKpiChange(index, 'TC_Kpi_CostPer', parseFloat(e.target.value) || 0);
+    const value = e.target.value;
+    // Si le champ est vide, passer undefined, sinon parser la valeur
+    const numericValue = value === '' ? undefined : parseFloat(value);
+    onKpiChange(index, 'TC_Kpi_CostPer', numericValue);
   }, [index, onKpiChange]);
 
   /**
-   * Gère le changement de la valeur du champ "Volume".
+   * MODIFIÉ : Gère le changement de la valeur du champ "Volume" avec support des valeurs vides.
    * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
    */
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onKpiChange(index, 'TC_Kpi_Volume', parseFloat(e.target.value) || 0);
+    const value = e.target.value;
+    // Si le champ est vide, passer undefined, sinon parser la valeur
+    const numericValue = value === '' ? undefined : parseFloat(value);
+    onKpiChange(index, 'TC_Kpi_Volume', numericValue);
   }, [index, onKpiChange]);
 
   /**
@@ -176,7 +179,7 @@ const KPIItem = memo<{
             </div>
             <input
               type="number"
-              value={kpi.TC_Kpi_CostPer}
+              value={kpi.TC_Kpi_CostPer ?? ''} // MODIFIÉ : Utiliser ?? '' pour afficher vide si undefined
               onChange={handleCostPerChange}
               min="0"
               step="0.01"
@@ -196,7 +199,7 @@ const KPIItem = memo<{
           </div>
           <input
             type="number"
-            value={kpi.TC_Kpi_Volume}
+            value={kpi.TC_Kpi_Volume ?? ''} // MODIFIÉ : Utiliser ?? '' pour afficher vide si undefined
             onChange={handleVolumeChange}
             min="0"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -213,17 +216,7 @@ KPIItem.displayName = 'KPIItem';
 /**
  * Composant principal pour la section des KPIs et objectifs du formulaire de tactique.
  * Il gère l'affichage de l'objectif média et la liste des KPIs.
- * @param {TactiqueFormKPIProps} props - Les propriétés du composant.
- * @param {object} props.formData - Les données actuelles du formulaire.
- * @param {KPIData[]} props.kpis - Le tableau des KPIs à afficher.
- * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} props.onChange - Callback pour les changements sur les champs simples comme l'objectif média.
- * @param {(tooltip: string | null) => void} props.onTooltipChange - Callback pour afficher une infobulle d'aide.
- * @param {(index: number, field: keyof KPIData, value: string | number) => void} props.onKpiChange - Callback pour mettre à jour un KPI spécifique.
- * @param {() => void} props.onAddKpi - Callback pour ajouter un nouveau KPI à la liste.
- * @param {(index: number) => void} props.onRemoveKpi - Callback pour supprimer un KPI de la liste.
- * @param {{ [key: string]: ListItem[] }} props.dynamicLists - Un objet contenant les listes de valeurs dynamiques (ex: pour les menus déroulants).
- * @param {boolean} [props.loading=false] - Indique si les données sont en cours de chargement, pour désactiver les contrôles.
- * @returns {React.ReactElement} Le JSX de la section de formulaire pour les KPIs.
+ * INCHANGÉ : La logique principale reste la même
  */
 const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   formData,

@@ -251,6 +251,22 @@ export default function TactiqueFormRepartition({
 
   return (
     <div className="p-8 space-y-8">
+
+<div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 mb-6">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-indigo-600 font-medium">Budget média :</span>
+        <span className="text-sm font-semibold text-indigo-800">
+          {formData.TC_Media_Budget && formData.TC_Media_Budget > 0
+            ? `${parseFloat(formData.TC_Media_Budget.toString()).toLocaleString('fr-CA', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 2 
+              })}`
+            : 'Non défini'
+          }
+        </span>
+      </div>
+    </div>
+
       <FormSection
         title="Répartition temporelle"
         description="Configurez les dates de la tactique et répartissez les valeurs selon les breakdowns de la campagne"
@@ -272,6 +288,7 @@ export default function TactiqueFormRepartition({
                 type="date"
                 name="TC_Start_Date"
                 value={formData.TC_Start_Date || ''}
+                max={formData.TC_End_Date || ''}
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
@@ -292,6 +309,8 @@ export default function TactiqueFormRepartition({
                 type="date"
                 name="TC_End_Date"
                 value={formData.TC_End_Date || ''}
+                min={formData.TC_Start_Date || ''}
+
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"

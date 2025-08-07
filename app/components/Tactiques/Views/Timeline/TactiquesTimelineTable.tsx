@@ -1098,7 +1098,7 @@ export default function TactiquesTimelineTable({
             ) : (
               // Pour les autres types: 1 ligne de totaux
               <tr className="bg-gray-50 border-t-2 border-gray-200">
-                <td className="px-4 py-2 text-sm font-medium text-gray-800">
+              <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
                   Total Budget
                 </td>
                 {periods.map((period) => {

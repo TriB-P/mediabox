@@ -410,9 +410,9 @@ useEffect(() => {
   
   const tabs: FormTab[] = [
     { id: 'infos', name: t('creatifDrawer.tabs.info'), icon: DocumentTextIcon },
-    { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: TagIcon },
+    { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: BookOpenIcon },
     { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: CogIcon },
-    { id: 'tags', name: 'Tags', icon: BookOpenIcon }
+    { id: 'tags', name: 'Tags', icon: TagIcon }
   ];
 
   /**

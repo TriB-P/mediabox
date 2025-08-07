@@ -93,8 +93,8 @@ interface TactiqueDrawerProps {
 
 interface KPIData {
   TC_Kpi: string;
-  TC_Kpi_CostPer: number;
-  TC_Kpi_Volume: number;
+  TC_Kpi_CostPer?: number;
+  TC_Kpi_Volume?: number;
 }
 
 interface VisibleFields {
@@ -403,16 +403,16 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     TC_CM360_Rate: round2(formDataAny.TC_CM360_Rate),
     
     // KPIs arrondis
-    TC_Kpi_CostPer: round2(formDataAny.TC_Kpi_CostPer),
-    TC_Kpi_Volume: round2(formDataAny.TC_Kpi_Volume),
-    TC_Kpi_CostPer_2: round2(formDataAny.TC_Kpi_CostPer_2),
-    TC_Kpi_Volume_2: round2(formDataAny.TC_Kpi_Volume_2),
-    TC_Kpi_CostPer_3: round2(formDataAny.TC_Kpi_CostPer_3),
-    TC_Kpi_Volume_3: round2(formDataAny.TC_Kpi_Volume_3),
-    TC_Kpi_CostPer_4: round2(formDataAny.TC_Kpi_CostPer_4),
-    TC_Kpi_Volume_4: round2(formDataAny.TC_Kpi_Volume_4),
-    TC_Kpi_CostPer_5: round2(formDataAny.TC_Kpi_CostPer_5),
-    TC_Kpi_Volume_5: round2(formDataAny.TC_Kpi_Volume_5),
+    TC_Kpi_CostPer: round2(formDataAny.TC_Kpi_CostPer|| 0),
+    TC_Kpi_Volume: round2(formDataAny.TC_Kpi_Volume|| 0),
+    TC_Kpi_CostPer_2: round2(formDataAny.TC_Kpi_CostPer_2|| 0),
+    TC_Kpi_Volume_2: round2(formDataAny.TC_Kpi_Volume_2|| 0),
+    TC_Kpi_CostPer_3: round2(formDataAny.TC_Kpi_CostPer_3|| 0),
+    TC_Kpi_Volume_3: round2(formDataAny.TC_Kpi_Volume_3|| 0),
+    TC_Kpi_CostPer_4: round2(formDataAny.TC_Kpi_CostPer_4|| 0),
+    TC_Kpi_Volume_4: round2(formDataAny.TC_Kpi_Volume_4|| 0),
+    TC_Kpi_CostPer_5: round2(formDataAny.TC_Kpi_CostPer_5|| 0),
+    TC_Kpi_Volume_5: round2(formDataAny.TC_Kpi_Volume_5|| 0),
   };
 };
 
@@ -460,7 +460,7 @@ export default function TactiqueDrawer({
     }
   });
   const [kpis, setKpis] = useState<KPIData[]>([
-    { TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }
+    { TC_Kpi: '' } 
   ]);
   const [useInheritedBilling, setUseInheritedBilling] = useState(true);
   const [useInheritedPO, setUseInheritedPO] = useState(true);
@@ -774,7 +774,7 @@ export default function TactiqueDrawer({
     setIsDirty(true);
   }, []);
 
-  const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number) => {
+  const handleKpiChange = useCallback((index: number, field: keyof KPIData, value: string | number | undefined) => { // MODIFIÉ : Accepter undefined
     setKpis(prev => {
       const newKpis = [...prev];
       newKpis[index] = { ...newKpis[index], [field]: value };
@@ -786,7 +786,7 @@ export default function TactiqueDrawer({
   const addKpi = useCallback(() => {
     setKpis(prev => {
       if (prev.length < 5) {
-        return [...prev, { TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }];
+        return [...prev, { TC_Kpi: '' }]; // MODIFIÉ : Supprimer les valeurs par défaut 0
       }
       return prev;
     });
