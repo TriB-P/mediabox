@@ -168,18 +168,18 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
-        field: 'TC_Kpi_1',
-        column: 'TC_Kpi_1',
+        field: 'TC_Kpi',
+        column: 'TC_Kpi',
         type: 'text' as FieldType,
       },
       {
-        field: 'TC_Kpi_CostPer_1',
-        column: 'TC_Kpi_CostPer_1',
+        field: 'TC_Kpi_CostPer',
+        column: 'TC_Kpi_CostPer',
         type: 'number' as FieldType,
       },
       {
-        field: 'TC_Kpi_Volume_1',
-        column: 'TC_Kpi_Volume_1',
+        field: 'TC_Kpi_Volume',
+        column: 'TC_Kpi_Volume',
         type: 'number' as FieldType,
       },
       {

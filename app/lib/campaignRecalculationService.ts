@@ -1,91 +1,34 @@
-/**
- * Prépare les données de la tactique avec les NOUVELLES valeurs actuelles
- * SIMPLE: Garde les données de la tactique mais injecte les nouvelles valeurs contextuelles
- */
-const mapTactiqueForBudgetCalculation = (tactique: any, context: RecalculationContext, currencyInfo: { rate: number; version: string }): any => {
-    return {
-      // Données de la tactique (inchangées)
-      TC_Budget_Mode: tactique.TC_Budget_Mode || 'media',
-      TC_BudgetInput: tactique.TC_BudgetInput || tactique.TC_Budget || 0,
-      TC_Unit_Price: tactique.TC_Unit_Price || tactique.TC_Cost_Per_Unit || 0,
-      TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
-      TC_Media_Value: tactique.TC_Media_Value || tactique.TC_Real_Value || 0,
-      TC_Bonification: tactique.TC_Bonification || tactique.TC_Bonus_Value || 0,
-      TC_Media_Budget: tactique.TC_Media_Budget || 0,
-      TC_Client_Budget: tactique.TC_Client_Budget || 0,
-      TC_BuyCurrency: tactique.TC_BuyCurrency || tactique.TC_Currency || 'CAD',
-      TC_Delta: tactique.TC_Delta || 0,
-      TC_Unit_Type: tactique.TC_Unit_Type || '',
-      TC_Has_Bonus: tactique.TC_Has_Bonus || false,
-      
-      // NOUVELLES valeurs contextuelles
-      TC_Currency_Rate: currencyInfo.rate,
-      TC_Currency_Version: currencyInfo.version,
-      
-      // Frais: garder les sélections mais reset les valeurs (seront recalculées)
-      TC_Fee_1_Option: tactique.TC_Fee_1_Option || '',
-      TC_Fee_1_Volume: tactique.TC_Fee_1_Volume || 0,
-      TC_Fee_1_Value: 0,
-      TC_Fee_2_Option: tactique.TC_Fee_2_Option || '',
-      TC_Fee_2_Volume: tactique.TC_Fee_2_Volume || 0,
-      TC_Fee_2_Value: 0,
-      TC_Fee_3_Option: tactique.TC_Fee_3_Option || '',
-      TC_Fee_3_Volume: tactique.TC_Fee_3_Volume || 0,
-      TC_Fee_3_Value: 0,
-      TC_Fee_4_Option: tactique.TC_Fee_4_Option || '',
-      TC_Fee_4_Volume: tactique.TC_Fee_4_Volume || 0,
-      TC_Fee_4_Value: 0,
-      TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
-      TC_Fee_5_Volume: tactique.TC_Fee_5_Volume || 0,
-      TC_Fee_5_Value: 0,
-    };
-  };
-  
-  /**
-   * Valide qu'une option de frais sélectionnée existe encore dans la configuration actuelle des frais
-   * Si l'option n'existe plus, retourne une chaîne vide pour désactiver le frais
-   */
-  const validateFeeOption = (selectedOptionId: string | undefined, clientFees: any[], feeIndex: number): string => {
-    if (!selectedOptionId || selectedOptionId.trim() === '') {
-      return '';
-    }
-    
-    // Trouver le frais correspondant (trié par ordre)
-    const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
-    const fee = sortedFees[feeIndex];
-    
-    if (!fee || !fee.options) {
-      console.log(`⚠️ Frais ${feeIndex + 1} n'existe plus, désactivation`);
-      return '';
-    }
-    
-    // Vérifier que l'option existe encore
-    const optionExists = fee.options.some((option: any) => option.id === selectedOptionId);
-    
-    if (!optionExists) {
-      console.log(`⚠️ Option ${selectedOptionId} du frais ${fee.FE_Name} n'existe plus, désactivation`);
-      return '';
-    }
-    
-    return selectedOptionId;
-  };
-  
+// app/lib/campaignRecalculationService.ts
 
-  import {
+/**
+ * Service de recalcul des campagnes - Regénère tous les calculs budgétaires des tactiques
+ * 
+ * Ce service parcourt hiérarchiquement toutes les tactiques d'une campagne
+ * (toutes versions → onglets → sections → tactiques) et applique EXACTEMENT les mêmes calculs
+ * que ceux effectués dans TactiqueDrawer en utilisant budgetService.calculateComplete :
+ * - Logique budget média vs budget client identique
+ * - Calculs de frais séquentiels avec calculateFeesCorrectly()
+ * - Gestion de la convergence budgétaire
+ * - Valeurs héritées de la campagne (Billing_ID, PO)
+ * - PRÉSERVATION des versions de taux personnalisées (TC_Currency_Version)
+ * - GESTION du changement de devise de campagne (recherche automatique de nouvelles versions)
+ * - UTILISATION des NOUVELLES valeurs contextuelles (frais actuels, taux actuels, devise actuelle)
+ * - Formatage identique via mapFormToTactique()
+ */
+
+import {
     collection,
     doc,
     getDocs,
     query,
     orderBy,
     writeBatch,
-    getDoc,
   } from 'firebase/firestore';
   import { db } from './firebase';
   import { budgetService } from './budgetService';
-  import { getClientFees } from './feeService';
+  import { getClientFees, getFeeOptions } from './feeService';
   import { getCampaignAdminValues, getCampaignCurrency, getExchangeRates, getDynamicList } from './tactiqueListService';
   import { getCurrencyRateByVersion, getCurrencyRatesByPair } from './currencyService';
-  import { useBudgetCalculationsReadOnly } from '../hooks/useBudgetCalculations';
   
   interface RecalculationResult {
     success: boolean;
@@ -112,7 +55,7 @@ const mapTactiqueForBudgetCalculation = (tactique: any, context: RecalculationCo
   
   /**
    * Résout le taux de change à utiliser pour une tactique
-   * SIMPLE: Compare TC_BuyCurrency avec CA_Currency et vérifie la compatibilité de TC_Currency_Version
+   * Compare TC_BuyCurrency avec CA_Currency et vérifie la compatibilité de TC_Currency_Version
    */
   const resolveCurrencyRate = async (
     tactique: TactiqueData,
@@ -128,8 +71,6 @@ const mapTactiqueForBudgetCalculation = (tactique: any, context: RecalculationCo
       return { rate: 1, version: '' };
     }
   
-    console.log(`🔄 Vérification taux: ${tacticCurrency} → ${campaignCurrency} (version: ${existingVersion || 'aucune'})`);
-  
     // 2. Si version spécifique → vérifier si elle est compatible avec la paire actuelle
     if (existingVersion) {
       try {
@@ -141,13 +82,10 @@ const mapTactiqueForBudgetCalculation = (tactique: any, context: RecalculationCo
         );
   
         if (specificRate) {
-          console.log(`✅ Version compatible: ${existingVersion} = ${specificRate.CU_Rate}`);
           return { rate: specificRate.CU_Rate, version: existingVersion };
-        } else {
-          console.log(`❌ Version ${existingVersion} incompatible pour ${tacticCurrency} → ${campaignCurrency}`);
         }
       } catch (error) {
-        console.error(`❌ Erreur vérification version ${existingVersion}:`, error);
+        console.warn(`Version ${existingVersion} incompatible pour ${tacticCurrency} → ${campaignCurrency}`);
       }
     }
   
@@ -161,187 +99,23 @@ const mapTactiqueForBudgetCalculation = (tactique: any, context: RecalculationCo
   
       if (availableRates.length > 0) {
         const bestRate = availableRates[0]; // Plus récente
-        console.log(`🔄 Nouvelle version: ${bestRate.CU_Year} = ${bestRate.CU_Rate}`);
         return { rate: bestRate.CU_Rate, version: bestRate.CU_Year };
       }
     } catch (error) {
-      console.error(`❌ Erreur recherche versions:`, error);
+      console.warn(`Erreur recherche versions pour ${tacticCurrency} → ${campaignCurrency}:`, error);
     }
   
     // 4. Fallback: taux automatique
     const automaticRate = context.exchangeRates[tacticCurrency] || 
                           context.exchangeRates[`${tacticCurrency}_${campaignCurrency}`] || 1;
     
-    console.log(`🔄 Taux automatique: ${automaticRate}`);
     return { rate: automaticRate, version: '' };
   };
   
   /**
-   * Arrondit une valeur numérique à 2 décimales
+   * Valide et préserve une option de frais si elle existe encore dans la configuration actuelle
    */
-  const round2 = (val: any): number => val ? Math.round(Number(val) * 100) / 100 : 0;
-
-  
-
-
-// app/lib/campaignRecalculationService.ts - Fonction applyBudgetCalculations corrigée
-
-/**
- * Applique les calculs budgétaires sur une tactique
- * CORRIGÉ : Utilise directement budgetService au lieu du hook + validation des frais
- */
-const applyBudgetCalculations = async (
-    tactique: TactiqueData,
-    context: RecalculationContext
-  ): Promise<Partial<TactiqueData> | null> => {
-    try {
-      // 1. Résoudre et préserver le taux de change personnalisé AVEC LES NOUVELLES DEVISES
-      const currencyInfo = await resolveCurrencyRate(tactique, context);
-  
-      // 2. Préparer les données budgétaires avec VALIDATION des options de frais
-      const budgetData = mapTactiqueForBudgetCalculationCorrected(tactique, context, currencyInfo);
-      
-      // 3. Vérifier si on a les données minimales pour calculer
-      if (!budgetData.TC_BudgetInput || !budgetData.TC_Unit_Price) {
-        console.log(`⚠️ Tactique ${tactique.id} : données budgétaires insuffisantes, ignorer`);
-        return null;
-      }
-  
-      console.log(`🔄 Calcul tactique ${tactique.id} avec:`);
-      console.log(`   - Frais: ${context.clientFees.length} configurés`);
-      console.log(`   - Devise: ${budgetData.TC_BuyCurrency} → ${context.campaignCurrency}`);
-      console.log(`   - Taux: ${currencyInfo.rate} (${currencyInfo.version || 'auto'})`);
-  
-      // 4. UTILISER DIRECTEMENT budgetService au lieu du hook
-      const calculationResult = budgetService.calculateComplete(
-        budgetData,                    // Données de la tactique + nouvelles valeurs contextuelles
-        context.clientFees,            // NOUVEAUX frais du client
-        context.exchangeRates,         // NOUVEAUX taux de change
-        context.campaignCurrency,      // NOUVELLE devise de campagne
-        context.unitTypeOptions        // Types d'unité actuels
-      );
-  
-      if (!calculationResult.success || !calculationResult.data) {
-        console.error(`❌ Erreur calcul tactique ${tactique.id}:`, calculationResult.error);
-        return null;
-      }
-  
-      // 5. Extraire les données calculées (même logique que TactiqueDrawer)
-      const updatedBudgetData = calculationResult.data.updatedData;
-      
-      // 6. Appliquer la correction des frais (même logique que useBudgetCalculations)
-      const correctedFeesAndBonus = calculateFeesCorrectly(updatedBudgetData, context.clientFees);
-      
-      const finalData = {
-        ...updatedBudgetData,
-        ...correctedFeesAndBonus
-      };
-  
-      // 7. Calculer les budgets en devise de référence (logique TactiqueFormBudget)
-      const currency = finalData.TC_BuyCurrency;
-      const effectiveRate = currencyInfo.rate || 1;
-      const needsConversion = currency !== context.campaignCurrency;
-      const finalRate = needsConversion ? effectiveRate : 1;
-      
-      const refCurrencyBudgets = {
-        TC_Client_Budget_RefCurrency: finalData.TC_Client_Budget * finalRate,
-        TC_Media_Budget_RefCurrency: finalData.TC_Media_Budget * finalRate
-      };
-  
-      // 8. Appliquer la fonction mapFormToTactique (même logique que TactiqueDrawer)
-      const processedData = {
-        ...finalData,
-        ...refCurrencyBudgets, // Ajouter les budgets de référence calculés
-        
-        // Budgets arrondis à 2 décimales (même logique que mapFormToTactique)
-        TC_Budget: round2(finalData.TC_Client_Budget),
-        TC_Media_Budget: round2(finalData.TC_Media_Budget),
-        TC_Client_Budget: round2(finalData.TC_Client_Budget),
-        TC_Client_Budget_RefCurrency: round2(refCurrencyBudgets.TC_Client_Budget_RefCurrency),
-        TC_Media_Budget_RefCurrency: round2(refCurrencyBudgets.TC_Media_Budget_RefCurrency),
-        
-        // Paramètres budgétaires arrondis
-        TC_BudgetInput: round2(finalData.TC_BudgetInput),
-        TC_Unit_Price: round2(finalData.TC_Unit_Price),
-        TC_Unit_Volume: round2(finalData.TC_Unit_Volume),
-        TC_Media_Value: round2(finalData.TC_Media_Value),
-        TC_Bonification: round2(finalData.TC_Bonification),
-        TC_Delta: round2(finalData.TC_Delta),
-        
-        // PRÉSERVATION DU TAUX DE CHANGE PERSONNALISÉ RÉSOLU
-        TC_Currency_Rate: round2(currencyInfo.rate),
-        TC_Currency_Version: currencyInfo.version,
-        
-        // Autres champs non-numériques
-        TC_Budget_Mode: finalData.TC_Budget_Mode,
-        TC_BuyCurrency: finalData.TC_BuyCurrency,
-        TC_Unit_Type: finalData.TC_Unit_Type,
-        TC_Has_Bonus: finalData.TC_Has_Bonus || false,
-        
-        // Frais arrondis (même logique que mapFormToTactique)
-        TC_Fee_1_Option: finalData.TC_Fee_1_Option || '',
-        TC_Fee_1_Volume: round2(finalData.TC_Fee_1_Volume),
-        TC_Fee_1_Value: round2(finalData.TC_Fee_1_Value),
-        TC_Fee_2_Option: finalData.TC_Fee_2_Option || '',
-        TC_Fee_2_Volume: round2(finalData.TC_Fee_2_Volume),
-        TC_Fee_2_Value: round2(finalData.TC_Fee_2_Value),
-        TC_Fee_3_Option: finalData.TC_Fee_3_Option || '',
-        TC_Fee_3_Volume: round2(finalData.TC_Fee_3_Volume),
-        TC_Fee_3_Value: round2(finalData.TC_Fee_3_Value),
-        TC_Fee_4_Option: finalData.TC_Fee_4_Option || '',
-        TC_Fee_4_Volume: round2(finalData.TC_Fee_4_Volume),
-        TC_Fee_4_Value: round2(finalData.TC_Fee_4_Value),
-        TC_Fee_5_Option: finalData.TC_Fee_5_Option || '',
-        TC_Fee_5_Volume: round2(finalData.TC_Fee_5_Volume),
-        TC_Fee_5_Value: round2(finalData.TC_Fee_5_Value),
-      };
-  
-      // 9. Préparer les updates finales
-      const updates: Partial<TactiqueData> = {
-        ...processedData,
-        updatedAt: new Date().toISOString(),
-      };
-  
-      // 10. Appliquer les valeurs héritées si nécessaire (même logique que TactiqueDrawer)
-      const shouldInheritBilling = !tactique.TC_Billing_ID || tactique.TC_Billing_ID.trim() === '';
-      const shouldInheritPO = !tactique.TC_PO || tactique.TC_PO.trim() === '';
-  
-      if (shouldInheritBilling && context.campaignAdminValues.CA_Billing_ID) {
-        updates.TC_Billing_ID = context.campaignAdminValues.CA_Billing_ID;
-      }
-  
-      if (shouldInheritPO && context.campaignAdminValues.CA_PO) {
-        updates.TC_PO = context.campaignAdminValues.CA_PO;
-      }
-  
-      console.log(`✅ Tactique ${tactique.id} recalculée avec nouvelles valeurs contextuelles`);
-      console.log(`   - Budget média: ${processedData.TC_Media_Budget} ${budgetData.TC_BuyCurrency}`);
-      console.log(`   - Budget client: ${processedData.TC_Client_Budget} ${budgetData.TC_BuyCurrency}`);
-      console.log(`   - Budget média RefCurrency: ${processedData.TC_Media_Budget_RefCurrency} ${context.campaignCurrency}`);
-      console.log(`   - Budget client RefCurrency: ${processedData.TC_Client_Budget_RefCurrency} ${context.campaignCurrency}`);
-      console.log(`   - Taux utilisé: ${finalRate} (${needsConversion ? 'conversion requise' : 'même devise'})`);
-      console.log(`   - Frais total: ${(processedData.TC_Fee_1_Value + processedData.TC_Fee_2_Value + processedData.TC_Fee_3_Value + processedData.TC_Fee_4_Value + processedData.TC_Fee_5_Value).toFixed(2)}`);
-  
-      return updates;
-      
-    } catch (error) {
-      console.error(`❌ Erreur lors du calcul de la tactique ${tactique.id}:`, error);
-      return null;
-    }
-  };
-
-  // app/lib/campaignRecalculationService.ts - Fonction validateAndPreserveFeeOption
-
-/**
- * Valide et préserve une option de frais si elle existe encore dans la configuration actuelle
- * Retourne l'option originale si elle est valide, sinon chaîne vide pour la supprimer
- * 
- * @param selectedOptionId L'ID de l'option actuellement sélectionnée dans la tactique
- * @param clientFees La liste actuelle des frais configurés pour le client
- * @param feeIndex L'index du frais (0-4 pour frais 1-5)
- * @returns L'ID de l'option si elle existe encore, sinon chaîne vide
- */
-const validateAndPreserveFeeOption = (
+  const validateAndPreserveFeeOption = (
     selectedOptionId: string | undefined, 
     clientFees: any[], 
     feeIndex: number
@@ -357,7 +131,6 @@ const validateAndPreserveFeeOption = (
     
     // Si le frais n'existe plus dans la configuration
     if (!fee || !fee.options) {
-      console.log(`⚠️ Frais ${feeIndex + 1} n'existe plus dans la configuration, suppression de l'option ${selectedOptionId}`);
       return '';
     }
     
@@ -365,50 +138,28 @@ const validateAndPreserveFeeOption = (
     const optionExists = fee.options.some((option: any) => option.id === selectedOptionId);
     
     if (!optionExists) {
-      console.log(`⚠️ Option ${selectedOptionId} du frais "${fee.FE_Name}" n'existe plus, suppression`);
       return '';
     }
     
     // Option valide, la préserver
-    console.log(`✅ Option ${selectedOptionId} du frais "${fee.FE_Name}" préservée`);
     return selectedOptionId;
   };
   
   /**
-   * NOUVELLE FONCTION : Prépare les données en CONSERVANT les frais valides
+   * Prépare les données en CONSERVANT les frais valides
    */
-  const mapTactiqueForBudgetCalculationCorrected = (
+  const mapTactiqueForBudgetCalculation = (
     tactique: any, 
     context: RecalculationContext, 
     currencyInfo: { rate: number; version: string }
   ): any => {
     
-    // Valider et conserver les options de frais existantes
-    const preservedFees = {
-      TC_Fee_1_Option: validateAndPreserveFeeOption(tactique.TC_Fee_1_Option, context.clientFees, 0),
-      TC_Fee_1_Volume: validateAndPreserveFeeOption(tactique.TC_Fee_1_Option, context.clientFees, 0) ? (tactique.TC_Fee_1_Volume || 0) : 0,
-      
-      TC_Fee_2_Option: validateAndPreserveFeeOption(tactique.TC_Fee_2_Option, context.clientFees, 1),
-      TC_Fee_2_Volume: validateAndPreserveFeeOption(tactique.TC_Fee_2_Option, context.clientFees, 1) ? (tactique.TC_Fee_2_Volume || 0) : 0,
-      
-      TC_Fee_3_Option: validateAndPreserveFeeOption(tactique.TC_Fee_3_Option, context.clientFees, 2),
-      TC_Fee_3_Volume: validateAndPreserveFeeOption(tactique.TC_Fee_3_Option, context.clientFees, 2) ? (tactique.TC_Fee_3_Volume || 0) : 0,
-      
-      TC_Fee_4_Option: validateAndPreserveFeeOption(tactique.TC_Fee_4_Option, context.clientFees, 3),
-      TC_Fee_4_Volume: validateAndPreserveFeeOption(tactique.TC_Fee_4_Option, context.clientFees, 3) ? (tactique.TC_Fee_4_Volume || 0) : 0,
-      
-      TC_Fee_5_Option: validateAndPreserveFeeOption(tactique.TC_Fee_5_Option, context.clientFees, 4),
-      TC_Fee_5_Volume: validateAndPreserveFeeOption(tactique.TC_Fee_5_Option, context.clientFees, 4) ? (tactique.TC_Fee_5_Volume || 0) : 0,
-    };
-  
-    console.log(`🔄 Préservation frais tactique ${tactique.id}:`);
-    for (let i = 1; i <= 5; i++) {
-      const optionKey = `TC_Fee_${i}_Option` as keyof typeof preservedFees;
-      const volumeKey = `TC_Fee_${i}_Volume` as keyof typeof preservedFees;
-      if (preservedFees[optionKey]) {
-        console.log(`   - Frais ${i}: ${preservedFees[optionKey]} (volume: ${preservedFees[volumeKey]})`);
-      }
-    }
+    // Valider UNE SEULE FOIS chaque option de frais
+    const validatedFeeOption1 = validateAndPreserveFeeOption(tactique.TC_Fee_1_Option, context.clientFees, 0);
+    const validatedFeeOption2 = validateAndPreserveFeeOption(tactique.TC_Fee_2_Option, context.clientFees, 1);
+    const validatedFeeOption3 = validateAndPreserveFeeOption(tactique.TC_Fee_3_Option, context.clientFees, 2);
+    const validatedFeeOption4 = validateAndPreserveFeeOption(tactique.TC_Fee_4_Option, context.clientFees, 3);
+    const validatedFeeOption5 = validateAndPreserveFeeOption(tactique.TC_Fee_5_Option, context.clientFees, 4);
   
     return {
       // Données de la tactique (inchangées)
@@ -430,18 +181,31 @@ const validateAndPreserveFeeOption = (
       TC_Currency_Version: currencyInfo.version,
       
       // Frais PRÉSERVÉS : garder les sélections ET volumes existants, seules les valeurs seront recalculées
-      ...preservedFees,
+      TC_Fee_1_Option: validatedFeeOption1,
+      TC_Fee_1_Volume: validatedFeeOption1 ? (tactique.TC_Fee_1_Volume || 0) : 0,
       TC_Fee_1_Value: 0, // Sera recalculé avec les nouvelles configurations
+      
+      TC_Fee_2_Option: validatedFeeOption2,
+      TC_Fee_2_Volume: validatedFeeOption2 ? (tactique.TC_Fee_2_Volume || 0) : 0,
       TC_Fee_2_Value: 0, // Sera recalculé avec les nouvelles configurations
+      
+      TC_Fee_3_Option: validatedFeeOption3,
+      TC_Fee_3_Volume: validatedFeeOption3 ? (tactique.TC_Fee_3_Volume || 0) : 0,
       TC_Fee_3_Value: 0, // Sera recalculé avec les nouvelles configurations
+      
+      TC_Fee_4_Option: validatedFeeOption4,
+      TC_Fee_4_Volume: validatedFeeOption4 ? (tactique.TC_Fee_4_Volume || 0) : 0,
       TC_Fee_4_Value: 0, // Sera recalculé avec les nouvelles configurations
+      
+      TC_Fee_5_Option: validatedFeeOption5,
+      TC_Fee_5_Volume: validatedFeeOption5 ? (tactique.TC_Fee_5_Volume || 0) : 0,
       TC_Fee_5_Value: 0, // Sera recalculé avec les nouvelles configurations
     };
   };
   
   /**
-   * FONCTION UTILITAIRE : calculateFeesCorrectly importée depuis useBudgetCalculations
-   * Cette fonction doit être copiée/importée depuis le hook
+   * Calcule correctement les frais en appliquant les bonnes formules selon le type de frais
+   * et la logique séquentielle/cumulative (identique à useBudgetCalculations)
    */
   function calculateFeesCorrectly(
     budgetData: any, 
@@ -545,7 +309,7 @@ const validateAndPreserveFeeOption = (
           break;
           
         default:
-          console.warn(`⚠️ Type de frais non reconnu: ${fee.FE_Calculation_Type}`);
+          console.warn(`Type de frais non reconnu: ${fee.FE_Calculation_Type}`);
           calculatedAmount = 0;
       }
       
@@ -558,12 +322,142 @@ const validateAndPreserveFeeOption = (
     
     return updates;
   }
-
-
-
   
   /**
-   * Charge le contexte de recalcul (données partagées)
+   * Arrondit une valeur numérique à 2 décimales
+   */
+  const round2 = (val: any): number => val ? Math.round(Number(val) * 100) / 100 : 0;
+  
+  /**
+   * Applique les calculs budgétaires sur une tactique
+   * Utilise directement budgetService au lieu du hook React
+   */
+  const applyBudgetCalculations = async (
+    tactique: TactiqueData,
+    context: RecalculationContext
+  ): Promise<Partial<TactiqueData> | null> => {
+    try {
+      // 1. Résoudre et préserver le taux de change personnalisé AVEC LES NOUVELLES DEVISES
+      const currencyInfo = await resolveCurrencyRate(tactique, context);
+  
+      // 2. Préparer les données budgétaires avec validation des options de frais
+      const budgetData = mapTactiqueForBudgetCalculation(tactique, context, currencyInfo);
+      
+      // 3. Vérifier si on a les données minimales pour calculer
+      if (!budgetData.TC_BudgetInput || !budgetData.TC_Unit_Price) {
+        return null;
+      }
+  
+      // 4. Utiliser directement budgetService pour les calculs
+      const calculationResult = budgetService.calculateComplete(
+        budgetData,
+        context.clientFees,
+        context.exchangeRates,
+        context.campaignCurrency,
+        context.unitTypeOptions
+      );
+  
+      if (!calculationResult.success || !calculationResult.data) {
+        console.error(`Erreur calcul tactique ${tactique.id}:`, calculationResult.error);
+        return null;
+      }
+  
+      // 5. Extraire les données calculées et appliquer la correction des frais
+      const updatedBudgetData = calculationResult.data.updatedData;
+      const correctedFeesAndBonus = calculateFeesCorrectly(updatedBudgetData, context.clientFees);
+      
+      const finalData = {
+        ...updatedBudgetData,
+        ...correctedFeesAndBonus
+      };
+  
+      // 6. Calculer les budgets en devise de référence (logique TactiqueFormBudget)
+      const currency = finalData.TC_BuyCurrency;
+      const effectiveRate = currencyInfo.rate || 1;
+      const needsConversion = currency !== context.campaignCurrency;
+      const finalRate = needsConversion ? effectiveRate : 1;
+      
+      const refCurrencyBudgets = {
+        TC_Client_Budget_RefCurrency: finalData.TC_Client_Budget * finalRate,
+        TC_Media_Budget_RefCurrency: finalData.TC_Media_Budget * finalRate
+      };
+  
+      // 7. Appliquer la fonction mapFormToTactique (même logique que TactiqueDrawer)
+      const processedData = {
+        ...finalData,
+        ...refCurrencyBudgets,
+        
+        // Budgets arrondis à 2 décimales
+        TC_Budget: round2(finalData.TC_Client_Budget),
+        TC_Media_Budget: round2(finalData.TC_Media_Budget),
+        TC_Client_Budget: round2(finalData.TC_Client_Budget),
+        TC_Client_Budget_RefCurrency: round2(refCurrencyBudgets.TC_Client_Budget_RefCurrency),
+        TC_Media_Budget_RefCurrency: round2(refCurrencyBudgets.TC_Media_Budget_RefCurrency),
+        
+        // Paramètres budgétaires arrondis
+        TC_BudgetInput: round2(finalData.TC_BudgetInput),
+        TC_Unit_Price: round2(finalData.TC_Unit_Price),
+        TC_Unit_Volume: round2(finalData.TC_Unit_Volume),
+        TC_Media_Value: round2(finalData.TC_Media_Value),
+        TC_Bonification: round2(finalData.TC_Bonification),
+        TC_Delta: round2(finalData.TC_Delta),
+        
+        // Préservation du taux de change personnalisé résolu
+        TC_Currency_Rate: round2(currencyInfo.rate),
+        TC_Currency_Version: currencyInfo.version,
+        
+        // Autres champs non-numériques
+        TC_Budget_Mode: finalData.TC_Budget_Mode,
+        TC_BuyCurrency: finalData.TC_BuyCurrency,
+        TC_Unit_Type: finalData.TC_Unit_Type,
+        TC_Has_Bonus: finalData.TC_Has_Bonus || false,
+        
+        // Frais arrondis
+        TC_Fee_1_Option: finalData.TC_Fee_1_Option || '',
+        TC_Fee_1_Volume: round2(finalData.TC_Fee_1_Volume),
+        TC_Fee_1_Value: round2(finalData.TC_Fee_1_Value),
+        TC_Fee_2_Option: finalData.TC_Fee_2_Option || '',
+        TC_Fee_2_Volume: round2(finalData.TC_Fee_2_Volume),
+        TC_Fee_2_Value: round2(finalData.TC_Fee_2_Value),
+        TC_Fee_3_Option: finalData.TC_Fee_3_Option || '',
+        TC_Fee_3_Volume: round2(finalData.TC_Fee_3_Volume),
+        TC_Fee_3_Value: round2(finalData.TC_Fee_3_Value),
+        TC_Fee_4_Option: finalData.TC_Fee_4_Option || '',
+        TC_Fee_4_Volume: round2(finalData.TC_Fee_4_Volume),
+        TC_Fee_4_Value: round2(finalData.TC_Fee_4_Value),
+        TC_Fee_5_Option: finalData.TC_Fee_5_Option || '',
+        TC_Fee_5_Volume: round2(finalData.TC_Fee_5_Volume),
+        TC_Fee_5_Value: round2(finalData.TC_Fee_5_Value),
+      };
+  
+      // 8. Préparer les updates finales avec valeurs héritées
+      const updates: Partial<TactiqueData> = {
+        ...processedData,
+        updatedAt: new Date().toISOString(),
+      };
+  
+      // Appliquer les valeurs héritées si nécessaire
+      const shouldInheritBilling = !tactique.TC_Billing_ID || tactique.TC_Billing_ID.trim() === '';
+      const shouldInheritPO = !tactique.TC_PO || tactique.TC_PO.trim() === '';
+  
+      if (shouldInheritBilling && context.campaignAdminValues.CA_Billing_ID) {
+        updates.TC_Billing_ID = context.campaignAdminValues.CA_Billing_ID;
+      }
+  
+      if (shouldInheritPO && context.campaignAdminValues.CA_PO) {
+        updates.TC_PO = context.campaignAdminValues.CA_PO;
+      }
+  
+      return updates;
+      
+    } catch (error) {
+      console.error(`Erreur lors du calcul de la tactique ${tactique.id}:`, error);
+      return null;
+    }
+  };
+  
+  /**
+   * Charge le contexte de recalcul (données partagées) avec options de frais
    */
   const loadRecalculationContext = async (
     clientId: string,
@@ -572,10 +466,10 @@ const validateAndPreserveFeeOption = (
     try {
       console.log(`🔄 Chargement contexte de recalcul pour campagne ${campaignId}`);
       
-      // Charger les données nécessaires en parallèle
+      // Charger les données de base en parallèle
       const [
         campaignAdminValues,
-        clientFees,
+        baseFees,
         campaignCurrency,
         exchangeRates,
         unitTypeList
@@ -587,13 +481,32 @@ const validateAndPreserveFeeOption = (
         getDynamicList('TC_Unit_Type', clientId).catch(() => [])
       ]);
   
-      console.log(`✅ Contexte chargé: ${clientFees.length} frais, devise: ${campaignCurrency}`);
+      // Charger les options pour chaque frais
+      const clientFeesWithOptions = await Promise.all(
+        baseFees.map(async (fee) => {
+          try {
+            const options = await getFeeOptions(clientId, fee.id);
+            return {
+              ...fee,
+              options: options
+            };
+          } catch (error) {
+            console.error(`Erreur chargement options pour frais ${fee.id}:`, error);
+            return {
+              ...fee,
+              options: []
+            };
+          }
+        })
+      );
+  
+      console.log(`✅ Contexte chargé: ${clientFeesWithOptions.length} frais, devise: ${campaignCurrency}`);
   
       return {
         clientId,
         campaignId,
         campaignAdminValues,
-        clientFees,
+        clientFees: clientFeesWithOptions,
         campaignCurrency,
         exchangeRates,
         unitTypeOptions: unitTypeList.map(item => ({
@@ -631,7 +544,6 @@ const validateAndPreserveFeeOption = (
       const ongletsSnapshot = await getDocs(query(ongletsCollection, orderBy('ONGLET_Order')));
       
       const ongletIds = ongletsSnapshot.docs.map(doc => doc.id);
-      console.log(`📂 ${ongletIds.length} onglets trouvés`);
       
       // Compter le nombre total de tactiques pour la progression
       let totalTactics = 0;
@@ -659,15 +571,12 @@ const validateAndPreserveFeeOption = (
       
       // Parcourir tous les onglets
       for (const ongletId of ongletIds) {
-        console.log(`📂 Traitement onglet ${ongletId}`);
-        
         const sectionsCollection = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections');
         const sectionsSnapshot = await getDocs(query(sectionsCollection, orderBy('SECTION_Order')));
         
         // Parcourir toutes les sections
         for (const sectionDoc of sectionsSnapshot.docs) {
           const sectionId = sectionDoc.id;
-          console.log(`📄 Traitement section ${sectionId}`);
           
           const tactiquesCollection = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques');
           const tactiquesSnapshot = await getDocs(query(tactiquesCollection, orderBy('TC_Order')));
@@ -689,9 +598,7 @@ const validateAndPreserveFeeOption = (
                 
                 // Exécuter le batch si on atteint la limite
                 if (batchCount >= MAX_BATCH_SIZE) {
-                  console.log(`💾 Exécution batch (${batchCount} mises à jour)`);
                   await batch.commit();
-                  // Créer un nouveau batch
                   batchCount = 0;
                 }
               }
@@ -714,7 +621,6 @@ const validateAndPreserveFeeOption = (
       
       // Exécuter le batch final s'il reste des opérations
       if (batchCount > 0) {
-        console.log(`💾 Exécution batch final (${batchCount} mises à jour)`);
         await batch.commit();
       }
       
@@ -769,7 +675,6 @@ const validateAndPreserveFeeOption = (
       // 3. Traiter chaque version
       let totalUpdatedCount = 0;
       let allErrors: string[] = [];
-      let versionProgress = 0;
       
       for (let i = 0; i < versionIds.length; i++) {
         const versionId = versionIds[i];
@@ -807,8 +712,7 @@ const validateAndPreserveFeeOption = (
       const endTime = Date.now();
       const durationSeconds = Math.round((endTime - startTime) / 1000);
       
-      console.log(`🏁 RECALCUL TERMINÉ en ${durationSeconds}s avec logique identique à TactiqueDrawer`);
-      console.log(`🆕 Toutes les tactiques utilisent maintenant les NOUVELLES valeurs contextuelles`);
+      console.log(`🏁 RECALCUL TERMINÉ en ${durationSeconds}s`);
       console.log(`📊 Résultats: ${totalUpdatedCount} tactiques mises à jour, ${allErrors.length} erreurs`);
       
       if (allErrors.length > 0) {

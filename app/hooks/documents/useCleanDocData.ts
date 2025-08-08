@@ -205,7 +205,7 @@ export function useCleanDocData(): UseCleanDocDataReturn {
           if (mapping.field === 'level_indicator') {
             return elementType;
           } else {
-            return element[mapping.field] != null ? String(element[mapping.field]) : 'XXXX';
+            return element[mapping.field] != null ? String(element[mapping.field]) : '';
           }
         } else if (mapping.source === 'parent_id' && mapping.field === 'level_indicator') {
           return elementType;
