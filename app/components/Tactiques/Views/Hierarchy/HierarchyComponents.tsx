@@ -18,7 +18,8 @@ import {
   PencilIcon,
   PlusIcon,
   Bars3Icon,
-  KeyIcon
+  KeyIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -546,6 +547,11 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  
+  const [inventoryImageUrl, setInventoryImageUrl] = useState<string | null>(null);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState(false);
+
   /**
    * MODIFIÉ : Charge l'image du partenaire depuis le cache localStorage.
    * Récupère d'abord les shortcodes du cache, trouve le partenaire correspondant,
@@ -553,49 +559,84 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
    * @returns {Promise<void>}
    */
   useEffect(() => {
-    const loadPartnerImageFromCache = async () => {
+    const loadPartnerAndInventoryImages = async () => {
       if (!tactique.TC_Publisher) return;
-
+  
       // 1. Récupérer tous les shortcodes depuis le cache
       const allShortcodes = getCachedAllShortcodes();
       if (!allShortcodes) {
-        console.warn('[CACHE] Aucun shortcode en cache pour charger le logo partenaire');
+        console.warn('[CACHE] Aucun shortcode en cache pour charger les logos');
         return;
       }
-
-      // 2. Chercher le partenaire dans les shortcodes
+  
+      // 2. Charger le logo du partenaire (existant)
       const partner = allShortcodes[tactique.TC_Publisher];
-      if (!partner?.SH_Logo) {
-        console.log(`[CACHE] Aucun logo trouvé pour le partenaire ${tactique.TC_Publisher}`);
-        return;
-      }
-
-      setImageLoading(true);
-      setImageError(false);
-
-      try {
-        const storage = getStorage();
-
-        if (partner.SH_Logo.startsWith('gs://')) {
-          console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerImageFromCache - Path: partners/${partner.id}/logo");
-          const storageRef = ref(storage, partner.SH_Logo);
-          const url = await getDownloadURL(storageRef);
-          setPartnerImageUrl(url);
-        } else {
-          setPartnerImageUrl(partner.SH_Logo);
+      if (partner?.SH_Logo) {
+        setImageLoading(true);
+        setImageError(false);
+  
+        try {
+          const storage = getStorage();
+  
+          if (partner.SH_Logo.startsWith('gs://')) {
+            console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerAndInventoryImages - Path: partners/${partner.id}/logo");
+            const storageRef = ref(storage, partner.SH_Logo);
+            const url = await getDownloadURL(storageRef);
+            setPartnerImageUrl(url);
+          } else {
+            setPartnerImageUrl(partner.SH_Logo);
+          }
+          
+          console.log(`[CACHE] ✅ Logo partenaire chargé pour ${partner.SH_Display_Name_FR}`);
+        } catch (error) {
+          console.error('[CACHE] Erreur chargement logo partenaire:', error);
+          setImageError(true);
+        } finally {
+          setImageLoading(false);
         }
-        
-        console.log(`[CACHE] ✅ Logo chargé pour partenaire ${partner.SH_Display_Name_FR}`);
-      } catch (error) {
-        console.error('[CACHE] Erreur chargement logo partenaire:', error);
-        setImageError(true);
-      } finally {
-        setImageLoading(false);
+      }
+  
+      // 3. Charger le logo de l'inventaire (NOUVEAU)
+      if (tactique.TC_Inventory) {
+        const inventory = allShortcodes[tactique.TC_Inventory];
+        if (inventory?.SH_Logo) {
+          setInventoryLoading(true);
+          setInventoryError(false);
+  
+          try {
+            const storage = getStorage();
+  
+            if (inventory.SH_Logo.startsWith('gs://')) {
+              console.log("FIREBASE: LECTURE - Fichier: HierarchyComponents.tsx - Fonction: loadPartnerAndInventoryImages - Path: inventory/${inventory.id}/logo");
+              const storageRef = ref(storage, inventory.SH_Logo);
+              const url = await getDownloadURL(storageRef);
+              setInventoryImageUrl(url);
+            } else {
+              setInventoryImageUrl(inventory.SH_Logo);
+            }
+            
+            console.log(`[CACHE] ✅ Logo inventaire chargé pour ${inventory.SH_Display_Name_FR}`);
+          } catch (error) {
+            console.error('[CACHE] Erreur chargement logo inventaire:', error);
+            setInventoryError(true);
+          } finally {
+            setInventoryLoading(false);
+          }
+        }
       }
     };
+  
+    loadPartnerAndInventoryImages();
+  }, [tactique.TC_Publisher, tactique.TC_Inventory]);
 
-    loadPartnerImageFromCache();
-  }, [tactique.TC_Publisher]);
+  const getInventoryFromCache = (): ShortcodeItem | null => {
+    if (!tactique.TC_Inventory) return null;
+    
+    const allShortcodes = getCachedAllShortcodes();
+    if (!allShortcodes) return null;
+    
+    return allShortcodes[tactique.TC_Inventory] || null;
+  };
 
   /**
    * MODIFIÉ : Récupère les informations du partenaire depuis le cache pour l'affichage de fallback
@@ -651,23 +692,70 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
               )}
 
-              {/* Logo partenaire - carré plus gros - MODIFIÉ pour utiliser le cache */}
-              <div className="flex items-center mr-3">
-                {imageLoading ? (
-                  <div className="w-10 h-10 bg-gray-200 rounded animate-pulse"></div>
-                ) : partnerImageUrl && !imageError ? (
-                  <img
-                    src={partnerImageUrl}
-                    alt="Logo partenaire"
-                    className="w-10 h-10 object-contain rounded"
-                    onError={() => setImageError(true)}
-                  />
-                ) : tactique.TC_Publisher && partner ? (
-                  <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
-                    {partner.SH_Display_Name_FR?.charAt(0) || '?'}
+                  {/* Logo partenaire + inventaire - MODIFIÉ pour double affichage */}
+                  <div className="flex items-center mr-3">
+                    {tactique.TC_Inventory ? (
+                      // Affichage double : Partenaire + Chevron + Inventaire
+                      <div className="flex items-center space-x-1">
+                        {/* Logo partenaire */}
+                        <div className="flex items-center">
+                          {imageLoading ? (
+                            <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : partnerImageUrl && !imageError ? (
+                            <img
+                              src={partnerImageUrl}
+                              alt="Logo partenaire"
+                              className="w-8 h-8 object-contain rounded"
+                              onError={() => setImageError(true)}
+                            />
+                          ) : tactique.TC_Publisher && partner ? (
+                            <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
+                              {partner.SH_Display_Name_FR?.charAt(0) || '?'}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {/* Chevron */}
+                        <ArrowRightIcon className="h-3 w-3 text-gray-400" />
+
+                        {/* Logo inventaire */}
+                        <div className="flex items-center">
+                          {inventoryLoading ? (
+                            <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                          ) : inventoryImageUrl && !inventoryError ? (
+                            <img
+                              src={inventoryImageUrl}
+                              alt="Logo inventaire"
+                              className="w-8 h-8 object-contain rounded"
+                              onError={() => setInventoryError(true)}
+                            />
+                          ) : tactique.TC_Inventory && getInventoryFromCache() ? (
+                            <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
+                              {getInventoryFromCache()?.SH_Display_Name_FR?.charAt(0) || '?'}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      // Affichage simple : Seulement le partenaire (comme avant)
+                      <div className="flex items-center">
+                        {imageLoading ? (
+                          <div className="w-10 h-10 bg-gray-200 rounded animate-pulse"></div>
+                        ) : partnerImageUrl && !imageError ? (
+                          <img
+                            src={partnerImageUrl}
+                            alt="Logo partenaire"
+                            className="w-10 h-10 object-contain rounded"
+                            onError={() => setImageError(true)}
+                          />
+                        ) : tactique.TC_Publisher && partner ? (
+                          <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
+                            {partner.SH_Display_Name_FR?.charAt(0) || '?'}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-                ) : null}
-              </div>
 
               <div className="text-sm text-gray-800 font-medium truncate">
                 {tactique.TC_Label}

@@ -8,6 +8,7 @@
  * en chargeant un composant enfant `CampaignVersions`.
  * 
  * MODIFIÉ : Support des shortcodes pour CA_Quarter et CA_Year (comme CA_Division).
+ * MODIFIÉ : Ajout du scroll horizontal pour éviter que les actions disparaissent.
  */
 'use client';
 
@@ -254,88 +255,91 @@ export default function CampaignTable({
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">
       <div className="hidden md:block">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="w-12"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('campaigns.table.nameIdentifier')}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('campaigns.table.period')}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('campaigns.table.budget')}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('campaigns.table.dates')}
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('campaigns.table.actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {campaigns.map((campaign) => (
-              <Fragment key={campaign.id}>
-                <tr className="hover:bg-gray-50">
-                  <td className="px-4 py-4">
-                    <button onClick={() => toggleRow(campaign.id)} className="text-gray-400 hover:text-gray-600">
-                      {expandedRowId === campaign.id ? (
-                        <ChevronDownIcon className="h-5 w-5" />
-                      ) : (
-                        <ChevronRightIcon className="h-5 w-5" />
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {campaign.CA_Name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {campaign.CA_Campaign_Identifier}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {getQuarterName(campaign.CA_Quarter)} {getYearName(campaign.CA_Year)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div>
-                      {formatDate(campaign.CA_Start_Date)} - {formatDate(campaign.CA_End_Date)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <CampaignActions
-                      campaign={campaign}
-                      clientId={clientId}
-                      onEdit={onEdit}
-                      onRefresh={onRefresh}
-                    />
-                  </td>
-                </tr>
-                {expandedRowId === campaign.id && (
-                  <tr>
-                    <td colSpan={6} className="p-0">
-                      <div className="px-4 py-4 bg-slate-50">
-                        <CampaignVersions
-                          clientId={clientId}
-                          campaignId={campaign.id}
-                          officialVersionId={campaign.officialVersionId}
-                          onVersionChange={onRefresh}
-                        />
+        {/* Conteneur avec scroll horizontal */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-12 px-4 py-3"></th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                  {t('campaigns.table.nameIdentifier')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  {t('campaigns.table.period')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                  {t('campaigns.table.budget')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
+                  {t('campaigns.table.dates')}
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  {t('campaigns.table.actions')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {campaigns.map((campaign) => (
+                <Fragment key={campaign.id}>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-4 py-4 w-12">
+                      <button onClick={() => toggleRow(campaign.id)} className="text-gray-400 hover:text-gray-600">
+                        {expandedRowId === campaign.id ? (
+                          <ChevronDownIcon className="h-5 w-5" />
+                        ) : (
+                          <ChevronRightIcon className="h-5 w-5" />
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 min-w-[200px]">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 break-words">
+                          {campaign.CA_Name}
+                        </div>
+                        <div className="text-sm text-gray-500 break-words">
+                          {campaign.CA_Campaign_Identifier}
+                        </div>
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 min-w-[120px]">
+                      {getQuarterName(campaign.CA_Quarter)} {getYearName(campaign.CA_Year)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 min-w-[100px]">
+                      {formatCurrency(campaign.CA_Budget, campaign.CA_Currency)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 min-w-[150px]">
+                      <div>
+                        {formatDate(campaign.CA_Start_Date)} - {formatDate(campaign.CA_End_Date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right min-w-[120px]">
+                      <CampaignActions
+                        campaign={campaign}
+                        clientId={clientId}
+                        onEdit={onEdit}
+                        onRefresh={onRefresh}
+                      />
+                    </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedRowId === campaign.id && (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <div className="px-4 py-4 bg-slate-50">
+                          <CampaignVersions
+                            clientId={clientId}
+                            campaignId={campaign.id}
+                            officialVersionId={campaign.officialVersionId}
+                            onVersionChange={onRefresh}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="md:hidden">

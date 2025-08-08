@@ -275,7 +275,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
         
-        {(dynamicLists.TC_Prog_Buying_Method && dynamicLists.TC_Prog_Buying_Method.length > 0) && (
+        {(dynamicLists.TC_Prog_Buying_Method && dynamicLists.TC_Prog_Buying_Method.length > 0 && (formData.TC_Media_Type === 'SH_R3Z3VC6B' || formData.TC_Media_Type === 'SEA')) && (
           <SmartSelect
             id="TC_Prog_Buying_Method"
             name="TC_Prog_Buying_Method"
@@ -287,8 +287,8 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             })) || []}
             placeholder="Sélectionner une méthode d'achat..."
             label={createLabelWithHelp(
-              'Méthode d\'achat',
-              "Sous-catégorisation du champs 'Type média'. Permet de mieux catégoriser la tactique",
+              'Méthode d\'achat - Programmatique/SEM',
+              "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Laissez vide si non applicable",
               onTooltipChange
             )}
           />
