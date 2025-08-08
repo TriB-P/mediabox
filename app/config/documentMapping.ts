@@ -98,8 +98,8 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
-        field: 'TC_Buying_Method',
-        column: 'TC_Buying_Method',
+        field: 'TC_Prog_Buying_Method',
+        column: 'TC_Prog_Buying_Method',
         type: 'text' as FieldType,
       },
       {

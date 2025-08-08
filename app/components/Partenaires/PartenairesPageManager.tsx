@@ -82,10 +82,11 @@ export default function PartenairesPageManager() {
 
         // Convertir les shortcodes en partenaires et trier par nom
         const partnersData = Object.values(allShortcodes)
-          .map(convertShortcodeToPartner)
-          .sort((a, b) => 
-            a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
-          );
+        .map(convertShortcodeToPartner)
+        .filter(partner => partner.SH_Type && partner.SH_Type.trim() !== '')
+        .sort((a, b) => 
+          a.SH_Display_Name_FR.localeCompare(b.SH_Display_Name_FR, 'fr', { sensitivity: 'base' })
+        );
 
         setPartners(partnersData);
 

@@ -652,7 +652,7 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
     options: LANGUAGE_OPTIONS
   },
   {
-    key: 'TC_Buying_Method',
+    key: 'TC_Prog_Buying_Method',
     label: 'Méthode d\'achat',
     type: 'select',
     width: 150,

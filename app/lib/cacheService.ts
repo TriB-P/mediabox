@@ -52,7 +52,7 @@ const LIST_TYPES = [
 'CA_Division', 
 'CA_Quarter', 
 'CA_Year', 
-'TC_Buying_Method', 
+'TC_Prog_Buying_Method', 
 'TC_Custom_Dim_1', 
 'TC_Custom_Dim_2', 
 'TC_Custom_Dim_3', 

@@ -44,7 +44,7 @@ interface VisibleFields {
   TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
-  TC_Buying_Method?: boolean;
+  TC_Prog_Buying_Method?: boolean;
   TC_Custom_Dim_1?: boolean;
   TC_Custom_Dim_2?: boolean;
   TC_Custom_Dim_3?: boolean;
@@ -67,7 +67,7 @@ interface TactiqueFormStrategieProps {
     TC_Market?: string;
     TC_Language_Open?: string;
     TC_Format_Open?: string;
-    TC_Buying_Method?: string;
+    TC_Prog_Buying_Method?: string;
     TC_Custom_Dim_1?: string;
     TC_Custom_Dim_2?: string;
     TC_Custom_Dim_3?: string;
@@ -275,13 +275,13 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
         
-        {(dynamicLists.TC_Buying_Method && dynamicLists.TC_Buying_Method.length > 0) && (
+        {(dynamicLists.TC_Prog_Buying_Method && dynamicLists.TC_Prog_Buying_Method.length > 0) && (
           <SmartSelect
-            id="TC_Buying_Method"
-            name="TC_Buying_Method"
-            value={formData.TC_Buying_Method || ''}
+            id="TC_Prog_Buying_Method"
+            name="TC_Prog_Buying_Method"
+            value={formData.TC_Prog_Buying_Method || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Buying_Method?.map(item => ({
+            options={dynamicLists.TC_Prog_Buying_Method?.map(item => ({
               id: item.id,
               label: item.SH_Display_Name_FR
             })) || []}
@@ -293,6 +293,36 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h5 className="text-sm font-medium text-blue-800 mb-2">
+          💡 Partenaire vs Inventaire
+        </h5>
+        <div className="text-sm text-blue-700 space-y-2">
+          <div>
+            <strong>Partenaire :</strong>
+            <ul className="ml-4 mt-1 space-y-1">
+              <li>• C'est l'entité qui facturera l'agence</li>
+              <li>• Programmatique : c'est généralement la DSP (ex:DV360)</li>
+              <li>• OOH : Si l'achat est effectué avec Billups, vous devez mettre Billups</li>
+              <li>• TV/Radio : Si plusieurs stations seront utilisées, choisissez "Stations variées"</li>
+              <li>• Chaque tactique doit obligatoirement avoir un partenaire</li>
+
+            </ul>
+          </div>
+          <div>
+            <strong>Inventaire :</strong>
+            <ul className="ml-4 mt-1 space-y-1">
+              <li>• C'est comme un sous-partenaire ou un média qu'on va activer à travers le partenaire</li>
+              <li>• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera "Radio-Canada"</li>
+              <li>• Lors d'un achat avec Billups, vous pouvez indiquer quel partenaire OOH sera utilisé (ex : Astral)</li>
+              <li>• Si l'inventaire n'est pas applicable, laisez-le vide</li>
+
+
+            </ul>
+          </div>
+        </div>
+      </div>
         
         {/* MODIFIÉ : Publisher maintenant utilise filteredPublishers */}
         {(filteredPublishers && filteredPublishers.length > 0) && (

@@ -46,7 +46,7 @@ export interface Tactique {
   TC_Format_Open?: string; // Description du format
 
   // Champs Stratégie - Champs personnalisés
-  TC_Buying_Method?: string; // Méthode d'achat
+  TC_Prog_Buying_Method?: string; // Méthode d'achat
   TC_Custom_Dim_1?: string; // Dimension personnalisée 1
   TC_Custom_Dim_2?: string; // Dimension personnalisée 2
   TC_Custom_Dim_3?: string; // Dimension personnalisée 3
@@ -300,7 +300,7 @@ export interface TactiqueFormData {
   TC_Market?: string;
   TC_Language_Open?: string;
   TC_Format_Open?: string;
-  TC_Buying_Method?: string;
+  TC_Prog_Buying_Method?: string;
   TC_Custom_Dim_1?: string;
   TC_Custom_Dim_2?: string;
   TC_Custom_Dim_3?: string;

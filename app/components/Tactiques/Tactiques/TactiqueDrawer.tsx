@@ -102,7 +102,7 @@ interface VisibleFields {
   TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
-  TC_Buying_Method?: boolean;
+  TC_Prog_Buying_Method?: boolean;
   TC_Custom_Dim_1?: boolean;
   TC_Custom_Dim_2?: boolean;
   TC_Custom_Dim_3?: boolean;
@@ -193,7 +193,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_LOB: tactique.TC_LOB || '',
     TC_Media_Type: tactique.TC_Media_Type || '',
     TC_Publisher: tactique.TC_Publisher || '',
-    TC_Buying_Method: tactique.TC_Buying_Method || '',
+    TC_Prog_Buying_Method: tactique.TC_Prog_Buying_Method || '',
     TC_Custom_Dim_1: tactique.TC_Custom_Dim_1 || '',
     TC_Custom_Dim_2: tactique.TC_Custom_Dim_2 || '',
     TC_Custom_Dim_3: tactique.TC_Custom_Dim_3 || '',
@@ -438,7 +438,7 @@ export default function TactiqueDrawer({
   ], []);
 
   const dynamicListFields = useMemo(() => [
-    'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Buying_Method', 
+    'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Prog_Buying_Method', 
     'TC_Inventory', 'TC_Market', 'TC_Language_Open',
     'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
   ], []);

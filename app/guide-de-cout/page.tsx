@@ -179,9 +179,7 @@ export default function CostGuidePage() {
       const entriesData = await getCostGuideEntries(guideId);
       setEntries(entriesData);
       
-      console.log("FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadGuideDetails - Path: partners");
-      const partnersData = await getPartnersList();
-      setPartners(partnersData);
+ 
     } catch (err) {
       console.error('Erreur lors du chargement du guide:', err);
       setError(t('costGuidePage.error.loadData'));

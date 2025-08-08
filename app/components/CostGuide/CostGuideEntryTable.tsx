@@ -13,8 +13,7 @@ import { CostGuideEntry, PurchaseUnit, CostGuideEntryFormData } from '../../type
 import {
   batchUpdateCostGuideEntries,
   addCostGuideEntry,
-  deleteCostGuideEntry,
-  duplicateCostGuideEntry
+  deleteCostGuideEntry
 } from '../../lib/costGuideService';
 import {
   CheckIcon,
@@ -398,16 +397,28 @@ export default function CostGuideEntryTable({
   };
 
   /**
-   * Duplique une entrée existante dans le guide de coûts.
-   * @param {string} entryId - L'ID de l'entrée à dupliquer.
+   * Duplique une entrée existante en créant une nouvelle entrée avec les mêmes données.
+   * @param {CostGuideEntry} entryToDuplicate - L'objet de l'entrée à dupliquer.
    */
-  const handleDuplicateRow = async (entryId: string) => {
+  const handleDuplicateRow = async (entryToDuplicate: CostGuideEntry) => {
     if (readOnly) return;
 
     try {
       setIsSaving(true);
-      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleDuplicateRow - Path: costGuides/${guideId}/entries/${entryId}`);
-      await duplicateCostGuideEntry(guideId, entryId);
+      
+      const newEntryData: CostGuideEntryFormData = {
+        level1: entryToDuplicate.level1,
+        level2: entryToDuplicate.level2,
+        level3: entryToDuplicate.level3,
+        level4: entryToDuplicate.level4,
+        purchaseUnit: entryToDuplicate.purchaseUnit,
+        unitPrice: String(entryToDuplicate.unitPrice), // S'assurer que le prix est une chaîne de caractères
+        comment: entryToDuplicate.comment || ''
+      };
+      
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CostGuideEntryTable.tsx - Fonction: handleDuplicateRow (via addCostGuideEntry) - Path: costGuides/${guideId}/entries`);
+      await addCostGuideEntry(guideId, newEntryData);
+      
       onEntriesUpdated();
     } catch (err) {
       console.error(t('costGuideTable.duplicateEntryError'), err);
@@ -416,6 +427,7 @@ export default function CostGuideEntryTable({
       setIsSaving(false);
     }
   };
+
 
   /**
    * Annule toutes les modifications en cours et réinitialise l'état de sélection.
@@ -874,7 +886,7 @@ export default function CostGuideEntryTable({
                         <div className="flex items-center justify-end space-x-2">
                           {editMode && (
                             <button
-                              onClick={() => handleDuplicateRow(entry.id)}
+                              onClick={() => handleDuplicateRow(entry)}
                               className="text-blue-600 hover:text-blue-900"
                               title={t('costGuideTable.duplicateRow')}
                             >

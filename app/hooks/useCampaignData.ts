@@ -155,12 +155,10 @@ export const useCampaignData = (): UseCampaignDataResult => {
  */
 export const getCurrencySymbol = (currencyCode: string): string => {
   const symbols: { [key: string]: string } = {
-    'USD': '$',
+    'USD': 'USD',
     'EUR': '€',
     'CHF': 'CHF',
-    'CAD': 'C$',
-    'GBP': '£',
-    'JPY': '¥'
+    'CAD': '$',
   };
 
   return symbols[currencyCode?.toUpperCase()] || '$';

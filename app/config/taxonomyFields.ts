@@ -54,7 +54,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_AssetDate': { source: 'tactique',  allowedFormats: ['open'] },
   'TC_Billing_ID': { source: 'tactique',  allowedFormats: ['open'] },
   'TC_BuyCurrency': { source: 'tactique',  allowedFormats: ['open'] },
-  'TC_Buying_Method': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Prog_Buying_Method': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'TC_Custom_Dim_1': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'TC_Custom_Dim_2': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'TC_Custom_Dim_3': { source: 'tactique', allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
