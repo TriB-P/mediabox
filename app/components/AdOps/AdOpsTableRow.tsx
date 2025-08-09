@@ -1,14 +1,21 @@
 // app/components/AdOps/AdOpsTableRow.tsx
 /**
- * Composant AdOpsTableRow
- * Gère l'affichage d'une ligne du tableau (placement ou créatif).
- * Inclut la copie de valeurs, l'expansion et la coloration.
+ * Composant AdOpsTableRow avec intégration CM360
+ * Gère l'affichage d'une ligne du tableau avec indicateurs de changements
+ * et modal d'historique pour les valeurs modifiées.
  */
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { 
+  ChevronDownIcon, 
+  ChevronRightIcon, 
+  CheckIcon,
+  ExclamationTriangleIcon 
+} from '@heroicons/react/24/outline';
 import AdOpsActionButtons from './AdOpsActionButtons';
+import CM360HistoryModal from './CM360HistoryModal';
+import { CM360TagHistory, CM360TagData } from '../../lib/cm360Service';
 
 interface TableRow {
   type: 'placement' | 'creative';
@@ -28,11 +35,15 @@ interface AdOpsTableRowProps {
   selectedTactique: any;
   selectedCampaign: any;
   selectedVersion: any;
-  selectedRows: Set<string>; // Ajout pour vérifier les créatifs sélectionnés
+  selectedRows: Set<string>;
+  // Nouvelles props pour CM360
+  cm360History?: CM360TagHistory;
+  cm360Status: 'none' | 'created' | 'changed';
+  cm360Tags?: Map<string, CM360TagHistory>; // Nouveau prop
 }
 
 /**
- * Composant pour une ligne du tableau AdOps
+ * Composant pour une ligne du tableau AdOps avec support CM360
  */
 export default function AdOpsTableRow({
   row,
@@ -43,9 +54,21 @@ export default function AdOpsTableRow({
   selectedTactique,
   selectedCampaign,
   selectedVersion,
-  selectedRows
+  selectedRows,
+  cm360History,
+  cm360Status,
+  cm360Tags
 }: AdOpsTableRowProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    fieldName: string;
+    fieldLabel: string;
+  }>({
+    isOpen: false,
+    fieldName: '',
+    fieldLabel: ''
+  });
 
   /**
    * Copie une valeur dans le presse-papiers avec feedback
@@ -63,32 +86,85 @@ export default function AdOpsTableRow({
   };
 
   /**
-   * Composant pour une cellule copiable
+   * Ouvre le modal d'historique pour un champ spécifique
    */
-  const CopyableCell = ({ 
+  const openHistoryModal = (fieldName: string, fieldLabel: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setModalState({
+      isOpen: true,
+      fieldName,
+      fieldLabel
+    });
+  };
+
+  /**
+   * Ferme le modal d'historique
+   */
+  const closeHistoryModal = () => {
+    setModalState({
+      isOpen: false,
+      fieldName: '',
+      fieldLabel: ''
+    });
+  };
+
+  /**
+   * Vérifie si un champ a été modifié
+   */
+  const isFieldChanged = (fieldName: string): boolean => {
+    if (!cm360History?.changedFields) return false;
+    return cm360History.changedFields.includes(fieldName);
+  };
+
+  /**
+   * Composant pour une cellule avec support CM360
+   */
+  const CM360Cell = ({ 
     value, 
     fieldName, 
-    className = '' 
+    fieldLabel,
+    className = '',
+    isClickable = true 
   }: { 
     value: any; 
     fieldName: string; 
+    fieldLabel: string;
     className?: string; 
+    isClickable?: boolean;
   }) => {
     const isCopied = copiedField === fieldName;
+    const isChanged = isFieldChanged(fieldName);
     const displayValue = value === undefined || value === null ? '-' : String(value);
+    const isEmpty = value === undefined || value === null;
     
     return (
-      <td 
-        className={`px-6 py-4 whitespace-nowrap text-sm cursor-pointer hover:bg-gray-50 relative ${className}`}
-        onClick={() => copyToClipboard(value, fieldName)}
-        title="Cliquer pour copier"
-      >
-        <div className="flex items-center">
-          <span className={value === undefined || value === null ? 'text-gray-400' : 'text-gray-900'}>
+      <td className={`px-6 py-4 whitespace-nowrap text-sm relative ${className}`}>
+        <div className="flex items-center gap-1">
+          {/* Valeur principale */}
+          <span 
+            className={`cursor-pointer hover:bg-gray-100 px-1 py-1 rounded transition-colors ${
+              isEmpty ? 'text-gray-400' : 'text-gray-900'
+            }`}
+            onClick={() => isClickable && copyToClipboard(value, fieldName)}
+            title="Cliquer pour copier"
+          >
             {displayValue}
           </span>
+          
+          {/* Indicateur de copie */}
           {isCopied && (
-            <CheckIcon className="w-4 h-4 text-green-600 ml-2 animate-pulse" />
+            <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
+          )}
+          
+          {/* Indicateur de changement CM360 */}
+          {isChanged && cm360History && (
+            <button
+              onClick={(e) => openHistoryModal(fieldName, fieldLabel, e)}
+              className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50"
+              title={`${fieldLabel} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
+            >
+              <ExclamationTriangleIcon className="w-4 h-4" />
+            </button>
           )}
         </div>
       </td>
@@ -159,126 +235,194 @@ export default function AdOpsTableRow({
   const customColor = hasCustomColor();
 
   return (
-    <tr 
-      className={`
-        ${isSelected ? 'ring-2 ring-indigo-500 ring-opacity-75' : (!customColor ? 'hover:bg-gray-50' : '')}
-        ${isCreative ? 'border-l-4 border-l-gray-300' : ''}
-        transition-colors duration-150
-      `}
-      style={backgroundStyle} // Toujours appliquer la couleur de fond si elle existe
-    >
-      {/* Checkbox */}
-      <td className="w-8 px-2 py-4">
-        <div 
-          className="flex items-center justify-center cursor-pointer"
-          onClick={(e) => onRowSelection(rowId, index, e)}
-        >
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => {}} // Vide pour éviter les warnings
-            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 pointer-events-none"
-          />
-        </div>
-      </td>
-
-      {/* Label avec indentation et expansion */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-        <div className={`flex items-center ${isCreative ? 'ml-6' : ''}`}>
-          {isPlacement && hasChildren && (
-            <button
-              onClick={() => onToggleExpanded(row.data.id)}
-              className="mr-2 p-1 rounded hover:bg-gray-200"
-            >
-              {row.isExpanded ? (
-                <ChevronDownIcon className="w-4 h-4" />
-              ) : (
-                <ChevronRightIcon className="w-4 h-4" />
-              )}
-            </button>
-          )}
-          
-          {isPlacement && hasChildren && (
-            <span className={`mr-2 text-xs px-2 py-1 rounded-full ${
-              hasSelectedChildren() 
-                ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' 
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {row.children?.length} créatif{(row.children?.length || 0) > 1 ? 's' : ''}
-              {hasSelectedChildren() && ' ★'}
-            </span>
-          )}
-          
-          <div
-            className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-            onClick={() => copyToClipboard(
-              isPlacement ? row.data.PL_Label : row.data.CR_Label, 
-              'label'
-            )}
-            title="Cliquer pour copier"
+    <>
+      <tr 
+        className={`
+          ${isSelected ? 'ring-2 ring-indigo-500 ring-opacity-75' : (!customColor ? 'hover:bg-gray-50' : '')}
+          ${isCreative ? 'border-l-4 border-l-gray-300' : ''}
+          transition-colors duration-150
+        `}
+        style={backgroundStyle}
+      >
+        {/* Checkbox */}
+        <td className="w-8 px-2 py-4">
+          <div 
+            className="flex items-center justify-center cursor-pointer"
+            onClick={(e) => onRowSelection(rowId, index, e)}
           >
-            <span className={`${isCreative ? 'text-gray-600 text-sm' : 'text-gray-900'}`}>
-              {isPlacement ? (row.data.PL_Label || 'Placement sans nom') : (row.data.CR_Label || 'Créatif sans nom')}
-            </span>
-            {copiedField === 'label' && (
-              <CheckIcon className="w-4 h-4 text-green-600 ml-2 inline animate-pulse" />
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => {}}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 pointer-events-none"
+            />
+          </div>
+        </td>
+
+        {/* Statut CM360 */}
+        <td className="w-8 px-2 py-4">
+          <div className="flex items-center justify-center">
+            {cm360Status === 'created' && (
+              <div 
+                className="w-5 h-5 text-green-600 flex items-center justify-center"
+                title="Tag créé dans CM360"
+              >
+                ✓
+              </div>
+            )}
+            {cm360Status === 'changed' && (
+              <ExclamationTriangleIcon 
+                className="w-5 h-5 text-orange-600" 
+                title="Modifications détectées depuis le dernier tag"
+              />
             )}
           </div>
-        </div>
-      </td>
+        </td>
 
-      {/* Actions */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <AdOpsActionButtons
-          rowType={row.type}
-          data={row.data}
-          selectedTactique={selectedTactique}
-          selectedCampaign={selectedCampaign}
-          selectedVersion={selectedVersion}
+        {/* Label avec indentation et expansion */}
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+          <div className={`flex items-center ${isCreative ? 'ml-6' : ''}`}>
+            {isPlacement && hasChildren && (
+              <button
+                onClick={() => onToggleExpanded(row.data.id)}
+                className="mr-2 p-1 rounded hover:bg-gray-200"
+              >
+                {row.isExpanded ? (
+                  <ChevronDownIcon className="w-4 h-4" />
+                ) : (
+                  <ChevronRightIcon className="w-4 h-4" />
+                )}
+              </button>
+            )}
+            
+            {isPlacement && hasChildren && (
+              <span className={`mr-2 text-xs px-2 py-1 rounded-full ${
+                hasSelectedChildren() 
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {row.children?.length} créatif{(row.children?.length || 0) > 1 ? 's' : ''}
+                {hasSelectedChildren() && ' ★'}
+              </span>
+            )}
+            
+            <div className="flex items-center gap-1">
+              <span
+                className={`cursor-pointer hover:bg-gray-100 px-2 py-1 rounded ${
+                  isCreative ? 'text-gray-600 text-sm' : 'text-gray-900'
+                }`}
+                onClick={() => copyToClipboard(
+                  isPlacement ? row.data.PL_Label : row.data.CR_Label, 
+                  'label'
+                )}
+                title="Cliquer pour copier"
+              >
+                {isPlacement ? (row.data.PL_Label || 'Placement sans nom') : (row.data.CR_Label || 'Créatif sans nom')}
+              </span>
+              
+              {copiedField === 'label' && (
+                <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
+              )}
+              
+              {/* Indicateur de changement pour le label */}
+              {isFieldChanged(isPlacement ? 'PL_Label' : 'CR_Label') && cm360History && (
+                <button
+                  onClick={(e) => openHistoryModal(
+                    isPlacement ? 'PL_Label' : 'CR_Label',
+                    'Label',
+                    e
+                  )}
+                  className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50"
+                  title="Label modifié - Cliquer pour voir l'historique"
+                >
+                  <ExclamationTriangleIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </td>
+
+        {/* Actions */}
+        <td className="px-6 py-4 whitespace-nowrap">
+          <AdOpsActionButtons
+            rowType={row.type}
+            data={row.data}
+            selectedTactique={selectedTactique}
+            selectedCampaign={selectedCampaign}
+            selectedVersion={selectedVersion}
+            cm360History={cm360History}
+            cm360Tags={cm360Tags}
+          />
+        </td>
+
+        {/* Tag Type avec support CM360 */}
+        <CM360Cell 
+          value={isPlacement ? row.data.PL_Tag_Type : '-'} 
+          fieldName="PL_Tag_Type"
+          fieldLabel="Tag Type"
+          isClickable={isPlacement}
         />
-      </td>
 
-      {/* Tag Type */}
-      <CopyableCell 
-        value={isPlacement ? row.data.PL_Tag_Type : '-'} 
-        fieldName="tagType" 
-      />
+        {/* Date Début avec support CM360 */}
+        <CM360Cell 
+          value={formatDate(isPlacement ? row.data.PL_Tag_Start_Date : row.data.CR_Tag_Start_Date)} 
+          fieldName={isPlacement ? 'PL_Tag_Start_Date' : 'CR_Tag_Start_Date'}
+          fieldLabel="Date Début"
+        />
 
-      {/* Date Début */}
-      <CopyableCell 
-        value={formatDate(isPlacement ? row.data.PL_Tag_Start_Date : row.data.CR_Tag_Start_Date)} 
-        fieldName="startDate" 
-      />
+        {/* Date Fin avec support CM360 */}
+        <CM360Cell 
+          value={formatDate(isPlacement ? row.data.PL_Tag_End_Date : row.data.CR_Tag_End_Date)} 
+          fieldName={isPlacement ? 'PL_Tag_End_Date' : 'CR_Tag_End_Date'}
+          fieldLabel="Date Fin"
+        />
 
-      {/* Date Fin */}
-      <CopyableCell 
-        value={formatDate(isPlacement ? row.data.PL_Tag_End_Date : row.data.CR_Tag_End_Date)} 
-        fieldName="endDate" 
-      />
+        {/* Rotation Type / Weight avec support CM360 */}
+        <CM360Cell 
+          value={isPlacement ? row.data.PL_Rotation_Type : row.data.CR_Rotation_Weight} 
+          fieldName={isPlacement ? 'PL_Rotation_Type' : 'CR_Rotation_Weight'}
+          fieldLabel={isPlacement ? 'Type de Rotation' : 'Poids de Rotation'}
+        />
 
-      {/* Rotation Type / Weight */}
-      <CopyableCell 
-        value={isPlacement ? row.data.PL_Rotation_Type : row.data.CR_Rotation_Weight} 
-        fieldName="rotation" 
-      />
+        {/* Floodlight avec support CM360 */}
+        <CM360Cell 
+          value={isPlacement ? row.data.PL_Floodlight : '-'} 
+          fieldName="PL_Floodlight"
+          fieldLabel="Floodlight"
+          isClickable={isPlacement}
+        />
 
-      {/* Floodlight (seulement pour placements) */}
-      <CopyableCell 
-        value={isPlacement ? row.data.PL_Floodlight : '-'} 
-        fieldName="floodlight" 
-      />
+        {/* Third Party Measurement avec support CM360 */}
+        <CM360Cell 
+          value={formatBoolean(isPlacement ? row.data.PL_Third_Party_Measurement : undefined)} 
+          fieldName="PL_Third_Party_Measurement"
+          fieldLabel="Third Party Measurement"
+          isClickable={isPlacement}
+        />
 
-      {/* Third Party Measurement */}
-      <CopyableCell 
-        value={formatBoolean(isPlacement ? row.data.PL_Third_Party_Measurement : undefined)} 
-        fieldName="thirdParty" 
-      />
+        {/* VPAID avec support CM360 */}
+        <CM360Cell 
+          value={formatBoolean(isPlacement ? row.data.PL_VPAID : undefined)} 
+          fieldName="PL_VPAID"
+          fieldLabel="VPAID"
+          isClickable={isPlacement}
+        />
+      </tr>
 
-      {/* VPAID */}
-      <CopyableCell 
-        value={formatBoolean(isPlacement ? row.data.PL_VPAID : undefined)} 
-        fieldName="vpaid" 
-      />
-    </tr>
+      {/* Modal d'historique CM360 */}
+      {modalState.isOpen && cm360History && (
+        <CM360HistoryModal
+          isOpen={modalState.isOpen}
+          onClose={closeHistoryModal}
+          fieldName={modalState.fieldName}
+          fieldLabel={modalState.fieldLabel}
+          currentValue={row.data[modalState.fieldName]}
+          tags={cm360History.tags}
+          itemType={row.type}
+          itemLabel={isPlacement ? row.data.PL_Label : row.data.CR_Label}
+          cm360Tags={cm360Tags}
+        />
+      )}
+    </>
   );
 }
