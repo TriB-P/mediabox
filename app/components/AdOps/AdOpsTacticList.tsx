@@ -1,8 +1,9 @@
 // app/components/AdOps/AdOpsTacticList.tsx
 /**
- * Composant AdOpsTacticList avec indicateurs CM360
- * Affiche les tactiques avec propagation des statuts depuis les placements/créatifs
- * et filtres identiques au tableau.
+ * Composant AdOpsTacticList avec indicateurs CM360 complets
+ * Affiche les tactiques avec indicateurs incluant placements + créatifs + métriques
+ * et filtres par statut CM360.
+ * MODIFIÉ : Utilise les nouvelles fonctions avec support métriques
  */
 'use client';
 
@@ -16,7 +17,9 @@ import { useClient } from '../../contexts/ClientContext';
 import { 
   CM360TagHistory, 
   CM360Filter,
-  calculateTactiqueStatus
+  calculateTactiqueStatusWithMetrics,
+  getTactiqueDetailedChangesSummary,
+  detectMetricsChanges
 } from '../../lib/cm360Service';
 
 interface AdOpsTactique {
@@ -25,8 +28,17 @@ interface AdOpsTactique {
   TC_Publisher?: string;
   TC_Media_Type?: string;
   TC_Prog_Buying_Method?: string;
+  // AJOUTÉ : Propriétés de métriques manquantes
+  TC_Media_Budget?: number;
+  TC_Buy_Currency?: string;
+  TC_CM360_Rate?: number;
+  TC_CM360_Volume?: number;
+  TC_Buy_Type?: string;
   ongletName: string;
   sectionName: string;
+  // AJOUTÉ : IDs manquants pour compatibilité avec SelectedTactique
+  ongletId: string;
+  sectionId: string;
   placementsWithTags: any[];
 }
 
@@ -36,13 +48,13 @@ interface AdOpsTacticListProps {
   error: string | null;
   onTactiqueSelect?: (tactique: AdOpsTactique | null) => void;
   selectedTactique?: AdOpsTactique | null;
-  // Nouvelles props pour CM360
+  // Props CM360 depuis AdOpsPage - MODIFIÉ : Structure hierarchique
   cm360Tags?: Map<string, CM360TagHistory>;
-  creativesData?: { [placementId: string]: any[] };
+  creativesData?: { [tactiqueId: string]: { [placementId: string]: any[] } };
 }
 
 /**
- * Composant principal pour la liste des tactiques AdOps avec CM360
+ * Composant principal pour la liste des tactiques AdOps avec CM360 complet
  */
 export default function AdOpsTacticList({ 
   filteredTactiques,
@@ -82,12 +94,207 @@ export default function AdOpsTacticList({
   };
 
   /**
-   * Calcule le statut CM360 d'une tactique
+   * NOUVELLE FONCTION : Filtre les tags CM360 pour une tactique spécifique
+   * Retire le préfixe "tactique-${id}-" et retourne une Map compatible
    */
-  const getTactiqueStatus = (tactique: AdOpsTactique): 'none' | 'created' | 'changed' | 'partial' => {
-    if (!cm360Tags || !creativesData) return 'none';
+  const getFilteredCM360Tags = (tactiqueId: string): Map<string, CM360TagHistory> => {
+    if (!cm360Tags) return new Map();
     
-    return calculateTactiqueStatus(cm360Tags, tactique.placementsWithTags, creativesData);
+    const filtered = new Map<string, CM360TagHistory>();
+    const prefix = `tactique-${tactiqueId}-`;
+    
+    cm360Tags.forEach((history, key) => {
+      if (key.startsWith(prefix)) {
+        const localKey = key.substring(prefix.length); // Retire le préfixe
+        filtered.set(localKey, history);
+      }
+    });
+    
+    console.log(`🔍 [TacticList] Filtrage pour tactique ${tactiqueId}:`, {
+      'tags totaux': cm360Tags.size,
+      'tags filtrés': filtered.size,
+      'clés filtrées': Array.from(filtered.keys()),
+      'préfixe recherché': prefix
+    });
+    
+    return filtered;
+  };
+
+  /**
+   * NOUVELLE FONCTION : Récupère les créatifs pour une tactique spécifique
+   * Adapte la structure hierarchique à la structure attendue par les fonctions
+   */
+  const getFilteredCreatives = (tactiqueId: string): { [placementId: string]: any[] } => {
+    if (!creativesData || !creativesData[tactiqueId]) {
+      return {};
+    }
+    
+    const result = creativesData[tactiqueId];
+    
+    return result;
+  };
+
+  /**
+   * CORRIGÉE : Calcule le statut CM360 d'une tactique incluant les métriques
+   * Utilise maintenant la MÊME logique que TacticInfo pour éviter les bugs
+   */
+  const getTactiqueStatusWithMetrics = (tactique: AdOpsTactique): 'none' | 'created' | 'changed' | 'partial' => {
+    if (!cm360Tags || !creativesData) {
+      return 'none';
+    }
+    
+    // Filtrer les données pour cette tactique spécifique
+    const tactiquesCM360Tags = getFilteredCM360Tags(tactique.id);
+    const tactiquesCreatives = getFilteredCreatives(tactique.id);
+    
+    // 1. Vérifier les éléments (placements + créatifs)
+    const allElements: string[] = [];
+    tactique.placementsWithTags.forEach(placement => {
+      allElements.push(`placement-${placement.id}`);
+      const creatives = tactiquesCreatives[placement.id] || [];
+      creatives.forEach(creative => {
+        allElements.push(`creative-${creative.id}`);
+      });
+    });
+    
+    if (allElements.length === 0) return 'none';
+    
+    let elementsWithTags = 0;
+    let elementsWithChanges = 0;
+    
+    allElements.forEach(itemKey => {
+      const history = tactiquesCM360Tags.get(itemKey);
+      if (history?.latestTag) {
+        elementsWithTags++;
+        if (history.hasChanges) {
+          elementsWithChanges++;
+        }
+      }
+    });
+    
+    // 2. CORRIGÉ : Vérifier les métriques avec la MÊME logique que TacticInfo
+    let metricsHaveTag = false;
+    let metricsHaveChanges = false;
+    
+    const metricsHistory = tactiquesCM360Tags.get('metrics-tactics');
+    if (metricsHistory?.latestTag) {
+      metricsHaveTag = true;
+      
+      // UTILISER LA MÊME DÉTECTION QUE TACTICINFO !
+      const tactiqueMetrics = {
+        TC_Media_Budget: tactique.TC_Media_Budget,
+        TC_Buy_Currency: tactique.TC_Buy_Currency,
+        TC_CM360_Rate: tactique.TC_CM360_Rate,
+        TC_CM360_Volume: tactique.TC_CM360_Volume,
+        TC_Buy_Type: tactique.TC_Buy_Type
+      };
+      
+      // Recalculer les changements comme dans TacticInfo
+      const metricsChanges = detectMetricsChanges(tactiqueMetrics, tactiquesCM360Tags);
+      metricsHaveChanges = metricsChanges.hasChanges;
+    }
+    
+    // 3. Logique de statut global
+    const hasAnyTags = elementsWithTags > 0 || metricsHaveTag;
+    const hasAnyChanges = elementsWithChanges > 0 || metricsHaveChanges;
+    const allElementsHaveTags = elementsWithTags === allElements.length;
+    
+    // Aucun tag nulle part
+    if (!hasAnyTags) return 'none';
+    
+    // Au moins un changement détecté
+    if (hasAnyChanges) return 'changed';
+    
+    // Tous les éléments ont des tags + métriques ont un tag + aucun changement
+    if (allElementsHaveTags && metricsHaveTag) return 'created';
+    
+    // Tags partiels (certains éléments ou métriques manquants)
+    return 'partial';
+  };
+
+  /**
+   * CORRIGÉE : Obtient le résumé des changements pour une tactique
+   * Utilise maintenant la MÊME logique que TacticInfo pour les métriques
+   */
+  const getTactiqueChangesSummary = (tactique: AdOpsTactique) => {
+    if (!cm360Tags || !creativesData) {
+      return { hasChanges: false, changedTypes: [], details: { placements: { total: 0, withTags: 0, withChanges: 0 }, creatives: { total: 0, withTags: 0, withChanges: 0 }, metrics: { hasTag: false, hasChanges: false } } };
+    }
+    
+    // Filtrer les données pour cette tactique spécifique
+    const tactiquesCM360Tags = getFilteredCM360Tags(tactique.id);
+    const tactiquesCreatives = getFilteredCreatives(tactique.id);
+    
+    const changedTypes: string[] = [];
+    let placementStats = { total: 0, withTags: 0, withChanges: 0 };
+    let creativeStats = { total: 0, withTags: 0, withChanges: 0 };
+    let metricsStats = { hasTag: false, hasChanges: false };
+    
+    // 1. Analyser les placements
+    tactique.placementsWithTags.forEach(placement => {
+      placementStats.total++;
+      const history = tactiquesCM360Tags.get(`placement-${placement.id}`);
+      if (history?.latestTag) {
+        placementStats.withTags++;
+        if (history.hasChanges) {
+          placementStats.withChanges++;
+        }
+      }
+    });
+    
+    // 2. Analyser les créatifs
+    Object.values(tactiquesCreatives).forEach(creatives => {
+      creatives.forEach(creative => {
+        creativeStats.total++;
+        const history = tactiquesCM360Tags.get(`creative-${creative.id}`);
+        if (history?.latestTag) {
+          creativeStats.withTags++;
+          if (history.hasChanges) {
+            creativeStats.withChanges++;
+          }
+        }
+      });
+    });
+    
+    // 3. CORRIGÉ : Analyser les métriques avec la MÊME logique que TacticInfo
+    const metricsHistory = tactiquesCM360Tags.get('metrics-tactics');
+    if (metricsHistory?.latestTag) {
+      metricsStats.hasTag = true;
+      
+      // UTILISER LA MÊME DÉTECTION QUE TACTICINFO !
+      const tactiqueMetrics = {
+        TC_Media_Budget: tactique.TC_Media_Budget,
+        TC_Buy_Currency: tactique.TC_Buy_Currency,
+        TC_CM360_Rate: tactique.TC_CM360_Rate,
+        TC_CM360_Volume: tactique.TC_CM360_Volume,
+        TC_Buy_Type: tactique.TC_Buy_Type
+      };
+      
+      // Recalculer les changements comme dans TacticInfo
+      const metricsChanges = detectMetricsChanges(tactiqueMetrics, tactiquesCM360Tags);
+      metricsStats.hasChanges = metricsChanges.hasChanges;
+    }
+    
+    // 4. Déterminer les types qui ont changé
+    if (placementStats.withChanges > 0) {
+      changedTypes.push('placements');
+    }
+    if (creativeStats.withChanges > 0) {
+      changedTypes.push('créatifs');
+    }
+    if (metricsStats.hasChanges) {
+      changedTypes.push('métriques');
+    }
+    
+    return {
+      hasChanges: changedTypes.length > 0,
+      changedTypes,
+      details: {
+        placements: placementStats,
+        creatives: creativeStats,
+        metrics: metricsStats
+      }
+    };
   };
 
   /**
@@ -97,7 +304,7 @@ export default function AdOpsTacticList({
     if (cm360Filter === 'all') return filteredTactiques;
     
     return filteredTactiques.filter(tactique => {
-      const status = getTactiqueStatus(tactique);
+      const status = getTactiqueStatusWithMetrics(tactique);
       
       switch (cm360Filter) {
         case 'created':
@@ -133,30 +340,75 @@ export default function AdOpsTacticList({
   };
 
   /**
-   * Composant pour l'indicateur de statut CM360
+   * NOUVEAU : Composant pour l'indicateur de statut CM360 avec métriques
    */
-  const StatusIndicator = ({ status }: { status: 'none' | 'created' | 'changed' | 'partial' }) => {
+  const StatusIndicatorWithMetrics = ({ status, changesSummary }: { 
+    status: 'none' | 'created' | 'changed' | 'partial';
+    changesSummary: ReturnType<typeof getTactiqueChangesSummary>;
+  }) => {
+    const getTooltipText = (): string => {
+      switch (status) {
+        case 'created':
+          return 'Tous les éléments et métriques ont des tags créés, aucun changement';
+        case 'changed':
+          const changedText = changesSummary.changedTypes.join(', ');
+          return `Modifications détectées dans: ${changedText}`;
+        case 'partial':
+          return 'Tags partiels - certains éléments ou métriques n\'ont pas de tags';
+        case 'none':
+        default:
+          return 'Aucun tag créé';
+      }
+    };
+
     switch (status) {
       case 'created':
         return (
           <div 
-            className="w-5 h-5 text-green-600 flex items-center justify-center"
-            title="Tous les éléments ont des tags créés"
+            className="w-5 h-5 text-green-600 flex items-center justify-center font-bold"
+            title={getTooltipText()}
           >
             ✓
           </div>
         );
       case 'changed':
-      case 'partial':
         return (
           <ExclamationTriangleIcon 
             className="w-5 h-5 text-orange-600" 
-            title={status === 'changed' ? "Modifications détectées" : "Tags partiels - certains éléments n'ont pas de tags"}
+            title={getTooltipText()}
           />
+        );
+      case 'partial':
+        return (
+          <div 
+            className="w-5 h-5 text-blue-600 flex items-center justify-center font-bold text-lg"
+            title={getTooltipText()}
+          >
+            ◯
+          </div>
         );
       default:
         return null;
     }
+  };
+
+  /**
+   * NOUVEAU : Badge détaillé pour les changements
+   */
+  const ChangesBadge = ({ changesSummary }: { changesSummary: ReturnType<typeof getTactiqueChangesSummary> }) => {
+    if (!changesSummary.hasChanges) return null;
+
+    const changedCount = changesSummary.changedTypes.length;
+    const changedText = changesSummary.changedTypes.join(', ');
+
+    return (
+      <div 
+        className="text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded-full border border-orange-200"
+        title={`Modifications dans: ${changedText}`}
+      >
+        {changedCount} type{changedCount > 1 ? 's' : ''} modifié{changedCount > 1 ? 's' : ''}
+      </div>
+    );
   };
 
   if (loading) {
@@ -211,15 +463,15 @@ export default function AdOpsTacticList({
         </div>
       </div>
 
-      {/* Filtres CM360 */}
+      {/* Filtres CM360 avec nouvelles catégories */}
       <div className="mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-gray-700">Statut CM360:</span>
           {[
             { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
-            { value: 'created' as CM360Filter, label: 'Créés ✓', color: 'green' },
+            { value: 'created' as CM360Filter, label: 'Complets ✓', color: 'green' },
             { value: 'changed' as CM360Filter, label: 'Modifiés ⚠️', color: 'orange' },
-            { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
+            { value: 'none' as CM360Filter, label: 'À créer ◯', color: 'blue' }
           ].map(filter => (
             <button
               key={filter.value}
@@ -251,7 +503,7 @@ export default function AdOpsTacticList({
                 {cm360Filter === 'all' 
                   ? 'Aucune tactique trouvée'
                   : `Aucune tactique ${
-                      cm360Filter === 'created' ? 'avec tags créés' :
+                      cm360Filter === 'created' ? 'complète (tous tags créés)' :
                       cm360Filter === 'changed' ? 'avec modifications' :
                       'sans tags'
                     }`
@@ -265,7 +517,8 @@ export default function AdOpsTacticList({
         ) : (
           <div className="h-full overflow-y-auto space-y-2 pr-2">
             {tactiquesToShow.map((tactique) => {
-              const status = getTactiqueStatus(tactique);
+              const status = getTactiqueStatusWithMetrics(tactique);
+              const changesSummary = getTactiqueChangesSummary(tactique);
               const isSelected = selectedTactique?.id === tactique.id;
               
               return (
@@ -306,8 +559,8 @@ export default function AdOpsTacticList({
                               {tactique.TC_Label || 'Tactique sans nom'}
                             </h4>
                             
-                            {/* Indicateur de statut CM360 */}
-                            <StatusIndicator status={status} />
+                            {/* Indicateur de statut CM360 avec métriques */}
+                            <StatusIndicatorWithMetrics status={status} changesSummary={changesSummary} />
                           </div>
                           
                           <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
@@ -317,6 +570,13 @@ export default function AdOpsTacticList({
                             <span>•</span>
                             <span>{getDisplayName(tactique.TC_Publisher, 'TC_Publisher')}</span>
                           </div>
+
+                          {/* Badge de changements détaillé */}
+                          {changesSummary.hasChanges && (
+                            <div className="mt-2">
+                              <ChangesBadge changesSummary={changesSummary} />
+                            </div>
+                          )}
                         </div>
                         
                         {/* Badge nombre de placements avec statut */}
@@ -335,8 +595,8 @@ export default function AdOpsTacticList({
                       
                       {/* Indicateur de statut détaillé pour les statuts partiels */}
                       {status === 'partial' && (
-                        <div className="mt-2 text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded">
-                          Tags partiels - certains éléments sans tags
+                        <div className="mt-2 text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded border border-blue-200">
+                          Tags partiels - certains éléments ou métriques sans tags
                         </div>
                       )}
                     </div>
@@ -348,17 +608,21 @@ export default function AdOpsTacticList({
         )}
       </div>
 
-      {/* Footer avec légende */}
+      {/* Footer avec légende mise à jour */}
       {tactiquesToShow.length > 0 && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-1">
-              <span className="text-green-600">✓</span>
-              <span>Tous créés</span>
+              <span className="text-green-600 font-bold">✓</span>
+              <span>Complet (tous créés)</span>
             </div>
             <div className="flex items-center gap-1">
               <ExclamationTriangleIcon className="w-3 h-3 text-orange-600" />
-              <span>Modifications/Partiels</span>
+              <span>Modifications</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-blue-600 font-bold">◯</span>
+              <span>Tags partiels</span>
             </div>
           </div>
         </div>

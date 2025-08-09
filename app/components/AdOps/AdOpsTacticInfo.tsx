@@ -2,6 +2,7 @@
 /**
  * Composant AdOpsTacticInfo avec support CM360 amélioré
  * Affiche les métriques avec détection de changements et bouton de confirmation
+ * MODIFIÉ : Filtrage hierarchique des tags CM360 par tactique
  */
 'use client';
 
@@ -36,7 +37,7 @@ interface AdOpsTacticInfoProps {
   selectedTactique: AdOpsTactique | null;
   selectedCampaign: any;
   selectedVersion: any;
-  // Nouvelles props pour CM360
+  // Props CM360 depuis AdOpsPage - MODIFIÉ : Structure hierarchique
   cm360Tags?: Map<string, CM360TagHistory>;
   onMetricsUpdated?: () => void; // Callback pour recharger les données
 }
@@ -65,22 +66,48 @@ export default function AdOpsTacticInfo({
   });
 
   /**
-   * Vérifie si les métriques ont changé en utilisant la nouvelle fonction dédiée
+   * NOUVELLE FONCTION : Filtre les tags CM360 pour la tactique sélectionnée
+   * Retire le préfixe "tactique-${id}-" et retourne une Map compatible
+   */
+  const getFilteredCM360Tags = (): Map<string, CM360TagHistory> => {
+    if (!cm360Tags || !selectedTactique) return new Map();
+    
+    const filtered = new Map<string, CM360TagHistory>();
+    const prefix = `tactique-${selectedTactique.id}-`;
+    
+    cm360Tags.forEach((history, key) => {
+      if (key.startsWith(prefix)) {
+        const localKey = key.substring(prefix.length); // Retire le préfixe
+        filtered.set(localKey, history);
+      }
+    });
+    
+    console.log(`🔍 [TacticInfo] Filtrage pour tactique ${selectedTactique.id}:`, {
+      'tags totaux': cm360Tags.size,
+      'tags filtrés': filtered.size,
+      'clés filtrées': Array.from(filtered.keys()),
+      'metrics-tactics exists': filtered.has('metrics-tactics')
+    });
+    
+    return filtered;
+  };
+
+  /**
+   * MODIFIÉE : Vérifie si les métriques ont changé en utilisant les tags filtrés
    */
   const getMetricsChanges = (): { hasChanges: boolean; changedFields: string[] } => {
     console.log('🔍 [AdOpsTacticInfo] getMetricsChanges - Début');
     
-    if (!cm360Tags || !selectedTactique) {
-      console.log('❌ [AdOpsTacticInfo] Pas de cm360Tags ou selectedTactique');
-      console.log('cm360Tags:', cm360Tags);
-      console.log('selectedTactique:', selectedTactique);
+    if (!selectedTactique) {
+      console.log('❌ [AdOpsTacticInfo] Pas de selectedTactique');
       return { hasChanges: false, changedFields: [] };
     }
 
-    console.log('📊 [AdOpsTacticInfo] cm360Tags disponibles:', cm360Tags.size);
-    console.log('📊 [AdOpsTacticInfo] Clés cm360Tags:', Array.from(cm360Tags.keys()));
+    const filteredTags = getFilteredCM360Tags();
+    console.log('📊 [AdOpsTacticInfo] Tags filtrés disponibles:', filteredTags.size);
+    console.log('📊 [AdOpsTacticInfo] Clés filtrées:', Array.from(filteredTags.keys()));
 
-    // Utiliser la nouvelle fonction de détection de changements pour les métriques
+    // Utiliser la fonction de détection de changements pour les métriques
     const currentMetrics = {
       TC_Media_Budget: selectedTactique.TC_Media_Budget,
       TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
@@ -91,21 +118,21 @@ export default function AdOpsTacticInfo({
 
     console.log('📈 [AdOpsTacticInfo] Métriques actuelles:', currentMetrics);
 
-    const metricsHistory = cm360Tags.get('metrics-tactics');
+    const metricsHistory = filteredTags.get('metrics-tactics');
     console.log('📋 [AdOpsTacticInfo] Historique métriques:', metricsHistory);
     
     if (metricsHistory?.latestTag?.tactiqueMetrics) {
       console.log('📊 [AdOpsTacticInfo] Dernières métriques sauvegardées:', metricsHistory.latestTag.tactiqueMetrics);
     }
 
-    const result = detectMetricsChanges(currentMetrics, cm360Tags);
+    const result = detectMetricsChanges(currentMetrics, filteredTags);
     console.log('🎯 [AdOpsTacticInfo] Résultat détection changements:', result);
 
     return result;
   };
 
   /**
-   * Vérifie si un champ spécifique a changé
+   * MODIFIÉE : Vérifie si un champ spécifique a changé en utilisant les tags filtrés
    */
   const isFieldChanged = (fieldName: string): boolean => {
     console.log(`🔍 [isFieldChanged] Vérification pour ${fieldName}`);
@@ -126,14 +153,14 @@ export default function AdOpsTacticInfo({
   };
 
   /**
-   * Récupère tous les tags qui contiennent le champ spécifié
+   * MODIFIÉE : Récupère tous les tags qui contiennent le champ spécifié en utilisant les tags filtrés
    */
   const getTagsForField = (fieldName: string): CM360TagData[] => {
-    if (!cm360Tags) return [];
+    const filteredTags = getFilteredCM360Tags();
     
     // Si c'est un champ de métrique, utiliser les tags de métriques spéciaux
     if (fieldName.startsWith('TC_')) {
-      const metricsHistory = cm360Tags.get('metrics-tactics');
+      const metricsHistory = filteredTags.get('metrics-tactics');
       return metricsHistory ? metricsHistory.tags : [];
     }
     
@@ -164,7 +191,7 @@ export default function AdOpsTacticInfo({
   };
 
   /**
-   * NOUVELLE FONCTION: Met à jour les métriques dans CM360
+   * Met à jour les métriques dans CM360
    */
   const handleMetricsUpdate = async () => {
     if (!selectedClient || !selectedTactique || !selectedCampaign || !selectedVersion) return;
@@ -337,13 +364,14 @@ export default function AdOpsTacticInfo({
   }
 
   const metricsChanges = getMetricsChanges();
-  const hasMetricsTags = cm360Tags?.has('metrics-tactics');
+  const filteredTags = getFilteredCM360Tags();
+  const hasMetricsTags = filteredTags.has('metrics-tactics');
 
   console.log('🎯 [AdOpsTacticInfo] Rendu principal:', {
     selectedTactique: selectedTactique?.TC_Label,
     hasMetricsTags,
     metricsChanges,
-    cm360TagsSize: cm360Tags?.size || 0
+    filteredTagsSize: filteredTags.size
   });
 
   return (
@@ -453,7 +481,7 @@ export default function AdOpsTacticInfo({
           tags={getTagsForField(modalState.fieldName)}
           itemType="metrics"
           itemLabel={selectedTactique.TC_Label || 'Tactique'}
-          cm360Tags={cm360Tags}
+          cm360Tags={filteredTags}
         />
       )}
     </>

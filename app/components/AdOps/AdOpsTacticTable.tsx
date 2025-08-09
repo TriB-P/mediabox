@@ -3,6 +3,7 @@
  * Composant AdOpsTacticTable avec fonctionnalités CM360
  * Tableau hiérarchique avancé avec création de tags CM360, détection de changements,
  * et indicateurs visuels pour le statut des tags.
+ * MODIFIÉ : Utilise les données centralisées d'AdOpsPage avec filtrage hierarchique
  */
 'use client';
 
@@ -14,17 +15,14 @@ import {
   CloudArrowUpIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { collection, getDocs, query, orderBy, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useClient } from '../../contexts/ClientContext';
 import AdOpsTableRow from './AdOpsTableRow';
 import {
   createCM360Tag,
-  getCM360TagsForTactique,
   deleteAllCM360TagsForItem,
-  detectChanges,
-  detectMetricsChanges,
-  updateMetricsTag,
+  createTacticsMetricsTagIfNeeded,
   CM360TagHistory,
   CM360TagData,
   CM360Filter
@@ -87,6 +85,10 @@ interface AdOpsTacticTableProps {
   selectedTactique: SelectedTactique | null;
   selectedCampaign: any;
   selectedVersion: any;
+  // Props depuis AdOpsPage - MODIFIÉ : Structure hierarchique
+  cm360Tags?: Map<string, CM360TagHistory>;
+  creativesData?: { [tactiqueId: string]: { [placementId: string]: Creative[] } };
+  onCM360TagsReload?: () => void; // Callback pour recharger les tags
 }
 
 const COLORS = [
@@ -96,155 +98,83 @@ const COLORS = [
   { name: 'Jaune', value: '#FEF3C7', class: 'bg-yellow-100' }
 ];
 
+// NOUVEAU : Options de filtre par couleur
+const COLOR_FILTER_OPTIONS = [
+  { value: 'all', label: 'Toutes', color: null },
+  { value: 'none', label: 'Aucune couleur', color: null },
+  ...COLORS.map(color => ({ value: color.value, label: color.name, color: color.value }))
+];
+
 /**
  * Composant principal du tableau AdOps avec CM360
  */
 export default function AdOpsTacticTable({ 
   selectedTactique, 
   selectedCampaign, 
-  selectedVersion 
+  selectedVersion,
+  cm360Tags,
+  creativesData,
+  onCM360TagsReload
 }: AdOpsTacticTableProps) {
   const { selectedClient } = useClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
-  const [creativesData, setCreativesData] = useState<{ [placementId: string]: Creative[] }>({});
   
-  // État CM360
-  const [cm360Tags, setCm360Tags] = useState<Map<string, CM360TagHistory>>(new Map());
+  // États CM360 et filtres
   const [cm360Loading, setCm360Loading] = useState(false);
   const [cm360Filter, setCm360Filter] = useState<CM360Filter>('all');
+  const [colorFilter, setColorFilter] = useState<string>('all'); // NOUVEAU : Filtre par couleur
 
   /**
-   * Charge les créatifs ET les tags CM360
+   * NOUVELLE FONCTION : Filtre les tags CM360 pour la tactique sélectionnée
+   * Retire le préfixe "tactique-${id}-" et retourne une Map compatible
    */
-  const loadCreativesAndTags = async () => {
-    if (!selectedTactique || !selectedClient || !selectedCampaign || !selectedVersion) return;
+  const getFilteredCM360Tags = (): Map<string, CM360TagHistory> => {
+    if (!cm360Tags || !selectedTactique) return new Map();
     
-    setLoading(true);
-    const clientId = selectedClient.clientId;
-    const allCreatives: { [placementId: string]: Creative[] } = {};
-    const updatedPlacements: Placement[] = [];
-
-    try {
-      const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
-      
-      // 1. Charger les placements et créatifs
-      for (const placement of selectedTactique.placementsWithTags) {
-        try {
-          const placementRef = doc(db, `${basePath}/placements/${placement.id}`);
-          const placementSnapshot = await getDoc(placementRef);
-          
-          if (placementSnapshot.exists()) {
-            const placementData = placementSnapshot.data() as Placement;
-            const updatedPlacement = { ...placement, ...placementData, id: placement.id };
-            updatedPlacements.push(updatedPlacement);
-          } else {
-            updatedPlacements.push(placement);
-          }
-        } catch (error) {
-          console.warn(`Erreur chargement placement ${placement.id}:`, error);
-          updatedPlacements.push(placement);
-        }
-
-        const creativesPath = `${basePath}/placements/${placement.id}/creatifs`;
-        const creativesRef = collection(db, creativesPath);
-        
-        const creativesSnapshot = await getDocs(query(creativesRef, orderBy('CR_Order', 'asc')));
-        const creatives: Creative[] = creativesSnapshot.docs.map(doc => ({
-          ...doc.data() as Creative,
-          id: doc.id
-        }));
-        
-        allCreatives[placement.id] = creatives;
+    const filtered = new Map<string, CM360TagHistory>();
+    const prefix = `tactique-${selectedTactique.id}-`;
+    
+    cm360Tags.forEach((history, key) => {
+      if (key.startsWith(prefix)) {
+        const localKey = key.substring(prefix.length); // Retire le préfixe
+        filtered.set(localKey, history);
       }
-      
-      // 2. Charger les tags CM360 avec la nouvelle méthode simplifiée
-      const tags = await getCM360TagsForTactique(
-        clientId,
-        selectedCampaign.id,
-        selectedVersion.id,
-        selectedTactique.ongletId,
-        selectedTactique.sectionId,
-        selectedTactique.id,
-        updatedPlacements,
-        allCreatives
-      );
-      
-      // 3. Détecter les changements pour chaque item
-      const updatedTags = new Map<string, CM360TagHistory>();
-      tags.forEach((history, key) => {
-        if (history.latestTag) {
-          const [type, itemId] = key.split('-');
-          
-          if (type === 'metrics') {
-            // Pour les métriques, utiliser les données de la tactique
-            const tactiqueMetrics = {
-              TC_Media_Budget: selectedTactique.TC_Media_Budget,
-              TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
-              TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
-              TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
-              TC_Buy_Type: selectedTactique.TC_Buy_Type
-            };
-            
-            const changes = detectMetricsChanges(tactiqueMetrics, new Map([['metrics-tactics', history]]));
-            history.hasChanges = changes.hasChanges;
-            history.changedFields = changes.changedFields;
-          } else {
-            // Pour les placements et créatifs
-            let currentData: any = null;
-            
-            if (type === 'placement') {
-              currentData = updatedPlacements.find(p => p.id === itemId);
-            } else if (type === 'creative') {
-              // Trouver le créatif dans tous les placements
-              for (const creatives of Object.values(allCreatives)) {
-                const creative = creatives.find(c => c.id === itemId);
-                if (creative) {
-                  currentData = creative;
-                  break;
-                }
-              }
-            }
-            
-            if (currentData) {
-              const changes = detectChanges(currentData, history.latestTag, type as 'placement' | 'creative');
-              history.hasChanges = changes.hasChanges;
-              history.changedFields = changes.changedFields;
-            }
-          }
-        }
-        updatedTags.set(key, history);
-      });
-      
-      console.log('🔍 [AdOpsTacticTable] Tags chargés:', {
-        'tags.size': tags.size,
-        'updatedTags.size': updatedTags.size,
-        'tags keys': Array.from(tags.keys()),
-        'updatedTags keys': Array.from(updatedTags.keys()),
-        'metrics-tactics exists': updatedTags.has('metrics-tactics')
-      });
-      
-      setCreativesData(allCreatives);
-      setCm360Tags(updatedTags);
-      
-      console.log('🔍 [AdOpsTacticTable] State mis à jour avec setCm360Tags:', updatedTags);
-      
-      buildTableRows(updatedPlacements, allCreatives);
-    } catch (error) {
-      console.error('Erreur chargement données:', error);
-      setCreativesData({});
-      setCm360Tags(new Map());
-      buildTableRows(selectedTactique.placementsWithTags, {});
-    } finally {
-      setLoading(false);
+    });
+    
+    console.log(`🔍 [TacticTable] Filtrage pour tactique ${selectedTactique.id}:`, {
+      'tags totaux': cm360Tags.size,
+      'tags filtrés': filtered.size,
+      'clés filtrées': Array.from(filtered.keys())
+    });
+    
+    return filtered;
+  };
+
+  /**
+   * NOUVELLE FONCTION : Récupère les créatifs pour la tactique sélectionnée
+   * Adapte la structure hierarchique à la structure attendue par les fonctions
+   */
+  const getFilteredCreatives = (): { [placementId: string]: Creative[] } => {
+    if (!creativesData || !selectedTactique || !creativesData[selectedTactique.id]) {
+      console.log(`🔍 [TacticTable] Créatifs pour tactique ${selectedTactique?.id}: aucun`);
+      return {};
     }
+    
+    const result = creativesData[selectedTactique.id];
+    console.log(`🔍 [TacticTable] Créatifs pour tactique ${selectedTactique.id}:`, {
+      'placements': Object.keys(result).length,
+      'total créatifs': Object.values(result).reduce((sum, creatives) => sum + creatives.length, 0)
+    });
+    
+    return result;
   };
 
   /**
    * Construit la structure hiérarchique du tableau en gardant l'état d'expansion
+   * MODIFIÉE : Utilise les créatifs filtrés
    */
   const buildTableRows = (placements: Placement[], creatives: { [placementId: string]: Creative[] }) => {
     const rows: TableRow[] = [];
@@ -280,15 +210,43 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Crée des tags CM360 pour les lignes sélectionnées
+   * CORRIGÉE : Crée des tags CM360 pour les lignes sélectionnées
+   * Évite la duplication des métriques en les créant UNE seule fois
    */
   const createCM360Tags = async () => {
     if (!selectedClient || !selectedTactique || !selectedCampaign || !selectedVersion) return;
     
     setCm360Loading(true);
-    const clientId = selectedClient.clientId ;
+    const clientId = selectedClient.clientId;
+    const filteredCreatives = getFilteredCreatives();
     
     try {
+      // ÉTAPE 1 : Créer les métriques UNE seule fois (si nécessaire)
+      const tactiqueMetrics = {
+        TC_Media_Budget: selectedTactique.TC_Media_Budget,
+        TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
+        TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
+        TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
+        TC_Buy_Type: selectedTactique.TC_Buy_Type
+      };
+      
+      const metricsCreated = await createTacticsMetricsTagIfNeeded(
+        clientId,
+        selectedCampaign.id,
+        selectedVersion.id,
+        selectedTactique.ongletId,
+        selectedTactique.sectionId,
+        selectedTactique.id,
+        tactiqueMetrics
+      );
+      
+      if (metricsCreated) {
+        console.log('✅ [TacticTable] Métriques créées pour la tactique');
+      } else {
+        console.log('⏭️  [TacticTable] Métriques déjà existantes');
+      }
+      
+      // ÉTAPE 2 : Créer tous les tags individuels (sans duplication métriques)
       const tagPromises: Promise<string>[] = [];
       
       selectedRows.forEach(rowId => {
@@ -301,7 +259,7 @@ export default function AdOpsTacticTable({
         if (type === 'placement') {
           itemData = selectedTactique.placementsWithTags.find(p => p.id === itemId);
         } else if (type === 'creative') {
-          for (const [pId, creatives] of Object.entries(creativesData)) {
+          for (const [pId, creatives] of Object.entries(filteredCreatives)) {
             const creative = creatives.find(c => c.id === itemId);
             if (creative) {
               itemData = creative;
@@ -333,20 +291,12 @@ export default function AdOpsTacticTable({
             tableData.placementId = placementId;
           }
           
-          const tactiqueMetrics = {
-            TC_Media_Budget: selectedTactique.TC_Media_Budget,
-            TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
-            TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
-            TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
-            TC_Buy_Type: selectedTactique.TC_Buy_Type
-          };
-          
           const tagData = {
             type: type as 'placement' | 'creative',
             itemId,
             tactiqueId: selectedTactique.id,
             tableData,
-            tactiqueMetrics,
+            tactiqueMetrics, // Inclure mais ne sera pas utilisé pour créer automatiquement
             campaignData: {
               campaignId: selectedCampaign.id,
               versionId: selectedVersion.id,
@@ -359,12 +309,15 @@ export default function AdOpsTacticTable({
         }
       });
       
+      // Attendre que tous les tags soient créés
       await Promise.all(tagPromises);
       
-      // Recharger les tags
-      await loadCreativesAndTags();
+      console.log(`✅ [TacticTable] ${tagPromises.length} tags créés`);
       
-      // NE PAS désélectionner les lignes - garder la sélection
+      // Recharger depuis AdOpsPage
+      if (onCM360TagsReload) {
+        onCM360TagsReload();
+      }
       
     } catch (error) {
       console.error('Erreur création tags CM360:', error);
@@ -374,13 +327,15 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Annule TOUS les tags CM360 pour les lignes sélectionnées (supprime l'historique complet)
+   * MODIFIÉE : Annule TOUS les tags CM360 pour les lignes sélectionnées
+   * Utilise onCM360TagsReload au lieu de recharger localement
    */
   const cancelCM360Tags = async () => {
     if (!selectedClient || !selectedTactique || !selectedCampaign || !selectedVersion) return;
     
     setCm360Loading(true);
-    const clientId = selectedClient.clientId ;
+    const clientId = selectedClient.clientId;
+    const filteredCreatives = getFilteredCreatives();
     
     try {
       const deletePromises: Promise<void>[] = [];
@@ -391,7 +346,7 @@ export default function AdOpsTacticTable({
         
         // Trouver le placement parent pour les créatifs
         if (type === 'creative') {
-          for (const [pId, creatives] of Object.entries(creativesData)) {
+          for (const [pId, creatives] of Object.entries(filteredCreatives)) {
             const creative = creatives.find(c => c.id === itemId);
             if (creative) {
               placementId = pId;
@@ -417,10 +372,12 @@ export default function AdOpsTacticTable({
       
       await Promise.all(deletePromises);
       
-      // Recharger les tags
-      await loadCreativesAndTags();
+      // MODIFIÉ : Utiliser le callback pour recharger depuis AdOpsPage
+      if (onCM360TagsReload) {
+        onCM360TagsReload();
+      }
       
-      // NE PAS désélectionner les lignes - garder la sélection
+      console.log('✅ [TacticTable] Tags supprimés, rechargement depuis AdOpsPage');
       
     } catch (error) {
       console.error('Erreur annulation tags CM360:', error);
@@ -430,17 +387,19 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Obtient le statut CM360 d'une ligne
+   * MODIFIÉE : Obtient le statut CM360 d'une ligne en utilisant les tags filtrés
    */
   const getCM360Status = (rowId: string): 'none' | 'created' | 'changed' => {
-    const tagHistory = cm360Tags.get(rowId);
+    const filteredTags = getFilteredCM360Tags();
+    const tagHistory = filteredTags.get(rowId);
     if (!tagHistory?.latestTag) return 'none';
     if (tagHistory.hasChanges) return 'changed';
     return 'created';
   };
 
   /**
-   * Filtre les lignes selon le terme de recherche ET le filtre CM360
+   * MODIFIÉE : Filtre les lignes selon le terme de recherche, le filtre CM360 ET le filtre couleur
+   * Utilise les tags filtrés
    */
   const getFilteredRows = (): TableRow[] => {
     let baseRows = getFlattenedRows();
@@ -486,11 +445,13 @@ export default function AdOpsTacticTable({
       baseRows = getFlattenedRows(filtered);
     }
     
-    // Appliquer le filtre CM360
+    // Appliquer le filtre CM360 avec tags filtrés
     if (cm360Filter !== 'all') {
+      const filteredTags = getFilteredCM360Tags();
+      
       baseRows = baseRows.filter(row => {
         const rowId = `${row.type}-${row.data.id}`;
-        const history = cm360Tags.get(rowId);
+        const history = filteredTags.get(rowId);
         
         switch (cm360Filter) {
           case 'created':
@@ -501,6 +462,23 @@ export default function AdOpsTacticTable({
             return !history?.latestTag;
           default:
             return true;
+        }
+      });
+    }
+    
+    // NOUVEAU : Appliquer le filtre couleur
+    if (colorFilter !== 'all') {
+      baseRows = baseRows.filter(row => {
+        const colorValue = row.type === 'placement' 
+          ? (row.data as Placement).PL_Adops_Color 
+          : (row.data as Creative).CR_Adops_Color;
+        
+        if (colorFilter === 'none') {
+          // Filtrer les lignes sans couleur
+          return !colorValue || colorValue.trim() === '';
+        } else {
+          // Filtrer par couleur spécifique
+          return colorValue === colorFilter;
         }
       });
     }
@@ -607,10 +585,11 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Récupère les créatifs enfants d'un placement
+   * MODIFIÉE : Récupère les créatifs enfants d'un placement en utilisant les créatifs filtrés
    */
   const getChildrenForPlacement = (placementId: string): Creative[] => {
-    return creativesData[placementId] || [];
+    const filteredCreatives = getFilteredCreatives();
+    return filteredCreatives[placementId] || [];
   };
 
   /**
@@ -630,11 +609,12 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Vérifie si des lignes sélectionnées ont des tags CM360
+   * MODIFIÉE : Vérifie si des lignes sélectionnées ont des tags CM360 en utilisant les tags filtrés
    */
   const selectedHasTags = (): boolean => {
+    const filteredTags = getFilteredCM360Tags();
     for (const rowId of selectedRows) {
-      const tagHistory = cm360Tags.get(rowId);
+      const tagHistory = filteredTags.get(rowId);
       if (tagHistory?.latestTag) return true;
     }
     return false;
@@ -646,7 +626,7 @@ export default function AdOpsTacticTable({
   const applyColorToSelected = async (color: string) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
     
-    const clientId = selectedClient.clientId ;
+    const clientId = selectedClient.clientId;
     const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
     const updates: Promise<void>[] = [];
     
@@ -678,29 +658,6 @@ export default function AdOpsTacticTable({
    * Met à jour les couleurs localement
    */
   const updateLocalColors = (color: string) => {
-    const updatedTactique = { ...selectedTactique };
-    if (updatedTactique.placementsWithTags) {
-      updatedTactique.placementsWithTags = updatedTactique.placementsWithTags.map(placement => {
-        const rowId = `placement-${placement.id}`;
-        if (selectedRows.has(rowId)) {
-          return { ...placement, PL_Adops_Color: color };
-        }
-        return placement;
-      });
-    }
-
-    const updatedCreatives = { ...creativesData };
-    Object.keys(updatedCreatives).forEach(placementId => {
-      updatedCreatives[placementId] = updatedCreatives[placementId].map(creative => {
-        const rowId = `creative-${creative.id}`;
-        if (selectedRows.has(rowId)) {
-          return { ...creative, CR_Adops_Color: color };
-        }
-        return creative;
-      });
-    });
-    
-    setCreativesData(updatedCreatives);
     updateTableRowsColors(color);
   };
 
@@ -713,38 +670,50 @@ export default function AdOpsTacticTable({
         const rowId = `${row.type}-${row.data.id}`;
         
         if (selectedRows.has(rowId)) {
-          const updatedData = { ...row.data };
+          // CORRIGÉ : Type assertions pour éviter les erreurs TypeScript
           if (row.type === 'placement') {
-            updatedData.PL_Adops_Color = color;
+            const placementData = { ...row.data } as Placement;
+            placementData.PL_Adops_Color = color;
+            
+            const updatedChildren = row.children?.map(child => {
+              const childRowId = `${child.type}-${child.data.id}`;
+              if (selectedRows.has(childRowId)) {
+                const creativeData = { ...child.data } as Creative;
+                creativeData.CR_Adops_Color = color;
+                return {
+                  ...child,
+                  data: creativeData
+                };
+              }
+              return child;
+            });
+            
+            return {
+              ...row,
+              data: placementData,
+              children: updatedChildren
+            };
           } else {
-            updatedData.CR_Adops_Color = color;
+            // Creative
+            const creativeData = { ...row.data } as Creative;
+            creativeData.CR_Adops_Color = color;
+            
+            return {
+              ...row,
+              data: creativeData
+            };
           }
-          
-          const updatedChildren = row.children?.map(child => {
-            const childRowId = `${child.type}-${child.data.id}`;
-            if (selectedRows.has(childRowId)) {
-              return {
-                ...child,
-                data: { ...child.data, CR_Adops_Color: color }
-              };
-            }
-            return child;
-          });
-          
-          return {
-            ...row,
-            data: updatedData,
-            children: updatedChildren
-          };
         }
         
         if (row.children) {
           const updatedChildren = row.children.map(child => {
             const childRowId = `${child.type}-${child.data.id}`;
             if (selectedRows.has(childRowId)) {
+              const creativeData = { ...child.data } as Creative;
+              creativeData.CR_Adops_Color = color;
               return {
                 ...child,
-                data: { ...child.data, CR_Adops_Color: color }
+                data: creativeData
               };
             }
             return child;
@@ -762,10 +731,11 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Trouve l'ID du placement parent pour un créatif
+   * MODIFIÉE : Trouve l'ID du placement parent pour un créatif en utilisant les créatifs filtrés
    */
   const getPlacementIdForCreative = (creativeId: string): string | null => {
-    for (const [placementId, creatives] of Object.entries(creativesData)) {
+    const filteredCreatives = getFilteredCreatives();
+    for (const [placementId, creatives] of Object.entries(filteredCreatives)) {
       if (creatives.some(c => c.id === creativeId)) {
         return placementId;
       }
@@ -773,18 +743,20 @@ export default function AdOpsTacticTable({
     return null;
   };
 
-  // Charger les données quand la tactique change
+  // MODIFIÉ : Construire les lignes quand les données changent + réinitialiser les filtres
   useEffect(() => {
     if (selectedTactique) {
-      loadCreativesAndTags();
+      const filteredCreatives = getFilteredCreatives();
+      buildTableRows(selectedTactique.placementsWithTags, filteredCreatives);
     } else {
       setTableRows([]);
-      setCreativesData({});
-      setCm360Tags(new Map());
     }
     setSelectedRows(new Set());
     setSearchTerm('');
-  }, [selectedTactique]);
+    // Réinitialiser tous les filtres
+    setCm360Filter('all');
+    setColorFilter('all');
+  }, [selectedTactique, creativesData]);
 
   if (!selectedTactique) {
     return (
@@ -801,6 +773,7 @@ export default function AdOpsTacticTable({
 
   const filteredRows = getFilteredRows();
   const selectionStats = getSelectionStats();
+  const filteredTags = getFilteredCM360Tags();
 
   return (
     <div className="bg-white p-4 rounded-lg shadow h-full flex flex-col">
@@ -923,6 +896,42 @@ export default function AdOpsTacticTable({
             ))}
           </div>
         </div>
+        
+        {/* NOUVEAU : Filtres par couleur */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Filtrer par couleur:</span>
+          <div className="flex items-center gap-1">
+            {COLOR_FILTER_OPTIONS.map(option => (
+              <button
+                key={option.value}
+                onClick={() => setColorFilter(option.value)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors flex items-center gap-1 ${
+                  colorFilter === option.value
+                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                title={`Filtrer par ${option.label.toLowerCase()}`}
+              >
+                {/* Indicateur visuel de couleur */}
+                {option.color && (
+                  <div 
+                    className="w-3 h-3 rounded-full border border-gray-300"
+                    style={{ backgroundColor: option.color }}
+                  ></div>
+                )}
+                {option.value === 'none' && (
+                  <div className="w-3 h-3 rounded-full border border-gray-400 bg-white relative">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-0.5 bg-red-500 rotate-45"></div>
+                      <div className="w-2 h-0.5 bg-red-500 -rotate-45 absolute"></div>
+                    </div>
+                  </div>
+                )}
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tableau scrollable */}
@@ -958,16 +967,7 @@ export default function AdOpsTacticTable({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-3"></div>
-                    Chargement des données...
-                  </div>
-                </td>
-              </tr>
-            ) : filteredRows.length === 0 ? (
+            {filteredRows.length === 0 ? (
               <tr>
                 <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                   {searchTerm ? `Aucun résultat pour "${searchTerm}"` : 'Aucun placement trouvé'}
@@ -977,7 +977,7 @@ export default function AdOpsTacticTable({
               filteredRows.map((row, index) => {
                 const rowId = `${row.type}-${row.data.id}`;
                 const cm360Status = getCM360Status(rowId);
-                const cm360History = cm360Tags.get(rowId);
+                const cm360History = filteredTags.get(rowId);
                 
                 return (
                   <AdOpsTableRow
@@ -993,7 +993,7 @@ export default function AdOpsTacticTable({
                     selectedRows={selectedRows}
                     cm360History={cm360History}
                     cm360Status={cm360Status}
-                    cm360Tags={cm360Tags}
+                    cm360Tags={filteredTags}
                   />
                 );
               })
@@ -1006,7 +1006,8 @@ export default function AdOpsTacticTable({
       <div className="mt-3 text-xs text-gray-500">
         {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} • 
         Maintenez Shift pour sélectionner une plage • 
-        ✓ = Tag créé • ⚠️ = Modifications détectées
+        ✓ = Tag créé • ⚠️ = Modifications détectées • 
+        Filtres: Recherche + CM360 + Couleur
       </div>
     </div>
   );

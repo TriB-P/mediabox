@@ -3,6 +3,7 @@
  * Composant AdOpsTableRow avec intégration CM360
  * Gère l'affichage d'une ligne du tableau avec indicateurs de changements
  * et modal d'historique pour les valeurs modifiées.
+ * CORRIGÉ : Formatage des dates sans décalage de fuseau horaire
  */
 'use client';
 
@@ -180,12 +181,23 @@ export default function AdOpsTableRow({
   };
 
   /**
-   * Formatte les dates
+   * CORRIGÉ : Formate les dates sans décalage de fuseau horaire
    */
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return '-';
     try {
-      return new Date(dateString).toLocaleDateString('fr-CA');
+      // CORRIGÉ : Forcer l'interprétation locale pour éviter le décalage UTC
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        // Créer la date en local (année, mois-1, jour)
+        const year = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1; // Les mois commencent à 0 en JS
+        const day = parseInt(parts[2]);
+        const localDate = new Date(year, month, day);
+        return localDate.toLocaleDateString('fr-CA');
+      }
+      // Fallback pour autres formats
+      return dateString;
     } catch {
       return dateString;
     }
@@ -363,14 +375,14 @@ export default function AdOpsTableRow({
           isClickable={isPlacement}
         />
 
-        {/* Date Début avec support CM360 */}
+        {/* Date Début avec support CM360 - CORRIGÉ */}
         <CM360Cell 
           value={formatDate(isPlacement ? row.data.PL_Tag_Start_Date : row.data.CR_Tag_Start_Date)} 
           fieldName={isPlacement ? 'PL_Tag_Start_Date' : 'CR_Tag_Start_Date'}
           fieldLabel="Date Début"
         />
 
-        {/* Date Fin avec support CM360 */}
+        {/* Date Fin avec support CM360 - CORRIGÉ */}
         <CM360Cell 
           value={formatDate(isPlacement ? row.data.PL_Tag_End_Date : row.data.CR_Tag_End_Date)} 
           fieldName={isPlacement ? 'PL_Tag_End_Date' : 'CR_Tag_End_Date'}

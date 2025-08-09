@@ -2,6 +2,7 @@
 /**
  * Service CM360 simplifié - sauvegarde directement dans les documents
  * Les tags sont stockés comme des arrays dans les documents placement/créatif/tactique
+ * CORRIGÉ : Duplication métriques + amélioration détection changements
  */
 
 import {
@@ -34,6 +35,26 @@ import {
     createdAt: string;
     version: number;
   }
+
+  // NOUVELLE INTERFACE : Paramètres d'entrée pour créer un tag
+  export interface CM360TagCreateInput {
+    type: 'placement' | 'creative' | 'metrics';
+    itemId: string;
+    tactiqueId: string;
+    tableData: {
+      [key: string]: any;
+    };
+    tactiqueMetrics?: {
+      [key: string]: any;
+    };
+    // Données de campagne pour construire le chemin Firestore
+    campaignData: {
+      campaignId: string;
+      versionId: string;
+      ongletId: string;
+      sectionId: string;
+    };
+  }
   
   export interface CM360TagHistory {
     itemId: string;
@@ -48,10 +69,11 @@ import {
   
   /**
    * Crée un nouveau tag CM360 en l'ajoutant directement au document
+   * CORRIGÉ : Ne crée plus automatiquement les métriques (géré séparément)
    */
   export async function createCM360Tag(
     clientId: string,
-    tagData: Omit<CM360TagData, 'createdAt' | 'version'>
+    tagData: CM360TagCreateInput
   ): Promise<string> {
     try {
       const basePath = `clients/${clientId}/campaigns/${tagData.campaignData?.campaignId}/versions/${tagData.campaignData?.versionId}/onglets/${tagData.campaignData?.ongletId}/sections/${tagData.campaignData?.sectionId}/tactiques/${tagData.tactiqueId}`;
@@ -77,9 +99,13 @@ import {
         existingTags = data.cm360Tags || [];
       }
       
-      // Créer le nouveau tag
+      // Créer le nouveau tag (sans campaignData qui n'est que pour le chemin)
       const newTag: CM360TagData = {
-        ...tagData,
+        type: tagData.type,
+        itemId: tagData.itemId,
+        tactiqueId: tagData.tactiqueId,
+        tableData: tagData.tableData,
+        tactiqueMetrics: tagData.tactiqueMetrics,
         createdAt: new Date().toISOString(),
         version: existingTags.length + 1
       };
@@ -92,10 +118,8 @@ import {
         cm360Tags: arrayUnion(cleanTag)
       });
       
-      // Si c'est un placement ou créatif, créer aussi un tag pour les métriques de tactique
-      if (tagData.type !== 'metrics' && tagData.tactiqueMetrics) {
-        await createTacticsMetricsTag(clientId, tagData);
-      }
+      // SUPPRIMÉ : Ne plus créer automatiquement les métriques ici
+      // La création des métriques est maintenant gérée séparément
       
       return `${tagData.type}-${tagData.itemId}-${newTag.version}`;
     } catch (error) {
@@ -105,15 +129,20 @@ import {
   }
   
   /**
-   * Crée un tag spécial pour les métriques de tactique
-   * NOUVEAU: Ne crée qu'UNE SEULE version au début, puis l'utilisateur décide quand mettre à jour
+   * NOUVELLE FONCTION PUBLIQUE : Crée un tag pour les métriques de tactique
+   * Utilisée pour éviter la duplication lors de création multiple
    */
-  async function createTacticsMetricsTag(
+  export async function createTacticsMetricsTagIfNeeded(
     clientId: string,
-    tagData: Omit<CM360TagData, 'createdAt' | 'version'>
-  ): Promise<void> {
+    campaignId: string,
+    versionId: string,
+    ongletId: string,
+    sectionId: string,
+    tactiqueId: string,
+    tactiqueMetrics: any
+  ): Promise<boolean> {
     try {
-      const basePath = `clients/${clientId}/campaigns/${tagData.campaignData?.campaignId}/versions/${tagData.campaignData?.versionId}/onglets/${tagData.campaignData?.ongletId}/sections/${tagData.campaignData?.sectionId}/tactiques/${tagData.tactiqueId}`;
+      const basePath = `clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}`;
       const tactiqueRef = doc(db, basePath);
       
       const tactiqueSnap = await getDoc(tactiqueRef);
@@ -124,14 +153,14 @@ import {
         existingMetricsTags = data.cm360MetricsTags || [];
       }
       
-      // NOUVEAU: Ne créer que si c'est la première fois (aucun tag de métriques existant)
+      // Créer seulement si aucun tag de métriques n'existe
       if (existingMetricsTags.length === 0) {
         const metricsTag: CM360TagData = {
           type: 'metrics',
           itemId: 'tactics',
-          tactiqueId: tagData.tactiqueId,
+          tactiqueId: tactiqueId,
           tableData: {},
-          tactiqueMetrics: cleanUndefinedValues(tagData.tactiqueMetrics || {}),
+          tactiqueMetrics: cleanUndefinedValues(tactiqueMetrics),
           createdAt: new Date().toISOString(),
           version: 1
         };
@@ -141,16 +170,19 @@ import {
         });
         
         console.log('✅ Premier tag de métriques créé pour la tactique');
+        return true;
       } else {
-        console.log('⏭️  Tags de métriques existants - pas de nouvelle version automatique');
+        console.log('⏭️  Tags de métriques existants - pas de création');
+        return false;
       }
     } catch (error) {
       console.error('Erreur lors de la création du tag métriques:', error);
+      return false;
     }
   }
   
   /**
-   * NOUVELLE FONCTION: Met à jour manuellement les métriques quand l'utilisateur confirme les changements
+   * Met à jour manuellement les métriques quand l'utilisateur confirme les changements
    */
   export async function updateMetricsTag(
     clientId: string,
@@ -222,11 +254,12 @@ import {
         const metricsTags = tactiqueData.cm360MetricsTags || [];
         
         if (metricsTags.length > 0) {
+          const sortedTags = metricsTags.sort((a: CM360TagData, b: CM360TagData) => b.version - a.version);
           tagsByItem.set('metrics-tactics', {
             itemId: 'tactics',
             type: 'metrics',
-            tags: metricsTags.sort((a: CM360TagData, b: CM360TagData) => b.version - a.version),
-            latestTag: metricsTags[metricsTags.length - 1] // Le plus récent
+            tags: sortedTags,
+            latestTag: sortedTags[0] // CORRIGÉ : Le plus récent est à l'index 0 après tri décroissant
           });
         }
       }
@@ -338,7 +371,7 @@ import {
         const currentValue = currentData ? currentData[field] : undefined;
         const tagValue = tableData ? tableData[field] : undefined;
         
-        if (currentValue !== tagValue) {
+        if (!compareValues(currentValue, tagValue)) {
           changedFields.push(field);
         }
       });
@@ -352,7 +385,7 @@ import {
         const currentValue = currentData ? currentData[field] : undefined;
         const tagValue = tableData ? tableData[field] : undefined;
         
-        if (currentValue !== tagValue) {
+        if (!compareValues(currentValue, tagValue)) {
           changedFields.push(field);
         }
       });
@@ -366,6 +399,7 @@ import {
   
   /**
    * Détecte les changements dans les métriques de tactique
+   * CORRIGÉ : Meilleure comparaison des valeurs pour détecter l'absence de changements
    */
   export function detectMetricsChanges(
     currentMetrics: any,
@@ -400,13 +434,17 @@ import {
       const currentValue = currentMetrics[field];
       const tagValue = metricsHistory.latestTag!.tactiqueMetrics![field];
       
+      // AMÉLIORATION : Comparaison plus robuste des valeurs
+      const areEqual = compareValues(currentValue, tagValue);
+      
       console.log(`🔍 [detectMetricsChanges] ${field}:`, {
         current: currentValue,
         saved: tagValue,
-        different: currentValue !== tagValue
+        areEqual: areEqual,
+        different: !areEqual
       });
       
-      if (currentValue !== tagValue) {
+      if (!areEqual) {
         changedFields.push(field);
         console.log(`⚠️ [detectMetricsChanges] Changement détecté pour ${field}`);
       }
@@ -419,6 +457,27 @@ import {
     
     console.log('🎯 [detectMetricsChanges] Résultat final:', result);
     return result;
+  }
+  
+  /**
+   * NOUVELLE FONCTION : Compare deux valeurs de manière robuste
+   * Gère les cas null, undefined, string vs number, etc.
+   */
+  function compareValues(value1: any, value2: any): boolean {
+    // Si les deux sont strictement égaux
+    if (value1 === value2) return true;
+    
+    // Si l'un est null/undefined et l'autre aussi
+    if ((value1 == null) && (value2 == null)) return true;
+    
+    // Si l'un est null/undefined et l'autre non
+    if ((value1 == null) !== (value2 == null)) return false;
+    
+    // Conversion en string pour comparaison
+    const str1 = String(value1).trim();
+    const str2 = String(value2).trim();
+    
+    return str1 === str2;
   }
   
   /**
@@ -459,6 +518,177 @@ import {
     if (changedCount > 0) return 'changed';
     if (createdCount === allElements.length) return 'created';
     return 'partial';
+  }
+
+  /**
+   * Calcule le statut CM360 d'une tactique incluant les métriques
+   * Utilisée pour les indicateurs dans TacticList
+   * CORRIGÉ : Évite de détecter des changements quand pas de tags métriques
+   */
+  export function calculateTactiqueStatusWithMetrics(
+    cm360Tags: Map<string, CM360TagHistory>,
+    placements: any[],
+    creativesData: { [placementId: string]: any[] },
+    tactiqueMetrics?: any
+  ): 'none' | 'created' | 'changed' | 'partial' {
+    // 1. Collecter tous les éléments (placements + créatifs)
+    const allElements: string[] = [];
+    
+    placements.forEach(placement => {
+      allElements.push(`placement-${placement.id}`);
+      const creatives = creativesData[placement.id] || [];
+      creatives.forEach(creative => {
+        allElements.push(`creative-${creative.id}`);
+      });
+    });
+    
+    if (allElements.length === 0) return 'none';
+    
+    let elementsWithTags = 0;
+    let elementsWithChanges = 0;
+    let metricsHaveTag = false;
+    let metricsHaveChanges = false;
+    
+    // 2. Vérifier les éléments (placements + créatifs)
+    allElements.forEach(itemKey => {
+      const history = cm360Tags.get(itemKey);
+      if (history?.latestTag) {
+        elementsWithTags++;
+        if (history.hasChanges) {
+          elementsWithChanges++;
+        }
+      }
+    });
+    
+    // 3. Vérifier les métriques de tactique - CORRIGÉ
+    const metricsHistory = cm360Tags.get('metrics-tactics');
+    if (metricsHistory?.latestTag) {
+      metricsHaveTag = true;
+      // CORRIGÉ : Ne vérifier les changements que si hasChanges est explicitement calculé
+      if (metricsHistory.hasChanges === true) {
+        metricsHaveChanges = true;
+      }
+    }
+    
+    // DEBUG pour identifier le problème
+    console.log('🔍 [calculateTactiqueStatusWithMetrics] DEBUG:', {
+      allElementsCount: allElements.length,
+      elementsWithTags,
+      elementsWithChanges,
+      metricsHaveTag,
+      metricsHaveChanges,
+      'metricsHistory?.hasChanges': metricsHistory?.hasChanges,
+      'metricsHistory exists': !!metricsHistory
+    });
+    
+    // 4. Logique de statut global - CORRIGÉE
+    const hasAnyTags = elementsWithTags > 0 || metricsHaveTag;
+    const hasAnyChanges = elementsWithChanges > 0 || metricsHaveChanges;
+    const allElementsHaveTags = elementsWithTags === allElements.length;
+    
+    // Aucun tag nulle part
+    if (!hasAnyTags) return 'none';
+    
+    // Au moins un changement détecté
+    if (hasAnyChanges) return 'changed';
+    
+    // Tous les éléments ont des tags + métriques ont un tag + aucun changement
+    if (allElementsHaveTags && metricsHaveTag) return 'created';
+    
+    // Tags partiels (certains éléments ou métriques manquants)
+    return 'partial';
+  }
+
+  /**
+   * Obtient un résumé détaillé des changements pour une tactique
+   * Utilisée pour afficher des infos détaillées dans TacticList
+   * CORRIGÉ : Évite de détecter des changements quand pas de tags métriques
+   */
+  export function getTactiqueDetailedChangesSummary(
+    cm360Tags: Map<string, CM360TagHistory>,
+    placements: any[],
+    creativesData: { [placementId: string]: any[] },
+    tactiqueMetrics?: any
+  ): {
+    hasChanges: boolean;
+    changedTypes: string[];
+    details: {
+      placements: { total: number; withTags: number; withChanges: number };
+      creatives: { total: number; withTags: number; withChanges: number };
+      metrics: { hasTag: boolean; hasChanges: boolean };
+    };
+  } {
+    const changedTypes: string[] = [];
+    let placementStats = { total: 0, withTags: 0, withChanges: 0 };
+    let creativeStats = { total: 0, withTags: 0, withChanges: 0 };
+    let metricsStats = { hasTag: false, hasChanges: false };
+    
+    // 1. Analyser les placements
+    placements.forEach(placement => {
+      placementStats.total++;
+      const history = cm360Tags.get(`placement-${placement.id}`);
+      if (history?.latestTag) {
+        placementStats.withTags++;
+        if (history.hasChanges) {
+          placementStats.withChanges++;
+        }
+      }
+    });
+    
+    // 2. Analyser les créatifs
+    Object.values(creativesData).forEach(creatives => {
+      creatives.forEach(creative => {
+        creativeStats.total++;
+        const history = cm360Tags.get(`creative-${creative.id}`);
+        if (history?.latestTag) {
+          creativeStats.withTags++;
+          if (history.hasChanges) {
+            creativeStats.withChanges++;
+          }
+        }
+      });
+    });
+    
+    // 3. Analyser les métriques - CORRIGÉ
+    const metricsHistory = cm360Tags.get('metrics-tactics');
+    if (metricsHistory?.latestTag) {
+      metricsStats.hasTag = true;
+      // CORRIGÉ : Ne vérifier les changements que si hasChanges est explicitement calculé
+      if (metricsHistory.hasChanges === true) {
+        metricsStats.hasChanges = true;
+      }
+    }
+    
+    // 4. Déterminer les types qui ont changé
+    if (placementStats.withChanges > 0) {
+      changedTypes.push('placements');
+    }
+    if (creativeStats.withChanges > 0) {
+      changedTypes.push('créatifs');
+    }
+    if (metricsStats.hasChanges) {
+      changedTypes.push('métriques');
+    }
+    
+    // DEBUG pour identifier le problème
+    console.log('🔍 [getTactiqueDetailedChangesSummary] DEBUG:', {
+      placementStats,
+      creativeStats,
+      metricsStats,
+      changedTypes,
+      'metricsHistory?.hasChanges': metricsHistory?.hasChanges,
+      'metricsHistory exists': !!metricsHistory
+    });
+    
+    return {
+      hasChanges: changedTypes.length > 0,
+      changedTypes,
+      details: {
+        placements: placementStats,
+        creatives: creativeStats,
+        metrics: metricsStats
+      }
+    };
   }
   
   /**
