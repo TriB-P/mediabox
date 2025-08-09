@@ -525,17 +525,7 @@ export default function AdOpsTacticList({
                 >
                   {/* Indicateur de sélection et statut CM360 */}
                   <div className="flex items-start gap-3">
-                    <div className={`
-                      mt-1 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
-                      ${isSelected
-                        ? 'border-indigo-500 bg-indigo-500'
-                        : 'border-gray-300'
-                      }
-                    `}>
-                      {isSelected && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      )}
-                    </div>
+              
 
                     {/* Contenu de la tactique */}
                     <div className="flex-1 min-w-0">
@@ -555,8 +545,6 @@ export default function AdOpsTacticList({
                           
                           <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                             <span>{getDisplayName(tactique.TC_Media_Type, 'TC_Media_Type')}</span>
-                            <span>•</span>
-                            <span>{getDisplayName(tactique.TC_Prog_Buying_Method, 'TC_Prog_Buying_Method')}</span>
                             <span>•</span>
                             <span>{getDisplayName(tactique.TC_Publisher, 'TC_Publisher')}</span>
                           </div>

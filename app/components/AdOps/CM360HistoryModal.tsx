@@ -130,34 +130,44 @@ export default function CM360HistoryModal({
                 <p>Aucun historique disponible pour ce champ</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {fieldHistory.history.map((entry, index) => {
-                  const isLatest = index === 0;
-                  const previousEntry = index < fieldHistory.history.length - 1 ? 
-                    fieldHistory.history[index + 1] : null;
-                  const valueChanged = previousEntry ? 
-                    hasChanged(entry.value, previousEntry.value) : true;
-                  
-                  return (
-                    <div 
-                      key={`${entry.timestamp}-${entry.version}`}
-                      className={`border rounded-lg p-4 border-gray-200 bg-gray-50`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-
-                        <span className="text-xs text-gray-500">
-                          {formatTimestamp(entry.timestamp)}
-                        </span>
+              <div className="relative">
+                {/* Ligne verticale de la timeline */}
+                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                
+                <div className="space-y-6">
+                  {fieldHistory.history.map((entry, index) => {
+                    const isLatest = index === 0;
+                    const previousEntry = index < fieldHistory.history.length - 1 ? 
+                      fieldHistory.history[index + 1] : null;
+                    const valueChanged = previousEntry ? 
+                      hasChanged(entry.value, previousEntry.value) : true;
+                    
+                    return (
+                      <div 
+                        key={`${entry.timestamp}-${entry.version}`}
+                        className="relative flex items-start"
+                      >
+                        {/* Point de la timeline */}
+                        <div className="absolute left-2.5 translate-x-[0.075rem] mt-1.5 w-3 h-3 bg-gray-500 border-2 border-white rounded-full shadow-sm z-10"></div>
+                        
+                        {/* Contenu de l'entrée */}
+                        <div className="ml-10 w-full">
+                          <div className="border rounded-lg p-4 border-gray-200 bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-gray-500">
+                                {formatTimestamp(entry.timestamp)}
+                              </span>
+                            </div>
+                            
+                            <div className="font-mono text-sm bg-white border border-gray-200 rounded px-3 py-2">
+                              {formatValue(entry.value)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      
-                      <div className="font-mono text-sm bg-white border border-gray-200 rounded px-3 py-2">
-                        {formatValue(entry.value)}
-                      </div>
-                      
-
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

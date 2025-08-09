@@ -301,7 +301,7 @@ export default function AdOpsTacticInfo({
 
 
     const colorClasses = {
-      blue: 'border-l-blue-500 bg-gradient-to-r from-blue-50 to-white hover:from-blue-100',
+      blue: 'border-l-blue-200 bg-blue-200 hover: blue-300',
       green: 'border-l-green-500 bg-gradient-to-r from-green-50 to-white hover:from-green-100', 
       purple: 'border-l-purple-500 bg-gradient-to-r from-purple-50 to-white hover:from-purple-100',
       gray: 'border-l-gray-500 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100'
@@ -310,7 +310,7 @@ export default function AdOpsTacticInfo({
     return (
       <div 
         className={`
-          p-2 rounded border-l-4 border-gray-200 shadow-sm transition-all duration-200
+          p-2 rounded border-gray-200 shadow-sm transition-all duration-200
           ${colorClasses[color]}
           ${!hasValue ? 'cursor-not-allowed opacity-50' : ''}
           ${isChanged ? 'ring-2 ring-red-300' : ''}

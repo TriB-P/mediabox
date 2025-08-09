@@ -93,10 +93,10 @@ interface AdOpsTacticTableProps {
 }
 
 const COLORS = [
-  { name: '', value: '#FEE2E2', class: 'bg-red-100' },
-  { name: '', value: '#DCFCE7', class: 'bg-green-100' },
-  { name: '', value: '#DBEAFE', class: 'bg-blue-100' },
-  { name: '', value: '#FEF3C7', class: 'bg-yellow-100' }
+  { name: '', value: '#f9b0cb', class: 'bg-pink-100' },
+  { name: '', value: '#9AE0A8', class: 'bg-green-100' },
+  { name: '', value: '#abeaef', class: 'bg-blue-100' },
+  { name: '', value: '#fee087', class: 'bg-yellow-100' }
 ];
 
 // NOUVEAU : Options de filtre par couleur
@@ -819,7 +819,7 @@ export default function AdOpsTacticTable({
                   <button
                     key={color.value}
                     onClick={() => applyColorToSelected(color.value)}
-                    className={`w-6 h-6 rounded-full border-2 border-gray-300 hover:border-gray-500 transition-all duration-200 ${color.class}`}
+                    className={`w-6 h-6 rounded-full border-2  hover:border-gray-500 transition-all duration-200 ${color.class}`}
                     title={`Appliquer la couleur ${color.name.toLowerCase()}`}
                   >
                     <div 
