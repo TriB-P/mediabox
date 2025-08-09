@@ -159,9 +159,9 @@ export default function AdOpsDropdowns({
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="bg-white p-4 rounded-lg shadow">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
           <div className="space-y-3">
             <div className="h-10 bg-gray-200 rounded"></div>
           </div>
@@ -172,8 +172,8 @@ export default function AdOpsDropdowns({
 
   if (error) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-3">
           Publishers
         </h3>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -184,16 +184,12 @@ export default function AdOpsDropdowns({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow h-full">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
-        Publishers
-      </h3>
+    <div className="bg-white p-4 rounded-lg shadow">
+
       
       {/* Dropdown Publishers */}
       <div className="relative" ref={dropdownRef}>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Sélectionner les publishers
-        </label>
+
         
         <button
           type="button"

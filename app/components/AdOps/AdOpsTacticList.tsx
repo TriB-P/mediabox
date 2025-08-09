@@ -97,9 +97,9 @@ export default function AdOpsTacticList({
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow h-full">
+      <div className="bg-white p-4 rounded-lg shadow h-full">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+          <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-12 bg-gray-200 rounded"></div>
@@ -112,8 +112,8 @@ export default function AdOpsTacticList({
 
   if (error) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow h-full">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+      <div className="bg-white p-4 rounded-lg shadow h-full">
+        <h3 className="text-lg font-medium text-gray-900 mb-3">
           Tactiques AdOps
         </h3>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -124,9 +124,9 @@ export default function AdOpsTacticList({
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow h-full flex flex-col">
+    <div className="bg-white p-4 rounded-lg shadow h-full flex flex-col">
       {/* En-tête */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">
           Tactiques AdOps
         </h3>
@@ -220,18 +220,6 @@ export default function AdOpsTacticList({
           </div>
         )}
       </div>
-
-      {/* Zone d'information */}
-      {filteredTactiques.length > 0 && (
-        <div className="mt-4 p-3 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-600">
-            {selectedTactique 
-              ? 'Tactique sélectionnée. Utilisez les détails pour voir les placements.'
-              : 'Cliquez sur une tactique pour la sélectionner et voir ses détails.'
-            }
-          </p>
-        </div>
-      )}
     </div>
   );
 }

@@ -115,17 +115,7 @@ export default function AdOpsPage() {
           {/* En-tête avec titre et informations de campagne */}
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">AdOps</h1>
-            {selectedCampaign && selectedVersion && (
-              <div className="text-right text-sm text-gray-500">
-                <div>Campagne <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
-                <div>Version <span className="font-medium">{selectedVersion.name}</span></div>
-                {selectedTactique && (
-                  <div className="mt-1 text-indigo-600">
-                    Tactique <span className="font-medium">{selectedTactique.TC_Label}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            
           </div>
           
           {/* Sélecteur de campagne et version */}

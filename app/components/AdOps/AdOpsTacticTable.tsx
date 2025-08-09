@@ -97,7 +97,7 @@ export default function AdOpsTacticTable({
     if (!selectedTactique || !selectedClient || !selectedCampaign || !selectedVersion) return;
     
     setLoading(true);
-    const clientId = selectedClient.clientId;
+    const clientId = selectedClient.clientId || selectedClient.id;
     const allCreatives: { [placementId: string]: Creative[] } = {};
     const updatedPlacements: Placement[] = [];
 
@@ -378,7 +378,7 @@ export default function AdOpsTacticTable({
   const applyColorToSelected = async (color: string) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
     
-    const clientId = selectedClient.clientId;
+    const clientId = selectedClient.clientId || selectedClient.id;
     // Utiliser les IDs au lieu des noms
     const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
     const updates: Promise<void>[] = [];
@@ -537,10 +537,8 @@ export default function AdOpsTacticTable({
 
   if (!selectedTactique) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow h-full">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Détails des placements
-        </h3>
+      <div className="bg-white p-4 rounded-lg shadow h-full">
+
         <div className="flex items-center justify-center h-32 text-gray-500 text-center">
           <div>
             <p className="text-sm">Aucune tactique sélectionnée</p>
@@ -555,12 +553,11 @@ export default function AdOpsTacticTable({
   const selectionStats = getSelectionStats();
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow h-full flex flex-col">
+    <div className="bg-white p-4 rounded-lg shadow h-full flex flex-col">
       {/* En-tête avec recherche et actions */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Détails des placements</h3>
-          <p className="text-sm text-gray-600">{selectedTactique.TC_Label}</p>
+          <h3 className="text-lg font-medium text-gray-900">{selectedTactique.TC_Label}</h3>
         </div>
         
         <div className="flex items-center gap-3">
@@ -619,7 +616,7 @@ export default function AdOpsTacticTable({
       </div>
 
       {/* Barre de recherche */}
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -701,7 +698,7 @@ export default function AdOpsTacticTable({
       </div>
 
       {/* Informations */}
-      <div className="mt-4 text-xs text-gray-500">
+      <div className="mt-3 text-xs text-gray-500">
         {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} • 
         Maintenez Shift pour sélectionner/désélectionner une plage • 
         Sélectionner un placement sélectionne ses créatifs •
