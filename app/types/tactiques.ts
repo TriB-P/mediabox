@@ -176,9 +176,9 @@ export interface Placement {
   // 🔥 NOUVEAUX CHAMPS TAGS
   PL_Tag_Start_Date?: string;         // Date de début tag
   PL_Tag_End_Date?: string;           // Date de fin tag  
-  TC_Tag_Type?: string;               // Type de tag (Video-Hosted, Video-Tracked, Display-Hosted, Display-Tracked, Audio-Hosted, Audio-Tracked)
-  TC_Third_Party_Measurement?: boolean; // Mesure tierce partie (défaut: false)
-  TC_VPAID?: boolean;                 // VPAID activé (défaut: true)
+  PL_Tag_Type?: string;               // Type de tag (Video-Hosted, Video-Tracked, Display-Hosted, Display-Tracked, Audio-Hosted, Audio-Tracked)
+  PL_Third_Party_Measurement?: boolean; // Mesure tierce partie (défaut: false)
+  PL_VPAID?: boolean;                 // VPAID activé (défaut: true)
   PL_Creative_Rotation_Type?: string; // Type de rotation créatif (Even, Optimized by clicks, Weighted, Floodlight)
   PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 
@@ -407,9 +407,9 @@ export interface PlacementFormData {
   // 🔥 NOUVEAUX CHAMPS TAGS DANS LE FORMULAIRE
   PL_Tag_Start_Date?: string;         // Date de début tag
   PL_Tag_End_Date?: string;           // Date de fin tag  
-  TC_Tag_Type?: string;               // Type de tag
-  TC_Third_Party_Measurement?: boolean; // Mesure tierce partie
-  TC_VPAID?: boolean;                 // VPAID activé
+  PL_Tag_Type?: string;               // Type de tag
+  PL_Third_Party_Measurement?: boolean; // Mesure tierce partie
+  PL_VPAID?: boolean;                 // VPAID activé
   PL_Creative_Rotation_Type?: string; // Type de rotation créatif (Even, Optimized by clicks, Weighted, Floodlight)
   PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 }

@@ -5,7 +5,7 @@
  * Il inclut les fonctions pour créer, lire, mettre à jour et supprimer des placements,
  * ainsi que la logique complexe de résolution et de génération des taxonomies
  * pour s'assurer que les données sont correctement formatées avant d'être sauvegardées.
- * MISE À JOUR : Ajout des nouveaux champs Tags (PL_Tag_Start_Date, PL_Tag_End_Date, TC_Tag_Type, etc.)
+ * MISE À JOUR : Ajout des nouveaux champs Tags (PL_Tag_Start_Date, PL_Tag_End_Date, PL_Tag_Type, etc.)
  */
 import {
   collection,
@@ -234,9 +234,9 @@ async function prepareDataForFirestore(
   const tagsFields = {
     PL_Tag_Start_Date: placementData.PL_Tag_Start_Date || '',
     PL_Tag_End_Date: placementData.PL_Tag_End_Date || '',
-    TC_Tag_Type: placementData.TC_Tag_Type || '',
-    TC_Third_Party_Measurement: placementData.TC_Third_Party_Measurement ?? false,
-    TC_VPAID: placementData.TC_VPAID ?? true,
+    PL_Tag_Type: placementData.PL_Tag_Type || '',
+    PL_Third_Party_Measurement: placementData.PL_Third_Party_Measurement ?? false,
+    PL_VPAID: placementData.PL_VPAID ?? true,
     PL_Creative_Rotation_Type: placementData.PL_Creative_Rotation_Type || '',
     PL_Floodlight: placementData.PL_Floodlight || '',
   };

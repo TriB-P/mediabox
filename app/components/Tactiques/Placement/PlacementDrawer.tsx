@@ -2,7 +2,7 @@
 
 /**
  * PlacementDrawer avec ajout de l'onglet Tags.
- * Nouveaux champs : PL_Tag_Start_Date, PL_Tag_End_Date, TC_Tag_Type, TC_Third_Party_Measurement, TC_VPAID
+ * Nouveaux champs : PL_Tag_Start_Date, PL_Tag_End_Date, PL_Tag_Type, PL_Third_Party_Measurement, PL_VPAID
  * AJOUTÉ : PL_Creative_Rotation_Type, PL_Floodlight pour la gestion de la rotation des créatifs
  * Logique de calcul des dates par défaut : Start_Date - 30 jours, End_Date + 30 jours
  */
@@ -110,9 +110,9 @@ export default function PlacementDrawer({
       // Nouveaux champs Tags avec valeurs par défaut
       PL_Tag_Start_Date: '',
       PL_Tag_End_Date: '',
-      TC_Tag_Type: '',
-      TC_Third_Party_Measurement: false,
-      TC_VPAID: true,
+      PL_Tag_Type: '',
+      PL_Third_Party_Measurement: false,
+      PL_VPAID: true,
       // Nouveaux champs rotation créatifs
       PL_Creative_Rotation_Type: '',
       PL_Floodlight: '',
@@ -144,9 +144,9 @@ export default function PlacementDrawer({
           // Nouveaux champs Tags avec valeurs par défaut
           PL_Tag_Start_Date: tagStartDate,
           PL_Tag_End_Date: tagEndDate,
-          TC_Tag_Type: '',
-          TC_Third_Party_Measurement: false,
-          TC_VPAID: true,
+          PL_Tag_Type: '',
+          PL_Third_Party_Measurement: false,
+          PL_VPAID: true,
           // Nouveaux champs rotation créatifs
           PL_Creative_Rotation_Type: '',
           PL_Floodlight: '',
@@ -184,9 +184,9 @@ export default function PlacementDrawer({
         // Nouveaux champs Tags - utiliser les valeurs existantes ou les valeurs par défaut
         PL_Tag_Start_Date: convertToDateString(placement.PL_Tag_Start_Date) || tagStartDate,
         PL_Tag_End_Date: convertToDateString(placement.PL_Tag_End_Date) || tagEndDate,
-        TC_Tag_Type: placement.TC_Tag_Type || '',
-        TC_Third_Party_Measurement: placement.TC_Third_Party_Measurement ?? false,
-        TC_VPAID: placement.TC_VPAID ?? true,
+        PL_Tag_Type: placement.PL_Tag_Type || '',
+        PL_Third_Party_Measurement: placement.PL_Third_Party_Measurement ?? false,
+        PL_VPAID: placement.PL_VPAID ?? true,
         // Nouveaux champs rotation créatifs
         PL_Creative_Rotation_Type: placement.PL_Creative_Rotation_Type || '',
         PL_Floodlight: placement.PL_Floodlight || '',
@@ -210,9 +210,9 @@ export default function PlacementDrawer({
         // Nouveaux champs Tags avec valeurs par défaut
         PL_Tag_Start_Date: tagStartDate,
         PL_Tag_End_Date: tagEndDate,
-        TC_Tag_Type: '',
-        TC_Third_Party_Measurement: false,
-        TC_VPAID: true,
+        PL_Tag_Type: '',
+        PL_Third_Party_Measurement: false,
+        PL_VPAID: true,
         // Nouveaux champs rotation créatifs
         PL_Creative_Rotation_Type: '',
         PL_Floodlight: '',
@@ -262,7 +262,7 @@ export default function PlacementDrawer({
     const { name, value } = e.target;
     
     // Gérer les champs boolean
-    if (name === 'TC_Third_Party_Measurement' || name === 'TC_VPAID') {
+    if (name === 'PL_Third_Party_Measurement' || name === 'PL_VPAID') {
       const boolValue = value === 'true';
       setFormData(prev => ({ ...prev, [name]: boolValue }));
       return;

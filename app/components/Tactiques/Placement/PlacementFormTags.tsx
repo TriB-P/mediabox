@@ -25,7 +25,7 @@ export default function PlacementFormTags({
   tactiqueData
 }: PlacementFormTagsProps) {
 
-  // Options pour TC_Tag_Type
+  // Options pour PL_Tag_Type
   const tagTypeOptions = [
     { id: '', label: 'Sélectionner un type...' },
     { id: 'Video-Hosted', label: 'Video-Hosted' },
@@ -90,9 +90,9 @@ export default function PlacementFormTags({
         {/* Section Type de tag */}
         <div className="px-4 py-0 rounded-lg">
         <SmartSelect
-            id="TC_Tag_Type"
-            name="TC_Tag_Type"
-            value={formData.TC_Tag_Type || ''}
+            id="PL_Tag_Type"
+            name="PL_Tag_Type"
+            value={formData.PL_Tag_Type || ''}
             onChange={onChange}
             options={tagTypeOptions}
             placeholder="Sélectionner un type de tag..."
@@ -160,9 +160,9 @@ export default function PlacementFormTags({
         <div className="p-4 rounded-lg space-y-4">
           
           <SmartSelect
-            id="TC_Third_Party_Measurement"
-            name="TC_Third_Party_Measurement"
-            value={formData.TC_Third_Party_Measurement === true || formData.TC_Third_Party_Measurement ? 'true' : 'false'}
+            id="PL_Third_Party_Measurement"
+            name="PL_Third_Party_Measurement"
+            value={formData.PL_Third_Party_Measurement === true || formData.PL_Third_Party_Measurement ? 'true' : 'false'}
             onChange={onChange}
             options={booleanOptions}
             placeholder="Sélectionner..."
@@ -174,9 +174,9 @@ export default function PlacementFormTags({
           />
 
           <SmartSelect
-            id="TC_VPAID"
-            name="TC_VPAID"
-            value={formData.TC_VPAID === true || formData.TC_VPAID ? 'true' : 'false'}
+            id="PL_VPAID"
+            name="PL_VPAID"
+            value={formData.PL_VPAID === true || formData.PL_VPAID ? 'true' : 'false'}
             onChange={onChange}
             options={booleanOptions}
             placeholder="Sélectionner..."

@@ -1,98 +1,237 @@
 // app/components/AdOps/AdOpsTacticList.tsx
 /**
  * Composant AdOpsTacticList
- * Ce composant affiche une liste des tactiques disponibles
- * pour les opérations AdOps de la campagne sélectionnée.
+ * Ce composant affiche une liste sélectionnable des tactiques AdOps filtrées.
+ * Permet de sélectionner une tactique pour afficher ses détails dans un autre composant.
+ * MODIFIÉ : Reçoit les données via props au lieu d'utiliser directement le hook
  */
 'use client';
 
-import React from 'react';
-import { Campaign } from '../../types/campaign';
+import React, { useState } from 'react';
+import { getCachedAllShortcodes, getListForClient } from '../../lib/cacheService';
+import { useClient } from '../../contexts/ClientContext';
 
-interface Version {
+interface AdOpsTactique {
   id: string;
-  name: string;
-  isOfficial: boolean;
-  createdAt: string;
-  createdBy: string;
+  TC_Label?: string;
+  TC_Publisher?: string;
+  TC_Media_Type?: string;
+  TC_Prog_Buying_Method?: string;
+  ongletName: string;
+  sectionName: string;
+  placementsWithTags: any[];
 }
 
 interface AdOpsTacticListProps {
-  selectedCampaign: Campaign;
-  selectedVersion: Version;
+  filteredTactiques: AdOpsTactique[];
+  loading: boolean;
+  error: string | null;
+  onTactiqueSelect?: (tactique: AdOpsTactique | null) => void;
+  selectedTactique?: AdOpsTactique | null;
 }
 
 /**
  * Composant principal pour la liste des tactiques AdOps.
- * Affiche les tactiques disponibles sous forme de liste.
+ * Affiche les tactiques filtrées avec sélection unique.
  *
  * @param {AdOpsTacticListProps} props - Les propriétés du composant
  * @returns {JSX.Element} Le composant AdOpsTacticList
  */
 export default function AdOpsTacticList({ 
-  selectedCampaign, 
-  selectedVersion 
+  filteredTactiques,
+  loading,
+  error,
+  onTactiqueSelect,
+  selectedTactique
 }: AdOpsTacticListProps) {
-
-  // Données d'exemple des tactiques
-  const tactics = [
-    { id: 1, name: 'Display Banner', type: 'Display', status: 'Actif' },
-    { id: 2, name: 'Video Pre-Roll', type: 'Video', status: 'Actif' },
-    { id: 3, name: 'Social Media', type: 'Social', status: 'Pause' },
-    { id: 4, name: 'Search Ads', type: 'Search', status: 'Actif' },
-    { id: 5, name: 'Native Ads', type: 'Native', status: 'Inactif' },
-    { id: 6, name: 'Retargeting', type: 'Display', status: 'Actif' },
-  ];
+  const { selectedClient } = useClient();
 
   /**
-   * Retourne la classe CSS pour le statut
+   * Récupère le nom d'affichage d'un shortcode depuis le cache
    */
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'Actif':
-        return 'bg-green-100 text-green-800';
-      case 'Pause':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Inactif':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const getDisplayName = (shortcodeId: string | undefined, listType: string): string => {
+    if (!shortcodeId || shortcodeId.trim() === '') return 'N/A';
+    
+    // Essayer d'abord le cache optimisé
+    const allShortcodes = getCachedAllShortcodes();
+    if (allShortcodes && allShortcodes[shortcodeId]) {
+      return allShortcodes[shortcodeId].SH_Display_Name_FR || shortcodeId;
+    }
+    
+    // Fallback : essayer la liste spécifique du client
+    if (selectedClient) {
+      const clientId = selectedClient.clientId;
+      const shortcodesList = getListForClient(listType, clientId);
+      if (shortcodesList) {
+        const shortcode = shortcodesList.find(s => s.id === shortcodeId);
+        if (shortcode) {
+          return shortcode.SH_Display_Name_FR || shortcodeId;
+        }
+      }
+    }
+    
+    // Si rien trouvé, retourner l'ID original
+    return shortcodeId;
+  };
+
+  /**
+   * Gère la sélection d'une tactique
+   */
+  const handleTactiqueSelect = (tactique: AdOpsTactique) => {
+    const newSelected = selectedTactique?.id === tactique.id ? null : tactique;
+    
+    // Notifier le parent
+    if (onTactiqueSelect) {
+      onTactiqueSelect(newSelected);
     }
   };
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow h-full">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
-        Adop Tactic List
-      </h3>
-      
-      <div className="space-y-3">
-        {tactics.map((tactic) => (
-          <div 
-            key={tactic.id} 
-            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-          >
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-gray-900">
-                {tactic.name}
-              </h4>
-              <p className="text-xs text-gray-500">
-                {tactic.type}
-              </p>
-            </div>
-            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusClass(tactic.status)}`}>
-              {tactic.status}
-            </span>
+  /**
+   * Désélectionne toutes les tactiques
+   */
+  const handleClearSelection = () => {
+    if (onTactiqueSelect) {
+      onTactiqueSelect(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow h-full">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded"></div>
+            ))}
           </div>
-        ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow h-full">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Tactiques AdOps
+        </h3>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          Erreur: {error}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow h-full flex flex-col">
+      {/* En-tête */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-medium text-gray-900">
+          Tactiques AdOps
+        </h3>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600">
+            {filteredTactiques.length} tactique{filteredTactiques.length !== 1 ? 's' : ''}
+          </span>
+          {selectedTactique && (
+            <button
+              onClick={handleClearSelection}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              Désélectionner
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Liste des tactiques */}
+      <div className="flex-1 overflow-hidden">
+        {filteredTactiques.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-gray-500 text-center">
+            <div>
+              <p className="text-sm">Aucune tactique trouvée</p>
+              <p className="text-xs mt-1">Essayez de modifier les filtres publishers</p>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto space-y-2 pr-2">
+            {filteredTactiques.map((tactique) => (
+              <div
+                key={tactique.id}
+                onClick={() => handleTactiqueSelect(tactique)}
+                className={`
+                  relative p-3 border rounded-lg cursor-pointer transition-all duration-200
+                  ${selectedTactique?.id === tactique.id
+                    ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }
+                `}
+              >
+                {/* Indicateur de sélection */}
+                <div className="flex items-start gap-3">
+                  <div className={`
+                    mt-1 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                    ${selectedTactique?.id === tactique.id
+                      ? 'border-indigo-500 bg-indigo-500'
+                      : 'border-gray-300'
+                    }
+                  `}>
+                    {selectedTactique?.id === tactique.id && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                  </div>
+
+                  {/* Contenu de la tactique */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`
+                          text-sm font-medium truncate
+                          ${selectedTactique?.id === tactique.id ? 'text-indigo-900' : 'text-gray-900'}
+                        `}>
+                          {tactique.TC_Label || 'Tactique sans nom'}
+                        </h4>
+                        
+                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                          <span>{getDisplayName(tactique.TC_Media_Type, 'TC_Media_Type')}</span>
+                          <span>•</span>
+                          <span>{getDisplayName(tactique.TC_Prog_Buying_Method, 'TC_Prog_Buying_Method')}</span>
+                          <span>•</span>
+                          <span>{getDisplayName(tactique.TC_Publisher, 'TC_Publisher')}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Badge nombre de placements */}
+                      <div className={`
+                        ml-2 px-2 py-1 rounded-full text-xs font-medium flex-shrink-0
+                        ${selectedTactique?.id === tactique.id
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-gray-100 text-gray-600'
+                        }
+                      `}>
+                        {tactique.placementsWithTags.length} placement{tactique.placementsWithTags.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Zone d'information */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-md">
-        <p className="text-sm text-gray-600">
-          Cette liste affiche les tactiques disponibles pour la campagne.
-        </p>
-      </div>
+      {filteredTactiques.length > 0 && (
+        <div className="mt-4 p-3 bg-gray-50 rounded-md">
+          <p className="text-sm text-gray-600">
+            {selectedTactique 
+              ? 'Tactique sélectionnée. Utilisez les détails pour voir les placements.'
+              : 'Cliquez sur une tactique pour la sélectionner et voir ses détails.'
+            }
+          </p>
+        </div>
+      )}
     </div>
   );
 }

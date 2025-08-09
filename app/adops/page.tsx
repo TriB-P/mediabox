@@ -4,16 +4,18 @@
  * Elle permet de visualiser et de gérer les opérations publicitaires
  * pour une campagne et une version de campagne sélectionnées.
  * La page affiche 4 composants principaux organisés en grille.
+ * MODIFIÉ : État centralisé pour synchroniser les composants
  */
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import { useTranslation } from '../contexts/LanguageContext';
 import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import { useClient } from '../contexts/ClientContext';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
+import { useAdOpsData } from '../hooks/useAdOpsData';
 
 // Import des composants AdOps
 import AdOpsDropdowns from '../components/AdOps/AdOpsDropdowns';
@@ -21,6 +23,17 @@ import AdOpsTacticInfo from '../components/AdOps/AdOpsTacticInfo';
 import AdOpsTacticList from '../components/AdOps/AdOpsTacticList';
 import AdOpsTable from '../components/AdOps/AdOpsTacticTable';
 
+// Interface pour une tactique sélectionnée
+interface SelectedTactique {
+  id: string;
+  TC_Label?: string;
+  TC_Publisher?: string;
+  TC_Media_Type?: string;
+  TC_Prog_Buying_Method?: string;
+  ongletName: string;
+  sectionName: string;
+  placementsWithTags: any[];
+}
 
 /**
  * Composant principal de la page AdOps.
@@ -31,6 +44,8 @@ import AdOpsTable from '../components/AdOps/AdOpsTacticTable';
 export default function AdOpsPage() {
   const { selectedClient } = useClient();
   const { t } = useTranslation();
+  const [selectedTactique, setSelectedTactique] = useState<SelectedTactique | null>(null);
+  
   const {
     campaigns,
     versions,
@@ -42,6 +57,19 @@ export default function AdOpsPage() {
     handleVersionChange,
   } = useCampaignSelection();
 
+  // Hook centralisé pour les données AdOps
+  const {
+    tactiques,
+    publishers,
+    loading: adOpsLoading,
+    error: adOpsError,
+    togglePublisher,
+    selectAllPublishers,
+    deselectAllPublishers,
+    selectedPublishers,
+    filteredTactiques
+  } = useAdOpsData(selectedCampaign, selectedVersion);
+
   /**
    * Gère le changement de campagne sélectionnée.
    *
@@ -50,6 +78,8 @@ export default function AdOpsPage() {
    */
   const handleCampaignChangeLocal = (campaign: any) => {
     handleCampaignChange(campaign);
+    // Réinitialiser la sélection de tactique quand on change de campagne
+    setSelectedTactique(null);
   };
 
   /**
@@ -60,6 +90,18 @@ export default function AdOpsPage() {
    */
   const handleVersionChangeLocal = (version: any) => {
     handleVersionChange(version);
+    // Réinitialiser la sélection de tactique quand on change de version
+    setSelectedTactique(null);
+  };
+
+  /**
+   * Gère la sélection d'une tactique
+   *
+   * @param {SelectedTactique | null} tactique - La tactique sélectionnée
+   * @returns {void}
+   */
+  const handleTactiqueSelect = (tactique: SelectedTactique | null) => {
+    setSelectedTactique(tactique);
   };
 
   const isLoading = campaignLoading;
@@ -77,6 +119,11 @@ export default function AdOpsPage() {
               <div className="text-right text-sm text-gray-500">
                 <div>Campagne <span className="font-medium">{selectedCampaign.CA_Name}</span></div>
                 <div>Version <span className="font-medium">{selectedVersion.name}</span></div>
+                {selectedTactique && (
+                  <div className="mt-1 text-indigo-600">
+                    Tactique <span className="font-medium">{selectedTactique.TC_Label}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -145,28 +192,36 @@ export default function AdOpsPage() {
                   {/* Ligne du haut - 2 colonnes égales */}
                   <div className="col-span-6">
                     <AdOpsDropdowns 
-                      selectedCampaign={selectedCampaign}
-                      selectedVersion={selectedVersion}
+                      publishers={publishers}
+                      loading={adOpsLoading}
+                      error={adOpsError}
+                      togglePublisher={togglePublisher}
+                      selectAllPublishers={selectAllPublishers}
+                      deselectAllPublishers={deselectAllPublishers}
+                      selectedPublishers={selectedPublishers}
                     />
                   </div>
                   
                   <div className="col-span-6">
                     <AdOpsTacticInfo 
-                      selectedCampaign={selectedCampaign}
-                      selectedVersion={selectedVersion}
+                      selectedTactique={selectedTactique}
                     />
                   </div>
                   
                   {/* Ligne du bas - 1/3 et 2/3 */}
                   <div className="col-span-4">
                     <AdOpsTacticList 
-                      selectedCampaign={selectedCampaign}
-                      selectedVersion={selectedVersion}
+                      filteredTactiques={filteredTactiques}
+                      loading={adOpsLoading}
+                      error={adOpsError}
+                      onTactiqueSelect={handleTactiqueSelect}
+                      selectedTactique={selectedTactique}
                     />
                   </div>
                   
                   <div className="col-span-8">
                     <AdOpsTable 
+                      selectedTactique={selectedTactique}
                       selectedCampaign={selectedCampaign}
                       selectedVersion={selectedVersion}
                     />

@@ -3,53 +3,61 @@
  * Composant AdOpsDropdowns
  * Ce composant affiche un dropdown multi-sélection pour filtrer les publishers
  * des tactiques AdOps ayant des placements avec PL_Tag_Type non vide.
+ * MODIFIÉ : Reçoit les données via props au lieu d'utiliser directement le hook
  */
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ChevronDownIcon, 
-  CheckIcon
+  CheckIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
-import { Campaign } from '../../types/campaign';
-import { useAdOpsData } from '../../hooks/useAdOpsData';
 
-interface Version {
+interface Publisher {
   id: string;
   name: string;
-  isOfficial: boolean;
-  createdAt: string;
-  createdBy: string;
+  tactiqueCount: number;
+  isSelected: boolean;
 }
 
 interface AdOpsDropdownsProps {
-  selectedCampaign: Campaign;
-  selectedVersion: Version;
+  publishers: Publisher[];
+  loading: boolean;
+  error: string | null;
+  togglePublisher: (publisherId: string) => void;
+  selectAllPublishers: () => void;
+  deselectAllPublishers: () => void;
+  selectedPublishers: string[];
 }
 
 /**
  * Composant principal pour les listes déroulantes AdOps.
- * Affiche un dropdown de sélection multiple pour les publishers.
+ * Affiche un dropdown de sélection multiple pour les publishers avec recherche.
  *
  * @param {AdOpsDropdownsProps} props - Les propriétés du composant
  * @returns {JSX.Element} Le composant AdOpsDropdowns
  */
 export default function AdOpsDropdowns({ 
-  selectedCampaign, 
-  selectedVersion 
+  publishers,
+  loading,
+  error,
+  togglePublisher,
+  selectAllPublishers,
+  deselectAllPublishers,
+  selectedPublishers
 }: AdOpsDropdownsProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    publishers,
-    loading,
-    error,
-    togglePublisher,
-    selectAllPublishers,
-    deselectAllPublishers,
-    selectedPublishers
-  } = useAdOpsData(selectedCampaign, selectedVersion);
+  /**
+   * Filtre les publishers selon le terme de recherche
+   */
+  const filteredPublishers = publishers.filter(publisher =>
+    publisher.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   /**
    * Ferme le dropdown si on clique à l'extérieur
@@ -68,22 +76,58 @@ export default function AdOpsDropdowns({
   }, []);
 
   /**
+   * Focus automatique sur l'input de recherche quand le dropdown s'ouvre
+   */
+  useEffect(() => {
+    if (isDropdownOpen && searchInputRef.current) {
+      // Petit délai pour s'assurer que le dropdown est rendu
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isDropdownOpen]);
+
+  /**
    * Toggle l'ouverture/fermeture du dropdown
    */
   const toggleDropdown = () => {
+    if (isDropdownOpen) {
+      // Nettoyer la recherche quand on ferme
+      setSearchTerm('');
+    }
     setIsDropdownOpen(!isDropdownOpen);
   };
 
   /**
-   * Gère la sélection/désélection de tous les publishers
+   * Gère la sélection/désélection de tous les publishers (filtrés)
    */
   const handleSelectAll = () => {
-    const selectedCount = publishers.filter(pub => pub.isSelected).length;
-    if (selectedCount === publishers.length) {
-      deselectAllPublishers();
+    const filteredSelected = filteredPublishers.filter(pub => pub.isSelected);
+    const allFilteredSelected = filteredSelected.length === filteredPublishers.length;
+    
+    if (allFilteredSelected) {
+      // Désélectionner tous les publishers filtrés
+      filteredPublishers.forEach(pub => {
+        if (pub.isSelected) {
+          togglePublisher(pub.id);
+        }
+      });
     } else {
-      selectAllPublishers();
+      // Sélectionner tous les publishers filtrés
+      filteredPublishers.forEach(pub => {
+        if (!pub.isSelected) {
+          togglePublisher(pub.id);
+        }
+      });
     }
+  };
+
+  /**
+   * Vérifie si tous les publishers filtrés sont sélectionnés
+   */
+  const areAllFilteredSelected = () => {
+    if (filteredPublishers.length === 0) return false;
+    return filteredPublishers.every(pub => pub.isSelected);
   };
 
   /**
@@ -97,6 +141,20 @@ export default function AdOpsDropdowns({
     if (selectedCount === 0) return 'Sélectionner des publishers';
     if (selectedCount === publishers.length) return 'Tous les publishers';
     return `${selectedCount} publisher${selectedCount > 1 ? 's' : ''} sélectionné${selectedCount > 1 ? 's' : ''}`;
+  };
+
+  /**
+   * Gère les clics sur l'input de recherche (empêche la fermeture du dropdown)
+   */
+  const handleSearchClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  /**
+   * Gère les changements dans l'input de recherche
+   */
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
   if (loading) {
@@ -151,7 +209,26 @@ export default function AdOpsDropdowns({
 
         {/* Menu déroulant */}
         {isDropdownOpen && publishers.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-80 overflow-hidden">
+            
+            {/* Barre de recherche */}
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  onClick={handleSearchClick}
+                  placeholder="Rechercher un publisher..."
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
             {/* En-tête avec actions globales */}
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <button
@@ -159,39 +236,52 @@ export default function AdOpsDropdowns({
                 className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
               >
                 <div className={`w-4 h-4 mr-2 border border-gray-300 rounded flex items-center justify-center ${
-                  publishers.filter(pub => pub.isSelected).length === publishers.length ? 'bg-indigo-600 border-indigo-600' : ''
+                  areAllFilteredSelected() ? 'bg-indigo-600 border-indigo-600' : ''
                 }`}>
-                  {publishers.filter(pub => pub.isSelected).length === publishers.length && (
+                  {areAllFilteredSelected() && (
                     <CheckIcon className="w-3 h-3 text-white" />
                   )}
                 </div>
-                {publishers.filter(pub => pub.isSelected).length === publishers.length ? 'Désélectionner tout' : 'Sélectionner tout'}
+                {areAllFilteredSelected() ? 'Désélectionner' : 'Sélectionner'} {filteredPublishers.length > 0 ? 'les résultats' : 'tout'}
               </button>
+              
+              {/* Compteur de résultats */}
+              {searchTerm && (
+                <div className="mt-1 text-xs text-gray-500">
+                  {filteredPublishers.length} résultat{filteredPublishers.length !== 1 ? 's' : ''} trouvé{filteredPublishers.length !== 1 ? 's' : ''}
+                </div>
+              )}
             </div>
 
-            {/* Liste des publishers */}
-            <div className="py-1">
-              {publishers.map((publisher) => (
-                <div
-                  key={publisher.id}
-                  onClick={() => togglePublisher(publisher.id)}
-                  className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <div className={`w-4 h-4 mr-3 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center ${
-                      publisher.isSelected ? 'bg-indigo-600 border-indigo-600' : ''
-                    }`}>
-                      {publisher.isSelected && (
-                        <CheckIcon className="w-3 h-3 text-white" />
-                      )}
+            {/* Liste des publishers filtrés */}
+            <div className="py-1 max-h-48 overflow-y-auto">
+              {filteredPublishers.length > 0 ? (
+                filteredPublishers.map((publisher) => (
+                  <div
+                    key={publisher.id}
+                    onClick={() => togglePublisher(publisher.id)}
+                    className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <div className="flex items-center flex-1 min-w-0">
+                      <div className={`w-4 h-4 mr-3 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center ${
+                        publisher.isSelected ? 'bg-indigo-600 border-indigo-600' : ''
+                      }`}>
+                        {publisher.isSelected && (
+                          <CheckIcon className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                      <span className="truncate">{publisher.name}</span>
                     </div>
-                    <span className="truncate">{publisher.name}</span>
+                    <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
+                      {publisher.tactiqueCount}
+                    </span>
                   </div>
-                  <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
-                    {publisher.tactiqueCount}
-                  </span>
+                ))
+              ) : (
+                <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                  Aucun publisher trouvé pour "{searchTerm}"
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

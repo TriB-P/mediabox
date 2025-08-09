@@ -3,11 +3,11 @@
  * Hook personnalisé pour récupérer les données AdOps
  * Filtre les tactiques qui ont des placements avec PL_Tag_Type non vide
  * et extrait la liste unique des publishers pour le dropdown
- * CORRIGÉ : Utilise le cache service pour les noms des publishers
+ * CORRIGÉ : Affiche SH_Display_Name_FR au lieu des IDs
  */
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useClient } from '../contexts/ClientContext';
 import { Tactique, Placement } from '../types/tactiques';
@@ -16,6 +16,8 @@ import { getCachedAllShortcodes, getListForClient } from '../lib/cacheService';
 interface AdOpsTactique extends Tactique {
   ongletName: string;
   sectionName: string;
+  ongletId: string; // Ajout des IDs
+  sectionId: string; // Ajout des IDs  
   placementsWithTags: Placement[];
 }
 
@@ -59,6 +61,34 @@ export function useAdOpsData(
   const [error, setError] = useState<string | null>(null);
 
   /**
+   * Récupère le nom d'affichage d'un publisher depuis le cache
+   */
+  const getPublisherDisplayName = (publisherId: string): string => {
+    if (!publisherId || publisherId.trim() === '') return publisherId;
+    
+    // Essayer d'abord le cache optimisé
+    const allShortcodes = getCachedAllShortcodes();
+    if (allShortcodes && allShortcodes[publisherId]) {
+      return allShortcodes[publisherId].SH_Display_Name_FR || publisherId;
+    }
+    
+    // Fallback : essayer la liste des publishers du client
+    if (selectedClient) {
+      const clientId = selectedClient.clientId;
+      const publishersList = getListForClient('TC_Publisher', clientId);
+      if (publishersList) {
+        const publisher = publishersList.find(p => p.id === publisherId);
+        if (publisher) {
+          return publisher.SH_Display_Name_FR || publisherId;
+        }
+      }
+    }
+    
+    // Si rien trouvé, retourner l'ID original
+    return publisherId;
+  };
+
+  /**
    * Récupère toutes les tactiques avec leurs placements ayant PL_Tag_Type non vide
    */
   async function fetchAdOpsData() {
@@ -74,19 +104,7 @@ export function useAdOpsData(
     try {
       const tactiquesWithTags: AdOpsTactique[] = [];
       const publisherMap = new Map<string, { name: string; count: number }>();
-      const clientId = selectedClient.clientId || selectedClient.id;
-
-      // Récupérer tous les shortcodes publishers pour le mapping ID -> Display Name
-      console.log(`FIREBASE: LECTURE - Fichier: useAdOpsData.ts - Fonction: fetchAdOpsData - Path: shortcodes`);
-      const shortcodesRef = collection(db, 'shortcodes');
-      const shortcodesQuery = query(shortcodesRef, where('SH_Dimension', '==', 'TC_Publisher'));
-      const shortcodesSnapshot = await getDocs(shortcodesQuery);
-      
-      const publisherShortcodes = new Map<string, string>();
-      shortcodesSnapshot.docs.forEach(doc => {
-        const shortcodeData = doc.data();
-        publisherShortcodes.set(doc.id, shortcodeData.SH_Display_Name_FR || doc.id);
-      });
+      const clientId = selectedClient.clientId;
 
       // Récupérer tous les onglets
       console.log(`FIREBASE: LECTURE - Fichier: useAdOpsData.ts - Fonction: fetchAdOpsData - Path: clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets`);
@@ -123,7 +141,7 @@ export function useAdOpsData(
             const placementsWithTags: Placement[] = [];
             placementsSnapshot.docs.forEach(placementDoc => {
               const placementData = placementDoc.data() as Placement;
-              if (placementData.TC_Tag_Type && placementData.TC_Tag_Type.trim() !== '') {
+              if (placementData.PL_Tag_Type && placementData.PL_Tag_Type.trim() !== '') {
                 placementsWithTags.push({
                   ...placementData,
                   id: placementDoc.id
@@ -138,6 +156,8 @@ export function useAdOpsData(
                 id: tactiqueDoc.id,
                 ongletName,
                 sectionName,
+                ongletId: ongletDoc.id, // Ajout de l'ID de l'onglet
+                sectionId: sectionDoc.id, // Ajout de l'ID de la section
                 placementsWithTags
               };
               
@@ -146,7 +166,7 @@ export function useAdOpsData(
               // Compter le publisher pour le dropdown - utiliser le display name
               const publisherId = tactiqueData.TC_Publisher;
               if (publisherId && publisherId.trim() !== '') {
-                const publisherDisplayName = publisherShortcodes.get(publisherId) || publisherId;
+                const publisherDisplayName = getPublisherDisplayName(publisherId);
                 const current = publisherMap.get(publisherId) || { name: publisherDisplayName, count: 0 };
                 publisherMap.set(publisherId, {
                   name: publisherDisplayName,
