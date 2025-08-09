@@ -5,6 +5,7 @@
  * et indicateurs visuels pour le statut des tags.
  * MODIFIÉ : Utilise les données centralisées d'AdOpsPage avec filtrage hierarchique
  * AMÉLIORÉ : Sans fond blanc individuel + colonne Actions élargie
+ * CORRIGÉ : Rechargement des données après modification des couleurs
  */
 'use client';
 
@@ -90,6 +91,7 @@ interface AdOpsTacticTableProps {
   cm360Tags?: Map<string, CM360TagHistory>;
   creativesData?: { [tactiqueId: string]: { [placementId: string]: Creative[] } };
   onCM360TagsReload?: () => void; // Callback pour recharger les tags
+  onDataReload?: () => void; // NOUVEAU : Callback pour recharger toutes les données
 }
 
 const COLORS = [
@@ -115,7 +117,8 @@ export default function AdOpsTacticTable({
   selectedVersion,
   cm360Tags,
   creativesData,
-  onCM360TagsReload
+  onCM360TagsReload,
+  onDataReload // NOUVEAU : Callback pour recharger toutes les données
 }: AdOpsTacticTableProps) {
   const { selectedClient } = useClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -623,6 +626,7 @@ export default function AdOpsTacticTable({
 
   /**
    * Applique une couleur aux lignes sélectionnées
+   * MODIFIÉ : Notifie le parent pour recharger les données après sauvegarde
    */
   const applyColorToSelected = async (color: string) => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
@@ -631,6 +635,7 @@ export default function AdOpsTacticTable({
     const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
     const updates: Promise<void>[] = [];
     
+    // Mise à jour locale immédiate pour un feedback visuel
     updateLocalColors(color);
     
     selectedRows.forEach(rowId => {
@@ -650,6 +655,13 @@ export default function AdOpsTacticTable({
     
     try {
       await Promise.all(updates);
+      console.log('✅ [TacticTable] Couleurs sauvegardées dans Firestore');
+      
+      // NOUVEAU : Notifier le parent pour recharger les données depuis Firestore
+      if (onDataReload) {
+        console.log('🔄 [TacticTable] Rechargement des données depuis AdOpsPage');
+        onDataReload();
+      }
     } catch (error) {
       console.error('Erreur sauvegarde couleurs:', error);
     }

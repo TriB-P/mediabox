@@ -6,6 +6,7 @@
  * La page affiche 4 composants principaux organisés en grille.
  * MODIFIÉ : État centralisé pour synchroniser les composants + gestion CM360 centralisée
  * AMÉLIORÉ : Regroupement visuel des composants dans des conteneurs blancs
+ * CORRIGÉ : Rechargement des données après modification des couleurs
  */
 'use client';
 
@@ -101,7 +102,8 @@ export default function AdOpsPage() {
     selectAllPublishers,
     deselectAllPublishers,
     selectedPublishers,
-    filteredTactiques
+    filteredTactiques,
+    reloadData: reloadAdOpsData // NOUVEAU : Fonction de rechargement
   } = useAdOpsData(selectedCampaign, selectedVersion);
 
   /**
@@ -245,7 +247,7 @@ export default function AdOpsPage() {
   };
 
   /**
-   * NOUVEAU CALLBACK : Recharge les tags CM360 après mise à jour des métriques
+   * NOUVEAU CALLBACK : Recharge les métriques après mise à jour des métriques
    */
   const handleMetricsUpdated = async () => {
     console.log('🔄 [AdOpsPage] Rechargement tags CM360 après mise à jour métriques');
@@ -258,6 +260,26 @@ export default function AdOpsPage() {
   const handleCM360TagsReload = async () => {
     console.log('🔄 [AdOpsPage] Rechargement tags CM360 depuis tableau');
     await loadCM360TagsForAllTactiques();
+  };
+
+  /**
+   * NOUVEAU CALLBACK : Recharge toutes les données (tactiques + créatifs + tags CM360)
+   * Utilisé après modification des couleurs pour voir les changements
+   */
+  const handleDataReload = async () => {
+    console.log('🔄 [AdOpsPage] Rechargement complet des données après modification couleurs');
+    
+    try {
+      // 1. D'abord recharger les données de base (tactiques avec placements/créatifs mis à jour)
+      await reloadAdOpsData();
+      
+      // 2. Puis recharger les tags CM360 avec les nouvelles données
+      await loadCM360TagsForAllTactiques();
+      
+      console.log('✅ [AdOpsPage] Rechargement complet terminé');
+    } catch (error) {
+      console.error('❌ [AdOpsPage] Erreur lors du rechargement complet:', error);
+    }
   };
 
   /**
@@ -481,6 +503,7 @@ export default function AdOpsPage() {
                           cm360Tags={cm360Tags}
                           creativesData={creativesData}
                           onCM360TagsReload={handleCM360TagsReload}
+                          onDataReload={handleDataReload}
                         />
                       </div>
                     </div>

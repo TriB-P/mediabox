@@ -4,6 +4,7 @@
  * Filtre les tactiques qui ont des placements avec PL_Tag_Type non vide
  * et extrait la liste unique des publishers pour le dropdown
  * CORRIGÉ : Affiche SH_Display_Name_FR au lieu des IDs
+ * AJOUTÉ : Fonction de rechargement pour actualiser les données après modifications
  */
 
 import { useState, useEffect } from 'react';
@@ -38,6 +39,7 @@ interface UseAdOpsDataReturn {
   deselectAllPublishers: () => void;
   selectedPublishers: string[]; // IDs des publishers sélectionnés
   filteredTactiques: AdOpsTactique[];
+  reloadData: () => Promise<void>; // NOUVEAU : Fonction pour recharger les données
 }
 
 interface Campaign {
@@ -258,6 +260,7 @@ export function useAdOpsData(
     selectAllPublishers,
     deselectAllPublishers,
     selectedPublishers,
-    filteredTactiques
+    filteredTactiques,
+    reloadData: fetchAdOpsData // NOUVEAU : Exposer la fonction de rechargement
   };
 }
