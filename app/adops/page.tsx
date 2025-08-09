@@ -5,6 +5,7 @@
  * pour une campagne et une version de campagne sélectionnées.
  * La page affiche 4 composants principaux organisés en grille.
  * MODIFIÉ : État centralisé pour synchroniser les composants + gestion CM360 centralisée
+ * AMÉLIORÉ : Regroupement visuel des composants dans des conteneurs blancs
  */
 'use client';
 
@@ -344,8 +345,8 @@ export default function AdOpsPage() {
           
           {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="flex-1 max-w-4xl">
+            <div className="flex items-center gap-4 max-w-20xl">
+              <div className="flex-1 max-w-20xl">
                 <CampaignVersionSelector
                   campaigns={campaigns}
                   versions={versions}
@@ -404,7 +405,7 @@ export default function AdOpsPage() {
             </div>
           )}
           
-          {/* Contenu principal */}
+          {/* Contenu principal - AMÉLIORÉ : Regroupement visuel */}
           {!isLoading && !hasError && (
             <>
               {!selectedCampaign && (
@@ -425,52 +426,66 @@ export default function AdOpsPage() {
               
               {selectedCampaign && selectedVersion && (
                 <div className="grid grid-cols-12 gap-6">
-                  {/* Ligne du haut - 2 colonnes égales */}
+                  
+                  {/* CONTENEUR GAUCHE - Dropdowns + TacticList dans un seul fond blanc */}
                   <div className="col-span-4">
-                    <AdOpsDropdowns 
-                      publishers={publishers}
-                      loading={adOpsLoading}
-                      error={adOpsError}
-                      togglePublisher={togglePublisher}
-                      selectAllPublishers={selectAllPublishers}
-                      deselectAllPublishers={deselectAllPublishers}
-                      selectedPublishers={selectedPublishers}
-                    />
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                      {/* Dropdowns dans la partie haute */}
+                      <div className="border-b border-gray-200">
+                        <AdOpsDropdowns 
+                          publishers={publishers}
+                          loading={adOpsLoading}
+                          error={adOpsError}
+                          togglePublisher={togglePublisher}
+                          selectAllPublishers={selectAllPublishers}
+                          deselectAllPublishers={deselectAllPublishers}
+                          selectedPublishers={selectedPublishers}
+                        />
+                      </div>
+                      
+                      {/* TacticList dans la partie basse */}
+                      <div className="min-h-[400px]">
+                        <AdOpsTacticList 
+                          filteredTactiques={filteredTactiques}
+                          loading={adOpsLoading || cm360Loading || isRefreshing}
+                          error={adOpsError}
+                          onTactiqueSelect={handleTactiqueSelect}
+                          selectedTactique={selectedTactique}
+                          cm360Tags={cm360Tags}
+                          creativesData={creativesData}
+                        />
+                      </div>
+                    </div>
                   </div>
                   
+                  {/* CONTENEUR DROITE - TacticInfo + TacticTable dans un seul fond blanc */}
                   <div className="col-span-8">
-                    <AdOpsTacticInfo 
-                      selectedTactique={selectedTactique}
-                      selectedCampaign={selectedCampaign}
-                      selectedVersion={selectedVersion}
-                      cm360Tags={cm360Tags}
-                      onMetricsUpdated={handleMetricsUpdated}
-                    />
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                      {/* TacticInfo dans la partie haute */}
+                      <div className="border-b border-gray-200">
+                        <AdOpsTacticInfo 
+                          selectedTactique={selectedTactique}
+                          selectedCampaign={selectedCampaign}
+                          selectedVersion={selectedVersion}
+                          cm360Tags={cm360Tags}
+                          onMetricsUpdated={handleMetricsUpdated}
+                        />
+                      </div>
+                      
+                      {/* TacticTable dans la partie basse */}
+                      <div className="min-h-[400px]">
+                        <AdOpsTable 
+                          selectedTactique={selectedTactique}
+                          selectedCampaign={selectedCampaign}
+                          selectedVersion={selectedVersion}
+                          cm360Tags={cm360Tags}
+                          creativesData={creativesData}
+                          onCM360TagsReload={handleCM360TagsReload}
+                        />
+                      </div>
+                    </div>
                   </div>
                   
-                  {/* Ligne du bas - 1/3 et 2/3 */}
-                  <div className="col-span-4">
-                    <AdOpsTacticList 
-                      filteredTactiques={filteredTactiques}
-                      loading={adOpsLoading || cm360Loading || isRefreshing}
-                      error={adOpsError}
-                      onTactiqueSelect={handleTactiqueSelect}
-                      selectedTactique={selectedTactique}
-                      cm360Tags={cm360Tags}
-                      creativesData={creativesData}
-                    />
-                  </div>
-                  
-                  <div className="col-span-8">
-                    <AdOpsTable 
-                      selectedTactique={selectedTactique}
-                      selectedCampaign={selectedCampaign}
-                      selectedVersion={selectedVersion}
-                      cm360Tags={cm360Tags}
-                      creativesData={creativesData}
-                      onCM360TagsReload={handleCM360TagsReload}
-                    />
-                  </div>
                 </div>
               )}
             </>

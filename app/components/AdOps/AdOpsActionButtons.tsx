@@ -2,6 +2,7 @@
 /**
  * Composant AdOpsActionButtons avec support CM360
  * Boutons d'actions spécialisés avec indicateurs de changements pour les tags
+ * AMÉLIORÉ : Boutons forcés sur une seule ligne
  */
 'use client';
 
@@ -115,16 +116,16 @@ export default function AdOpsActionButtons({
     const isDisabled = !tagValue;
     const isChanged = isFieldChanged(fieldName);
     
-    const baseClasses = "px-2 py-1 text-xs rounded transition-all duration-200 flex items-center gap-1 font-medium relative";
+    const baseClasses = "px-2 py-1 text-xs rounded transition-all duration-200 flex items-center gap-1 font-medium relative flex-shrink-0";
     const variantClasses = variant === 'primary' 
       ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300"
       : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300";
     const disabledClasses = "opacity-50 cursor-not-allowed";
     const copiedClasses = "bg-green-100 text-green-700 border-green-300";
-    const changedClasses = isChanged ? "ring-1 ring-orange-300" : "";
+    const changedClasses = isChanged ? "ring-1 ring-red-300" : "";
     
     return (
-      <div className="relative flex items-center gap-1">
+      <div className="relative flex items-center gap-1 flex-shrink-0">
         <button
           onClick={() => copyTag(tagValue, buttonId)}
           disabled={isDisabled}
@@ -141,17 +142,17 @@ export default function AdOpsActionButtons({
           ) : (
             <ClipboardDocumentIcon className="w-3 h-3" />
           )}
-          <span>{label}</span>
+          <span className="whitespace-nowrap">{label}</span>
         </button>
         
         {/* Indicateur de changement CM360 */}
         {isChanged && !isDisabled && cm360History && (
           <button
             onClick={(e) => openHistoryModal(fieldName, label, e)}
-            className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50 -ml-1"
+            className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50 -ml-1 flex-shrink-0"
             title={`${label} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
           >
-            <ExclamationTriangleIcon className="w-3 h-3" />
+            <ExclamationTriangleIcon className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -172,7 +173,8 @@ export default function AdOpsActionButtons({
   if (rowType === 'placement') {
     return (
       <>
-        <div className="flex items-center gap-1 flex-wrap">
+        {/* AMÉLIORÉ : Container avec nowrap et largeur minimale */}
+        <div className="flex items-center gap-1 flex-nowrap min-w-fit">
           <CopyButton
             tagValue={data.PL_Tag_1}
             buttonId="pl-tag-1"
@@ -217,7 +219,8 @@ export default function AdOpsActionButtons({
   if (rowType === 'creative') {
     return (
       <>
-        <div className="flex items-center gap-1 flex-wrap">
+        {/* AMÉLIORÉ : Container avec nowrap et largeur minimale */}
+        <div className="flex items-center gap-1 flex-nowrap min-w-fit">
           <CopyButton
             tagValue={data.CR_Tag_5}
             buttonId="cr-tag-5"

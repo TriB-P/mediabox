@@ -3,6 +3,7 @@
  * Composant AdOpsTacticInfo avec support CM360 amélioré - VERSION COMPACTE
  * Affiche les métriques avec détection de changements et bouton de confirmation
  * MODIFIÉ : Filtrage hierarchique des tags CM360 par tactique + Design compact
+ * AMÉLIORÉ : Sans fond blanc individuel, s'intègre dans un conteneur parent
  */
 'use client';
 
@@ -372,7 +373,7 @@ export default function AdOpsTacticInfo({
 
   if (!selectedTactique) {
     return (
-      <div className="bg-white p-2 rounded-lg shadow">
+      <div className="p-4">
         <div className="flex items-center justify-center h-12 text-gray-500 text-center">
           <p className="text-sm">Aucune tactique sélectionnée</p>
         </div>
@@ -393,7 +394,7 @@ export default function AdOpsTacticInfo({
 
   return (
     <>
-      <div className="bg-white p-2 rounded-lg shadow">
+      <div className="p-4">
         {/* Grille compacte : 3 cartes métriques + 2 badges */}
         <div className="grid grid-cols-5 gap-3 mb-2">
           {/* Cartes métriques - toutes en bleu */}

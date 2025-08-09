@@ -4,6 +4,7 @@
  * Affiche les tactiques avec indicateurs incluant placements + créatifs + métriques
  * et filtres par statut CM360.
  * MODIFIÉ : Utilise les nouvelles fonctions avec support métriques
+ * AMÉLIORÉ : Sans fond blanc individuel, s'intègre dans un conteneur parent
  */
 'use client';
 
@@ -404,7 +405,7 @@ export default function AdOpsTacticList({
 
   if (loading) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow h-full">
+      <div className="p-4 h-full">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
           <div className="space-y-3">
@@ -419,7 +420,7 @@ export default function AdOpsTacticList({
 
   if (error) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow h-full">
+      <div className="p-4 h-full">
         <h3 className="text-lg font-medium text-gray-900 mb-3">
           Tactiques
         </h3>
@@ -433,7 +434,7 @@ export default function AdOpsTacticList({
   const tactiquesToShow = getFilteredTactiques();
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow h-full flex flex-col">
+    <div className="p-4 h-full flex flex-col">
       {/* En-tête avec filtres */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">
@@ -458,22 +459,22 @@ export default function AdOpsTacticList({
       <div className="mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           {[
-            { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
-            { value: 'created' as CM360Filter, label: 'Complets ✓', color: 'green' },
-            { value: 'changed' as CM360Filter, label: 'Modifiés ⚠️', color: 'orange' },
+            { value: 'all' as CM360Filter, label: 'Tous', color: 'blue' },
+            { value: 'created' as CM360Filter, label: 'Complets ✓', color: 'blue' },
+            { value: 'changed' as CM360Filter, label: 'Modifiés ⚠️', color: 'blue' },
             { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
           ].map(filter => (
             <button
               key={filter.value}
               onClick={() => setCm360Filter(filter.value)}
-              className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+              className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
                 cm360Filter === filter.value
                   ? filter.color === 'green' 
                     ? 'bg-green-100 text-green-800 border-green-300'
                     : filter.color === 'orange'
                     ? 'bg-orange-100 text-orange-800 border-orange-300'
                     : filter.color === 'blue'
-                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
                     : 'bg-gray-100 text-gray-800 border-gray-300'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}

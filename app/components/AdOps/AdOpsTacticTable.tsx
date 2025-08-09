@@ -4,6 +4,7 @@
  * Tableau hiérarchique avancé avec création de tags CM360, détection de changements,
  * et indicateurs visuels pour le statut des tags.
  * MODIFIÉ : Utilise les données centralisées d'AdOpsPage avec filtrage hierarchique
+ * AMÉLIORÉ : Sans fond blanc individuel + colonne Actions élargie
  */
 'use client';
 
@@ -24,7 +25,6 @@ import {
   deleteAllCM360TagsForItem,
   createTacticsMetricsTagIfNeeded,
   CM360TagHistory,
-  CM360TagData,
   CM360Filter
 } from '../../lib/cm360Service';
 import { Check } from 'lucide-react';
@@ -761,7 +761,7 @@ export default function AdOpsTacticTable({
 
   if (!selectedTactique) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow h-full">
+      <div className="p-4 h-full">
         <div className="flex items-center justify-center h-32 text-gray-500 text-center">
           <div>
             <p className="text-sm">Aucune tactique sélectionnée</p>
@@ -777,7 +777,7 @@ export default function AdOpsTacticTable({
   const filteredTags = getFilteredCM360Tags();
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow h-full flex flex-col">
+    <div className="p-4 h-full flex flex-col">
       {/* En-tête avec actions CM360 */}
       <div className="flex items-center justify-between mb-3">
         <div>
@@ -952,7 +952,7 @@ export default function AdOpsTacticTable({
 
       </div>
 
-      {/* Tableau scrollable */}
+      {/* Tableau scrollable avec colonne Actions élargie */}
       <div className="flex-1 overflow-auto border border-gray-200 rounded-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50 sticky top-0">
@@ -972,9 +972,10 @@ export default function AdOpsTacticTable({
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
               </th>
-              <th className="w-8 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
+              <th className="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase"></th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              {/* AMÉLIORÉ : Colonne Actions encore plus élargie */}
+              <th className="w-96 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag Type</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Début</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Fin</th>

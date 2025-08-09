@@ -4,6 +4,7 @@
  * Gère l'affichage d'une ligne du tableau avec indicateurs de changements
  * et modal d'historique pour les valeurs modifiées.
  * CORRIGÉ : Formatage des dates sans décalage de fuseau horaire
+ * AMÉLIORÉ : Indicateur CM360 agrandi
  */
 'use client';
 
@@ -12,7 +13,8 @@ import {
   ChevronDownIcon, 
   ChevronRightIcon, 
   CheckIcon,
-  ExclamationTriangleIcon 
+  ExclamationTriangleIcon ,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import AdOpsActionButtons from './AdOpsActionButtons';
 import CM360HistoryModal from './CM360HistoryModal';
@@ -161,7 +163,7 @@ export default function AdOpsTableRow({
           {isChanged && cm360History && (
             <button
               onClick={(e) => openHistoryModal(fieldName, fieldLabel, e)}
-              className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50"
+              className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
               title={`${fieldLabel} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
             >
               <ExclamationTriangleIcon className="w-4 h-4" />
@@ -173,7 +175,7 @@ export default function AdOpsTableRow({
   };
 
   /**
-   * Formatte les valeurs booléennes
+   * Formate les valeurs booléennes
    */
   const formatBoolean = (value: boolean | undefined): string => {
     if (value === undefined || value === null) return '-';
@@ -250,7 +252,7 @@ export default function AdOpsTableRow({
     <>
       <tr 
         className={`
-          ${isSelected ? 'ring-2 ring-indigo-500 ring-opacity-75' : (!customColor ? 'hover:bg-gray-50' : '')}
+          ${isSelected ? '' : (!customColor ? 'hover:bg-gray-50' : '')}
           ${isCreative ? 'border-l-4 border-l-gray-300' : ''}
           transition-colors duration-150
         `}
@@ -271,20 +273,19 @@ export default function AdOpsTableRow({
           </div>
         </td>
 
-        {/* Statut CM360 */}
-        <td className="w-8 px-2 py-4">
+        {/* Statut CM360 - AMÉLIORÉ : Indicateurs agrandis */}
+        <td className="w-6 px-2 py-4">
           <div className="flex items-center justify-center">
             {cm360Status === 'created' && (
-              <div 
-                className="w-8 h-8 text-green-600 flex items-center justify-center"
+              <CheckCircleIcon 
+                className="w-6 h-6 text-green-600 flex items-center justify-center text-lg font-bold"
                 title="Tag créé dans CM360"
-              >
-                ✓
-              </div>
+              />
+            
             )}
             {cm360Status === 'changed' && (
               <ExclamationTriangleIcon 
-                className="w-8 h-8 text-red-600" 
+                className="w-6 h-6 text-red-600" 
                 title="Modifications détectées depuis le dernier tag"
               />
             )}
@@ -292,7 +293,7 @@ export default function AdOpsTableRow({
         </td>
 
         {/* Label avec indentation et expansion */}
-        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+        <td className="py-4 whitespace-nowrap text-sm font-medium">
           <div className={`flex items-center ${isCreative ? 'ml-6' : ''}`}>
             {isPlacement && hasChildren && (
               <button
@@ -335,7 +336,7 @@ export default function AdOpsTableRow({
                     'Label',
                     e
                   )}
-                  className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50"
+                  className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
                   title="Label modifié - Cliquer pour voir l'historique"
                 >
                   <ExclamationTriangleIcon className="w-4 h-4" />

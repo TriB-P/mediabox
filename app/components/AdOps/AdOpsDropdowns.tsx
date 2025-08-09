@@ -4,6 +4,7 @@
  * Ce composant affiche un dropdown multi-sélection pour filtrer les publishers
  * des tactiques AdOps ayant des placements avec PL_Tag_Type non vide.
  * MODIFIÉ : Reçoit les données via props au lieu d'utiliser directement le hook
+ * AMÉLIORÉ : Sans fond blanc individuel, s'intègre dans un conteneur parent
  */
 'use client';
 
@@ -159,7 +160,7 @@ export default function AdOpsDropdowns({
 
   if (loading) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow">
+      <div className="p-4">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
           <div className="space-y-3">
@@ -172,7 +173,7 @@ export default function AdOpsDropdowns({
 
   if (error) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow">
+      <div className="p-4">
         <h3 className="text-lg font-medium text-gray-900 mb-3">
           Publishers
         </h3>
@@ -184,13 +185,10 @@ export default function AdOpsDropdowns({
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
-
+    <div className="p-4">
       
       {/* Dropdown Publishers */}
       <div className="relative" ref={dropdownRef}>
-
-        
         <button
           type="button"
           onClick={toggleDropdown}
