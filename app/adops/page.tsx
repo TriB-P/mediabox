@@ -335,7 +335,7 @@ export default function AdOpsPage() {
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <div className="space-y-6">
+        <div className="space-y-4">
           
           {/* En-tête avec titre et informations de campagne */}
           <div className="flex justify-between items-center">
@@ -426,7 +426,7 @@ export default function AdOpsPage() {
               {selectedCampaign && selectedVersion && (
                 <div className="grid grid-cols-12 gap-6">
                   {/* Ligne du haut - 2 colonnes égales */}
-                  <div className="col-span-6">
+                  <div className="col-span-4">
                     <AdOpsDropdowns 
                       publishers={publishers}
                       loading={adOpsLoading}
@@ -438,7 +438,7 @@ export default function AdOpsPage() {
                     />
                   </div>
                   
-                  <div className="col-span-6">
+                  <div className="col-span-8">
                     <AdOpsTacticInfo 
                       selectedTactique={selectedTactique}
                       selectedCampaign={selectedCampaign}

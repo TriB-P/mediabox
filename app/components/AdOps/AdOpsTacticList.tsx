@@ -566,7 +566,7 @@ export default function AdOpsTacticList({
                               : 'bg-gray-100 text-gray-600'
                             }
                           `}>
-                            {tactique.placementsWithTags.length} placement{tactique.placementsWithTags.length !== 1 ? 's' : ''}
+                            {tactique.placementsWithTags.length}
                           </div>
                         </div>
                       </div>

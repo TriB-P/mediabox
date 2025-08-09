@@ -1,8 +1,8 @@
 // app/components/AdOps/AdOpsTacticInfo.tsx
 /**
- * Composant AdOpsTacticInfo avec support CM360 amélioré
+ * Composant AdOpsTacticInfo avec support CM360 amélioré - VERSION COMPACTE
  * Affiche les métriques avec détection de changements et bouton de confirmation
- * MODIFIÉ : Filtrage hierarchique des tags CM360 par tactique
+ * MODIFIÉ : Filtrage hierarchique des tags CM360 par tactique + Design compact
  */
 'use client';
 
@@ -279,72 +279,64 @@ export default function AdOpsTacticInfo({
 };
 
   /**
-   * Composant carte métrique réutilisable avec support CM360
+   * Composant carte métrique réutilisable avec support CM360 - VERSION COMPACTE
    */
   const MetricCard = ({ 
     title, 
     value, 
     rawValue, 
     fieldName, 
-    color = 'gray'
+    color = 'blue'
   }: { 
     title: string; 
     value: string; 
     rawValue: string | number | undefined;
     fieldName: string;
-    color?: 'blue' | 'green' | 'purple' | 'gray';
+    color?: 'blue' | 'gray';
   }) => {
     const isCopied = copiedField === fieldName;
     const hasValue = rawValue !== undefined && rawValue !== null && rawValue !== '';
     const isChanged = isFieldChanged(fieldName);
 
-
-
     const colorClasses = {
-      blue: 'border-l-blue-200 bg-blue-200 hover: blue-300',
-      green: 'border-l-green-500 bg-gradient-to-r from-green-50 to-white hover:from-green-100', 
-      purple: 'border-l-purple-500 bg-gradient-to-r from-purple-50 to-white hover:from-purple-100',
-      gray: 'border-l-gray-500 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100'
+      blue: 'border-l-indigo-300 bg-indigo-50 hover:bg-indigo-100',
+      gray: 'border-l-gray-300 bg-gray-50 hover:bg-gray-100'
     };
 
     return (
       <div 
         className={`
-          p-2 rounded border-gray-200 shadow-sm transition-all duration-200
+          p-2 rounded border-l-4 shadow-sm transition-all duration-200
           ${colorClasses[color]}
           ${!hasValue ? 'cursor-not-allowed opacity-50' : ''}
-          ${isChanged ? 'ring-2 ring-red-300' : ''}
+        ${isChanged ? 'border-l-red-300 ring-1 ring-red-300 !bg-red-50 hover:!bg-red-100' : ''}
         `}
       >
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between">
           <div className="text-xs font-medium text-gray-700">{title}</div>
-          {(() => {
-
-            return isChanged;
-          })() && (
+          {isChanged && (
             <button
               onClick={(e) => openHistoryModal(fieldName, title, e)}
-              className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
+              className="text-red-600 hover:text-red-800 transition-colors p-0.5 rounded hover:bg-red-50"
               title={`${title} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
             >
-              <ExclamationTriangleIcon className="w-5 h-5" />
+              <ExclamationTriangleIcon className="w-4 h-4" />
             </button>
           )}
         </div>
         
         <div 
-          className={`text-lg font-bold cursor-pointer hover:bg-white hover:bg-opacity-50 px-1 py-1 rounded transition-colors flex items-center gap-1 ${
+          className={`text-sm font-bold cursor-pointer hover:bg-white hover:bg-opacity-50 px-1 rounded transition-colors flex items-center gap-1 ${
             hasValue ? 'text-gray-900' : 'text-gray-400'
           }`}
           onClick={() => hasValue && copyToClipboard(rawValue, fieldName)}
           title={hasValue ? `Cliquer pour copier ${title.toLowerCase()}` : 'Valeur non disponible'}
         >
           <span>{value}</span>
-         
         </div>
         
         {isCopied && (
-          <div className="text-xs text-green-600 font-medium mt-1">
+          <div className="text-xs text-green-600 font-medium">
             ✓ Copié
           </div>
         )}
@@ -352,10 +344,36 @@ export default function AdOpsTacticInfo({
     );
   };
 
+  /**
+   * NOUVEAU : Composant badge compact pour currency et buy type
+   */
+  const InfoBadge = ({ 
+    label, 
+    value,
+    color = 'gray'
+  }: { 
+    label: string; 
+    value: string | undefined;
+    color?: 'gray';
+  }) => {
+    if (!value) return null;
+
+    const colorClasses = {
+      gray: 'border-l-gray-300 bg-gray-50 hover:bg-gray-100'
+    };
+
+    return (
+      <div className={`p-2 rounded border-l-4 shadow-sm transition-all duration-200 ${colorClasses[color]}`}>
+        <div className="text-xs font-medium text-gray-700">{label}</div>
+        <div className="text-sm font-bold text-gray-900">{value}</div>
+      </div>
+    );
+  };
+
   if (!selectedTactique) {
     return (
-      <div className="bg-white p-3 rounded-lg shadow">
-        <div className="flex items-center justify-center h-16 text-gray-500 text-center">
+      <div className="bg-white p-2 rounded-lg shadow">
+        <div className="flex items-center justify-center h-12 text-gray-500 text-center">
           <p className="text-sm">Aucune tactique sélectionnée</p>
         </div>
       </div>
@@ -375,35 +393,10 @@ export default function AdOpsTacticInfo({
 
   return (
     <>
-      <div className="bg-white p-3 rounded-lg shadow">
-        {/* En-tête compact avec badges et indicateur de changement global */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-   
-          
-          <div className="flex items-center gap-2">
-            {selectedTactique.TC_BuyCurrency && (
-              <div className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
-                {selectedTactique.TC_BuyCurrency}
-              </div>
-            )}
-            
-            {selectedTactique.TC_Buy_Type && (
-              <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                selectedTactique.TC_Buy_Type === 'CPM' 
-                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                  : selectedTactique.TC_Buy_Type === 'CPC'
-                  ? 'bg-green-100 text-green-800 border border-green-200'
-                  : 'bg-gray-100 text-gray-800 border border-gray-200'
-              }`}>
-                {selectedTactique.TC_Buy_Type}
-              </div>
-            )}
-
-          </div>
-        </div>
-        
-        {/* Trois cartes métriques avec support CM360 */}
-        <div className="grid grid-cols-3 gap-2">
+      <div className="bg-white p-2 rounded-lg shadow">
+        {/* Grille compacte : 3 cartes métriques + 2 badges */}
+        <div className="grid grid-cols-5 gap-3 mb-2">
+          {/* Cartes métriques - toutes en bleu */}
           <MetricCard
             title="Budget Média"
             value={formatCurrency(selectedTactique.TC_Media_Budget, selectedTactique.TC_BuyCurrency)}
@@ -417,7 +410,7 @@ export default function AdOpsTacticInfo({
             value={formatCurrency(selectedTactique.TC_CM360_Rate, selectedTactique.TC_BuyCurrency)}
             rawValue={selectedTactique.TC_CM360_Rate}
             fieldName="TC_CM360_Rate"
-            color="green"
+            color="blue"
           />
           
           <MetricCard
@@ -425,31 +418,43 @@ export default function AdOpsTacticInfo({
             value={formatNumber(selectedTactique.TC_CM360_Volume)}
             rawValue={selectedTactique.TC_CM360_Volume}
             fieldName="TC_CM360_Volume"
-            color="purple"
+            color="blue"
+          />
+          
+          {/* Badges d'info - tous en gris */}
+          <InfoBadge
+            label="Devise"
+            value={selectedTactique.TC_BuyCurrency}
+            color="gray"
+          />
+          
+          <InfoBadge
+            label="Type d'achat"
+            value={selectedTactique.TC_Buy_Type}
+            color="gray"
           />
         </div>
         
         {/* Bouton de mise à jour si des changements sont détectés */}
         {metricsChanges.hasChanges && hasMetricsTags && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="pt-2 border-t border-gray-200">
             <button
               onClick={handleMetricsUpdate}
               disabled={updating}
-              className="w-full px-3 py-2 bg-orange-600 text-white rounded-md text-sm hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+              className="w-full px-2 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1 transition-colors"
             >
               {updating ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                   <span>Mise à jour...</span>
                 </>
               ) : (
                 <>
-                  <CheckIcon className="w-4 h-4" />
+                  <CheckIcon className="w-3 h-3" />
                   <span>Changements effectués dans CM360</span>
                 </>
               )}
             </button>
-
           </div>
         )}
       </div>

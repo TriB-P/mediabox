@@ -869,72 +869,87 @@ export default function AdOpsTacticTable({
           />
         </div>
         
-        {/* Filtres CM360 */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Statut :</span>
-          <div className="flex items-center gap-1">
-            {[
-              { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
-              { value: 'created' as CM360Filter, label: 'Tags créés ✓', color: 'green' },
-              { value: 'changed' as CM360Filter, label: 'À modifier ⚠️', color: 'orange' },
-              { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
-            ].map(filter => (
-              <button
-                key={filter.value}
-                onClick={() => setCm360Filter(filter.value)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                  cm360Filter === filter.value
-                    ? filter.color === 'green' 
-                      ? 'bg-green-100 text-green-800 border-green-300'
-                      : filter.color === 'orange'
-                      ? 'bg-orange-100 text-orange-800 border-orange-300'
-                      : filter.color === 'blue'
-                      ? 'bg-blue-100 text-blue-800 border-blue-300'
-                      : 'bg-gray-100 text-gray-800 border-gray-300'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
+        {/* Filtres Statut et Couleur sur une seule ligne - Style harmonisé */}
+<div className="flex items-center gap-6 flex-wrap">
+  {/* Filtres CM360 */}
+  <div className="flex items-center gap-2">
+    <span className="text-sm font-medium text-gray-700">Statut:</span>
+    <div className="flex items-center gap-1">
+      {[
+        { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
+        { value: 'created' as CM360Filter, label: 'Tags créés ✓', color: 'green' },
+        { value: 'changed' as CM360Filter, label: 'À modifier ⚠️', color: 'orange' },
+        { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
+      ].map(filter => (
+        <button
+          key={filter.value}
+          onClick={() => setCm360Filter(filter.value)}
+          className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
+            cm360Filter === filter.value
+              ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          {filter.label}
+        </button>
+      ))}
+    </div>
+  </div>
+  
+  {/* Filtres par couleur - Style mixte */}
+  <div className="flex items-center gap-2">
+    <span className="text-sm font-medium text-gray-700">Couleur:</span>
+    <div className="flex items-center gap-1">
+      {/* Bouton "Tous" textuel */}
+      <button
+        onClick={() => setColorFilter('all')}
+        className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
+          colorFilter === 'all'
+            ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+        }`}
+      >
+        Tous
+      </button>
+      
+      {/* Bouton "Aucune" avec croix */}
+      <button
+        onClick={() => setColorFilter('none')}
+        className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center bg-white ${
+          colorFilter === 'none'
+            ? 'border-indigo-500 ring-2 ring-indigo-200'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+        title="Filtrer par aucune couleur"
+      >
+        <div className="w-5 h-5 rounded-full bg-white relative">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-3 h-0.5 bg-red-500 rotate-45"></div>
+            <div className="w-3 h-0.5 bg-red-500 -rotate-45 absolute"></div>
           </div>
         </div>
-        
-        {/* NOUVEAU : Filtres par couleur */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Couleur:</span>
-          <div className="flex items-center gap-1">
-            {COLOR_FILTER_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                onClick={() => setColorFilter(option.value)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors flex items-center  ${
-                  colorFilter === option.value
-                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-                title={`Filtrer par ${option.label.toLowerCase()}`}
-              >
-                {/* Indicateur visuel de couleur */}
-                {option.color && (
-                  <div 
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: option.color }}
-                  ></div>
-                )}
-                {option.value === 'none' && (
-                  <div className="w-4 h-4 rounded-full border border-gray-400 bg-white relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-2 h-0.5 bg-red-500 rotate-45"></div>
-                      <div className="w-2 h-0.5 bg-red-500 -rotate-45 absolute"></div>
-                    </div>
-                  </div>
-                )}
-                <span>{option.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      </button>
+      
+      {/* Boutons couleurs pleines */}
+      {COLORS.map(color => (
+        <button
+          key={color.value}
+          onClick={() => setColorFilter(color.value)}
+          className={`w-6 h-6 rounded-full border-2 transition-all duration-200 ${
+            colorFilter === color.value
+              ? 'border-indigo-500 ring-2 ring-indigo-200'
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+          style={{ backgroundColor: color.value }}
+          title={`Filtrer par ${color.name.toLowerCase()}`}
+        >
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
+
+
       </div>
 
       {/* Tableau scrollable */}
@@ -958,15 +973,15 @@ export default function AdOpsTacticTable({
                 />
               </th>
               <th className="w-8 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tag Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Début</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Fin</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rotation</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Floodlight</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">3rd Party</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">VPAID</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase"></th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag Type</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Début</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Fin</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rotation</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Floodlight</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">3rd Party</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">VPAID</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">

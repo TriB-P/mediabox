@@ -276,7 +276,7 @@ export default function AdOpsTableRow({
           <div className="flex items-center justify-center">
             {cm360Status === 'created' && (
               <div 
-                className="w-5 h-5 text-green-600 flex items-center justify-center"
+                className="w-8 h-8 text-green-600 flex items-center justify-center"
                 title="Tag créé dans CM360"
               >
                 ✓
@@ -284,7 +284,7 @@ export default function AdOpsTableRow({
             )}
             {cm360Status === 'changed' && (
               <ExclamationTriangleIcon 
-                className="w-5 h-5 text-orange-600" 
+                className="w-8 h-8 text-red-600" 
                 title="Modifications détectées depuis le dernier tag"
               />
             )}
@@ -307,16 +307,7 @@ export default function AdOpsTableRow({
               </button>
             )}
             
-            {isPlacement && hasChildren && (
-              <span className={`mr-2 text-xs px-2 py-1 rounded-full ${
-                hasSelectedChildren() 
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {row.children?.length} créatif{(row.children?.length || 0) > 1 ? 's' : ''}
-                {hasSelectedChildren()}
-              </span>
-            )}
+        
             
             <div className="flex items-center gap-1">
               <span
@@ -350,6 +341,17 @@ export default function AdOpsTableRow({
                   <ExclamationTriangleIcon className="w-4 h-4" />
                 </button>
               )}
+
+            {isPlacement && hasChildren && (
+              <span className={`mr-2 text-xs px-2 py-1 rounded-full ${
+                hasSelectedChildren() 
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {row.children?.length}
+                {hasSelectedChildren()}
+              </span>
+            )}
             </div>
           </div>
         </td>
