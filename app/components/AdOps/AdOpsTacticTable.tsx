@@ -27,12 +27,13 @@ import {
   CM360TagData,
   CM360Filter
 } from '../../lib/cm360Service';
+import { Check } from 'lucide-react';
 
 interface SelectedTactique {
   id: string;
   TC_Label?: string;
   TC_Media_Budget?: number;
-  TC_Buy_Currency?: string;
+  TC_BuyCurrency?: string;
   TC_CM360_Rate?: number;
   TC_CM360_Volume?: number;
   TC_Buy_Type?: string;
@@ -92,16 +93,16 @@ interface AdOpsTacticTableProps {
 }
 
 const COLORS = [
-  { name: 'Rouge', value: '#FEE2E2', class: 'bg-red-100' },
-  { name: 'Vert', value: '#DCFCE7', class: 'bg-green-100' },
-  { name: 'Bleu', value: '#DBEAFE', class: 'bg-blue-100' },
-  { name: 'Jaune', value: '#FEF3C7', class: 'bg-yellow-100' }
+  { name: '', value: '#FEE2E2', class: 'bg-red-100' },
+  { name: '', value: '#DCFCE7', class: 'bg-green-100' },
+  { name: '', value: '#DBEAFE', class: 'bg-blue-100' },
+  { name: '', value: '#FEF3C7', class: 'bg-yellow-100' }
 ];
 
 // NOUVEAU : Options de filtre par couleur
 const COLOR_FILTER_OPTIONS = [
   { value: 'all', label: 'Toutes', color: null },
-  { value: 'none', label: 'Aucune couleur', color: null },
+  { value: 'none', label: '', color: null },
   ...COLORS.map(color => ({ value: color.value, label: color.name, color: color.value }))
 ];
 
@@ -224,7 +225,7 @@ export default function AdOpsTacticTable({
       // ÉTAPE 1 : Créer les métriques UNE seule fois (si nécessaire)
       const tactiqueMetrics = {
         TC_Media_Budget: selectedTactique.TC_Media_Budget,
-        TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
+        TC_BuyCurrency: selectedTactique.TC_BuyCurrency,
         TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
         TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
         TC_Buy_Type: selectedTactique.TC_Buy_Type
@@ -786,9 +787,7 @@ export default function AdOpsTacticTable({
         <div className="flex items-center gap-3">
           {selectedRows.size > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectionStats.total} sélectionné{selectionStats.total > 1 ? 's' : ''} 
-              </span>
+     
               
               {/* Boutons CM360 */}
               <div className="flex items-center gap-2 ml-3">
@@ -797,8 +796,8 @@ export default function AdOpsTacticTable({
                   disabled={cm360Loading}
                   className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                 >
-                  <CloudArrowUpIcon className="w-4 h-4" />
-                  {cm360Loading ? 'Création...' : 'Créer dans CM360'}
+                  <Check className="w-4 h-4" />
+                  {cm360Loading ? 'Création...' : 'Créer'}
                 </button>
                 
                 {selectedHasTags() && (
@@ -809,13 +808,13 @@ export default function AdOpsTacticTable({
                     title="Supprime TOUT l'historique des tags CM360 pour les éléments sélectionnés"
                   >
                     <XMarkIcon className="w-4 h-4" />
-                    Supprimer Tags
+                    Supprimer
                   </button>
                 )}
               </div>
               
               {/* Couleurs */}
-              <div className="flex items-center gap-1 ml-2">
+              <div className="flex items-center gap-1 ml-5">
                 {COLORS.map((color) => (
                   <button
                     key={color.value}
@@ -835,15 +834,19 @@ export default function AdOpsTacticTable({
                   className="w-6 h-6 rounded-full border-2 border-gray-400 hover:border-gray-600 bg-white transition-all duration-200 relative"
                   title="Enlever la couleur"
                 >
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs font-bold">
-                    ∅
-                  </div>
+                    <div className="w-4 h-4 rounded-full bg-white relative">
+                      {/* La première barre de la croix */}
+                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.175rem] -translate-y-1/2 bg-red-500 rotate-45"></div>
+                      
+                      {/* La deuxième barre de la croix */}
+                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.175rem] -translate-y-1/2 bg-red-500 -rotate-45"></div>
+                    </div>
                 </button>
               </div>
               
               <button
                 onClick={() => setSelectedRows(new Set())}
-                className="px-3 py-1 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700"
+                className="px-3 py-1 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700 ml-5"
               >
                 Désélectionner ({selectionStats.total})
               </button>
@@ -868,7 +871,7 @@ export default function AdOpsTacticTable({
         
         {/* Filtres CM360 */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Filtrer par statut CM360:</span>
+          <span className="text-sm font-medium text-gray-700">Statut :</span>
           <div className="flex items-center gap-1">
             {[
               { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
@@ -899,13 +902,13 @@ export default function AdOpsTacticTable({
         
         {/* NOUVEAU : Filtres par couleur */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Filtrer par couleur:</span>
+          <span className="text-sm font-medium text-gray-700">Couleur:</span>
           <div className="flex items-center gap-1">
             {COLOR_FILTER_OPTIONS.map(option => (
               <button
                 key={option.value}
                 onClick={() => setColorFilter(option.value)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors flex items-center gap-1 ${
+                className={`px-3 py-1 text-xs rounded-full border transition-colors flex items-center  ${
                   colorFilter === option.value
                     ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -915,12 +918,12 @@ export default function AdOpsTacticTable({
                 {/* Indicateur visuel de couleur */}
                 {option.color && (
                   <div 
-                    className="w-3 h-3 rounded-full border border-gray-300"
+                    className="w-4 h-4 rounded-full"
                     style={{ backgroundColor: option.color }}
                   ></div>
                 )}
                 {option.value === 'none' && (
-                  <div className="w-3 h-3 rounded-full border border-gray-400 bg-white relative">
+                  <div className="w-4 h-4 rounded-full border border-gray-400 bg-white relative">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-2 h-0.5 bg-red-500 rotate-45"></div>
                       <div className="w-2 h-0.5 bg-red-500 -rotate-45 absolute"></div>
@@ -954,8 +957,8 @@ export default function AdOpsTacticTable({
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
               </th>
-              <th className="w-8 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">CM360</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
+              <th className="w-8 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tag Type</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Début</th>
@@ -1002,13 +1005,6 @@ export default function AdOpsTacticTable({
         </table>
       </div>
 
-      {/* Informations */}
-      <div className="mt-3 text-xs text-gray-500">
-        {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} • 
-        Maintenez Shift pour sélectionner une plage • 
-        ✓ = Tag créé • ⚠️ = Modifications détectées • 
-        Filtres: Recherche + CM360 + Couleur
-      </div>
     </div>
   );
 }

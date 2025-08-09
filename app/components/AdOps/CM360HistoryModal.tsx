@@ -109,15 +109,12 @@ export default function CM360HistoryModal({
           <div className="mb-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
                 <h4 className="font-medium text-blue-900">Valeur actuelle</h4>
               </div>
-              <div className="text-lg font-mono bg-white border border-blue-200 rounded px-3 py-2">
-                {formatValue(fieldHistory.current)}
+              <div className="font-mono text-sm bg-white border border-gray-200 rounded px-3 py-2">
+              {formatValue(fieldHistory.current)}
               </div>
-              <p className="text-sm text-blue-700 mt-2">
-                Cette valeur est différente du dernier tag créé
-              </p>
+
             </div>
           </div>
 
@@ -125,7 +122,7 @@ export default function CM360HistoryModal({
           <div>
             <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
               <ClockIcon className="w-4 h-4" />
-              Historique des tags créés
+              Historique des valeurs
             </h4>
             
             {fieldHistory.history.length === 0 ? (
@@ -144,29 +141,10 @@ export default function CM360HistoryModal({
                   return (
                     <div 
                       key={`${entry.timestamp}-${entry.version}`}
-                      className={`border rounded-lg p-4 ${
-                        isLatest 
-                          ? 'border-orange-200 bg-orange-50' 
-                          : 'border-gray-200 bg-gray-50'
-                      }`}
+                      className={`border rounded-lg p-4 border-gray-200 bg-gray-50`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            isLatest ? 'bg-orange-600' : 'bg-gray-400'
-                          }`}></div>
-                          <span className="font-medium text-sm">
-                            Version {entry.version}
-                            {isLatest && (
-                              <span className="text-orange-700 ml-2">(Dernier tag)</span>
-                            )}
-                          </span>
-                          {valueChanged && index > 0 && (
-                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                              Modifié
-                            </span>
-                          )}
-                        </div>
+
                         <span className="text-xs text-gray-500">
                           {formatTimestamp(entry.timestamp)}
                         </span>
@@ -176,35 +154,19 @@ export default function CM360HistoryModal({
                         {formatValue(entry.value)}
                       </div>
                       
-                      {/* Comparaison avec la valeur actuelle */}
-                      {isLatest && entry.value !== fieldHistory.current && (
-                        <div className="mt-2 text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded">
-                          ⚠️ Cette valeur diffère de la valeur actuelle
-                        </div>
-                      )}
+
                     </div>
                   );
                 })}
               </div>
             )}
           </div>
-
-          {/* Informations additionnelles */}
-          <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h5 className="font-medium text-gray-900 mb-2">Informations</h5>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• <strong>Valeur actuelle :</strong> Ce qui est affiché dans le tableau maintenant</li>
-              <li>• <strong>Dernier tag :</strong> La valeur lors de la dernière création de tag CM360</li>
-              <li>• <strong>Versions :</strong> Chaque création de tag incrémente la version</li>
-              <li>• <strong>Modifications :</strong> Les changements sont détectés automatiquement</li>
-            </ul>
-          </div>
         </div>
 
         {/* Pied de page */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-600">
-            {fieldHistory.history.length} version{fieldHistory.history.length !== 1 ? 's' : ''} de tag trouvée{fieldHistory.history.length !== 1 ? 's' : ''}
+            
           </div>
           <div className="flex items-center gap-3">
             <button

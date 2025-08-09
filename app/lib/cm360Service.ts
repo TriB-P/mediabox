@@ -426,7 +426,7 @@ import {
     
     const changedFields: string[] = [];
     const metricsToCheck = [
-      'TC_Media_Budget', 'TC_Buy_Currency', 'TC_CM360_Rate',
+      'TC_Media_Budget', 'TC_BuyCurrency', 'TC_CM360_Rate',
       'TC_CM360_Volume', 'TC_Buy_Type'
     ];
     

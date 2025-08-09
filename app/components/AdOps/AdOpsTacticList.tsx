@@ -30,7 +30,7 @@ interface AdOpsTactique {
   TC_Prog_Buying_Method?: string;
   // AJOUTÉ : Propriétés de métriques manquantes
   TC_Media_Budget?: number;
-  TC_Buy_Currency?: string;
+  TC_BuyCurrency?: string;
   TC_CM360_Rate?: number;
   TC_CM360_Volume?: number;
   TC_Buy_Type?: string;
@@ -183,7 +183,7 @@ export default function AdOpsTacticList({
       // UTILISER LA MÊME DÉTECTION QUE TACTICINFO !
       const tactiqueMetrics = {
         TC_Media_Budget: tactique.TC_Media_Budget,
-        TC_Buy_Currency: tactique.TC_Buy_Currency,
+        TC_BuyCurrency: tactique.TC_BuyCurrency,
         TC_CM360_Rate: tactique.TC_CM360_Rate,
         TC_CM360_Volume: tactique.TC_CM360_Volume,
         TC_Buy_Type: tactique.TC_Buy_Type
@@ -264,7 +264,7 @@ export default function AdOpsTacticList({
       // UTILISER LA MÊME DÉTECTION QUE TACTICINFO !
       const tactiqueMetrics = {
         TC_Media_Budget: tactique.TC_Media_Budget,
-        TC_Buy_Currency: tactique.TC_Buy_Currency,
+        TC_BuyCurrency: tactique.TC_BuyCurrency,
         TC_CM360_Rate: tactique.TC_CM360_Rate,
         TC_CM360_Volume: tactique.TC_CM360_Volume,
         TC_Buy_Type: tactique.TC_Buy_Type
@@ -384,7 +384,6 @@ export default function AdOpsTacticList({
             className="w-5 h-5 text-blue-600 flex items-center justify-center font-bold text-lg"
             title={getTooltipText()}
           >
-            ◯
           </div>
         );
       default:
@@ -401,14 +400,6 @@ export default function AdOpsTacticList({
     const changedCount = changesSummary.changedTypes.length;
     const changedText = changesSummary.changedTypes.join(', ');
 
-    return (
-      <div 
-        className="text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded-full border border-orange-200"
-        title={`Modifications dans: ${changedText}`}
-      >
-        {changedCount} type{changedCount > 1 ? 's' : ''} modifié{changedCount > 1 ? 's' : ''}
-      </div>
-    );
   };
 
   if (loading) {
@@ -430,7 +421,7 @@ export default function AdOpsTacticList({
     return (
       <div className="bg-white p-4 rounded-lg shadow h-full">
         <h3 className="text-lg font-medium text-gray-900 mb-3">
-          Tactiques AdOps
+          Tactiques
         </h3>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           Erreur: {error}
@@ -446,7 +437,7 @@ export default function AdOpsTacticList({
       {/* En-tête avec filtres */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">
-          Tactiques AdOps
+          Tactiques
         </h3>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600">
@@ -466,12 +457,11 @@ export default function AdOpsTacticList({
       {/* Filtres CM360 avec nouvelles catégories */}
       <div className="mb-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-gray-700">Statut CM360:</span>
           {[
             { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
             { value: 'created' as CM360Filter, label: 'Complets ✓', color: 'green' },
             { value: 'changed' as CM360Filter, label: 'Modifiés ⚠️', color: 'orange' },
-            { value: 'none' as CM360Filter, label: 'À créer ◯', color: 'blue' }
+            { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
           ].map(filter => (
             <button
               key={filter.value}
@@ -593,12 +583,7 @@ export default function AdOpsTacticList({
                         </div>
                       </div>
                       
-                      {/* Indicateur de statut détaillé pour les statuts partiels */}
-                      {status === 'partial' && (
-                        <div className="mt-2 text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded border border-blue-200">
-                          Tags partiels - certains éléments ou métriques sans tags
-                        </div>
-                      )}
+                      
                     </div>
                   </div>
                 </div>
@@ -621,8 +606,6 @@ export default function AdOpsTacticList({
               <span>Modifications</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-blue-600 font-bold">◯</span>
-              <span>Tags partiels</span>
             </div>
           </div>
         </div>

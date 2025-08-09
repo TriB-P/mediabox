@@ -143,14 +143,7 @@ export default function AdOpsProgressBar({
 
   return (
     <div className="bg-white p-4 rounded-lg shadow">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-900">
-          Progression des tags CM360
-        </h3>
-        <div className="text-xs text-gray-500">
-          {stats.total} élément{stats.total !== 1 ? 's' : ''} au total (placements + créatifs)
-        </div>
-      </div>
+
 
       <div className="flex items-center gap-4">
         {/* Barre de progression */}
@@ -210,12 +203,7 @@ export default function AdOpsProgressBar({
         </div>
       </div>
 
-      {/* Pourcentages détaillés */}
-      {stats.total > 0 && (
-        <div className="mt-2 text-xs text-gray-600 text-center">
-          {percentages.created}% créés • {percentages.toModify}% à modifier • {percentages.toCreate}% à créer
-        </div>
-      )}
+
     </div>
   );
 }

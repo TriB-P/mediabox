@@ -37,7 +37,7 @@ interface SelectedTactique {
   TC_Media_Type?: string;
   TC_Prog_Buying_Method?: string;
   TC_Media_Budget?: number;
-  TC_Buy_Currency?: string;
+  TC_BuyCurrency?: string;
   TC_CM360_Rate?: number;
   TC_CM360_Volume?: number;
   TC_Buy_Type?: string;

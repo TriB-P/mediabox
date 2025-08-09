@@ -314,7 +314,7 @@ export default function AdOpsTableRow({
                   : 'bg-gray-100 text-gray-600'
               }`}>
                 {row.children?.length} créatif{(row.children?.length || 0) > 1 ? 's' : ''}
-                {hasSelectedChildren() && ' ★'}
+                {hasSelectedChildren()}
               </span>
             )}
             

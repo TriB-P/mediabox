@@ -25,7 +25,7 @@ interface AdOpsTactique {
   id: string;
   TC_Label?: string;
   TC_Media_Budget?: number;
-  TC_Buy_Currency?: string;
+  TC_BuyCurrency?: string;
   TC_CM360_Rate?: number;
   TC_CM360_Volume?: number;
   TC_Buy_Type?: string;
@@ -110,7 +110,7 @@ export default function AdOpsTacticInfo({
     // Utiliser la fonction de détection de changements pour les métriques
     const currentMetrics = {
       TC_Media_Budget: selectedTactique.TC_Media_Budget,
-      TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
+      TC_BuyCurrency: selectedTactique.TC_BuyCurrency,
       TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
       TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
       TC_Buy_Type: selectedTactique.TC_Buy_Type
@@ -202,7 +202,7 @@ export default function AdOpsTacticInfo({
     try {
       const currentMetrics = {
         TC_Media_Budget: selectedTactique.TC_Media_Budget,
-        TC_Buy_Currency: selectedTactique.TC_Buy_Currency,
+        TC_BuyCurrency: selectedTactique.TC_BuyCurrency,
         TC_CM360_Rate: selectedTactique.TC_CM360_Rate,
         TC_CM360_Volume: selectedTactique.TC_CM360_Volume,
         TC_Buy_Type: selectedTactique.TC_Buy_Type
@@ -259,13 +259,24 @@ export default function AdOpsTacticInfo({
    * Formate un montant avec devise
    */
   const formatCurrency = (amount: number | undefined, currency: string | undefined): string => {
-    if (amount === undefined || amount === null) return 'N/A';
+    if (amount === undefined || amount === null) {
+        return 'N/A';
+    }
+
+    // On assume que formatNumber est une fonction qui formate le nombre correctement
+    const formattedAmount = formatNumber(amount); 
     
-    const formattedAmount = formatNumber(amount);
-    const currencySymbol = currency || 'CAD';
-    
-    return `${formattedAmount} ${currencySymbol}`;
-  };
+    // On utilise 'CAD' comme devise par défaut si aucune n'est fournie
+    const effectiveCurrency = currency || 'CAD';
+
+    // Si la devise est 'CAD', on place le symbole '$' après le montant
+    if (effectiveCurrency === 'CAD') {
+        return `${formattedAmount} $`;
+    }
+
+    // Pour toutes les autres devises, on garde le format original
+    return `${formattedAmount} ${effectiveCurrency}`;
+};
 
   /**
    * Composant carte métrique réutilisable avec support CM360
@@ -287,13 +298,7 @@ export default function AdOpsTacticInfo({
     const hasValue = rawValue !== undefined && rawValue !== null && rawValue !== '';
     const isChanged = isFieldChanged(fieldName);
 
-    console.log(`🎯 [MetricCard] ${title} (${fieldName}):`, {
-      value,
-      rawValue,
-      hasValue,
-      isChanged,
-      isCopied
-    });
+
 
     const colorClasses = {
       blue: 'border-l-blue-500 bg-gradient-to-r from-blue-50 to-white hover:from-blue-100',
@@ -308,25 +313,21 @@ export default function AdOpsTacticInfo({
           p-2 rounded border-l-4 border-gray-200 shadow-sm transition-all duration-200
           ${colorClasses[color]}
           ${!hasValue ? 'cursor-not-allowed opacity-50' : ''}
-          ${isChanged ? 'ring-1 ring-orange-200' : ''}
+          ${isChanged ? 'ring-2 ring-red-300' : ''}
         `}
       >
         <div className="flex items-center justify-between mb-1">
           <div className="text-xs font-medium text-gray-700">{title}</div>
           {(() => {
-            console.log(`🎯 [MetricCard] ${title} - Condition d'affichage icône:`, {
-              isChanged,
-              'isChanged === true': isChanged === true,
-              'typeof isChanged': typeof isChanged
-            });
+
             return isChanged;
           })() && (
             <button
               onClick={(e) => openHistoryModal(fieldName, title, e)}
-              className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50"
+              className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
               title={`${title} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
             >
-              <ExclamationTriangleIcon className="w-3 h-3" />
+              <ExclamationTriangleIcon className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -339,9 +340,7 @@ export default function AdOpsTacticInfo({
           title={hasValue ? `Cliquer pour copier ${title.toLowerCase()}` : 'Valeur non disponible'}
         >
           <span>{value}</span>
-          {isChanged && (
-            <ExclamationTriangleIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
-          )}
+         
         </div>
         
         {isCopied && (
@@ -379,26 +378,12 @@ export default function AdOpsTacticInfo({
       <div className="bg-white p-3 rounded-lg shadow">
         {/* En-tête compact avec badges et indicateur de changement global */}
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            {(() => {
-              console.log('🎯 [En-tête] Vérification affichage:', {
-                'metricsChanges.hasChanges': metricsChanges.hasChanges,
-                'hasMetricsTags': hasMetricsTags,
-                'condition finale': metricsChanges.hasChanges && hasMetricsTags
-              });
-              return metricsChanges.hasChanges && hasMetricsTags;
-            })() && (
-              <div className="flex items-center gap-1 text-orange-600 text-xs font-medium">
-                <ExclamationTriangleIcon className="w-3 h-3" />
-                <span>Métriques modifiées</span>
-              </div>
-            )}
-          </div>
+   
           
           <div className="flex items-center gap-2">
-            {selectedTactique.TC_Buy_Currency && (
+            {selectedTactique.TC_BuyCurrency && (
               <div className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
-                {selectedTactique.TC_Buy_Currency}
+                {selectedTactique.TC_BuyCurrency}
               </div>
             )}
             
@@ -413,6 +398,7 @@ export default function AdOpsTacticInfo({
                 {selectedTactique.TC_Buy_Type}
               </div>
             )}
+
           </div>
         </div>
         
@@ -420,7 +406,7 @@ export default function AdOpsTacticInfo({
         <div className="grid grid-cols-3 gap-2">
           <MetricCard
             title="Budget Média"
-            value={formatCurrency(selectedTactique.TC_Media_Budget, selectedTactique.TC_Buy_Currency)}
+            value={formatCurrency(selectedTactique.TC_Media_Budget, selectedTactique.TC_BuyCurrency)}
             rawValue={selectedTactique.TC_Media_Budget}
             fieldName="TC_Media_Budget"
             color="blue"
@@ -428,7 +414,7 @@ export default function AdOpsTacticInfo({
           
           <MetricCard
             title="Taux CM360"
-            value={formatCurrency(selectedTactique.TC_CM360_Rate, selectedTactique.TC_Buy_Currency)}
+            value={formatCurrency(selectedTactique.TC_CM360_Rate, selectedTactique.TC_BuyCurrency)}
             rawValue={selectedTactique.TC_CM360_Rate}
             fieldName="TC_CM360_Rate"
             color="green"
@@ -463,9 +449,7 @@ export default function AdOpsTacticInfo({
                 </>
               )}
             </button>
-            <p className="text-xs text-gray-600 mt-2 text-center">
-              Cliquez pour confirmer que les modifications ont été appliquées dans CM360
-            </p>
+
           </div>
         )}
       </div>
