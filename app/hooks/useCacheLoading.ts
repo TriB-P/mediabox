@@ -58,7 +58,7 @@ const LOADING_STEPS: LoadingStep[] = [
   },
   {
     id: 'cache-save',
-    label: 'Sauvegarde dans le cache local',
+    label: 'Petite touche finale!',
     status: 'pending'
   }
 ];

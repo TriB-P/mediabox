@@ -5,13 +5,13 @@
  * Il gère la liste des clients auxquels un utilisateur a accès,
  * le client actuellement sélectionné, et la persistance de ce choix
  * dans le stockage local du navigateur.
- * Cela permet de maintenir le client sélectionné même après un rafraîchissement de page.
- * 
- * VERSION MISE À JOUR : Inclut maintenant le système de cache optimisé et l'écran de chargement.
+ * VERSION MISE À JOUR : Inclut maintenant la redirection automatique 
+ * vers /no-access si l'utilisateur n'a accès à aucun client.
  */
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from './AuthContext';
 import { getUserClients, ClientPermission } from '../lib/clientService';
 import { cacheUserClients, smartCacheUpdate } from '../lib/cacheService';
@@ -23,6 +23,7 @@ interface ClientContextType {
   selectedClient: ClientPermission | null;
   setSelectedClient: (client: ClientPermission) => void;
   loading: boolean;
+  hasAccess: boolean; // Nouveau : indique si l'utilisateur a au moins un client
 }
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
@@ -33,15 +34,17 @@ const CLIENT_STORAGE_KEY = 'mediabox-selected-client';
  * Fournit le contexte client à l'ensemble de l'application.
  * Gère le chargement des clients disponibles pour l'utilisateur,
  * la sélection et la persistance du client choisi.
- * Intègre maintenant le système de cache optimisé avec écran de chargement.
+ * NOUVEAU : Redirige automatiquement vers /no-access si aucun client disponible.
  * @param {React.ReactNode} children - Les composants enfants qui auront accès au contexte.
  * @returns {JSX.Element} Le fournisseur de contexte client.
  */
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const router = useRouter();
   const [availableClients, setAvailableClients] = useState<ClientPermission[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientPermission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(true); // Par défaut true pour éviter la redirection prématurée
 
   // Hook pour la gestion du chargement du cache
   const cacheLoading = useCacheLoading();
@@ -106,15 +109,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     } else {
       setAvailableClients([]);
       setSelectedClient(null);
+      setHasAccess(true); // Réinitialiser à true quand pas d'utilisateur
       setLoading(false);
     }
   }, [user]);
 
   /**
    * Charge les clients associés à l'utilisateur actuel depuis la base de données.
-   * Tente de restaurer un client précédemment sélectionné depuis le stockage local,
-   * sinon sélectionne le premier client disponible par défaut.
-   * VERSION INTELLIGENTE : Utilise une stratégie de mise à jour optimisée selon le contexte.
+   * NOUVEAU : Gère la redirection automatique vers /no-access si aucun client disponible.
    * @returns {Promise<void>}
    */
   const loadUserClients = async () => {
@@ -129,19 +131,31 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       // 2. Étape d'authentification (déjà faite, marquer comme complète)
       cacheLoading.updateStep('auth', 'completed', 'Utilisateur authentifié');
 
-      // 3. Charger les clients depuis Firebase (toujours nécessaire pour vérifier les changements)
+      // 3. Charger les clients depuis Firebase
       console.log("FIREBASE: LECTURE - Fichier: ClientContext.tsx - Fonction: loadUserClients - Path: users/${user.email}/clients");
       const clients = await getUserClients(user.email);
       setAvailableClients(clients);
 
-      // 4. NOUVEAU : Mise à jour intelligente du cache
+      // 4. NOUVEAU : Vérifier l'accès et rediriger si nécessaire
+      if (clients.length === 0) {
+        console.log('Aucun client disponible pour l\'utilisateur, redirection vers /no-access');
+        setHasAccess(false);
+        // Fermer l'écran de chargement avant la redirection
+        cacheLoading.completeLoading();
+        router.push('/no-access');
+        return; // Arrêter ici pour éviter le traitement supplémentaire
+      } else {
+        setHasAccess(true);
+      }
+
+      // 5. Mise à jour intelligente du cache (seulement si l'utilisateur a accès)
       const cacheSuccess = await smartCacheUpdate(clients, user.email);
       
       if (!cacheSuccess) {
         console.warn('[CACHE] Échec de la mise à jour du cache, mais on continue...');
       }
 
-      // 5. Restaurer la sélection client depuis le stockage local
+      // 6. Restaurer la sélection client depuis le stockage local
       const savedClient = loadSelectedClient();
       let clientToSelect: ClientPermission | null = null;
 
@@ -165,11 +179,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         setSelectedClient(null);
       }
 
-      // La fin du chargement est gérée automatiquement par smartCacheUpdate
-
     } catch (error) {
       console.error('Erreur lors du chargement des clients:', error);
       cacheLoading.errorLoading('Erreur lors du chargement des données');
+      // En cas d'erreur, on considère que l'utilisateur n'a pas accès
+      setHasAccess(false);
+      // Fermer l'écran de chargement avant la redirection
+      cacheLoading.completeLoading();
+      router.push('/no-access');
     } finally {
       setLoading(false);
     }
@@ -191,29 +208,32 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     selectedClient,
     setSelectedClient: handleSetSelectedClient,
     loading,
+    hasAccess, // Nouveau champ exposé
   };
 
   return (
     <ClientContext.Provider value={value}>
-      {/* Écran de chargement du cache - s'affiche automatiquement pendant l'initialisation */}
-      <LoadingScreen
-        isVisible={cacheLoading.isLoading}
-        currentStep={cacheLoading.currentStep}
-        steps={cacheLoading.steps}
-        progress={cacheLoading.progress}
-        currentDetails={cacheLoading.currentDetails}
-      />
+      {/* Écran de chargement du cache - s'affiche seulement si l'utilisateur a accès */}
+      {hasAccess && (
+        <LoadingScreen
+          isVisible={cacheLoading.isLoading}
+          currentStep={cacheLoading.currentStep}
+          steps={cacheLoading.steps}
+          progress={cacheLoading.progress}
+          currentDetails={cacheLoading.currentDetails}
+        />
+      )}
       
-      {/* Contenu normal de l'application */}
-      {children}
+      {/* Contenu normal de l'application - seulement si l'utilisateur a accès */}
+      {hasAccess && children}
     </ClientContext.Provider>
   );
 }
 
 /**
  * Hook personnalisé pour utiliser le contexte client.
- * Permet d'accéder aux clients disponibles, au client sélectionné
- * et à la fonction pour changer le client sélectionné depuis n'importe quel composant enfant du ClientProvider.
+ * Permet d'accéder aux clients disponibles, au client sélectionné,
+ * à la fonction pour changer le client sélectionné et au statut d'accès.
  * @returns {ClientContextType} Le contexte client.
  * @throws {Error} Si `useClient` est utilisé en dehors d'un `ClientProvider`.
  */

@@ -46,7 +46,7 @@ export default function LoadingScreen({
             <img 
               src="/images/loading.gif" 
               alt={t('loadingScreen.alt.loading')} 
-              className="w-16 h-16 mx-auto"
+              className="w-30 h-16 mx-auto"
             />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
