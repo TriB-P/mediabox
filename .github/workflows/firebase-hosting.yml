@@ -1,0 +1,47 @@
+# Fichier: .github/workflows/firebase-hosting.yml
+
+name: Deploy to Firebase Hosting
+
+# Déclenche le déploiement sur push vers main ou pull request
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Récupère le code du repository
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    # Configure Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    # Installe les dépendances
+    - name: Install dependencies
+      run: npm ci
+      
+    # Build l'application Next.js
+    - name: Build Next.js app
+      run: npm run firebase:build
+      
+    # Déploie vers Firebase Hosting
+    - name: Deploy to Firebase Hosting
+      uses: FirebaseExtended/action-hosting-deploy@v0
+      with:
+        repoToken: ${{ secrets.GITHUB_TOKEN }}
+        firebaseServiceAccount: ${{ secrets.FIREBASE_TOKEN }}
+        projectId: 283195788469
+        channelId: live
