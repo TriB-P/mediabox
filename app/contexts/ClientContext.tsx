@@ -7,11 +7,12 @@
  * dans le stockage local du navigateur.
  * VERSION MISE À JOUR : Inclut maintenant la redirection automatique 
  * vers /no-access si l'utilisateur n'a accès à aucun client.
+ * CORRECTION : Permet l'affichage de la page /no-access même quand hasAccess = false.
  */
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthContext';
 import { getUserClients, ClientPermission } from '../lib/clientService';
 import { cacheUserClients, smartCacheUpdate } from '../lib/cacheService';
@@ -35,12 +36,14 @@ const CLIENT_STORAGE_KEY = 'mediabox-selected-client';
  * Gère le chargement des clients disponibles pour l'utilisateur,
  * la sélection et la persistance du client choisi.
  * NOUVEAU : Redirige automatiquement vers /no-access si aucun client disponible.
+ * CORRECTION : Permet l'affichage de la page /no-access même sans accès client.
  * @param {React.ReactNode} children - Les composants enfants qui auront accès au contexte.
  * @returns {JSX.Element} Le fournisseur de contexte client.
  */
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [availableClients, setAvailableClients] = useState<ClientPermission[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientPermission | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +51,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
 
   // Hook pour la gestion du chargement du cache
   const cacheLoading = useCacheLoading();
+
+  // Vérifier si on est sur la page no-access
+  const isOnNoAccessPage = pathname === '/no-access';
 
   /**
    * Génère une clé de stockage unique basée sur l'e-mail de l'utilisateur.
@@ -224,8 +230,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         />
       )}
       
-      {/* Contenu normal de l'application - seulement si l'utilisateur a accès */}
-      {hasAccess && children}
+      {/* CORRECTION : Contenu normal de l'application */}
+      {/* Afficher si l'utilisateur a accès OU s'il est sur la page no-access */}
+      {(hasAccess || isOnNoAccessPage) && children}
     </ClientContext.Provider>
   );
 }

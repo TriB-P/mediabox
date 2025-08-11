@@ -7,7 +7,6 @@ import { getSourceColor } from '../../../config/taxonomyFields';
 import { Taxonomy } from '../../../types/taxonomy';
 import type {
   ParsedTaxonomyVariable,
-  TaxonomyValues,
   HighlightState
 } from '../../../types/tactiques';
 import { TAXONOMY_VARIABLE_REGEX } from '../../../config/taxonomyFields';
@@ -23,7 +22,6 @@ interface TaxonomyPreviewProps {
     platform?: Taxonomy;
     mediaocean?: Taxonomy;
   };
-  taxonomyValues: TaxonomyValues;
   expandedPreviews: {
     tags: boolean;
     platform: boolean;
@@ -42,7 +40,6 @@ interface TaxonomyPreviewProps {
 export default function TaxonomyPreview({
   parsedVariables,
   selectedTaxonomyData,
-  taxonomyValues,
   expandedPreviews,
   hasLoadingFields,
   highlightState,
@@ -54,7 +51,7 @@ export default function TaxonomyPreview({
 
   // ==================== FONCTIONS UTILITAIRES ====================
   
-  const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'manual' => {
+  const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'créatif' => {
     const variable = parsedVariables.find(v => v.variable === variableName);
     return variable?.source || 'créatif';
   };
@@ -100,7 +97,7 @@ useEffect(() => {
   };
   
   updatePreviews();
-}, [getFormattedPreview, taxonomyValues, selectedTaxonomyData, highlightState]);
+}, [getFormattedPreview, selectedTaxonomyData, highlightState]);
 
 const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
   return previewCache[taxonomyType];

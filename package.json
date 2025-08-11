@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export": "next build && next export",
+    "firebase:build": "next build",
+    "firebase:deploy": "firebase deploy --only hosting",
+    "firebase:serve": "firebase serve --only hosting"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",

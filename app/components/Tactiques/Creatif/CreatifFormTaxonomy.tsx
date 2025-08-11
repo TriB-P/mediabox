@@ -183,7 +183,6 @@ const CreatifFormTaxonomy: React.FC<CreatifFormTaxonomyProps> = memo(({
         <TaxonomyPreview
           parsedVariables={parsedVariables}
           selectedTaxonomyData={selectedTaxonomyData}
-          taxonomyValues={formData}
           expandedPreviews={expandedPreviews}
           hasLoadingFields={hasLoadingFields}
           highlightState={highlightState}

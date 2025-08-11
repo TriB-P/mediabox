@@ -108,7 +108,7 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
       if (value === null || value === undefined) {
         return '';
       } else if (typeof value === 'boolean') {
-        return value.toString();
+        return value;
       } else if (typeof value === 'number') {
         return value.toString();
       } else if (typeof value === 'string') {

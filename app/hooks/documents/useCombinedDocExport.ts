@@ -36,6 +36,28 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   const { duplicateAndManageTabs, loading: tabsLoading } = useDuplicateTabsDoc();
 
   /**
+   * Convertit un tableau de données en string[][] pour Google Sheets.
+   * Gère différents types de données (primitives, objets avec propriété value, etc.)
+   * @param {any[][]} data - Les données à convertir.
+   * @returns {string[][]} Les données converties en chaînes de caractères.
+   */
+  const convertDataToStrings = useCallback((data: any[][]): string[][] => {
+    return data.map(row => 
+      row.map(cell => {
+        if (cell === null || cell === undefined) return '';
+        
+        // Si c'est un objet avec une propriété value
+        if (typeof cell === 'object' && cell !== null && 'value' in cell) {
+          return String(cell.value);
+        }
+        
+        // Si c'est déjà une valeur primitive
+        return String(cell);
+      })
+    );
+  }, []);
+
+  /**
    * Extrait l'ID unique d'un Google Sheet à partir de son URL complète.
    * Cette fonction est dupliquée de useGenerateDoc pour éviter les dépendances circulaires
    * et permettre une utilisation autonome dans ce hook.
@@ -361,16 +383,20 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
       console.log(`[COMBINED EXPORT] Conversion des shortcodes terminée en ${exportLanguage}, écriture vers Google Sheets...`);
 
-      // 6. Écrire les données converties dans Google Sheets
+      // 6. Convertir les données en string[][] pour Google Sheets
+      const campaignDataAsStrings = convertDataToStrings(convertedCampaignData);
+      const cleanedDataAsStrings = convertDataToStrings(convertedCleanedData);
+
+      // 7. Écrire les données converties dans Google Sheets
       const writePromises = [];
 
       // Données de campagne converties dans MB_Data, cellule A1
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', convertedCampaignData));
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', campaignDataAsStrings));
 
       // Données nettoyées converties dans MB_Data, cellule A4
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', convertedCleanedData));
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', cleanedDataAsStrings));
 
-      // Données de breakdown dans MB_Splits, cellule A1 (non converties)
+      // Données de breakdown dans MB_Splits, cellule A1 (déjà en string[][])
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Splits', 'A1', breakdownDataResult));
 
       const results = await Promise.all(writePromises);
@@ -398,7 +424,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     extractCampaignData, campaignError,
     convertShortcodes, convertError,
     extractSheetId, writeToGoogleSheet, clearSheetRange,
-    findTemplateFromDocument, handleTabsRefresh
+    findTemplateFromDocument, handleTabsRefresh, convertDataToStrings
   ]);
 
   const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading || tabsLoading;

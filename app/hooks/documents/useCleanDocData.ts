@@ -19,7 +19,6 @@ import type {
   Tactique,
   Placement,
   Creatif,
-  TaxonomyValues,
   GeneratedTaxonomies
 } from '../../types/tactiques';
 

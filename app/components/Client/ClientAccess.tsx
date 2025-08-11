@@ -112,6 +112,16 @@ const ClientAccess: React.FC = () => {
       setLoading(false);
     }
   };
+
+  /**
+   * Fonction helper pour récupérer le statut d'un utilisateur depuis usersWithStatus
+   * @param {string} userEmail - L'email de l'utilisateur
+   * @returns {UserWithStatus['status'] | undefined} Le statut de l'utilisateur
+   */
+  const getUserStatus = (userEmail: string): UserWithStatus['status'] | undefined => {
+    const userWithStatus = usersWithStatus.find(user => user.email === userEmail);
+    return userWithStatus?.status;
+  };
   
   /**
    * Ouvre la fenêtre modale pour ajouter un nouvel utilisateur.
@@ -179,7 +189,6 @@ const ClientAccess: React.FC = () => {
         selectedClient.clientId,
         selectedClient.CL_Name,
         {
-          userId: selectedUser.id,
           userEmail: selectedUser.email,
           accessLevel: selectedAccessLevel.value as 'editor' | 'user',
           note: note
@@ -388,317 +397,86 @@ const ClientAccess: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {clientUsers.map((user) => (
-                  <tr key={user.userId}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          {user.photoURL ? (
-                            <img className="h-10 w-10 rounded-full" src={user.photoURL} alt="" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                              <span className="text-xl text-indigo-800">
-                                {user.displayName.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.displayName}
-                            </div>
-                            {user.status && getUserStatusBadge(user.status)}
+                {clientUsers.map((user) => {
+                  const userStatus = getUserStatus(user.userEmail);
+                  
+                  return (
+                    <tr key={user.userId}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            {user.photoURL ? (
+                              <img className="h-10 w-10 rounded-full" src={user.photoURL} alt="" />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                <span className="text-xl text-indigo-800">
+                                  {user.displayName.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {user.userEmail}
+                          <div className="ml-4">
+                            <div className="flex items-center space-x-2">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.displayName}
+                              </div>
+                              {userStatus && getUserStatusBadge(userStatus)}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {user.userEmail}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.accessLevel === 'editor' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {user.accessLevel === 'editor' ? t('clientAccess.accessLevels.editor') : t('clientAccess.accessLevels.user')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.note || '—'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => openEditUserModal(user)}
-                        className={`${
-                          hasAccessPermission 
-                            ? 'text-indigo-600 hover:text-indigo-900' 
-                            : 'text-gray-400 cursor-not-allowed'
-                        } mr-4`}
-                        disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? t('clientAccess.tooltips.noEditPermission') : ""}
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleRemoveUser(user.userEmail)}
-                        className={`${
-                          hasAccessPermission 
-                            ? 'text-red-600 hover:text-red-900' 
-                            : 'text-gray-400 cursor-not-allowed'
-                        }`}
-                        disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? t('clientAccess.tooltips.noDeletePermission') : ""}
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.accessLevel === 'editor' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {user.accessLevel === 'editor' ? t('clientAccess.accessLevels.editor') : t('clientAccess.accessLevels.user')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.note || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => openEditUserModal(user)}
+                          className={`${
+                            hasAccessPermission 
+                              ? 'text-indigo-600 hover:text-indigo-900' 
+                              : 'text-gray-400 cursor-not-allowed'
+                          } mr-4`}
+                          disabled={!hasAccessPermission}
+                          title={!hasAccessPermission ? t('clientAccess.tooltips.noEditPermission') : ""}
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveUser(user.userEmail)}
+                          className={`${
+                            hasAccessPermission 
+                              ? 'text-red-600 hover:text-red-900' 
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                          disabled={!hasAccessPermission}
+                          title={!hasAccessPermission ? t('clientAccess.tooltips.noDeletePermission') : ""}
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        )}
-        
-        {isModalOpen && hasAccessPermission && (
-          <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" open={isModalOpen} onClose={closeModal}>
-            <div className="min-h-screen px-4 text-center">
-              <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
 
-              <span className="inline-block h-screen align-middle" aria-hidden="true">
-                &#8203;
-              </span>
-              
-              <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
-                <div className="flex justify-between items-center">
-                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    {isEditing ? t('clientAccess.modal.title.edit') : t('clientAccess.modal.title.add')}
-                  </Dialog.Title>
-                  <button
-                    type="button"
-                    className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                    onClick={closeModal}
-                  >
-                    <span className="sr-only">{t('clientAccess.modal.close')}</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </div>
-                
-                <div className="mt-4 space-y-4">
-                  {!isEditing && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('clientAccess.form.label.selectUser')}
-                      </label>
-                      
-                      <div className="relative user-dropdown">
-                        <input
-                          type="text"
-                          className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                          placeholder="Rechercher un utilisateur..."
-                          value={selectedUser ? `${selectedUser.displayName} (${selectedUser.email})` : userSearchQuery}
-                          onChange={(e) => {
-                            if (!selectedUser) {
-                              setUserSearchQuery(e.target.value);
-                            }
-                            setIsDropdownOpen(true);
-                          }}
-                          onFocus={() => {
-                            if (!selectedUser) {
-                              setIsDropdownOpen(true);
-                            }
-                          }}
-                          onClick={() => {
-                            if (selectedUser) {
-                              setSelectedUser(null);
-                              setUserSearchQuery('');
-                              setIsDropdownOpen(true);
-                            }
-                          }}
-                        />
-                        
-                        {isDropdownOpen && !selectedUser && (
-                          <div className="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                            {availableUsers.length === 0 ? (
-                              <div className="px-4 py-2 text-gray-500 text-sm">
-                                {userSearchQuery ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur disponible'}
-                              </div>
-                            ) : (
-                              availableUsers.map((user) => (
-                                <div
-                                  key={user.id}
-                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50"
-                                  onClick={() => {
-                                    setSelectedUser(user);
-                                    setUserSearchQuery('');
-                                    setIsDropdownOpen(false);
-                                  }}
-                                >
-                                  <div className="flex items-center">
-                                    {user.photoURL ? (
-                                      <img
-                                        src={user.photoURL}
-                                        alt=""
-                                        className="h-8 w-8 rounded-full mr-3"
-                                      />
-                                    ) : (
-                                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
-                                        <span className="text-sm text-indigo-800">
-                                          {user.displayName.charAt(0).toUpperCase()}
-                                        </span>
-                                      </div>
-                                    )}
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <div className="font-medium text-gray-900">{user.displayName}</div>
-                                          <div className="text-gray-500 text-sm">{user.email}</div>
-                                        </div>
-                                        {getUserStatusBadge(user.status)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {selectedUser && (
-                        <div className="mt-2 flex items-center bg-gray-50 p-3 rounded-md">
-                          {selectedUser.photoURL ? (
-                            <img
-                              src={selectedUser.photoURL}
-                              alt=""
-                              className="h-8 w-8 rounded-full mr-3"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
-                              <span className="text-md text-indigo-800">
-                                {selectedUser.displayName.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2">
-                              <p className="text-sm font-medium">{selectedUser.displayName}</p>
-                              {getUserStatusBadge(selectedUser.status)}
-                            </div>
-                            <p className="text-xs text-gray-500">{selectedUser.email}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedUser(null);
-                              setUserSearchQuery('');
-                              setIsDropdownOpen(false);
-                            }}
-                            className="text-gray-400 hover:text-gray-500 p-1"
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {isEditing && currentUser && (
-                    <div className="mb-4 flex items-center bg-gray-50 p-3 rounded-md">
-                      {currentUser.photoURL ? (
-                        <img
-                          src={currentUser.photoURL}
-                          alt=""
-                          className="h-8 w-8 rounded-full mr-3"
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
-                          <span className="text-md text-indigo-800">
-                            {currentUser.displayName.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium">{currentUser.displayName}</p>
-                        <p className="text-xs text-gray-500">{currentUser.userEmail}</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('clientAccess.form.label.accessLevel')}
-                    </label>
-                    <select
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                      value={selectedAccessLevel.value}
-                      onChange={(e) => {
-                        const value = e.target.value as 'editor' | 'user';
-                        const level = ACCESS_LEVELS.find(l => l.value === value) || ACCESS_LEVELS[1];
-                        setSelectedAccessLevel(level);
-                      }}
-                    >
-                      {ACCESS_LEVELS.map((level) => (
-                        <option key={level.value} value={level.value}>
-                          {level.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('clientAccess.form.label.note')}
-                    </label>
-                    <textarea
-                      id="note"
-                      name="note"
-                      rows={3}
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder={t('clientAccess.form.placeholder.addNote')}
-                    />
-                  </div>
-                  
-                  {selectedUser && selectedUser.status === 'invited' && (
-                    <div className="p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-sm">
-                      <div className="flex">
-                        <ClockIcon className="h-5 w-5 mr-2 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium">Utilisateur invité</p>
-                          <p className="text-xs mt-1">Cet utilisateur verra ce client dès sa première connexion.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
-                    onClick={closeModal}
-                  >
-                    {t('clientAccess.buttons.cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    onClick={isEditing ? handleUpdateUser : handleAddUser}
-                    disabled={isEditing ? false : !selectedUser}
-                  >
-                    {isEditing ? t('clientAccess.buttons.update') : t('clientAccess.buttons.add')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Dialog>
         )}
       </div>
-    </div>
-  );
-};
+     </div>
+  )};
 
 export default ClientAccess;
+

@@ -2,12 +2,14 @@
 /**
  * Page d'erreur affichée lorsqu'un utilisateur authentifié n'a accès à aucun client.
  * Version simplifiée et autonome qui ne dépend pas des contextes complexes.
+ * VERSION MISE À JOUR : Utilise Heroicons au lieu de SVG personnalisés.
  */
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { ExclamationTriangleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export default function NoAccessPage() {
   const router = useRouter();
@@ -79,22 +81,9 @@ export default function NoAccessPage() {
       {/* Contenu principal */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl w-full text-center">
-          {/* Icône d'accès interdit */}
+          {/* Icône d'accès interdit avec Heroicons */}
           <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-8">
-            <svg
-              className="h-10 w-10 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.684-.833-2.464 0L5.268 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
+            <ExclamationTriangleIcon className="h-10 w-10 text-red-600" />
           </div>
 
           {/* Titre en anglais */}
@@ -127,25 +116,13 @@ export default function NoAccessPage() {
             </p>
           </div>
 
-          {/* Email de contact */}
+          {/* Email de contact avec Heroicons */}
           <div className="mb-8">
             <a
               href="mailto:mediabox@pluscompany.com"
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-lg"
             >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v10a2 2 0 002 2z"
-                />
-              </svg>
+              <EnvelopeIcon className="w-5 h-5 mr-2" />
               mediabox@pluscompany.com
             </a>
           </div>

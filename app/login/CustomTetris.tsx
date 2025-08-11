@@ -381,7 +381,7 @@ const CustomTetris: React.FC = () => {
       <div className="flex items-center justify-between w-full px-4 py-1 bg-white/80 text-gray-800 text-sm border-b border-gray-200">
         <div className="font-bold">Score: {score}</div>
         <div className="text-xs text-gray-600">
-          Lignes: {linesCleared} | Pièces: {piecesPlaced} | Vitesse: {gameSpeed}ms
+          Rows : {linesCleared} | Blocks: {piecesPlaced} | Speed: {gameSpeed}ms
         </div>
       </div>
 

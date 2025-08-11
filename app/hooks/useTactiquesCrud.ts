@@ -1,3 +1,5 @@
+// app/hooks/useTactiquesCrud.ts
+
 /**
  * Ce hook gère toutes les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer) pour les sections,
  * les tactiques, les placements, les créatifs et les onglets dans la base de données Firebase.
@@ -31,6 +33,7 @@ import {
   updateCreatif,
   deleteCreatif
 } from '../lib/creatifService';
+
 interface UseTactiquesCrudProps {
   sections: any[];
   tactiques: { [sectionId: string]: any[] };
@@ -40,6 +43,31 @@ interface UseTactiquesCrudProps {
   onglets: any[];
   onRefresh: (() => Promise<void>) | (() => void);
 }
+
+// ==================== FONCTIONS UTILITAIRES POUR LES DATES ====================
+
+/**
+ * Convertit une Date en string au format YYYY-MM-DD
+ */
+const dateToString = (date: Date | null | undefined): string => {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return ''; // ou une valeur par défaut
+  }
+  return date.toISOString().split('T')[0];
+};
+/**
+ * Convertit Placement vers PlacementFormData (dates Date → string)
+ */
+const convertPlacementToFormData = (placement: Partial<Placement>): Partial<PlacementFormData> => {
+  const { PL_Start_Date, PL_End_Date, ...rest } = placement;
+  
+  return {
+    ...rest,
+    PL_Start_Date: PL_Start_Date ? dateToString(PL_Start_Date) : undefined,
+    PL_End_Date: PL_End_Date ? dateToString(PL_End_Date) : undefined,
+  };
+};
+
 export function useTactiquesCrud({
   sections,
   tactiques,
@@ -302,73 +330,77 @@ export function useTactiquesCrud({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign]);
 
- // app/hooks/useTactiquesCrud.ts - CORRECTIF handleUpdatePlacement
-
-/**
- * Gère la mise à jour d'un placement existant.
- * VERSION CORRIGÉE : Accepte les IDs directement pour éviter la recherche dans les données locales
- * @param {string} placementId - L'ID du placement à modifier.
- * @param {Partial<Placement>} data - Les données du placement à mettre à jour.
- * @param {string} [sectionId] - L'ID de la section (optionnel, pour éviter la recherche).
- * @param {string} [tactiqueId] - L'ID de la tactique (optionnel, pour éviter la recherche).
- * @returns {Promise<void>}
- * @throws {Error} Si le contexte nécessaire pour modifier un placement est manquant ou si la hiérarchie parente n'est pas trouvée.
- */
-const handleUpdatePlacement = useCallback(async (
-  placementId: string, 
-  data: Partial<PlacementFormData>, 
-  sectionId?: string, 
-  tactiqueId?: string
-) => {
-  if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-    throw new Error('Contexte manquant pour modifier un placement');
-  }
-
-  let finalSectionId = sectionId || '';
-  let finalTactiqueId = tactiqueId || '';
-
-  // ✅ Si les IDs ne sont pas fournis, faire la recherche dans les données locales (fallback)
-  if (!finalSectionId || !finalTactiqueId) {
-    console.log('🔍 Recherche hiérarchie dans les données locales (fallback)...');
-    for (const section of sections) {
-      for (const tactique of (tactiques[section.id] || [])) {
-        if (placements[tactique.id]?.some(p => p.id === placementId)) {
-          finalSectionId = section.id;
-          finalTactiqueId = tactique.id;
-          break;
-        }
-      }
-      if (finalTactiqueId) break;
+  /**
+   * Gère la mise à jour d'un placement existant.
+   * SIGNATURE CORRIGÉE : Accepte maintenant Partial<Placement> (dates Date) au lieu de Partial<PlacementFormData> (dates string)
+   * @param {string} placementId - L'ID du placement à modifier.
+   * @param {Partial<Placement>} data - Les données du placement à mettre à jour (avec dates Date).
+   * @param {string} [sectionId] - L'ID de la section (optionnel, pour éviter la recherche).
+   * @param {string} [tactiqueId] - L'ID de la tactique (optionnel, pour éviter la recherche).
+   * @returns {Promise<void>}
+   * @throws {Error} Si le contexte nécessaire pour modifier un placement est manquant ou si la hiérarchie parente n'est pas trouvée.
+   */
+  const handleUpdatePlacement = useCallback(async (
+    placementId: string, 
+    data: Partial<Placement>, // ✅ CHANGÉ : Partial<Placement> au lieu de Partial<PlacementFormData>
+    sectionId?: string, 
+    tactiqueId?: string
+  ) => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      throw new Error('Contexte manquant pour modifier un placement');
     }
-  }
 
-  if (!finalSectionId || !finalTactiqueId) {
-    throw new Error('Hiérarchie parent non trouvée pour le placement');
-  }
+    let finalSectionId = sectionId || '';
+    let finalTactiqueId = tactiqueId || '';
 
-  console.log(`✅ Hiérarchie trouvée: Section=${finalSectionId}, Tactique=${finalTactiqueId}`);
+    // ✅ Si les IDs ne sont pas fournis, faire la recherche dans les données locales (fallback)
+    if (!finalSectionId || !finalTactiqueId) {
+      console.log('🔍 Recherche hiérarchie dans les données locales (fallback)...');
+      for (const section of sections) {
+        for (const tactique of (tactiques[section.id] || [])) {
+          if (placements[tactique.id]?.some(p => p.id === placementId)) {
+            finalSectionId = section.id;
+            finalTactiqueId = tactique.id;
+            break;
+          }
+        }
+        if (finalTactiqueId) break;
+      }
+    }
 
-  try {
-    const currentTactique = tactiques[finalSectionId]?.find(t => t.id === finalTactiqueId);
-    console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdatePlacement - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${finalSectionId}/tactiques/${finalTactiqueId}/placements/${placementId}");
-    await updatePlacement(
-      selectedClient.clientId,
-      selectedCampaignId,
-      selectedVersionId,
-      selectedOngletId,
-      finalSectionId,
-      finalTactiqueId,
-      placementId,
-      data,
-      selectedCampaign,
-      currentTactique
-    );
-    await onRefresh();
-  } catch (error) {
-    console.error('❌ Erreur modification placement:', error);
-    throw error;
-  }
-}, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh]);
+    if (!finalSectionId || !finalTactiqueId) {
+      throw new Error('Hiérarchie parent non trouvée pour le placement');
+    }
+
+    console.log(`✅ Hiérarchie trouvée: Section=${finalSectionId}, Tactique=${finalTactiqueId}`);
+
+    try {
+      const currentTactique = tactiques[finalSectionId]?.find(t => t.id === finalTactiqueId);
+      
+      // ✅ NOUVEAU : Convertir les données Placement vers PlacementFormData pour l'appel au service
+      const formData = convertPlacementToFormData(data);
+      
+      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdatePlacement - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${finalSectionId}/tactiques/${finalTactiqueId}/placements/${placementId}");
+      
+      await updatePlacement(
+        selectedClient.clientId,
+        selectedCampaignId,
+        selectedVersionId,
+        selectedOngletId,
+        finalSectionId,
+        finalTactiqueId,
+        placementId,
+        formData, // ✅ CHANGÉ : Utilise formData (dates string) au lieu de data (dates Date)
+        selectedCampaign,
+        currentTactique
+      );
+      await onRefresh();
+    } catch (error) {
+      console.error('❌ Erreur modification placement:', error);
+      throw error;
+    }
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh]);
+
   /**
    * Gère la suppression d'un placement.
    * @param {string} sectionId - L'ID de la section parente du placement.
@@ -551,6 +583,7 @@ const handleUpdatePlacement = useCallback(async (
       throw error;
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign, onRefresh]);
+
   /**
    * Gère la suppression d'un créatif.
    * @param {string} sectionId - L'ID de la section parente du créatif.
@@ -663,6 +696,7 @@ const handleUpdatePlacement = useCallback(async (
       throw error;
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh]);
+
   return {
     handleCreateSection,
     handleUpdateSection,

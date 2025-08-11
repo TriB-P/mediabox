@@ -1,3 +1,5 @@
+// app/hooks/useTactiquesOperations.ts
+
 /**
  * Ce hook gère les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer) pour les tactiques,
  * les placements et les créatifs au sein d'une campagne spécifique.
@@ -61,6 +63,48 @@ interface UseTactiquesOperationsReturn {
   handleUpdateCreatif: (creatifId: string, data: Partial<Creatif>) => Promise<void>;
   handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 }
+
+// ==================== FONCTIONS UTILITAIRES POUR LES DATES ====================
+
+/**
+ * Convertit une Date en string au format YYYY-MM-DD
+ */
+const dateToString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+/**
+ * Convertit un string YYYY-MM-DD en Date
+ */
+const stringToDate = (dateString: string): Date => {
+  return new Date(dateString + 'T00:00:00.000Z');
+};
+
+/**
+ * Convertit PlacementFormData vers Placement (dates string → Date)
+ */
+const convertFormDataToPlacement = (formData: PlacementFormData & { id: string }): Placement => {
+  const { PL_Start_Date, PL_End_Date, ...rest } = formData;
+  
+  return {
+    ...rest,
+    PL_Start_Date: PL_Start_Date ? stringToDate(PL_Start_Date) : undefined,
+    PL_End_Date: PL_End_Date ? stringToDate(PL_End_Date) : undefined,
+  };
+};
+
+/**
+ * Convertit Placement vers PlacementFormData (dates Date → string)
+ */
+const convertPlacementToFormData = (placement: Partial<Placement>): Partial<PlacementFormData> => {
+  const { PL_Start_Date, PL_End_Date, ...rest } = placement;
+  
+  return {
+    ...rest,
+    PL_Start_Date: PL_Start_Date ? dateToString(PL_Start_Date) : undefined,
+    PL_End_Date: PL_End_Date ? dateToString(PL_End_Date) : undefined,
+  };
+};
 
 /**
  * Hook principal pour gérer les opérations sur les tactiques, placements et créatifs.
@@ -147,7 +191,10 @@ export const useTactiquesOperations = ({
       TC_Budget: 0,
       TC_Order: sectionTactiques.length,
       TC_SectionId: sectionId,
-      TC_Status: 'Planned'
+      TC_Status: 'Planned',
+      TC_Media_Budget_RefCurrency: 0,
+      TC_Client_Budget_RefCurrency: 0,
+      TC_MPA: '',
     };
 
     return executeOperation(
@@ -240,7 +287,6 @@ export const useTactiquesOperations = ({
     );
     const currentTactique = allTactiques[sectionId || '']?.find(t => t.id === tactiqueId);
 
-
     if (!sectionId || !currentTactique) {
       throw new Error('Section ou tactique parente non trouvée pour le placement');
     }
@@ -266,7 +312,9 @@ export const useTactiquesOperations = ({
           campaignData,
           currentTactique
         );
-        return { id: placementId, ...newPlacementData };
+        
+        // Convertir les données du formulaire vers le type Placement avec les bonnes dates
+        return convertFormDataToPlacement({ id: placementId, ...newPlacementData });
       }
     );
   }, [allTactiques, executeOperation, campaignData]);
@@ -310,6 +358,10 @@ export const useTactiquesOperations = ({
       'Mise à jour placement',
       () => {
         console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleUpdatePlacement - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+        
+        // Convertir les dates Date → string pour l'appel au service
+        const formData = convertPlacementToFormData(data);
+        
         return updatePlacement(
           context.clientId,
           context.campaignId,
@@ -318,7 +370,7 @@ export const useTactiquesOperations = ({
           sectionId,
           tactiqueId,
           placementId,
-          data,
+          formData,
           campaignData,
           currentTactique
         );

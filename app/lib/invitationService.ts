@@ -1,3 +1,5 @@
+// Fichier: app/lib/invitationService.ts
+
 /**
  * Ce fichier contient des fonctions pour gérer les invitations des utilisateurs
  * dans l'application. Il permet de créer, lire, mettre à jour et supprimer des invitations,
@@ -18,6 +20,9 @@ import {
 import { db } from './firebase';
 import { Invitation, InvitationFormData, UserWithStatus } from '../types/invitations';
 import { getAllUsers } from './userService';
+
+// Export du type pour les autres fichiers
+export type { UserWithStatus } from '../types/invitations';
 
 /**
  * Crée une nouvelle invitation pour un utilisateur.

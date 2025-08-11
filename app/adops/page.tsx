@@ -365,42 +365,41 @@ export default function AdOpsPage() {
             <h1 className="text-2xl font-bold text-gray-900">AdOps</h1>
           </div>
           
-          {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4 max-w-20xl">
-              <div className="flex-1 max-w-20xl">
-                <CampaignVersionSelector
-                  campaigns={campaigns}
-                  versions={versions}
-                  selectedCampaign={selectedCampaign}
-                  selectedVersion={selectedVersion}
-                  loading={campaignLoading}
-                  error={campaignError}
-                  onCampaignChange={handleCampaignChangeLocal}
-                  onVersionChange={handleVersionChangeLocal}
-                  className="mb-0"
-                />
-              </div>
-              
-              {/* NOUVEAU : Bouton de rafraîchissement */}
-              {selectedCampaign && selectedVersion && (
-                <button
-                  onClick={handleManualRefresh}
-                  disabled={isRefreshing || campaignLoading || adOpsLoading || cm360Loading}
-                  className={`
-                    flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium
-                    hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
-                    transition-all duration-200 shadow-sm hover:shadow-md
-                  `}
-                  title="Rafraîchir toutes les données AdOps pour voir les dernières modifications"
-                >
-                  <ArrowPathIcon 
-                    className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
-                  />
-                  <span>{isRefreshing ? 'Rafraîchissement...' : 'Rafraîchir'}</span>
-                </button>
-              )}
+         {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
+         <div className="flex items-center gap-4">
+            {/* CampaignVersionSelector qui prend toute la largeur disponible */}
+            <div className="flex-1">
+              <CampaignVersionSelector
+                campaigns={campaigns}
+                versions={versions}
+                selectedCampaign={selectedCampaign}
+                selectedVersion={selectedVersion}
+                loading={campaignLoading}
+                error={campaignError}
+                onCampaignChange={handleCampaignChangeLocal}
+                onVersionChange={handleVersionChangeLocal}
+                className="mb-0"
+              />
             </div>
+            
+            {/* NOUVEAU : Bouton de rafraîchissement */}
+            {selectedCampaign && selectedVersion && (
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing || campaignLoading || adOpsLoading || cm360Loading}
+                className={`
+                  flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium
+                  hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap
+                `}
+                title="Rafraîchir toutes les données AdOps pour voir les dernières modifications"
+              >
+                <ArrowPathIcon 
+                  className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                />
+                <span>{isRefreshing ? 'Rafraîchissement...' : 'Rafraîchir'}</span>
+              </button>
+            )}
           </div>
           
           {/* Barre de progression CM360 */}

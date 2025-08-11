@@ -156,7 +156,6 @@ const PlacementFormTaxonomy = memo<PlacementFormTaxonomyProps>(({
         <TaxonomyPreview
           parsedVariables={parsedVariables}
           selectedTaxonomyData={selectedTaxonomyData}
-          taxonomyValues={taxonomyValues}
           expandedPreviews={expandedPreviews}
           hasLoadingFields={hasLoadingFields}
           highlightState={highlightState}
