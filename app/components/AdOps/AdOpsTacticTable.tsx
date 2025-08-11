@@ -95,10 +95,10 @@ interface AdOpsTacticTableProps {
 }
 
 const COLORS = [
-  { name: '', value: '#f9b0cb', class: 'bg-pink-100' },
-  { name: '', value: '#9AE0A8', class: 'bg-green-100' },
-  { name: '', value: '#abeaef', class: 'bg-blue-100' },
-  { name: '', value: '#fee087', class: 'bg-yellow-100' }
+  { name: '', value: '#F9C8DC', class: 'bg-pink-100' },
+  { name: '', value: '#FFDE70', class: 'bg-green-100' },
+  { name: '', value: '#ADE0EB', class: 'bg-blue-100' },
+  { name: '', value: '#7EDD8F', class: 'bg-yellow-100' }
 ];
 
 // NOUVEAU : Options de filtre par couleur
