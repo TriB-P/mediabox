@@ -5,6 +5,8 @@
  * les placements et les créatifs au sein d'une campagne spécifique.
  * Il assure la communication avec Firebase et intègre des mises à jour optimistes
  * pour une meilleure réactivité de l'interface utilisateur.
+ * 
+ * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import { useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -35,6 +37,10 @@ import {
   updateCreatif,
   deleteCreatif
 } from '../lib/creatifService';
+import {
+  getNextOrder,
+  type OrderContext
+} from '../lib/orderManagementService';
 
 interface UseTactiquesOperationsProps {
   selectedCampaign: Campaign | null;
@@ -150,6 +156,20 @@ export const useTactiquesOperations = ({
   };
 
   /**
+   * Construit le contexte d'ordre pour le service orderManagementService
+   */
+  const buildOrderContext = useCallback((additionalContext: Partial<OrderContext> = {}): OrderContext => {
+    const context = ensureContext();
+    return {
+      clientId: context.clientId,
+      campaignId: context.campaignId,
+      versionId: context.versionId,
+      ongletId: context.ongletId,
+      ...additionalContext
+    };
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+
+  /**
    * Exécute une opération Firebase en gérant les erreurs et le rafraîchissement des données.
    *
    * @param {string} operationName - Le nom de l'opération pour les logs.
@@ -178,18 +198,22 @@ export const useTactiquesOperations = ({
   
   /**
    * Gère la création d'une nouvelle tactique.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de sectionTactiques.length
    *
    * @param {string} sectionId - L'ID de la section à laquelle la tactique appartient.
    * @returns {Promise<Tactique>} La tactique nouvellement créée.
    */
   const handleCreateTactique = useCallback(async (sectionId: string): Promise<Tactique> => {
     const context = ensureContext();
-    const sectionTactiques = tactiques[sectionId] || [];
+
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext({ sectionId });
+    const newOrder = await getNextOrder('tactique', orderContext);
 
     const newTactiqueData: Omit<Tactique, 'id'> = {
       TC_Label: 'Nouvelle tactique',
       TC_Budget: 0,
-      TC_Order: sectionTactiques.length,
+      TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sectionTactiques.length
       TC_SectionId: sectionId,
       TC_Status: 'Planned',
       TC_Media_Budget_RefCurrency: 0,
@@ -212,7 +236,7 @@ export const useTactiquesOperations = ({
         return { id: tactiqueId, ...newTactiqueData };
       }
     );
-  }, [tactiques, executeOperation]);
+  }, [buildOrderContext, executeOperation]);
 
   /**
    * Gère la mise à jour d'une tactique existante.
@@ -274,6 +298,7 @@ export const useTactiquesOperations = ({
 
   /**
    * Gère la création d'un nouveau placement.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de 0
    *
    * @param {string} tactiqueId - L'ID de la tactique parente.
    * @returns {Promise<Placement>} Le placement nouvellement créé.
@@ -291,9 +316,13 @@ export const useTactiquesOperations = ({
       throw new Error('Section ou tactique parente non trouvée pour le placement');
     }
 
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext({ sectionId, tactiqueId });
+    const newOrder = await getNextOrder('placement', orderContext);
+
     const newPlacementData: PlacementFormData = {
       PL_Label: 'Nouveau placement',
-      PL_Order: 0,
+      PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de 0
       PL_TactiqueId: tactiqueId
     };
 
@@ -317,7 +346,7 @@ export const useTactiquesOperations = ({
         return convertFormDataToPlacement({ id: placementId, ...newPlacementData });
       }
     );
-  }, [allTactiques, executeOperation, campaignData]);
+  }, [allTactiques, buildOrderContext, executeOperation, campaignData]);
 
   /**
    * Gère la mise à jour d'un placement existant.
@@ -408,6 +437,7 @@ export const useTactiquesOperations = ({
 
   /**
    * Gère la création d'un nouveau créatif.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de 0
    *
    * @param {string} placementId - L'ID du placement parent.
    * @returns {Promise<Creatif>} Le créatif nouvellement créé.
@@ -439,9 +469,13 @@ export const useTactiquesOperations = ({
       throw new Error('Contexte parent non trouvé pour le créatif');
     }
 
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext({ sectionId, tactiqueId, placementId });
+    const newOrder = await getNextOrder('creatif', orderContext);
+
     const newCreatifData: CreatifFormData = {
       CR_Label: 'Nouveau créatif',
-      CR_Order: 0,
+      CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de 0
       CR_PlacementId: placementId
     };
 
@@ -465,7 +499,7 @@ export const useTactiquesOperations = ({
         return { id: creatifId, ...newCreatifData };
       }
     );
-  }, [allTactiques, allPlacements, executeOperation, campaignData]);
+  }, [allTactiques, allPlacements, buildOrderContext, executeOperation, campaignData]);
 
   /**
    * Gère la mise à jour d'un créatif existant.

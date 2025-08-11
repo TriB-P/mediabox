@@ -316,7 +316,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
               <li>• C'est comme un sous-partenaire ou un média qu'on va activer à travers le partenaire</li>
               <li>• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera "Radio-Canada"</li>
               <li>• Lors d'un achat avec Billups, vous pouvez indiquer quel partenaire OOH sera utilisé (ex : Astral)</li>
-              <li>• Si l'inventaire n'est pas applicable, laisez-le vide</li>
+              <li>• Si l'inventaire n'est pas applicable, laissez-le vide</li>
 
 
             </ul>

@@ -1,10 +1,8 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION AVEC ONGLET TAGS
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SIMPLIFIÉE AVEC STRINGS
 
 /**
- * PlacementDrawer avec ajout de l'onglet Tags.
- * Nouveaux champs : PL_Tag_Start_Date, PL_Tag_End_Date, PL_Tag_Type, PL_Third_Party_Measurement, PL_VPAID
- * AJOUTÉ : PL_Creative_Rotation_Type, PL_Floodlight pour la gestion de la rotation des créatifs
- * Logique de calcul des dates par défaut : Start_Date - 30 jours, End_Date + 30 jours
+ * PlacementDrawer simplifié avec toutes les dates en string.
+ * SIMPLIFICATION : Plus de conversion, tout en string maintenant
  */
 'use client';
 
@@ -48,126 +46,136 @@ export default function PlacementDrawer({
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   /**
-   * Fonction utilitaire pour convertir les dates en format string
+   * 🔥 FONCTION SIMPLIFIÉE : Ajouter des jours à une date string
    */
-  const convertToDateString = useCallback((date: any): string => {
-    if (!date) return '';
-    if (typeof date === 'string') return date;
-    if (date instanceof Date) return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
-    return String(date);
-  }, []);
-
-  /**
-   * Fonction utilitaire pour ajouter ou soustraire des jours à une date
-   */
-  const addDaysToDate = useCallback((dateStr: string, days: number): string => {
-    if (!dateStr) return '';
+  const addDaysToDateString = useCallback((dateStr: string, days: number): string => {
+    console.log('🔍 DEBUG addDaysToDateString - Input date:', dateStr, 'Days to add:', days);
+    
+    if (!dateStr) {
+      console.log('🔍 DEBUG addDaysToDateString - Empty date, returning empty string');
+      return '';
+    }
+    
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '';
+    if (isNaN(date.getTime())) {
+      console.log('🔍 DEBUG addDaysToDateString - Invalid date, returning empty string');
+      return '';
+    }
     
     date.setDate(date.getDate() + days);
-    return date.toISOString().split('T')[0];
+    const result = date.toISOString().split('T')[0];
+    console.log('🔍 DEBUG addDaysToDateString - Result:', result);
+    return result;
   }, []);
 
   /**
-   * Calcule les valeurs héritées pour les dates
-   * Priorité : tactiqueData → selectedCampaign
-   * Convertit les dates en strings au format ISO si nécessaire
+   * 🔥 FONCTION UTILITAIRE : Convertit Date ou string vers string
    */
-  const getInheritedDates = useCallback(() => {
-    const startDate = convertToDateString(
-      tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date
-    );
-    const endDate = convertToDateString(
-      tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date
-    );
-    return { startDate, endDate };
-  }, [tactiqueData, selectedCampaign, convertToDateString]);
+  const dateToString = useCallback((date: Date | string | null | undefined): string => {
+    console.log('🔍 DEBUG dateToString - Input:', date, 'Type:', typeof date);
+    
+    if (!date) {
+      console.log('🔍 DEBUG dateToString - Empty input, returning empty string');
+      return '';
+    }
+    
+    // Si c'est déjà une string, la retourner
+    if (typeof date === 'string') {
+      console.log('🔍 DEBUG dateToString - String input, returning as-is:', date);
+      return date;
+    }
+    
+    // Si c'est un objet Date valide, le convertir
+    if (date instanceof Date && !isNaN(date.getTime())) {
+      const result = date.toISOString().split('T')[0];
+      console.log('🔍 DEBUG dateToString - Date object converted to:', result);
+      return result;
+    }
+    
+    console.log('🔍 DEBUG dateToString - Invalid input, returning empty string');
+    return '';
+  }, []);
 
   /**
-   * Calcule les dates par défaut pour les tags
-   * PL_Tag_Start_Date = PL_Start_Date - 30 jours
-   * PL_Tag_End_Date = PL_End_Date + 30 jours
+   * 🔥 FONCTION SIMPLIFIÉE : Récupère les dates héritées et les convertit en string
+   */
+  const getInheritedDates = useCallback(() => {
+    console.log('🔍 DEBUG getInheritedDates - tactiqueData:', tactiqueData);
+    console.log('🔍 DEBUG getInheritedDates - selectedCampaign:', selectedCampaign);
+    
+    // Convertir les dates (peuvent être Date ou string) vers string
+    const startDate = dateToString(tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date);
+    const endDate = dateToString(tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date);
+    
+    console.log('🔍 DEBUG getInheritedDates - Result:', { startDate, endDate });
+    return { startDate, endDate };
+  }, [tactiqueData, selectedCampaign, dateToString]);
+
+  /**
+   * 🔥 FONCTION SIMPLIFIÉE : Calcule les dates par défaut pour les tags
    */
   const getDefaultTagDates = useCallback((placementStartDate: string, placementEndDate: string) => {
-    const tagStartDate = addDaysToDate(placementStartDate, -30);
-    const tagEndDate = addDaysToDate(placementEndDate, 30);
+    console.log('🔍 DEBUG getDefaultTagDates - Input:', { placementStartDate, placementEndDate });
+    
+    const tagStartDate = addDaysToDateString(placementStartDate, -30);
+    const tagEndDate = addDaysToDateString(placementEndDate, 30);
+    
+    console.log('🔍 DEBUG getDefaultTagDates - Result:', { tagStartDate, tagEndDate });
     return { tagStartDate, tagEndDate };
-  }, [addDaysToDate]);
+  }, [addDaysToDateString]);
 
+  // 🔥 ÉTAT DU FORMULAIRE SIMPLIFIÉ : Tout en string
   const [formData, setFormData] = useState<PlacementFormData>(() => {
+    console.log('🔍 DEBUG useState initial - Creating initial formData');
     const emptyPlacementFields = createEmptyPlacementFieldsObject();
-    return {
+    
+    const initialData: PlacementFormData = {
       PL_Label: '',
       PL_Order: 0,
       PL_TactiqueId: tactiqueId,
-      PL_Start_Date: '',
-      PL_End_Date: '',
+      PL_Start_Date: '', // String
+      PL_End_Date: '',   // String
       PL_Taxonomy_Tags: '',
       PL_Taxonomy_Platform: '',
       PL_Taxonomy_MediaOcean: '',
-      PL_Taxonomy_Values: {},
-      // Nouveaux champs Tags avec valeurs par défaut
       PL_Tag_Start_Date: '',
       PL_Tag_End_Date: '',
       PL_Tag_Type: '',
       PL_Third_Party_Measurement: false,
       PL_VPAID: true,
-      // Nouveaux champs rotation créatifs
       PL_Creative_Rotation_Type: '',
       PL_Floodlight: '',
       ...emptyPlacementFields,
     };
+    
+    console.log('🔍 DEBUG useState initial - Initial formData created:', initialData);
+    return initialData;
   });
 
+  // Debug: Log formData changes
   useEffect(() => {
-    // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
-    if (isOpen) {
-      setActiveTab('infos');
-      setActiveTooltip(null);
-      
-      // Si pas de placement (mode création), réinitialiser les données avec héritage
-      if (!placement) {
-        const emptyPlacementFields = createEmptyPlacementFieldsObject();
-        const { startDate, endDate } = getInheritedDates();
-        const { tagStartDate, tagEndDate } = getDefaultTagDates(startDate, endDate);
-        
-        setFormData({
-          PL_Label: '',
-          PL_Order: 0,
-          PL_TactiqueId: tactiqueId,
-          PL_Start_Date: startDate,
-          PL_End_Date: endDate,
-          PL_Taxonomy_Tags: '',
-          PL_Taxonomy_Platform: '',
-          PL_Taxonomy_MediaOcean: '',
-          // Nouveaux champs Tags avec valeurs par défaut
-          PL_Tag_Start_Date: tagStartDate,
-          PL_Tag_End_Date: tagEndDate,
-          PL_Tag_Type: '',
-          PL_Third_Party_Measurement: false,
-          PL_VPAID: true,
-          // Nouveaux champs rotation créatifs
-          PL_Creative_Rotation_Type: '',
-          PL_Floodlight: '',
-          ...emptyPlacementFields,
-        });
-      }
-    }
-  }, [isOpen, placement, tactiqueId, getInheritedDates, getDefaultTagDates]);
+    console.log('🔍 DEBUG formData changed:', {
+      PL_Start_Date: formData.PL_Start_Date,
+      PL_End_Date: formData.PL_End_Date,
+      PL_Label: formData.PL_Label
+    });
+  }, [formData.PL_Start_Date, formData.PL_End_Date, formData.PL_Label]);
 
   /**
-   * Effet pour initialiser ou mettre à jour les données du formulaire.
-   * Si un objet `placement` est fourni, le formulaire est peuplé avec ses données (mode édition).
-   * Sinon, le formulaire est initialisé avec des valeurs par défaut pour un nouveau placement (mode création).
+   * 🔥 EFFET SIMPLIFIÉ : Initialisation du formulaire selon le mode (création/édition)
    */
   useEffect(() => {
+    console.log('🔍 DEBUG useEffect[placement] - Triggered with placement:', placement);
+    
     const emptyPlacementFields = createEmptyPlacementFieldsObject();
+    
     if (placement) {
-      // Mode édition - utiliser la même logique simple que CreatifDrawer
+      // 🔥 MODE ÉDITION : Convertir les dates (Date ou string) vers string
+      console.log('🔍 DEBUG useEffect[placement] - Mode édition');
+      
       const placementFieldsFromPlacement = extractPlacementFieldsFromData(placement);
-      const placementStartDate = convertToDateString(placement.PL_Start_Date);
-      const placementEndDate = convertToDateString(placement.PL_End_Date);
+      const placementStartDate = dateToString(placement.PL_Start_Date);
+      const placementEndDate = dateToString(placement.PL_End_Date);
       
       // Calculer les dates tags par défaut si elles ne sont pas définies
       const { tagStartDate, tagEndDate } = getDefaultTagDates(placementStartDate, placementEndDate);
@@ -181,20 +189,21 @@ export default function PlacementDrawer({
         PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
-        // Nouveaux champs Tags - utiliser les valeurs existantes ou les valeurs par défaut
-        PL_Tag_Start_Date: convertToDateString(placement.PL_Tag_Start_Date) || tagStartDate,
-        PL_Tag_End_Date: convertToDateString(placement.PL_Tag_End_Date) || tagEndDate,
+        // Nouveaux champs Tags - convertir les dates et utiliser les valeurs par défaut
+        PL_Tag_Start_Date: dateToString(placement.PL_Tag_Start_Date) || tagStartDate,
+        PL_Tag_End_Date: dateToString(placement.PL_Tag_End_Date) || tagEndDate,
         PL_Tag_Type: placement.PL_Tag_Type || '',
         PL_Third_Party_Measurement: placement.PL_Third_Party_Measurement ?? false,
         PL_VPAID: placement.PL_VPAID ?? true,
-        // Nouveaux champs rotation créatifs
         PL_Creative_Rotation_Type: placement.PL_Creative_Rotation_Type || '',
         PL_Floodlight: placement.PL_Floodlight || '',
         ...emptyPlacementFields,
         ...placementFieldsFromPlacement,
       });
     } else {
-      // Nouveau placement - calculer les valeurs héritées
+      // 🔥 MODE CRÉATION : Utiliser les dates héritées
+      console.log('🔍 DEBUG useEffect[placement] - Mode création');
+      
       const { startDate, endDate } = getInheritedDates();
       const { tagStartDate, tagEndDate } = getDefaultTagDates(startDate, endDate);
       
@@ -207,43 +216,26 @@ export default function PlacementDrawer({
         PL_Taxonomy_Tags: '',
         PL_Taxonomy_Platform: '',
         PL_Taxonomy_MediaOcean: '',
-        // Nouveaux champs Tags avec valeurs par défaut
         PL_Tag_Start_Date: tagStartDate,
         PL_Tag_End_Date: tagEndDate,
         PL_Tag_Type: '',
         PL_Third_Party_Measurement: false,
         PL_VPAID: true,
-        // Nouveaux champs rotation créatifs
         PL_Creative_Rotation_Type: '',
         PL_Floodlight: '',
         ...emptyPlacementFields,
       });
     }
-  }, [placement, tactiqueId, getInheritedDates, getDefaultTagDates, convertToDateString]);
+  }, [placement, tactiqueId, getInheritedDates, getDefaultTagDates, dateToString]);
 
-  // useEffect séparé pour réinitialiser les valeurs héritées quand les données sources changent
-  useEffect(() => {
-    // Seulement pour un nouveau placement (pas d'édition)
-    if (!placement && (tactiqueData || selectedCampaign)) {
-      const { startDate, endDate } = getInheritedDates();
-      const { tagStartDate, tagEndDate } = getDefaultTagDates(startDate, endDate);
-      
-      setFormData(prev => ({
-        ...prev,
-        PL_Start_Date: prev.PL_Start_Date || startDate,
-        PL_End_Date: prev.PL_End_Date || endDate,
-        PL_Tag_Start_Date: prev.PL_Tag_Start_Date || tagStartDate,
-        PL_Tag_End_Date: prev.PL_Tag_End_Date || tagEndDate,
-      }));
-    }
-  }, [tactiqueData, selectedCampaign, placement, getInheritedDates, getDefaultTagDates]);
-
-  // useEffect pour recalculer les dates tags quand les dates placement changent
+  /**
+   * 🔥 EFFET SIMPLIFIÉ : Recalculer les dates tags quand les dates placement changent
+   */
   useEffect(() => {
     if (formData.PL_Start_Date && formData.PL_End_Date) {
       const { tagStartDate, tagEndDate } = getDefaultTagDates(formData.PL_Start_Date, formData.PL_End_Date);
       
-      // Seulement mettre à jour si les champs tags sont vides ou correspondent aux anciennes valeurs calculées
+      // Seulement mettre à jour si les champs tags sont vides
       setFormData(prev => ({
         ...prev,
         PL_Tag_Start_Date: prev.PL_Tag_Start_Date || tagStartDate,
@@ -261,6 +253,8 @@ export default function PlacementDrawer({
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
+    console.log('🔍 DEBUG handleChange - Field:', name, 'Value:', value);
+    
     // Gérer les champs boolean
     if (name === 'PL_Third_Party_Measurement' || name === 'PL_VPAID') {
       const boolValue = value === 'true';
@@ -275,9 +269,16 @@ export default function PlacementDrawer({
     setActiveTooltip(tooltip);
   }, []);
 
+  /**
+   * 🔥 FONCTION HANDLESUBMIT SIMPLIFIÉE : Plus de conversion nécessaire
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('🔍 DEBUG handleSubmit - formData à sauvegarder:', formData);
+    
     try {
+      // Plus besoin de conversion, tout est déjà en string
       await onSave(formData);
       onClose();
 

@@ -7,6 +7,8 @@
  * de la version et de l'onglet actuellement sélectionnés.
  * Il utilise des fonctions de service distinctes pour interagir avec Firebase et intègre la logique
  * de rafraîchissement des données après chaque modification.
+ * 
+ * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import { useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -33,6 +35,10 @@ import {
   updateCreatif,
   deleteCreatif
 } from '../lib/creatifService';
+import {
+  getNextOrder,
+  type OrderContext
+} from '../lib/orderManagementService';
 
 interface UseTactiquesCrudProps {
   sections: any[];
@@ -81,7 +87,25 @@ export function useTactiquesCrud({
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
   /**
+   * Construit le contexte d'ordre pour le service orderManagementService
+   */
+  const buildOrderContext = useCallback((additionalContext: Partial<OrderContext> = {}): OrderContext => {
+    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
+      throw new Error('Contexte de base manquant pour les opérations d\'ordre');
+    }
+
+    return {
+      clientId: selectedClient.clientId,
+      campaignId: selectedCampaignId,
+      versionId: selectedVersionId,
+      ongletId: selectedOngletId || undefined,
+      ...additionalContext
+    };
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+
+  /**
    * Gère la création d'une nouvelle section.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de sections.length
    * @param {any} sectionData - Les données de la nouvelle section à créer.
    * @returns {Promise<string>} L'ID de la nouvelle section créée.
    * @throws {Error} Si le contexte nécessaire pour créer une section est manquant.
@@ -91,6 +115,10 @@ export function useTactiquesCrud({
       throw new Error('Contexte manquant pour créer une section');
     }
     try {
+      // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+      const context = buildOrderContext();
+      const newOrder = await getNextOrder('section', context);
+
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleCreateSection - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections");
       const newSectionId = await addSection(
         selectedClient.clientId,
@@ -99,7 +127,7 @@ export function useTactiquesCrud({
         selectedOngletId,
         {
           SECTION_Name: sectionData.SECTION_Name || 'Nouvelle section',
-          SECTION_Order: sections.length,
+          SECTION_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sections.length
           SECTION_Color: sectionData.SECTION_Color || '#6366f1',
           SECTION_Budget: sectionData.SECTION_Budget || 0
         }
@@ -109,7 +137,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création section:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections.length]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext]);
 
   /**
    * Gère la mise à jour d'une section existante.
@@ -166,6 +194,7 @@ export function useTactiquesCrud({
 
   /**
    * Gère la création d'une nouvelle tactique.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de sectionTactiques.length
    * @param {string} sectionId - L'ID de la section parente à laquelle la tactique sera ajoutée.
    * @returns {Promise<Tactique>} La nouvelle tactique créée.
    * @throws {Error} Si le contexte nécessaire pour créer une tactique est manquant.
@@ -175,7 +204,10 @@ export function useTactiquesCrud({
       throw new Error('Contexte manquant pour créer une tactique');
     }
     try {
-      const sectionTactiques = tactiques[sectionId] || [];
+      // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+      const context = buildOrderContext({ sectionId });
+      const newOrder = await getNextOrder('tactique', context);
+
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleCreateTactique - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques");
       const newTactiqueId = await addTactique(
         selectedClient.clientId,
@@ -187,12 +219,11 @@ export function useTactiquesCrud({
           TC_Label: 'Nouvelle tactique',
           TC_Budget: 0,
           TC_MPA:'',
-          TC_Order: sectionTactiques.length,
+          TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sectionTactiques.length
           TC_SectionId: sectionId,
           TC_Unit_Type: '',
           TC_Client_Budget_RefCurrency:0,
           TC_Media_Budget_RefCurrency:0,
-      
         }
       );
       const newTactique: Tactique = {
@@ -200,7 +231,7 @@ export function useTactiquesCrud({
         TC_Label: 'Nouvelle tactique',
         TC_Budget: 0,
         TC_MPA: '',
-        TC_Order: sectionTactiques.length,
+        TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
         TC_SectionId: sectionId,
         TC_Unit_Type: '',
         TC_Client_Budget_RefCurrency:0,
@@ -211,7 +242,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création tactique:', error);
       return {} as Tactique;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, tactiques]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext]);
 
   /**
    * Gère la mise à jour d'une tactique existante.
@@ -274,6 +305,7 @@ export function useTactiquesCrud({
 
   /**
    * Gère la création d'un nouveau placement.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de tactiquesPlacements.length
    * @param {string} tactiqueId - L'ID de la tactique parente à laquelle le placement sera ajouté.
    * @returns {Promise<Placement>} Le nouveau placement créé.
    * @throws {Error} Si le contexte nécessaire pour créer un placement est manquant ou si la section parente n'est pas trouvée.
@@ -293,7 +325,10 @@ export function useTactiquesCrud({
       throw new Error('Section parent non trouvée pour la tactique');
     }
     try {
-      const tactiquesPlacements = placements[tactiqueId] || [];
+      // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+      const context = buildOrderContext({ sectionId, tactiqueId });
+      const newOrder = await getNextOrder('placement', context);
+
       const currentTactique = tactiques[sectionId]?.find(t => t.id === tactiqueId);
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleCreatePlacement - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
       const newPlacementId = await createPlacement(
@@ -305,7 +340,7 @@ export function useTactiquesCrud({
         tactiqueId,
         {
           PL_Label: 'Nouveau placement',
-          PL_Order: tactiquesPlacements.length,
+          PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de tactiquesPlacements.length
           PL_TactiqueId: tactiqueId,
           PL_Taxonomy_Tags: '',
           PL_Taxonomy_Platform: '',
@@ -317,7 +352,7 @@ export function useTactiquesCrud({
       const newPlacement: Placement = {
         id: newPlacementId,
         PL_Label: 'Nouveau placement',
-        PL_Order: tactiquesPlacements.length,
+        PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
         PL_TactiqueId: tactiqueId,
         PL_Taxonomy_Tags: '',
         PL_Taxonomy_Platform: '',
@@ -328,7 +363,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création placement:', error);
       return {} as Placement;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, selectedCampaign, buildOrderContext]);
 
   /**
    * Gère la mise à jour d'un placement existant.
@@ -433,6 +468,7 @@ export function useTactiquesCrud({
 
   /**
    * Gère la création d'un nouveau créatif.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de placementCreatifs.length
    * @param {string} placementId - L'ID du placement parent auquel le créatif sera ajouté.
    * @returns {Promise<Creatif>} Le nouveau créatif créé.
    * @throws {Error} Si le contexte nécessaire pour créer un créatif est manquant ou si la hiérarchie parente n'est pas trouvée.
@@ -460,7 +496,10 @@ export function useTactiquesCrud({
       throw new Error('Hiérarchie parent non trouvée pour le créatif');
     }
     try {
-      const placementCreatifs = creatifs[placementId] || [];
+      // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+      const context = buildOrderContext({ sectionId, tactiqueId, placementId });
+      const newOrder = await getNextOrder('creatif', context);
+
       const currentTactique = tactiques[sectionId]?.find(t => t.id === tactiqueId);
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleCreateCreatif - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
       const newCreatifId = await createCreatif(
@@ -473,7 +512,7 @@ export function useTactiquesCrud({
         placementId,
         {
           CR_Label: 'Nouveau créatif',
-          CR_Order: placementCreatifs.length,
+          CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de placementCreatifs.length
           CR_PlacementId: placementId,
           CR_Taxonomy_Tags: '',
           CR_Taxonomy_Platform: '',
@@ -486,7 +525,7 @@ export function useTactiquesCrud({
       const newCreatif: Creatif = {
         id: newCreatifId,
         CR_Label: 'Nouveau créatif',
-        CR_Order: placementCreatifs.length,
+        CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
         CR_PlacementId: placementId,
         CR_Taxonomy_Tags: '',
         CR_Taxonomy_Platform: '',
@@ -497,7 +536,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création créatif:', error);
       return {} as Creatif;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, buildOrderContext]);
 
   /**
    * Gère la mise à jour d'un créatif existant.
@@ -618,6 +657,7 @@ export function useTactiquesCrud({
 
   /**
    * Gère l'ajout d'un nouvel onglet.
+   * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de onglets.length
    * @returns {Promise<void>}
    * @throws {Error} Si le contexte nécessaire pour créer un onglet est manquant.
    */
@@ -626,6 +666,10 @@ export function useTactiquesCrud({
       throw new Error('Contexte manquant pour créer un onglet');
     }
     try {
+      // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+      const context = buildOrderContext();
+      const newOrder = await getNextOrder('onglet', context);
+
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleAddOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets");
       const newOngletId = await addOnglet(
         selectedClient.clientId,
@@ -633,7 +677,7 @@ export function useTactiquesCrud({
         selectedVersionId,
         {
           ONGLET_Name: 'Nouvel onglet',
-          ONGLET_Order: onglets.length
+          ONGLET_Order: newOrder // ✅ CHANGÉ : Utilise newOrder au lieu de onglets.length
         }
       );
       await onRefresh();
@@ -641,7 +685,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création onglet:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets.length, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, buildOrderContext, onRefresh]);
 
   /**
    * Gère le renommage d'un onglet existant.

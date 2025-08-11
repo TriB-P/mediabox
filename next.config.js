@@ -2,24 +2,30 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuration pour l'export statique Firebase
-  output: 'export',
-  trailingSlash: true,
+  // Configuration conditionnelle selon l'environnement
+  // Utilise 'export' seulement pour le build Firebase
+  ...(process.env.FIREBASE_BUILD === 'true' && {
+    output: 'export',
+    trailingSlash: true,
+  }),
   
-  // Tes configurations existantes
+  // Tes configurations existantes (toujours actives)
   transpilePackages: ['firebase', '@firebase/auth'],
   experimental: {
     forceSwcTransforms: false,
   },
   swcMinify: false,
   
-  // Configuration images mise à jour pour l'export statique
+  // Configuration images conditionnelle
   images: {
     domains: ['lh3.googleusercontent.com','storage.googleapis.com'], // Pour les avatars Google
-    unoptimized: true // Nécessaire pour l'export statique
+    // 'unoptimized: true' seulement pour l'export statique Firebase
+    ...(process.env.FIREBASE_BUILD === 'true' && {
+      unoptimized: true
+    })
   },
   
-  // Tes configurations webpack existantes
+  // Tes configurations webpack existantes (toujours actives)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -38,3 +44,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+

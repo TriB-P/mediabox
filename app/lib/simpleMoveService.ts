@@ -5,6 +5,8 @@
  * parent-enfant et en gérant les références ainsi que l'ordre des éléments.
  * Le service assure que toutes les opérations de lecture et d'écriture Firebase
  * sont tracées et exécutées de manière atomique via des transactions.
+ * 
+ * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import {
   collection,
@@ -20,6 +22,11 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
+import {
+  moveToEnd,
+  type OrderContext,
+  type OrderType
+} from './orderManagementService';
 
 export interface MoveDestination {
   campaignId: string;
@@ -89,6 +96,43 @@ export interface CascadeItem {
   id: string;
   name: string;
   description?: string;
+}
+
+/**
+ * Construit le contexte d'ordre pour le service orderManagementService
+ */
+function buildOrderContext(
+  clientId: string,
+  destination: MoveDestination,
+  itemType: OrderType
+): OrderContext {
+  const context: OrderContext = {
+    clientId,
+    campaignId: destination.campaignId,
+    versionId: destination.versionId,
+    ongletId: destination.ongletId
+  };
+
+  // Ajouter les contextes selon le type
+  switch (itemType) {
+    case 'section':
+      // Pas de contexte supplémentaire nécessaire
+      break;
+    case 'tactique':
+      context.sectionId = destination.sectionId;
+      break;
+    case 'placement':
+      context.sectionId = destination.sectionId;
+      context.tactiqueId = destination.tactiqueId;
+      break;
+    case 'creatif':
+      context.sectionId = destination.sectionId;
+      context.tactiqueId = destination.tactiqueId;
+      context.placementId = destination.placementId;
+      break;
+  }
+
+  return context;
 }
 
 /**
@@ -476,66 +520,6 @@ export async function buildItemsContext(
 }
 
 /**
- * Calcule le prochain numéro d'ordre disponible pour un type d'élément donné
- * dans une collection de destination spécifique.
- * @param clientId - L'ID du client.
- * @param destination - L'objet MoveDestination spécifiant le chemin de destination.
- * @param itemType - Le type d'élément (section, tactique, placement, creatif).
- * @returns Une promesse résolue avec le prochain numéro d'ordre.
- */
-async function getNextOrder(
-  clientId: string,
-  destination: MoveDestination,
-  itemType: 'section' | 'tactique' | 'placement' | 'creatif'
-): Promise<number> {
-  let collectionRef: CollectionReference;
-  let orderField: string;
-
-  switch (itemType) {
-    case 'section':
-      collectionRef = collection(
-        db, 'clients', clientId, 'campaigns', destination.campaignId,
-        'versions', destination.versionId, 'onglets', destination.ongletId, 'sections'
-      );
-      orderField = 'SECTION_Order';
-      break;
-
-    case 'tactique':
-      collectionRef = collection(
-        db, 'clients', clientId, 'campaigns', destination.campaignId,
-        'versions', destination.versionId, 'onglets', destination.ongletId,
-        'sections', destination.sectionId!, 'tactiques'
-      );
-      orderField = 'TC_Order';
-      break;
-
-    case 'placement':
-      collectionRef = collection(
-        db, 'clients', clientId, 'campaigns', destination.campaignId,
-        'versions', destination.versionId, 'onglets', destination.ongletId,
-        'sections', destination.sectionId!, 'tactiques', destination.tactiqueId!, 'placements'
-      );
-      orderField = 'PL_Order';
-      break;
-
-    case 'creatif':
-      collectionRef = collection(
-        db, 'clients', clientId, 'campaigns', destination.campaignId,
-        'versions', destination.versionId, 'onglets', destination.ongletId,
-        'sections', destination.sectionId!, 'tactiques', destination.tactiqueId!,
-        'placements', destination.placementId!, 'creatifs'
-      );
-      orderField = 'CR_Order';
-      break;
-  }
-  console.log(`FIREBASE: LECTURE - Fichier: simpleMoveService.ts - Fonction: getNextOrder - Path: ${collectionRef.path} (pour déterminer l'ordre)`);
-  const q = query(collectionRef, orderBy(orderField, 'desc'));
-  const snapshot = await getDocs(q);
-
-  return snapshot.empty ? 0 : (snapshot.docs[0].data()[orderField] || 0) + 1;
-}
-
-/**
  * Construit le chemin source complet d'un document Firebase en fonction de son type
  * et de son contexte hiérarchique.
  * @param clientId - L'ID du client.
@@ -653,9 +637,10 @@ function buildParentReferences(
 
 /**
  * Exécute l'opération de déplacement d'éléments dans Firebase Firestore.
+ * MISE À JOUR : Utilise moveToEnd() du service central pour placer les éléments à la fin
  * Cette fonction prépare les chemins source et destination, génère de nouveaux IDs,
- * calcule les ordres, puis exécute une transaction Firestore pour lire les données source,
- * écrire les données modifiées à la destination, et supprimer les données source.
+ * place les éléments à la fin avec le service central, puis exécute une transaction Firestore 
+ * pour lire les données source, écrire les données modifiées à la destination, et supprimer les données source.
  * @param operation - L'objet MoveOperation décrivant le déplacement à effectuer.
  * @returns Une promesse résolue avec un objet MoveResult indiquant le succès,
  * le nombre d'éléments déplacés/ignorés, et les erreurs/avertissements.
@@ -713,15 +698,23 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
       });
     }
 
-    const ordersByType = new Map<string, number>();
-
+    // ✅ NOUVEAU : Utilise moveToEnd() du service central pour chaque type d'élément
+    const itemsByType = new Map<OrderType, string[]>();
+    
+    // Grouper les éléments par type pour utiliser moveToEnd()
     for (const preparedItem of preparedItems) {
-      const { itemWithContext, enhancedDestination } = preparedItem;
-
-      if (!ordersByType.has(itemWithContext.itemType)) {
-        const nextOrder = await getNextOrder(clientId, enhancedDestination, itemWithContext.itemType);
-        ordersByType.set(itemWithContext.itemType, nextOrder);
+      const itemType = preparedItem.itemWithContext.itemType as OrderType;
+      if (!itemsByType.has(itemType)) {
+        itemsByType.set(itemType, []);
       }
+      itemsByType.get(itemType)!.push(preparedItem.destRef.id);
+    }
+
+    // Appliquer moveToEnd() pour chaque type d'élément
+    for (const [itemType, itemIds] of itemsByType.entries()) {
+      const orderContext = buildOrderContext(clientId, destination, itemType);
+      console.log(`🔄 Déplacement ${itemIds.length} ${itemType}(s) à la fin avec moveToEnd()`);
+      await moveToEnd(itemIds, itemType, orderContext);
     }
 
     await runTransaction(db, async (transaction) => {
@@ -774,15 +767,22 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
         try {
           const { itemWithContext, sourceRef, destRef, enhancedDestination } = preparedItem;
 
-          const currentOrder = ordersByType.get(itemWithContext.itemType)!;
-          const orderField = getOrderField(itemWithContext.itemType);
           const parentRefs = buildParentReferences(itemWithContext.itemType, enhancedDestination);
+
+          // ✅ NOUVEAU : Récupérer l'ordre mis à jour après moveToEnd()
+          const orderContext = buildOrderContext(clientId, enhancedDestination, itemWithContext.itemType as OrderType);
+          const { getCurrentItems } = await import('./orderManagementService');
+          const itemsInDestination = await getCurrentItems(itemWithContext.itemType as OrderType, orderContext);
+          const movedItem = itemsInDestination.find(item => item.id === destRef.id);
+          const finalOrder = movedItem?.order || 0;
+
+          const orderField = getOrderField(itemWithContext.itemType);
 
           // ✅ CORRECTION : Synchroniser le champ 'id' avec l'ID du document Firestore
           const newData = {
             ...sourceData,
             id: destRef.id, // 🔧 CORRECTION APPLIQUÉE ICI
-            [orderField]: currentOrder,
+            [orderField]: finalOrder, // ✅ CHANGÉ : Utilise l'ordre calculé par moveToEnd()
             ...parentRefs,
             updatedAt: new Date().toISOString()
           };
@@ -791,8 +791,6 @@ export async function performMove(operation: MoveOperation): Promise<MoveResult>
           transaction.set(destRef, newData);
           console.log("FIREBASE: ÉCRITURE - Fichier: simpleMoveService.ts - Fonction: performMove - Path: " + sourceRef.path);
           transaction.delete(sourceRef);
-
-          ordersByType.set(itemWithContext.itemType, currentOrder + 1);
 
           movedCount++;
 

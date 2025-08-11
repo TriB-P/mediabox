@@ -284,7 +284,6 @@ export interface TactiqueFormData {
   TC_Label: string;
   TC_Budget: number;
   TC_MPA: string;
-  TC_Order: number;
   TC_SectionId: string;
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
   TC_Bucket?: string;

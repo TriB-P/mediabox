@@ -62,6 +62,11 @@ export const documentMappingConfig = {
     fields: [
       {
         field: 'SECTION_Name',
+        column: 'Section_Label',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'SECTION_Name',
         column: 'Label',
         type: 'text' as FieldType,
       },
@@ -80,6 +85,11 @@ export const documentMappingConfig = {
       {
         field: 'TC_Label',
         column: 'TC_Label',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Label',
+        column: 'Label',
         type: 'text' as FieldType,
       },
       {

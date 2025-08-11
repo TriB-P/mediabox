@@ -4,6 +4,8 @@
  * Il inclut des fonctions pour réordonner des éléments dans leur conteneur et des fonctions
  * plus complexes pour déplacer des éléments (et leurs sous-éléments) entre différents conteneurs,
  * assurant la cohérence des données hiérarchiques dans Firebase.
+ * 
+ * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import {
   collection,
@@ -20,6 +22,12 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
+import {
+  reorderSequence,
+  moveToEnd,
+  type OrderContext,
+  type OrderType
+} from './orderManagementService';
 
 export interface DragResult {
   draggableId: string;
@@ -42,7 +50,21 @@ export interface ReorderContext {
 }
 
 /**
+ * Construit le contexte d'ordre pour le service orderManagementService
+ */
+function buildOrderContext(context: ReorderContext, additionalContext: Partial<OrderContext> = {}): OrderContext {
+  return {
+    clientId: context.clientId,
+    campaignId: context.campaignId,
+    versionId: context.versionId,
+    ongletId: context.ongletId,
+    ...additionalContext
+  };
+}
+
+/**
  * Réorganise l'ordre des sections au sein d'un onglet spécifié.
+ * MISE À JOUR : Utilise reorderSequence() du service central au lieu des batches manuels
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param sectionOrders - Un tableau d'objets contenant l'ID de la section et son nouvel ordre.
  * @returns Une promesse qui se résout une fois les sections réorganisées.
@@ -52,26 +74,15 @@ export async function reorderSections(
   sectionOrders: { id: string; order: number }[]
 ): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    sectionOrders.forEach(({ id, order }) => {
-      const sectionRef = doc(
-        db,
-        'clients', context.clientId,
-        'campaigns', context.campaignId,
-        'versions', context.versionId,
-        'onglets', context.ongletId,
-        'sections', id
-      );
-
-      console.log("FIREBASE: ÉCRITURE - Fichier: reorderService.ts - Fonction: reorderSections - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${id}");
-      batch.update(sectionRef, {
-        SECTION_Order: order,
-        updatedAt: new Date().toISOString()
-      });
-    });
-
-    await batch.commit();
+    // ✅ NOUVEAU : Utilise le service central pour la réorganisation
+    const orderContext = buildOrderContext(context);
+    
+    // Trier par ordre et extraire les IDs dans le bon ordre
+    const sortedOrders = [...sectionOrders].sort((a, b) => a.order - b.order);
+    const newOrderIds = sortedOrders.map(item => item.id);
+    
+    await reorderSequence(newOrderIds, 'section', orderContext);
+    
   } catch (error) {
     console.error('❌ Erreur lors de la réorganisation des sections:', error);
     throw error;
@@ -80,6 +91,7 @@ export async function reorderSections(
 
 /**
  * Réorganise l'ordre des tactiques au sein d'une section spécifiée.
+ * MISE À JOUR : Utilise reorderSequence() du service central au lieu des batches manuels
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param sectionId - L'ID de la section parente des tactiques.
  * @param tactiqueOrders - Un tableau d'objets contenant l'ID de la tactique et son nouvel ordre.
@@ -91,27 +103,15 @@ export async function reorderTactiques(
   tactiqueOrders: { id: string; order: number }[]
 ): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    tactiqueOrders.forEach(({ id, order }) => {
-      const tactiqueRef = doc(
-        db,
-        'clients', context.clientId,
-        'campaigns', context.campaignId,
-        'versions', context.versionId,
-        'onglets', context.ongletId,
-        'sections', sectionId,
-        'tactiques', id
-      );
-
-      console.log("FIREBASE: ÉCRITURE - Fichier: reorderService.ts - Fonction: reorderTactiques - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${id}");
-      batch.update(tactiqueRef, {
-        TC_Order: order,
-        updatedAt: new Date().toISOString()
-      });
-    });
-
-    await batch.commit();
+    // ✅ NOUVEAU : Utilise le service central pour la réorganisation
+    const orderContext = buildOrderContext(context, { sectionId });
+    
+    // Trier par ordre et extraire les IDs dans le bon ordre
+    const sortedOrders = [...tactiqueOrders].sort((a, b) => a.order - b.order);
+    const newOrderIds = sortedOrders.map(item => item.id);
+    
+    await reorderSequence(newOrderIds, 'tactique', orderContext);
+    
   } catch (error) {
     console.error('❌ Erreur lors de la réorganisation des tactiques:', error);
     throw error;
@@ -120,6 +120,7 @@ export async function reorderTactiques(
 
 /**
  * Réorganise l'ordre des placements au sein d'une tactique spécifiée.
+ * MISE À JOUR : Utilise reorderSequence() du service central au lieu des batches manuels
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param sectionId - L'ID de la section parente de la tactique.
  * @param tactiqueId - L'ID de la tactique parente des placements.
@@ -133,28 +134,15 @@ export async function reorderPlacements(
   placementOrders: { id: string; order: number }[]
 ): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    placementOrders.forEach(({ id, order }) => {
-      const placementRef = doc(
-        db,
-        'clients', context.clientId,
-        'campaigns', context.campaignId,
-        'versions', context.versionId,
-        'onglets', context.ongletId,
-        'sections', sectionId,
-        'tactiques', tactiqueId,
-        'placements', id
-      );
-
-      console.log("FIREBASE: ÉCRITURE - Fichier: reorderService.ts - Fonction: reorderPlacements - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${id}");
-      batch.update(placementRef, {
-        PL_Order: order,
-        updatedAt: new Date().toISOString()
-      });
-    });
-
-    await batch.commit();
+    // ✅ NOUVEAU : Utilise le service central pour la réorganisation
+    const orderContext = buildOrderContext(context, { sectionId, tactiqueId });
+    
+    // Trier par ordre et extraire les IDs dans le bon ordre
+    const sortedOrders = [...placementOrders].sort((a, b) => a.order - b.order);
+    const newOrderIds = sortedOrders.map(item => item.id);
+    
+    await reorderSequence(newOrderIds, 'placement', orderContext);
+    
   } catch (error) {
     console.error('❌ Erreur lors de la réorganisation des placements:', error);
     throw error;
@@ -163,6 +151,7 @@ export async function reorderPlacements(
 
 /**
  * Réorganise l'ordre des créatifs au sein d'un placement spécifié.
+ * MISE À JOUR : Utilise reorderSequence() du service central au lieu des batches manuels
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param sectionId - L'ID de la section parente de la tactique.
  * @param tactiqueId - L'ID de la tactique parente du placement.
@@ -178,29 +167,15 @@ export async function reorderCreatifs(
   creatifOrders: { id: string; order: number }[]
 ): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    creatifOrders.forEach(({ id, order }) => {
-      const creatifRef = doc(
-        db,
-        'clients', context.clientId,
-        'campaigns', context.campaignId,
-        'versions', context.versionId,
-        'onglets', context.ongletId,
-        'sections', sectionId,
-        'tactiques', tactiqueId,
-        'placements', placementId,
-        'creatifs', id
-      );
-
-      console.log("FIREBASE: ÉCRITURE - Fichier: reorderService.ts - Fonction: reorderCreatifs - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${id}");
-      batch.update(creatifRef, {
-        CR_Order: order,
-        updatedAt: new Date().toISOString()
-      });
-    });
-
-    await batch.commit();
+    // ✅ NOUVEAU : Utilise le service central pour la réorganisation
+    const orderContext = buildOrderContext(context, { sectionId, tactiqueId, placementId });
+    
+    // Trier par ordre et extraire les IDs dans le bon ordre
+    const sortedOrders = [...creatifOrders].sort((a, b) => a.order - b.order);
+    const newOrderIds = sortedOrders.map(item => item.id);
+    
+    await reorderSequence(newOrderIds, 'creatif', orderContext);
+    
   } catch (error) {
     console.error('❌ Erreur lors de la réorganisation des créatifs:', error);
     throw error;
@@ -209,13 +184,14 @@ export async function reorderCreatifs(
 
 /**
  * Déplace une tactique entière, y compris tous ses placements et créatifs, vers une nouvelle section.
+ * MISE À JOUR : Place la tactique déplacée à la fin de sa nouvelle section avec moveToEnd()
  * Cette opération est complexe car elle implique la recréation de la structure dans la nouvelle hiérarchie
  * et la suppression de l'ancienne.
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param tactiqueId - L'ID de la tactique à déplacer.
  * @param fromSectionId - L'ID de la section d'origine de la tactique.
  * @param toSectionId - L'ID de la section de destination.
- * @param newOrder - Le nouvel ordre de la tactique dans la section de destination.
+ * @param newOrder - Le nouvel ordre de la tactique dans la section de destination (DEPRECIÉ - utilise moveToEnd).
  * @returns Une promesse qui se résout une fois la tactique déplacée.
  */
 export async function moveTactiqueToSection(
@@ -223,7 +199,7 @@ export async function moveTactiqueToSection(
   tactiqueId: string,
   fromSectionId: string,
   toSectionId: string,
-  newOrder: number
+  newOrder: number // ✅ PARAMÈTRE IGNORÉ - on place toujours à la fin
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -292,7 +268,17 @@ export async function moveTactiqueToSection(
       });
     }
 
-    // 4. Créer la tactique dans la nouvelle section
+    // ✅ NOUVEAU : Utilise moveToEnd() pour déterminer l'ordre au lieu de newOrder
+    const orderContext = buildOrderContext(context, { sectionId: toSectionId });
+    await moveToEnd([tactiqueId], 'tactique', orderContext);
+    
+    // Récupérer l'ordre mis à jour après moveToEnd()
+    const { getCurrentItems } = await import('./orderManagementService');
+    const tactiquesInDestination = await getCurrentItems('tactique', orderContext);
+    const movedTactique = tactiquesInDestination.find(t => t.id === tactiqueId);
+    const finalOrder = movedTactique?.order || 0;
+
+    // 4. Créer la tactique dans la nouvelle section avec l'ordre calculé
     const newTactiqueRef = doc(
       db,
       'clients', context.clientId,
@@ -307,7 +293,7 @@ export async function moveTactiqueToSection(
     batch.set(newTactiqueRef, {
       ...tactiqueData,
       TC_SectionId: toSectionId,
-      TC_Order: newOrder,
+      TC_Order: finalOrder, // ✅ CHANGÉ : Utilise l'ordre calculé par moveToEnd()
       updatedAt: new Date().toISOString()
     });
 
@@ -401,13 +387,14 @@ export async function moveTactiqueToSection(
 
 /**
  * Déplace un placement entier, y compris tous ses créatifs, vers une nouvelle tactique.
+ * MISE À JOUR : Place le placement déplacé à la fin de sa nouvelle tactique avec moveToEnd()
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param placementId - L'ID du placement à déplacer.
  * @param fromSectionId - L'ID de la section d'origine de la tactique parente.
  * @param fromTactiqueId - L'ID de la tactique d'origine du placement.
  * @param toSectionId - L'ID de la section de destination de la nouvelle tactique parente.
  * @param toTactiqueId - L'ID de la tactique de destination.
- * @param newOrder - Le nouvel ordre du placement dans la tactique de destination.
+ * @param newOrder - Le nouvel ordre du placement dans la tactique de destination (DEPRECIÉ - utilise moveToEnd).
  * @returns Une promesse qui se résout une fois le placement déplacé.
  */
 export async function movePlacementToTactique(
@@ -417,7 +404,7 @@ export async function movePlacementToTactique(
   fromTactiqueId: string,
   toSectionId: string,
   toTactiqueId: string,
-  newOrder: number
+  newOrder: number // ✅ PARAMÈTRE IGNORÉ - on place toujours à la fin
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -462,7 +449,17 @@ export async function movePlacementToTactique(
       ...doc.data()
     }));
 
-    // 3. Créer le placement dans la nouvelle tactique
+    // ✅ NOUVEAU : Utilise moveToEnd() pour déterminer l'ordre au lieu de newOrder
+    const orderContext = buildOrderContext(context, { sectionId: toSectionId, tactiqueId: toTactiqueId });
+    await moveToEnd([placementId], 'placement', orderContext);
+    
+    // Récupérer l'ordre mis à jour après moveToEnd()
+    const { getCurrentItems } = await import('./orderManagementService');
+    const placementsInDestination = await getCurrentItems('placement', orderContext);
+    const movedPlacement = placementsInDestination.find(p => p.id === placementId);
+    const finalOrder = movedPlacement?.order || 0;
+
+    // 3. Créer le placement dans la nouvelle tactique avec l'ordre calculé
     const newPlacementRef = doc(
       db,
       'clients', context.clientId,
@@ -478,7 +475,7 @@ export async function movePlacementToTactique(
     batch.set(newPlacementRef, {
       ...placementData,
       PL_TactiqueId: toTactiqueId,
-      PL_Order: newOrder,
+      PL_Order: finalOrder, // ✅ CHANGÉ : Utilise l'ordre calculé par moveToEnd()
       updatedAt: new Date().toISOString()
     });
 
@@ -533,6 +530,7 @@ export async function movePlacementToTactique(
 
 /**
  * Déplace un créatif vers un nouveau placement.
+ * MISE À JOUR : Place le créatif déplacé à la fin de son nouveau placement avec moveToEnd()
  * @param context - Le contexte de réorganisation incluant clientId, campaignId, versionId et ongletId.
  * @param creatifId - L'ID du créatif à déplacer.
  * @param fromSectionId - L'ID de la section d'origine du placement parent.
@@ -541,7 +539,7 @@ export async function movePlacementToTactique(
  * @param toSectionId - L'ID de la section de destination du nouveau placement parent.
  * @param toTactiqueId - L'ID de la tactique de destination du nouveau placement parent.
  * @param toPlacementId - L'ID du placement de destination.
- * @param newOrder - Le nouvel ordre du créatif dans le placement de destination.
+ * @param newOrder - Le nouvel ordre du créatif dans le placement de destination (DEPRECIÉ - utilise moveToEnd).
  * @returns Une promesse qui se résout une fois le créatif déplacé.
  */
 export async function moveCreatifToPlacement(
@@ -553,7 +551,7 @@ export async function moveCreatifToPlacement(
   toSectionId: string,
   toTactiqueId: string,
   toPlacementId: string,
-  newOrder: number
+  newOrder: number // ✅ PARAMÈTRE IGNORÉ - on place toujours à la fin
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -579,7 +577,17 @@ export async function moveCreatifToPlacement(
 
     const creatifData = creatifSnap.data() as Creatif;
 
-    // 2. Créer le créatif dans le nouveau placement
+    // ✅ NOUVEAU : Utilise moveToEnd() pour déterminer l'ordre au lieu de newOrder
+    const orderContext = buildOrderContext(context, { sectionId: toSectionId, tactiqueId: toTactiqueId, placementId: toPlacementId });
+    await moveToEnd([creatifId], 'creatif', orderContext);
+    
+    // Récupérer l'ordre mis à jour après moveToEnd()
+    const { getCurrentItems } = await import('./orderManagementService');
+    const creatifsInDestination = await getCurrentItems('creatif', orderContext);
+    const movedCreatif = creatifsInDestination.find(c => c.id === creatifId);
+    const finalOrder = movedCreatif?.order || 0;
+
+    // 2. Créer le créatif dans le nouveau placement avec l'ordre calculé
     const newCreatifRef = doc(
       db,
       'clients', context.clientId,
@@ -596,7 +604,7 @@ export async function moveCreatifToPlacement(
     batch.set(newCreatifRef, {
       ...creatifData,
       CR_PlacementId: toPlacementId,
-      CR_Order: newOrder,
+      CR_Order: finalOrder, // ✅ CHANGÉ : Utilise l'ordre calculé par moveToEnd()
       updatedAt: new Date().toISOString()
     });
 

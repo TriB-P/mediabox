@@ -2,6 +2,8 @@
  * Ce fichier contient les fonctions nécessaires pour dupliquer des éléments (sections, tactiques, placements, créatifs)
  * au sein de la base de données Firebase. Il gère la création de copies avec de nouveaux noms et le maintien
  * de la hiérarchie en dupliquant également les éléments enfants.
+ * 
+ * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import {
   collection,
@@ -15,6 +17,10 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Section, Tactique, Placement, Creatif } from '../types/tactiques';
+import {
+  getNextOrder,
+  type OrderContext
+} from './orderManagementService';
 
 export interface DuplicationContext {
   clientId: string;
@@ -31,6 +37,19 @@ export interface DuplicationResult {
 
 interface DuplicationMapping {
   [originalId: string]: string; // originalId -> newId
+}
+
+/**
+ * Construit le contexte d'ordre pour le service orderManagementService
+ */
+function buildOrderContext(context: DuplicationContext, additionalContext: Partial<OrderContext> = {}): OrderContext {
+  return {
+    clientId: context.clientId,
+    campaignId: context.campaignId,
+    versionId: context.versionId,
+    ongletId: context.ongletId,
+    ...additionalContext
+  };
 }
 
 /**
@@ -51,34 +70,8 @@ function generateDuplicateName(originalName: string): string {
 }
 
 /**
- * Trouve le prochain ordre disponible pour un élément dans une collection donnée.
- * @param collectionRef La référence de la collection Firebase.
- * @param orderField Le nom du champ utilisé pour l'ordre (ex: 'CR_Order', 'PL_Order').
- * @returns Le prochain ordre disponible.
- */
-async function getNextAvailableOrder(
-  collectionRef: any,
-  orderField: string
-): Promise<number> {
-  try {
-    console.log("FIREBASE: LECTURE - Fichier: duplicationService.ts - Fonction: getNextAvailableOrder - Path: " + collectionRef.path);
-    const q = query(collectionRef, orderBy(orderField, 'desc'));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      return 0;
-    }
-
-    const highestOrder = (snapshot.docs[0].data() as any)[orderField] || 0;
-    return highestOrder + 1;
-  } catch (error) {
-    console.error('Erreur lors de la récupération de l\'ordre:', error);
-    return 0;
-  }
-}
-
-/**
  * Duplique un élément créatif dans Firebase.
+ * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source du créatif.
  * @param sourceTactiqueId L'ID de la tactique source du créatif.
@@ -133,12 +126,14 @@ async function duplicateCreatif(
       'creatifs'
     );
 
-    const newOrder = await getNextAvailableOrder(creatifsCollection, 'CR_Order');
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext(context, { sectionId: targetSectionId, tactiqueId: targetTactiqueId, placementId: targetPlacementId });
+    const newOrder = await getNextOrder('creatif', orderContext);
 
     const newCreatifData = {
       ...creatifData,
       CR_Label: generateDuplicateName(creatifData.CR_Label),
-      CR_Order: newOrder,
+      CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
       CR_PlacementId: targetPlacementId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -158,6 +153,7 @@ async function duplicateCreatif(
 
 /**
  * Duplique un élément placement dans Firebase, y compris tous ses créatifs enfants.
+ * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source du placement.
  * @param sourceTactiqueId L'ID de la tactique source du placement.
@@ -206,12 +202,14 @@ async function duplicatePlacement(
       'placements'
     );
 
-    const newOrder = await getNextAvailableOrder(placementsCollection, 'PL_Order');
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext(context, { sectionId: targetSectionId, tactiqueId: targetTactiqueId });
+    const newOrder = await getNextOrder('placement', orderContext);
 
     const newPlacementData = {
       ...placementData,
       PL_Label: generateDuplicateName(placementData.PL_Label),
-      PL_Order: newOrder,
+      PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
       PL_TactiqueId: targetTactiqueId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -260,6 +258,7 @@ async function duplicatePlacement(
 
 /**
  * Duplique un élément tactique dans Firebase, y compris tous ses placements et créatifs enfants.
+ * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source de la tactique.
  * @param sourceTactiqueId L'ID de la tactique à dupliquer.
@@ -302,12 +301,14 @@ async function duplicateTactique(
       'tactiques'
     );
 
-    const newOrder = await getNextAvailableOrder(tactiquesCollection, 'TC_Order');
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext(context, { sectionId: targetSectionId });
+    const newOrder = await getNextOrder('tactique', orderContext);
 
     const newTactiqueData = {
       ...tactiqueData,
       TC_Label: generateDuplicateName(tactiqueData.TC_Label),
-      TC_Order: newOrder,
+      TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
       TC_SectionId: targetSectionId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -353,6 +354,7 @@ async function duplicateTactique(
 
 /**
  * Duplique un élément section dans Firebase, y compris toutes ses tactiques, placements et créatifs enfants.
+ * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sectionId L'ID de la section à dupliquer.
  * @returns L'ID de la nouvelle section dupliquée.
@@ -389,12 +391,14 @@ async function duplicateSection(
       'sections'
     );
 
-    const newOrder = await getNextAvailableOrder(sectionsCollection, 'SECTION_Order');
+    // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
+    const orderContext = buildOrderContext(context);
+    const newOrder = await getNextOrder('section', orderContext);
 
     const newSectionData = {
       ...sectionData,
       SECTION_Name: generateDuplicateName(sectionData.SECTION_Name),
-      SECTION_Order: newOrder,
+      SECTION_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

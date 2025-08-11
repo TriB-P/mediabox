@@ -362,7 +362,6 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Label: '',
   TC_MPA:'',
   TC_Budget: 0,
-  TC_Order: 0,
   TC_SectionId: '',
   TC_Status: 'Planned',
   TC_Budget_Mode: 'media',
