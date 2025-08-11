@@ -1,4 +1,4 @@
-// components/CustomTetris.tsx
+// app/components/CustomTetris.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -86,8 +86,22 @@ const CustomTetris: React.FC = () => {
   );
   const [currentPiece, setCurrentPiece] = useState<Tetromino | null>(null);
   const [score, setScore] = useState(0);
+  const [linesCleared, setLinesCleared] = useState(0);
+  const [piecesPlaced, setPiecesPlaced] = useState(0);
+  const [gameSpeed, setGameSpeed] = useState(500); // Vitesse initiale en ms
   const [gameOver, setGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+
+  // Calculer la vitesse basée sur le nombre de pièces placées
+  const calculateSpeed = useCallback((pieces: number): number => {
+    // Vitesse de base : 500ms
+    // Réduction de 5ms par pièce placée
+    // Minimum : 50ms (très rapide)
+    const baseSpeed = 500;
+    const speedReduction = pieces * 20;
+    const newSpeed = Math.max(baseSpeed - speedReduction, 50);
+    return newSpeed;
+  }, []);
 
   // Générer une configuration initiale fixe avec des tetrominos pré-placés
   const generateInitialBoard = useCallback((): number[][] => {
@@ -206,11 +220,11 @@ const CustomTetris: React.FC = () => {
   // Supprimer les lignes complètes
   const clearLines = useCallback((boardToClear: number[][]): { newBoard: number[][]; linesCleared: number } => {
     const newBoard = [];
-    let linesCleared = 0;
+    let linesClearedCount = 0;
     
     for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
       if (boardToClear[y].every(cell => cell !== 0)) {
-        linesCleared++;
+        linesClearedCount++;
       } else {
         newBoard.unshift(boardToClear[y]);
       }
@@ -221,7 +235,7 @@ const CustomTetris: React.FC = () => {
       newBoard.unshift(Array(BOARD_WIDTH).fill(0));
     }
     
-    return { newBoard, linesCleared };
+    return { newBoard, linesCleared: linesClearedCount };
   }, []);
 
   // Déplacer la pièce vers le bas
@@ -235,10 +249,20 @@ const CustomTetris: React.FC = () => {
     } else {
       // Placer la pièce
       const newBoard = placePiece(currentPiece);
-      const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
+      const { newBoard: clearedBoard, linesCleared: newLinesCleared } = clearLines(newBoard);
       
       setBoard(clearedBoard);
-      setScore(prev => prev + linesCleared * 100 + 10);
+      const newScore = score + newLinesCleared * 100 + 10;
+      const totalLines = linesCleared + newLinesCleared;
+      const newPiecesPlaced = piecesPlaced + 1;
+      
+      setScore(newScore);
+      setLinesCleared(totalLines);
+      setPiecesPlaced(newPiecesPlaced);
+      
+      // Calculer et mettre à jour la vitesse basée sur les pièces placées
+      const newSpeed = calculateSpeed(newPiecesPlaced);
+      setGameSpeed(newSpeed);
       
       // Créer une nouvelle pièce
       const nextPiece = createNewPiece();
@@ -248,7 +272,7 @@ const CustomTetris: React.FC = () => {
         setGameOver(true);
       }
     }
-  }, [currentPiece, gameOver, isValidPosition, placePiece, clearLines, createNewPiece]);
+  }, [currentPiece, gameOver, isValidPosition, placePiece, clearLines, createNewPiece, score, linesCleared, piecesPlaced, calculateSpeed]);
 
   // Gérer les contrôles clavier
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
@@ -293,6 +317,10 @@ const CustomTetris: React.FC = () => {
     const initialBoard = generateInitialBoard();
     setBoard(initialBoard);
     setCurrentPiece(createNewPiece());
+    setScore(0);
+    setLinesCleared(0);
+    setPiecesPlaced(0);
+    setGameSpeed(500); // Réinitialiser la vitesse
     setGameStarted(true);
   }, [generateInitialBoard, createNewPiece]);
 
@@ -309,16 +337,16 @@ const CustomTetris: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [handleKeyPress]);
 
-  // Timer pour faire tomber les pièces
+  // Timer pour faire tomber les pièces - utilise gameSpeed pour l'accélération
   useEffect(() => {
     if (!gameStarted || gameOver) return;
     
     const interval = setInterval(() => {
       dropPiece();
-    }, 200); // Vitesse plus lente pour le format horizontal
+    }, gameSpeed); // Utilise la vitesse variable
     
     return () => clearInterval(interval);
-  }, [gameStarted, gameOver, dropPiece]);
+  }, [gameStarted, gameOver, dropPiece, gameSpeed]);
 
   // Créer le plateau d'affichage avec la pièce actuelle
   const displayBoard = React.useMemo(() => {
@@ -342,7 +370,6 @@ const CustomTetris: React.FC = () => {
   }, [board, currentPiece]);
 
   const restartGame = () => {
-    setScore(0);
     setGameOver(false);
     setGameStarted(false); // Ceci déclenchera une réinitialisation complète
   };
@@ -350,9 +377,12 @@ const CustomTetris: React.FC = () => {
   return (
     <div className="h-full w-full bg-transparent flex flex-col relative">
       
-      {/* Interface en haut - compacte */}
+      {/* Interface en haut - compacte avec vitesse */}
       <div className="flex items-center justify-between w-full px-4 py-1 bg-white/80 text-gray-800 text-sm border-b border-gray-200">
         <div className="font-bold">Score: {score}</div>
+        <div className="text-xs text-gray-600">
+          Lignes: {linesCleared} | Pièces: {piecesPlaced} | Vitesse: {gameSpeed}ms
+        </div>
       </div>
 
       {/* Plateau de jeu prend tout l'espace restant */}
@@ -383,7 +413,9 @@ const CustomTetris: React.FC = () => {
         <div className="absolute inset-[-12px] bg-black/50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-300 text-center">
             <h2 className="text-2xl font-bold text-red-600 mb-4">Game Over!</h2>
-            <p className="text-gray-700 mb-4">Score final: {score}</p>
+            <p className="text-gray-700 mb-2">Finale score: {score}</p>
+            <p className="text-gray-700 mb-2">Full rows: {linesCleared}</p>
+            <p className="text-gray-700 mb-4">Blocks: {piecesPlaced}</p>
             <button 
               onClick={restartGame}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
