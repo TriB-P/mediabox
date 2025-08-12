@@ -11,7 +11,7 @@ import type {
 } from '../../../types/tactiques';
 import { TAXONOMY_VARIABLE_REGEX } from '../../../config/taxonomyFields';
 import { StarIcon } from 'lucide-react';
-
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 // ==================== TYPES ====================
 
@@ -49,6 +49,7 @@ export default function TaxonomyPreview({
   levelsToShow = [1, 2, 3, 4] // 🔥 NOUVEAU : Par défaut niveaux 1-4 (placements)
 }: TaxonomyPreviewProps) {
 
+  const { t } = useTranslation();
   // ==================== FONCTIONS UTILITAIRES ====================
   
   const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'créatif' => {
@@ -135,7 +136,7 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
         <span 
           key={match.index}
           className={`inline-flex items-center px-2 py-1 mx-0.5 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} ${highlightClasses} ${!hasValue ? 'border-2 border-red-400' : ''}`}
-          title={`Variable: ${variableName} | Format: ${format} | Source: ${source}`}
+          title={`${t('taxonomyPreview.variableTooltip.variable')}: ${variableName} | ${t('taxonomyPreview.variableTooltip.format')}: ${format} | ${t('taxonomyPreview.variableTooltip.source')}: ${source}`}
         >
           {content}
         </span>
@@ -164,14 +165,14 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
       return {
         number: levelNum,
         name,
-        title: title || `Niveau ${levelNum}`
+        title: title || `${t('taxonomyPreview.level.title')} ${levelNum}`
       };
     }).filter(level => level.name);
 
     if (levels.length === 0) {
       return (
         <div className="text-sm text-gray-500 italic">
-          Aucun niveau {levelsToShow.join(', ')} configuré pour cette taxonomie
+          {t('taxonomyPreview.level.noneConfigured', { levels: levelsToShow.join(', ') })}
         </div>
       );
     }
@@ -222,8 +223,8 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
   if (parsedVariables.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
-        <h4 className="text-md font-medium text-gray-900 mb-2">Aperçu des taxonomies</h4>
-        <p className="text-sm">L'aperçu apparaîtra une fois les taxonomies sélectionnées et analysées.</p>
+        <h4 className="text-md font-medium text-gray-900 mb-2">{t('taxonomyPreview.title')}</h4>
+        <p className="text-sm">{t('taxonomyPreview.placeholder.description')}</p>
       </div>
     );
   }
@@ -232,12 +233,12 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-md font-medium text-gray-900">
-          Aperçu des taxonomies
+          {t('taxonomyPreview.title')}
         </h4>
         {hasLoadingFields && (
           <div className="flex items-center text-sm text-blue-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
-            Chargement...
+            {t('common.loading')}
           </div>
         )}
       </div>
@@ -245,25 +246,25 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
         <div className="space-y-2">
           <div>
-            <div className="text-xs font-medium text-gray-500 mb-1">Source de la valeur :</div>
+            <div className="text-xs font-medium text-gray-500 mb-1">{t('taxonomyPreview.source.title')}</div>
             <div className="flex flex-wrap gap-2 text-xs">
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Campagne</span>
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded">Tactique</span>
-              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Placement</span>
-              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">Créatif</span>
-              <span className="px-2 py-1 bg-white text-black border-2 border-red-400 rounded">Valeur manquante</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{t('taxonomyPreview.source.campaign')}</span>
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded">{t('taxonomyPreview.source.tactic')}</span>
+              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">{t('taxonomyPreview.source.placement')}</span>
+              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">{t('taxonomyPreview.source.creative')}</span>
+              <span className="px-2 py-1 bg-white text-black border-2 border-red-400 rounded">{t('taxonomyPreview.source.missingValue')}</span>
             </div>
           </div>
           <div className="text-xs text-gray-600 pt-1">
-            💡 Survolez un champ à configurer pour le mettre en surbrillance ici.
+            {t('taxonomyPreview.helpText.hover')}
           </div>
         </div>
       </div>
       
       <div className="space-y-3">
-        {selectedTaxonomyData.tags && renderTaxonomyCard('tags', selectedTaxonomyData.tags, 'bg-grey-50 text-grey-900', 'Tags')}
-        {selectedTaxonomyData.platform && renderTaxonomyCard('platform', selectedTaxonomyData.platform, 'bg-grey-50 text-grey-900', 'Platform')}
-        {selectedTaxonomyData.mediaocean && renderTaxonomyCard('mediaocean', selectedTaxonomyData.mediaocean, 'bg-grey-50 text-grey-900', 'MediaOcean')}
+        {selectedTaxonomyData.tags && renderTaxonomyCard('tags', selectedTaxonomyData.tags, 'bg-grey-50 text-grey-900', t('taxonomyPreview.card.tags'))}
+        {selectedTaxonomyData.platform && renderTaxonomyCard('platform', selectedTaxonomyData.platform, 'bg-grey-50 text-grey-900', t('taxonomyPreview.card.platform'))}
+        {selectedTaxonomyData.mediaocean && renderTaxonomyCard('mediaocean', selectedTaxonomyData.mediaocean, 'bg-grey-50 text-grey-900', t('taxonomyPreview.card.mediaocean'))}
       </div>
     </div>
   );

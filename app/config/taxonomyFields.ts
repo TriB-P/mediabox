@@ -76,6 +76,8 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'TC_Publisher': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'TC_Targeting_Open': { source: 'tactique',  allowedFormats: ['open'] },
   'TC_Unit_Type': { source: 'tactique',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'TC_Buy_Type': { source: 'tactique',  allowedFormats: ['open'] },
+
 
   'PL_Audience_Behaviour': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'PL_Audience_Demographics': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },

@@ -6,6 +6,7 @@ import React from 'react';
 import { PlacementFormData, Tactique } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
 import { FormSection, FormInput, SmartSelect, createLabelWithHelp } from '../Tactiques/TactiqueFormComponents';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface PlacementFormTagsProps {
   formData: PlacementFormData;
@@ -25,9 +26,11 @@ export default function PlacementFormTags({
   tactiqueData
 }: PlacementFormTagsProps) {
 
+  const { t } = useTranslation();
+
   // Options pour PL_Tag_Type
   const tagTypeOptions = [
-    { id: '', label: 'Sélectionner un type...' },
+    { id: '', label: t('placementFormTags.tagType.selectOption') },
     { id: 'Video-Hosted', label: 'Video-Hosted' },
     { id: 'Video-Tracked', label: 'Video-Tracked' },
     { id: 'Display-Hosted', label: 'Display-Hosted' },
@@ -38,8 +41,8 @@ export default function PlacementFormTags({
 
   // Options pour les champs boolean
   const booleanOptions = [
-    { id: 'true', label: 'Oui' },
-    { id: 'false', label: 'Non' }
+    { id: 'true', label: t('common.yes') },
+    { id: 'false', label: t('common.no') }
   ];
 
   // Options pour PL_Creative_Rotation_Type
@@ -53,8 +56,8 @@ export default function PlacementFormTags({
   return (
     <div className="space-y-6 p-4">
       <FormSection 
-        title="Configuration des Tags"
-        description="Configurez les paramètres de trafficking pour ce placement."
+        title={t('placementFormTags.section.title')}
+        description={t('placementFormTags.section.description')}
       >
         {/* Section Dates */}
         <div className="p-4 rounded-lg space-y-4">
@@ -66,8 +69,8 @@ export default function PlacementFormTags({
               onChange={onChange}
               type="date"
               label={createLabelWithHelp(
-                'Date de début tag',
-                'Date de début pour le tagging (par défaut : date de début du placement - 30 jours)',
+                t('placementFormTags.dates.startDateLabel'),
+                t('placementFormTags.dates.startDateTooltip'),
                 onTooltipChange
               )}
             />
@@ -79,8 +82,8 @@ export default function PlacementFormTags({
               onChange={onChange}
               type="date"
               label={createLabelWithHelp(
-                'Date de fin tag',
-                'Date de fin pour le tagging (par défaut : date de fin du placement + 30 jours)',
+                t('placementFormTags.dates.endDateLabel'),
+                t('placementFormTags.dates.endDateTooltip'),
                 onTooltipChange
               )}
             />
@@ -95,10 +98,10 @@ export default function PlacementFormTags({
             value={formData.PL_Tag_Type || ''}
             onChange={onChange}
             options={tagTypeOptions}
-            placeholder="Sélectionner un type de tag..."
+            placeholder={t('placementFormTags.tagType.placeholder')}
             label={createLabelWithHelp(
-              'Type de tag',
-              'Sélectionnez le type de tag approprié selon le format média',
+              t('placementFormTags.tagType.label'),
+              t('placementFormTags.tagType.tooltip'),
               onTooltipChange
             )}
           />
@@ -112,10 +115,10 @@ export default function PlacementFormTags({
             value={formData.PL_Creative_Rotation_Type || ''}
             onChange={onChange}
             options={rotationTypeOptions}
-            placeholder="Sélectionner un type de rotation..."
+            placeholder={t('placementFormTags.rotation.placeholder')}
             label={createLabelWithHelp(
-              'Type de rotation créatif',
-              'Définit comment les créatifs de ce placement seront affichés en rotation',
+              t('placementFormTags.rotation.label'),
+              t('placementFormTags.rotation.tooltip'),
               onTooltipChange
             )}
           />
@@ -128,10 +131,10 @@ export default function PlacementFormTags({
               value={formData.PL_Floodlight || ''}
               onChange={onChange}
               type="text"
-              placeholder="Entrez le nom ET le ID du floodlight"
+              placeholder={t('placementFormTags.floodlight.placeholder')}
               label={createLabelWithHelp(
-                'Configuration Floodlight',
-                'Paramètres spécifiques pour la configuration Floodlight',
+                t('placementFormTags.floodlight.label'),
+                t('placementFormTags.floodlight.tooltip'),
                 onTooltipChange
               )}
             />
@@ -148,7 +151,8 @@ export default function PlacementFormTags({
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-blue-700">
-                    <strong>Rotation pondérée activée :</strong> Vous pourrez définir un poids de rotation (%) pour chaque créatif de ce placement dans l'onglet Tags des créatifs.
+                    <strong>{t('placementFormTags.weightedInfo.title')}</strong>
+                    {' '}{t('placementFormTags.weightedInfo.text')}
                   </p>
                 </div>
               </div>
@@ -165,10 +169,10 @@ export default function PlacementFormTags({
             value={formData.PL_Third_Party_Measurement === true || formData.PL_Third_Party_Measurement ? 'true' : 'false'}
             onChange={onChange}
             options={booleanOptions}
-            placeholder="Sélectionner..."
+            placeholder={t('placementFormTags.advanced.selectPlaceholder')}
             label={createLabelWithHelp(
-              'Mesure partenaire externe (ex : Double Verify)',
-              'Active ou désactive la mesure par un partenaire externe.',
+              t('placementFormTags.advanced.thirdPartyMeasurementLabel'),
+              t('placementFormTags.advanced.thirdPartyMeasurementTooltip'),
               onTooltipChange
             )}
           />
@@ -179,10 +183,10 @@ export default function PlacementFormTags({
             value={formData.PL_VPAID === true || formData.PL_VPAID ? 'true' : 'false'}
             onChange={onChange}
             options={booleanOptions}
-            placeholder="Sélectionner..."
+            placeholder={t('placementFormTags.advanced.selectPlaceholder')}
             label={createLabelWithHelp(
-              'VPAID',
-              'Active ou désactive VPAID (Video Player-Ad Interface Definition)',
+              t('placementFormTags.advanced.vpaidLabel'),
+              t('placementFormTags.advanced.vpaidTooltip'),
               onTooltipChange
             )}
           />

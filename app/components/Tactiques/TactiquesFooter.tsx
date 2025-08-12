@@ -18,6 +18,7 @@ import {
   EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
 import { Onglet } from '../../types/tactiques';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TactiquesFooterProps {
   viewMode: 'hierarchy' | 'table' | 'timeline';
@@ -53,6 +54,7 @@ export default function TactiquesFooter({
   onRenameOnglet,
   onDeleteOnglet
 }: TactiquesFooterProps) {
+  const { t } = useTranslation();
   const [editingOnglet, setEditingOnglet] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showMenuForOnglet, setShowMenuForOnglet] = useState<string | null>(null);
@@ -147,15 +149,15 @@ export default function TactiquesFooter({
   const handleDeleteOnglet = async (id: string) => {
     if (onglets.length > 1) {
       const ongletToDelete = onglets.find(o => o.id === id);
-      const ongletName = ongletToDelete ? ongletToDelete.ONGLET_Name : 'cet onglet';
+      const ongletName = ongletToDelete ? ongletToDelete.ONGLET_Name : t('tacticsFooter.tabs.fallbackName');
       
-      if (confirm(`Êtes-vous sûr de vouloir supprimer l'onglet "${ongletName}" ? Cette action supprimera également toutes les sections et tactiques associées.`)) {
+      if (confirm(t('tacticsFooter.tabs.deleteConfirmation', { ongletName }))) {
         setShowMenuForOnglet(null);
         console.log("FIREBASE: ÉCRITURE - Fichier: TactiquesFooter.tsx - Fonction: handleDeleteOnglet - Path: onglets/${id}");
         await onDeleteOnglet(id);
       }
     } else {
-      alert('Impossible de supprimer le dernier onglet');
+      alert(t('tacticsFooter.tabs.deleteLastError'));
     }
   };
   
@@ -198,7 +200,7 @@ export default function TactiquesFooter({
                   <button 
                     className="ml-2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded-full focus:outline-none transition-opacity duration-200"
                     onClick={() => handleDeleteOnglet(onglet.id)}
-                    title="Supprimer l'onglet"
+                    title={t('tacticsFooter.tabs.deleteTitle')}
                   >
                     <XMarkIcon className="h-4 w-4" />
                   </button>
@@ -210,7 +212,7 @@ export default function TactiquesFooter({
                     e.stopPropagation();
                     handleStartEdit(onglet, e);
                   }}
-                  title="Renommer l'onglet"
+                  title={t('tacticsFooter.tabs.renameTitle')}
                 >
                   <PencilIcon className="h-3 w-3" />
                 </button>
@@ -220,7 +222,7 @@ export default function TactiquesFooter({
             <button 
               onClick={onAddOnglet}
               className="px-3 py-2 text-gray-600 hover:bg-gray-200 focus:outline-none"
-              title="Ajouter un onglet"
+              title={t('tacticsFooter.tabs.addTitle')}
             >
               <PlusIcon className="h-5 w-5" />
             </button>
@@ -232,7 +234,7 @@ export default function TactiquesFooter({
               className={`p-2 rounded-full ${
                 viewMode === 'hierarchy' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
               }`}
-              title="Vue hiérarchique"
+              title={t('tacticsFooter.viewMode.hierarchy')}
             >
               <ListBulletIcon className="h-5 w-5" />
             </button>
@@ -241,7 +243,7 @@ export default function TactiquesFooter({
               className={`p-2 rounded-full ${
                 viewMode === 'table' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
               }`}
-              title="Vue tableau"
+              title={t('tacticsFooter.viewMode.table')}
             >
               <TableCellsIcon className="h-5 w-5" />
             </button>
@@ -250,7 +252,7 @@ export default function TactiquesFooter({
               className={`p-2 rounded-full ${
                 viewMode === 'timeline' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
               }`}
-              title="Vue timeline"
+              title={t('tacticsFooter.viewMode.timeline')}
             >
               <ViewColumnsIcon className="h-5 w-5" />
             </button>

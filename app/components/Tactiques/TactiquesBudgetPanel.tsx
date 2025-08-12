@@ -7,12 +7,10 @@
  * Il inclut également des détails sur les frais (tactiques + personnalisés client) et une répartition du budget par section,
  * représentée par un graphique en forme de beignet.
  * Les données sont chargées depuis Firebase via des services dédiés.
- * 
- * NOUVELLE FONCTIONNALITÉ : Intégration des frais personnalisés du client
+ * * NOUVELLE FONCTIONNALITÉ : Intégration des frais personnalisés du client
  * - Affichage des frais définis dans CL_Custom_Fee_1,2,3 avec montants CA_Custom_Fee_1,2,3
  * - Inclusion dans les calculs de budget client total et différence
- * 
- * MISE À JOUR : Conversion des frais tactiques en devise de référence
+ * * MISE À JOUR : Conversion des frais tactiques en devise de référence
  * - Les frais tactiques sont maintenant multipliés par TC_Currency_Rate
  * - Ajout d'un indicateur de devise dans le header
  * - Cohérence du symbole de devise partout
@@ -35,7 +33,7 @@ import { getClientInfo, ClientInfo } from '../../lib/clientService';
 import { useClient } from '../../contexts/ClientContext';
 import { useSelection } from '../../contexts/SelectionContext';
 import { useCampaignData, formatCurrencyAmount } from '../../hooks/useCampaignData';
-
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TactiquesBudgetPanelProps {
   selectedCampaign: Campaign | null;
@@ -74,6 +72,7 @@ interface DonutChartProps {
 }
 
 const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
+  const { t } = useTranslation();
   const total = data.reduce((sum, item) => sum + item.value, 0);
   
   if (total === 0) {
@@ -82,7 +81,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
         className="flex items-center justify-center rounded-full bg-gray-100"
         style={{ width: size, height: size }}
       >
-        <span className="text-xs text-gray-500">Aucune donnée</span>
+        <span className="text-xs text-gray-500">{t('donutChart.noData')}</span>
       </div>
     );
   }
@@ -141,7 +140,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
           {data.length}
         </div>
         <div className="text-xs text-gray-500">
-          sections
+          {t('donutChart.sections')}
         </div>
       </div>
     </div>
@@ -188,6 +187,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   setDisplayScope,
   clientInfo,
 }) => {
+  const { t } = useTranslation();
   const [showFeeDetails, setShowFeeDetails] = useState(false);
   const [showSectionBreakdown, setShowSectionBreakdown] = useState(true);
   
@@ -295,11 +295,11 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       
     } catch (error) {
       console.error('💥 Erreur lors du chargement de tous les onglets:', error);
-      setAllTabsError('Erreur lors du chargement des données');
+      setAllTabsError(t('budgetPanel.errorLoadingData'));
     } finally {
       setIsLoadingAllTabs(false);
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, t]);
 
   /**
    * Effet de bord qui déclenche le chargement des données de tous les onglets
@@ -435,7 +435,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     const feeNumber = parseInt(match[1], 10);
     
     if (!clientFees || !Array.isArray(clientFees) || clientFees.length === 0) {
-      return `Frais ${feeNumber}`;
+      return `${t('feeDetails.defaultFeeLabel')} ${feeNumber}`;
     }
     
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
@@ -445,8 +445,8 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       return sortedFees[feeIndex].FE_Name;
     }
     
-    return `Frais ${feeNumber}`;
-  }, [clientFees]);
+    return `${t('feeDetails.defaultFeeLabel')} ${feeNumber}`;
+  }, [clientFees, t]);
 
   const difference = selectedCampaign.CA_Budget - totals.totalClientBudget;
 
@@ -454,7 +454,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Afficher le budget pour:
+          {t('budgetPanel.displayBudgetFor')}
         </label>
         <div className="flex rounded-md shadow-sm">
           <button
@@ -463,7 +463,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300
               ${displayScope === 'currentTab' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
           >
-            Onglet actuel
+            {t('budgetPanel.currentTab')}
           </button>
           <button
             type="button"
@@ -473,13 +473,13 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
               ${displayScope === 'allTabs' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}
               ${isLoadingAllTabs ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isLoadingAllTabs ? 'Chargement...' : 'Tous les onglets'}
+            {isLoadingAllTabs ? t('common.loading') : t('budgetPanel.allTabs')}
           </button>
         </div>
         
         {isLoadingAllTabs && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-            🔄 Chargement des données de tous les onglets...
+            {t('budgetPanel.loadingAllTabsData')}
           </div>
         )}
         
@@ -490,7 +490,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
               onClick={loadAllTabsData}
               className="ml-2 text-red-800 underline hover:no-underline"
             >
-              Réessayer
+              {t('budgetPanel.retry')}
             </button>
           </div>
         )}
@@ -499,7 +499,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       <div className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
           <h4 className="text-sm font-semibold text-gray-800">
-            Totaux {displayScope === 'allTabs' ? '(Tous les onglets)' : '(Onglet actuel)'}
+            {t('budgetPanel.totals')} {displayScope === 'allTabs' ? t('budgetPanel.allTabsParenthesis') : t('budgetPanel.currentTabParenthesis')}
           </h4>
         </div>
         
@@ -507,7 +507,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
         <div className="p-3 space-y-2">
 
         <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Budget média:</span>
+            <span className="text-gray-600">{t('budgetTotals.mediaBudget')}:</span>
             <span className="font-medium">{formatCurrency(totals.totalMediaBudgetWithBonification)}</span>
           </div>
           
@@ -523,20 +523,20 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           
   
           <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Frais tactiques:</span>
+            <span className="text-gray-600">{t('budgetTotals.tacticFees')}:</span>
             <span className="font-medium text-blue-700">+{formatCurrency(totals.totalTactiqueFees)}</span>
           </div>
           <div className="flex justify-between items-center text-lg font-bold border-t border-gray-200 pt-2 mt-2">
-            <span>Budget client total:</span>
+            <span>{t('budgetTotals.totalClientBudget')}:</span>
             <span>{formatCurrency(totals.totalClientBudget)}</span>
           </div>
           <div className="flex justify-between items-center text-sm pt-2" style={{ borderTop: '1px dashed #e5e7eb' }}>
 
-            <span className="text-gray-600">Budget de la campagne:</span>
+            <span className="text-gray-600">{t('budgetTotals.campaignBudget')}:</span>
             <span className="font-medium">{formatCurrency(selectedCampaign.CA_Budget)}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Différence:</span>
+            <span className="text-gray-600">{t('budgetTotals.difference')}:</span>
             <span className={`font-medium ${difference < 0 ? 'text-red-700' : 'text-green-700'}`}>
               {formatCurrency(difference)}
             </span>
@@ -549,7 +549,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           className="flex justify-between items-center w-full p-3 bg-gray-50 border-b border-gray-200 focus:outline-none"
           onClick={() => setShowFeeDetails(!showFeeDetails)}
         >
-          <h4 className="text-sm font-semibold text-gray-800">Détail des frais</h4>
+          <h4 className="text-sm font-semibold text-gray-800">{t('feeDetails.title')}</h4>
           {showFeeDetails ? (
             <ChevronUpIcon className="h-4 w-4 text-gray-500" />
           ) : (
@@ -562,7 +562,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             {totals.customClientFees.length > 0 && (
               <>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Frais de campagne
+                  {t('feeDetails.campaignFees')}
                 </div>
                 {totals.customClientFees.map((fee) => (
                   <div key={fee.key} className="flex justify-between items-center text-sm">
@@ -574,7 +574,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
                 {Object.entries(totals.rawFeeTotals).filter(([, amount]) => amount > 0).length > 0 && (
                   <div className="border-t border-gray-100 pt-2 mt-2">
                     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Frais tactiques
+                      {t('feeDetails.tacticFeesHeader')}
                     </div>
                   </div>
                 )}
@@ -593,7 +593,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             
             {totals.customClientFees.length === 0 && 
              (Object.keys(totals.rawFeeTotals).length === 0 || Object.values(totals.rawFeeTotals).every(amount => amount === 0)) && (
-                <p className="text-sm text-gray-500 italic">Aucun frais appliqué.</p>
+                <p className="text-sm text-gray-500 italic">{t('feeDetails.noFeesApplied')}</p>
             )}
           </div>
         )}
@@ -605,7 +605,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           onClick={() => setShowSectionBreakdown(!showSectionBreakdown)}
         >
           <h4 className="text-sm font-semibold text-gray-800">
-            Répartition par section {displayScope === 'allTabs' ? '(Tous onglets)' : ''}
+            {t('sectionBreakdown.title')} {displayScope === 'allTabs' ? t('sectionBreakdown.allTabsParenthesis') : ''}
           </h4>
           <div className="flex items-center gap-2">
             <ChartPieIcon className="h-4 w-4 text-gray-500" />
@@ -674,7 +674,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
               </div>
             ) : (
               <p className="text-sm text-gray-500 italic">
-                {isLoadingAllTabs ? 'Chargement des données...' : 'Aucune section ou budget défini.'}
+                {isLoadingAllTabs ? t('sectionBreakdown.loadingData') : t('sectionBreakdown.noSectionOrBudget')}
               </p>
             )}
           </div>
@@ -701,20 +701,21 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
   tactiques,
   formatCurrency,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-800">Indicateurs de campagne</h4>
+          <h4 className="text-sm font-semibold text-gray-800">{t('budgetIndicators.title')}</h4>
         </div>
         <div className="p-8 text-center">
           <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Indicateurs</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('budgetIndicators.header')}</h3>
           <p className="text-gray-500 mb-4">
-            Les indicateurs de campagne seront bientôt disponibles. Ils vous permettront de voir le taux de média locaux, de média numérique et le niveau de complexité de votre campagne
+            {t('budgetIndicators.description')}
           </p>
           <div className="text-sm text-gray-400">
-            🚧 En construction
+            {t('budgetIndicators.underConstruction')}
           </div>
         </div>
       </div>
@@ -736,6 +737,7 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   formatCurrency,
   clientFees = [],
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<PanelTab>('totals');
   const [displayScope, setDisplayScope] = useState<DisplayScope>('currentTab');
   
@@ -776,12 +778,12 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
       setClientInfo(info);
     } catch (error) {
       console.error('Erreur lors du chargement des informations client:', error);
-      setClientInfoError('Impossible de charger les informations client');
+      setClientInfoError(t('budgetPanel.clientInfoError'));
       setClientInfo(null);
     } finally {
       setLoadingClientInfo(false);
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Effet pour charger les informations client quand le client sélectionné change
@@ -793,7 +795,7 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
   if (!selectedCampaign) {
     return (
       <div className="w-80 bg-white border-l border-gray-200 p-4 text-center text-gray-500">
-        Sélectionnez une campagne pour voir le budget.
+        {t('budgetPanel.selectCampaign')}
       </div>
     );
   }
@@ -803,7 +805,7 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
       {/* NOUVEAU : Header avec indicateur de devise */}
       <div className="p-4 border-b border-gray-200 bg-indigo-50">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold text-gray-900">Budget</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('budgetPanel.header')}</h3>
           {selectedCampaign.CA_Currency && (
             <div className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md text-xs font-medium">
               <CurrencyDollarIcon className="h-3 w-3" />
@@ -820,7 +822,7 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
               ${activeTab === 'totals' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
           >
             <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-            Totaux
+            {t('budgetPanel.totalsTab')}
           </button>
           <button
             type="button"
@@ -829,7 +831,7 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
               ${activeTab === 'indicators' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
           >
             <ChartBarIcon className="h-4 w-4 mr-1" />
-            Indicateurs
+            {t('budgetPanel.indicatorsTab')}
           </button>
         </div>
       </div>
@@ -843,7 +845,7 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
               onClick={loadClientInfo}
               className="ml-2 text-amber-800 underline hover:no-underline"
             >
-              Réessayer
+              {t('budgetPanel.retry')}
             </button>
           </div>
         )}

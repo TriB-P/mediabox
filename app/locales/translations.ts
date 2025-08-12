@@ -1917,10 +1917,149 @@ export const translations = {
         description: "Les calculs se baseront uniquement sur le budget média sans valeur ajoutée."
       }
     },
+    donutChart: {
+      noData: "Aucune donnée",
+      sections: "sections"
+    },
+    budgetPanel: {
+      displayBudgetFor: "Afficher le budget pour:",
+      currentTab: "Onglet actuel",
+      allTabs: "Tous les onglets",
+      loadingAllTabsData: "🔄 Chargement des données de tous les onglets...",
+      errorLoadingData: "Erreur lors du chargement des données",
+      retry: "Réessayer",
+      totals: "Totaux",
+      allTabsParenthesis: "(Tous les onglets)",
+      currentTabParenthesis: "(Onglet actuel)",
+      totalsTab: "Totaux",
+      indicatorsTab: "Indicateurs",
+      header: "Budget",
+      clientInfoError: "Impossible de charger les informations client",
+      selectCampaign: "Sélectionnez une campagne pour voir le budget."
+    },
+    budgetTotals: {
+      mediaBudget: "Budget média",
+      tacticFees: "Frais tactiques",
+      totalClientBudget: "Budget client total",
+      campaignBudget: "Budget de la campagne",
+      difference: "Différence"
+    },
+    feeDetails: {
+      title: "Détail des frais",
+      campaignFees: "Frais de campagne",
+      tacticFeesHeader: "Frais tactiques",
+      defaultFeeLabel: "Frais",
+      noFeesApplied: "Aucun frais appliqué."
+    },
+    sectionBreakdown: {
+      title: "Répartition par section",
+      allTabsParenthesis: "(Tous onglets)",
+      loadingData: "Chargement des données...",
+      noSectionOrBudget: "Aucune section ou budget défini."
+    },
+    budgetIndicators: {
+      title: "Indicateurs de campagne",
+      header: "Indicateurs",
+      description: "Les indicateurs de campagne seront bientôt disponibles. Ils vous permettront de voir le taux de média locaux, de média numérique et le niveau de complexité de votre campagne",
+      underConstruction: "🚧 En construction"
+    },
+    tacticsFooter: {
+      tabs: {
+        fallbackName: "cet onglet",
+        deleteConfirmation: "Êtes-vous sûr de vouloir supprimer l'onglet \"{{ongletName}}\" ? Cette action supprimera également toutes les sections et tactiques associées.",
+        deleteLastError: "Impossible de supprimer le dernier onglet",
+        deleteTitle: "Supprimer l'onglet",
+        renameTitle: "Renommer l'onglet",
+        addTitle: "Ajouter un onglet"
+      },
+      viewMode: {
+        hierarchy: "Vue hiérarchique",
+        table: "Vue tableau",
+        timeline: "Vue timeline"
+      }
+    },
+    taxonomyPreview: {
+      title: "Aperçu des taxonomies",
+      variableTooltip: {
+        variable: "Variable",
+        format: "Format",
+        source: "Source",
+      },
+      level: {
+        title: "Niveau",
+        noneConfigured: "Aucun niveau {{levels}} configuré pour cette taxonomie",
+      },
+      placeholder: {
+        description: "L'aperçu apparaîtra une fois les taxonomies sélectionnées et analysées.",
+      },
+      source: {
+        title: "Source de la valeur :",
+        campaign: "Campagne",
+        tactic: "Tactique",
+        placement: "Placement",
+        creative: "Créatif",
+        missingValue: "Valeur manquante",
+      },
+      helpText: {
+        hover: "💡 Survolez un champ à configurer pour le mettre en surbrillance ici.",
+      },
+      card: {
+        tags: "Tags",
+        platform: "Platform",
+        mediaocean: "MediaOcean",
+      },
+    },
+    placementFormTags: {
+      section: {
+        title: "Configuration des Tags",
+        description: "Configurez les paramètres de trafficking pour ce placement."
+      },
+      dates: {
+        startDateLabel: "Date de début tag",
+        startDateTooltip: "Date de début pour le tagging (par défaut : date de début du placement - 30 jours)",
+        endDateLabel: "Date de fin tag",
+        endDateTooltip: "Date de fin pour le tagging (par défaut : date de fin du placement + 30 jours)"
+      },
+      tagType: {
+        label: "Type de tag",
+        tooltip: "Sélectionnez le type de tag approprié selon le format média",
+        selectOption: "Sélectionner un type...",
+        placeholder: "Sélectionner un type de tag..."
+      },
+      rotation: {
+        label: "Type de rotation créatif",
+        tooltip: "Définit comment les créatifs de ce placement seront affichés en rotation",
+        placeholder: "Sélectionner un type de rotation..."
+      },
+      floodlight: {
+        label: "Configuration Floodlight",
+        tooltip: "Paramètres spécifiques pour la configuration Floodlight",
+        placeholder: "Entrez le nom ET le ID du floodlight"
+      },
+      weightedInfo: {
+        title: "Rotation pondérée activée :",
+        text: "Vous pourrez définir un poids de rotation (%) pour chaque créatif de ce placement dans l'onglet Tags des créatifs."
+      },
+      advanced: {
+        thirdPartyMeasurementLabel: "Mesure partenaire externe (ex : Double Verify)",
+        thirdPartyMeasurementTooltip: "Active ou désactive la mesure par un partenaire externe.",
+        vpaidLabel: "VPAID",
+        vpaidTooltip: "Active ou désactive VPAID (Video Player-Ad Interface Definition)",
+        selectPlaceholder: "Sélectionner..."
+      }
+    },
+    placementDrawer: {
+      tabs: {
+        info: "Informations",
+        taxonomy: "Taxonomie",
+        tags: "Tags"
+      },
+      title: {
+        edit: "Modifier le placement: {{label}}",
+        new: "Nouveau placement"
+      }
+    },
 
-    
-    
-    
 
     },
 
@@ -3677,6 +3816,148 @@ export const translations = {
       disabled: {
         title: "Bonus disabled.",
         description: "Calculations will be based solely on the media budget without added value."
+      }
+    },
+    donutChart: {
+      noData: "No data",
+      sections: "sections"
+    },
+    budgetPanel: {
+      displayBudgetFor: "Display budget for:",
+      currentTab: "Current tab",
+      allTabs: "All tabs",
+      loadingAllTabsData: "🔄 Loading data for all tabs...",
+      errorLoadingData: "Error loading data",
+      retry: "Retry",
+      totals: "Totals",
+      allTabsParenthesis: "(All tabs)",
+      currentTabParenthesis: "(Current tab)",
+      totalsTab: "Totals",
+      indicatorsTab: "Indicators",
+      header: "Budget",
+      clientInfoError: "Could not load client information",
+      selectCampaign: "Select a campaign to see the budget."
+    },
+    budgetTotals: {
+      mediaBudget: "Media budget",
+      tacticFees: "Tactic fees",
+      totalClientBudget: "Total client budget",
+      campaignBudget: "Campaign budget",
+      difference: "Difference"
+    },
+    feeDetails: {
+      title: "Fee Details",
+      campaignFees: "Campaign Fees",
+      tacticFeesHeader: "Tactic Fees",
+      defaultFeeLabel: "Fee",
+      noFeesApplied: "No fees applied."
+    },
+    sectionBreakdown: {
+      title: "Breakdown by section",
+      allTabsParenthesis: "(All tabs)",
+      loadingData: "Loading data...",
+      noSectionOrBudget: "No section or budget defined."
+    },
+    budgetIndicators: {
+      title: "Campaign Indicators",
+      header: "Indicators",
+      description: "Campaign indicators will be available soon. They will allow you to see the local media rate, digital media rate, and the complexity level of your campaign.",
+      underConstruction: "🚧 Under construction"
+    },
+    tacticsFooter: {
+      tabs: {
+        fallbackName: "this tab",
+        deleteConfirmation: "Are you sure you want to delete the tab \"{{ongletName}}\"? This action will also delete all associated sections and tactics.",
+        deleteLastError: "Cannot delete the last tab",
+        deleteTitle: "Delete tab",
+        renameTitle: "Rename tab",
+        addTitle: "Add tab"
+      },
+      viewMode: {
+        hierarchy: "Hierarchy view",
+        table: "Table view",
+        timeline: "Timeline view"
+      }
+    },
+    taxonomyPreview: {
+      title: "Taxonomy Preview",
+      variableTooltip: {
+        variable: "Variable",
+        format: "Format",
+        source: "Source",
+      },
+      level: {
+        title: "Level",
+        noneConfigured: "No level {{levels}} configured for this taxonomy",
+      },
+      placeholder: {
+        description: "The preview will appear once taxonomies are selected and analyzed.",
+      },
+      source: {
+        title: "Value source:",
+        campaign: "Campaign",
+        tactic: "Tactic",
+        placement: "Placement",
+        creative: "Creative",
+        missingValue: "Missing value",
+      },
+      helpText: {
+        hover: "💡 Hover over a field to configure to highlight it here.",
+      },
+      card: {
+        tags: "Tags",
+        platform: "Platform",
+        mediaocean: "MediaOcean",
+      },
+    },
+    placementFormTags: {
+      section: {
+        title: "Tag Configuration",
+        description: "Configure the trafficking settings for this placement."
+      },
+      dates: {
+        startDateLabel: "Tag Start Date",
+        startDateTooltip: "Tagging start date (default: placement start date - 30 days)",
+        endDateLabel: "Tag End Date",
+        endDateTooltip: "Tagging end date (default: placement end date + 30 days)"
+      },
+      tagType: {
+        label: "Tag Type",
+        tooltip: "Select the appropriate tag type for the media format",
+        selectOption: "Select a type...",
+        placeholder: "Select a tag type..."
+      },
+      rotation: {
+        label: "Creative Rotation Type",
+        tooltip: "Defines how creatives for this placement will be rotated",
+        placeholder: "Select a rotation type..."
+      },
+      floodlight: {
+        label: "Floodlight Configuration",
+        tooltip: "Specific settings for the Floodlight configuration",
+        placeholder: "Enter the Floodlight name AND ID"
+      },
+      weightedInfo: {
+        title: "Weighted rotation enabled:",
+        text: "You will be able to define a rotation weight (%) for each creative in this placement in the Creative Tags tab."
+      },
+      advanced: {
+        thirdPartyMeasurementLabel: "Third-Party Measurement (e.g., Double Verify)",
+        thirdPartyMeasurementTooltip: "Enables or disables third-party measurement.",
+        vpaidLabel: "VPAID",
+        vpaidTooltip: "Enables or disables VPAID (Video Player-Ad Interface Definition)",
+        selectPlaceholder: "Select..."
+      }
+    },
+    placementDrawer: {
+      tabs: {
+        info: "Information",
+        taxonomy: "Taxonomy",
+        tags: "Tags"
+      },
+      title: {
+        edit: "Edit placement: {{label}}",
+        new: "New placement"
       }
     },
   

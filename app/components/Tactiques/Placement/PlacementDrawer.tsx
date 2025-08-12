@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import PlacementFormInfo from './PlacementFormInfo';
@@ -38,6 +39,7 @@ export default function PlacementDrawer({
   tactiqueData,
   onSave
 }: PlacementDrawerProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaign } = useCampaignSelection();
   const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
@@ -49,22 +51,18 @@ export default function PlacementDrawer({
    * 🔥 FONCTION SIMPLIFIÉE : Ajouter des jours à une date string
    */
   const addDaysToDateString = useCallback((dateStr: string, days: number): string => {
-    console.log('🔍 DEBUG addDaysToDateString - Input date:', dateStr, 'Days to add:', days);
     
     if (!dateStr) {
-      console.log('🔍 DEBUG addDaysToDateString - Empty date, returning empty string');
       return '';
     }
     
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
-      console.log('🔍 DEBUG addDaysToDateString - Invalid date, returning empty string');
       return '';
     }
     
     date.setDate(date.getDate() + days);
     const result = date.toISOString().split('T')[0];
-    console.log('🔍 DEBUG addDaysToDateString - Result:', result);
     return result;
   }, []);
 
@@ -72,27 +70,22 @@ export default function PlacementDrawer({
    * 🔥 FONCTION UTILITAIRE : Convertit Date ou string vers string
    */
   const dateToString = useCallback((date: Date | string | null | undefined): string => {
-    console.log('🔍 DEBUG dateToString - Input:', date, 'Type:', typeof date);
     
     if (!date) {
-      console.log('🔍 DEBUG dateToString - Empty input, returning empty string');
       return '';
     }
     
     // Si c'est déjà une string, la retourner
     if (typeof date === 'string') {
-      console.log('🔍 DEBUG dateToString - String input, returning as-is:', date);
       return date;
     }
     
     // Si c'est un objet Date valide, le convertir
     if (date instanceof Date && !isNaN(date.getTime())) {
       const result = date.toISOString().split('T')[0];
-      console.log('🔍 DEBUG dateToString - Date object converted to:', result);
       return result;
     }
     
-    console.log('🔍 DEBUG dateToString - Invalid input, returning empty string');
     return '';
   }, []);
 
@@ -100,14 +93,12 @@ export default function PlacementDrawer({
    * 🔥 FONCTION SIMPLIFIÉE : Récupère les dates héritées et les convertit en string
    */
   const getInheritedDates = useCallback(() => {
-    console.log('🔍 DEBUG getInheritedDates - tactiqueData:', tactiqueData);
-    console.log('🔍 DEBUG getInheritedDates - selectedCampaign:', selectedCampaign);
+    
     
     // Convertir les dates (peuvent être Date ou string) vers string
     const startDate = dateToString(tactiqueData?.TC_Start_Date || selectedCampaign?.CA_Start_Date);
     const endDate = dateToString(tactiqueData?.TC_End_Date || selectedCampaign?.CA_End_Date);
     
-    console.log('🔍 DEBUG getInheritedDates - Result:', { startDate, endDate });
     return { startDate, endDate };
   }, [tactiqueData, selectedCampaign, dateToString]);
 
@@ -115,18 +106,15 @@ export default function PlacementDrawer({
    * 🔥 FONCTION SIMPLIFIÉE : Calcule les dates par défaut pour les tags
    */
   const getDefaultTagDates = useCallback((placementStartDate: string, placementEndDate: string) => {
-    console.log('🔍 DEBUG getDefaultTagDates - Input:', { placementStartDate, placementEndDate });
     
     const tagStartDate = addDaysToDateString(placementStartDate, -30);
     const tagEndDate = addDaysToDateString(placementEndDate, 30);
     
-    console.log('🔍 DEBUG getDefaultTagDates - Result:', { tagStartDate, tagEndDate });
     return { tagStartDate, tagEndDate };
   }, [addDaysToDateString]);
 
   // 🔥 ÉTAT DU FORMULAIRE SIMPLIFIÉ : Tout en string
   const [formData, setFormData] = useState<PlacementFormData>(() => {
-    console.log('🔍 DEBUG useState initial - Creating initial formData');
     const emptyPlacementFields = createEmptyPlacementFieldsObject();
     
     const initialData: PlacementFormData = {
@@ -148,30 +136,19 @@ export default function PlacementDrawer({
       ...emptyPlacementFields,
     };
     
-    console.log('🔍 DEBUG useState initial - Initial formData created:', initialData);
     return initialData;
   });
 
-  // Debug: Log formData changes
-  useEffect(() => {
-    console.log('🔍 DEBUG formData changed:', {
-      PL_Start_Date: formData.PL_Start_Date,
-      PL_End_Date: formData.PL_End_Date,
-      PL_Label: formData.PL_Label
-    });
-  }, [formData.PL_Start_Date, formData.PL_End_Date, formData.PL_Label]);
-
+ 
   /**
    * 🔥 EFFET SIMPLIFIÉ : Initialisation du formulaire selon le mode (création/édition)
    */
   useEffect(() => {
-    console.log('🔍 DEBUG useEffect[placement] - Triggered with placement:', placement);
     
     const emptyPlacementFields = createEmptyPlacementFieldsObject();
     
     if (placement) {
       // 🔥 MODE ÉDITION : Convertir les dates (Date ou string) vers string
-      console.log('🔍 DEBUG useEffect[placement] - Mode édition');
       
       const placementFieldsFromPlacement = extractPlacementFieldsFromData(placement);
       const placementStartDate = dateToString(placement.PL_Start_Date);
@@ -202,7 +179,6 @@ export default function PlacementDrawer({
       });
     } else {
       // 🔥 MODE CRÉATION : Utiliser les dates héritées
-      console.log('🔍 DEBUG useEffect[placement] - Mode création');
       
       const { startDate, endDate } = getInheritedDates();
       const { tagStartDate, tagEndDate } = getDefaultTagDates(startDate, endDate);
@@ -245,15 +221,14 @@ export default function PlacementDrawer({
   }, [formData.PL_Start_Date, formData.PL_End_Date, getDefaultTagDates]);
 
   const tabs: FormTab[] = [
-    { id: 'infos', name: 'Informations', icon: DocumentTextIcon },
-    { id: 'taxonomie', name: 'Taxonomie', icon: BookOpenIcon },
-    { id: 'tags', name: 'Tags', icon: TagIcon }
+    { id: 'infos', name: t('placementDrawer.tabs.info'), icon: DocumentTextIcon },
+    { id: 'taxonomie', name: t('placementDrawer.tabs.taxonomy'), icon: BookOpenIcon },
+    { id: 'tags', name: t('placementDrawer.tabs.tags'), icon: TagIcon }
   ];
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    console.log('🔍 DEBUG handleChange - Field:', name, 'Value:', value);
     
     // Gérer les champs boolean
     if (name === 'PL_Third_Party_Measurement' || name === 'PL_VPAID') {
@@ -275,7 +250,6 @@ export default function PlacementDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('🔍 DEBUG handleSubmit - formData à sauvegarder:', formData);
     
     try {
       // Plus besoin de conversion, tout est déjà en string
@@ -355,7 +329,7 @@ export default function PlacementDrawer({
       <FormDrawer
         isOpen={isOpen}
         onClose={onClose}
-        title={placement ? `Modifier le placement: ${formData.PL_Label}` : 'Nouveau placement'}
+        title={placement ? t('placementDrawer.title.edit', { label: formData.PL_Label }) : t('placementDrawer.title.new')}
       >
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
           <FormTabs
@@ -373,13 +347,13 @@ export default function PlacementDrawer({
                 onClick={onClose}
                 className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
               >
-                {placement ? 'Mettre à jour' : 'Créer'}
+                {placement ? t('common.update') : t('common.create')}
               </button>
             </div>
           </div>

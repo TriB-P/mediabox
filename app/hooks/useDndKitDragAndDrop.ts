@@ -1,4 +1,3 @@
-// app/hooks/useDndKitDragAndDrop.ts
 
 /**
  * NOUVEAU : Hook utilisant @dnd-kit/core pour remplacer react-beautiful-dnd
@@ -88,9 +87,12 @@ export const useDndKitDragAndDrop = ({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
+    console.log('🎯 DRAG END - Début:', { activeId: active.id, overId: over?.id });
+    
     setActiveId(null);
 
     if (!over || active.id === over.id) {
+      console.log('❌ DRAG END - Pas de destination ou même élément');
       return;
     }
 
@@ -112,16 +114,22 @@ export const useDndKitDragAndDrop = ({
       const activeIdStr = active.id as string;
       const overIdStr = over.id as string;
 
-      console.log(`🔄 Début du drag & drop: ${activeIdStr} → ${overIdStr}`);
+      console.log(`🔄 DRAG END - Traitement: ${activeIdStr} → ${overIdStr}`);
 
       if (activeIdStr.startsWith('section-')) {
+        console.log('📁 DRAG END - Section détectée');
         await handleSectionDrop(activeIdStr, overIdStr, context);
       } else if (activeIdStr.startsWith('tactique-')) {
+        console.log('📚 DRAG END - Tactique détectée');
         await handleTactiqueDrop(activeIdStr, overIdStr, context);
       } else if (activeIdStr.startsWith('placement-')) {
+        console.log('📄 DRAG END - Placement détecté');
         await handlePlacementDrop(activeIdStr, overIdStr, context);
       } else if (activeIdStr.startsWith('creatif-')) {
+        console.log('🖼️ DRAG END - Créatif détecté');
         await handleCreatifDrop(activeIdStr, overIdStr, context);
+      } else {
+        console.warn('⚠️ DRAG END - Type non reconnu:', activeIdStr);
       }
 
       console.log('✅ Opération drag & drop terminée, refresh des données...');
@@ -204,23 +212,38 @@ export const useDndKitDragAndDrop = ({
   };
 
   /**
-   * Gère le drop des placements
+   * Gère le drop des placements - CORRECTION simple avec logs
    */
   const handlePlacementDrop = async (activeId: string, overId: string, context: ReorderContext) => {
+    console.log('📄 PLACEMENT DROP - Début:', { activeId, overId });
+    
     const placementId = activeId.replace('placement-', '');
+    console.log('📄 PLACEMENT DROP - PlacementId:', placementId);
     
     if (overId.startsWith('placements-')) {
+      console.log('📄 PLACEMENT DROP - Cas 1: Drop sur zone placements');
       const targetTactiqueId = overId.replace('placements-', '');
-      const sourceTactiqueId = findTactiqueIdForPlacement(placementId);
+      console.log('📄 PLACEMENT DROP - Target tactique:', targetTactiqueId);
       
-      if (!sourceTactiqueId) return;
+      const sourceTactiqueId = findTactiqueIdForPlacement(placementId);
+      console.log('📄 PLACEMENT DROP - Source tactique:', sourceTactiqueId);
+      
+      if (!sourceTactiqueId) {
+        console.error('📄 PLACEMENT DROP - ❌ Source tactique non trouvée');
+        return;
+      }
       
       const sourceSection = findSectionForTactique(sourceTactiqueId);
       const targetSection = findSectionForTactique(targetTactiqueId);
+      console.log('📄 PLACEMENT DROP - Sections:', { source: sourceSection?.id, target: targetSection?.id });
       
-      if (!sourceSection || !targetSection) return;
+      if (!sourceSection || !targetSection) {
+        console.error('📄 PLACEMENT DROP - ❌ Sections non trouvées');
+        return;
+      }
       
       if (sourceTactiqueId !== targetTactiqueId) {
+        console.log('📄 PLACEMENT DROP - Déplacement vers autre tactique');
         await movePlacementToTactique(
           context,
           placementId,
@@ -230,37 +253,108 @@ export const useDndKitDragAndDrop = ({
           targetTactiqueId,
           0
         );
+      } else {
+        console.log('📄 PLACEMENT DROP - Même tactique, pas de déplacement');
       }
     } else if (overId.startsWith('placement-')) {
+      console.log('📄 PLACEMENT DROP - Cas 2: Drop sur autre placement');
       const overPlacementId = overId.replace('placement-', '');
+      console.log('📄 PLACEMENT DROP - Over placement:', overPlacementId);
+      
       const sourceTactiqueId = findTactiqueIdForPlacement(placementId);
       const targetTactiqueId = findTactiqueIdForPlacement(overPlacementId);
+      console.log('📄 PLACEMENT DROP - Tactiques:', { source: sourceTactiqueId, target: targetTactiqueId });
       
-      if (!sourceTactiqueId || !targetTactiqueId) return;
+      if (!sourceTactiqueId || !targetTactiqueId) {
+        console.error('📄 PLACEMENT DROP - ❌ Tactiques non trouvées');
+        return;
+      }
       
       if (sourceTactiqueId === targetTactiqueId) {
+        console.log('📄 PLACEMENT DROP - Réorganisation dans même tactique');
         await reorderPlacementsInTactique(sourceTactiqueId, placementId, overPlacementId, context);
+      } else {
+        console.log('📄 PLACEMENT DROP - Pas de réorganisation, tactiques différentes');
       }
+    } else {
+      console.log('📄 PLACEMENT DROP - ❌ Type de drop non reconnu:', overId);
     }
   };
 
   /**
-   * Gère le drop des créatifs
+   * Gère le drop des créatifs - CORRECTION simple avec logs
    */
   const handleCreatifDrop = async (activeId: string, overId: string, context: ReorderContext) => {
+    console.log('🖼️ CREATIF DROP - Début:', { activeId, overId });
+    
     const creatifId = activeId.replace('creatif-', '');
+    console.log('🖼️ CREATIF DROP - CreatifId:', creatifId);
     
     if (overId.startsWith('creatifs-')) {
+      console.log('🖼️ CREATIF DROP - Cas 1: Drop sur zone créatifs');
       const targetPlacementId = overId.replace('creatifs-', '');
-      const sourcePlacementId = findPlacementIdForCreatif(creatifId);
+      console.log('🖼️ CREATIF DROP - Target placement:', targetPlacementId);
       
-      if (!sourcePlacementId) return;
+      const sourcePlacementId = findPlacementIdForCreatif(creatifId);
+      console.log('🖼️ CREATIF DROP - Source placement:', sourcePlacementId);
+      
+      if (!sourcePlacementId) {
+        console.error('🖼️ CREATIF DROP - ❌ Source placement non trouvé');
+        return;
+      }
       
       if (sourcePlacementId !== targetPlacementId) {
+        console.log('🖼️ CREATIF DROP - Déplacement vers autre placement');
         const sourceParents = findParentsForPlacement(sourcePlacementId);
         const targetParents = findParentsForPlacement(targetPlacementId);
+        console.log('🖼️ CREATIF DROP - Parents:', { source: sourceParents, target: targetParents });
         
-        if (!sourceParents || !targetParents) return;
+        if (!sourceParents || !targetParents) {
+          console.error('🖼️ CREATIF DROP - ❌ Parents non trouvés');
+          return;
+        }
+        
+        await moveCreatifToPlacement(
+          context,
+          creatifId,
+          sourceParents.sectionId,
+          sourceParents.tactiqueId,
+          sourcePlacementId,
+          targetParents.sectionId,
+          targetParents.tactiqueId,
+          targetPlacementId,
+          0
+        );
+      } else {
+        console.log('🖼️ CREATIF DROP - Même placement, pas de déplacement');
+      }
+    } else if (overId.startsWith('creatif-')) {
+      console.log('🖼️ CREATIF DROP - Cas 2: Drop sur autre créatif');
+      const overCreatifId = overId.replace('creatif-', '');
+      console.log('🖼️ CREATIF DROP - Over créatif:', overCreatifId);
+      
+      const sourcePlacementId = findPlacementIdForCreatif(creatifId);
+      const targetPlacementId = findPlacementIdForCreatif(overCreatifId);
+      console.log('🖼️ CREATIF DROP - Placements:', { source: sourcePlacementId, target: targetPlacementId });
+      
+      if (!sourcePlacementId || !targetPlacementId) {
+        console.error('🖼️ CREATIF DROP - ❌ Placements non trouvés');
+        return;
+      }
+      
+      if (sourcePlacementId === targetPlacementId) {
+        console.log('🖼️ CREATIF DROP - Réorganisation dans même placement');
+        await reorderCreatifsInPlacement(sourcePlacementId, creatifId, overCreatifId, context);
+      } else {
+        console.log('🖼️ CREATIF DROP - Déplacement vers autre placement');
+        const sourceParents = findParentsForPlacement(sourcePlacementId);
+        const targetParents = findParentsForPlacement(targetPlacementId);
+        console.log('🖼️ CREATIF DROP - Parents:', { source: sourceParents, target: targetParents });
+        
+        if (!sourceParents || !targetParents) {
+          console.error('🖼️ CREATIF DROP - ❌ Parents non trouvés');
+          return;
+        }
         
         await moveCreatifToPlacement(
           context,
@@ -274,52 +368,79 @@ export const useDndKitDragAndDrop = ({
           0
         );
       }
+    } else {
+      console.log('🖼️ CREATIF DROP - ❌ Type de drop non reconnu:', overId);
     }
   };
 
-  // Fonctions utilitaires pour trouver les parents
+  // Fonctions utilitaires pour trouver les parents AVEC LOGS
   const findSectionIdForTactique = (tactiqueId: string): string | null => {
+    console.log('🔍 FIND SECTION - Recherche pour tactique:', tactiqueId);
+    console.log('🔍 FIND SECTION - Sections disponibles:', sections.length);
+    
     for (const section of sections) {
+      console.log('🔍 FIND SECTION - Vérification section:', section.id, 'avec', section.tactiques.length, 'tactiques');
       if (section.tactiques.some(t => t.id === tactiqueId)) {
+        console.log('🔍 FIND SECTION - ✅ Trouvée:', section.id);
         return section.id;
       }
     }
+    console.log('🔍 FIND SECTION - ❌ Section non trouvée pour tactique:', tactiqueId);
     return null;
   };
 
   const findSectionForTactique = (tactiqueId: string) => {
-    return sections.find(section => 
+    console.log('🔍 FIND SECTION OBJ - Recherche pour tactique:', tactiqueId);
+    const result = sections.find(section => 
       section.tactiques.some(tactique => tactique.id === tactiqueId)
     );
+    console.log('🔍 FIND SECTION OBJ - Résultat:', result?.id || 'non trouvé');
+    return result;
   };
 
   const findTactiqueIdForPlacement = (placementId: string): string | null => {
+    console.log('🔍 FIND TACTIQUE - Recherche pour placement:', placementId);
+    console.log('🔍 FIND TACTIQUE - Placements disponibles:', Object.keys(placements));
+    
     for (const [tactiqueId, tactiquesPlacements] of Object.entries(placements)) {
+      console.log('🔍 FIND TACTIQUE - Vérification tactique:', tactiqueId, 'avec', tactiquesPlacements.length, 'placements');
       if (tactiquesPlacements.some(p => p.id === placementId)) {
+        console.log('🔍 FIND TACTIQUE - ✅ Trouvée:', tactiqueId);
         return tactiqueId;
       }
     }
+    console.log('🔍 FIND TACTIQUE - ❌ Tactique non trouvée pour placement:', placementId);
     return null;
   };
 
   const findPlacementIdForCreatif = (creatifId: string): string | null => {
+    console.log('🔍 FIND PLACEMENT - Recherche pour créatif:', creatifId);
+    console.log('🔍 FIND PLACEMENT - Créatifs disponibles:', Object.keys(creatifs));
+    
     for (const [placementId, placementCreatifs] of Object.entries(creatifs)) {
+      console.log('🔍 FIND PLACEMENT - Vérification placement:', placementId, 'avec', placementCreatifs.length, 'créatifs');
       if (placementCreatifs.some(c => c.id === creatifId)) {
+        console.log('🔍 FIND PLACEMENT - ✅ Trouvé:', placementId);
         return placementId;
       }
     }
+    console.log('🔍 FIND PLACEMENT - ❌ Placement non trouvé pour créatif:', creatifId);
     return null;
   };
 
   const findParentsForPlacement = (placementId: string) => {
+    console.log('🔍 FIND PARENTS - Recherche pour placement:', placementId);
     for (const section of sections) {
       for (const tactique of section.tactiques) {
         const tactiquesPlacements = placements[tactique.id] || [];
         if (tactiquesPlacements.some(p => p.id === placementId)) {
-          return { sectionId: section.id, tactiqueId: tactique.id };
+          const result = { sectionId: section.id, tactiqueId: tactique.id };
+          console.log('🔍 FIND PARENTS - ✅ Trouvés:', result);
+          return result;
         }
       }
     }
+    console.log('🔍 FIND PARENTS - ❌ Parents non trouvés pour placement:', placementId);
     return null;
   };
 
@@ -373,6 +494,77 @@ export const useDndKitDragAndDrop = ({
     if (!sectionId) return;
 
     await reorderPlacements(context, sectionId, tactiqueId, placementOrders);
+  };
+
+  // ✅ NOUVEAU : Fonction manquante pour réorganiser les créatifs avec position précise
+  const reorderCreatifsInPlacement = async (
+    placementId: string,
+    activeCreatifId: string,
+    overCreatifId: string,
+    context: ReorderContext
+  ) => {
+    const placementCreatifs = creatifs[placementId] || [];
+    const activeIndex = placementCreatifs.findIndex(c => c.id === activeCreatifId);
+    const overIndex = placementCreatifs.findIndex(c => c.id === overCreatifId);
+    
+    if (activeIndex === -1 || overIndex === -1) return;
+    
+    const newCreatifs = [...placementCreatifs];
+    const [movedCreatif] = newCreatifs.splice(activeIndex, 1);
+    newCreatifs.splice(overIndex, 0, movedCreatif);
+
+    const creatifOrders = newCreatifs.map((creatif, index) => ({
+      id: creatif.id,
+      order: index
+    }));
+
+    // Trouver les parents du placement
+    const parents = findParentsForPlacement(placementId);
+    if (!parents) return;
+
+    await reorderCreatifs(context, parents.sectionId, parents.tactiqueId, placementId, creatifOrders);
+  };
+
+  // ✅ NOUVEAU : Fonction pour réorganiser avec position précise (before/after)
+  const reorderCreatifsInPlacementWithPosition = async (
+    placementId: string,
+    activeCreatifId: string,
+    targetCreatifId: string,
+    position: 'before' | 'after',
+    context: ReorderContext
+  ) => {
+    const placementCreatifs = creatifs[placementId] || [];
+    const activeIndex = placementCreatifs.findIndex(c => c.id === activeCreatifId);
+    const targetIndex = placementCreatifs.findIndex(c => c.id === targetCreatifId);
+    
+    if (activeIndex === -1 || targetIndex === -1) return;
+    
+    const newCreatifs = [...placementCreatifs];
+    const [movedCreatif] = newCreatifs.splice(activeIndex, 1);
+    
+    // Calculer la nouvelle position selon before/after
+    let insertIndex = targetIndex;
+    if (activeIndex < targetIndex) {
+      // L'élément vient d'avant, donc on ajuste l'index
+      insertIndex = position === 'before' ? targetIndex - 1 : targetIndex;
+    } else {
+      // L'élément vient d'après
+      insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+    }
+    
+    newCreatifs.splice(insertIndex, 0, movedCreatif);
+
+    const creatifOrders = newCreatifs.map((creatif, index) => ({
+      id: creatif.id,
+      order: index
+    }));
+
+    // Trouver les parents du placement
+    const parents = findParentsForPlacement(placementId);
+    if (!parents) return;
+
+    console.log(`🎯 Réorganisation créatifs avec position: ${activeCreatifId} ${position} ${targetCreatifId}`);
+    await reorderCreatifs(context, parents.sectionId, parents.tactiqueId, placementId, creatifOrders);
   };
 
   return {
