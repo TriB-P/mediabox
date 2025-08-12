@@ -14,6 +14,7 @@ import {
   CheckIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Publisher {
   id: string;
@@ -48,6 +49,7 @@ export default function AdOpsDropdowns({
   deselectAllPublishers,
   selectedPublishers
 }: AdOpsDropdownsProps) {
+  const { t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -135,13 +137,13 @@ export default function AdOpsDropdowns({
    * Formate le texte du bouton principal
    */
   const getButtonText = () => {
-    if (loading) return 'Chargement...';
-    if (publishers.length === 0) return 'Aucun publisher';
+    if (loading) return t('common.loading');
+    if (publishers.length === 0) return t('adOpsDropdown.button.noPublishers');
     
     const selectedCount = publishers.filter(pub => pub.isSelected).length;
-    if (selectedCount === 0) return 'Sélectionner des publishers';
-    if (selectedCount === publishers.length) return 'Tous les publishers';
-    return `${selectedCount} publisher${selectedCount > 1 ? 's' : ''} sélectionné${selectedCount > 1 ? 's' : ''}`;
+    if (selectedCount === 0) return t('adOpsDropdown.button.selectPublishers');
+    if (selectedCount === publishers.length) return t('adOpsDropdown.button.allPublishers');
+    return `${selectedCount} ${t(selectedCount > 1 ? 'adOpsDropdown.button.publisherPlural' : 'adOpsDropdown.button.publisherSingular')}`;
   };
 
   /**
@@ -175,10 +177,10 @@ export default function AdOpsDropdowns({
     return (
       <div className="p-4">
         <h3 className="text-lg font-medium text-gray-900 mb-3">
-          Publishers
+          {t('adOpsDropdown.title')}
         </h3>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          Erreur: {error}
+          {t('common.error')}: {error}
         </div>
       </div>
     );
@@ -217,7 +219,7 @@ export default function AdOpsDropdowns({
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onClick={handleSearchClick}
-                  placeholder="Rechercher un publisher..."
+                  placeholder={t('adOpsDropdown.search.placeholder')}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
@@ -236,13 +238,13 @@ export default function AdOpsDropdowns({
                     <CheckIcon className="w-3 h-3 text-white" />
                   )}
                 </div>
-                {areAllFilteredSelected() ? 'Désélectionner' : 'Sélectionner'} {filteredPublishers.length > 0 ? 'les résultats' : 'tout'}
+                {t(areAllFilteredSelected() ? 'adOpsDropdown.actions.deselect' : 'adOpsDropdown.actions.select')} {t(filteredPublishers.length > 0 ? 'adOpsDropdown.actions.theResults' : 'adOpsDropdown.actions.all')}
               </button>
               
               {/* Compteur de résultats */}
               {searchTerm && (
                 <div className="mt-1 text-xs text-gray-500">
-                  {filteredPublishers.length} résultat{filteredPublishers.length !== 1 ? 's' : ''} trouvé{filteredPublishers.length !== 1 ? 's' : ''}
+                  {filteredPublishers.length} {t(filteredPublishers.length !== 1 ? 'adOpsDropdown.search.resultsFound' : 'adOpsDropdown.search.resultFound')}
                 </div>
               )}
             </div>
@@ -273,7 +275,7 @@ export default function AdOpsDropdowns({
                 ))
               ) : (
                 <div className="px-3 py-4 text-sm text-gray-500 text-center">
-                  Aucun publisher trouvé pour "{searchTerm}"
+                  {t('adOpsDropdown.search.noneFound', { searchTerm: searchTerm })}
                 </div>
               )}
             </div>

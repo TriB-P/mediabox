@@ -1,8 +1,8 @@
 // app/components/AdOps/AdOpsActionButtons.tsx
 /**
- * Composant AdOpsActionButtons avec support CM360
- * Boutons d'actions spécialisés avec indicateurs de changements pour les tags
- * AMÉLIORÉ : Boutons forcés sur une seule ligne
+ * AdOpsActionButtons component with CM360 support
+ * Specialized action buttons with change indicators for tags
+ * IMPROVED: Buttons forced onto a single line
  */
 'use client';
 
@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import CM360HistoryModal from './CM360HistoryModal';
 import { CM360TagHistory, CM360TagData } from '../../lib/cm360Service';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface AdOpsActionButtonsProps {
   rowType: 'placement' | 'creative';
@@ -21,13 +22,13 @@ interface AdOpsActionButtonsProps {
   selectedTactique: any;
   selectedCampaign: any;
   selectedVersion: any;
-  // Nouvelles props pour CM360
+  // New props for CM360
   cm360History?: CM360TagHistory;
-  cm360Tags?: Map<string, CM360TagHistory>; // Nouveau prop
+  cm360Tags?: Map<string, CM360TagHistory>; // New prop
 }
 
 /**
- * Composant pour les boutons d'actions spécialisés avec support CM360
+ * Component for specialized action buttons with CM360 support
  */
 export default function AdOpsActionButtons({
   rowType,
@@ -38,6 +39,7 @@ export default function AdOpsActionButtons({
   cm360History,
   cm360Tags
 }: AdOpsActionButtonsProps) {
+  const { t } = useTranslation();
   const [copiedButton, setCopiedButton] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -50,7 +52,7 @@ export default function AdOpsActionButtons({
   });
 
   /**
-   * Vérifie si un champ a été modifié selon CM360
+   * Checks if a field has been modified according to CM360
    */
   const isFieldChanged = (fieldName: string): boolean => {
     if (!cm360History?.changedFields) return false;
@@ -58,7 +60,7 @@ export default function AdOpsActionButtons({
   };
 
   /**
-   * Ouvre le modal d'historique pour un champ spécifique
+   * Opens the history modal for a specific field
    */
   const openHistoryModal = (fieldName: string, fieldLabel: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -71,7 +73,7 @@ export default function AdOpsActionButtons({
   };
 
   /**
-   * Ferme le modal d'historique
+   * Closes the history modal
    */
   const closeHistoryModal = () => {
     setModalState({
@@ -82,7 +84,7 @@ export default function AdOpsActionButtons({
   };
 
   /**
-   * Copie une valeur avec feedback visuel
+   * Copies a value with visual feedback
    */
   const copyTag = async (tagValue: string | undefined, buttonId: string) => {
     if (!tagValue) return;
@@ -97,7 +99,7 @@ export default function AdOpsActionButtons({
   };
 
   /**
-   * Composant bouton de copie réutilisable avec support CM360
+   * Reusable copy button component with CM360 support
    */
   const CopyButton = ({ 
     tagValue, 
@@ -135,7 +137,7 @@ export default function AdOpsActionButtons({
             ${isDisabled ? disabledClasses : ''}
             ${changedClasses}
           `}
-          title={isDisabled ? 'Tag non disponible' : `Copier ${label.toLowerCase()}`}
+          title={isDisabled ? t('adOps.actionButtons.tagUnavailable') : `${t('adOps.actionButtons.copy')} ${label.toLowerCase()}`}
         >
           {isCopied ? (
             <CheckIcon className="w-3 h-3" />
@@ -145,12 +147,12 @@ export default function AdOpsActionButtons({
           <span className="whitespace-nowrap">{label}</span>
         </button>
         
-        {/* Indicateur de changement CM360 */}
+        {/* CM360 change indicator */}
         {isChanged && !isDisabled && cm360History && (
           <button
             onClick={(e) => openHistoryModal(fieldName, label, e)}
             className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50 -ml-1 flex-shrink-0"
-            title={`${label} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
+            title={t('adOps.actionButtons.historyTooltip', { label })}
           >
             <ExclamationTriangleIcon className="w-4 h-4" />
           </button>
@@ -160,45 +162,45 @@ export default function AdOpsActionButtons({
   };
 
   /**
-   * Obtient le label de l'item pour le modal
+   * Gets the item label for the modal
    */
   const getItemLabel = (): string => {
     if (rowType === 'placement') {
-      return data.PL_Label || 'Placement sans nom';
+      return data.PL_Label || t('adOps.itemLabels.unnamedPlacement');
     } else {
-      return data.CR_Label || 'Créatif sans nom';
+      return data.CR_Label || t('adOps.itemLabels.unnamedCreative');
     }
   };
 
   if (rowType === 'placement') {
     return (
       <>
-        {/* AMÉLIORÉ : Container avec nowrap et largeur minimale */}
+        {/* IMPROVED: Container with nowrap and minimal width */}
         <div className="flex items-center gap-1 flex-nowrap min-w-fit">
           <CopyButton
             tagValue={data.PL_Tag_1}
             buttonId="pl-tag-1"
-            label="Campagne"
+            label={t('adOps.labels.campaign')}
             fieldName="PL_Tag_1"
             variant="primary"
           />
           <CopyButton
             tagValue={data.PL_Tag_2}
             buttonId="pl-tag-2"
-            label="Placement"
+            label={t('adOps.labels.placement')}
             fieldName="PL_Tag_2"
             variant="primary"
           />
           <CopyButton
             tagValue={data.PL_Tag_3}
             buttonId="pl-tag-3"
-            label="Ad"
+            label={t('adOps.labels.ad')}
             fieldName="PL_Tag_3"
             variant="primary"
           />
         </div>
 
-        {/* Modal d'historique pour les tags de placement */}
+        {/* History modal for placement tags */}
         {modalState.isOpen && cm360History && (
           <CM360HistoryModal
             isOpen={modalState.isOpen}
@@ -219,25 +221,25 @@ export default function AdOpsActionButtons({
   if (rowType === 'creative') {
     return (
       <>
-        {/* AMÉLIORÉ : Container avec nowrap et largeur minimale */}
+        {/* IMPROVED: Container with nowrap and minimal width */}
         <div className="flex items-center gap-1 flex-nowrap min-w-fit">
           <CopyButton
             tagValue={data.CR_Tag_5}
             buttonId="cr-tag-5"
-            label="Créatif"
+            label={t('adOps.labels.creative')}
             fieldName="CR_Tag_5"
             variant="secondary"
           />
           <CopyButton
             tagValue={data.CR_Tag_6}
             buttonId="cr-tag-6"
-            label="URL"
+            label={t('adOps.labels.url')}
             fieldName="CR_Tag_6"
             variant="secondary"
           />
         </div>
 
-        {/* Modal d'historique pour les tags de créatif */}
+        {/* History modal for creative tags */}
         {modalState.isOpen && cm360History && (
           <CM360HistoryModal
             isOpen={modalState.isOpen}

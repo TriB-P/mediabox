@@ -798,76 +798,110 @@ export default function TactiqueDrawer({
   /**
    * Gestion de la soumission avec validation
    */
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+// app/components/Tactiques/Tactiques/TactiqueDrawer.tsx - Fonction handleSubmit modifiée
 
-    // 1. VALIDATION DES CHAMPS OBLIGATOIRES
-    const errors = validateRequiredFields(formData);
+/**
+ * Calcule le TC_CM360_Rate basé sur les valeurs actuelles
+ */
+const calculateCM360Rate = (data: any): number => {
+  const mediaBudget = data.TC_Media_Budget || 0;
+  const volume = data.TC_CM360_Volume || 0;
+  const buyType = data.TC_Buy_Type;
+
+  // Validation : éviter division par zéro
+  if (volume <= 0) {
+    return 0;
+  }
+
+  const baseRate = mediaBudget / volume;
+
+  // Si CPM, multiplier par 1000
+  if (buyType === 'CPM') {
+    return baseRate * 1000;
+  }
+
+  // Si CPC ou autre, retourner la division simple
+  return baseRate;
+};
+
+/**
+ * Gestion de la soumission avec validation et calculs automatiques
+ */
+const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // 1. VALIDATION DES CHAMPS OBLIGATOIRES
+  const errors = validateRequiredFields(formData);
+  
+  if (Object.keys(errors).length > 0) {
+    setValidationErrors(errors);
     
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      
-      // Naviguer vers le premier onglet contenant une erreur
-      const firstErrorTab = getFirstErrorTab(errors);
-      if (firstErrorTab) {
-        setActiveTab(firstErrorTab);
-      }
-      
-      // Afficher un message d'erreur général
-      setError('Veuillez remplir tous les champs obligatoires avant de sauvegarder.');
-      return;
+    // Naviguer vers le premier onglet contenant une erreur
+    const firstErrorTab = getFirstErrorTab(errors);
+    if (firstErrorTab) {
+      setActiveTab(firstErrorTab);
+    }
+    
+    // Afficher un message d'erreur général
+    setError('Veuillez remplir tous les champs obligatoires avant de sauvegarder.');
+    return;
+  }
+
+  // 2. NETTOYER LES ERREURS SI VALIDATION RÉUSSIE
+  setValidationErrors({});
+
+  try {
+    setLoading(true);
+    setError(null);
+
+    let dataToSave = { ...formData };
+
+    // 3. CALCULS AUTOMATIQUES AVANT SAUVEGARDE
+    // Calcul automatique de TC_CM360_Rate si nécessaire
+    const calculatedRate = calculateCM360Rate(dataToSave);
+    (dataToSave as any).TC_CM360_Rate = calculatedRate;
+
+    // Traitement des KPIs
+    kpis.forEach((kpi, index) => {
+      const suffix = index === 0 ? '' : `_${index + 1}`;
+      (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
+      (dataToSave as any)[`TC_Kpi_CostPer${suffix}`] = kpi.TC_Kpi_CostPer;
+      (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
+    });
+
+    // Traitement héritage
+    if (useInheritedBilling) {
+      (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
+    }
+    if (useInheritedPO) {
+      (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
     }
 
-    // 2. NETTOYER LES ERREURS SI VALIDATION RÉUSSIE
-    setValidationErrors({});
+    const mappedData = mapFormToTactique(dataToSave);
 
-    try {
-      setLoading(true);
-      setError(null);
+    await onSave(mappedData);
 
-      let dataToSave = { ...formData };
+    setIsDirty(false);
+    onClose();
 
-      // Traitement des KPIs
-      kpis.forEach((kpi, index) => {
-        const suffix = index === 0 ? '' : `_${index + 1}`;
-        (dataToSave as any)[`TC_Kpi${suffix}`] = kpi.TC_Kpi;
-        (dataToSave as any)[`TC_Kpi_CostPer${suffix}`] = kpi.TC_Kpi_CostPer;
-        (dataToSave as any)[`TC_Kpi_Volume${suffix}`] = kpi.TC_Kpi_Volume;
+    // Mise à jour taxonomies
+    if (mode === 'edit' && tactique && tactique.id && selectedClient && selectedCampaign) {
+      updateTaxonomiesAsync('tactic', {
+        id: tactique.id,
+        name: mappedData.TC_Label,
+        clientId: selectedClient.clientId,
+        campaignId: selectedCampaign.id
+      }).catch(error => {
+        console.error('Erreur mise à jour taxonomies tactique:', error);
       });
-
-      // Traitement héritage
-      if (useInheritedBilling) {
-        (dataToSave as any).TC_Billing_ID = campaignAdminValues.CA_Billing_ID || '';
-      }
-      if (useInheritedPO) {
-        (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
-      }
-
-      const mappedData = mapFormToTactique(dataToSave);
-
-      await onSave(mappedData);
-
-      setIsDirty(false);
-      onClose();
-
-      // Mise à jour taxonomies
-      if (mode === 'edit' && tactique && tactique.id && selectedClient && selectedCampaign) {
-        updateTaxonomiesAsync('tactic', {
-          id: tactique.id,
-          name: mappedData.TC_Label,
-          clientId: selectedClient.clientId,
-          campaignId: selectedCampaign.id
-        }).catch(error => {
-          console.error('Erreur mise à jour taxonomies tactique:', error);
-        });
-      }
-
-    } catch (err) {
-      console.error('Erreur lors de l\'enregistrement de la tactique:', err);
-      setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
-      setLoading(false);
     }
-  }, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
+
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement de la tactique:', err);
+    setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+    setLoading(false);
+  }
+}, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
 
   /**
    * Gestion de la fermeture avec prise en compte des erreurs de validation

@@ -6,6 +6,7 @@ import React, { useMemo } from 'react';
 import { CreatifFormData, Tactique, Placement } from '../../../types/tactiques';
 import { Campaign } from '../../../types/campaign';
 import { FormSection, FormInput, createLabelWithHelp } from '../Tactiques/TactiqueFormComponents';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface CreatifFormTagsProps {
   formData: CreatifFormData;
@@ -26,6 +27,7 @@ export default function CreatifFormTags({
   tactiqueData,
   placementData
 }: CreatifFormTagsProps) {
+  const { t } = useTranslation();
 
   /**
    * Fonction utilitaire pour convertir les dates en format string
@@ -59,21 +61,21 @@ export default function CreatifFormTags({
     // Validation date de début
     if (crStartDate && tagStartDate) {
       if (new Date(crStartDate) < new Date(tagStartDate)) {
-        errors.push(`La date de début tag créatif ne peut pas être antérieure au ${tagStartDate} (date début tag placement)`);
+        errors.push(t('creatifFormTags.validation.startDateBeforePlacement', { date: tagStartDate }));
       }
     }
 
     // Validation date de fin
     if (crEndDate && tagEndDate) {
       if (new Date(crEndDate) > new Date(tagEndDate)) {
-        errors.push(`La date de fin tag créatif ne peut pas dépasser le ${tagEndDate} (date fin tag placement)`);
+        errors.push(t('creatifFormTags.validation.endDateAfterPlacement', { date: tagEndDate }));
       }
     }
 
     // Validation cohérence interne créatif
     if (crStartDate && crEndDate) {
       if (new Date(crStartDate) > new Date(crEndDate)) {
-        errors.push('La date de début tag créatif doit être antérieure à la date de fin');
+        errors.push(t('creatifFormTags.validation.startAfterEnd'));
       }
     }
 
@@ -81,7 +83,7 @@ export default function CreatifFormTags({
       isValid: errors.length === 0,
       errors
     };
-  }, [formData.CR_Tag_Start_Date, formData.CR_Tag_End_Date, placementTagDates]);
+  }, [formData.CR_Tag_Start_Date, formData.CR_Tag_End_Date, placementTagDates, t]);
 
   /**
    * Vérification si le placement parent utilise une rotation pondérée
@@ -91,8 +93,8 @@ export default function CreatifFormTags({
   return (
     <div className="space-y-6 p-4">
       <FormSection 
-        title="Configuration des Tags Créatif"
-        description="Configurez les paramètres CM360"
+        title={t('creatifFormTags.title')}
+        description={t('creatifFormTags.description')}
       >
  
 
@@ -100,7 +102,7 @@ export default function CreatifFormTags({
         {!dateValidation.isValid && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <h4 className="text-sm font-medium text-red-800 mb-2">
-              Erreurs de validation :
+              {t('creatifFormTags.validation.title')}
             </h4>
             <ul className="text-sm text-red-700 space-y-1">
               {dateValidation.errors.map((error, index) => (
@@ -124,8 +126,8 @@ export default function CreatifFormTags({
               type="date"
               className={!dateValidation.isValid && formData.CR_Tag_Start_Date ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}
               label={createLabelWithHelp(
-                'Date de début tag créatif',
-                `Date de début pour le tagging de ce créatif. Doit être comprise entre ${placementTagDates.tagStartDate || 'N/A'} et ${placementTagDates.tagEndDate || 'N/A'}`,
+                t('creatifFormTags.fields.startDate.label'),
+                t('creatifFormTags.fields.startDate.tooltip', { startDate: placementTagDates.tagStartDate || 'N/A', endDate: placementTagDates.tagEndDate || 'N/A' }),
                 onTooltipChange
               )}
             />
@@ -138,8 +140,8 @@ export default function CreatifFormTags({
               type="date"
               className={!dateValidation.isValid && formData.CR_Tag_End_Date ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}
               label={createLabelWithHelp(
-                'Date de fin tag créatif',
-                `Date de fin pour le tagging de ce créatif. Doit être comprise entre ${placementTagDates.tagStartDate || 'N/A'} et ${placementTagDates.tagEndDate || 'N/A'}`,
+                t('creatifFormTags.fields.endDate.label'),
+                t('creatifFormTags.fields.endDate.tooltip', { startDate: placementTagDates.tagStartDate || 'N/A', endDate: placementTagDates.tagEndDate || 'N/A' }),
                 onTooltipChange
               )}
             />
@@ -158,7 +160,7 @@ export default function CreatifFormTags({
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-green-700">
-                    <strong>Rotation pondérée activée :</strong> Le placement parent utilise une rotation pondérée. Définissez le poids de ce créatif.
+                    <strong>{t('creatifFormTags.weightedRotation.activated')}</strong> {t('creatifFormTags.weightedRotation.description')}
                   </p>
                 </div>
               </div>
@@ -170,16 +172,16 @@ export default function CreatifFormTags({
               value={formData.CR_Rotation_Weight || ''}
               onChange={onChange}
               type="number"
-              placeholder="Ex: 25"
+              placeholder={t('creatifFormTags.fields.weight.placeholder')}
               label={createLabelWithHelp(
-                'Poids de rotation (%)',
-                'Pourcentage de rotation pour ce créatif. Exemple : 25% signifie que ce créatif sera affiché 25% du temps. La somme des poids de tous les créatifs du placement devrait totaliser 100%.',
+                t('creatifFormTags.fields.weight.label'),
+                t('creatifFormTags.fields.weight.tooltip'),
                 onTooltipChange
               )}
             />
 
             <div className="text-sm text-gray-600 mt-2">
-              <strong>Note :</strong> Assurez-vous que la somme des poids de tous les créatifs de ce placement totalise 100%.
+              <strong>{t('creatifFormTags.weightedRotation.noteTitle')}</strong> {t('creatifFormTags.weightedRotation.noteDescription')}
             </div>
           </div>
         )}
@@ -188,13 +190,13 @@ export default function CreatifFormTags({
         {placementData?.PL_Creative_Rotation_Type && !isWeightedRotation && (
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <h4 className="text-sm font-medium text-gray-700 mb-1">
-              Type de rotation du placement :
+              {t('creatifFormTags.rotationInfo.title')}
             </h4>
             <p className="text-sm text-gray-600">
               <strong>{placementData.PL_Creative_Rotation_Type}</strong>
-              {placementData.PL_Creative_Rotation_Type === 'Even' && ' - Rotation équitable entre tous les créatifs'}
-              {placementData.PL_Creative_Rotation_Type === 'Optimized by clicks' && ' - Rotation optimisée selon les performances'}
-              {placementData.PL_Creative_Rotation_Type === 'Floodlight' && ' - Rotation basée sur la configuration Floodlight'}
+              {placementData.PL_Creative_Rotation_Type === 'Even' && ` - ${t('creatifFormTags.rotationInfo.evenDescription')}`}
+              {placementData.PL_Creative_Rotation_Type === 'Optimized by clicks' && ` - ${t('creatifFormTags.rotationInfo.optimizedDescription')}`}
+              {placementData.PL_Creative_Rotation_Type === 'Floodlight' && ` - ${t('creatifFormTags.rotationInfo.floodlightDescription')}`}
             </p>
           </div>
         )}

@@ -70,7 +70,7 @@ export const translations = {
         identifierShort: "ID",
         budget: "Budget",
         status: "Statut",
-        period: "Période",
+        quarter: "Période",
         startDate: "Date de début",
         endDate: "Date de fin",
         dates: "Dates",
@@ -469,6 +469,8 @@ export const translations = {
       info: "Information",
       logout: "Déconnexion",
       on: "sur",
+      all:"Tous",
+      clearFilters:"Effacer les filtres",
     },
     errors: {
       generic: "Une erreur inattendue s'est produite",
@@ -1865,7 +1867,9 @@ export const translations = {
         placeholder: "Sélectionner..."
       },
       input: {
-        placeholder: "Saisir la valeur..."
+        placeholder: "Saisir la valeur...",
+        authorizedChar:"Caractères autorisés : lettres, chiffres et tirets uniquement"
+
       },
       button: {
         chooseFromList: "📋 Choisir dans la liste ({count} options)"
@@ -1875,7 +1879,7 @@ export const translations = {
         description: "Toutes les variables sont héritées automatiquement. Aucune configuration manuelle n'est requise."
       },
       configuredState: {
-        title: "Champs à configurer ({count})"
+        title: "Champs à configurer"
       }
     },
     budgetBonification: {
@@ -1987,7 +1991,7 @@ export const translations = {
       },
       level: {
         title: "Niveau",
-        noneConfigured: "Aucun niveau {{levels}} configuré pour cette taxonomie",
+        noneConfigured: "Aucune structure configurée pour cette taxonomie",
       },
       placeholder: {
         description: "L'aperçu apparaîtra une fois les taxonomies sélectionnées et analysées.",
@@ -2059,6 +2063,266 @@ export const translations = {
         new: "Nouveau placement"
       }
     },
+    creatifFormTags: {
+      title: "Configuration des Tags Créatif",
+      description: "Configurez les paramètres CM360",
+      validation: {
+        title: "Erreurs de validation :",
+        startDateBeforePlacement: "La date de début tag créatif ne peut pas être antérieure au {{date}} (date début tag placement)",
+        endDateAfterPlacement: "La date de fin tag créatif ne peut pas dépasser le {{date}} (date fin tag placement)",
+        startAfterEnd: "La date de début tag créatif doit être antérieure à la date de fin"
+      },
+      fields: {
+        startDate: {
+          label: "Date de début tag créatif",
+          tooltip: "Date de début pour le tagging de ce créatif. Doit être comprise entre {{startDate}} et {{endDate}}"
+        },
+        endDate: {
+          label: "Date de fin tag créatif",
+          tooltip: "Date de fin pour le tagging de ce créatif. Doit être comprise entre {{startDate}} et {{endDate}}"
+        },
+        weight: {
+          label: "Poids de rotation (%)",
+          placeholder: "Ex: 25",
+          tooltip: "Pourcentage de rotation pour ce créatif. Exemple : 25% signifie que ce créatif sera affiché 25% du temps. La somme des poids de tous les créatifs du placement devrait totaliser 100%."
+        }
+      },
+      weightedRotation: {
+        activated: "Rotation pondérée activée :",
+        description: "Le placement parent utilise une rotation pondérée. Définissez le poids de ce créatif.",
+        noteTitle: "Note :",
+        noteDescription: "Assurez-vous que la somme des poids de tous les créatifs de ce placement totalise 100%."
+      },
+      rotationInfo: {
+        title: "Type de rotation du placement :",
+        evenDescription: "Rotation équitable entre tous les créatifs",
+        optimizedDescription: "Rotation optimisée selon les performances",
+        floodlightDescription: "Rotation basée sur la configuration Floodlight"
+      }
+    },
+    adOps: {
+      actionButtons: {
+        tagUnavailable: "Tag non disponible",
+        copy: "Copier",
+        historyTooltip: "{label} a été modifié depuis le dernier tag - Cliquer pour voir l'historique"
+      },
+      itemLabels: {
+        unnamedPlacement: "Placement sans nom",
+        unnamedCreative: "Créatif sans nom"
+      },
+      labels: {
+        campaign: "Campagne",
+        placement: "Placement",
+        ad: "Ad",
+        creative: "Créatif",
+        url: "URL"
+      }
+    },
+    colorPicker: {
+      title: "Choisir une couleur",
+      applyColor: "Appliquer la couleur {{colorName}}",
+      removeColor: "Supprimer la couleur",
+      none: "Aucune",
+      applyInfo: "La couleur sera appliquée à toutes les lignes sélectionnées et sauvegardée automatiquement."
+    },
+    adOpsDropdown: {
+      title: "Publishers",
+      button: {
+        noPublishers: "Aucun publisher",
+        selectPublishers: "Sélectionner des publishers",
+        allPublishers: "Tous les publishers",
+        publisherSingular: "publisher sélectionné",
+        publisherPlural: "publishers sélectionnés"
+      },
+      search: {
+        placeholder: "Rechercher un publisher...",
+        resultFound: "résultat trouvé",
+        resultsFound: "résultats trouvés",
+        noneFound: "Aucun publisher trouvé pour \"{{searchTerm}}\""
+      },
+      actions: {
+        select: "Sélectionner",
+        deselect: "Désélectionner",
+        theResults: "les résultats",
+        all: "tout"
+      }
+    },
+    adOpsProgressBar: {
+      emptyState: {
+        message: "Sélectionnez une campagne et une version pour voir la progression des tags CM360"
+      },
+      tooltip: {
+        created: "tags créés",
+        toModify: "tags à modifier",
+        toCreate: "tags à créer"
+      }
+    },
+    tableRow: {
+      clickToCopy: "Cliquer pour copier",
+      modifiedSinceLastTag: "a été modifié depuis le dernier tag",
+      clickToSeeHistory: "Cliquer pour voir l'historique",
+      tagCreatedInCm360: "Tag créé dans CM360",
+      changesDetectedSinceLastTag: "Modifications détectées depuis le dernier tag",
+      unnamedPlacement: "Placement sans nom",
+      unnamedCreative: "Créatif sans nom",
+      label: "Libellé",
+      labelModified: "Libellé modifié",
+      tagType: "Type de Tag",
+      startDate: "Date Début",
+      endDate: "Date Fin",
+      rotationType: "Type de Rotation",
+      rotationWeight: "Poids de Rotation",
+      floodlight: "Floodlight",
+      thirdPartyMeasurement: "Mesure Tierce Partie",
+      vpaid: "VPAID"
+    },
+    adOpsTacticInfo: {
+      metricCard: {
+        historyTooltip: "{{title}} a été modifié depuis le dernier tag - Cliquer pour voir l'historique",
+        copyTooltip: "Cliquer pour copier {{title}}",
+        noValue: "Valeur non disponible",
+        copied: "✓ Copié"
+      },
+      noTacticSelected: "Aucune tactique sélectionnée",
+      metrics: {
+        mediaBudget: "Budget Média",
+        cm360Rate: "Taux CM360",
+        cm360Volume: "Volume CM360"
+      },
+      badges: {
+        currency: "Devise",
+        buyType: "Type d'achat"
+      },
+      updateButton: {
+        updating: "Mise à jour...",
+        confirmChanges: "Changements effectués dans CM360"
+      },
+      historyModal: {
+        defaultItemLabel: "Tactique"
+      }
+    },
+    adOpsTacticList: {
+      common: {
+        notAvailable: "N/A"
+      },
+      header: {
+        title: "Tactiques",
+        tactic: "tactique",
+        tactic_plural: "tactiques",
+        deselect: "Désélectionner"
+      },
+      filters: {
+        all: "Tous",
+        complete: "Complets ✓",
+        modified: "Modifiés ⚠️",
+        toCreate: "À créer"
+      },
+      emptyState: {
+        noTacticFound: "Aucune tactique trouvée",
+        noTacticForFilter: "Aucune tactique",
+        completeFilter: "complète (tous tags créés)",
+        modifiedFilter: "avec modifications",
+        noTagsFilter: "sans tags",
+        changeFilter: "Changez le filtre pour voir d'autres tactiques"
+      },
+      tacticCard: {
+        unnamedTactic: "Tactique sans nom"
+      },
+      tooltip: {
+        allCreated: "Tous les éléments et métriques ont des tags créés, aucun changement",
+        changesDetected: "Modifications détectées dans:",
+        partialTags: "Tags partiels - certains éléments ou métriques n'ont pas de tags",
+        noTags: "Aucun tag créé"
+      },
+      changesSummary: {
+        placements: "placements",
+        creatives: "créatifs",
+        metrics: "métriques"
+      },
+      legend: {
+        complete: "Complet (tous créés)",
+        modifications: "Modifications"
+      }
+    },
+    adOpsTacticTable: {
+      colorFilter: {
+        all: "Toutes"
+      },
+      placeholder: {
+        noTacticSelected: "Aucune tactique sélectionnée",
+        selectTacticPrompt: "Sélectionnez une tactique pour voir ses placements"
+      },
+      buttons: {
+        creating: "Création...",
+        deselect: "Désélectionner"
+      },
+      tooltips: {
+        deleteAllHistory: "Supprime TOUT l'historique des tags CM360 pour les éléments sélectionnés",
+        applyColor: "Appliquer la couleur",
+        removeColor: "Enlever la couleur",
+        filterNoColor: "Filtrer par aucune couleur",
+        filterByColor: "Filtrer par"
+      },
+      search: {
+        placeholder: "Rechercher par label ou tag..."
+      },
+      filters: {
+        statusLabel: "Statut:",
+        all: "Tous",
+        tagsCreated: "Tags créés ✓",
+        toModify: "À modifier ⚠️",
+        toCreate: "À créer",
+        colorLabel: "Couleur:"
+      },
+      headers: {
+        actions: "Actions",
+        tagType: "Tag Type",
+        startDate: "Date Début",
+        endDate: "Date Fin",
+        rotation: "Rotation",
+        floodlight: "Floodlight",
+        thirdParty: "3rd Party",
+        vpaid: "VPAID"
+      },
+      table: {
+        noResultsFor: "Aucun résultat pour",
+        noPlacementsFound: "Aucun placement trouvé"
+      }
+    },
+    cm360HistoryModal: {
+      header: {
+        title: "Historique des modifications",
+        placement: "Placement",
+        creative: "Créatif",
+        metrics: "Métriques"
+      },
+      currentValue: {
+        title: "Valeur actuelle"
+      },
+      history: {
+        title: "Historique des valeurs",
+        noHistory: "Aucun historique disponible pour ce champ"
+      },
+      buttons: {
+        copyValue: "Copier la valeur",
+        copied: "Copié!"
+      },
+      values: {
+        empty: "(vide)"
+      }
+    },
+    adOpsPage: {
+      header: {
+        title: "AdOps",
+        refreshTooltip: "Rafraîchir toutes les données AdOps pour voir les dernières modifications",
+        refreshing: "Rafraîchissement...",
+        refresh: "Rafraîchir"
+      },
+      placeholder: {
+        selectCampaignAndVersion: "Veuillez sélectionner une campagne et une version pour commencer.",
+        selectVersion: "Veuillez sélectionner une version pour continuer."
+      }
+    },
 
 
     },
@@ -2127,7 +2391,7 @@ export const translations = {
         identifierShort: "ID",
         budget: "Budget",
         status: "Status",
-        period: "Period",
+        quarter: "Period",
         startDate: "Start Date",
         endDate: "End Date",
         dates: "Dates",
@@ -2370,6 +2634,8 @@ export const translations = {
       info: "Information",
       logout: "Logout",
       on:"of",
+      all:"All",
+      clearFilters:"Clear filters",
     },
     errors: {
       generic: "An unexpected error occurred",
@@ -3766,7 +4032,8 @@ export const translations = {
         placeholder: "Select..."
       },
       input: {
-        placeholder: "Enter value..."
+        placeholder: "Enter value...",
+        authorizedChar:"Permitted characters: letters, numbers, and hyphens only"
       },
       button: {
         chooseFromList: "📋 Choose from list ({count} options)"
@@ -3776,7 +4043,7 @@ export const translations = {
         description: "All variables are inherited automatically. No manual configuration is required."
       },
       configuredState: {
-        title: "Fields to Configure ({count})"
+        title: "Fields to Configure"
       }
     },
     budgetBonification: {
@@ -3888,7 +4155,7 @@ export const translations = {
       },
       level: {
         title: "Level",
-        noneConfigured: "No level {{levels}} configured for this taxonomy",
+        noneConfigured: "No structure configured for this taxonomy",
       },
       placeholder: {
         description: "The preview will appear once taxonomies are selected and analyzed.",
@@ -3960,9 +4227,267 @@ export const translations = {
         new: "New placement"
       }
     },
-  
+    creatifFormTags: {
+      title: "Creative Tags Configuration",
+      description: "Configure CM360 parameters",
+      validation: {
+        title: "Validation errors:",
+        startDateBeforePlacement: "Creative tag start date cannot be earlier than {{date}} (placement tag start date)",
+        endDateAfterPlacement: "Creative tag end date cannot exceed {{date}} (placement tag end date)",
+        startAfterEnd: "Creative tag start date must be before the end date"
+      },
+      fields: {
+        startDate: {
+          label: "Creative tag start date",
+          tooltip: "Start date for tagging this creative. Must be between {{startDate}} and {{endDate}}"
+        },
+        endDate: {
+          label: "Creative tag end date",
+          tooltip: "End date for tagging this creative. Must be between {{startDate}} and {{endDate}}"
+        },
+        weight: {
+          label: "Rotation weight (%)",
+          placeholder: "E.g., 25",
+          tooltip: "Rotation percentage for this creative. Example: 25% means this creative will be shown 25% of the time. The sum of weights for all creatives in the placement should total 100%."
+        }
+      },
+      weightedRotation: {
+        activated: "Weighted rotation activated:",
+        description: "The parent placement uses weighted rotation. Define the weight for this creative.",
+        noteTitle: "Note:",
+        noteDescription: "Ensure the sum of weights for all creatives in this placement totals 100%."
+      },
+      rotationInfo: {
+        title: "Placement rotation type:",
+        evenDescription: "Even rotation among all creatives",
+        optimizedDescription: "Rotation optimized by performance",
+        floodlightDescription: "Rotation based on Floodlight configuration"
+      }
+    },
+    adOps: {
+      actionButtons: {
+        tagUnavailable: "Tag not available",
+        copy: "Copy",
+        historyTooltip: "{label} has been modified since the last tag - Click to see history"
+      },
+      itemLabels: {
+        unnamedPlacement: "Unnamed placement",
+        unnamedCreative: "Unnamed creative"
+      },
+      labels: {
+        campaign: "Campaign",
+        placement: "Placement",
+        ad: "Ad",
+        creative: "Creative",
+        url: "URL"
+      }
+    },
+    colorPicker: {
+      title: "Choose a color",
+      applyColor: "Apply {{colorName}} color",
+      removeColor: "Remove color",
+      none: "None",
+      applyInfo: "The color will be applied to all selected rows and saved automatically."
+    },
+    adOpsDropdown: {
+      title: "Publishers",
+      button: {
+        noPublishers: "No publishers",
+        selectPublishers: "Select publishers",
+        allPublishers: "All publishers",
+        publisherSingular: "publisher selected",
+        publisherPlural: "publishers selected"
+      },
+      search: {
+        placeholder: "Search for a publisher...",
+        resultFound: "result found",
+        resultsFound: "results found",
+        noneFound: "No publisher found for \"{{searchTerm}}\""
+      },
+      actions: {
+        select: "Select",
+        deselect: "Deselect",
+        theResults: "the results",
+        all: "all"
+      }
+    },
+    adOpsProgressBar: {
+      emptyState: {
+        message: "Select a campaign and a version to see the CM360 tags progress"
+      },
+      tooltip: {
+        created: "tags created",
+        toModify: "tags to modify",
+        toCreate: "tags to create"
+      }
+    },
+    tableRow: {
+      clickToCopy: "Click to copy",
+      modifiedSinceLastTag: "has been modified since the last tag",
+      clickToSeeHistory: "Click to see history",
+      tagCreatedInCm360: "Tag created in CM360",
+      changesDetectedSinceLastTag: "Changes detected since the last tag",
+      unnamedPlacement: "Unnamed placement",
+      unnamedCreative: "Unnamed creative",
+      label: "Label",
+      labelModified: "Label modified",
+      tagType: "Tag Type",
+      startDate: "Start Date",
+      endDate: "End Date",
+      rotationType: "Rotation Type",
+      rotationWeight: "Rotation Weight",
+      floodlight: "Floodlight",
+      thirdPartyMeasurement: "Third Party Measurement",
+      vpaid: "VPAID"
+    },
+    adOpsTacticInfo: {
+      metricCard: {
+        historyTooltip: "{{title}} has been modified since the last tag - Click to see history",
+        copyTooltip: "Click to copy {{title}}",
+        noValue: "Value not available",
+        copied: "✓ Copied"
+      },
+      noTacticSelected: "No tactic selected",
+      metrics: {
+        mediaBudget: "Media Budget",
+        cm360Rate: "CM360 Rate",
+        cm360Volume: "CM360 Volume"
+      },
+      badges: {
+        currency: "Currency",
+        buyType: "Buy Type"
+      },
+      updateButton: {
+        updating: "Updating...",
+        confirmChanges: "Confirm changes in CM360"
+      },
+      historyModal: {
+        defaultItemLabel: "Tactic"
+      }
+    },
+    adOpsTacticList: {
+      common: {
+        notAvailable: "N/A"
+      },
+      header: {
+        title: "Tactics",
+        tactic: "tactic",
+        tactic_plural: "tactics",
+        deselect: "Deselect"
+      },
+      filters: {
+        all: "All",
+        complete: "Complete ✓",
+        modified: "To modify ⚠️",
+        toCreate: "To create"
+      },
+      emptyState: {
+        noTacticFound: "No tactics found",
+        noTacticForFilter: "No tactic",
+        completeFilter: "complete (all tags created)",
+        modifiedFilter: "with modifications",
+        noTagsFilter: "without tags",
+        changeFilter: "Change the filter to see other tactics"
+      },
+      tacticCard: {
+        unnamedTactic: "Unnamed tactic"
+      },
+      tooltip: {
+        allCreated: "All elements and metrics have tags created, no changes",
+        changesDetected: "Changes detected in:",
+        partialTags: "Partial tags - some elements or metrics do not have tags",
+        noTags: "No tags created"
+      },
+      changesSummary: {
+        placements: "placements",
+        creatives: "creatives",
+        metrics: "metrics"
+      },
+      legend: {
+        complete: "Complete (all created)",
+        modifications: "Modifications"
+      }
+    },
+    adOpsTacticTable: {
+      colorFilter: {
+        all: "All"
+      },
+      placeholder: {
+        noTacticSelected: "No tactic selected",
+        selectTacticPrompt: "Select a tactic to see its placements"
+      },
+      buttons: {
+        creating: "Creating...",
+        deselect: "Deselect"
+      },
+      tooltips: {
+        deleteAllHistory: "Deletes ALL CM360 tag history for the selected items",
+        applyColor: "Apply color",
+        removeColor: "Remove color",
+        filterNoColor: "Filter by no color",
+        filterByColor: "Filter by"
+      },
+      search: {
+        placeholder: "Search by label or tag..."
+      },
+      filters: {
+        statusLabel: "Status:",
+        all: "All",
+        tagsCreated: "Complete ✓",
+        toModify: "To modify ⚠️",
+        toCreate: "To create",
+        colorLabel: "Color:"
+      },
+      headers: {
+        actions: "Actions",
+        tagType: "Tag Type",
+        startDate: "Start Date",
+        endDate: "End Date",
+        rotation: "Rotation",
+        floodlight: "Floodlight",
+        thirdParty: "3rd Party",
+        vpaid: "VPAID"
+      },
+      table: {
+        noResultsFor: "No results for",
+        noPlacementsFound: "No placements found"
+      }
+    },
+    cm360HistoryModal: {
+      header: {
+        title: "Change History",
+        placement: "Placement",
+        creative: "Creative",
+        metrics: "Metrics"
+      },
+      currentValue: {
+        title: "Current Value"
+      },
+      history: {
+        title: "Value History",
+        noHistory: "No history available for this field"
+      },
+      buttons: {
+        copyValue: "Copy value",
+        copied: "Copied!"
+      },
+      values: {
+        empty: "(empty)"
+      }
+    },
+    adOpsPage: {
+      header: {
+        title: "AdOps",
+        refreshTooltip: "Refresh all AdOps data to see the latest changes",
+        refreshing: "Refreshing...",
+        refresh: "Refresh"
+      },
+      placeholder: {
+        selectCampaignAndVersion: "Please select a campaign and version to get started.",
+        selectVersion: "Please select a version to continue."
+      }
+    },
 
 
-  
   }
 };

@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Color {
   name: string;
@@ -29,16 +30,17 @@ export default function AdOpsColorPicker({
   onColorSelect,
   onClose
 }: AdOpsColorPickerProps) {
+  const { t } = useTranslation();
   return (
     <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-medium text-gray-900">
-          Choisir une couleur
+          {t('colorPicker.title')}
         </h4>
         <button
           onClick={onClose}
           className="p-1 hover:bg-gray-200 rounded"
-          title="Fermer"
+          title={t('common.close')}
         >
           <XMarkIcon className="w-4 h-4 text-gray-500" />
         </button>
@@ -54,7 +56,7 @@ export default function AdOpsColorPicker({
               hover:border-gray-400 transition-all duration-200 
               ${color.class}
             `}
-            title={`Appliquer la couleur ${color.name.toLowerCase()}`}
+            title={t('colorPicker.applyColor', { colorName: color.name.toLowerCase() })}
           >
             <div className="flex items-center gap-2">
               <div 
@@ -75,7 +77,7 @@ export default function AdOpsColorPicker({
         <button
           onClick={() => onColorSelect('')}
           className="px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200"
-          title="Supprimer la couleur"
+          title={t('colorPicker.removeColor')}
         >
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full border border-gray-400 bg-white relative">
@@ -85,14 +87,14 @@ export default function AdOpsColorPicker({
               </div>
             </div>
             <span className="text-sm font-medium text-gray-700">
-              Aucune
+              {t('colorPicker.none')}
             </span>
           </div>
         </button>
       </div>
       
       <p className="mt-3 text-xs text-gray-600">
-        La couleur sera appliquée à toutes les lignes sélectionnées et sauvegardée automatiquement.
+        {t('colorPicker.applyInfo')}
       </p>
     </div>
   );

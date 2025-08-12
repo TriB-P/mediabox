@@ -52,6 +52,10 @@ export function useBreakdownLocalData(
   const createBreakdownsObject = useCallback(() => {
     const breakdownsObj: any = {};
     
+    // NOUVEAU: Récupérer les dates actuelles de la tactique
+    const tactiqueStartDate = formData.TC_Start_Date ? new Date(formData.TC_Start_Date) : null;
+    const tactiqueEndDate = formData.TC_End_Date ? new Date(formData.TC_End_Date) : null;
+    
     // Grouper les périodes par breakdown pour construire la structure
     const periodsByBreakdown = periods.reduce((acc, period) => {
       if (!acc[period.breakdownId]) {
@@ -60,19 +64,77 @@ export function useBreakdownLocalData(
       acc[period.breakdownId].push(period);
       return acc;
     }, {} as { [key: string]: BreakdownPeriod[] });
-
+  
     Object.entries(periodsByBreakdown).forEach(([breakdownId, breakdownPeriods]) => {
       const breakdown = breakdowns.find(b => b.id === breakdownId);
       if (!breakdown) return;
-
+  
       breakdownsObj[breakdownId] = {
         name: breakdown.name,
         type: breakdown.type,
         periods: {}
       };
-
-      // Trier les périodes selon leur ordre naturel avant de les sauvegarder
-      const sortedPeriods = [...breakdownPeriods].sort((a, b) => {
+  
+      // NOUVEAU: Filtrer les périodes selon les dates de la tactique
+      let filteredPeriods = breakdownPeriods;
+      
+      // Pour les breakdowns par défaut, filtrer selon les dates de la tactique
+      if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
+        filteredPeriods = breakdownPeriods.filter(period => {
+          // Utiliser la date stockée dans la période
+          if (period.startDate) {
+            const periodStartDate = period.startDate;
+            
+            // Calculer la date de fin de la période selon le type de breakdown
+            const periodEndDate = new Date(periodStartDate);
+            
+            if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+              // Pour les semaines, ajouter 6 jours
+              periodEndDate.setDate(periodEndDate.getDate() + 6);
+            } else if (breakdown.type === 'Mensuel') {
+              // Pour les mois, aller au dernier jour du mois
+              periodEndDate.setMonth(periodEndDate.getMonth() + 1);
+              periodEndDate.setDate(0);
+            }
+            
+            // La période est valide si elle intersecte avec les dates de la tactique
+            // Intersecte si : début période <= fin tactique ET fin période >= début tactique
+            return periodStartDate <= tactiqueEndDate && periodEndDate >= tactiqueStartDate;
+          }
+          
+          // Si pas de date de début, garder la période (pour compatibilité)
+          return true;
+        });
+      }
+      // Pour les autres breakdowns, filtrer selon leurs propres dates
+      else if (!breakdown.isDefault && breakdown.startDate && breakdown.endDate) {
+        const breakdownStartDate = new Date(breakdown.startDate);
+        const breakdownEndDate = new Date(breakdown.endDate);
+        
+        filteredPeriods = breakdownPeriods.filter(period => {
+          if (period.startDate) {
+            const periodStartDate = period.startDate;
+            
+            // Calculer la date de fin de la période
+            const periodEndDate = new Date(periodStartDate);
+            
+            if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+              periodEndDate.setDate(periodEndDate.getDate() + 6);
+            } else if (breakdown.type === 'Mensuel') {
+              periodEndDate.setMonth(periodEndDate.getMonth() + 1);
+              periodEndDate.setDate(0);
+            }
+            
+            // La période est valide si elle est dans la plage du breakdown
+            return periodStartDate <= breakdownEndDate && periodEndDate >= breakdownStartDate;
+          }
+          
+          return true; // Garder si pas de date (pour compatibilité)
+        });
+      }
+  
+      // Trier les périodes filtrées selon leur ordre naturel avant de les sauvegarder
+      const sortedPeriods = [...filteredPeriods].sort((a, b) => {
         // Déterminer l'ordre selon le type de breakdown
         if (breakdown.type === 'Custom' && breakdown.customPeriods) {
           const aCustomPeriod = breakdown.customPeriods.find(p => a.id.endsWith(p.id));
@@ -107,8 +169,8 @@ export function useBreakdownLocalData(
         }
         return 0;
       });
-
-      // Ajouter chaque période avec son ordre calculé
+  
+      // MODIFIÉ: Ajouter seulement les périodes filtrées avec leur ordre calculé
       sortedPeriods.forEach((period, index) => {
         const periodData = localBreakdownData[period.id] || { 
           value: '', 
@@ -131,7 +193,7 @@ export function useBreakdownLocalData(
     });
     
     return breakdownsObj;
-  }, [periods, localBreakdownData, breakdowns]);
+  }, [periods, localBreakdownData, breakdowns, formData.TC_Start_Date, formData.TC_End_Date]);
 
   /**
    * Initialise l'état local à partir des données existantes de breakdown

@@ -1,9 +1,8 @@
-// app/hooks/documents/useCampaignDataDoc.ts
 /**
  * Ce hook gère l'extraction et la transformation des données d'une campagne
  * en un tableau 2D simple. Il récupère toutes les informations d'une campagne
  * spécifique depuis Firebase et les formate en un tableau avec une ligne d'en-têtes
- * et une ligne de données correspondantes.
+ * (les clés de l'objet) et une ligne de données correspondantes.
  */
 'use client';
 
@@ -13,7 +12,7 @@ import { getCampaigns } from '../../lib/campaignService';
 import type { Campaign } from '../../types/campaign';
 
 interface UseCampaignDataDocReturn {
-  extractCampaignData: (clientId: string, campaignId: string) => Promise<string[][] | null>; // Modifié ici
+  extractCampaignData: (clientId: string, campaignId: string) => Promise<string[][] | null>;
   loading: boolean;
   error: string | null;
   data: string[][] | null;
@@ -59,69 +58,35 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
   }, []);
 
   /**
-   * Transforme les données de campagne en tableau 2D avec en-têtes et valeurs.
+   * Transforme les données de campagne en tableau 2D avec les clés comme en-têtes.
    * @param {Campaign} campaign Les données de la campagne.
    * @returns {string[][]} Un tableau 2D avec en-têtes et données.
    */
   const transformCampaignToTable = useCallback((campaign: Campaign): string[][] => {
-    const table: string[][] = [];
-    
-    // Définir l'ordre des colonnes et les en-têtes lisibles
-    const fieldMapping: Array<{key: keyof Campaign, header: string}> = [
-      { key: 'id', header: 'ID' },
-      { key: 'CA_Name', header: 'Nom' },
-      { key: 'CA_Campaign_Identifier', header: 'Identifiant' },
-      { key: 'CA_Division', header: 'Division' },
-      { key: 'CA_Status', header: 'Statut' },
-      { key: 'CA_Quarter', header: 'Trimestre' },
-      { key: 'CA_Year', header: 'Année' },
-      { key: 'CA_Creative_Folder', header: 'Dossier Créatif' },
-      { key: 'CA_Custom_Dim_1', header: 'Dimension 1' },
-      { key: 'CA_Custom_Dim_2', header: 'Dimension 2' },
-      { key: 'CA_Custom_Dim_3', header: 'Dimension 3' },
-      { key: 'CA_Start_Date', header: 'Date Début' },
-      { key: 'CA_End_Date', header: 'Date Fin' },
-      { key: 'CA_Sprint_Dates', header: 'Dates Sprint' },
-      { key: 'CA_Budget', header: 'Budget' },
-      { key: 'CA_Currency', header: 'Devise' },
-      { key: 'CA_Custom_Fee_1', header: 'Frais 1' },
-      { key: 'CA_Custom_Fee_2', header: 'Frais 2' },
-      { key: 'CA_Custom_Fee_3', header: 'Frais 3' },
-      { key: 'CA_Client_Ext_Id', header: 'ID Client Externe' },
-      { key: 'CA_PO', header: 'PO' },
-      { key: 'CA_Billing_ID', header: 'ID Facturation' },
-      { key: 'CA_Last_Edit', header: 'Dernière Modification' },
-      { key: 'createdAt', header: 'Créé le' },
-      { key: 'updatedAt', header: 'Mis à jour le' },
-      { key: 'officialVersionId', header: 'Version Officielle ID' }
-    ];
+    // 1. Obtenir les clés de l'objet campaign pour les utiliser comme en-têtes.
+    const headers = Object.keys(campaign);
 
-    // 1. Créer la ligne d'en-têtes
-    const headers = fieldMapping.map(field => field.header);
-    table.push(headers);
-
-    // 2. Créer la ligne de données
-    const values = fieldMapping.map(field => {
-      const value = campaign[field.key];
+    // 2. Créer la ligne de données en mappant sur les clés pour garantir l'ordre.
+    const values = headers.map(header => {
+      const value = campaign[header as keyof Campaign];
       
-      // Gérer les différents types de données
+      // Gérer les différents types de données pour les convertir en chaîne de caractères.
       if (value === null || value === undefined) {
         return '';
       } else if (typeof value === 'boolean') {
-        return value;
+        return value; // Convertit true en "true"
       } else if (typeof value === 'number') {
         return value.toString();
       } else if (typeof value === 'string') {
         return value;
       } else {
-        // Pour les objets complexes, les convertir en JSON
+        // Pour les objets complexes (comme les dates ou autres), les convertir en JSON.
         return JSON.stringify(value);
       }
     });
     
-    table.push(values);
-
-    return table;
+    // 3. Retourner le tableau contenant la ligne d'en-têtes et la ligne de valeurs.
+    return [headers, values];
   }, []);
 
   /**
@@ -129,13 +94,13 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
    * Elle orchestre la récupération de la campagne et sa transformation en tableau 2D.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
-   * @returns {Promise<string[][] | null>} Une promesse qui se résout avec le tableau de données, ou null en cas d'erreur. // Modifié ici
+   * @returns {Promise<string[][] | null>} Une promesse qui se résout avec le tableau de données, ou null en cas d'erreur.
    * @throws {Error} Si l'utilisateur n'est pas authentifié ou si une erreur survient.
    */
   const extractCampaignData = useCallback(async (
     clientId: string, 
     campaignId: string
-  ): Promise<string[][] | null> => { // Modifié ici
+  ): Promise<string[][] | null> => {
     if (!user) {
       throw new Error('Utilisateur non authentifié');
     }
@@ -149,21 +114,21 @@ export function useCampaignDataDoc(): UseCampaignDataDocReturn {
       const campaign = await fetchCampaignData(clientId, campaignId);
 
       if (!campaign) {
-        setError('Campagne non trouvée'); // Ajouté pour gérer l'erreur interne
-        return null; // Retourne null si la campagne n'est pas trouvée
+        setError('Campagne non trouvée');
+        return null;
       }
 
       // 2. Transformer en tableau 2D
       const table = transformCampaignToTable(campaign);
 
-      // 3. Sauvegarder le résultat (pour le hook local)
+      // 3. Sauvegarder le résultat
       setData(table);
-      return table; // Retourne les données extraites
+      return table;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'extraction de la campagne';
       console.error('❌ Erreur:', errorMessage);
       setError(errorMessage);
-      return null; // Retourne null en cas d'erreur
+      return null;
     } finally {
       setLoading(false);
     }

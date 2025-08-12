@@ -17,7 +17,7 @@ import {
   CloudArrowUpIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useClient } from '../../contexts/ClientContext';
 import AdOpsTableRow from './AdOpsTableRow';
@@ -29,6 +29,8 @@ import {
   CM360Filter
 } from '../../lib/cm360Service';
 import { Check } from 'lucide-react';
+import { useTranslation } from '../../contexts/LanguageContext';
+
 
 interface SelectedTactique {
   id: string;
@@ -101,13 +103,6 @@ const COLORS = [
   { name: '', value: '#7EDD8F', class: 'bg-yellow-100' }
 ];
 
-// NOUVEAU : Options de filtre par couleur
-const COLOR_FILTER_OPTIONS = [
-  { value: 'all', label: 'Toutes', color: null },
-  { value: 'none', label: '', color: null },
-  ...COLORS.map(color => ({ value: color.value, label: color.name, color: color.value }))
-];
-
 /**
  * Composant principal du tableau AdOps avec CM360
  */
@@ -120,6 +115,7 @@ export default function AdOpsTacticTable({
   onCM360TagsReload,
   onDataReload // NOUVEAU : Callback pour recharger toutes les données
 }: AdOpsTacticTableProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
@@ -130,6 +126,13 @@ export default function AdOpsTacticTable({
   const [cm360Loading, setCm360Loading] = useState(false);
   const [cm360Filter, setCm360Filter] = useState<CM360Filter>('all');
   const [colorFilter, setColorFilter] = useState<string>('all'); // NOUVEAU : Filtre par couleur
+
+  // NOUVEAU : Options de filtre par couleur
+  const COLOR_FILTER_OPTIONS = [
+    { value: 'all', label: t('adOpsTacticTable.colorFilter.all'), color: null },
+    { value: 'none', label: '', color: null },
+    ...COLORS.map(color => ({ value: color.value, label: color.name, color: color.value }))
+  ];
 
   /**
    * NOUVELLE FONCTION : Filtre les tags CM360 pour la tactique sélectionnée
@@ -624,48 +627,51 @@ export default function AdOpsTacticTable({
     return false;
   };
 
-  /**
-   * Applique une couleur aux lignes sélectionnées
-   * MODIFIÉ : Notifie le parent pour recharger les données après sauvegarde
-   */
-  const applyColorToSelected = async (color: string) => {
-    if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
+/**
+ * Applique une couleur aux lignes sélectionnées
+ * OPTIMISÉ : Sauvegarde dans Firestore SANS recharger les données
+ * Les modifications locales sont conservées pour un feedback immédiat
+ */
+const applyColorToSelected = async (color: string) => {
+  if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
+  
+  const clientId = selectedClient.clientId;
+  const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
+  const updates: Promise<void>[] = [];
+  
+  // 1. Mise à jour locale immédiate pour un feedback visuel
+  updateLocalColors(color);
+  
+  // 2. Préparer les mises à jour Firestore
+  selectedRows.forEach(rowId => {
+    const [type, id] = rowId.split('-');
     
-    const clientId = selectedClient.clientId;
-    const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
-    const updates: Promise<void>[] = [];
-    
-    // Mise à jour locale immédiate pour un feedback visuel
-    updateLocalColors(color);
-    
-    selectedRows.forEach(rowId => {
-      const [type, id] = rowId.split('-');
-      
-      if (type === 'placement') {
-        const docRef = doc(db, `${basePath}/placements/${id}`);
-        updates.push(updateDoc(docRef, { PL_Adops_Color: color }));
-      } else if (type === 'creative') {
-        const placementId = getPlacementIdForCreative(id);
-        if (placementId) {
-          const docRef = doc(db, `${basePath}/placements/${placementId}/creatifs/${id}`);
-          updates.push(updateDoc(docRef, { CR_Adops_Color: color }));
-        }
+    if (type === 'placement') {
+      const docRef = doc(db, `${basePath}/placements/${id}`);
+      updates.push(updateDoc(docRef, { PL_Adops_Color: color }));
+    } else if (type === 'creative') {
+      const placementId = getPlacementIdForCreative(id);
+      if (placementId) {
+        const docRef = doc(db, `${basePath}/placements/${placementId}/creatifs/${id}`);
+        updates.push(updateDoc(docRef, { CR_Adops_Color: color }));
       }
-    });
-    
-    try {
-      await Promise.all(updates);
-      console.log('✅ [TacticTable] Couleurs sauvegardées dans Firestore');
-      
-      // NOUVEAU : Notifier le parent pour recharger les données depuis Firestore
-      if (onDataReload) {
-        console.log('🔄 [TacticTable] Rechargement des données depuis AdOpsPage');
-        onDataReload();
-      }
-    } catch (error) {
-      console.error('Erreur sauvegarde couleurs:', error);
     }
-  };
+  });
+  
+  try {
+    // 3. Sauvegarder dans Firestore
+    await Promise.all(updates);
+    console.log('✅ [TacticTable] Couleurs sauvegardées dans Firestore');
+    
+    // 4. SUPPRIMÉ : Plus besoin de recharger les données !
+    // Les modifications locales sont déjà appliquées et Firestore est à jour
+    // onDataReload() était inutile et causait des problèmes
+    
+  } catch (error) {
+    console.error('Erreur sauvegarde couleurs:', error);
+    // En cas d'erreur, on pourrait optionnellement revenir en arrière sur les modifications locales
+  }
+};
 
   /**
    * Met à jour les couleurs localement
@@ -674,54 +680,34 @@ export default function AdOpsTacticTable({
     updateTableRowsColors(color);
   };
 
-  /**
-   * Met à jour les couleurs dans tableRows
-   */
-  const updateTableRowsColors = (color: string) => {
-    setTableRows(prevRows => 
-      prevRows.map(row => {
-        const rowId = `${row.type}-${row.data.id}`;
+/**
+ * Met à jour les couleurs dans tableRows
+ * AMÉLIORÉ : Debug logging pour vérifier que les créatifs sont bien mis à jour
+ */
+const updateTableRowsColors = (color: string) => {
+  console.log('🎨 [TacticTable] Mise à jour locale des couleurs:', {
+    color,
+    selectedRows: Array.from(selectedRows),
+    selectedRowsSize: selectedRows.size
+  });
+  
+  setTableRows(prevRows => 
+    prevRows.map(row => {
+      const rowId = `${row.type}-${row.data.id}`;
+      
+      if (selectedRows.has(rowId)) {
+        console.log(`🎨 [TacticTable] Mise à jour couleur pour ${row.type} ${row.data.id}`);
         
-        if (selectedRows.has(rowId)) {
-          // CORRIGÉ : Type assertions pour éviter les erreurs TypeScript
-          if (row.type === 'placement') {
-            const placementData = { ...row.data } as Placement;
-            placementData.PL_Adops_Color = color;
-            
-            const updatedChildren = row.children?.map(child => {
-              const childRowId = `${child.type}-${child.data.id}`;
-              if (selectedRows.has(childRowId)) {
-                const creativeData = { ...child.data } as Creative;
-                creativeData.CR_Adops_Color = color;
-                return {
-                  ...child,
-                  data: creativeData
-                };
-              }
-              return child;
-            });
-            
-            return {
-              ...row,
-              data: placementData,
-              children: updatedChildren
-            };
-          } else {
-            // Creative
-            const creativeData = { ...row.data } as Creative;
-            creativeData.CR_Adops_Color = color;
-            
-            return {
-              ...row,
-              data: creativeData
-            };
-          }
-        }
-        
-        if (row.children) {
-          const updatedChildren = row.children.map(child => {
+        // CORRIGÉ : Type assertions pour éviter les erreurs TypeScript
+        if (row.type === 'placement') {
+          const placementData = { ...row.data } as Placement;
+          placementData.PL_Adops_Color = color;
+          
+          // Mettre à jour les créatifs enfants sélectionnés
+          const updatedChildren = row.children?.map(child => {
             const childRowId = `${child.type}-${child.data.id}`;
             if (selectedRows.has(childRowId)) {
+              console.log(`🎨 [TacticTable] Mise à jour couleur pour créatif enfant ${child.data.id}`);
               const creativeData = { ...child.data } as Creative;
               creativeData.CR_Adops_Color = color;
               return {
@@ -734,14 +720,50 @@ export default function AdOpsTacticTable({
           
           return {
             ...row,
+            data: placementData,
             children: updatedChildren
           };
+        } else {
+          // Creative standalone
+          console.log(`🎨 [TacticTable] Mise à jour couleur pour créatif standalone ${row.data.id}`);
+          const creativeData = { ...row.data } as Creative;
+          creativeData.CR_Adops_Color = color;
+          
+          return {
+            ...row,
+            data: creativeData
+          };
         }
+      }
+      
+      // Vérifier les créatifs enfants même si le placement parent n'est pas sélectionné
+      if (row.children && row.type === 'placement') {
+        const updatedChildren = row.children.map(child => {
+          const childRowId = `${child.type}-${child.data.id}`;
+          if (selectedRows.has(childRowId)) {
+            console.log(`🎨 [TacticTable] Mise à jour couleur pour créatif enfant indépendant ${child.data.id}`);
+            const creativeData = { ...child.data } as Creative;
+            creativeData.CR_Adops_Color = color;
+            return {
+              ...child,
+              data: creativeData
+            };
+          }
+          return child;
+        });
         
-        return row;
-      })
-    );
-  };
+        return {
+          ...row,
+          children: updatedChildren
+        };
+      }
+      
+      return row;
+    })
+  );
+  
+  console.log('✅ [TacticTable] Mise à jour locale des couleurs terminée');
+};
 
   /**
    * MODIFIÉE : Trouve l'ID du placement parent pour un créatif en utilisant les créatifs filtrés
@@ -756,11 +778,65 @@ export default function AdOpsTacticTable({
     return null;
   };
 
+  const reloadCurrentTactiqueData = async () => {
+    if (!selectedClient || !selectedCampaign || !selectedVersion || !selectedTactique) return;
+    
+    console.log('🔄 [TacticTable] Rechargement données tactique courante:', selectedTactique.TC_Label);
+    
+    const clientId = selectedClient.clientId;
+    const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${selectedTactique.ongletId}/sections/${selectedTactique.sectionId}/tactiques/${selectedTactique.id}`;
+    
+    try {
+      // Recharger tous les placements avec leurs dernières données (incluant couleurs)
+      const placementsRef = collection(db, `${basePath}/placements`);
+      const placementsSnapshot = await getDocs(query(placementsRef, orderBy('PL_Order', 'asc')));
+      
+      const updatedPlacements: Placement[] = [];
+      const updatedCreativesData: { [placementId: string]: Creative[] } = {};
+      
+      // Pour chaque placement, recharger ses données et ses créatifs
+      for (const placementDoc of placementsSnapshot.docs) {
+        const placementData = { ...placementDoc.data(), id: placementDoc.id } as Placement;
+        
+        // Vérifier si ce placement a PL_Tag_Type (filtre AdOps)
+        if (placementData.PL_Tag_Type && placementData.PL_Tag_Type.trim() !== '') {
+          updatedPlacements.push(placementData);
+          
+          // Recharger les créatifs de ce placement avec leurs couleurs
+          const creativesRef = collection(db, `${basePath}/placements/${placementDoc.id}/creatifs`);
+          const creativesSnapshot = await getDocs(query(creativesRef, orderBy('CR_Order', 'asc')));
+          
+          const creatives: Creative[] = creativesSnapshot.docs.map(doc => ({
+            ...doc.data() as Creative,
+            id: doc.id
+          }));
+          
+          updatedCreativesData[placementDoc.id] = creatives;
+        }
+      }
+      
+      console.log('✅ [TacticTable] Données tactique rechargées avec couleurs:', {
+        placements: updatedPlacements.length,
+        totalCreatives: Object.values(updatedCreativesData).reduce((sum, creatives) => sum + creatives.length, 0)
+      });
+      
+      // Reconstruire les lignes du tableau avec les nouvelles données
+      buildTableRows(updatedPlacements, updatedCreativesData);
+      
+    } catch (error) {
+      console.error('❌ [TacticTable] Erreur rechargement données tactique:', error);
+      // En cas d'erreur, utiliser les données existantes
+      const filteredCreatives = getFilteredCreatives();
+      buildTableRows(selectedTactique.placementsWithTags, filteredCreatives);
+    }
+  };
+
   // MODIFIÉ : Construire les lignes quand les données changent + réinitialiser les filtres
   useEffect(() => {
     if (selectedTactique) {
-      const filteredCreatives = getFilteredCreatives();
-      buildTableRows(selectedTactique.placementsWithTags, filteredCreatives);
+      // Recharger spécifiquement les données de cette tactique depuis Firestore
+      // pour avoir les dernières couleurs sauvegardées
+      reloadCurrentTactiqueData();
     } else {
       setTableRows([]);
     }
@@ -769,15 +845,15 @@ export default function AdOpsTacticTable({
     // Réinitialiser tous les filtres
     setCm360Filter('all');
     setColorFilter('all');
-  }, [selectedTactique, creativesData]);
+  }, [selectedTactique?.id]); // IMPORTANT : Dépendre de l'ID pour déclencher le rechargement
 
   if (!selectedTactique) {
     return (
       <div className="p-4 h-full">
         <div className="flex items-center justify-center h-32 text-gray-500 text-center">
           <div>
-            <p className="text-sm">Aucune tactique sélectionnée</p>
-            <p className="text-xs mt-1">Sélectionnez une tactique pour voir ses placements</p>
+            <p className="text-sm">{t('adOpsTacticTable.placeholder.noTacticSelected')}</p>
+            <p className="text-xs mt-1">{t('adOpsTacticTable.placeholder.selectTacticPrompt')}</p>
           </div>
         </div>
       </div>
@@ -809,7 +885,7 @@ export default function AdOpsTacticTable({
                   className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Check className="w-4 h-4" />
-                  {cm360Loading ? 'Création...' : 'Créer'}
+                  {cm360Loading ? t('adOpsTacticTable.buttons.creating') : t('common.create')}
                 </button>
                 
                 {selectedHasTags() && (
@@ -817,10 +893,10 @@ export default function AdOpsTacticTable({
                     onClick={cancelCM360Tags}
                     disabled={cm360Loading}
                     className="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
-                    title="Supprime TOUT l'historique des tags CM360 pour les éléments sélectionnés"
+                    title={t('adOpsTacticTable.tooltips.deleteAllHistory')}
                   >
                     <XMarkIcon className="w-4 h-4" />
-                    Supprimer
+                    {t('common.delete')}
                   </button>
                 )}
               </div>
@@ -832,7 +908,7 @@ export default function AdOpsTacticTable({
                     key={color.value}
                     onClick={() => applyColorToSelected(color.value)}
                     className={`w-6 h-6 rounded-full border-2  hover:border-gray-500 transition-all duration-200 ${color.class}`}
-                    title={`Appliquer la couleur ${color.name.toLowerCase()}`}
+                    title={`${t('adOpsTacticTable.tooltips.applyColor')} ${color.name.toLowerCase()}`}
                   >
                     <div 
                       className="w-full h-full rounded-full"
@@ -844,7 +920,7 @@ export default function AdOpsTacticTable({
                 <button
                   onClick={() => applyColorToSelected('')}
                   className="w-6 h-6 rounded-full border-2 border-gray-400 hover:border-gray-600 bg-white transition-all duration-200 relative"
-                  title="Enlever la couleur"
+                  title={t('adOpsTacticTable.tooltips.removeColor')}
                 >
                     <div className="w-4 h-4 rounded-full bg-white relative">
                       {/* La première barre de la croix */}
@@ -860,7 +936,7 @@ export default function AdOpsTacticTable({
                 onClick={() => setSelectedRows(new Set())}
                 className="px-3 py-1 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700 ml-5"
               >
-                Désélectionner ({selectionStats.total})
+                {t('adOpsTacticTable.buttons.deselect')} ({selectionStats.total})
               </button>
             </div>
           )}
@@ -876,7 +952,7 @@ export default function AdOpsTacticTable({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Rechercher par label ou tag..."
+            placeholder={t('adOpsTacticTable.search.placeholder')}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
@@ -885,13 +961,13 @@ export default function AdOpsTacticTable({
 <div className="flex items-center gap-6 flex-wrap">
   {/* Filtres CM360 */}
   <div className="flex items-center gap-2">
-    <span className="text-sm font-medium text-gray-700">Statut:</span>
+    <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.statusLabel')}</span>
     <div className="flex items-center gap-1">
       {[
-        { value: 'all' as CM360Filter, label: 'Tous', color: 'gray' },
-        { value: 'created' as CM360Filter, label: 'Tags créés ✓', color: 'green' },
-        { value: 'changed' as CM360Filter, label: 'À modifier ⚠️', color: 'orange' },
-        { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
+        { value: 'all' as CM360Filter, label: t('adOpsTacticTable.filters.all'), color: 'gray' },
+        { value: 'created' as CM360Filter, label: t('adOpsTacticTable.filters.tagsCreated'), color: 'green' },
+        { value: 'changed' as CM360Filter, label: t('adOpsTacticTable.filters.toModify'), color: 'orange' },
+        { value: 'none' as CM360Filter, label: t('adOpsTacticTable.filters.toCreate'), color: 'blue' }
       ].map(filter => (
         <button
           key={filter.value}
@@ -910,7 +986,7 @@ export default function AdOpsTacticTable({
   
   {/* Filtres par couleur - Style mixte */}
   <div className="flex items-center gap-2">
-    <span className="text-sm font-medium text-gray-700">Couleur:</span>
+    <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.colorLabel')}</span>
     <div className="flex items-center gap-1">
       {/* Bouton "Tous" textuel */}
       <button
@@ -921,7 +997,7 @@ export default function AdOpsTacticTable({
             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
         }`}
       >
-        Tous
+        {t('adOpsTacticTable.filters.all')}
       </button>
       
       {/* Bouton "Aucune" avec croix */}
@@ -932,7 +1008,7 @@ export default function AdOpsTacticTable({
             ? 'border-indigo-500 ring-2 ring-indigo-200'
             : 'border-gray-300 hover:border-gray-400'
         }`}
-        title="Filtrer par aucune couleur"
+        title={t('adOpsTacticTable.tooltips.filterNoColor')}
       >
         <div className="w-5 h-5 rounded-full bg-white relative">
           <div className="absolute inset-0 flex items-center justify-center">
@@ -953,7 +1029,7 @@ export default function AdOpsTacticTable({
               : 'border-gray-300 hover:border-gray-400'
           }`}
           style={{ backgroundColor: color.value }}
-          title={`Filtrer par ${color.name.toLowerCase()}`}
+          title={`${t('adOpsTacticTable.tooltips.filterByColor')} ${color.name.toLowerCase()}`}
         >
         </button>
       ))}
@@ -987,21 +1063,21 @@ export default function AdOpsTacticTable({
               <th className="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase"></th>
               {/* AMÉLIORÉ : Colonne Actions encore plus élargie */}
-              <th className="w-96 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag Type</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Début</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date Fin</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rotation</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Floodlight</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">3rd Party</th>
-              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">VPAID</th>
+              <th className="w-96 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.actions')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.tagType')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.startDate')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.endDate')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.rotation')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.floodlight')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.thirdParty')}</th>
+              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.vpaid')}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredRows.length === 0 ? (
               <tr>
                 <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
-                  {searchTerm ? `Aucun résultat pour "${searchTerm}"` : 'Aucun placement trouvé'}
+                  {searchTerm ? `${t('adOpsTacticTable.table.noResultsFor')} "${searchTerm}"` : t('adOpsTacticTable.table.noPlacementsFound')}
                 </td>
               </tr>
             ) : (

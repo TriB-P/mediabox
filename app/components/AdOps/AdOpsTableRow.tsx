@@ -8,6 +8,7 @@
  */
 'use client';
 
+import { useTranslation } from '../../contexts/LanguageContext';
 import React, { useState } from 'react';
 import { 
   ChevronDownIcon, 
@@ -62,6 +63,7 @@ export default function AdOpsTableRow({
   cm360Status,
   cm360Tags
 }: AdOpsTableRowProps) {
+  const { t } = useTranslation();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -149,7 +151,7 @@ export default function AdOpsTableRow({
               isEmpty ? 'text-gray-400' : 'text-gray-900'
             }`}
             onClick={() => isClickable && copyToClipboard(value, fieldName)}
-            title="Cliquer pour copier"
+            title={t('tableRow.clickToCopy')}
           >
             {displayValue}
           </span>
@@ -164,7 +166,7 @@ export default function AdOpsTableRow({
             <button
               onClick={(e) => openHistoryModal(fieldName, fieldLabel, e)}
               className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
-              title={`${fieldLabel} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
+              title={`${fieldLabel} ${t('tableRow.modifiedSinceLastTag')} - ${t('tableRow.clickToSeeHistory')}`}
             >
               <ExclamationTriangleIcon className="w-4 h-4" />
             </button>
@@ -179,7 +181,7 @@ export default function AdOpsTableRow({
    */
   const formatBoolean = (value: boolean | undefined): string => {
     if (value === undefined || value === null) return '-';
-    return value ? 'Oui' : 'Non';
+    return value ? t('common.yes') : t('common.no');
   };
 
   /**
@@ -279,14 +281,14 @@ export default function AdOpsTableRow({
             {cm360Status === 'created' && (
               <CheckCircleIcon 
                 className="w-6 h-6 text-green-600 flex items-center justify-center text-lg font-bold"
-                title="Tag créé dans CM360"
+                title={t('tableRow.tagCreatedInCm360')}
               />
             
             )}
             {cm360Status === 'changed' && (
               <ExclamationTriangleIcon 
                 className="w-6 h-6 text-red-600" 
-                title="Modifications détectées depuis le dernier tag"
+                title={t('tableRow.changesDetectedSinceLastTag')}
               />
             )}
           </div>
@@ -319,9 +321,9 @@ export default function AdOpsTableRow({
                   isPlacement ? row.data.PL_Label : row.data.CR_Label, 
                   'label'
                 )}
-                title="Cliquer pour copier"
+                title={t('tableRow.clickToCopy')}
               >
-                {isPlacement ? (row.data.PL_Label || 'Placement sans nom') : (row.data.CR_Label || 'Créatif sans nom')}
+                {isPlacement ? (row.data.PL_Label || t('tableRow.unnamedPlacement')) : (row.data.CR_Label || t('tableRow.unnamedCreative'))}
               </span>
               
               {copiedField === 'label' && (
@@ -333,11 +335,11 @@ export default function AdOpsTableRow({
                 <button
                   onClick={(e) => openHistoryModal(
                     isPlacement ? 'PL_Label' : 'CR_Label',
-                    'Label',
+                    t('tableRow.label'),
                     e
                   )}
                   className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
-                  title="Label modifié - Cliquer pour voir l'historique"
+                  title={`${t('tableRow.labelModified')} - ${t('tableRow.clickToSeeHistory')}`}
                 >
                   <ExclamationTriangleIcon className="w-4 h-4" />
                 </button>
@@ -374,7 +376,7 @@ export default function AdOpsTableRow({
         <CM360Cell 
           value={isPlacement ? row.data.PL_Tag_Type : '-'} 
           fieldName="PL_Tag_Type"
-          fieldLabel="Tag Type"
+          fieldLabel={t('tableRow.tagType')}
           isClickable={isPlacement}
         />
 
@@ -382,28 +384,28 @@ export default function AdOpsTableRow({
         <CM360Cell 
           value={formatDate(isPlacement ? row.data.PL_Tag_Start_Date : row.data.CR_Tag_Start_Date)} 
           fieldName={isPlacement ? 'PL_Tag_Start_Date' : 'CR_Tag_Start_Date'}
-          fieldLabel="Date Début"
+          fieldLabel={t('tableRow.startDate')}
         />
 
         {/* Date Fin avec support CM360 - CORRIGÉ */}
         <CM360Cell 
           value={formatDate(isPlacement ? row.data.PL_Tag_End_Date : row.data.CR_Tag_End_Date)} 
           fieldName={isPlacement ? 'PL_Tag_End_Date' : 'CR_Tag_End_Date'}
-          fieldLabel="Date Fin"
+          fieldLabel={t('tableRow.endDate')}
         />
 
         {/* Rotation Type / Weight avec support CM360 */}
         <CM360Cell 
           value={isPlacement ? row.data.PL_Rotation_Type : row.data.CR_Rotation_Weight} 
           fieldName={isPlacement ? 'PL_Rotation_Type' : 'CR_Rotation_Weight'}
-          fieldLabel={isPlacement ? 'Type de Rotation' : 'Poids de Rotation'}
+          fieldLabel={isPlacement ? t('tableRow.rotationType') : t('tableRow.rotationWeight')}
         />
 
         {/* Floodlight avec support CM360 */}
         <CM360Cell 
           value={isPlacement ? row.data.PL_Floodlight : '-'} 
           fieldName="PL_Floodlight"
-          fieldLabel="Floodlight"
+          fieldLabel={t('tableRow.floodlight')}
           isClickable={isPlacement}
         />
 
@@ -411,7 +413,7 @@ export default function AdOpsTableRow({
         <CM360Cell 
           value={formatBoolean(isPlacement ? row.data.PL_Third_Party_Measurement : undefined)} 
           fieldName="PL_Third_Party_Measurement"
-          fieldLabel="Third Party Measurement"
+          fieldLabel={t('tableRow.thirdPartyMeasurement')}
           isClickable={isPlacement}
         />
 
@@ -419,7 +421,7 @@ export default function AdOpsTableRow({
         <CM360Cell 
           value={formatBoolean(isPlacement ? row.data.PL_VPAID : undefined)} 
           fieldName="PL_VPAID"
-          fieldLabel="VPAID"
+          fieldLabel={t('tableRow.vpaid')}
           isClickable={isPlacement}
         />
       </tr>

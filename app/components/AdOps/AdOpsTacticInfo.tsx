@@ -21,6 +21,7 @@ import {
   updateMetricsTag 
 } from '../../lib/cm360Service';
 import { useClient } from '../../contexts/ClientContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface AdOpsTactique {
   id: string;
@@ -53,6 +54,7 @@ export default function AdOpsTacticInfo({
   cm360Tags,
   onMetricsUpdated
 }: AdOpsTacticInfoProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -319,7 +321,7 @@ export default function AdOpsTacticInfo({
             <button
               onClick={(e) => openHistoryModal(fieldName, title, e)}
               className="text-red-600 hover:text-red-800 transition-colors p-0.5 rounded hover:bg-red-50"
-              title={`${title} a été modifié depuis le dernier tag - Cliquer pour voir l'historique`}
+              title={t('adOpsTacticInfo.metricCard.historyTooltip', { title: title })}
             >
               <ExclamationTriangleIcon className="w-4 h-4" />
             </button>
@@ -331,14 +333,14 @@ export default function AdOpsTacticInfo({
             hasValue ? 'text-gray-900' : 'text-gray-400'
           }`}
           onClick={() => hasValue && copyToClipboard(rawValue, fieldName)}
-          title={hasValue ? `Cliquer pour copier ${title.toLowerCase()}` : 'Valeur non disponible'}
+          title={hasValue ? t('adOpsTacticInfo.metricCard.copyTooltip', { title: title.toLowerCase() }) : t('adOpsTacticInfo.metricCard.noValue')}
         >
           <span>{value}</span>
         </div>
         
         {isCopied && (
           <div className="text-xs text-green-600 font-medium">
-            ✓ Copié
+            {t('adOpsTacticInfo.metricCard.copied')}
           </div>
         )}
       </div>
@@ -375,7 +377,7 @@ export default function AdOpsTacticInfo({
     return (
       <div className="p-4">
         <div className="flex items-center justify-center h-12 text-gray-500 text-center">
-          <p className="text-sm">Aucune tactique sélectionnée</p>
+          <p className="text-sm">{t('adOpsTacticInfo.noTacticSelected')}</p>
         </div>
       </div>
     );
@@ -399,7 +401,7 @@ export default function AdOpsTacticInfo({
         <div className="grid grid-cols-5 gap-3 mb-2">
           {/* Cartes métriques - toutes en bleu */}
           <MetricCard
-            title="Budget Média"
+            title={t('adOpsTacticInfo.metrics.mediaBudget')}
             value={formatCurrency(selectedTactique.TC_Media_Budget, selectedTactique.TC_BuyCurrency)}
             rawValue={selectedTactique.TC_Media_Budget}
             fieldName="TC_Media_Budget"
@@ -407,7 +409,7 @@ export default function AdOpsTacticInfo({
           />
           
           <MetricCard
-            title="Taux CM360"
+            title={t('adOpsTacticInfo.metrics.cm360Rate')}
             value={formatCurrency(selectedTactique.TC_CM360_Rate, selectedTactique.TC_BuyCurrency)}
             rawValue={selectedTactique.TC_CM360_Rate}
             fieldName="TC_CM360_Rate"
@@ -415,7 +417,7 @@ export default function AdOpsTacticInfo({
           />
           
           <MetricCard
-            title="Volume CM360"
+            title={t('adOpsTacticInfo.metrics.cm360Volume')}
             value={formatNumber(selectedTactique.TC_CM360_Volume)}
             rawValue={selectedTactique.TC_CM360_Volume}
             fieldName="TC_CM360_Volume"
@@ -424,13 +426,13 @@ export default function AdOpsTacticInfo({
           
           {/* Badges d'info - tous en gris */}
           <InfoBadge
-            label="Devise"
+            label={t('adOpsTacticInfo.badges.currency')}
             value={selectedTactique.TC_BuyCurrency}
             color="gray"
           />
           
           <InfoBadge
-            label="Type d'achat"
+            label={t('adOpsTacticInfo.badges.buyType')}
             value={selectedTactique.TC_Buy_Type}
             color="gray"
           />
@@ -447,12 +449,12 @@ export default function AdOpsTacticInfo({
               {updating ? (
                 <>
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                  <span>Mise à jour...</span>
+                  <span>{t('adOpsTacticInfo.updateButton.updating')}</span>
                 </>
               ) : (
                 <>
                   <CheckIcon className="w-3 h-3" />
-                  <span>Changements effectués dans CM360</span>
+                  <span>{t('adOpsTacticInfo.updateButton.confirmChanges')}</span>
                 </>
               )}
             </button>
@@ -470,7 +472,7 @@ export default function AdOpsTacticInfo({
           currentValue={selectedTactique[modalState.fieldName as keyof AdOpsTactique]}
           tags={getTagsForField(modalState.fieldName)}
           itemType="metrics"
-          itemLabel={selectedTactique.TC_Label || 'Tactique'}
+          itemLabel={selectedTactique.TC_Label || t('adOpsTacticInfo.historyModal.defaultItemLabel')}
           cm360Tags={filteredTags}
         />
       )}

@@ -98,8 +98,8 @@ const CustomTetris: React.FC = () => {
     // Réduction de 5ms par pièce placée
     // Minimum : 50ms (très rapide)
     const baseSpeed = 500;
-    const speedReduction = pieces * 20;
-    const newSpeed = Math.max(baseSpeed - speedReduction, 50);
+    const speedReduction = pieces * 10;
+    const newSpeed = Math.max(baseSpeed - speedReduction, 100);
     return newSpeed;
   }, []);
 

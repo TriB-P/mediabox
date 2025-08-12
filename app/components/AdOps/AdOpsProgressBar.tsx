@@ -9,6 +9,7 @@
 import React from 'react';
 import { CheckCircleIcon, ExclamationTriangleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { CM360TagHistory } from '../../lib/cm360Service';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface AdOpsTactique {
   id: string;
@@ -39,6 +40,7 @@ export default function AdOpsProgressBar({
   creativesData,
   loading
 }: AdOpsProgressBarProps) {
+  const { t } = useTranslation();
 
   /**
    * Filtre les tags CM360 pour une tactique spécifique
@@ -132,7 +134,7 @@ export default function AdOpsProgressBar({
     return (
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex items-center justify-center text-gray-500">
-          <p className="text-sm">Sélectionnez une campagne et une version pour voir la progression des tags CM360</p>
+          <p className="text-sm">{t('adOpsProgressBar.emptyState.message')}</p>
         </div>
       </div>
     );
@@ -154,7 +156,7 @@ export default function AdOpsProgressBar({
               <div 
                 className="bg-green-500 h-full transition-all duration-300"
                 style={{ width: `${percentages.created}%` }}
-                title={`${stats.created} tags créés (${percentages.created}%)`}
+                title={`${stats.created} ${t('adOpsProgressBar.tooltip.created')} (${percentages.created}%)`}
               ></div>
             )}
             
@@ -163,7 +165,7 @@ export default function AdOpsProgressBar({
               <div 
                 className="bg-red-500 h-full transition-all duration-300"
                 style={{ width: `${percentages.toModify}%` }}
-                title={`${stats.toModify} tags à modifier (${percentages.toModify}%)`}
+                title={`${stats.toModify} ${t('adOpsProgressBar.tooltip.toModify')} (${percentages.toModify}%)`}
               ></div>
             )}
             
@@ -172,7 +174,7 @@ export default function AdOpsProgressBar({
               <div 
                 className="bg-white border-l border-gray-300 h-full transition-all duration-300"
                 style={{ width: `${percentages.toCreate}%` }}
-                title={`${stats.toCreate} tags à créer (${percentages.toCreate}%)`}
+                title={`${stats.toCreate} ${t('adOpsProgressBar.tooltip.toCreate')} (${percentages.toCreate}%)`}
               ></div>
             )}
           </div>

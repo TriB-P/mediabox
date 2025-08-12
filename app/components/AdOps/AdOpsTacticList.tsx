@@ -22,6 +22,9 @@ import {
   getTactiqueDetailedChangesSummary,
   detectMetricsChanges
 } from '../../lib/cm360Service';
+import { useTranslation } from '../../contexts/LanguageContext';
+
+// ... (other imports)
 
 interface AdOpsTactique {
   id: string;
@@ -69,11 +72,13 @@ export default function AdOpsTacticList({
   const { selectedClient } = useClient();
   const [cm360Filter, setCm360Filter] = useState<CM360Filter>('all');
 
+  const { t } = useTranslation();
+
   /**
    * Récupère le nom d'affichage d'un shortcode depuis le cache
    */
   const getDisplayName = (shortcodeId: string | undefined, listType: string): string => {
-    if (!shortcodeId || shortcodeId.trim() === '') return 'N/A';
+    if (!shortcodeId || shortcodeId.trim() === '') return t('adOpsTacticList.common.notAvailable');
     
     const allShortcodes = getCachedAllShortcodes();
     if (allShortcodes && allShortcodes[shortcodeId]) {
@@ -278,13 +283,13 @@ export default function AdOpsTacticList({
     
     // 4. Déterminer les types qui ont changé
     if (placementStats.withChanges > 0) {
-      changedTypes.push('placements');
+      changedTypes.push(t('adOpsTacticList.changesSummary.placements'));
     }
     if (creativeStats.withChanges > 0) {
-      changedTypes.push('créatifs');
+      changedTypes.push(t('adOpsTacticList.changesSummary.creatives'));
     }
     if (metricsStats.hasChanges) {
-      changedTypes.push('métriques');
+      changedTypes.push(t('adOpsTacticList.changesSummary.metrics'));
     }
     
     return {
@@ -350,15 +355,15 @@ export default function AdOpsTacticList({
     const getTooltipText = (): string => {
       switch (status) {
         case 'created':
-          return 'Tous les éléments et métriques ont des tags créés, aucun changement';
+          return t('adOpsTacticList.tooltip.allCreated');
         case 'changed':
           const changedText = changesSummary.changedTypes.join(', ');
-          return `Modifications détectées dans: ${changedText}`;
+          return `${t('adOpsTacticList.tooltip.changesDetected')} ${changedText}`;
         case 'partial':
-          return 'Tags partiels - certains éléments ou métriques n\'ont pas de tags';
+          return t('adOpsTacticList.tooltip.partialTags');
         case 'none':
         default:
-          return 'Aucun tag créé';
+          return t('adOpsTacticList.tooltip.noTags');
       }
     };
 
@@ -422,10 +427,10 @@ export default function AdOpsTacticList({
     return (
       <div className="p-4 h-full">
         <h3 className="text-lg font-medium text-gray-900 mb-3">
-          Tactiques
+          {t('adOpsTacticList.header.title')}
         </h3>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          Erreur: {error}
+          {t('common.error')}: {error}
         </div>
       </div>
     );
@@ -438,18 +443,18 @@ export default function AdOpsTacticList({
       {/* En-tête avec filtres */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">
-          Tactiques
+          {t('adOpsTacticList.header.title')}
         </h3>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600">
-            {tactiquesToShow.length} tactique{tactiquesToShow.length !== 1 ? 's' : ''}
+            {tactiquesToShow.length} {t(tactiquesToShow.length !== 1 ? 'adOpsTacticList.header.tactic_plural' : 'adOpsTacticList.header.tactic')}
           </span>
           {selectedTactique && (
             <button
               onClick={handleClearSelection}
               className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
             >
-              Désélectionner
+              {t('adOpsTacticList.header.deselect')}
             </button>
           )}
         </div>
@@ -459,10 +464,10 @@ export default function AdOpsTacticList({
       <div className="mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           {[
-            { value: 'all' as CM360Filter, label: 'Tous', color: 'blue' },
-            { value: 'created' as CM360Filter, label: 'Complets ✓', color: 'blue' },
-            { value: 'changed' as CM360Filter, label: 'Modifiés ⚠️', color: 'blue' },
-            { value: 'none' as CM360Filter, label: 'À créer', color: 'blue' }
+            { value: 'all' as CM360Filter, label: t('adOpsTacticList.filters.all'), color: 'blue' },
+            { value: 'created' as CM360Filter, label: t('adOpsTacticList.filters.complete'), color: 'blue' },
+            { value: 'changed' as CM360Filter, label: t('adOpsTacticList.filters.modified'), color: 'blue' },
+            { value: 'none' as CM360Filter, label: t('adOpsTacticList.filters.toCreate'), color: 'blue' }
           ].map(filter => (
             <button
               key={filter.value}
@@ -492,16 +497,16 @@ export default function AdOpsTacticList({
             <div>
               <p className="text-sm">
                 {cm360Filter === 'all' 
-                  ? 'Aucune tactique trouvée'
-                  : `Aucune tactique ${
-                      cm360Filter === 'created' ? 'complète (tous tags créés)' :
-                      cm360Filter === 'changed' ? 'avec modifications' :
-                      'sans tags'
+                  ? t('adOpsTacticList.emptyState.noTacticFound')
+                  : `${t('adOpsTacticList.emptyState.noTacticForFilter')} ${
+                      cm360Filter === 'created' ? t('adOpsTacticList.emptyState.completeFilter') :
+                      cm360Filter === 'changed' ? t('adOpsTacticList.emptyState.modifiedFilter') :
+                      t('adOpsTacticList.emptyState.noTagsFilter')
                     }`
                 }
               </p>
               <p className="text-xs mt-1">
-                {cm360Filter !== 'all' && 'Changez le filtre pour voir d\'autres tactiques'}
+                {cm360Filter !== 'all' && t('adOpsTacticList.emptyState.changeFilter')}
               </p>
             </div>
           </div>
@@ -537,7 +542,7 @@ export default function AdOpsTacticList({
                               text-sm font-medium truncate
                               ${isSelected ? 'text-indigo-900' : 'text-gray-900'}
                             `}>
-                              {tactique.TC_Label || 'Tactique sans nom'}
+                              {tactique.TC_Label || t('adOpsTacticList.tacticCard.unnamedTactic')}
                             </h4>
                             
                             {/* Indicateur de statut CM360 avec métriques */}
@@ -588,11 +593,11 @@ export default function AdOpsTacticList({
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <span className="text-green-600 font-bold">✓</span>
-              <span>Complet (tous créés)</span>
+              <span>{t('adOpsTacticList.legend.complete')}</span>
             </div>
             <div className="flex items-center gap-1">
               <ExclamationTriangleIcon className="w-3 h-3 text-orange-600" />
-              <span>Modifications</span>
+              <span>{t('adOpsTacticList.legend.modifications')}</span>
             </div>
             <div className="flex items-center gap-1">
             </div>

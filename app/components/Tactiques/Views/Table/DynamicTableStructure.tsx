@@ -658,8 +658,36 @@ export default function DynamicTableStructure({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') setIsShiftPressed(true);
-
+  
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.length > 0) {
+        // NOUVEAU : Vérifier si l'utilisateur est en train d'éditer du texte
+        const activeElement = document.activeElement;
+        const isEditingText = activeElement && (
+          activeElement.tagName === 'INPUT' || 
+          activeElement.tagName === 'TEXTAREA' || 
+          activeElement.tagName === 'SELECT'
+        );
+        
+        // Si on édite du texte et qu'il y a une sélection, laisser le comportement natif
+        if (isEditingText) {
+          const inputElement = activeElement as HTMLInputElement | HTMLTextAreaElement;
+          
+          // Vérifier s'il y a du texte sélectionné dans l'input/textarea
+          if (inputElement.selectionStart !== undefined && 
+              inputElement.selectionStart !== inputElement.selectionEnd) {
+            setCopiedData(null); // Vider la copie de cellule précédente
+            return; // Laisser le comportement natif de copie de texte sélectionné
+          }
+          
+          // Vérifier aussi la sélection globale (au cas où)
+          const selection = window.getSelection();
+          if (selection && selection.toString().length > 0) {
+            setCopiedData(null); // Vider la copie de cellule précédente
+            return; // Laisser le comportement natif de copie
+          }
+        }
+        
+        // Sinon, procéder avec la logique de copie de cellule complète
         e.preventDefault();
         const firstCell = selectedCells[0];
         const row = processedRows[firstCell.rowIndex];
@@ -679,22 +707,22 @@ export default function DynamicTableStructure({
           console.log(`✅ Copié: ${displayValue}`);
         }
       }
-
+  
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && copiedData && selectedCells.length > 0) {
         e.preventDefault();
         handlePaste();
       }
-
+  
       if (e.key === 'Escape') {
         setSelectedCells([]);
         setSelectionStart(null);
       }
     };
-
+  
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Shift') setIsShiftPressed(false);
     };
-
+  
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -1359,12 +1387,23 @@ export default function DynamicTableStructure({
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 {columns.map(column => (
-                  <th
-                    key={column.key}
-                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
-                    style={{ width: column.width || 150, minWidth: column.width || 150 }}
-                    onClick={() => handleSort(column.key)}
-                  >
+                 <th
+                 key={column.key}
+                 className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap ${
+                   column.key === '_hierarchy' ? 'sticky left-0 z-20 bg-gray-50' : ''
+                 }`}
+                 style={{ 
+                   width: column.width || 150, 
+                   minWidth: column.width || 150,
+                   ...(column.key === '_hierarchy' ? { 
+                     position: 'sticky', 
+                     left: 0, 
+                     zIndex: 20,
+                     boxShadow: '8px 0 15px -3px rgba(0, 0, 0, 0.25), 4px 0 6px -1px rgba(0, 0, 0, 0.15)'
+                   } : {})
+                 }}
+                 onClick={() => handleSort(column.key)}
+               >
                     <div className="flex items-center space-x-1">
                       <span>{column.label}</span>
                       {isFeeCompositeColumn(column) && (
@@ -1399,15 +1438,26 @@ export default function DynamicTableStructure({
                   >
                     {columns.map(column => (
                       <td
-                        key={column.key}
-                        className="px-3 py-2 text-sm whitespace-nowrap"
-                        style={{ width: column.width || 150, minWidth: column.width || 150 }}
-                      >
-                        {column.key === '_hierarchy' 
-                          ? renderHierarchyCell(row)
-                          : renderDataCell(row, column, rowIndex)
-                        }
-                      </td>
+                      key={column.key}
+                      className={`px-3 py-2 text-sm whitespace-nowrap ${
+                        column.key === '_hierarchy' ? 'sticky left-0 z-10 bg-white' : ''
+                      }`}
+                      style={{ 
+                        width: column.width || 150, 
+                        minWidth: column.width || 150,
+                        ...(column.key === '_hierarchy' ? { 
+                          position: 'sticky', 
+                          left: 0, 
+                          zIndex: 10,
+                          boxShadow: '8px 0 15px -3px rgba(0, 0, 0, 0.25), 4px 0 6px -1px rgba(0, 0, 0, 0.15)'
+                        } : {})
+                      }}
+                    >
+                      {column.key === '_hierarchy' 
+                        ? renderHierarchyCell(row)
+                        : renderDataCell(row, column, rowIndex)
+                      }
+                    </td>
                     ))}
                   </tr>
                 ))

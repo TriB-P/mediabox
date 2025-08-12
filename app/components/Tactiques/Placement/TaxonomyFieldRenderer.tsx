@@ -1,15 +1,14 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Simplifié sans logique spéciale
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Avec validation en temps réel
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
 import { getFieldLabel, ClientConfig } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
-
 
 // ==================== TYPES ====================
 
@@ -25,10 +24,55 @@ interface TaxonomyFieldRendererProps {
   fieldStates: { [key: string]: FieldState };
   formData: any; 
   highlightState: HighlightState;
-  clientConfig?: ClientConfig; // MODIFIÉ : Utilise maintenant le type importé
+  clientConfig?: ClientConfig;
   onFieldChange: (variableName: string, value: string, format: TaxonomyFormat, shortcodeId?: string) => void;
   onFieldHighlight: (variableName?: string) => void;
 }
+
+// ==================== UTILITAIRES DE VALIDATION ====================
+
+/**
+ * Convertit les caractères accentués vers leurs équivalents non accentués
+ */
+const removeAccents = (str: string): string => {
+  const accentsMap: { [key: string]: string } = {
+    'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ā': 'a', 'ã': 'a',
+    'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e', 'ē': 'e',
+    'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i', 'ī': 'i',
+    'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o', 'ō': 'o', 'õ': 'o',
+    'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u', 'ū': 'u',
+    'ý': 'y', 'ỳ': 'y', 'ÿ': 'y', 'ŷ': 'y',
+    'ç': 'c', 'ñ': 'n',
+    'Á': 'A', 'À': 'A', 'Ä': 'A', 'Â': 'A', 'Ā': 'A', 'Ã': 'A',
+    'É': 'E', 'È': 'E', 'Ë': 'E', 'Ê': 'E', 'Ē': 'E',
+    'Í': 'I', 'Ì': 'I', 'Ï': 'I', 'Î': 'I', 'Ī': 'I',
+    'Ó': 'O', 'Ò': 'O', 'Ö': 'O', 'Ô': 'O', 'Ō': 'O', 'Õ': 'O',
+    'Ú': 'U', 'Ù': 'U', 'Ü': 'U', 'Û': 'U', 'Ū': 'U',
+    'Ý': 'Y', 'Ỳ': 'Y', 'Ÿ': 'Y', 'Ŷ': 'Y',
+    'Ç': 'C', 'Ñ': 'N'
+  };
+
+  return str.replace(/[àáäâāãèéëêēìíïîīòóöôōõùúüûūýỳÿŷçñÀÁÄÂĀÃÈÉËÊĒÌÍÏÎĪÒÓÖÔŌÕÙÚÜÛŪÝỲŸŶÇÑ]/g, 
+    (match) => accentsMap[match] || match);
+};
+
+/**
+ * Nettoie et valide une chaîne de caractères selon les règles définies
+ * Autorise uniquement : lettres, chiffres, tirets
+ */
+const sanitizeInput = (input: string): { cleanValue: string; hasInvalidChars: boolean } => {
+  // Convertir les accents
+  const withoutAccents = removeAccents(input);
+  
+  // Vérifier s'il y a des caractères invalides avant nettoyage
+  const invalidCharsRegex = /[^a-zA-Z0-9\-]/g;
+  const hasInvalidChars = invalidCharsRegex.test(withoutAccents);
+  
+  // Nettoyer en gardant seulement les caractères autorisés
+  const cleanValue = withoutAccents.replace(invalidCharsRegex, '');
+  
+  return { cleanValue, hasInvalidChars };
+};
 
 // ==================== COMPOSANT PRINCIPAL ====================
 
@@ -37,22 +81,50 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   fieldStates,
   formData,
   highlightState,
-  clientConfig = {}, // MODIFIÉ : Utilise la config client importée
+  clientConfig = {},
   onFieldChange,
   onFieldHighlight,
 }) => {
 
   const { t } = useTranslation();
+  
+  // État pour tracker les erreurs de validation par champ
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: boolean }>({});
+
   // ==================== FONCTIONS UTILITAIRES ====================
 
   /**
-   * MODIFIÉ : Obtient le label à afficher pour un champ donné en utilisant la config client
+   * Obtient le label à afficher pour un champ donné en utilisant la config client
    */
   const getFieldLabelWithConfig = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
-    
-    // MODIFIÉ : Utilise la nouvelle fonction avec la config client
     return getFieldLabel(fieldKey, clientConfig);
+  };
+
+  /**
+   * Gère le changement de valeur avec validation en temps réel
+   */
+  const handleInputChange = (variable: ParsedTaxonomyVariable, inputValue: string) => {
+    const { cleanValue, hasInvalidChars } = sanitizeInput(inputValue);
+    
+    // Mettre à jour l'état d'erreur
+    setValidationErrors(prev => ({
+      ...prev,
+      [variable.variable]: hasInvalidChars
+    }));
+    
+    // Toujours propager la valeur nettoyée
+    onFieldChange(variable.variable, cleanValue, 'open');
+    
+    // Effacer l'erreur après un délai si la valeur est maintenant propre
+    if (!hasInvalidChars && validationErrors[variable.variable]) {
+      setTimeout(() => {
+        setValidationErrors(prev => ({
+          ...prev,
+          [variable.variable]: false
+        }));
+      }, 1000);
+    }
   };
 
   // ==================== FONCTIONS DE RENDU ====================
@@ -61,7 +133,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     const fieldKey = variable.variable;
     const fieldState = fieldStates[fieldKey];
     const currentValue = formData[fieldKey] || '';
-    
+    const hasValidationError = validationErrors[fieldKey];
     
     // Obtenir les formats autorisés pour ce champ
     const variableConfig = getVariableConfig(variable.variable);
@@ -77,7 +149,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       matchingOption = fieldState.options.find(opt => opt.id === currentValue || opt.label === currentValue);
       isValueInOptions = !!matchingOption;
     }
-    
 
     // Si chargement en cours
     if (fieldState?.isLoading) {
@@ -87,7 +158,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             id={fieldKey}
             name={fieldKey}
             value={currentValue}
-            onChange={() => {}} // Disabled pendant le chargement
+            onChange={() => {}}
             type="text"
             placeholder={t('common.loading')}
             label=""
@@ -101,7 +172,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
 
     // Mode hybride - SmartSelect SI la valeur est dans les options OU si pas de valeur actuelle
     if (hasShortcodeList && (isValueInOptions || !currentValue)) {
-      
       const selectValue = matchingOption ? matchingOption.id : currentValue;
       
       return (
@@ -122,20 +192,34 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       );
     }
     
-    // Mode texte libre
+    // Mode texte libre avec validation
     return (
       <div className="space-y-2">
-        <FormInput
-          id={fieldKey}
-          name={fieldKey}
-          value={currentValue}
-          onChange={(e) => {
-            onFieldChange(variable.variable, e.target.value, 'open');
-          }}
-          type="text"
-          placeholder={t('taxonomyFieldRenderer.input.placeholder')}
-          label=""
-        />
+        <div className="relative">
+          <FormInput
+            id={fieldKey}
+            name={fieldKey}
+            value={currentValue}
+            onChange={(e) => handleInputChange(variable, e.target.value)}
+            type="text"
+            placeholder={t('taxonomyFieldRenderer.input.placeholder')}
+            label=""
+            className={hasValidationError ? 'border-red-500 bg-red-50' : ''}
+          />
+          {hasValidationError && (
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+        </div>
+        
+        {hasValidationError && (
+          <div className="text-xs text-red-600 flex items-center space-x-1">
+            <span>⚠️</span>
+            <span>{t('taxonomyFieldRenderer.input.authorizedChar')}</span>
+          </div>
+        )}
+        
         {/* Bouton pour passer en mode liste si disponible */}
         {hasShortcodeList && (
           <button
@@ -143,6 +227,11 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
             onClick={() => {
               // Vider la valeur pour forcer le passage en mode SmartSelect
               onFieldChange(variable.variable, '', 'open');
+              // Effacer l'erreur de validation
+              setValidationErrors(prev => ({
+                ...prev,
+                [variable.variable]: false
+              }));
             }}
             className="text-xs text-indigo-600 hover:text-indigo-800"
           >
@@ -156,14 +245,16 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const sourceColor = getSourceColor(variable.source);
-    const fieldLabel = getFieldLabelWithConfig(variable); // MODIFIÉ : Utilise la nouvelle fonction
-    
+    const fieldLabel = getFieldLabelWithConfig(variable);
+    const hasValidationError = validationErrors[fieldKey];
     
     return (
       <div
         key={fieldKey}
         className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-          highlightState.activeVariable === variable.variable
+          hasValidationError
+            ? 'border-red-300 bg-red-25'
+            : highlightState.activeVariable === variable.variable
             ? `${sourceColor.border} bg-${sourceColor.bg.split('-')[1]}-50`
             : 'border-gray-200 hover:border-gray-300'
         }`}
@@ -192,7 +283,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   };
 
   // ==================== RENDU PRINCIPAL ====================
-
 
   return (
     <div className="space-y-4">

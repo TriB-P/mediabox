@@ -274,7 +274,7 @@ export default function AdOpsPage() {
       await reloadAdOpsData();
       
       // 2. Puis recharger les tags CM360 avec les nouvelles données
-      await loadCM360TagsForAllTactiques();
+     // await loadCM360TagsForAllTactiques();
       
       console.log('✅ [AdOpsPage] Rechargement complet terminé');
     } catch (error) {
@@ -362,7 +362,7 @@ export default function AdOpsPage() {
           
           {/* En-tête avec titre et informations de campagne */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">AdOps</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('adOpsPage.header.title')}</h1>
           </div>
           
          {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
@@ -392,12 +392,12 @@ export default function AdOpsPage() {
                   hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
                   transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap
                 `}
-                title="Rafraîchir toutes les données AdOps pour voir les dernières modifications"
+                title={t('adOpsPage.header.refreshTooltip')}
               >
                 <ArrowPathIcon 
                   className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
                 />
-                <span>{isRefreshing ? 'Rafraîchissement...' : 'Rafraîchir'}</span>
+                <span>{isRefreshing ? t('adOpsPage.header.refreshing') : t('adOpsPage.header.refresh')}</span>
               </button>
             )}
           </div>
@@ -415,7 +415,7 @@ export default function AdOpsPage() {
             <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                <div className="text-sm text-gray-500">Chargement...</div>
+                <div className="text-sm text-gray-500">{t('common.loading')}</div>
               </div>
             </div>
           )}
@@ -432,7 +432,7 @@ export default function AdOpsPage() {
               {!selectedCampaign && (
                 <div className="bg-white p-8 rounded-lg shadow text-center">
                   <p className="text-gray-500">
-                    Veuillez sélectionner une campagne et une version pour commencer.
+                    {t('adOpsPage.placeholder.selectCampaignAndVersion')}
                   </p>
                 </div>
               )}
@@ -440,7 +440,7 @@ export default function AdOpsPage() {
               {selectedCampaign && !selectedVersion && (
                 <div className="bg-white p-8 rounded-lg shadow text-center">
                   <p className="text-gray-500">
-                    Veuillez sélectionner une version pour continuer.
+                    {t('adOpsPage.placeholder.selectVersion')}
                   </p>
                 </div>
               )}

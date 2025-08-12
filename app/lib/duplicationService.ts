@@ -1,9 +1,12 @@
+// app/lib/duplicationService.ts
+
 /**
  * Ce fichier contient les fonctions nécessaires pour dupliquer des éléments (sections, tactiques, placements, créatifs)
  * au sein de la base de données Firebase. Il gère la création de copies avec de nouveaux noms et le maintien
  * de la hiérarchie en dupliquant également les éléments enfants.
  * 
  * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
+ * NOUVEAU : Exclut les propriétés cm360Tags, CR_Adops_Color et PL_Adops_Color lors de la duplication.
  */
 import {
   collection,
@@ -53,6 +56,22 @@ function buildOrderContext(context: DuplicationContext, additionalContext: Parti
 }
 
 /**
+ * Nettoie les données en supprimant les propriétés qui ne doivent pas être dupliquées
+ * @param data Les données à nettoyer
+ * @returns Les données nettoyées sans les propriétés exclues
+ */
+function cleanDataForDuplication(data: any): any {
+  const cleanedData = { ...data };
+  
+  // Supprimer les propriétés à exclure de la duplication
+  delete cleanedData.cm360Tags;
+  delete cleanedData.CR_Adops_Color;
+  delete cleanedData.PL_Adops_Color;
+  
+  return cleanedData;
+}
+
+/**
  * Génère un nouveau nom en ajoutant un suffixe "(Copie)" ou en incrémentant le numéro de copie existant.
  * @param originalName Le nom original de l'élément à dupliquer.
  * @returns Le nouveau nom avec le suffixe de copie.
@@ -72,6 +91,7 @@ function generateDuplicateName(originalName: string): string {
 /**
  * Duplique un élément créatif dans Firebase.
  * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
+ * NOUVEAU : Exclut les propriétés cm360Tags et CR_Adops_Color
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source du créatif.
  * @param sourceTactiqueId L'ID de la tactique source du créatif.
@@ -130,10 +150,13 @@ async function duplicateCreatif(
     const orderContext = buildOrderContext(context, { sectionId: targetSectionId, tactiqueId: targetTactiqueId, placementId: targetPlacementId });
     const newOrder = await getNextOrder('creatif', orderContext);
 
+    // ✅ NOUVEAU : Nettoie les données avant duplication
+    const cleanedData = cleanDataForDuplication(creatifData);
+
     const newCreatifData = {
-      ...creatifData,
+      ...cleanedData,
       CR_Label: generateDuplicateName(creatifData.CR_Label),
-      CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
+      CR_Order: newOrder,
       CR_PlacementId: targetPlacementId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -154,6 +177,7 @@ async function duplicateCreatif(
 /**
  * Duplique un élément placement dans Firebase, y compris tous ses créatifs enfants.
  * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
+ * NOUVEAU : Exclut les propriétés cm360Tags et PL_Adops_Color
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source du placement.
  * @param sourceTactiqueId L'ID de la tactique source du placement.
@@ -206,10 +230,13 @@ async function duplicatePlacement(
     const orderContext = buildOrderContext(context, { sectionId: targetSectionId, tactiqueId: targetTactiqueId });
     const newOrder = await getNextOrder('placement', orderContext);
 
+    // ✅ NOUVEAU : Nettoie les données avant duplication
+    const cleanedData = cleanDataForDuplication(placementData);
+
     const newPlacementData = {
-      ...placementData,
+      ...cleanedData,
       PL_Label: generateDuplicateName(placementData.PL_Label),
-      PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
+      PL_Order: newOrder,
       PL_TactiqueId: targetTactiqueId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -259,6 +286,7 @@ async function duplicatePlacement(
 /**
  * Duplique un élément tactique dans Firebase, y compris tous ses placements et créatifs enfants.
  * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
+ * NOUVEAU : Exclut les propriétés cm360Tags
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sourceSectionId L'ID de la section source de la tactique.
  * @param sourceTactiqueId L'ID de la tactique à dupliquer.
@@ -305,10 +333,13 @@ async function duplicateTactique(
     const orderContext = buildOrderContext(context, { sectionId: targetSectionId });
     const newOrder = await getNextOrder('tactique', orderContext);
 
+    // ✅ NOUVEAU : Nettoie les données avant duplication
+    const cleanedData = cleanDataForDuplication(tactiqueData);
+
     const newTactiqueData = {
-      ...tactiqueData,
+      ...cleanedData,
       TC_Label: generateDuplicateName(tactiqueData.TC_Label),
-      TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
+      TC_Order: newOrder,
       TC_SectionId: targetSectionId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -355,6 +386,7 @@ async function duplicateTactique(
 /**
  * Duplique un élément section dans Firebase, y compris toutes ses tactiques, placements et créatifs enfants.
  * MISE À JOUR : Utilise getNextOrder() du service central au lieu de getNextAvailableOrder()
+ * NOUVEAU : Exclut les propriétés cm360Tags
  * @param context Contexte de duplication (IDs du client, campagne, version, onglet).
  * @param sectionId L'ID de la section à dupliquer.
  * @returns L'ID de la nouvelle section dupliquée.
@@ -395,10 +427,13 @@ async function duplicateSection(
     const orderContext = buildOrderContext(context);
     const newOrder = await getNextOrder('section', orderContext);
 
+    // ✅ NOUVEAU : Nettoie les données avant duplication
+    const cleanedData = cleanDataForDuplication(sectionData);
+
     const newSectionData = {
-      ...sectionData,
+      ...cleanedData,
       SECTION_Name: generateDuplicateName(sectionData.SECTION_Name),
-      SECTION_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de getNextAvailableOrder()
+      SECTION_Order: newOrder,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
