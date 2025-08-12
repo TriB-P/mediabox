@@ -1,12 +1,8 @@
 // app/components/Tactiques/Views/Hierarchy/HierarchyComponents.tsx
 
 /**
- * Ce fichier contient les composants React pour afficher la hiérarchie des tactiques, placements et créatifs.
- * Il gère l'affichage des éléments glissables et déposables (Draggable, Droppable) pour permettre la réorganisation.
- * Les composants affichent les informations pertinentes pour chaque niveau (nom, budget, nombre d'éléments enfants, logos de partenaires)
- * et gèrent les interactions utilisateur comme l'édition, l'expansion/réduction et la sélection.
- * Il inclut également la logique pour afficher les indicateurs de taxonomie et les menus contextuels associés.
- * 
+ * CORRECTION : Ajout de la prop isDragDisabled pour désactiver le drag & drop
+ * pendant les opérations de synchronisation des données.
  */
 'use client';
 
@@ -25,12 +21,11 @@ import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
-
-// NOUVEAU : Import des fonctions de cache
 import { getCachedAllShortcodes, ShortcodeItem } from '../../../../lib/cacheService';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
+  isDragDisabled?: boolean; // ✅ NOUVEAU : Prop pour désactiver le drag
 }
 
 interface TaxonomyMenuState {
@@ -55,12 +50,6 @@ interface CreatifItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Creatif, itemType: 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
-/**
- * Composant pour afficher un élément créatif dans la hiérarchie.
- * Permet le glisser-déposer, l'édition et la sélection, ainsi que l'affichage des taxonomies.
- * @param {CreatifItemProps} props - Les propriétés du composant.
- * @returns {React.FC<CreatifItemProps>} Le composant CreatifItem.
- */
 export const CreatifItem: React.FC<CreatifItemProps> = ({
   creatif,
   index,
@@ -73,7 +62,8 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
   onHover,
   onEdit,
   onSelectCreatif,
-  onOpenTaxonomyMenu
+  onOpenTaxonomyMenu,
+  isDragDisabled = false // ✅ NOUVEAU : Valeur par défaut
 }) => {
   const isHovered = hoveredCreatif?.creatifId === creatif.id;
 
@@ -119,6 +109,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
       key={`creatif-${creatif.id}`}
       draggableId={`creatif-${creatif.id}`}
       index={index}
+      isDragDisabled={isDragDisabled} // ✅ NOUVEAU : Désactiver le drag si nécessaire
     >
       {(provided, snapshot) => (
         <div
@@ -126,7 +117,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
           {...provided.draggableProps}
           className={`flex justify-between items-center pl-3 pr-4 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          } ${creatif.isSelected ? 'bg-indigo-50' : ''}`}
+          } ${creatif.isSelected ? 'bg-indigo-50' : ''} ${isDragDisabled ? 'opacity-50' : ''}`} // ✅ NOUVEAU : Style quand désactivé
           onMouseEnter={() => onHover({sectionId, tactiqueId, placementId, creatifId: creatif.id})}
           onMouseLeave={() => onHover(null)}
         >
@@ -139,8 +130,11 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
               onChange={(e) => onSelectCreatif(creatif.id, e.target.checked)}
               onClick={(e) => e.stopPropagation()}
             />
-            <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
-              <Bars3Icon className="h-3 w-3 text-gray-300" />
+            <span 
+              {...provided.dragHandleProps} 
+              className={`pr-2 ${isDragDisabled ? 'cursor-not-allowed' : 'cursor-grab'}`} // ✅ NOUVEAU : Curseur conditionnel
+            >
+              <Bars3Icon className={`h-3 w-3 ${isDragDisabled ? 'text-gray-200' : 'text-gray-300'}`} />
             </span>
             <div className="text-xs text-gray-600 truncate">
               {creatif.CR_Label}
@@ -149,14 +143,13 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
 
           {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
           <div className="flex items-center space-x-4">
-            {/* Actions (clé + crayon d'édition) - Standardisé */}
+            {/* Actions */}
             <div className="w-12 h-6 flex items-center justify-center space-x-1">
               {isHovered && (
                 <>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Appeler handleCopyId depuis les props
                       if (onCopyId) onCopyId(creatif.id, 'créatif');
                     }}
                     className="p-1 rounded hover:bg-gray-200 transition-colors"
@@ -178,7 +171,7 @@ export const CreatifItem: React.FC<CreatifItemProps> = ({
               )}
             </div>
 
-            {/* Indicateurs de taxonomie - Cliquables individuellement */}
+            {/* Indicateurs de taxonomie */}
             <div className="flex items-center space-x-2 -ml-8">
               <span
                 className={`w-3 h-3 rounded-full transition-colors ${
@@ -237,13 +230,6 @@ interface PlacementItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
-/**
- * Composant pour afficher un élément de placement dans la hiérarchie.
- * Permet le glisser-déposer, l'expansion/réduction pour afficher les créatifs enfants, l'édition et la sélection.
- * Gère également l'ajout de nouveaux créatifs et l'affichage des taxonomies.
- * @param {PlacementItemProps} props - Les propriétés du composant.
- * @returns {React.FC<PlacementItemProps>} Le composant PlacementItem.
- */
 export const PlacementItem: React.FC<PlacementItemProps> = ({
   placement,
   index,
@@ -263,7 +249,8 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
   onEditCreatif,
   onSelectPlacement,
   onSelectCreatif,
-  onOpenTaxonomyMenu
+  onOpenTaxonomyMenu,
+  isDragDisabled = false // ✅ NOUVEAU : Valeur par défaut
 }) => {
   const isExpanded = expandedPlacements[placement.id];
   const isHovered = hoveredPlacement?.placementId === placement.id;
@@ -310,6 +297,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
       key={`placement-${placement.id}`}
       draggableId={`placement-${placement.id}`}
       index={index}
+      isDragDisabled={isDragDisabled} // ✅ NOUVEAU : Désactiver le drag si nécessaire
     >
       {(provided, snapshot) => (
         <div
@@ -317,7 +305,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
           {...provided.draggableProps}
           className={`border-b border-gray-200 last:border-b-0 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          } ${placement.isSelected ? 'bg-indigo-50' : ''}`}
+          } ${placement.isSelected ? 'bg-indigo-50' : ''} ${isDragDisabled ? 'opacity-50' : ''}`} // ✅ NOUVEAU : Style quand désactivé
           onMouseEnter={() => onHoverPlacement({sectionId, tactiqueId, placementId: placement.id})}
           onMouseLeave={() => onHoverPlacement(null)}
         >
@@ -334,8 +322,11 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                 onChange={(e) => onSelectPlacement(placement.id, e.target.checked)}
                 onClick={(e) => e.stopPropagation()}
               />
-              <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
-                <Bars3Icon className="h-3 w-3 text-gray-400" />
+              <span 
+                {...provided.dragHandleProps} 
+                className={`pr-2 ${isDragDisabled ? 'cursor-not-allowed' : 'cursor-grab'}`} // ✅ NOUVEAU : Curseur conditionnel
+              >
+                <Bars3Icon className={`h-3 w-3 ${isDragDisabled ? 'text-gray-200' : 'text-gray-400'}`} />
               </span>
 
               {isExpanded ? (
@@ -348,7 +339,6 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                  {placement.PL_Label}
               </div>
 
-              {/* Badge créatifs plus discret */}
               {creatifs.length > 0 && (
                 <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
                   {creatifs.length}
@@ -371,7 +361,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
 
             {/* Contenu de droite : Actions et Indicateurs de taxonomie */}
             <div className="flex items-center space-x-4">
-              {/* Actions (clé + crayon d'édition) - Standardisé */}
+              {/* Actions */}
               <div className="w-12 h-6 flex items-center justify-center space-x-1">
                 {isHovered && (
                   <>
@@ -399,7 +389,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                 )}
               </div>
 
-              {/* Indicateurs de taxonomie - Cliquables individuellement */}
+              {/* Indicateurs de taxonomie */}
               <div className="flex items-center space-x-2">
                 <span
                   className={`w-3 h-3 rounded-full transition-colors ${
@@ -432,7 +422,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
             </div>
           </div>
 
-          {/* Créatifs - fond blanc uniforme */}
+          {/* Créatifs avec Droppable conditionnel */}
           {isExpanded && (
             <div className="pl-8 bg-white py-1">
               {creatifs.length === 0 ? (
@@ -440,7 +430,11 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                   Aucun créatif pour ce placement
                 </div>
               ) : (
-                <Droppable droppableId={`creatifs-${placement.id}`} type="CREATIF">
+                <Droppable 
+                  droppableId={`creatifs-${placement.id}`} 
+                  type="CREATIF"
+                  isDropDisabled={isDragDisabled} // ✅ NOUVEAU : Désactiver le drop si nécessaire
+                >
                   {(provided) => (
                     <div ref={provided.innerRef} {...provided.droppableProps}>
                       {creatifs.map((creatif, creatifIndex) => (
@@ -459,6 +453,7 @@ export const PlacementItem: React.FC<PlacementItemProps> = ({
                           onOpenTaxonomyMenu={onOpenTaxonomyMenu}
                           onCopyId={onCopyId}
                           copiedId={copiedId}
+                          isDragDisabled={isDragDisabled} // ✅ NOUVEAU : Passer la prop
                         />
                       ))}
                       {provided.placeholder}
@@ -503,14 +498,6 @@ interface TactiqueItemProps extends BaseItemProps {
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
 }
 
-/**
- * Composant pour afficher un élément de tactique dans la hiérarchie.
- * Permet le glisser-déposer, l'expansion/réduction pour afficher les placements enfants, l'édition et la sélection.
- * Gère également l'affichage du logo partenaire, l'ajout de nouveaux placements et le budget.
- * VERSION 2024 : Utilise le cache localStorage pour les logos partenaires
- * @param {TactiqueItemProps} props - Les propriétés du composant.
- * @returns {React.FC<TactiqueItemProps>} Le composant TactiqueItem.
- */
 export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   tactique,
   index,
@@ -538,7 +525,8 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   onSelect,
   onSelectPlacement,
   onSelectCreatif,
-  onOpenTaxonomyMenu
+  onOpenTaxonomyMenu,
+  isDragDisabled = false // ✅ NOUVEAU : Valeur par défaut
 }) => {
   const isExpanded = expandedTactiques[tactique.id];
   const isHovered = hoveredTactique?.tactiqueId === tactique.id && hoveredTactique?.sectionId === sectionId;
@@ -547,29 +535,20 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  
   const [inventoryImageUrl, setInventoryImageUrl] = useState<string | null>(null);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState(false);
 
-  /**
-   * MODIFIÉ : Charge l'image du partenaire depuis le cache localStorage.
-   * Récupère d'abord les shortcodes du cache, trouve le partenaire correspondant,
-   * puis charge son logo depuis Firebase Storage ou URL directe.
-   * @returns {Promise<void>}
-   */
   useEffect(() => {
     const loadPartnerAndInventoryImages = async () => {
       if (!tactique.TC_Publisher) return;
   
-      // 1. Récupérer tous les shortcodes depuis le cache
       const allShortcodes = getCachedAllShortcodes();
       if (!allShortcodes) {
         console.warn('[CACHE] Aucun shortcode en cache pour charger les logos');
         return;
       }
   
-      // 2. Charger le logo du partenaire (existant)
       const partner = allShortcodes[tactique.TC_Publisher];
       if (partner?.SH_Logo) {
         setImageLoading(true);
@@ -596,7 +575,6 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
         }
       }
   
-      // 3. Charger le logo de l'inventaire (NOUVEAU)
       if (tactique.TC_Inventory) {
         const inventory = allShortcodes[tactique.TC_Inventory];
         if (inventory?.SH_Logo) {
@@ -638,10 +616,6 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
     return allShortcodes[tactique.TC_Inventory] || null;
   };
 
-  /**
-   * MODIFIÉ : Récupère les informations du partenaire depuis le cache pour l'affichage de fallback
-   * @returns {ShortcodeItem | null} Le partenaire trouvé ou null
-   */
   const getPartnerFromCache = (): ShortcodeItem | null => {
     if (!tactique.TC_Publisher) return null;
     
@@ -658,6 +632,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
       key={`tactique-${tactique.id}`}
       draggableId={`tactique-${tactique.id}`}
       index={index}
+      isDragDisabled={isDragDisabled} // ✅ NOUVEAU : Désactiver le drag si nécessaire
     >
       {(provided, snapshot) => (
         <div
@@ -665,7 +640,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
           {...provided.draggableProps}
           className={`border-b border-gray-100 last:border-b-0 pl-8 ${
             snapshot.isDragging ? 'bg-white shadow-lg rounded' : ''
-          } ${tactique.isSelected ? 'bg-indigo-50' : ''}`}
+          } ${tactique.isSelected ? 'bg-indigo-50' : ''} ${isDragDisabled ? 'opacity-50' : ''}`} // ✅ NOUVEAU : Style quand désactivé
           onMouseEnter={() => onHoverTactique({sectionId, tactiqueId: tactique.id})}
           onMouseLeave={() => onHoverTactique(null)}
         >
@@ -682,8 +657,11 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 onChange={(e) => onSelect(tactique.id, e.target.checked)}
                 onClick={(e) => e.stopPropagation()}
               />
-              <span {...provided.dragHandleProps} className="pr-2 cursor-grab">
-                <Bars3Icon className="h-4 w-4 text-gray-400" />
+              <span 
+                {...provided.dragHandleProps} 
+                className={`pr-2 ${isDragDisabled ? 'cursor-not-allowed' : 'cursor-grab'}`} // ✅ NOUVEAU : Curseur conditionnel
+              >
+                <Bars3Icon className={`h-4 w-4 ${isDragDisabled ? 'text-gray-200' : 'text-gray-400'}`} />
               </span>
 
               {isExpanded ? (
@@ -692,76 +670,70 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                 <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
               )}
 
-                  {/* Logo partenaire + inventaire - MODIFIÉ pour double affichage */}
-                  <div className="flex items-center mr-3">
-                    {tactique.TC_Inventory ? (
-                      // Affichage double : Partenaire + Chevron + Inventaire
-                      <div className="flex items-center space-x-1">
-                        {/* Logo partenaire */}
-                        <div className="flex items-center">
-                          {imageLoading ? (
-                            <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
-                          ) : partnerImageUrl && !imageError ? (
-                            <img
-                              src={partnerImageUrl}
-                              alt="Logo partenaire"
-                              className="w-8 h-8 object-contain rounded"
-                              onError={() => setImageError(true)}
-                            />
-                          ) : tactique.TC_Publisher && partner ? (
-                            <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
-                              {partner.SH_Display_Name_FR?.charAt(0) || '?'}
-                            </div>
-                          ) : null}
+              {/* Logo partenaire + inventaire */}
+              <div className="flex items-center mr-3">
+                {tactique.TC_Inventory ? (
+                  <div className="flex items-center space-x-1">
+                    <div className="flex items-center">
+                      {imageLoading ? (
+                        <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                      ) : partnerImageUrl && !imageError ? (
+                        <img
+                          src={partnerImageUrl}
+                          alt="Logo partenaire"
+                          className="w-8 h-8 object-contain rounded"
+                          onError={() => setImageError(true)}
+                        />
+                      ) : tactique.TC_Publisher && partner ? (
+                        <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
+                          {partner.SH_Display_Name_FR?.charAt(0) || '?'}
                         </div>
+                      ) : null}
+                    </div>
 
-                        {/* Chevron */}
-                        <ArrowRightIcon className="h-3 w-3 text-gray-400" />
+                    <ArrowRightIcon className="h-3 w-3 text-gray-400" />
 
-                        {/* Logo inventaire */}
-                        <div className="flex items-center">
-                          {inventoryLoading ? (
-                            <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
-                          ) : inventoryImageUrl && !inventoryError ? (
-                            <img
-                              src={inventoryImageUrl}
-                              alt="Logo inventaire"
-                              className="w-8 h-8 object-contain rounded"
-                              onError={() => setInventoryError(true)}
-                            />
-                          ) : tactique.TC_Inventory && getInventoryFromCache() ? (
-                            <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
-                              {getInventoryFromCache()?.SH_Display_Name_FR?.charAt(0) || '?'}
-                            </div>
-                          ) : null}
+                    <div className="flex items-center">
+                      {inventoryLoading ? (
+                        <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                      ) : inventoryImageUrl && !inventoryError ? (
+                        <img
+                          src={inventoryImageUrl}
+                          alt="Logo inventaire"
+                          className="w-8 h-8 object-contain rounded"
+                          onError={() => setInventoryError(true)}
+                        />
+                      ) : tactique.TC_Inventory && getInventoryFromCache() ? (
+                        <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 font-semibold">
+                          {getInventoryFromCache()?.SH_Display_Name_FR?.charAt(0) || '?'}
                         </div>
-                      </div>
-                    ) : (
-                      // Affichage simple : Seulement le partenaire (comme avant)
-                      <div className="flex items-center">
-                        {imageLoading ? (
-                          <div className="w-10 h-10 bg-gray-200 rounded animate-pulse"></div>
-                        ) : partnerImageUrl && !imageError ? (
-                          <img
-                            src={partnerImageUrl}
-                            alt="Logo partenaire"
-                            className="w-10 h-10 object-contain rounded"
-                            onError={() => setImageError(true)}
-                          />
-                        ) : tactique.TC_Publisher && partner ? (
-                          <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
-                            {partner.SH_Display_Name_FR?.charAt(0) || '?'}
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
+                      ) : null}
+                    </div>
                   </div>
+                ) : (
+                  <div className="flex items-center">
+                    {imageLoading ? (
+                      <div className="w-10 h-10 bg-gray-200 rounded animate-pulse"></div>
+                    ) : partnerImageUrl && !imageError ? (
+                      <img
+                        src={partnerImageUrl}
+                        alt="Logo partenaire"
+                        className="w-10 h-10 object-contain rounded"
+                        onError={() => setImageError(true)}
+                      />
+                    ) : tactique.TC_Publisher && partner ? (
+                      <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-sm text-gray-600 font-semibold">
+                        {partner.SH_Display_Name_FR?.charAt(0) || '?'}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
 
               <div className="text-sm text-gray-800 font-medium truncate">
                 {tactique.TC_Label}
               </div>
 
-              {/* Badge placements seulement - niveau en dessous */}
               {placements.length > 0 && (
                 <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
                   {placements.length}
@@ -784,7 +756,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
 
             {/* Contenu de droite : Actions et budget */}
             <div className="flex items-center space-x-4">
-              {/* Actions (clé + crayon d'édition) - Standardisé */}
+              {/* Actions */}
               <div className="w-12 h-6 flex items-center justify-center space-x-1">
                 {isHovered && (
                   <>
@@ -818,7 +790,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
             </div>
           </div>
 
-          {/* Placements - fond blanc uniforme */}
+          {/* Placements avec Droppable conditionnel */}
           {isExpanded && (
             <div className="pl-8 pb-2 bg-white">
               {placements.length === 0 ? (
@@ -826,7 +798,11 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                   Aucun placement dans cette tactique
                 </div>
               ) : (
-                <Droppable droppableId={`placements-${tactique.id}`} type="PLACEMENT">
+                <Droppable 
+                  droppableId={`placements-${tactique.id}`} 
+                  type="PLACEMENT"
+                  isDropDisabled={isDragDisabled} // ✅ NOUVEAU : Désactiver le drop si nécessaire
+                >
                   {(provided) => (
                     <div ref={provided.innerRef} {...provided.droppableProps}>
                       {placements.map((placement, placementIndex) => (
@@ -852,7 +828,7 @@ export const TactiqueItem: React.FC<TactiqueItemProps> = ({
                           onOpenTaxonomyMenu={onOpenTaxonomyMenu}
                           onCopyId={onCopyId}
                           copiedId={copiedId}
-                          
+                          isDragDisabled={isDragDisabled} // ✅ NOUVEAU : Passer la prop
                         />
                       ))}
                       {provided.placeholder}
