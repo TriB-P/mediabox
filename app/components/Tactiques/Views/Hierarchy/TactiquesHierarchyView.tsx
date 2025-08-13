@@ -148,7 +148,8 @@ export default function TactiquesHierarchyView({
     sections,
     placements,
     creatifs,
-    onRefresh,
+    onRefresh, // Garde onRefresh pour les cas normaux
+    onDragSuccess: onDragRefresh // ✅ SOLUTION : Utilise la fonction exacte du bouton !
   });
 
   const [tactiqueDrawer, setTactiqueDrawer] = useState<{
@@ -699,16 +700,7 @@ export default function TactiquesHierarchyView({
   return (
     <>
       {/* Indicateur de loading pendant le drag and drop */}
-      {isDragLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 shadow-lg">
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-              <span className="text-gray-700">Réorganisation en cours...</span>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Panel d'actions pour les éléments sélectionnés */}
       {selectedItems.length > 0 && (
