@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassCircleIcon, XMarkIcon as XIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SearchableSelectProps {
   id: string;
@@ -42,16 +43,18 @@ export default function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = 'Sélectionner...',
+  placeholder,
   className = '',
   label,
   required = false
 }: SearchableSelectProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredOptions, setFilteredOptions] = useState(options);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const defaultPlaceholder = placeholder || t('searchableSelect.placeholder.default');
 
   /**
    * Effet de bord qui filtre les options chaque fois que le terme de recherche ou les options changent.
@@ -114,7 +117,7 @@ export default function SearchableSelect({
    *
    * @returns {string} La valeur à afficher.
    */
-  const displayValue = selectedOption ? selectedOption.label : placeholder;
+  const displayValue = selectedOption ? selectedOption.label : defaultPlaceholder;
 
   /**
    * Gère la sélection d'une option.
@@ -170,7 +173,7 @@ export default function SearchableSelect({
       >
         <div className="flex items-center px-3 py-2 justify-between">
           <div className="truncate">
-            {value ? displayValue : <span className="text-gray-400">{placeholder}</span>}
+            {value ? displayValue : <span className="text-gray-400">{defaultPlaceholder}</span>}
           </div>
           
           <div className="flex items-center">
@@ -203,7 +206,7 @@ export default function SearchableSelect({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher..."
+              placeholder={t('searchableSelect.search.placeholder')}
               className="block w-full rounded-t-md border-0 pl-10 py-2 text-sm"
               onClick={(e) => e.stopPropagation()}
             />
@@ -226,7 +229,7 @@ export default function SearchableSelect({
             role="listbox"
           >
             {filteredOptions.length === 0 ? (
-              <li className="px-3 py-2 text-gray-500 text-center">Aucun résultat</li>
+              <li className="px-3 py-2 text-gray-500 text-center">{t('searchableSelect.results.none')}</li>
             ) : (
               filteredOptions.map(option => (
                 <li
@@ -257,7 +260,7 @@ export default function SearchableSelect({
         className="sr-only"
         aria-hidden="true"
       >
-        <option value="">{placeholder}</option>
+        <option value="">{defaultPlaceholder}</option>
         {options.map(option => (
           <option key={option.id} value={option.id}>
             {option.label}

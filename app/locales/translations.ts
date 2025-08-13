@@ -471,7 +471,9 @@ export const translations = {
       on: "sur",
       all:"Tous",
       clearFilters:"Effacer les filtres",
-      formatted: "Formaté :"
+      formatted: "Formaté :",
+      tab:"Onglet",
+
     },
     errors: {
       generic: "Une erreur inattendue s'est produite",
@@ -2967,6 +2969,245 @@ export const translations = {
         shortTitleCase: "Jan,Fév,Mar,Avr,Mai,Jun,Jul,Aoû,Sep,Oct,Nov,Déc"
       }
     },
+    dndKit: {
+      common: {
+        idCopied: "ID copié !",
+        copyId: "Copier l'ID",
+        taxonomy: {
+          tags: "Tags",
+          platform: "Plateforme",
+          mediaOcean: "MediaOcean"
+        }
+      },
+      creatifItem: {
+        type: "créatif",
+        editTitle: "Modifier le créatif"
+      },
+      placementItem: {
+        type: "placement",
+        addCreative: "Ajouter un créatif",
+        editTitle: "Modifier le placement",
+        noCreative: "Aucun créatif pour ce placement"
+      },
+      tactiqueItem: {
+        type: "tactique",
+        partnerLogoAlt: "Logo partenaire",
+        inventoryLogoAlt: "Logo inventaire",
+        addPlacement: "Ajouter un placement",
+        editTitle: "Modifier la tactique",
+        noPlacement: "Aucun placement dans cette tactique"
+      }
+    },
+    tactiquesHierarchyView: {
+      dragAndDrop: {
+        reorganizing: "Réorganisation en cours..."
+      },
+      section: {
+        alreadyFirst: "Déjà en première position",
+        moveUp: "Monter la section",
+        addTactique: "Ajouter une tactique",
+        edit: "Modifier la section",
+        ofBudget: "du budget"
+      },
+      common: {
+        idCopied: "ID copié !",
+        copyId: "Copier l'ID"
+      },
+      tactique: {
+        noneInSection: "Aucune tactique dans cette section"
+      }
+    },
+    taxonomyContextMenu: {
+      header: {
+        titleTags: "Tags",
+        titlePlatform: "Plateforme",
+        titleMediaOcean: "MediaOcean",
+        autoRefresh: "• Auto-refresh",
+        manualRefreshTooltip: "Actualiser manuellement"
+      },
+      status: {
+        noTaxonomyConfigured: "Aucune taxonomie configurée pour",
+        forTags: "les tags",
+        forPlatform: "la plateforme",
+        forMediaOcean: "MediaOcean",
+        noValueConfigured: "Aucune valeur configurée",
+        refreshingData: "Actualisation des données..."
+      },
+      actions: {
+        copyTooltip: "Copier :",
+        copiedSuccess: "Copié !",
+        copyToClipboardTooltip: "Copier dans le presse-papier"
+      }
+    },
+    timelineView: {
+      notifications: {
+        confirmBreakdownChange: "Vous êtes en mode édition. Changer de breakdown annulera vos modifications. Continuer ?"
+      },
+      errors: {
+        noBreakdownConfigured: "Aucun breakdown configuré pour cette campagne.",
+        configureInSettings: "Veuillez configurer des breakdowns dans les paramètres de campagne.",
+        noTacticsAvailable: "Aucune tactique disponible pour cette campagne.",
+        noBreakdownSelected: "Aucun breakdown sélectionné. Veuillez sélectionner un breakdown pour voir les répartitions."
+      },
+      header: {
+        distributionLabel: "Répartition :",
+        pebValues: "3 valeurs",
+        periodsLabel: "période(s)"
+      },
+      buttons: {
+        editMode: "Mode édition"
+      },
+      editModeInfo: {
+        title: "Mode édition activé",
+        instructions: "Vous pouvez maintenant modifier les valeurs des répartitions. Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller.",
+        defaultBreakdownTip: " Cochez/décochez les cases pour activer/désactiver les périodes."
+      }
+    },
+    timeline: {
+      table: {
+        noPeriodFound: "Aucune période trouvée pour ce breakdown.",
+        pendingChanges: "modification(s) en attente",
+        saving: "Sauvegarde...",
+        header: {
+          sectionTactic: "Section / Tactique",
+          totalBudget: "Total Budget",
+          totalVolume: "Vol Total",
+          averageCost: "Coût Moy"
+        },
+        unnamedSection: "Section sans nom",
+        placeholder: {
+          cost: "Coût",
+          volume: "Vol",
+          total: "Total"
+        },
+        footer: {
+          totalVolume: "Total Volume"
+        }
+      },
+      alerts: {
+        tactic: "La tactique ",
+        notFoundMaybeDeleted: " n'a pas été trouvée. Elle a peut-être été supprimée par un autre utilisateur.",
+        errorSavingTactic: "Erreur lors de la sauvegarde de la tactique ",
+        generalSaveError: "Une erreur générale est survenue lors de la sauvegarde."
+      },
+      utils: {
+        months: {
+          short: ['JAN', 'FEV', 'MAR', 'AVR', 'MAI', 'JUN', 'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'],
+          medium: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+        }
+      }
+    },
+    searchableSelect: {
+      placeholder: {
+        default: "Sélectionner..."
+      },
+      search: {
+        placeholder: "Rechercher..."
+      },
+      results: {
+        none: "Aucun résultat"
+      }
+    },
+    sectionModal: {
+      title: {
+        create: "Nouvelle section",
+        edit: "Modifier la section"
+      },
+      errors: {
+        nameRequired: "Le nom de la section est obligatoire"
+      },
+      form: {
+        nameLabel: "Nom de la section",
+        namePlaceholder: "Entrez le nom de la section",
+        colorLabel: "Couleur de la section",
+        colorTitle: "Couleur"
+      }
+    },
+    selectedActionsPanel: {
+      moveButton: {
+        validating: "Validation en cours...",
+        noValidationAvailable: "Aucune validation disponible",
+        invalidSelection: "Sélection invalide",
+        invalidForMove: "Sélection invalide pour le déplacement",
+        moveAction: "Déplacer",
+        total: "au total",
+        to: "vers",
+        readyToMove: "Prêt à déplacer",
+        target: {
+          tab: "un onglet",
+          section: "une section",
+          tactic: "une tactique",
+          placement: "un placement"
+        }
+      },
+      buttons: {
+        move: "Déplacer",
+        invalid: "Invalide"
+      },
+      moveImpossible: {
+        title: "Déplacement impossible"
+      },
+      operationInProgress: "Opération en cours..."
+    },
+    model: {
+      item: "élément",
+      selected: "sélectionné",
+      section: "section",
+      sections: "sections",
+      tactic: "tactique",
+      tactics: "tactiques",
+      placement: "placement",
+      placements: "placements",
+      creative: "créatif",
+      creatives: "créatifs"
+    },
+    simpleMoveModal: {
+      cascade: {
+        searchPlaceholder: "Rechercher {{title}}...",
+        noResultsFound: "Aucun résultat trouvé",
+        noItemsAvailable: "Aucun {{title}} disponible"
+      },
+      destinationSummary: {
+        selectedDestination: "Destination sélectionnée"
+      },
+      levels: {
+        campaign: "Campagne",
+        version: "Version",
+        tab: "Onglet",
+        section: "Section",
+        tactic: "Tactique",
+        placement: "Placement"
+      },
+      destination: {
+        title: "Déplacer les éléments sélectionnés",
+        itemCount: "{{count}} élément vers",
+        itemCount_plural: "{{count}} éléments vers",
+        a_tab: "un onglet",
+        a_section: "une section",
+        a_tactic: "une tactique",
+        a_placement: "un placement",
+        totalItems: "({{count}} élément au total)",
+        totalItems_plural: "({{count}} éléments au total)",
+        preparing: "Préparation...",
+        confirmMove: "Confirmer le déplacement"
+      },
+      progress: {
+        title: "Déplacement en cours...",
+        description: "Veuillez patienter pendant que nous déplaçons vos éléments.",
+        itemsToProcess: "{{count}} élément à traiter",
+        itemsToProcess_plural: "{{count}} éléments à traiter"
+      },
+      result: {
+        successTitle: "Déplacement réussi !",
+        failureTitle: "Déplacement échoué",
+        itemsMoved: "élément déplacé",
+        itemsMoved_plural: "éléments déplacés",
+        itemsSkipped: "élément ignoré",
+        itemsSkipped_plural: "éléments ignorés",
+        errors: "Erreurs",
+        warnings: "Avertissements"
+      }
+    },
 
     
 
@@ -3283,7 +3524,8 @@ export const translations = {
       on:"of",
       all:"All",
       clearFilters:"Clear filters",
-      formatted: "Formatted:"
+      formatted: "Formatted:",
+      tab:"Tabs"
 
     },
     errors: {
@@ -5779,6 +6021,247 @@ export const translations = {
         shortTitleCase: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
       }
     },
+    dndKit: {
+      common: {
+        idCopied: "ID copied!",
+        copyId: "Copy ID",
+        taxonomy: {
+          tags: "Tags",
+          platform: "Platform",
+          mediaOcean: "MediaOcean"
+        }
+      },
+      creatifItem: {
+        type: "creative",
+        editTitle: "Edit creative"
+      },
+      placementItem: {
+        type: "placement",
+        addCreative: "Add a creative",
+        editTitle: "Edit placement",
+        noCreative: "No creatives for this placement"
+      },
+      tactiqueItem: {
+        type: "tactic",
+        partnerLogoAlt: "Partner logo",
+        inventoryLogoAlt: "Inventory logo",
+        addPlacement: "Add a placement",
+        editTitle: "Edit tactic",
+        noPlacement: "No placements in this tactic"
+      }
+    },
+    tactiquesHierarchyView: {
+      dragAndDrop: {
+        reorganizing: "Reorganization in progress..."
+      },
+      section: {
+        alreadyFirst: "Already in first position",
+        moveUp: "Move section up",
+        addTactique: "Add a tactique",
+        edit: "Edit section",
+        ofBudget: "of budget"
+      },
+      common: {
+        idCopied: "ID copied!",
+        copyId: "Copy ID"
+      },
+      tactique: {
+        noneInSection: "No tactiques in this section"
+      }
+    },
+    taxonomyContextMenu: {
+      header: {
+        titleTags: "Tags",
+        titlePlatform: "Platform",
+        titleMediaOcean: "MediaOcean",
+        autoRefresh: "• Auto-refresh",
+        manualRefreshTooltip: "Refresh manually"
+      },
+      status: {
+        noTaxonomyConfigured: "No taxonomy configured for",
+        forTags: "tags",
+        forPlatform: "the platform",
+        forMediaOcean: "MediaOcean",
+        noValueConfigured: "No value configured",
+        refreshingData: "Refreshing data..."
+      },
+      actions: {
+        copyTooltip: "Copy:",
+        copiedSuccess: "Copied!",
+        copyToClipboardTooltip: "Copy to clipboard"
+      }
+    },
+    timelineView: {
+      notifications: {
+        confirmBreakdownChange: "You are in edit mode. Changing the breakdown will cancel your changes. Continue?"
+      },
+      errors: {
+        noBreakdownConfigured: "No breakdown configured for this campaign.",
+        configureInSettings: "Please configure breakdowns in the campaign settings.",
+        noTacticsAvailable: "No tactics available for this campaign.",
+        noBreakdownSelected: "No breakdown selected. Please select a breakdown to see the distributions."
+      },
+      header: {
+        distributionLabel: "Distribution:",
+        pebValues: "3 values",
+        periodsLabel: "period(s)"
+      },
+      buttons: {
+        editMode: "Edit mode"
+      },
+      editModeInfo: {
+        title: "Edit mode activated",
+        instructions: "You can now modify the distribution values. Use Ctrl+C/⌘+C to copy and Ctrl+V/⌘+V to paste.",
+        defaultBreakdownTip: " Check/uncheck the boxes to activate/deactivate periods."
+      }
+    },
+    timeline: {
+      table: {
+        noPeriodFound: "No period found for this breakdown.",
+        pendingChanges: "pending change(s)",
+        saving: "Saving...",
+        header: {
+          sectionTactic: "Section / Tactic",
+          totalBudget: "Total Budget",
+          totalVolume: "Total Vol",
+          averageCost: "Avg Cost"
+        },
+        unnamedSection: "Unnamed Section",
+        placeholder: {
+          cost: "Cost",
+          volume: "Vol",
+          total: "Total"
+        },
+        footer: {
+          totalVolume: "Total Volume"
+        }
+      },
+      utils: {
+        months: {
+          short: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+          medium: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        }
+      },
+      alerts: {
+        tactic: "The tactic ",
+        notFoundMaybeDeleted: " was not found. It may have been deleted by another user.",
+        errorSavingTactic: "Error saving tactic ",
+        generalSaveError: "A general error occurred while saving."
+      }
+    },
+    searchableSelect: {
+      placeholder: {
+        default: "Select..."
+      },
+      search: {
+        placeholder: "Search..."
+      },
+      results: {
+        none: "No results"
+      }
+    },
+    sectionModal: {
+      title: {
+        create: "New section",
+        edit: "Edit section"
+      },
+      errors: {
+        nameRequired: "The section name is required"
+      },
+      form: {
+        nameLabel: "Section name",
+        namePlaceholder: "Enter the section name",
+        colorLabel: "Section color",
+        colorTitle: "Color"
+      }
+    },
+    selectedActionsPanel: {
+      moveButton: {
+        validating: "Validation in progress...",
+        noValidationAvailable: "No validation available",
+        invalidSelection: "Invalid selection",
+        invalidForMove: "Invalid selection for move",
+        moveAction: "Move",
+        total: "in total",
+        to: "to",
+        readyToMove: "Ready to move",
+        target: {
+          tab: "a tab",
+          section: "a section",
+          tactic: "a tactic",
+          placement: "a placement"
+        }
+      },
+      buttons: {
+        move: "Move",
+        invalid: "Invalid"
+      },
+      moveImpossible: {
+        title: "Move impossible"
+      },
+      operationInProgress: "Operation in progress..."
+    },
+    model: {
+      item: "item",
+      selected: "selected",
+      section: "section",
+      sections: "sections",
+      tactic: "tactic",
+      tactics: "tactics",
+      placement: "placement",
+      placements: "placements",
+      creative: "creative",
+      creatives: "creatives"
+    },
+    simpleMoveModal: {
+      cascade: {
+        searchPlaceholder: "Search {{title}}...",
+        noResultsFound: "No results found",
+        noItemsAvailable: "No {{title}} available"
+      },
+      destinationSummary: {
+        selectedDestination: "Selected Destination"
+      },
+      levels: {
+        campaign: "Campaign",
+        version: "Version",
+        tab: "Tab",
+        section: "Section",
+        tactic: "Tactic",
+        placement: "Placement"
+      },
+      destination: {
+        title: "Move Selected Items",
+        itemCount: "{{count}} item to",
+        itemCount_plural: "{{count}} items to",
+        a_tab: "a tab",
+        a_section: "a section",
+        a_tactic: "a tactic",
+        a_placement: "a placement",
+        totalItems: "({{count}} total item)",
+        totalItems_plural: "({{count}} total items)",
+        preparing: "Preparing...",
+        confirmMove: "Confirm Move"
+      },
+      progress: {
+        title: "Move in Progress...",
+        description: "Please wait while we move your items.",
+        itemsToProcess: "{{count}} item to process",
+        itemsToProcess_plural: "{{count}} items to process"
+      },
+      result: {
+        successTitle: "Move Successful!",
+        failureTitle: "Move Failed",
+        itemsMoved: "item moved",
+        itemsMoved_plural: "items moved",
+        itemsSkipped: "item skipped",
+        itemsSkipped_plural: "items skipped",
+        errors: "Errors",
+        warnings: "Warnings"
+      }
+    }
+  
+    
     
   
 

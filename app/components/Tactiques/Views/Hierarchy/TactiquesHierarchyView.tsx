@@ -44,6 +44,7 @@ import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
 import { useSelectionValidation, useSelectionMessages, buildHierarchyMap } from '../../../../hooks/useSelectionValidation';
 import { reorderSections } from '../../../../lib/tactiqueService';
 import { useCampaignData, formatCurrencyAmount } from '../../../../hooks/useCampaignData';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface TactiquesHierarchyViewProps {
   sections: SectionWithTactiques[];
@@ -106,6 +107,7 @@ export default function TactiquesHierarchyView({
   onDragRefresh // ✅ NOUVEAU prop
 }: TactiquesHierarchyViewProps) {
 
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
@@ -705,7 +707,7 @@ export default function TactiquesHierarchyView({
           <div className="bg-white rounded-lg p-4 shadow-lg">
             <div className="flex items-center space-x-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-              <span className="text-gray-700">Réorganisation en cours...</span>
+              <span className="text-gray-700">{t('tactiquesHierarchyView.dragAndDrop.reorganizing')}</span>
             </div>
           </div>
         </div>
@@ -773,7 +775,7 @@ export default function TactiquesHierarchyView({
                             ? 'cursor-not-allowed text-gray-300' 
                             : 'cursor-pointer text-gray-400 hover:text-gray-600 hover:bg-gray-200'
                         }`}
-                        title={sectionIndex === 0 ? "Déjà en première position" : "Monter la section"}
+                        title={sectionIndex === 0 ? t('tactiquesHierarchyView.section.alreadyFirst') : t('tactiquesHierarchyView.section.moveUp')}
                       >
                         <ArrowUpIcon className="h-4 w-4" />
                       </button>
@@ -805,7 +807,7 @@ export default function TactiquesHierarchyView({
                         className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
                           hoveredSection === section.id ? 'text-indigo-600' : 'text-indigo-400'
                         }`}
-                        title="Ajouter une tactique"
+                        title={t('tactiquesHierarchyView.section.addTactique')}
                       >
                         <PlusIcon className="h-4 w-4" />
                       </button>
@@ -821,7 +823,7 @@ export default function TactiquesHierarchyView({
                                 handleCopyId(section.id, 'section');
                               }}
                               className="p-1 rounded hover:bg-gray-200 transition-colors"
-                              title={copiedId === section.id ? "ID copié !" : "Copier l'ID"}
+                              title={copiedId === section.id ? t('tactiquesHierarchyView.common.idCopied') : t('tactiquesHierarchyView.common.copyId')}
                             >
                               <KeyIcon className={`h-3 w-3 ${copiedId === section.id ? 'text-green-500' : 'text-gray-300'}`} />
                             </button>
@@ -832,7 +834,7 @@ export default function TactiquesHierarchyView({
                                   onEditSection(section.id);
                                 }}
                                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                title="Modifier la section"
+                                title={t('tactiquesHierarchyView.section.edit')}
                               >
                                 <PencilIcon className="h-4 w-4 text-gray-500" />
                               </button>
@@ -846,7 +848,7 @@ export default function TactiquesHierarchyView({
                         {formatCurrencyWithCampaignCurrency(section.SECTION_Budget || 0)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {calculatePercentage(section.SECTION_Budget || 0)}% du budget
+                          {calculatePercentage(section.SECTION_Budget || 0)}% {t('tactiquesHierarchyView.section.ofBudget')}
                         </div>
                       </div>
                     </div>
@@ -858,7 +860,7 @@ export default function TactiquesHierarchyView({
                   <div className="bg-white">
                     {section.tactiques.length === 0 ? (
                       <div className="pl-12 py-3 text-sm text-gray-500 italic">
-                        Aucune tactique dans cette section
+                        {t('tactiquesHierarchyView.tactique.noneInSection')}
                       </div>
                     ) : (
                       <SortableContext 

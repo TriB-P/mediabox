@@ -15,9 +15,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Tactique } from '../../../../types/tactiques';
 import { Breakdown } from '../../../../types/breakdown';
 import TactiquesTimelineTable from './TactiquesTimelineTable';
-import { 
-  CalendarIcon, 
-  ClockIcon, 
+import {
+  CalendarIcon,
+  ClockIcon,
   Cog6ToothIcon,
   CalculatorIcon,
   PencilIcon,
@@ -25,6 +25,7 @@ import {
   XMarkIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface TactiquesTimelineViewProps {
   tactiques: Tactique[];
@@ -37,7 +38,7 @@ interface TactiquesTimelineViewProps {
   breakdowns: Breakdown[];
   onUpdateTactique: (
     sectionId: string,
-    tactiqueId: string, 
+    tactiqueId: string,
     updates: Partial<Tactique>
   ) => Promise<void>;
 }
@@ -56,6 +57,7 @@ export default function TactiquesTimelineView({
   breakdowns,
   onUpdateTactique
 }: TactiquesTimelineViewProps) {
+  const { t } = useTranslation();
   const [selectedBreakdownId, setSelectedBreakdownId] = useState<string>('');
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,7 +124,7 @@ export default function TactiquesTimelineView({
   const handleBreakdownChange = (breakdownId: string) => {
     if (editMode) {
       const confirmChange = confirm(
-        'Vous êtes en mode édition. Changer de breakdown annulera vos modifications. Continuer ?'
+        t('timelineView.notifications.confirmBreakdownChange')
       );
       if (!confirmChange) return;
     }
@@ -170,8 +172,8 @@ export default function TactiquesTimelineView({
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-gray-500">
-          Aucun breakdown configuré pour cette campagne. 
-          Veuillez configurer des breakdowns dans les paramètres de campagne.
+          {t('timelineView.errors.noBreakdownConfigured')}{' '}
+          {t('timelineView.errors.configureInSettings')}
         </p>
       </div>
     );
@@ -181,7 +183,7 @@ export default function TactiquesTimelineView({
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-gray-500">
-          Aucune tactique disponible pour cette campagne.
+          {t('timelineView.errors.noTacticsAvailable')}
         </p>
       </div>
     );
@@ -200,7 +202,7 @@ export default function TactiquesTimelineView({
             {/* Sélecteur de breakdown */}
             <div className="flex items-center space-x-2">
               <label className="text-sm font-medium text-gray-700">
-                Répartition :
+                {t('timelineView.header.distributionLabel')}
               </label>
               <select
                 value={selectedBreakdownId}
@@ -230,7 +232,7 @@ export default function TactiquesTimelineView({
                   {/* NOUVEAU: Indication spéciale pour PEBs */}
                   {selectedBreakdown.type === 'PEBs' && (
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium ml-2">
-                      3 valeurs
+                      {t('timelineView.header.pebValues')}
                     </span>
                   )}
                 </div>
@@ -241,7 +243,7 @@ export default function TactiquesTimelineView({
                 )}
                 {selectedBreakdown.type === 'Custom' && selectedBreakdown.customPeriods && (
                   <span>
-                    • {selectedBreakdown.customPeriods.length} période(s)
+                    • {selectedBreakdown.customPeriods.length} {t('timelineView.header.periodsLabel')}
                   </span>
                 )}
               </div>
@@ -257,7 +259,7 @@ export default function TactiquesTimelineView({
                 disabled={loading}
               >
                 <PencilIcon className="h-4 w-4 mr-1" />
-                Mode édition
+                {t('timelineView.buttons.editMode')}
               </button>
             )}
           </div>
@@ -271,11 +273,10 @@ export default function TactiquesTimelineView({
                 <CheckIcon className="h-4 w-4" />
               </div>
               <div className="text-sm text-yellow-800">
-                <p className="font-medium">Mode édition activé</p>
+                <p className="font-medium">{t('timelineView.editModeInfo.title')}</p>
                 <p className="mt-1">
-                  Vous pouvez maintenant modifier les valeurs des répartitions. 
-                  Utilisez Ctrl+C/⌘+C pour copier et Ctrl+V/⌘+V pour coller.
-                  {selectedBreakdown?.isDefault && " Cochez/décochez les cases pour activer/désactiver les périodes."}
+                  {t('timelineView.editModeInfo.instructions')}
+                  {selectedBreakdown?.isDefault && t('timelineView.editModeInfo.defaultBreakdownTip')}
                 </p>
               </div>
             </div>
@@ -302,7 +303,7 @@ export default function TactiquesTimelineView({
       ) : (
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <p className="text-gray-500">
-            Aucun breakdown sélectionné. Veuillez sélectionner un breakdown pour voir les répartitions.
+            {t('timelineView.errors.noBreakdownSelected')}
           </p>
         </div>
       )}

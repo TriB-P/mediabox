@@ -115,7 +115,7 @@ export default function LoginPage() {
         {/* Image en bas */}
         <div className="p-4 flex justify-center">
           <img 
-            src="/images/Login_Footer.png" 
+            src="/images/Login_footer.png" 
             alt="Login Footer"
             className="w-2/3 min-w-1/2 lg:min-w-1/3 flex flex-col"
           />

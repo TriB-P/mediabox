@@ -5,6 +5,7 @@
  * les données stockées dans l'objet breakdowns des tactiques.
  * CORRIGÉ: IDs de périodes standardisés et stables
  * NOUVEAU: Support du type PEBs avec génération de périodes hebdomadaires
+ * REFACTO: Accepte les traductions en paramètre pour éviter le couplage.
  */
 
 import { Breakdown } from '../../../../types/breakdown';
@@ -27,11 +28,21 @@ export interface TimelinePeriod {
 }
 
 /**
+ * NOUVEAU: Interface pour les traductions de périodes.
+ */
+export interface PeriodTranslations {
+  shortMonths: string[]; // e.g., ['JAN', 'FEV', ...]
+  mediumMonths: string[]; // e.g., ['Jan', 'Fév', ...]
+}
+
+
+/**
  * Génère les périodes pour un breakdown mensuel.
  * CORRIGÉ: IDs standardisés basés sur année-mois
  */
 export function generateMonthlyPeriods(
-  breakdown: Breakdown, 
+  breakdown: Breakdown,
+  translations: PeriodTranslations,
   tactiqueStartDate?: string, 
   tactiqueEndDate?: string
 ): TimelinePeriod[] {
@@ -53,10 +64,7 @@ export function generateMonthlyPeriods(
   let order = 0;
 
   while (current <= endDate) {
-    const monthNames = ['JAN', 'FEV', 'MAR', 'AVR', 'MAI', 'JUN',
-      'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-    const monthLabel = monthNames[current.getMonth()];
+    const monthLabel = translations.shortMonths[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
     
     // CORRIGÉ: ID standardisé avec préfixe breakdown pour éviter les collisions
@@ -90,7 +98,8 @@ export function generateMonthlyPeriods(
  * CORRIGÉ: IDs standardisés basés sur date de début de semaine
  */
 export function generateWeeklyPeriods(
-  breakdown: Breakdown, 
+  breakdown: Breakdown,
+  translations: PeriodTranslations,
   tactiqueStartDate?: string, 
   tactiqueEndDate?: string
 ): TimelinePeriod[] {
@@ -118,9 +127,7 @@ export function generateWeeklyPeriods(
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const month = monthNames[current.getMonth()];
+    const month = translations.mediumMonths[current.getMonth()];
     
     // CORRIGÉ: ID standardisé basé sur la date de début de semaine (YYYY-MM-DD)
     const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
@@ -152,7 +159,8 @@ export function generateWeeklyPeriods(
  * se comporte comme un breakdown hebdomadaire au niveau des dates.
  */
 export function generatePEBsPeriods(
-  breakdown: Breakdown, 
+  breakdown: Breakdown,
+  translations: PeriodTranslations,
   tactiqueStartDate?: string, 
   tactiqueEndDate?: string
 ): TimelinePeriod[] {
@@ -180,9 +188,7 @@ export function generatePEBsPeriods(
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const month = monthNames[current.getMonth()];
+    const month = translations.mediumMonths[current.getMonth()];
     
     // ID standardisé basé sur la date de début de semaine (identique aux périodes hebdomadaires)
     const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
@@ -240,16 +246,17 @@ export function generateCustomPeriods(breakdown: Breakdown): TimelinePeriod[] {
  */
 export function generatePeriodsForBreakdown(
   breakdown: Breakdown,
+  translations: PeriodTranslations,
   tactiqueStartDate?: string,
   tactiqueEndDate?: string
 ): TimelinePeriod[] {
   switch (breakdown.type) {
     case 'Mensuel':
-      return generateMonthlyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+      return generateMonthlyPeriods(breakdown, translations, tactiqueStartDate, tactiqueEndDate);
     case 'Hebdomadaire':
-      return generateWeeklyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+      return generateWeeklyPeriods(breakdown, translations, tactiqueStartDate, tactiqueEndDate);
     case 'PEBs': // NOUVEAU: Support du type PEBs
-      return generatePEBsPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+      return generatePEBsPeriods(breakdown, translations, tactiqueStartDate, tactiqueEndDate);
     case 'Custom':
       return generateCustomPeriods(breakdown);
     default:

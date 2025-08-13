@@ -9,6 +9,7 @@
 import React, { Fragment, ReactNode } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface FormDrawerProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export default function FormDrawer({
   title,
   children
 }: FormDrawerProps) {
+  const { t } = useTranslation();
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -73,7 +75,7 @@ export default function FormDrawer({
                             className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white"
                             onClick={onClose}
                           >
-                            <span className="sr-only">Fermer</span>
+                            <span className="sr-only">{t('common.close')}</span>
                             <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                           </button>
                         </div>

@@ -6,6 +6,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export interface FormTab {
   id: string;
@@ -32,6 +33,7 @@ export default function FormTabs({
   activeTab,
   onTabChange
 }: FormTabsProps) {
+  const { t } = useTranslation();
   /**
    * Gère l'événement de clic sur un onglet.
    * @param {React.MouseEvent} e - L'événement de souris.
@@ -47,7 +49,7 @@ export default function FormTabs({
 
   return (
     <div className="border-b border-gray-200">
-      <nav className="flex space-x-4 px-4 sm:px-6" aria-label="Tabs">
+      <nav className="flex space-x-4 px-4 sm:px-6" aria-label={t('common.tab')}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

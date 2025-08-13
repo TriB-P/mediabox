@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Section {
   id: string;
@@ -51,6 +52,7 @@ export default function SectionModal({
   section,
   mode
 }: SectionModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState('#6366f1');
   const [errors, setErrors] = useState<{ name?: string }>({});
@@ -86,7 +88,7 @@ export default function SectionModal({
     const newErrors: { name?: string } = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Le nom de la section est obligatoire';
+      newErrors.name = t('sectionModal.errors.nameRequired');
     }
 
     setErrors(newErrors);
@@ -159,7 +161,7 @@ export default function SectionModal({
               className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               onClick={handleClose}
             >
-              <span className="sr-only">Fermer</span>
+              <span className="sr-only">{t('common.close')}</span>
               <XMarkIcon className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
@@ -167,14 +169,14 @@ export default function SectionModal({
           <div className="sm:flex sm:items-start">
             <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                {mode === 'create' ? 'Nouvelle section' : 'Modifier la section'}
+                {mode === 'create' ? t('sectionModal.title.create') : t('sectionModal.title.edit')}
               </h3>
 
               <div className="space-y-4">
                 {/* Nom de la section */}
                 <div>
                   <label htmlFor="section-name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom de la section
+                    {t('sectionModal.form.nameLabel')}
                   </label>
                   <input
                     type="text"
@@ -185,7 +187,7 @@ export default function SectionModal({
                     className={`w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
                       errors.name ? 'border-red-300' : ''
                     }`}
-                    placeholder="Entrez le nom de la section"
+                    placeholder={t('sectionModal.form.namePlaceholder')}
                     autoFocus
                   />
                   {errors.name && (
@@ -196,7 +198,7 @@ export default function SectionModal({
                 {/* Sélecteur de couleur */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Couleur de la section
+                    {t('sectionModal.form.colorLabel')}
                   </label>
                   <div className="grid grid-cols-5 gap-2">
                     {PREDEFINED_COLORS.map((color) => (
@@ -210,7 +212,7 @@ export default function SectionModal({
                             : 'border-gray-300 hover:border-gray-500'
                         }`}
                         style={{ backgroundColor: color }}
-                        title={`Couleur ${color}`}
+                        title={`${t('sectionModal.form.colorTitle')} ${color}`}
                       >
                         {selectedColor === color && (
                           <div className="w-full h-full rounded-full flex items-center justify-center">
@@ -231,14 +233,14 @@ export default function SectionModal({
                     onClick={handleClose}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
                     onClick={handleSubmit}
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
-                    {mode === 'create' ? 'Créer' : 'Sauvegarder'}
+                    {mode === 'create' ? t('common.create') : t('common.save')}
                   </button>
                 </div>
               </div>

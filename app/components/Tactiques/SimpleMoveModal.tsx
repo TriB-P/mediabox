@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { MoveModalState } from '../../hooks/useSimpleMoveModal';
 import { CascadeItem } from '../../lib/simpleMoveService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SimpleMoveModalProps {
   modalState: MoveModalState;
@@ -61,6 +62,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
   isRequired,
   searchable = false
 }) => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const filteredItems = React.useMemo(() => {
@@ -95,7 +97,7 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
             <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
-              placeholder={`Rechercher ${title.toLowerCase()}...`}
+              placeholder={t('simpleMoveModal.cascade.searchPlaceholder', { title: title.toLowerCase() })}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
@@ -108,12 +110,12 @@ const CascadeLevelComponent: React.FC<CascadeLevelComponentProps> = ({
         {loading ? (
           <div className="p-4 text-center text-gray-500">
             <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto mb-2" />
-            <div className="text-sm">Chargement...</div>
+            <div className="text-sm">{t('common.loading')}</div>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <div className="text-sm">
-              {searchTerm ? 'Aucun résultat trouvé' : `Aucun ${title.toLowerCase()} disponible`}
+              {searchTerm ? t('simpleMoveModal.cascade.noResultsFound') : t('simpleMoveModal.cascade.noItemsAvailable', { title: title.toLowerCase() })}
             </div>
           </div>
         ) : (
@@ -170,25 +172,26 @@ interface DestinationSummaryProps {
  * Retourne: Un composant React affichant le chemin complet de la destination sélectionnée ou null si aucune destination n'est définie.
  */
 const DestinationSummary: React.FC<DestinationSummaryProps> = ({ destination, targetLevel }) => {
+  const { t } = useTranslation();
   const pathElements = [];
 
   if (destination.campaignName) {
-    pathElements.push({ label: 'Campagne', value: destination.campaignName });
+    pathElements.push({ label: t('simpleMoveModal.levels.campaign'), value: destination.campaignName });
   }
   if (destination.versionName) {
-    pathElements.push({ label: 'Version', value: destination.versionName });
+    pathElements.push({ label: t('simpleMoveModal.levels.version'), value: destination.versionName });
   }
   if (destination.ongletName) {
-    pathElements.push({ label: 'Onglet', value: destination.ongletName });
+    pathElements.push({ label: t('simpleMoveModal.levels.tab'), value: destination.ongletName });
   }
   if (destination.sectionName) {
-    pathElements.push({ label: 'Section', value: destination.sectionName });
+    pathElements.push({ label: t('simpleMoveModal.levels.section'), value: destination.sectionName });
   }
   if (destination.tactiqueName) {
-    pathElements.push({ label: 'Tactique', value: destination.tactiqueName });
+    pathElements.push({ label: t('simpleMoveModal.levels.tactic'), value: destination.tactiqueName });
   }
   if (destination.placementName) {
-    pathElements.push({ label: 'Placement', value: destination.placementName });
+    pathElements.push({ label: t('simpleMoveModal.levels.placement'), value: destination.placementName });
   }
 
   if (pathElements.length === 0) {
@@ -197,7 +200,7 @@ const DestinationSummary: React.FC<DestinationSummaryProps> = ({ destination, ta
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <h4 className="text-sm font-medium text-blue-900 mb-3">Destination sélectionnée</h4>
+      <h4 className="text-sm font-medium text-blue-900 mb-3">{t('simpleMoveModal.destinationSummary.selectedDestination')}</h4>
       <div className="space-y-1">
         {pathElements.map((element, index) => (
           <div key={index} className="flex items-center text-sm">
@@ -228,6 +231,7 @@ export default function SimpleMoveModal({
   onConfirmMove,
   isDestinationComplete
 }: SimpleMoveModalProps) {
+  const { t } = useTranslation();
 
   if (!modalState.isOpen) {
     return null;
@@ -281,18 +285,18 @@ export default function SimpleMoveModal({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-medium text-gray-900">
-                    Déplacer les éléments sélectionnés
+                    {t('simpleMoveModal.destination.title')}
                   </h3>
                   {validationResult && (
                     <p className="text-sm text-gray-600 mt-1">
-                      {validationResult.details.selectedItems.length} élément{validationResult.details.selectedItems.length > 1 ? 's' : ''} vers{' '}
-                      {validationResult.targetLevel === 'onglet' && 'un onglet'}
-                      {validationResult.targetLevel === 'section' && 'une section'}
-                      {validationResult.targetLevel === 'tactique' && 'une tactique'}
-                      {validationResult.targetLevel === 'placement' && 'un placement'}
+                      {t('simpleMoveModal.destination.itemCount', { count: validationResult.details.selectedItems.length })}{' '}
+                      {validationResult.targetLevel === 'onglet' && t('simpleMoveModal.destination.a_tab')}
+                      {validationResult.targetLevel === 'section' && t('simpleMoveModal.destination.a_section')}
+                      {validationResult.targetLevel === 'tactique' && t('simpleMoveModal.destination.a_tactic')}
+                      {validationResult.targetLevel === 'placement' && t('simpleMoveModal.destination.a_placement')}
                       {validationResult.affectedItemsCount > validationResult.details.selectedItems.length && (
                         <span className="text-gray-500">
-                          {' '}({validationResult.affectedItemsCount} éléments au total)
+                          {' '}{t('simpleMoveModal.destination.totalItems', { count: validationResult.affectedItemsCount })}
                         </span>
                       )}
                     </p>
@@ -311,7 +315,7 @@ export default function SimpleMoveModal({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 h-full">
 
                 <CascadeLevelComponent
-                  title="Campagne"
+                  title={t('simpleMoveModal.levels.campaign')}
                   items={modalState.campaigns}
                   selectedId={destination.campaignId}
                   loading={modalState.loadingCampaigns}
@@ -322,7 +326,7 @@ export default function SimpleMoveModal({
                 />
 
                 <CascadeLevelComponent
-                  title="Version"
+                  title={t('simpleMoveModal.levels.version')}
                   items={modalState.versions}
                   selectedId={destination.versionId}
                   loading={modalState.loadingVersions}
@@ -332,7 +336,7 @@ export default function SimpleMoveModal({
                 />
 
                 <CascadeLevelComponent
-                  title="Onglet"
+                  title={t('simpleMoveModal.levels.tab')}
                   items={modalState.onglets}
                   selectedId={destination.ongletId}
                   loading={modalState.loadingOnglets}
@@ -342,7 +346,7 @@ export default function SimpleMoveModal({
                 />
 
                 <CascadeLevelComponent
-                  title="Section"
+                  title={t('simpleMoveModal.levels.section')}
                   items={modalState.sections}
                   selectedId={destination.sectionId}
                   loading={modalState.loadingSections}
@@ -352,7 +356,7 @@ export default function SimpleMoveModal({
                 />
 
                 <CascadeLevelComponent
-                  title="Tactique"
+                  title={t('simpleMoveModal.levels.tactic')}
                   items={modalState.tactiques}
                   selectedId={destination.tactiqueId}
                   loading={modalState.loadingTactiques}
@@ -362,7 +366,7 @@ export default function SimpleMoveModal({
                 />
 
                 <CascadeLevelComponent
-                  title="Placement"
+                  title={t('simpleMoveModal.levels.placement')}
                   items={modalState.placements}
                   selectedId={destination.placementId}
                   loading={modalState.loadingPlacements}
@@ -399,7 +403,7 @@ export default function SimpleMoveModal({
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                   disabled={processing}
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={onConfirmMove}
@@ -409,7 +413,7 @@ export default function SimpleMoveModal({
                   {processing && (
                     <ArrowPathIcon className="h-4 w-4 animate-spin mr-2" />
                   )}
-                  {processing ? 'Préparation...' : 'Confirmer le déplacement'}
+                  {processing ? t('simpleMoveModal.destination.preparing') : t('simpleMoveModal.destination.confirmMove')}
                 </button>
               </div>
             </div>
@@ -421,14 +425,14 @@ export default function SimpleMoveModal({
           <div className="px-6 py-8 text-center">
             <ArrowPathIcon className="h-12 w-12 text-indigo-600 animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Déplacement en cours...
+              {t('simpleMoveModal.progress.title')}
             </h3>
             <p className="text-sm text-gray-600">
-              Veuillez patienter pendant que nous déplaçons vos éléments.
+              {t('simpleMoveModal.progress.description')}
             </p>
             {validationResult && (
               <div className="mt-4 text-xs text-gray-500">
-                {validationResult.affectedItemsCount} élément(s) à traiter
+                {t('simpleMoveModal.progress.itemsToProcess', { count: validationResult.affectedItemsCount })}
               </div>
             )}
           </div>
@@ -445,17 +449,19 @@ export default function SimpleMoveModal({
               )}
 
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {result?.success ? 'Déplacement réussi !' : 'Déplacement échoué'}
+                {result?.success ? t('simpleMoveModal.result.successTitle') : t('simpleMoveModal.result.failureTitle')}
               </h3>
 
               {result && (
                 <div className="text-sm text-gray-600 space-y-1">
                   <div>
-                    <span className="font-medium text-green-600">{result.movedCount}</span> élément(s) déplacé(s)
+                    <span className="font-medium text-green-600">{result.movedCount}</span>{' '}
+                    {t('simpleMoveModal.result.itemsMoved', { count: result.movedCount })}
                   </div>
                   {result.skippedCount > 0 && (
                     <div>
-                      <span className="font-medium text-yellow-600">{result.skippedCount}</span> élément(s) ignoré(s)
+                      <span className="font-medium text-yellow-600">{result.skippedCount}</span>{' '}
+                      {t('simpleMoveModal.result.itemsSkipped', { count: result.skippedCount })}
                     </div>
                   )}
                 </div>
@@ -464,7 +470,7 @@ export default function SimpleMoveModal({
 
             {result?.errors && result.errors.length > 0 && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-red-800 mb-2">Erreurs :</h4>
+                <h4 className="text-sm font-medium text-red-800 mb-2">{t('simpleMoveModal.result.errors')}:</h4>
                 <ul className="text-sm text-red-700 space-y-1">
                   {result.errors.map((error, index) => (
                     <li key={index} className="flex items-start">
@@ -478,7 +484,7 @@ export default function SimpleMoveModal({
 
             {result?.warnings && result.warnings.length > 0 && (
               <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-yellow-800 mb-2">Avertissements :</h4>
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">{t('simpleMoveModal.result.warnings')}:</h4>
                 <ul className="text-sm text-yellow-700 space-y-1">
                   {result.warnings.map((warning, index) => (
                     <li key={index} className="flex items-start">
@@ -495,7 +501,7 @@ export default function SimpleMoveModal({
                 onClick={onClose}
                 className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors"
               >
-                Fermer
+                {t('common.close')}
               </button>
             </div>
           </div>

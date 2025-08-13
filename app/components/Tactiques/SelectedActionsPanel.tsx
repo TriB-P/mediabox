@@ -17,6 +17,7 @@ import { Section, Tactique, Placement, Creatif } from '../../types/tactiques';
 import { SelectionValidationResult } from '../../hooks/useSelectionValidation';
 import { useSimpleMoveModal } from '../../hooks/useSimpleMoveModal';
 import SimpleMoveModal from './SimpleMoveModal';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SelectedItem {
   id: string;
@@ -56,6 +57,7 @@ export default function SelectedActionsPanel({
   validationResult,
   hierarchyContext
 }: SelectedActionsPanelProps) {
+  const { t } = useTranslation();
 
   /**
    * Hook pour la gestion de l'état du modal de déplacement.
@@ -131,20 +133,20 @@ export default function SelectedActionsPanel({
     const parts: string[] = [];
 
     if (itemCountsByType.section > 0) {
-      parts.push(`${itemCountsByType.section} section${itemCountsByType.section > 1 ? 's' : ''}`);
+      parts.push(`${itemCountsByType.section} ${t('model.section')}${itemCountsByType.section > 1 ? 's' : ''}`);
     }
     if (itemCountsByType.tactique > 0) {
-      parts.push(`${itemCountsByType.tactique} tactique${itemCountsByType.tactique > 1 ? 's' : ''}`);
+      parts.push(`${itemCountsByType.tactique} ${t('model.tactic')}${itemCountsByType.tactique > 1 ? 's' : ''}`);
     }
     if (itemCountsByType.placement > 0) {
-      parts.push(`${itemCountsByType.placement} placement${itemCountsByType.placement > 1 ? 's' : ''}`);
+      parts.push(`${itemCountsByType.placement} ${t('model.placement')}${itemCountsByType.placement > 1 ? 's' : ''}`);
     }
     if (itemCountsByType.creatif > 0) {
-      parts.push(`${itemCountsByType.creatif} créatif${itemCountsByType.creatif > 1 ? 's' : ''}`);
+      parts.push(`${itemCountsByType.creatif} ${t('model.creative')}${itemCountsByType.creatif > 1 ? 's' : ''}`);
     }
 
     return parts.join(', ');
-  }, [itemCountsByType]);
+  }, [itemCountsByType, t]);
 
   /**
    * Détermine l'état du bouton de déplacement (activé, désactivé, libellé, raison).
@@ -155,18 +157,18 @@ export default function SelectedActionsPanel({
     if (!validationResult) {
       return {
         canMove: false,
-        label: 'Validation en cours...',
+        label: t('selectedActionsPanel.moveButton.validating'),
         disabled: true,
-        reason: 'Aucune validation disponible'
+        reason: t('selectedActionsPanel.moveButton.noValidationAvailable')
       };
     }
 
     if (!validationResult.canMove) {
       return {
         canMove: false,
-        label: 'Sélection invalide',
+        label: t('selectedActionsPanel.moveButton.invalidSelection'),
         disabled: true,
-        reason: validationResult.errorMessage || 'Sélection invalide pour le déplacement'
+        reason: validationResult.errorMessage || t('selectedActionsPanel.moveButton.invalidForMove')
       };
     }
 
@@ -174,32 +176,32 @@ export default function SelectedActionsPanel({
     const directCount = selectedItems.length;
 
     const moveLabels: Record<string, string> = {
-      'section': 'sections',
-      'tactique': 'tactiques',
-      'placement': 'placements',
-      'creatif': 'créatifs'
+      section: t('model.sections'),
+      tactique: t('model.tactics'),
+      placement: t('model.placements'),
+      creatif: t('model.creatives')
     };
 
     const targetLabels: Record<string, string> = {
-      'onglet': 'un onglet',
-      'section': 'une section',
-      'tactique': 'une tactique',
-      'placement': 'un placement'
+      onglet: t('selectedActionsPanel.moveButton.target.tab'),
+      section: t('selectedActionsPanel.moveButton.target.section'),
+      tactique: t('selectedActionsPanel.moveButton.target.tactic'),
+      placement: t('selectedActionsPanel.moveButton.target.placement')
     };
 
-    let label = `Déplacer ${directCount} ${moveLabels[moveLevel!]}`;
+    let label = `${t('selectedActionsPanel.moveButton.moveAction')} ${directCount} ${moveLabels[moveLevel!]}`;
     if (affectedItemsCount > directCount) {
-      label += ` (${affectedItemsCount} au total)`;
+      label += ` (${affectedItemsCount} ${t('selectedActionsPanel.moveButton.total')})`;
     }
-    label += ` vers ${targetLabels[targetLevel!]}`;
+    label += ` ${t('selectedActionsPanel.moveButton.to')} ${targetLabels[targetLevel!]}`;
 
     return {
       canMove: true,
       label,
       disabled: false,
-      reason: `Prêt à déplacer ${directCount} élément(s)`
+      reason: `${t('selectedActionsPanel.moveButton.readyToMove')} ${directCount} ${t('model.item')}${directCount > 1 ? 's' : ''}`
     };
-  }, [validationResult, selectedItems.length]);
+  }, [validationResult, selectedItems.length, t]);
 
   /**
    * Gère l'action de duplication des éléments sélectionnés.
@@ -275,7 +277,7 @@ export default function SelectedActionsPanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="text-sm font-medium text-indigo-900">
-              {totalCount} élément{totalCount > 1 ? 's' : ''} sélectionné{totalCount > 1 ? 's' : ''}
+              {totalCount} {t('model.item')}{totalCount > 1 ? 's' : ''} {t('model.selected')}{totalCount > 1 ? 's' : ''}
             </div>
             <div className="text-xs text-indigo-600">
               {selectionDescription}
@@ -295,7 +297,7 @@ export default function SelectedActionsPanel({
               title={moveButtonState.reason}
             >
               <ArrowRightIcon className="h-4 w-4 mr-1.5" />
-              {moveButtonState.canMove ? 'Déplacer' : 'Invalide'}
+              {moveButtonState.canMove ? t('selectedActionsPanel.buttons.move') : t('selectedActionsPanel.buttons.invalid')}
             </button>
 
             <button
@@ -304,7 +306,7 @@ export default function SelectedActionsPanel({
               className="flex items-center px-3 py-1.5 rounded text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <DocumentDuplicateIcon className="h-4 w-4 mr-1.5" />
-              Dupliquer
+              {t('common.duplicate')}
             </button>
 
             <button
@@ -313,7 +315,7 @@ export default function SelectedActionsPanel({
               className="flex items-center px-3 py-1.5 rounded text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <TrashIcon className="h-4 w-4 mr-1.5" />
-              Supprimer
+              {t('common.delete')}
             </button>
 
             <button
@@ -322,21 +324,21 @@ export default function SelectedActionsPanel({
               className="flex items-center px-3 py-1.5 rounded text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <XMarkIcon className="h-4 w-4 mr-1.5" />
-              Annuler
+              {t('common.cancel')}
             </button>
           </div>
         </div>
 
         {validationResult && !validationResult.canMove && (
           <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>Déplacement impossible :</strong> {validationResult.errorMessage}
+            <strong>{t('selectedActionsPanel.moveImpossible.title')}:</strong> {validationResult.errorMessage}
           </div>
         )}
 
         {loading && (
           <div className="mt-2 flex items-center text-xs text-indigo-600">
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
-            Opération en cours...
+            {t('selectedActionsPanel.operationInProgress')}
           </div>
         )}
       </div>

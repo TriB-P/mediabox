@@ -26,6 +26,7 @@ import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { getCachedAllShortcodes, ShortcodeItem } from '../../../../lib/cacheService';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
@@ -63,6 +64,7 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
   onSelectCreatif,
   onOpenTaxonomyMenu
 }) => {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -156,10 +158,10 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onCopyId) onCopyId(creatif.id, 'créatif');
+                  if (onCopyId) onCopyId(creatif.id, t('dndKit.creatifItem.type'));
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                title={copiedId === creatif.id ? "ID copié !" : "Copier l'ID"}
+                title={copiedId === creatif.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}
               >
                 <KeyIcon className={`h-3 w-3 ${copiedId === creatif.id ? 'text-green-500' : 'text-gray-300'}`} />
               </button>
@@ -169,7 +171,7 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
                   onEdit(placementId, creatif);
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                title="Modifier le créatif"
+                title={t('dndKit.creatifItem.editTitle')}
               >
                 <PencilIcon className="h-4 w-4 text-gray-400" />
               </button>
@@ -185,7 +187,7 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
                 ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                 : 'bg-gray-300'
             }`}
-            title={hasTagsTaxonomy ? "Tags" : "Tags"}
+            title={t('dndKit.common.taxonomy.tags')}
             onClick={handleTagsClick}
           ></span>
           <span
@@ -194,7 +196,7 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
                 ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                 : 'bg-gray-300'
             }`}
-            title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
+            title={t('dndKit.common.taxonomy.platform')}
             onClick={handlePlatformClick}
           ></span>
           <span
@@ -203,7 +205,7 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
                 ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                 : 'bg-gray-300'
             }`}
-            title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
+            title={t('dndKit.common.taxonomy.mediaOcean')}
             onClick={handleMediaOceanClick}
           ></span>
         </div>
@@ -258,6 +260,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
   onSelectCreatif,
   onOpenTaxonomyMenu
 }) => {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -370,7 +373,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
             className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
               isHovered ? 'text-indigo-600' : 'text-indigo-400'
             }`}
-            title="Ajouter un créatif"
+            title={t('dndKit.placementItem.addCreative')}
           >
             <PlusIcon className="h-3 w-3" />
           </button>
@@ -385,10 +388,10 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onCopyId) onCopyId(placement.id, 'placement');
+                    if (onCopyId) onCopyId(placement.id, t('dndKit.placementItem.type'));
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
-                  title={copiedId === placement.id ? "ID copié !" : "Copier l'ID"}
+                  title={copiedId === placement.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}
                 >
                   <KeyIcon className={`h-3 w-3 ${copiedId === placement.id ? 'text-green-500' : 'text-gray-300'}`} />
                 </button>
@@ -398,7 +401,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                     onEdit(tactiqueId, placement);
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
-                  title="Modifier le placement"
+                  title={t('dndKit.placementItem.editTitle')}
                 >
                   <PencilIcon className="h-4 w-4 text-gray-400" />
                 </button>
@@ -414,7 +417,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                   ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                   : 'bg-gray-300'
               }`}
-              title={hasTagsTaxonomy ? "Tags" : "Tags"}
+              title={t('dndKit.common.taxonomy.tags')}
               onClick={handleTagsClick}
             ></span>
             <span
@@ -423,7 +426,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                   ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                   : 'bg-gray-300'
               }`}
-              title={hasPlatformTaxonomy ? "Plateforme" : "Plateforme"}
+              title={t('dndKit.common.taxonomy.platform')}
               onClick={handlePlatformClick}
             ></span>
             <span
@@ -432,7 +435,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                   ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
                   : 'bg-gray-300'
               }`}
-              title={hasMediaOceanTaxonomy ? "MediaOcean" : "MediaOcean"}
+              title={t('dndKit.common.taxonomy.mediaOcean')}
               onClick={handleMediaOceanClick}
             ></span>
           </div>
@@ -444,7 +447,7 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
         <div className="pl-8 bg-white py-1">
           {creatifs.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-500 italic">
-              Aucun créatif pour ce placement
+              {t('dndKit.placementItem.noCreative')}
             </div>
           ) : (
             <div 
@@ -540,6 +543,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   onSelectCreatif,
   onOpenTaxonomyMenu
 }) => {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -697,7 +701,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                   ) : partnerImageUrl && !imageError ? (
                     <img
                       src={partnerImageUrl}
-                      alt="Logo partenaire"
+                      alt={t('dndKit.tactiqueItem.partnerLogoAlt')}
                       className="w-8 h-8 object-contain rounded"
                       onError={() => setImageError(true)}
                     />
@@ -716,7 +720,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                   ) : inventoryImageUrl && !inventoryError ? (
                     <img
                       src={inventoryImageUrl}
-                      alt="Logo inventaire"
+                      alt={t('dndKit.tactiqueItem.inventoryLogoAlt')}
                       className="w-8 h-8 object-contain rounded"
                       onError={() => setInventoryError(true)}
                     />
@@ -734,7 +738,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                 ) : partnerImageUrl && !imageError ? (
                   <img
                     src={partnerImageUrl}
-                    alt="Logo partenaire"
+                    alt={t('dndKit.tactiqueItem.partnerLogoAlt')}
                     className="w-10 h-10 object-contain rounded"
                     onError={() => setImageError(true)}
                   />
@@ -765,7 +769,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
             className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
               isHovered ? 'text-indigo-600' : 'text-indigo-400'
             }`}
-            title="Ajouter un placement"
+            title={t('dndKit.tactiqueItem.addPlacement')}
           >
             <PlusIcon className="h-4 w-4" />
           </button>
@@ -780,10 +784,10 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onCopyId) onCopyId(tactique.id, 'tactique');
+                    if (onCopyId) onCopyId(tactique.id, t('dndKit.tactiqueItem.type'));
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
-                  title={copiedId === tactique.id ? "ID copié !" : "Copier l'ID"}
+                  title={copiedId === tactique.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}
                 >
                   <KeyIcon className={`h-3 w-3 ${copiedId === tactique.id ? 'text-green-500' : 'text-gray-300'}`} />
                 </button>
@@ -793,7 +797,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                     onEdit(sectionId, tactique);
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
-                  title="Modifier la tactique"
+                  title={t('dndKit.tactiqueItem.editTitle')}
                 >
                   <PencilIcon className="h-4 w-4 text-gray-500" />
                 </button>
@@ -812,7 +816,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
         <div className="pl-8 pb-2 bg-white">
           {placements.length === 0 ? (
             <div className="px-4 py-2 text-xs text-gray-500 italic">
-              Aucun placement dans cette tactique
+              {t('dndKit.tactiqueItem.noPlacement')}
             </div>
           ) : (
             <div 

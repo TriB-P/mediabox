@@ -15,7 +15,8 @@ import { Tactique } from '../../../../types/tactiques';
 import { Breakdown } from '../../../../types/breakdown';
 import {
   TimelinePeriod,
-  generatePeriodsForBreakdown
+  generatePeriodsForBreakdown,
+  PeriodTranslations
 } from './timelinePeriodsUtils';
 import {
   getTactiqueBreakdownValue,
@@ -33,6 +34,7 @@ import {
   XMarkIcon,
   PlusIcon
 } from '@heroicons/react/24/outline';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface TactiquesTimelineTableProps {
   tactiques: Tactique[];
@@ -57,8 +59,8 @@ interface EditableCell {
   periodId: string;
   value: string;
   isToggled?: boolean;
-  unitCost?: string; // NOUVEAU: Support PEBs
-  total?: string;    // NOUVEAU: Support PEBs
+  unitCost?: string;
+  total?: string;
 }
 
 interface SelectedCell {
@@ -73,9 +75,6 @@ interface DistributionModalState {
   totalAmount: string;
 }
 
-/**
- * NOUVEAU: Interface pour les totaux par colonne
- */
 interface ColumnTotals {
   value: number;
   unitCost?: number;
@@ -85,9 +84,6 @@ interface ColumnTotals {
   hasNumericTotal?: boolean;
 }
 
-/**
- * NOUVEAU: Interface pour les totaux par ligne (PEBs)
- */
 interface RowTotals {
   volume: number;
   total: number;
@@ -95,9 +91,6 @@ interface RowTotals {
   hasNumericValues: boolean;
 }
 
-/**
- * NOUVEAU: Interface pour les données copiées (support PEBs)
- */
 interface CopiedData {
   value: string;
   unitCost?: string;
@@ -118,10 +111,11 @@ export default function TactiquesTimelineTable({
   onSaveComplete,
   onCancelEdit
 }: TactiquesTimelineTableProps) {
+  const { t } = useTranslation();
   const [editableCells, setEditableCells] = useState<EditableCell[]>([]);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [selectionStart, setSelectionStart] = useState<SelectedCell | null>(null);
-  const [copiedValue, setCopiedValue] = useState<CopiedData | null>(null); // CORRIGÉ: Support PEBs
+  const [copiedValue, setCopiedValue] = useState<CopiedData | null>(null);
   const [isShiftKeyPressed, setIsShiftKeyPressed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
@@ -131,16 +125,23 @@ export default function TactiquesTimelineTable({
   });
 
   const tableRef = useRef<HTMLTableElement>(null);
-  const isPEBs = selectedBreakdown.type === 'PEBs'; // NOUVEAU: Détection PEBs
+  const isPEBs = selectedBreakdown.type === 'PEBs';
 
   // Génération des périodes pour le breakdown sélectionné
   const periods = useMemo(() => {
+    // Create the translations object from your i18n resources.
+    const periodTranslations: PeriodTranslations = {
+      shortMonths: t('timeline.utils.months.short', { returnObjects: true } as any) as unknown as string[],
+      mediumMonths: t('timeline.utils.months.medium', { returnObjects: true } as any) as unknown as string[]
+    };
+  
     return generatePeriodsForBreakdown(
       selectedBreakdown,
+      periodTranslations,
       campaignStartDate,
       campaignEndDate
     );
-  }, [selectedBreakdown, campaignStartDate, campaignEndDate]);
+  }, [selectedBreakdown, campaignStartDate, campaignEndDate, t]);
 
   // Groupement des tactiques par section
   const tactiquesGroupedBySection = useMemo(() => {
@@ -177,7 +178,7 @@ export default function TactiquesTimelineTable({
 
 
   /**
-   * NOUVEAU: Valide qu'une chaîne est un nombre valide (pas juste parseFloat)
+   * Valide qu'une chaîne est un nombre valide (pas juste parseFloat)
    */
   const isValidNumber = (str: string): boolean => {
     if (!str || typeof str !== 'string') return false;
@@ -188,7 +189,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * NOUVEAU: Calcule les totaux par ligne pour une tactique (PEBs uniquement)
+   * Calcule les totaux par ligne pour une tactique (PEBs uniquement)
    */
   const calculateRowTotals = (tactique: Tactique): RowTotals => {
     let volumeSum = 0;
@@ -199,7 +200,7 @@ export default function TactiquesTimelineTable({
     let numericUnitCostCount = 0;
 
     periods.forEach(period => {
-      // CORRIGÉ: Pour le breakdown par défaut, ne considérer que les périodes actives
+      // Pour le breakdown par défaut, ne considérer que les périodes actives
       const isActive = selectedBreakdown.isDefault ? 
         getPeriodToggleForTactique(tactique, selectedBreakdown.id, period.id) : 
         true;
@@ -264,7 +265,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * NOUVEAU: Calcule les totaux par colonne
+   * Calcule les totaux par colonne
    */
   const columnTotals = useMemo(() => {
     const totals: { [periodId: string]: ColumnTotals } = {};
@@ -330,7 +331,6 @@ export default function TactiquesTimelineTable({
           const firstCell = selectedCells[0];
           const tactique = flatTactiques[firstCell.rowIndex];
           
-          // CORRIGÉ: Copier les données complètes (value + unitCost pour PEBs)
           const value = getPeriodValueForTactique(tactique, firstCell.breakdownId, firstCell.periodId, 'value');
           const copiedData: CopiedData = { value };
           
@@ -387,25 +387,19 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * CORRIGÉ: Gère la sélection d'une cellule avec support des plages rectangulaires.
-   * Maintient le mode édition mais permet la sélection.
+   * Gère la sélection d'une cellule avec support des plages rectangulaires.
    */
   const handleCellClick = (rowIndex: number, breakdownId: string, periodId: string, event?: React.MouseEvent) => {
     if (!editMode) return;
 
-    // CORRIGÉ: Empêcher la propagation si le clic vient d'une case à cocher
     if (event && (event.target as HTMLInputElement).type === 'checkbox') {
       return;
     }
 
-    // SUPPRIMÉ: Ne plus désactiver les cellules en édition - garder le mode édition actif
-
     if (isShiftKeyPressed && selectionStart) {
-      // NOUVEAU: Support des sélections rectangulaires (horizontales et verticales)
       const startRow = Math.min(selectionStart.rowIndex, rowIndex);
       const endRow = Math.max(selectionStart.rowIndex, rowIndex);
       
-      // Trouver les indices des périodes pour la sélection horizontale
       const startPeriodIndex = periods.findIndex(p => p.id === selectionStart.periodId);
       const endPeriodIndex = periods.findIndex(p => p.id === periodId);
       const minPeriodIndex = Math.min(startPeriodIndex, endPeriodIndex);
@@ -460,8 +454,8 @@ export default function TactiquesTimelineTable({
           breakdownId, 
           periodId, 
           value: currentValue,
-          unitCost: currentUnitCost, // NOUVEAU: Support PEBs
-          total: currentTotal,       // NOUVEAU: Support PEBs
+          unitCost: currentUnitCost,
+          total: currentTotal,
           isToggled: currentToggle
         }
       ]);
@@ -472,7 +466,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * NOUVEAU: Met à jour la valeur d'une cellule en cours d'édition avec support PEBs.
+   * Met à jour la valeur d'une cellule en cours d'édition avec support PEBs.
    */
   const handleCellChange = (
     index: number, 
@@ -482,14 +476,12 @@ export default function TactiquesTimelineTable({
     const newEditableCells = [...editableCells];
     const cell = newEditableCells[index];
     
-    // Mettre à jour le champ demandé
     if (field === 'unitCost') {
       cell.unitCost = value;
     } else {
       cell.value = value;
     }
     
-    // NOUVEAU: Pour PEBs, recalculer automatiquement le total
     if (isPEBs) {
       const unitCost = cell.unitCost || '';
       const volume = cell.value || '';
@@ -500,7 +492,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * CORRIGÉ: Gère le changement d'état d'activation d'une période.
+   * Gère le changement d'état d'activation d'une période.
    */
   const handleToggleChange = (
     tactique: Tactique, 
@@ -511,7 +503,6 @@ export default function TactiquesTimelineTable({
   ) => {
     if (!editMode) return;
 
-    // CORRIGÉ: Empêcher la propagation pour éviter le conflit avec la sélection de cellule
     event.stopPropagation();
 
     const existingCellIndex = editableCells.findIndex(
@@ -525,8 +516,8 @@ export default function TactiquesTimelineTable({
       newEditableCells[existingCellIndex].isToggled = isToggled;
       if (!isToggled) {
         newEditableCells[existingCellIndex].value = '';
-        newEditableCells[existingCellIndex].unitCost = ''; // NOUVEAU: Reset PEBs
-        newEditableCells[existingCellIndex].total = '';    // NOUVEAU: Reset PEBs
+        newEditableCells[existingCellIndex].unitCost = '';
+        newEditableCells[existingCellIndex].total = '';
       }
       setEditableCells(newEditableCells);
     } else {
@@ -541,8 +532,8 @@ export default function TactiquesTimelineTable({
           breakdownId, 
           periodId, 
           value: isToggled ? currentValue : '',
-          unitCost: isToggled ? currentUnitCost : '', // NOUVEAU: Support PEBs
-          total: isToggled ? currentTotal : '',       // NOUVEAU: Support PEBs
+          unitCost: isToggled ? currentUnitCost : '',
+          total: isToggled ? currentTotal : '',
           isToggled 
         }
       ]);
@@ -550,7 +541,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * CORRIGÉ: Colle les valeurs copiées dans les cellules sélectionnées avec support PEBs.
+   * Colle les valeurs copiées dans les cellules sélectionnées avec support PEBs.
    */
   const handlePaste = () => {
     if (copiedValue === null || selectedCells.length === 0) return;
@@ -567,14 +558,12 @@ export default function TactiquesTimelineTable({
       );
 
       if (existingCellIndex >= 0) {
-        // Modifier une cellule existante
         newEditableCells[existingCellIndex].value = copiedValue.value;
         if (isPEBs && copiedValue.unitCost) {
           newEditableCells[existingCellIndex].unitCost = copiedValue.unitCost;
           newEditableCells[existingCellIndex].total = calculatePEBsTotal(copiedValue.unitCost, copiedValue.value);
         }
       } else {
-        // Créer une nouvelle cellule éditable
         const currentToggle = getPeriodToggleForTactique(tactique, cell.breakdownId, cell.periodId);
         
         const newCell: EditableCell = {
@@ -598,7 +587,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * CORRIGÉ: Sauvegarde toutes les modifications avec gestion d'erreur améliorée.
+   * Sauvegarde toutes les modifications avec gestion d'erreur améliorée.
    */
   const handleSaveChanges = async () => {
     if (editableCells.length === 0) return;
@@ -606,7 +595,6 @@ export default function TactiquesTimelineTable({
     try {
       setIsSaving(true);
 
-      // Grouper les modifications par tactique
       const updatesByTactique: { [tactiqueId: string]: BreakdownUpdateData[] } = {};
 
       editableCells.forEach(cell => {
@@ -622,7 +610,6 @@ export default function TactiquesTimelineTable({
           order: 0
         };
         
-        // NOUVEAU: Ajouter les champs PEBs si nécessaire
         if (isPEBs) {
           updateData.unitCost = cell.unitCost;
           updateData.total = cell.total;
@@ -631,7 +618,6 @@ export default function TactiquesTimelineTable({
         updatesByTactique[cell.tactiqueId].push(updateData);
       });
 
-      // CORRIGÉ: Sauvegarder chaque tactique avec vérification d'existence
       for (const tactiqueId of Object.keys(updatesByTactique)) {
         const tactique = flatTactiques.find(t => t.id === tactiqueId);
         if (!tactique) {
@@ -645,33 +631,29 @@ export default function TactiquesTimelineTable({
             updatesByTactique[tactiqueId]
           );
           
-          // CORRIGÉ: Ordre des paramètres (sectionId, tactiqueId)
           console.log(`Mise à jour de la tactique ${tactiqueId} dans la section ${tactique.TC_SectionId}`);
           
           await onUpdateTactique(tactique.TC_SectionId, tactiqueId, updatedTactiqueData as Partial<Tactique>);
         } catch (tactiqueError: any) {
           console.error(`Erreur lors de la mise à jour de la tactique ${tactiqueId}:`, tactiqueError);
           
-          // CORRIGÉ: Afficher une erreur plus spécifique
           if (tactiqueError.code === 'not-found') {
-            alert(`La tactique "${tactique.TC_Label}" n'a pas été trouvée. Elle a peut-être été supprimée par un autre utilisateur.`);
+            alert(t('timeline.alerts.tactic') + `"${tactique.TC_Label}"` + t('timeline.alerts.notFoundMaybeDeleted'));
           } else {
-            alert(`Erreur lors de la sauvegarde de la tactique "${tactique.TC_Label}": ${tactiqueError.message}`);
+            alert(t('timeline.alerts.errorSavingTactic') + `"${tactique.TC_Label}": ${tactiqueError.message}`);
           }
           
-          // Continuer avec les autres tactiques
           continue;
         }
       }
 
-      // Nettoyer l'état
       setEditableCells([]);
       setSelectedCells([]);
       
       onSaveComplete?.();
     } catch (error) {
       console.error('Erreur générale lors de la sauvegarde:', error);
-      alert('Une erreur générale est survenue lors de la sauvegarde.');
+      alert(t('timeline.alerts.generalSaveError'));
     } finally {
       setIsSaving(false);
     }
@@ -684,7 +666,7 @@ export default function TactiquesTimelineTable({
     setEditableCells([]);
     setSelectedCells([]);
     setSelectionStart(null);
-    setCopiedValue(null); // CORRIGÉ: Support du nouveau type CopiedData
+    setCopiedValue(null);
     onCancelEdit?.();
   };
 
@@ -713,7 +695,7 @@ export default function TactiquesTimelineTable({
   if (periods.length === 0) {
     return (
       <div className="p-6 text-center text-gray-500">
-        <p>Aucune période trouvée pour ce breakdown.</p>
+        <p>{t('timeline.table.noPeriodFound')}</p>
       </div>
     );
   }
@@ -724,7 +706,7 @@ export default function TactiquesTimelineTable({
       {editMode && editableCells.length > 0 && (
         <div className="flex items-center justify-end space-x-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <span className="text-sm text-yellow-800">
-            {editableCells.length} modification(s) en attente
+            {editableCells.length} {t('timeline.table.pendingChanges')}
           </span>
           <button
             onClick={handleCancelChanges}
@@ -732,7 +714,7 @@ export default function TactiquesTimelineTable({
             disabled={isSaving}
           >
             <XMarkIcon className="h-4 w-4 mr-1" />
-            Annuler
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSaveChanges}
@@ -740,52 +722,51 @@ export default function TactiquesTimelineTable({
             disabled={isSaving}
           >
             <CheckIcon className="h-4 w-4 mr-1" />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            {isSaving ? t('timeline.table.saving') : t('common.save')}
           </button>
         </div>
       )}
 
-      {/* Conteneur principal pour le tableau - CORRIGÉ: Contraint à la largeur de la page */}
+      {/* Conteneur principal pour le tableau */}
       <div 
         className="overflow-x-auto overflow-y-auto mx-auto"
         style={{
           maxHeight: '75vh',
           width: '100%',
-          maxWidth: '100%', // NOUVEAU: Limite à la largeur de la fenêtre
+          maxWidth: '100%',
         }}
       >
         <table 
           className="divide-y divide-gray-200 w-full" 
           ref={tableRef}
-          style={{ minWidth: 'max-content' }} // CORRIGÉ: Seulement min-width pour le contenu
+          style={{ minWidth: 'max-content' }}
         >
           
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] sticky left-0 bg-gray-50 z-20">
-              Section / Tactique
+              {t('timeline.table.header.sectionTactic')}
             </th>
               {periods.map((period) => (
                 <th
                   key={period.id}
                   className={`px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                    isPEBs ? 'min-w-[120px]' : 'min-w-[120px]' // CORRIGÉ: Largeur uniformisée
+                    isPEBs ? 'min-w-[120px]' : 'min-w-[120px]'
                   }`}
                 >
                   {period.label}
                 </th>
               ))}
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] ">
-                Total Budget
+                {t('timeline.table.header.totalBudget')}
               </th>
-              {/* NOUVEAU: Colonnes supplémentaires pour PEBs */}
               {isPEBs && (
                 <>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                    Vol Total
+                    {t('timeline.table.header.totalVolume')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                    Coût Moy
+                    {t('timeline.table.header.averageCost')}
                   </th>
                 </>
               )}
@@ -797,7 +778,7 @@ export default function TactiquesTimelineTable({
                 {/* Ligne de section */}
                   <tr className="bg-indigo-50">
                     <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
-                      {sectionNames[sectionId] || 'Section sans nom'}
+                      {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
                     </td>
                     {periods.map((period) => (
                       <td key={period.id} className="px-4 py-2 bg-indigo-50"></td>
@@ -871,9 +852,7 @@ export default function TactiquesTimelineTable({
                                 )}
                                 
                                 {isPEBs ? (
-                                  // CORRIGÉ: Interface PEBs avec 3 inputs superposés - même largeur qu'en mode normal
                                   <div className="flex flex-col space-y-1 w-full min-w-[80px] max-w-[80px] mx-auto">
-                                    {/* Coût par unité */}
                                     <input
                                       type="text"
                                       value={editableCells[cellIndex]?.unitCost || ''}
@@ -883,12 +862,11 @@ export default function TactiquesTimelineTable({
                                           ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                           : 'border-blue-300 focus:border-blue-500'
                                       }`}
-                                      placeholder="Coût"
+                                      placeholder={t('timeline.table.placeholder.cost')}
                                       disabled={isDefaultBreakdown && !isActive}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                     
-                                    {/* Volume */}
                                     <input
                                       type="text"
                                       value={editableCells[cellIndex]?.value || ''}
@@ -898,24 +876,22 @@ export default function TactiquesTimelineTable({
                                           ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                           : 'border-green-300 focus:border-green-500'
                                       }`}
-                                      placeholder="Vol"
+                                      placeholder={t('timeline.table.placeholder.volume')}
                                       disabled={isDefaultBreakdown && !isActive}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                     
-                                    {/* Total calculé (grisé) */}
                                     <input
                                       type="text"
                                       value={editableCells[cellIndex]?.total || ''}
                                       className="w-full p-1 border rounded text-sm text-center bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed"
-                                      placeholder="Total"
+                                      placeholder={t('timeline.table.placeholder.total')}
                                       disabled={true}
                                       readOnly={true}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
                                 ) : (
-                                  // CORRIGÉ: Interface normale - largeur cohérente avec mode normal
                                   <div className="w-full text-center">
                                     <input
                                       type="text"
@@ -957,13 +933,12 @@ export default function TactiquesTimelineTable({
                               )}
                               
                               {isPEBs ? (
-                                // NOUVEAU: Affichage PEBs avec 3 valeurs superposées - largeur uniforme
                                 isDefaultBreakdown && !isActive ? (
                                   <div className="flex flex-col space-y-1 w-full min-w-[80px] max-w-[80px] mx-auto h-12 bg-gray-100 border border-gray-200 rounded text-gray-400 text-sm flex items-center justify-center">
                                     —
                                   </div>
                                 ) : (
-                                  <div className="flex flex-col space-y-1 text-sm w-full flex flex-col space-y-1 w-full min-w-[80px] max-w-[80px] mx-auto">
+                                  <div className="flex flex-col space-y-1 text-sm w-full min-w-[80px] max-w-[80px] mx-auto">
                                     <div className="bg-blue-50 px-1 py-1 rounded text-center">
                                       {currentUnitCost || '—'}
                                     </div>
@@ -976,7 +951,6 @@ export default function TactiquesTimelineTable({
                                   </div>
                                 )
                               ) : (
-                                // CORRIGÉ: Affichage normal - largeur uniforme 
                                 isDefaultBreakdown && !isActive ? (
                                   <div className="w-full h-6 bg-gray-100 border border-gray-200 rounded text-gray-400 text-sm flex items-center justify-center">
                                     —
@@ -995,27 +969,22 @@ export default function TactiquesTimelineTable({
                       {/* Colonne total */}
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium">
                         {isPEBs ? (
-                          // CORRIGÉ: Pour PEBs, utiliser le total calculé ligne par ligne
                           (() => {
                             const rowTotals = calculateRowTotals(tactique);
                             return rowTotals.hasNumericValues && rowTotals.total > 0 ? formatCurrency(rowTotals.total) : '—';
                           })()
                         ) : (
-                          // Pour les autres types, utiliser le total standard
                           hasNumericValues && total > 0 ? formatCurrency(total) : '—'
                         )}
                       </td>
 
-                      {/* NOUVEAU: Colonnes supplémentaires pour PEBs */}
                       {isPEBs && (() => {
                         const rowTotals = calculateRowTotals(tactique);
                         return (
                           <>
-                            {/* Volume total par ligne */}
                             <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-green-700">
                               {rowTotals.hasNumericValues ? rowTotals.volume.toFixed(2) : '—'}
                             </td>
-                            {/* Coût moyen par ligne */}
                             <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-blue-700">
                               {rowTotals.unitCostAverage > 0 ? formatCurrency(rowTotals.unitCostAverage) : '—'}
                             </td>
@@ -1028,14 +997,12 @@ export default function TactiquesTimelineTable({
               </React.Fragment>
             ))}
 
-            {/* NOUVEAU: Lignes de totaux par colonne */}
+            {/* Lignes de totaux par colonne */}
             {isPEBs ? (
-              // Pour PEBs: 2 lignes de totaux (Volume et Total)
               <>
-                {/* Ligne totaux Volume - CORRIGÉ: Grand total dans VOL TOTAL */}
                 <tr className="bg-gray-50 border-t-2 border-gray-200">
                 <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
-                  Total Volume
+                  {t('timeline.table.footer.totalVolume')}
                 </td>
                   {periods.map((period) => {
                     const totals = columnTotals[period.id];
@@ -1045,27 +1012,23 @@ export default function TactiquesTimelineTable({
                       </td>
                     );
                   })}
-                  {/* CORRIGÉ: Colonne TOTAL vide pour Total Volume */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
                   </td>
-                  {/* CORRIGÉ: VOL TOTAL montre le grand total des volumes */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     {Object.values(columnTotals).some(t => t.hasNumericValues) 
                       ? Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0).toFixed(2)
                       : '—'
                     }
                   </td>
-                  {/* CORRIGÉ: COÛT MOY vide pour totaux */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
                   </td>
                 </tr>
 
-                {/* Ligne totaux Total - CORRIGÉ: Grand total dans TOTAL */}
                 <tr className="bg-gray-100 border-t border-gray-200">
                 <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
-                Total Budget
+                {t('timeline.table.header.totalBudget')}
                   </td>
                   {periods.map((period) => {
                     const totals = columnTotals[period.id];
@@ -1078,28 +1041,24 @@ export default function TactiquesTimelineTable({
                       </td>
                     );
                   })}
-                  {/* CORRIGÉ: Colonne TOTAL additionne les totaux calculés */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     {Object.values(columnTotals).some(t => t.hasNumericTotal) 
                       ? formatCurrency(Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericTotal && t.total !== undefined ? t.total : 0), 0))
                       : '—'
                     }
                   </td>
-                  {/* CORRIGÉ: VOL TOTAL vide pour Total Montant */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
                   </td>
-                  {/* CORRIGÉ: COÛT MOY vide pour totaux */}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
                   </td>
                 </tr>
               </>
             ) : (
-              // Pour les autres types: 1 ligne de totaux
               <tr className="bg-gray-50 border-t-2 border-gray-200">
               <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
-                  Total Budget
+                  {t('timeline.table.header.totalBudget')}
                 </td>
                 {periods.map((period) => {
                   const totals = columnTotals[period.id];

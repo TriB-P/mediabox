@@ -15,6 +15,7 @@ import { Taxonomy } from '../../../../types/taxonomy';
 import { Placement, Creatif, TaxonomyFormat } from '../../../../types/tactiques';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../lib/firebase';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface TaxonomyContextMenuProps {
   isOpen: boolean;
@@ -63,6 +64,7 @@ const TaxonomyContextMenu: React.FC<TaxonomyContextMenuProps> = ({
   tactiqueId,
   placementId
 }) => {
+  const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [loadedTaxonomy, setLoadedTaxonomy] = useState<LoadedTaxonomy>({});
   const [loading, setLoading] = useState(false);
@@ -386,6 +388,15 @@ const createValueResolver = () => {
     left: position.x,
     zIndex: 1000,
   };
+  
+  const getTaxonomyTypeLabel = () => {
+    switch (taxonomyType) {
+        case 'tags': return t('taxonomyContextMenu.header.titleTags');
+        case 'platform': return t('taxonomyContextMenu.header.titlePlatform');
+        case 'mediaocean': return t('taxonomyContextMenu.header.titleMediaOcean');
+        default: return '';
+    }
+  };
 
   return (
     <>
@@ -398,9 +409,9 @@ const createValueResolver = () => {
       >
         <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-medium text-gray-900">
-            {taxonomyType === 'tags' ? 'Tags' : taxonomyType === 'platform' ? 'Plateforme' : 'MediaOcean'}
+            {getTaxonomyTypeLabel()}
             {refreshing && (
-              <span className="ml-2 text-xs text-blue-600">• Auto-refresh</span>
+              <span className="ml-2 text-xs text-blue-600">{t('taxonomyContextMenu.header.autoRefresh')}</span>
             )}
           </h3>
           <div className="flex items-center space-x-2">
@@ -408,7 +419,7 @@ const createValueResolver = () => {
               onClick={refreshItemData}
               disabled={refreshing}
               className="text-gray-300 hover:text-gray-500 disabled:opacity-50 transition-colors"
-              title="Actualiser manuellement"
+              title={t('taxonomyContextMenu.header.manualRefreshTooltip')}
             >
               <ArrowPathIcon className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -425,11 +436,12 @@ const createValueResolver = () => {
           {loading ? (
             <div className="px-4 py-3 text-sm text-gray-500 flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
-              Chargement...
+              {t('common.loading')}
             </div>
           ) : availableLevels.length === 0 ? (
             <div className="px-4 py-3 text-sm text-gray-500">
-              Aucune taxonomie configurée pour {taxonomyType === 'tags' ? 'les tags' : taxonomyType === 'platform' ? 'la plateforme' : 'MediaOcean'}
+              {t('taxonomyContextMenu.status.noTaxonomyConfigured')}{' '}
+              {taxonomyType === 'tags' ? t('taxonomyContextMenu.status.forTags') : taxonomyType === 'platform' ? t('taxonomyContextMenu.status.forPlatform') : t('taxonomyContextMenu.status.forMediaOcean')}
             </div>
           ) : (
             availableLevels.map((level) => {
@@ -439,14 +451,14 @@ const createValueResolver = () => {
               const { fieldPrefix = '' } = loadedTaxonomy;
               const fieldName = `${fieldPrefix}${level.level}`;
               const fieldValue = getDirectFieldValue(fieldName);
-              const previewValue = fieldValue || 'Aucune valeur configurée';
+              const previewValue = fieldValue || t('taxonomyContextMenu.status.noValueConfigured');
               
               return (
                 <button
                   key={levelKey}
                   onClick={() => handleCopyLevel(level)}
                   className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                  title={`Copier: ${previewValue}`}
+                  title={`${t('taxonomyContextMenu.actions.copyTooltip')} ${previewValue}`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900">
@@ -463,10 +475,10 @@ const createValueResolver = () => {
                   {isCopied ? (
                     <div className="flex items-center text-green-600 ml-2">
                       <CheckIcon className="h-4 w-4 mr-1" />
-                      <span className="text-xs">Copié !</span>
+                      <span className="text-xs">{t('taxonomyContextMenu.actions.copiedSuccess')}</span>
                     </div>
                   ) : (
-                    <div className="text-gray-400 group-hover:text-gray-600 ml-2" title="Copier dans le presse-papier">
+                    <div className="text-gray-400 group-hover:text-gray-600 ml-2" title={t('taxonomyContextMenu.actions.copyToClipboardTooltip')}>
                       <DocumentDuplicateIcon className="h-4 w-4" />
                     </div>
                   )}
@@ -481,7 +493,7 @@ const createValueResolver = () => {
           <div className="px-4 py-2 border-t border-gray-100">
             <div className="flex items-center text-xs text-gray-500">
               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600 mr-2"></div>
-              Actualisation des données...
+              {t('taxonomyContextMenu.status.refreshingData')}
             </div>
           </div>
         )}

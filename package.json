@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next build && next export",
-    "firebase:build": "next build",
+    "firebase:build": "FIREBASE_BUILD=true next build",
     "firebase:deploy": "firebase deploy --only hosting",
     "firebase:serve": "firebase serve --only hosting"
   },
