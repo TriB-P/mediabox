@@ -342,6 +342,11 @@ export const documentMappingConfig = {
         column: 'TC_Unit_Price',
         type: 'number' as FieldType,
       },
+      {
+        field: 'TC_MPA',
+        column: 'TC_MPA',
+        type: 'text' as FieldType,
+      },
     ]
   } as SectionMapping,
 

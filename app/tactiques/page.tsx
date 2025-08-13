@@ -391,52 +391,52 @@ useEffect(() => {
 
             {!hasError && (
               <>
-                {viewMode === 'hierarchy' && (
-                  <>
-                    {enrichedData.sectionsWithTactiques.length > 0 ? (
-                      <TactiquesHierarchyView
-                        key={hierarchyViewKey}
-                        sections={enrichedData.sectionsWithTactiques}
-                        placements={enrichedData.enrichedPlacements} 
-                        creatifs={enrichedData.enrichedCreatifs} 
-                        onSectionExpand={modalState.handleSectionExpand}
-                        onEditSection={handleEditSection}
-                        onDeleteSection={crudActions.handleDeleteSection}
-                        onCreateTactique={crudActions.handleCreateTactique}
-                        onUpdateTactique={crudActions.handleUpdateTactique}
-                        onDeleteTactique={crudActions.handleDeleteTactique}
-                        onCreatePlacement={crudActions.handleCreatePlacement}
-                        onUpdatePlacement={crudActions.handleUpdatePlacement}
-                        onDeletePlacement={crudActions.handleDeletePlacement}
-                        onCreateCreatif={crudActions.handleCreateCreatif}
-                        onUpdateCreatif={crudActions.handleUpdateCreatif}
-                        onDeleteCreatif={crudActions.handleDeleteCreatif}
-                        formatCurrency={formatCurrency}
-                        totalBudget={totalBudget}
-                        onRefresh={handleRefreshWithReset}
-                        onDuplicateSelected={selectionState.handleDuplicateSelected}
-                        onDeleteSelected={selectionState.handleDeleteSelected}
-                        onClearSelection={selectionState.handleClearSelection}
-                        loading={loadingStates.isLoading}
-                        hierarchyContext={enrichedData.hierarchyContextForMove}
-                      />
-                    ) : (
-                      <div className="bg-white p-8 rounded-lg shadow text-center">
-                        <p className="text-gray-500">
-                          Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
-                        </p>
-                        <button
-                          onClick={handleAddSection}
-                          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
-                        >
-                          <PlusIcon className="h-5 w-5 mr-1.5" />
-                          Nouvelle section
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-
+{viewMode === 'hierarchy' && (
+  <>
+    {enrichedData.sectionsWithTactiques.length > 0 ? (
+      <TactiquesHierarchyView
+        key={hierarchyViewKey}
+        sections={enrichedData.sectionsWithTactiques}
+        placements={enrichedData.enrichedPlacements} 
+        creatifs={enrichedData.enrichedCreatifs} 
+        onSectionExpand={modalState.handleSectionExpand}
+        onEditSection={handleEditSection}
+        onDeleteSection={crudActions.handleDeleteSection}
+        onCreateTactique={crudActions.handleCreateTactique}
+        onUpdateTactique={crudActions.handleUpdateTactique}
+        onDeleteTactique={crudActions.handleDeleteTactique}
+        onCreatePlacement={crudActions.handleCreatePlacement}
+        onUpdatePlacement={crudActions.handleUpdatePlacement}
+        onDeletePlacement={crudActions.handleDeletePlacement}
+        onCreateCreatif={crudActions.handleCreateCreatif}
+        onUpdateCreatif={crudActions.handleUpdateCreatif}
+        onDeleteCreatif={crudActions.handleDeleteCreatif}
+        formatCurrency={formatCurrency}
+        totalBudget={totalBudget}
+        onRefresh={handleRefreshWithReset}
+        onDragRefresh={refreshState.handleManualRefresh} // ✅ EXACTEMENT la fonction du bouton qui marche !
+        onDuplicateSelected={selectionState.handleDuplicateSelected}
+        onDeleteSelected={selectionState.handleDeleteSelected}
+        onClearSelection={selectionState.handleClearSelection}
+        loading={loadingStates.isLoading}
+        hierarchyContext={enrichedData.hierarchyContextForMove}
+      />
+    ) : (
+      <div className="bg-white p-8 rounded-lg shadow text-center">
+        <p className="text-gray-500">
+          Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
+        </p>
+        <button
+          onClick={handleAddSection}
+          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
+        >
+          <PlusIcon className="h-5 w-5 mr-1.5" />
+          Nouvelle section
+        </button>
+      </div>
+    )}
+  </>
+)}
                 {viewMode === 'table' && (
                   <div className="w-full">
                     <TactiquesAdvancedTableView
