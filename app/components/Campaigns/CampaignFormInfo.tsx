@@ -184,14 +184,14 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             </div>
             {loadingDivisions ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
-                id="CA_Division"
-                name="CA_Division"
-                value={formData.CA_Division || ''}
-                onChange={onChange}
-                options={divisions.map(d => ({ id: d.id, label: d.SH_Display_Name_FR }))}
-                placeholder={t('campaigns.formInfo.divisionPlaceholder')}
-                label=""
-              />
+              id="CA_Division"
+              name="CA_Division"
+              value={formData.CA_Division || ''}
+              onChange={onChange}
+              items={divisions || []}
+              placeholder={t('campaigns.formInfo.divisionPlaceholder')}
+              label=""
+            />
             )}
           </div>
 
@@ -201,14 +201,14 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             </div>
             {loadingQuarters ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
-                id="CA_Quarter"
-                name="CA_Quarter"
-                value={formData.CA_Quarter|| ''}
-                onChange={onChange}
-                options={quarters.map(q => ({ id: q.id, label: q.SH_Display_Name_FR }))}
-                placeholder={t('campaigns.formInfo.quarterPlaceholder')}
-                label=""
-              />
+              id="CA_Quarter"
+              name="CA_Quarter"
+              value={formData.CA_Quarter|| ''}
+              onChange={onChange}
+              items={quarters || []}
+              placeholder={t('campaigns.formInfo.quarterPlaceholder')}
+              label=""
+            />
             )}
           </div>
           
@@ -218,14 +218,14 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             </div>
             {loadingYears ? <div className="text-sm text-gray-500 py-2">{t('common.loading')}</div> : (
               <SmartSelect
-                id="CA_Year"
-                name="CA_Year"
-                value={formData.CA_Year}
-                onChange={onChange}
-                options={years.map(y => ({ id: y.id, label: y.SH_Display_Name_FR }))}
-                placeholder={t('campaigns.formInfo.yearPlaceholder')}
-                label=""
-              />
+              id="CA_Year"
+              name="CA_Year"
+              value={formData.CA_Year}
+              onChange={onChange}
+              items={years || []}
+              placeholder={t('campaigns.formInfo.yearPlaceholder')}
+              label=""
+            />
             )}
           </div>
 
@@ -241,7 +241,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_1"
                     value={formData.CA_Custom_Dim_1 || ''}
                     onChange={onChange}
-                    options={customDim1List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    items={customDim1List || []}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_1 })}
                     label=""
                   />
@@ -272,7 +272,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_2"
                     value={formData.CA_Custom_Dim_2 || ''}
                     onChange={onChange}
-                    options={customDim2List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    items={customDim2List || []}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_2 })}
                     label=""
                   />
@@ -303,7 +303,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
                     name="CA_Custom_Dim_3"
                     value={formData.CA_Custom_Dim_3 || ''}
                     onChange={onChange}
-                    options={customDim3List.map(item => ({ id: item.id, label: item.SH_Display_Name_FR }))}
+                    items={customDim3List || []}
                     placeholder={t('campaigns.formInfo.customDimSelectPlaceholder', { name: clientConfig.CA_Custom_Dim_3 })}
                     label=""
                   />

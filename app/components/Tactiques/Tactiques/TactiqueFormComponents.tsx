@@ -1,4 +1,4 @@
-// components/Tactiques/Tactiques/TactiqueFormComponents.tsx
+// app/components/Tactiques/Tactiques/TactiqueFormComponents.tsx
 
 /**
  * Ce fichier regroupe un ensemble de composants React réutilisables pour construire des formulaires
@@ -8,9 +8,17 @@
  */
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import SearchableSelect from '../SearchableSelect';
+import { useTranslation } from '../../../contexts/LanguageContext';
+
+interface ListItem {
+  id: string;
+  SH_Display_Name_FR: string;
+  SH_Display_Name_EN?: string;
+  SH_Type?: string;
+}
 
 interface HelpIconProps {
   tooltip: string;
@@ -30,7 +38,10 @@ interface SmartSelectProps {
   name: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  options: { id: string; label: string }[];
+  // NOUVEAU: Support pour les ListItem avec traduction automatique
+  items?: ListItem[];
+  // ANCIEN: Support maintenu pour la compatibilité
+  options?: { id: string; label: string }[];
   placeholder: string;
   label: React.ReactNode;
 }
@@ -142,6 +153,7 @@ SelectionButtons.displayName = 'SelectionButtons';
 
 /**
  * Un composant de sélection "intelligent" qui s'adapte en fonction du nombre d'options.
+ * NOUVEAU: Gère automatiquement la traduction des labels selon la langue de l'interface.
  * - Affiche des `SelectionButtons` si le nombre d'options est inférieur ou égal à 5.
  * - Affiche un `SearchableSelect` (liste déroulante avec recherche) pour plus de 5 options.
  * - Affiche un `FormInput` de texte libre si aucune option n'est fournie.
@@ -150,7 +162,8 @@ SelectionButtons.displayName = 'SelectionButtons';
  * @param {string} name - Le nom de l'élément de formulaire.
  * @param {string} value - La valeur actuelle de la sélection.
  * @param {(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void} onChange - La fonction de rappel pour les changements de valeur.
- * @param {{ id: string; label: string }[]} options - La liste des options disponibles.
+ * @param {ListItem[]} [items] - NOUVEAU: La liste des éléments avec support multilingue.
+ * @param {{ id: string; label: string }[]} [options] - ANCIEN: La liste des options (maintenu pour compatibilité).
  * @param {string} placeholder - Le texte indicatif pour les champs.
  * @param {React.ReactNode} label - Le label à afficher au-dessus du composant.
  * @returns {React.ReactElement} Le composant de sélection adapté.
@@ -160,18 +173,37 @@ export const SmartSelect = memo<SmartSelectProps>(({
   name,
   value,
   onChange,
+  items,
   options,
   placeholder,
   label,
 }) => {
+  const { language } = useTranslation();
+
+  // NOUVEAU: Logique de traduction automatique
+  const translatedOptions = useMemo(() => {
+    // Si items est fourni (nouveau format), on fait la traduction
+    if (items && items.length > 0) {
+      return items.map(item => ({
+        id: item.id,
+        label: language === 'en' && item.SH_Display_Name_EN 
+          ? item.SH_Display_Name_EN 
+          : item.SH_Display_Name_FR
+      }));
+    }
+    
+    // Sinon on utilise options (ancien format pour compatibilité)
+    return options || [];
+  }, [items, options, language]);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">{label}</div>
 
-      {options && options.length > 0 ? (
-        options.length <= 5 ? (
+      {translatedOptions && translatedOptions.length > 0 ? (
+        translatedOptions.length <= 5 ? (
           <SelectionButtons
-            options={options}
+            options={translatedOptions}
             value={value}
             onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
             name={name}
@@ -183,7 +215,7 @@ export const SmartSelect = memo<SmartSelectProps>(({
             name={name}
             value={value}
             onChange={onChange}
-            options={options}
+            options={translatedOptions}
             placeholder={placeholder}
             label=""
           />

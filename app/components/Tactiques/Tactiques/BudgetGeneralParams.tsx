@@ -75,21 +75,18 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
     <div className="space-y-6">
       {unitTypeOptions.length > 0 && (
         <SmartSelect
-          id="TC_Unit_Type"
-          name="TC_Unit_Type"
-          value={selectedUnitType}
-          onChange={onChange}
-          options={unitTypeOptions.map(item => ({ 
-            id: item.id, 
-            label: item.SH_Display_Name_FR 
-          }))}
-          placeholder="Sélectionner un type d'unité..."
-          label={createLabelWithHelp(
-            'Type d\'unité', 
-            "Unité d'achat. Ne pas confondre avec les KPI. C'est l'unité dans laquelle on achète cette tactique. Habituellement : Impressions", 
-            onTooltipChange
-          )}
-        />
+        id="TC_Unit_Type"
+        name="TC_Unit_Type"
+        value={selectedUnitType}
+        onChange={onChange}
+        items={unitTypeOptions || []}
+        placeholder="Sélectionner un type d'unité..."
+        label={createLabelWithHelp(
+          'Type d\'unité', 
+          "Unité d'achat. Ne pas confondre avec les KPI. C'est l'unité dans laquelle on achète cette tactique. Habituellement : Impressions", 
+          onTooltipChange
+        )}
+      />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

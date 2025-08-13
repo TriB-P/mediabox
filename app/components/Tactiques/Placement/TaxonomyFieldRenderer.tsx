@@ -13,7 +13,8 @@ import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 // ==================== TYPES ====================
 
 interface FieldState {
-  options: Array<{ id: string; label: string; code?: string }>;
+  options: Array<{ id: string; label: string; code?: string }>; // Garder pour compatibilité
+  items?: Array<{ id: string; SH_Display_Name_FR: string; SH_Display_Name_EN?: string; SH_Code?: string }>; // NOUVEAU
   hasCustomList: boolean;
   isLoading: boolean;
   error?: string;
@@ -145,11 +146,11 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     let isValueInOptions = false;
     let matchingOption = null;
     
-    if (hasShortcodeList && fieldState.options.length > 0) {
-      matchingOption = fieldState.options.find(opt => opt.id === currentValue || opt.label === currentValue);
+    if (hasShortcodeList && fieldState.items && fieldState.items.length > 0) { // MODIFIÉ : utiliser items
+      matchingOption = fieldState.items.find(opt => opt.id === currentValue);
       isValueInOptions = !!matchingOption;
     }
-
+  
     // Si chargement en cours
     if (fieldState?.isLoading) {
       return (
@@ -169,26 +170,26 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         </div>
       );
     }
-
+  
     // Mode hybride - SmartSelect SI la valeur est dans les options OU si pas de valeur actuelle
     if (hasShortcodeList && (isValueInOptions || !currentValue)) {
       const selectValue = matchingOption ? matchingOption.id : currentValue;
       
       return (
         <SmartSelect
-          id={fieldKey}
-          name={fieldKey}
-          value={selectValue}
-          onChange={(e) => {
-            const selectedId = e.target.value;
-            const selectedOption = fieldState.options.find(opt => opt.id === selectedId);
-            const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
-            onFieldChange(variable.variable, selectedOption?.label || '', primaryFormat, selectedId);
-          }}
-          options={fieldState.options}
-          placeholder={t('taxonomyFieldRenderer.select.placeholder')}
-          label=""
-        />
+        id={fieldKey}
+        name={fieldKey}
+        value={selectValue}
+        onChange={(e) => {
+          const selectedId = e.target.value;
+          const selectedOption = fieldState.items?.find(opt => opt.id === selectedId); // MODIFIÉ : utiliser items
+          const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
+          onFieldChange(variable.variable, selectedOption?.SH_Display_Name_FR || '', primaryFormat, selectedId);
+        }}
+        items={fieldState.items || []} // MODIFIÉ : utiliser items au lieu d'options
+        placeholder={t('taxonomyFieldRenderer.select.placeholder')}
+        label=""
+      />
       );
     }
     

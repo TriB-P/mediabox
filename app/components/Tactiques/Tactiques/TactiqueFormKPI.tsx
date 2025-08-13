@@ -258,10 +258,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           name="TC_Media_Objective"
           value={formData.TC_Media_Objective || ''}
           onChange={onChange}
-          options={dynamicLists.TC_Media_Objective?.map(item => ({ 
-            id: item.id, 
-            label: item.SH_Display_Name_FR 
-          })) || []}
+          items={dynamicLists.TC_Media_Objective || []}
           placeholder="Sélectionner un objectif média..."
           label={createLabelWithHelp(
             'Objectif média', 

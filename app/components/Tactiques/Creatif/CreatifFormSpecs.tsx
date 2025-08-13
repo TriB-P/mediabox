@@ -221,10 +221,7 @@ export default function CreatifFormSpecs({
           name="CR_Spec_PartnerId"
           value={formData.CR_Spec_PartnerId || ''}
           onChange={handlePartnerChange}
-          options={publishersList.map(publisher => ({
-            id: publisher.id,
-            label: publisher.SH_Display_Name_FR
-          }))}
+          items={publishersList || []}
           placeholder={t('creatifFormSpecs.selection.partnerPlaceholder')}
           label={createLabelWithHelp(
             t('creatifFormSpecs.selection.partnerLabel'),

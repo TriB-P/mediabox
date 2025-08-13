@@ -44,7 +44,8 @@ import { processTaxonomyDelimitersSync } from '../lib/taxonomyParser';
 import { getCachedAllShortcodes, getListForClient } from '../lib/cacheService';
 
 interface FieldState {
-  options: Array<{ id: string; label: string; code?: string }>;
+  options: Array<{ id: string; label: string; code?: string }>; // Garder pour compatibilité
+  items?: Array<{ id: string; SH_Display_Name_FR: string; SH_Display_Name_EN?: string; SH_Code?: string }>; // NOUVEAU
   hasCustomList: boolean;
   isLoading: boolean;
   error?: string;
@@ -386,24 +387,35 @@ export function useTaxonomyForm({
    */
   const loadFieldOptions = useCallback(async () => {
     if (manualVariables.length === 0) return;
-
+  
     for (const variable of manualVariables) {
       const fieldKey = variable.variable;
-      setFieldStates(prev => ({ ...prev, [fieldKey]: { options: [], hasCustomList: false, isLoading: true } }));
+      setFieldStates(prev => ({ 
+        ...prev, 
+        [fieldKey]: { 
+          options: [], 
+          items: [], // NOUVEAU
+          hasCustomList: false, 
+          isLoading: true 
+        } 
+      }));
       
       try {
         // OPTIMISÉ B) : Utiliser le cache au lieu de Firebase
         const hasCustom = hasCachedList(fieldKey, clientId);
         let options: Array<{ id: string; label: string; code?: string }> = [];
+        let items: Array<{ id: string; SH_Display_Name_FR: string; SH_Display_Name_EN?: string; SH_Code?: string }> = []; // NOUVEAU
         
         if (hasCustom) {
           const cachedList = getListForClient(fieldKey, clientId);
           
           if (cachedList) {
-            options = cachedList.map(item => ({
+            // ANCIEN FORMAT (garder pour compatibilité)
+            items = cachedList.map(item => ({
               id: item.id,
-              label: item.SH_Display_Name_FR || item.SH_Code || item.id,
-              code: item.SH_Code
+              SH_Display_Name_FR: item.SH_Display_Name_FR,
+              SH_Display_Name_EN: item.SH_Display_Name_EN,
+              SH_Code: item.SH_Code
             }));
           }
         } else {
@@ -413,7 +425,8 @@ export function useTaxonomyForm({
         setFieldStates(prev => ({ 
           ...prev, 
           [fieldKey]: { 
-            options, 
+            options, // ANCIEN
+            items,   // NOUVEAU
             hasCustomList: hasCustom, 
             isLoading: false 
           } 
@@ -425,6 +438,7 @@ export function useTaxonomyForm({
           ...prev, 
           [fieldKey]: { 
             options: [], 
+            items: [], // NOUVEAU
             hasCustomList: false, 
             isLoading: false, 
             error: 'Erreur' 

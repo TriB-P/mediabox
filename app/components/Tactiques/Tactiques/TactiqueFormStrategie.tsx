@@ -141,10 +141,7 @@ const renderCustomDimension = (
         name={fieldName}
         value={formData[fieldName] || ''}
         onChange={onChange}
-        options={dynamicLists[fieldName].map(item => ({
-          id: item.id,
-          label: item.SH_Display_Name_FR
-        }))}
+        items={dynamicLists[fieldName] || []}
         placeholder={`Sélectionner ${labelText}...`}
         label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
       />
@@ -243,10 +240,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_LOB"
             value={formData.TC_LOB || ''}
             onChange={onChange}
-            options={dynamicLists.TC_LOB?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_LOB || []}
             placeholder="Sélectionner une ligne d'affaire..."
             label={createLabelWithHelp(
               'Ligne d\'affaire',
@@ -262,10 +256,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Media_Type"
             value={formData.TC_Media_Type || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Media_Type?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_Media_Type || []}
             placeholder="Sélectionner un type de média..."
             label={createLabelWithHelp(
               'Type média',
@@ -281,10 +272,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Prog_Buying_Method"
             value={formData.TC_Prog_Buying_Method || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Prog_Buying_Method?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_Prog_Buying_Method || []}
             placeholder="Sélectionner une méthode d'achat..."
             label={createLabelWithHelp(
               'Méthode d\'achat - Programmatique/SEM',
@@ -331,10 +319,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Publisher"
             value={formData.TC_Publisher || ''}
             onChange={onChange}
-            options={filteredPublishers.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            }))}
+            items={filteredPublishers || []}
             placeholder="Sélectionner un partenaire..."
             label={createLabelWithHelp(
               'Partenaire',
@@ -350,10 +335,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Inventory"
             value={formData.TC_Inventory || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Inventory?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_Inventory || []}
             placeholder="Sélectionner un inventaire..."
             label={createLabelWithHelp(
               'Inventaire',
@@ -453,10 +435,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Market"
             value={formData.TC_Market || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Market?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_Market || []}
             placeholder="Sélectionner un marché..."
             label={createLabelWithHelp(
               'Marché',
@@ -471,10 +450,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             name="TC_Language_Open"
             value={formData.TC_Language_Open || ''}
             onChange={onChange}
-            options={dynamicLists.TC_Language_Open?.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            })) || []}
+            items={dynamicLists.TC_Language_Open || []}
             placeholder="Sélectionner une langue..."
             label={createLabelWithHelp(
               'Langue',

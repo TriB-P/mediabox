@@ -7,6 +7,8 @@ import { useState, Fragment, useEffect } from 'react';
 import { Tab } from '@headlessui/react';
 // Ajout de framer-motion pour les animations
 import { motion, AnimatePresence } from 'framer-motion';
+// Importe le contexte de traduction
+import { useTranslation } from '../contexts/LanguageContext';
 
 // Importe diverses icônes de la bibliothèque Lucide React
 import {
@@ -33,45 +35,61 @@ import {
 } from 'lucide-react';
 
 // URL de votre Google Sheet publié en CSV
-const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQo6UwoIgRiWTCyEQuuX4vZU0TqKZn80SUzNQ8tQPFkHxc0P5LvkkAtxlFzQCD-S0ABwEbAf5NMbpP7/pub?gid=623482803&single=true&output=csv';
+const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQo6UwoIgRiWTCyEQuuX4vZU0TqKZn80SUzNQ8tQPFkHxc0P5LvkkAtxlFzQCD-S0ABwEbAf5NMbpP7/pub?output=csv';
 
-// --- Définition des types pour vos données FAQ ---
+// --- Définition des types pour vos données FAQ multilingues ---
 interface FaqStep {
-  imageUrl: string;
-  texte: string;
+  imageUrl_FR: string;
+  imageUrl_EN: string;
+  texte_FR: string;
+  texte_EN: string;
 }
 
 interface FaqItemData {
   ID: string;
-  Catégorie: string;
-  Question: string;
-  Réponse: string;
+  Catégorie_FR: string;
+  Catégorie_EN: string;
+  Question_FR: string;
+  Question_EN: string;
+  Réponse_FR: string;
+  Réponse_EN: string;
   etapes: FaqStep[];
 }
 
 // --- Mappage des noms de catégories aux icônes ---
 const categoryIcons: { [key: string]: React.ElementType } = {
   Campagnes: LayoutDashboard,
+  Campaigns: LayoutDashboard,
   Stratégie: LineChart,
+  Strategy: LineChart,
   Tactiques: Layers,
+  Tactics: Layers,
   Documents: FileText,
   'Guide de Coûts': DollarSign,
+  'Cost Guide': DollarSign,
   Partenaires: Users,
+  Partners: Users,
   Client: Settings,
   Admin: Shield,
 };
 
-// --- Définition STATIQUE des catégories de navigation ---
+// --- Définition STATIQUE des catégories de navigation (multilingues) ---
 const STATIC_CATEGORIES = [
-  { name: 'Campagnes', icon: LayoutDashboard },
-  { name: 'Stratégie', icon: LineChart },
-  { name: 'Tactiques', icon: Layers },
-  { name: 'Documents', icon: FileText },
-  { name: 'Guide de Coûts', icon: DollarSign },
-  { name: 'Partenaires', icon: Users },
-  { name: 'Client', icon: Settings },
-  { name: 'Admin', icon: Shield },
+  { name_FR: 'Campagnes', name_EN: 'Campaigns', icon: LayoutDashboard },
+  { name_FR: 'Stratégie', name_EN: 'Strategy', icon: LineChart },
+  { name_FR: 'Tactiques', name_EN: 'Tactics', icon: Layers },
+  { name_FR: 'Documents', name_EN: 'Documents', icon: FileText },
+  { name_FR: 'Guide de Coûts', name_EN: 'Cost Guide', icon: DollarSign },
+  { name_FR: 'Partenaires', name_EN: 'Partners', icon: Users },
+  { name_FR: 'Client', name_EN: 'Client', icon: Settings },
+  { name_FR: 'Admin', name_EN: 'Admin', icon: Shield },
 ];
+
+// --- Fonction utilitaire pour obtenir le contenu dans la langue courante ---
+function getLocalizedContent(item: any, field: string, language: string): string {
+  const langSuffix = language === 'en' ? '_EN' : '_FR';
+  return item[`${field}${langSuffix}`] || item[`${field}_FR`] || '';
+}
 
 // --- Composant pour surligner le texte ---
 function HighlightText({ text, highlight }: { text: string; highlight: string }) {
@@ -94,9 +112,8 @@ function HighlightText({ text, highlight }: { text: string; highlight: string })
   );
 }
 
-
-// --- Composant CarouselEtapes amélioré avec animations ---
-function CarouselEtapes({ etapes }: { etapes: FaqStep[] }) {
+// --- Composant CarouselEtapes amélioré avec animations et support multilingue ---
+function CarouselEtapes({ etapes, language }: { etapes: FaqStep[]; language: string }) {
   const [etapeActuelle, setEtapeActuelle] = useState(0);
   const [direction, setDirection] = useState(0);
 
@@ -131,15 +148,21 @@ function CarouselEtapes({ etapes }: { etapes: FaqStep[] }) {
     }),
   };
 
+  const currentStep = etapes[etapeActuelle];
+  const imageUrl = language === 'en' ? currentStep.imageUrl_EN : currentStep.imageUrl_FR;
+  const texte = language === 'en' ? currentStep.texte_EN : currentStep.texte_FR;
+
   return (
     <div className="mt-4 border-t pt-4">
-      <h4 className="text-md font-semibold text-gray-800 mb-3">Procédure :</h4>
+      <h4 className="text-md font-semibold text-gray-800 mb-3">
+        {language === 'en' ? 'Procedure:' : 'Procédure :'}
+      </h4>
       <div className="w-full max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg bg-gray-100">
         <div className="relative h-80 w-full bg-black flex items-center justify-center overflow-hidden">
           <AnimatePresence initial={false} custom={direction}>
             <motion.img
               key={etapeActuelle}
-              src={etapes[etapeActuelle].imageUrl}
+              src={imageUrl}
               custom={direction}
               variants={variants}
               initial="enter"
@@ -155,7 +178,7 @@ function CarouselEtapes({ etapes }: { etapes: FaqStep[] }) {
         </div>
         <div className="bg-black p-4">
           <p className="text-white text-sm font-medium text-center min-h-[40px]">
-            {etapes[etapeActuelle].texte}
+            {texte}
           </p>
         </div>
       </div>
@@ -164,19 +187,19 @@ function CarouselEtapes({ etapes }: { etapes: FaqStep[] }) {
         <button
           onClick={allerAPrecedente}
           className="p-2 text-gray-500 hover:text-indigo-600 transition-colors"
-          title="Étape précédente"
+          title={language === 'en' ? 'Previous step' : 'Étape précédente'}
         >
           <ArrowLeftCircle className="h-8 w-8" />
         </button>
         
         <div className="text-sm font-medium text-gray-700">
-          Étape {etapeActuelle + 1} / {etapes.length}
+          {language === 'en' ? 'Step' : 'Étape'} {etapeActuelle + 1} / {etapes.length}
         </div>
         
         <button
           onClick={allerASuivante}
           className="p-2 text-gray-500 hover:text-indigo-600 transition-colors"
-          title="Étape suivante"
+          title={language === 'en' ? 'Next step' : 'Étape suivante'}
         >
           <ArrowRightCircle className="h-8 w-8" />
         </button>
@@ -191,13 +214,15 @@ function FaqItem({
   index,
   isOpen,
   onToggle,
-  searchTerm
+  searchTerm,
+  language
 }: {
   item: FaqItemData;
   index: number;
   isOpen: boolean;
   onToggle: () => void;
   searchTerm: string;
+  language: string;
 }) {
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -210,6 +235,9 @@ function FaqItem({
     });
   };
 
+  const question = getLocalizedContent(item, 'Question', language);
+  const reponse = getLocalizedContent(item, 'Réponse', language);
+
   return (
     <div className="border-b border-gray-200" id={item.ID}>
       <button
@@ -221,14 +249,13 @@ function FaqItem({
             {index + 1}.
           </span>
           <span className="text-md font-medium text-gray-800">
-            <HighlightText text={item.Question} highlight={searchTerm} />
+            <HighlightText text={question} highlight={searchTerm} />
           </span>
         </div>
         <div className="flex items-center mt-1">
-          {/* ---- MODIFICATION ICI ---- */}
           <button
             onClick={copyLinkToQuestion}
-            title="Copier le lien vers cette question"
+            title={language === 'en' ? 'Copy link to this question' : 'Copier le lien vers cette question'}
             className="p-1 rounded-full text-gray-400 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-colors"
           >
             {copiedLink ? (
@@ -237,7 +264,6 @@ function FaqItem({
               <Link2 className="h-4 w-4" />
             )}
           </button>
-          {/* ---- FIN DE LA MODIFICATION ---- */}
           <ChevronDownIcon
             className={`h-5 w-5 text-gray-500 transition-transform duration-300 ml-2 flex-shrink-0 ${
               isOpen ? 'rotate-180 text-indigo-600' : ''
@@ -255,9 +281,9 @@ function FaqItem({
             className="overflow-hidden"
           >
             <div className="pb-4 pl-10 pr-6 text-gray-600">
-              <p><HighlightText text={item.Réponse} highlight={searchTerm} /></p>
+              <p><HighlightText text={reponse} highlight={searchTerm} /></p>
               {item.etapes && item.etapes.length > 0 && (
-                <CarouselEtapes etapes={item.etapes} />
+                <CarouselEtapes etapes={item.etapes} language={language} />
               )}
             </div>
           </motion.div>
@@ -267,9 +293,10 @@ function FaqItem({
   );
 }
 
-
 // --- Composant Principal de la Page d'Aide ---
 export default function AidePage() {
+  const { language } = useTranslation();
+  
   const [allFaqs, setAllFaqs] = useState<FaqItemData[]>([]);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -301,13 +328,16 @@ export default function AidePage() {
         setAllFaqs(parsedData);
       } catch (err) {
         console.error("Erreur lors du chargement des FAQs:", err);
-        setError("Impossible de charger les FAQs. Veuillez vérifier la connexion ou l'URL du Google Sheet.");
+        setError(language === 'en' 
+          ? "Unable to load FAQs. Please check the connection or Google Sheet URL."
+          : "Impossible de charger les FAQs. Veuillez vérifier la connexion ou l'URL du Google Sheet."
+        );
       } finally {
         setLoading(false);
       }
     };
     fetchFaqs();
-  }, []);
+  }, [language]);
 
   const parseCsv = (csvString: string): FaqItemData[] => {
     const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
@@ -347,27 +377,44 @@ export default function AidePage() {
           console.warn(`Could not decode URI component for value: ${value}`, e);
         }
         
-        const etapeMatch = header.match(/Etape (\d+) (Image|Texte)/);
+        // Gestion des étapes multilingues
+        const etapeMatch = header.match(/Etape (\d+) (Image|Texte)_(FR|EN)/);
         if (etapeMatch) {
           const numEtape = parseInt(etapeMatch[1], 10) - 1;
           const typeEtape = etapeMatch[2].toLowerCase();
+          const langue = etapeMatch[3];
           
           if (!faqItem.etapes[numEtape]) {
-            faqItem.etapes[numEtape] = { imageUrl: '', texte: '' };
+            faqItem.etapes[numEtape] = { 
+              imageUrl_FR: '', 
+              imageUrl_EN: '', 
+              texte_FR: '', 
+              texte_EN: '' 
+            };
           }
+          
           if (typeEtape === 'image') {
-            faqItem.etapes[numEtape].imageUrl = value;
+            faqItem.etapes[numEtape][`imageUrl_${langue}`] = value;
           } else {
-            faqItem.etapes[numEtape].texte = value;
+            faqItem.etapes[numEtape][`texte_${langue}`] = value;
           }
         } else {
           faqItem[header] = value;
         }
       });
       
-      faqItem.etapes = faqItem.etapes.filter((etape: FaqStep) => etape && etape.imageUrl && etape.texte);
+      // Filtrer les étapes vides
+      faqItem.etapes = faqItem.etapes.filter((etape: FaqStep) => 
+        etape && 
+        (etape.imageUrl_FR || etape.imageUrl_EN) && 
+        (etape.texte_FR || etape.texte_EN)
+      );
 
-      if (faqItem.ID && faqItem.Catégorie && faqItem.Question && faqItem.Réponse) {
+      // Vérifier les champs obligatoires
+      if (faqItem.ID && 
+          (faqItem.Catégorie_FR || faqItem.Catégorie_EN) && 
+          (faqItem.Question_FR || faqItem.Question_EN) && 
+          (faqItem.Réponse_FR || faqItem.Réponse_EN)) {
         faqs.push(faqItem as FaqItemData);
       } else {
         console.warn('Ligne CSV ignorée en raison de champs manquants ou invalides:', faqItem);
@@ -393,15 +440,19 @@ export default function AidePage() {
   };
 
   const categorizedFaqsForDisplay = STATIC_CATEGORIES.map(staticCategory => {
-    const categoryName = staticCategory.name;
-    const categoryId = categoryName.toLowerCase().replace(/\s+/g, '-').replace('é', 'e').replace('û', 'u');
+    const categoryName = getLocalizedContent(staticCategory, 'name', language);
+    const categoryId = categoryName.toLowerCase().replace(/\s+/g, '-').replace(/[éèê]/g, 'e').replace(/[ûù]/g, 'u');
 
-    const filteredFaqsInThisCategory = allFaqs.filter(item =>
-      item.Catégorie === categoryName &&
-      (!searchTerm ||
-        item.Question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.Réponse.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredFaqsInThisCategory = allFaqs.filter(item => {
+      const itemCategory = getLocalizedContent(item, 'Catégorie', language);
+      const itemQuestion = getLocalizedContent(item, 'Question', language);
+      const itemReponse = getLocalizedContent(item, 'Réponse', language);
+      
+      return itemCategory === categoryName &&
+        (!searchTerm ||
+          itemQuestion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          itemReponse.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
 
     return {
       id: categoryId,
@@ -413,14 +464,16 @@ export default function AidePage() {
 
   const unifiedSearchResults = searchTerm.trim()
     ? allFaqs
-        .filter(item =>
-          item.Question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.Réponse.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        .filter(item => {
+          const question = getLocalizedContent(item, 'Question', language);
+          const reponse = getLocalizedContent(item, 'Réponse', language);
+          return question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                 reponse.toLowerCase().includes(searchTerm.toLowerCase());
+        })
         .map(item => ({
           ...item,
-          categoryName: item.Catégorie,
-          categoryIcon: categoryIcons[item.Catégorie] || HelpCircle,
+          categoryName: getLocalizedContent(item, 'Catégorie', language),
+          categoryIcon: categoryIcons[getLocalizedContent(item, 'Catégorie', language)] || HelpCircle,
         }))
     : [];
 
@@ -428,7 +481,9 @@ export default function AidePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
-        <p className="ml-4 text-xl text-gray-600">Chargement des FAQs...</p>
+        <p className="ml-4 text-xl text-gray-600">
+          {language === 'en' ? 'Loading FAQs...' : 'Chargement des FAQs...'}
+        </p>
       </div>
     );
   }
@@ -437,10 +492,17 @@ export default function AidePage() {
     return (
       <div className="p-6">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Erreur !</strong>
+          <strong className="font-bold">
+            {language === 'en' ? 'Error!' : 'Erreur !'}
+          </strong>
           <span className="block sm:inline"> {error}</span>
         </div>
-        <p className="mt-4 text-gray-600">Veuillez vous assurer que le Google Sheet est correctement publié en CSV et que l'URL est correcte.</p>
+        <p className="mt-4 text-gray-600">
+          {language === 'en' 
+            ? 'Please make sure the Google Sheet is properly published as CSV and the URL is correct.'
+            : 'Veuillez vous assurer que le Google Sheet est correctement publié en CSV et que l\'URL est correcte.'
+          }
+        </p>
       </div>
     );
   }
@@ -449,10 +511,13 @@ export default function AidePage() {
     <div className="p-6 space-y-12 pb-24">
       <div className="relative text-center">
         <h1 className="text-4xl font-bold text-gray-900 inline-block">
-          Comment pouvons-nous vous aider ?
+          {language === 'en' ? 'How can we help you?' : 'Comment pouvons-nous vous aider ?'}
         </h1>
         <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-          Posez une question ou parcourez les catégories pour trouver des réponses.
+          {language === 'en' 
+            ? 'Ask a question or browse categories to find answers.'
+            : 'Posez une question ou parcourez les catégories pour trouver des réponses.'
+          }
         </p>
 
         <div className="mt-8 max-w-2xl mx-auto">
@@ -464,7 +529,7 @@ export default function AidePage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher une question..."
+              placeholder={language === 'en' ? 'Search for a question...' : 'Rechercher une question...'}
               className="block w-full pl-12 pr-10 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {searchTerm && (
@@ -472,7 +537,7 @@ export default function AidePage() {
                 <button
                   onClick={() => setSearchTerm('')}
                   className="p-1 text-gray-400 hover:text-gray-600 rounded-full focus:outline-none"
-                  aria-label="Effacer la recherche"
+                  aria-label={language === 'en' ? 'Clear search' : 'Effacer la recherche'}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -487,9 +552,10 @@ export default function AidePage() {
           <Tab.List className="flex space-x-1 rounded-xl bg-[#EBF5FF] p-1 overflow-x-auto">
             {STATIC_CATEGORIES.map((staticCategory) => {
               const Icon = staticCategory.icon;
+              const categoryName = getLocalizedContent(staticCategory, 'name', language);
               return (
                 <Tab
-                  key={staticCategory.name}
+                  key={staticCategory.name_FR}
                   className={({ selected }) =>
                     `w-full rounded-lg py-2.5 text-sm font-medium leading-5 flex items-center justify-center gap-2
                     ring-white/60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
@@ -501,7 +567,7 @@ export default function AidePage() {
                   }
                 >
                   <Icon className="h-5 w-5" />
-                  <span>{staticCategory.name}</span>
+                  <span>{categoryName}</span>
                 </Tab>
               );
             })}
@@ -523,12 +589,15 @@ export default function AidePage() {
                         isOpen={openQuestionId === item.ID}
                         onToggle={() => handleToggleQuestion(item.ID)}
                         searchTerm={searchTerm}
+                        language={language}
                       />
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      Aucune question ne correspond à votre recherche dans cette
-                      catégorie.
+                      {language === 'en' 
+                        ? 'No questions match your search in this category.'
+                        : 'Aucune question ne correspond à votre recherche dans cette catégorie.'
+                      }
                     </div>
                   )}
                 </div>
@@ -541,7 +610,10 @@ export default function AidePage() {
       {searchTerm.trim() !== '' && (
         <div className="max-w-4xl mx-auto mt-12 border-t pt-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            Tous les résultats pour "{searchTerm}"
+            {language === 'en' 
+              ? `All results for "${searchTerm}"`
+              : `Tous les résultats pour "${searchTerm}"`
+            }
           </h2>
           {unifiedSearchResults.length > 0 ? (
             <div className="space-y-4">
@@ -565,6 +637,7 @@ export default function AidePage() {
                       isOpen={openQuestionId === item.ID}
                       onToggle={() => handleToggleQuestion(item.ID)}
                       searchTerm={searchTerm}
+                      language={language}
                     />
                   </div>
                 );
@@ -573,10 +646,16 @@ export default function AidePage() {
           ) : (
             <div className="text-center py-16">
               <p className="text-lg text-gray-600 font-semibold">
-                Aucun résultat trouvé sur l'ensemble des catégories
+                {language === 'en' 
+                  ? 'No results found across all categories'
+                  : 'Aucun résultat trouvé sur l\'ensemble des catégories'
+                }
               </p>
               <p className="text-gray-500 mt-2">
-                Essayez de simplifier vos mots-clés ou de vérifier l'orthographe.
+                {language === 'en' 
+                  ? 'Try simplifying your keywords or check spelling.'
+                  : 'Essayez de simplifier vos mots-clés ou de vérifier l\'orthographe.'
+                }
               </p>
             </div>
           )}
@@ -588,13 +667,19 @@ export default function AidePage() {
           <span className="italic">pssttt!</span>
           <Mail className="h-5 w-5 flex-shrink-0" />
           <span>
-            Vous ne trouvez pas la réponse à vos questions? Écrivez-nous à{' '}
+            {language === 'en' 
+              ? "Can't find the answer to your questions? Write to us at "
+              : 'Vous ne trouvez pas la réponse à vos questions? Écrivez-nous à '
+            }
             <span className="inline-flex items-center font-bold">
               mediabox@pluscompany.com
               <button
                 onClick={copyEmailToClipboard}
                 className="ml-2 p-1 rounded-full hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                title={copied ? 'Copié !' : "Copier l'e-mail"}
+                title={copied ? 
+                  (language === 'en' ? 'Copied!' : 'Copié !') : 
+                  (language === 'en' ? 'Copy email' : "Copier l'e-mail")
+                }
               >
                 {copied ? (
                   <Check className="h-5 w-5 text-green-600" />
