@@ -14,6 +14,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
 import TactiqueFormInfo from './TactiqueFormInfo';
@@ -62,26 +63,6 @@ import {
   ShortcodeItem
 } from '../../../lib/cacheService';
 
-/**
- * CONSTANTE FACILEMENT MODIFIABLE : Liste des champs obligatoires
- * Pour ajouter/retirer des champs requis, modifiez simplement cette liste
- */
-const REQUIRED_FIELDS = [
-  { 
-    field: 'TC_Media_Type', 
-    label: 'Type média', 
-    tab: 'strategie' 
-  },
-  { 
-    field: 'TC_Publisher', 
-    label: 'Partenaire', 
-    tab: 'strategie' 
-  },
-
-  // Pour ajouter d'autres champs requis, décommentez et ajustez :
-  // { field: 'TC_LOB', label: 'Ligne d\'affaires', tab: 'strategie' },
-  // { field: 'TC_Budget', label: 'Budget', tab: 'budget' },
-];
 
 interface TactiqueDrawerProps {
   isOpen: boolean;
@@ -139,17 +120,19 @@ interface CustomDimensionsState {
 /**
  * Fonction de validation des champs obligatoires
  * @param formData - Les données du formulaire à valider
+ * @param requiredFields - La liste des champs requis
+ * @param t - La fonction de traduction
  * @returns Un objet contenant les erreurs de validation (vide si tout est valide)
  */
-const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors => {
+const validateRequiredFields = (formData: TactiqueFormData, requiredFields: any[], t: (key: string, options?: any) => string): ValidationErrors => {
   const errors: ValidationErrors = {};
   
-  REQUIRED_FIELDS.forEach(({ field, label }) => {
+  requiredFields.forEach(({ field, label }) => {
     const value = (formData as any)[field];
     
     // Vérifier si le champ est vide, null, undefined ou une chaîne vide
     if (!value || (typeof value === 'string' && value.trim() === '')) {
-      errors[field] = `Le champ "${label}" est obligatoire.`;
+      errors[field] = t('tactiqueDrawer.validation.fieldIsRequired', { label });
     }
   });
   
@@ -159,11 +142,12 @@ const validateRequiredFields = (formData: TactiqueFormData): ValidationErrors =>
 /**
  * Fonction pour obtenir le premier onglet contenant une erreur
  * @param errors - Les erreurs de validation
+ * @param requiredFields - La liste des champs requis
  * @returns L'ID du premier onglet contenant une erreur, ou null si aucune erreur
  */
-const getFirstErrorTab = (errors: ValidationErrors): string | null => {
+const getFirstErrorTab = (errors: ValidationErrors, requiredFields: any[]): string | null => {
   for (const fieldName of Object.keys(errors)) {
-    const requiredField = REQUIRED_FIELDS.find(rf => rf.field === fieldName);
+    const requiredField = requiredFields.find(rf => rf.field === fieldName);
     if (requiredField) {
       return requiredField.tab;
     }
@@ -380,9 +364,31 @@ export default function TactiqueDrawer({
   mode, 
   onSave
 }: TactiqueDrawerProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
+
+  /**
+   * CONSTANTE FACILEMENT MODIFIABLE : Liste des champs obligatoires
+   * Pour ajouter/retirer des champs requis, modifiez simplement cette liste
+   */
+  const REQUIRED_FIELDS = useMemo(() => [
+    { 
+      field: 'TC_Media_Type', 
+      label: t('tactiqueDrawer.fieldLabels.TC_Media_Type'), 
+      tab: 'strategie' 
+    },
+    { 
+      field: 'TC_Publisher', 
+      label: t('tactiqueDrawer.fieldLabels.TC_Publisher'), 
+      tab: 'strategie' 
+    },
+
+    // Pour ajouter d'autres champs requis, décommentez et ajustez :
+    // { field: 'TC_LOB', label: t('tactiqueDrawer.fieldLabels.TC_LOB'), tab: 'strategie' },
+    // { field: 'TC_Budget', label: t('tactiqueDrawer.fieldLabels.TC_Budget'), tab: 'budget' },
+  ], [t]);
 
   const [activeTab, setActiveTab] = useState('info');
   const [formData, setFormData] = useState<TactiqueFormData>(() => {
@@ -427,14 +433,14 @@ export default function TactiqueDrawer({
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
   const tabs: FormTab[] = useMemo(() => [
-    { id: 'info', name: 'Info', icon: DocumentTextIcon },
-    { id: 'strategie', name: 'Stratégie', icon: LightBulbIcon },
-    { id: 'kpi', name: 'KPI', icon: ChartBarIcon },
-    { id: 'budget', name: 'Budget', icon: CurrencyDollarIcon },
-    { id: 'repartition', name: 'Répartition', icon: CalendarDaysIcon },
-    { id: 'admin', name: 'Admin', icon: CogIcon },
-    { id: 'tags', name: 'Tags', icon: TagIcon },
-  ], []);
+    { id: 'info', name: t('tactiqueDrawer.tabs.info'), icon: DocumentTextIcon },
+    { id: 'strategie', name: t('tactiqueDrawer.tabs.strategy'), icon: LightBulbIcon },
+    { id: 'kpi', name: t('tactiqueDrawer.tabs.kpi'), icon: ChartBarIcon },
+    { id: 'budget', name: t('tactiqueDrawer.tabs.budget'), icon: CurrencyDollarIcon },
+    { id: 'repartition', name: t('tactiqueDrawer.tabs.repartition'), icon: CalendarDaysIcon },
+    { id: 'admin', name: t('tactiqueDrawer.tabs.admin'), icon: CogIcon },
+    { id: 'tags', name: t('tactiqueDrawer.tabs.tags'), icon: TagIcon },
+  ], [t]);
 
   const dynamicListFields = useMemo(() => [
     'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Prog_Buying_Method', 
@@ -572,10 +578,10 @@ export default function TactiqueDrawer({
   useEffect(() => {
     // Nettoyer les erreurs de validation quand les données changent
     if (Object.keys(validationErrors).length > 0) {
-      const errors = validateRequiredFields(formData);
+      const errors = validateRequiredFields(formData, REQUIRED_FIELDS, t);
       setValidationErrors(errors);
     }
-  }, [formData, validationErrors]);
+  }, [formData, validationErrors, REQUIRED_FIELDS, t]);
 
   /**
    * Charge toutes les données avec logique correcte pour les dimensions personnalisées
@@ -733,11 +739,11 @@ export default function TactiqueDrawer({
 
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
-      setError('Erreur lors du chargement des données. Veuillez réessayer.');
+      setError(t('tactiqueDrawer.errors.loadData'));
     } finally {
       setLoading(false);
     }
-  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, hasCachedOrFirebaseList, getCachedOrFirebaseList]);
+  }, [selectedClient, selectedCampaign, selectedVersion, dynamicListFields, hasCachedOrFirebaseList, getCachedOrFirebaseList, t]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -831,19 +837,19 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
   e.preventDefault();
 
   // 1. VALIDATION DES CHAMPS OBLIGATOIRES
-  const errors = validateRequiredFields(formData);
+  const errors = validateRequiredFields(formData, REQUIRED_FIELDS, t);
   
   if (Object.keys(errors).length > 0) {
     setValidationErrors(errors);
     
     // Naviguer vers le premier onglet contenant une erreur
-    const firstErrorTab = getFirstErrorTab(errors);
+    const firstErrorTab = getFirstErrorTab(errors, REQUIRED_FIELDS);
     if (firstErrorTab) {
       setActiveTab(firstErrorTab);
     }
     
     // Afficher un message d'erreur général
-    setError('Veuillez remplir tous les champs obligatoires avant de sauvegarder.');
+    setError(t('tactiqueDrawer.errors.fillRequiredFields'));
     return;
   }
 
@@ -898,17 +904,17 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
 
   } catch (err) {
     console.error('Erreur lors de l\'enregistrement de la tactique:', err);
-    setError('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+    setError(t('tactiqueDrawer.errors.saveData'));
     setLoading(false);
   }
-}, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync]);
+}, [mode, formData, kpis, useInheritedBilling, useInheritedPO, campaignAdminValues, onSave, onClose, tactique, selectedClient, selectedCampaign, updateTaxonomiesAsync, REQUIRED_FIELDS, t]);
 
   /**
    * Gestion de la fermeture avec prise en compte des erreurs de validation
    */
   const handleClose = useCallback(() => {
     if (isDirty) {
-      const shouldClose = confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?');
+      const shouldClose = confirm(t('tactiqueDrawer.confirm.unsavedChanges'));
       if (!shouldClose) return;
     }
 
@@ -916,18 +922,18 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
     setValidationErrors({});
     setIsDirty(false);
     onClose();
-  }, [isDirty, onClose]);
+  }, [isDirty, onClose, t]);
 
   const getDrawerTitle = () => {
     if (mode === 'edit' && tactique) {
-      return `Modifier la tactique: ${tactique.TC_Label}`;
+      return t('tactiqueDrawer.title.edit', { label: tactique.TC_Label });
     }
-    return 'Nouvelle tactique';
+    return t('tactiqueDrawer.title.new');
   };
 
   const getSubmitButtonText = () => {
-    if (loading) return 'Enregistrement...';
-    return mode === 'edit' ? 'Mettre à jour' : 'Créer';
+    if (loading) return t('tactiqueDrawer.buttons.saving');
+    return mode === 'edit' ? t('common.update') : t('common.create');
   };
 
   /**
@@ -948,7 +954,7 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
         {/* Erreurs de validation spécifiques */}
         {Object.keys(validationErrors).length > 0 && (
           <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">
-            <div className="font-medium mb-2">Champs obligatoires manquants :</div>
+            <div className="font-medium mb-2">{t('tactiqueDrawer.errors.missingRequiredFields')}</div>
             <ul className="list-disc list-inside space-y-1">
               {Object.entries(validationErrors).map(([field, message]) => (
                 <li key={field} className="text-sm">{message}</li>
@@ -1094,7 +1100,7 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
                 disabled={loading}
                 className="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"

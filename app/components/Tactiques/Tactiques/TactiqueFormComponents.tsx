@@ -109,45 +109,49 @@ export const SelectionButtons = memo<SelectionButtonsProps>(({
   onChange,
   name,
   placeholder,
-}) => (
-  <div className="space-y-2">
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => {
+              const event = {
+                target: { name, value: value === option.id ? '' : option.id },
+              } as React.ChangeEvent<HTMLInputElement>;
+              onChange(event);
+            }}
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              value === option.id
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {value && (
         <button
-          key={option.id}
           type="button"
           onClick={() => {
             const event = {
-              target: { name, value: value === option.id ? '' : option.id },
+              target: { name, value: '' },
             } as React.ChangeEvent<HTMLInputElement>;
             onChange(event);
           }}
-          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-            value === option.id
-              ? 'bg-indigo-600 text-white border-indigo-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-          }`}
+          className="text-sm text-gray-500 hover:text-gray-700"
         >
-          {option.label}
+          {t('tactiqueFormComponents.selectionButtons.clearSelection')}
         </button>
-      ))}
+      )}
     </div>
-    {value && (
-      <button
-        type="button"
-        onClick={() => {
-          const event = {
-            target: { name, value: '' },
-          } as React.ChangeEvent<HTMLInputElement>;
-          onChange(event);
-        }}
-        className="text-sm text-gray-500 hover:text-gray-700"
-      >
-        Effacer la sélection
-      </button>
-    )}
-  </div>
-));
+  );
+});
 
 SelectionButtons.displayName = 'SelectionButtons';
 
@@ -178,7 +182,7 @@ export const SmartSelect = memo<SmartSelectProps>(({
   placeholder,
   label,
 }) => {
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
 
   // NOUVEAU: Logique de traduction automatique
   const translatedOptions = useMemo(() => {
@@ -186,12 +190,12 @@ export const SmartSelect = memo<SmartSelectProps>(({
     if (items && items.length > 0) {
       return items.map(item => ({
         id: item.id,
-        label: language === 'en' && item.SH_Display_Name_EN 
-          ? item.SH_Display_Name_EN 
+        label: language === 'en' && item.SH_Display_Name_EN
+          ? item.SH_Display_Name_EN
           : item.SH_Display_Name_FR
       }));
     }
-    
+
     // Sinon on utilise options (ancien format pour compatibilité)
     return options || [];
   }, [items, options, language]);
@@ -227,7 +231,7 @@ export const SmartSelect = memo<SmartSelectProps>(({
           value={value}
           onChange={onChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
           type="text"
-          placeholder="Saisir une valeur..."
+          placeholder={t('tactiqueFormComponents.smartSelect.enterValue')}
           label=""
         />
       )}

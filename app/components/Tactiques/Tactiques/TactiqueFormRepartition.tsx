@@ -1,15 +1,16 @@
 // app/components/Tactiques/Tactiques/TactiqueFormRepartition.tsx
 /**
- * CORRIGÉ: Validation numérique stricte pour masquer pourcentages/totaux sur valeurs non-numériques
- * CORRIGÉ: Problème de réinitialisation des valeurs dans le drawer de tactique
- * NOUVEAU: IDs de périodes standardisés compatibles avec la timeline
- * NOUVEAU: Support du type PEBs avec 3 inputs (coût/unité, volume, total calculé)
- * REFACTORISÉ: Code simplifié avec hooks personnalisés et modal externe
+ * FIXED: Strict numeric validation to hide percentages/totals on non-numeric values
+ * FIXED: Value reset issue in the tactic drawer
+ * NEW: Standardized period IDs compatible with the timeline
+ * NEW: Support for PEBs type with 3 inputs (cost/unit, volume, calculated total)
+ * REFACTORED: Simplified code with custom hooks and external modal
  */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import {
   HelpIcon,
   FormSection
@@ -41,8 +42,8 @@ interface TactiqueFormRepartitionProps {
 }
 
 /**
- * NOUVEAU: Fonction helper pour valider qu'une valeur est strictement numérique
- * Contrairement à parseFloat(), cette fonction rejette les chaînes partiellement numériques
+ * NEW: Helper function to validate that a value is strictly numeric
+ * Unlike parseFloat(), this function rejects partially numeric strings
  */
 const isStrictlyNumeric = (value: string): boolean => {
   if (!value || value.trim() === '') return false;
@@ -50,14 +51,14 @@ const isStrictlyNumeric = (value: string): boolean => {
   const trimmedValue = value.trim();
   const numericValue = Number(trimmedValue);
   
-  // Number() retourne NaN pour les chaînes partiellement numériques comme "5 mai"
-  // et pour les chaînes vides, Number("") retourne 0, donc on vérifie aussi la longueur
+  // Number() returns NaN for partially numeric strings like "5 mai"
+  // and for empty strings, Number("") returns 0, so we also check the length
   return !isNaN(numericValue) && isFinite(numericValue) && trimmedValue !== '';
 };
 
 /**
- * NOUVEAU: Extrait la valeur numérique d'une chaîne strictement numérique
- * Retourne 0 si la valeur n'est pas strictement numérique
+ * NEW: Extracts the numeric value from a strictly numeric string
+ * Returns 0 if the value is not strictly numeric
  */
 const getStrictNumericValue = (value: string): number => {
   return isStrictlyNumeric(value) ? Number(value.trim()) : 0;
@@ -72,6 +73,7 @@ export default function TactiqueFormRepartition({
   clientId
 }: TactiqueFormRepartitionProps) {
 
+  const { t } = useTranslation();
   const [periods, setPeriods] = useState<BreakdownPeriod[]>([]);
   const [collapsedBreakdowns, setCollapsedBreakdowns] = useState<{ [key: string]: boolean }>({});
   const [distributionModal, setDistributionModal] = useState<DistributionModalState>({
@@ -88,7 +90,7 @@ export default function TactiqueFormRepartition({
     periodId: null as string | null
   });
 
-  // Hooks personnalisés
+  // Custom hooks
   const { localBreakdownData, setLocalBreakdownData } = useBreakdownLocalData(
     periods,
     formData,
@@ -105,21 +107,22 @@ export default function TactiqueFormRepartition({
     getPeriodActiveStatus
   } = usePeriodHandlers(periods, breakdowns, localBreakdownData, setLocalBreakdownData);
 
-  // Effet pour générer les périodes
+  // Effect to generate periods
   useEffect(() => {
     if (breakdowns.length > 0) {
       const allPeriods = generateAllPeriods(
         breakdowns,
         formData.TC_Start_Date,
-        formData.TC_End_Date
+        formData.TC_End_Date,
+        t
       );
       setPeriods(allPeriods);
     } else {
       setPeriods([]);
     }
-  }, [breakdowns, formData.TC_Start_Date, formData.TC_End_Date]);
+  }, [breakdowns, formData.TC_Start_Date, formData.TC_End_Date, t]);
 
-  // Fonction pour toggle l'état collapse/expand d'un breakdown
+  // Function to toggle the collapse/expand state of a breakdown
   const toggleBreakdownCollapse = (breakdownId: string) => {
     setCollapsedBreakdowns(prev => ({
       ...prev,
@@ -127,7 +130,7 @@ export default function TactiqueFormRepartition({
     }));
   };
 
-  // Calcule la différence avec le budget média pour PEBs
+  // Calculate the difference with the media budget for PEBs
   const calculateBudgetDifference = (totalValue: number): { difference: number; percentage: number; isOverBudget: boolean } => {
     const mediaBudget = parseFloat(formData.TC_Media_Budget || '0');
     if (mediaBudget === 0) {
@@ -141,7 +144,7 @@ export default function TactiqueFormRepartition({
     return { difference, percentage, isOverBudget };
   };
 
-  // Handlers pour les modales
+  // Handlers for modals
   const handleOpenDistributionModal = (breakdownId: string) => {
     setDistributionModal({
       isOpen: true,
@@ -186,7 +189,7 @@ export default function TactiqueFormRepartition({
     }
   };
 
-  // Obtient l'icône appropriée pour un type de breakdown
+  // Gets the appropriate icon for a breakdown type
   const getBreakdownIcon = (type: string) => {
     switch (type) {
       case 'Hebdomadaire':
@@ -201,8 +204,23 @@ export default function TactiqueFormRepartition({
         return CalendarIcon;
     }
   };
+  
+  const getTranslatedBreakdownType = (type: string) => {
+    switch (type) {
+      case 'Mensuel':
+        return t('repartition.breakdown.typeMonthly');
+      case 'Hebdomadaire':
+        return t('repartition.breakdown.typeWeekly');
+      case 'PEBs':
+        return t('repartition.breakdown.typePEBs');
+      case 'Custom':
+        return t('repartition.breakdown.typeCustom');
+      default:
+        return type;
+    }
+  };
 
-  // MODIFIÉ: Fonction pour vérifier s'il y a au moins une valeur numérique valide STRICTE
+  // MODIFIED: Function to check if there is at least one STRICTLY valid numeric value
   const hasAtLeastOneNumericValue = (
     tactique: any,
     breakdownId: string,
@@ -229,12 +247,12 @@ export default function TactiqueFormRepartition({
         const unitCost = period.unitCost?.trim() || '';
         const volume = period.value?.trim() || '';
         
-        // MODIFIÉ: Validation stricte pour PEBs
+        // MODIFIED: Strict validation for PEBs
         return isStrictlyNumeric(unitCost) && isStrictlyNumeric(volume);
       });
     }
 
-    // MODIFIÉ: Validation stricte pour les autres types
+    // MODIFIED: Strict validation for other types
     return relevantPeriods.some(period => {
       const value = period.value?.trim() || '';
       return isStrictlyNumeric(value);
@@ -254,22 +272,22 @@ export default function TactiqueFormRepartition({
 
 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 mb-6">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-indigo-600 font-medium">Budget média :</span>
+        <span className="text-sm text-indigo-600 font-medium">{t('repartition.mediaBudget.label')}</span>
         <span className="text-sm font-semibold text-indigo-800">
           {formData.TC_Media_Budget && formData.TC_Media_Budget > 0
             ? `${parseFloat(formData.TC_Media_Budget.toString()).toLocaleString('fr-CA', { 
                 minimumFractionDigits: 0, 
                 maximumFractionDigits: 2 
               })}`
-            : 'Non défini'
+            : t('repartition.mediaBudget.notDefined')
           }
         </span>
       </div>
     </div>
 
       <FormSection
-        title="Répartition temporelle"
-        description="Configurez les dates de la tactique et répartissez les valeurs selon les breakdowns de la campagne"
+        title={t('repartition.section.title')}
+        description={t('repartition.section.description')}
       >
 
         <div className="bg-slate-50 rounded-xl p-6 mb-8">
@@ -277,11 +295,11 @@ export default function TactiqueFormRepartition({
             <div>
               <div className="flex items-center gap-3 mb-3">
                 <HelpIcon
-                  tooltip="Date de début de cette tactique spécifique"
+                  tooltip={t('repartition.startDate.tooltip')}
                   onTooltipChange={onTooltipChange}
                 />
                 <label className="block text-sm font-medium text-slate-700">
-                  Date de début *
+                  {t('repartition.startDate.label')}
                 </label>
               </div>
               <input
@@ -298,11 +316,11 @@ export default function TactiqueFormRepartition({
             <div>
               <div className="flex items-center gap-3 mb-3">
                 <HelpIcon
-                  tooltip="Date de fin de cette tactique spécifique"
+                  tooltip={t('repartition.endDate.tooltip')}
                   onTooltipChange={onTooltipChange}
                 />
                 <label className="block text-sm font-medium text-slate-700">
-                  Date de fin *
+                  {t('repartition.endDate.label')}
                 </label>
               </div>
               <input
@@ -328,7 +346,7 @@ export default function TactiqueFormRepartition({
               const isPEBs = breakdown.type === 'PEBs';
               const isCollapsed = collapsedBreakdowns[breakdown.id] || false;
 
-              // Utiliser l'objet breakdowns pour les calculs
+              // Use the breakdowns object for calculations
               const currentBreakdowns = formData.breakdowns || {};
               const showCalculationsForBreakdown = hasAtLeastOneNumericValue(
                 { breakdowns: currentBreakdowns },
@@ -343,7 +361,7 @@ export default function TactiqueFormRepartition({
                 breakdown.type
               ) : 0;
 
-              // Calcul de la différence avec le budget média pour PEBs
+              // Calculate the difference with the media budget for PEBs
               const budgetDiff = isPEBs && showCalculationsForBreakdown ? 
                 calculateBudgetDifference(totalValueForBreakdown) : null;
 
@@ -352,7 +370,7 @@ export default function TactiqueFormRepartition({
                   <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        {/* Bouton collapse/expand */}
+                        {/* Collapse/expand button */}
                         <button
                           type="button"
                           onClick={() => toggleBreakdownCollapse(breakdown.id)}
@@ -373,14 +391,14 @@ export default function TactiqueFormRepartition({
                             <h4 className="font-semibold text-slate-900">{breakdown.name}</h4>
                             {breakdown.isDefault && (
                               <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
-                                Par défaut
+                                {t('repartition.breakdown.defaultBadge')}
                               </span>
                             )}
                           </div>
                           <p className="text-sm text-slate-500 mt-1">
-                            {breakdown.type}
+                            {getTranslatedBreakdownType(breakdown.type)}
                             {breakdown.isDefault && formData.TC_Start_Date && formData.TC_End_Date ? (
-                              <> • Basé sur les dates de la tactique</>
+                              <> {t('repartition.breakdown.basedOnTacticDates')}</>
                             ) : (
                               <> • {breakdown.startDate} → {breakdown.endDate}</>
                             )}
@@ -392,9 +410,9 @@ export default function TactiqueFormRepartition({
                         {showCalculationsForBreakdown && totalValueForBreakdown > 0 && (
                           <div className="text-right">
                             <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
-                              Total: {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                              {t('repartition.breakdown.totalLabel')} {totalValueForBreakdown.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                             </div>
-                            {/* Affichage de la différence pour PEBs */}
+                            {/* Display difference for PEBs */}
                             {budgetDiff && formData.TC_Media_Budget && (
                               <div className={`mt-1 px-3 py-1 rounded text-xs font-medium ${
                                 budgetDiff.isOverBudget 
@@ -404,7 +422,7 @@ export default function TactiqueFormRepartition({
                                 {budgetDiff.isOverBudget ? '+' : ''}
                                 {budgetDiff.difference.toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                 {' '}({budgetDiff.percentage > 0 ? '+' : ''}{budgetDiff.percentage.toFixed(1)}%)
-                                <div className="text-xs opacity-75">vs Budget: {parseFloat(formData.TC_Media_Budget).toLocaleString('fr-CA')}</div>
+                                <div className="text-xs opacity-75">{t('repartition.breakdown.vsBudget')} {parseFloat(formData.TC_Media_Budget).toLocaleString('fr-CA')}</div>
                               </div>
                             )}
                           </div>
@@ -417,13 +435,13 @@ export default function TactiqueFormRepartition({
                           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <PlusIcon className="h-4 w-4" />
-                          Distribuer
+                          {t('repartition.breakdown.distributeButton')}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Contenu collapsible */}
+                  {/* Collapsible content */}
                   {!isCollapsed && (
                     <div className="p-6">
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -434,7 +452,7 @@ export default function TactiqueFormRepartition({
                           
                           const valueForPercentage = isPEBs ? currentTotal : currentValue;
                           
-                          // MODIFIÉ: Validation stricte pour l'affichage des pourcentages
+                          // MODIFIED: Strict validation for percentage display
                           const isValueStrictlyNumeric = isPEBs 
                             ? isStrictlyNumeric(currentTotal)
                             : isStrictlyNumeric(currentValue);
@@ -453,7 +471,7 @@ export default function TactiqueFormRepartition({
                                 ? 'bg-slate-50'
                                 : 'bg-slate-50 hover:bg-slate-100'
                             }`}>
-                              {/* Icône cost guide pour PEBs */}
+                              {/* Cost guide icon for PEBs */}
                               {isPEBs && clientId && clientHasCostGuide && !costGuideLoading && (
                                 <div className="absolute top-1 right-1 z-10">
                                   <button
@@ -465,7 +483,7 @@ export default function TactiqueFormRepartition({
                                         ? 'text-slate-300 cursor-not-allowed'
                                         : 'text-slate-500 hover:text-indigo-600 hover:bg-white/80'
                                     }`}
-                                    title="Choisir du guide de coûts"
+                                    title={t('repartition.period.costGuideTitle')}
                                   >
                                     <CurrencyDollarIcon className="h-4 w-4" />
                                   </button>
@@ -492,15 +510,15 @@ export default function TactiqueFormRepartition({
 
                               <div className="px-3 pb-3">
                                 {isPEBs ? (
-                                  // Interface PEBs avec 3 inputs superposés
+                                  // PEBs interface with 3 stacked inputs
                                   <div className="space-y-2">
-                                    {/* Coût par unité */}
+                                    {/* Cost per unit */}
                                     <input
                                       type="text"
                                       value={currentUnitCost}
                                       onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'unitCost')}
                                       disabled={loading || (isDefaultBreakdown && !isActive)}
-                                      placeholder="Coût/unité"
+                                      placeholder={t('repartition.period.unitCostPlaceholder')}
                                       className={`w-full px-2 py-1 text-xs rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
                                         isDefaultBreakdown && !isActive
                                           ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
@@ -514,7 +532,7 @@ export default function TactiqueFormRepartition({
                                       value={currentValue}
                                       onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'value')}
                                       disabled={loading || (isDefaultBreakdown && !isActive)}
-                                      placeholder="Volume"
+                                      placeholder={t('repartition.period.volumePlaceholder')}
                                       className={`w-full px-2 py-1 text-xs rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
                                         isDefaultBreakdown && !isActive
                                           ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
@@ -522,23 +540,23 @@ export default function TactiqueFormRepartition({
                                       }`}
                                     />
                                     
-                                    {/* Total calculé (grisé) */}
+                                    {/* Calculated total (grayed out) */}
                                     <input
                                       type="text"
                                       value={currentTotal}
                                       disabled={true}
-                                      placeholder="Total"
+                                      placeholder={t('repartition.period.totalPlaceholder')}
                                       className="w-full px-2 py-1 text-xs rounded-md text-center bg-slate-100 border border-slate-200 text-slate-600 cursor-not-allowed"
                                     />
                                   </div>
                                 ) : (
-                                  // Interface normale pour les autres types
+                                  // Normal interface for other types
                                   <input
                                     type="text"
                                     value={currentValue}
                                     onChange={(e) => handlePeriodValueChange(period.id, e.target.value, 'value')}
                                     disabled={loading || (isDefaultBreakdown && !isActive)}
-                                    placeholder="Valeur"
+                                    placeholder={t('repartition.period.valuePlaceholder')}
                                     className={`w-full px-3 py-2 text-sm rounded-md text-center focus:ring-2 focus:ring-indigo-500 transition-all ${
                                       isDefaultBreakdown && !isActive
                                         ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed border'
@@ -547,7 +565,7 @@ export default function TactiqueFormRepartition({
                                   />
                                 )}
 
-                                {/* MODIFIÉ: Affichage conditionnel des pourcentages basé sur validation stricte */}
+                                {/* MODIFIED: Conditional display of percentages based on strict validation */}
                                 {showCalculationsForBreakdown && 
                                  isValueStrictlyNumeric && 
                                  isActive && 
@@ -571,15 +589,15 @@ export default function TactiqueFormRepartition({
           </div>
         ) : (
           <div className="text-center py-12 bg-slate-50 rounded-xl">
-            <p className="text-slate-500">Aucun breakdown configuré pour cette campagne.</p>
+            <p className="text-slate-500">{t('repartition.noBreakdown.message')}</p>
             <p className="text-sm mt-2 text-slate-400">
-              Les breakdowns sont définis lors de la création ou modification de la campagne.
+              {t('repartition.noBreakdown.details')}
             </p>
           </div>
         )}
       </FormSection>
 
-      {/* Modales */}
+      {/* Modals */}
       <DistributionModal
         isOpen={distributionModal.isOpen}
         onClose={handleCloseDistributionModal}
@@ -597,7 +615,7 @@ export default function TactiqueFormRepartition({
         onClose={handleCloseCostGuideModal}
         onSelect={handleCostGuideSelect}
         costGuideEntries={costGuideEntries}
-        title="Sélectionner du guide de coûts"
+        title={t('repartition.costGuideModal.title')}
       />
     </div>
   );

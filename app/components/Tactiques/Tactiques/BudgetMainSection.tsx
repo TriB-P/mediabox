@@ -19,6 +19,7 @@ import CostGuideModal from './CostGuideModal';
 import { CostGuideEntry } from '../../../types/costGuide';
 import { getClientInfo } from '../../../lib/clientService';
 import { getCostGuideEntries } from '../../../lib/costGuideService';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface BudgetMainSectionProps {
   formData: {
@@ -45,20 +46,21 @@ interface BudgetMainSectionProps {
  * Gère spécifiquement le cas des "impressions" pour utiliser le terme "CPM".
  * @param unitType - L'identifiant du type d'unité (ex: 'impressions').
  * @param unitTypeOptions - La liste des options de types d'unité disponibles pour trouver le libellé correspondant.
+ * @param t - La fonction de traduction.
  * @returns Un objet contenant les chaînes de caractères et les fonctions de formatage pour l'interface utilisateur.
  */
-const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Array<{ id: string; label: string }>) => {
+const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Array<{ id: string; label: string }>, t: (key: string) => string) => {
   const selectedUnitType = unitTypeOptions.find(option => option.id === unitType);
-  const unitDisplayName = selectedUnitType?.label || 'unité';
+  const unitDisplayName = selectedUnitType?.label || t('budgetMainSection.form.unit');
   
   const isImpression = unitDisplayName.toLowerCase().includes('impression');
   
   if (isImpression) {
     return {
       costLabel: 'CPM',
-      costTooltip: 'Coût par mille impressions. Montant payé pour 1000 impressions affichées.',
-      volumeLabel: `Volume d'${unitDisplayName.toLowerCase()}`,
-      volumeTooltip: `Nombre d'${unitDisplayName.toLowerCase()} calculé automatiquement selon la formule : (Budget média + Bonification) ÷ CPM × 1000. Ce champ est en lecture seule et calculé par le système.`,
+      costTooltip: t('budgetMainSection.dynamicLabels.cpmTooltip'),
+      volumeLabel: t('budgetMainSection.dynamicLabels.impressionVolumeLabel').replace('{unit}', unitDisplayName.toLowerCase()),
+      volumeTooltip: t('budgetMainSection.dynamicLabels.impressionVolumeTooltip').replace('{unit}', unitDisplayName.toLowerCase()),
       costPlaceholder: '0.0000',
       formatCostDisplay: (value: number) => {
         return new Intl.NumberFormat('fr-CA', {
@@ -79,10 +81,10 @@ const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Ar
   const unitSingular = unitLower.endsWith('s') ? unitLower.slice(0, -1) : unitLower;
   
   return {
-    costLabel: `Coût par ${unitSingular}`,
-    costTooltip: `Coût unitaire pour le type d'unité sélectionné (${unitDisplayName}). Ce champ est obligatoire et doit être saisi manuellement.`,
-    volumeLabel: `Volume de ${unitLower}`,
-    volumeTooltip: `Nombre de ${unitLower} calculé automatiquement selon la formule : (Budget média + Bonification) ÷ Coût par ${unitSingular}. Ce champ est en lecture seule et calculé par le système.`,
+    costLabel: t('budgetMainSection.dynamicLabels.costPerUnit').replace('{unit}', unitSingular),
+    costTooltip: t('budgetMainSection.dynamicLabels.costPerUnitTooltip').replace('{unit}', unitDisplayName),
+    volumeLabel: t('budgetMainSection.dynamicLabels.unitVolumeLabel').replace('{unit}', unitLower),
+    volumeTooltip: t('budgetMainSection.dynamicLabels.unitVolumeTooltip').replace('{unit}', unitLower).replace('{unitSingular}', unitSingular),
     costPlaceholder: '0.0000',
     formatCostDisplay: (value: number) => {
       return new Intl.NumberFormat('fr-CA', {
@@ -122,6 +124,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   onCalculatedChange,
   disabled = false
 }) => {
+  const { t } = useTranslation();
   
   // État local pour le modal du guide de coûts et les données
   const [isCostGuideModalOpen, setIsCostGuideModalOpen] = useState(false);
@@ -182,22 +185,22 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   const unitType = formData.TC_Unit_Type;
 
   const dynamicLabels = useMemo(() => {
-    return generateDynamicLabels(unitType, unitTypeOptions);
-  }, [unitType, unitTypeOptions]);
+    return generateDynamicLabels(unitType, unitTypeOptions, t);
+  }, [unitType, unitTypeOptions, t]);
 
   const budgetConfig = useMemo(() => {
     if (budgetMode === 'client') {
       return {
-        label: 'Budget client',
-        tooltip: 'Montant total que le client paiera, incluant le budget média et tous les frais applicables. Le budget média sera calculé en déduisant les frais de ce montant.'
+        label: t('budgetMainSection.budgetConfig.clientBudgetLabel'),
+        tooltip: t('budgetMainSection.budgetConfig.clientBudgetTooltip')
       };
     } else {
       return {
-        label: 'Budget média',
-        tooltip: 'Montant net qui sera effectivement dépensé sur les plateformes publicitaires, sans les frais. Le volume d\'unités sera calculé sur ce montant plus la bonification.'
+        label: t('budgetMainSection.budgetConfig.mediaBudgetLabel'),
+        tooltip: t('budgetMainSection.budgetConfig.mediaBudgetTooltip')
       };
     }
-  }, [budgetMode]);
+  }, [budgetMode, t]);
 
   const displayMediaBudget = useMemo(() => {
     if (budgetMode === 'client') {
@@ -303,27 +306,27 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       {budgetMode === 'client' && budget > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-blue-800 mb-2">
-            💡 Calcul du budget média
+            {t('budgetMainSection.clientBudgetBox.title')}
           </h5>
           <div className="text-sm text-blue-700">
             <div className="flex justify-between items-center">
-              <span>Budget client saisi :</span>
+              <span>{t('budgetMainSection.clientBudgetBox.clientBudgetEntered')}</span>
               <span className="font-medium">{formatCurrency(budget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Budget média estimé :</span>
+              <span>{t('budgetMainSection.clientBudgetBox.estimatedMediaBudget')}</span>
               <span className="font-medium">{formatCurrency(displayMediaBudget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Frais applicables :</span>
+              <span>{t('budgetMainSection.clientBudgetBox.applicableFees')}</span>
               <span className="font-medium">{formatCurrency(totalFees)} {currency}</span>
             </div>
             <div className="flex justify-between items-center border-t border-blue-300 pt-2 mt-2 font-semibold">
-              <span>Vérification :</span>
+              <span>{t('budgetMainSection.clientBudgetBox.verification')}</span>
               <span className="text-blue-800">{formatCurrency(displayMediaBudget + totalFees)} {currency}</span>
             </div>
             <div className="text-xs text-blue-600 mt-2">
-              💡 Les calculs exacts sont effectués automatiquement par le système.
+              {t('budgetMainSection.clientBudgetBox.calculationNote')}
             </div>
           </div>
         </div>
@@ -332,19 +335,19 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       {budgetMode === 'media' && budget > 0 && totalFees > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-green-800 mb-2">
-            💰 Budget client total
+            {t('budgetMainSection.mediaBudgetBox.title')}
           </h5>
           <div className="text-sm text-green-700">
             <div className="flex justify-between items-center">
-              <span>Budget média saisi :</span>
+              <span>{t('budgetMainSection.mediaBudgetBox.mediaBudgetEntered')}</span>
               <span className="font-medium">{formatCurrency(budget)} {currency}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Plus total des frais :</span>
+              <span>{t('budgetMainSection.mediaBudgetBox.plusTotalFees')}</span>
               <span className="font-medium">+{formatCurrency(totalFees)} {currency}</span>
             </div>
             <div className="flex justify-between items-center border-t border-green-300 pt-2 mt-2 font-semibold">
-              <span>Budget client facturé :</span>
+              <span>{t('budgetMainSection.mediaBudgetBox.invoicedClientBudget')}</span>
               <span className="text-green-800">{formatCurrency(displayClientBudget)} {currency}</span>
             </div>
           </div>
@@ -389,18 +392,18 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               }`}
             >
               {costGuideLoading ? (
-                '⏳ Chargement du guide...'
+                t('budgetMainSection.costGuide.loading')
               ) : isCostGuideAvailable ? (
-                '📋 Utiliser le guide de coût'
+                t('budgetMainSection.costGuide.useGuide')
               ) : (
-                '📋 Guide de coût non disponible'
+                t('budgetMainSection.costGuide.notAvailable')
               )}
             </button>
           </div>
           
           {costPerUnit > 0 && (
             <div className="mt-1 text-xs text-gray-500">
-              Formaté : {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
+              {t('common.formatted')} {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
             </div>
           )}
     
@@ -409,7 +412,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              `${dynamicLabels.volumeLabel} (calculé)`, 
+              `${dynamicLabels.volumeLabel} ${t('budgetMainSection.form.calculatedLabel')}`, 
               dynamicLabels.volumeTooltip, 
               onTooltipChange
             )}
@@ -419,11 +422,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             value={unitVolume || ''}
             disabled
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 font-medium"
-            placeholder="Calculé automatiquement"
+            placeholder={t('budgetMainSection.form.calculatedAutomatically')}
           />
           {unitVolume > 0 && (
             <div className="mt-1 text-xs text-gray-500">
-              Formaté : {dynamicLabels.formatVolumeDisplay(unitVolume)} {unitType ? unitTypeOptions.find(opt => opt.id === unitType)?.label?.toLowerCase() || 'unités' : 'unités'}
+              {t('common.formatted')} {dynamicLabels.formatVolumeDisplay(unitVolume)} {unitType ? unitTypeOptions.find(opt => opt.id === unitType)?.label?.toLowerCase() || t('budgetMainSection.form.units') : t('budgetMainSection.form.units')}
             </div>
           )}
           {effectiveBudgetForVolume > 0 && costPerUnit > 0 && (
@@ -434,7 +437,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           )}
           {!calculationStatus.canCalculateVolume && budget > 0 && (
             <div className="mt-1 text-xs text-orange-600">
-              Nécessite un coût par unité valide pour le calcul
+              {t('budgetMainSection.form.requiresValidCost')}
             </div>
           )}
         </div>
@@ -443,10 +446,10 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       {(!budget || !costPerUnit) && !disabled && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <div className="text-sm text-yellow-700">
-            ⚠️ <strong>Configuration incomplète</strong>
+            ⚠️ <strong>{t('budgetMainSection.incompleteWarning.title')}</strong>
             <ul className="mt-2 ml-4 space-y-1 text-xs">
-              {!budget && <li>• Saisir un budget ({budgetMode === 'client' ? 'client' : 'média'})</li>}
-              {!costPerUnit && <li>• Saisir un {dynamicLabels.costLabel.toLowerCase()}</li>}
+              {!budget && <li>{t('budgetMainSection.incompleteWarning.enterBudget').replace('{mode}', budgetMode === 'client' ? t('budgetMainSection.incompleteWarning.clientMode') : t('budgetMainSection.incompleteWarning.mediaMode'))}</li>}
+              {!costPerUnit && <li>{t('budgetMainSection.incompleteWarning.enterCost').replace('{costLabel}', dynamicLabels.costLabel.toLowerCase())}</li>}
             </ul>
           </div>
         </div>
@@ -455,7 +458,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⏳ Chargement en cours... Les calculs budgétaires seront disponibles une fois les données chargées.
+            {t('budgetMainSection.loadingMessage')}
           </p>
         </div>
       )}
@@ -466,7 +469,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         onClose={handleCloseCostGuideModal}
         onSelect={handleCostGuideSelection}
         costGuideEntries={costGuideEntries}
-        title="Sélectionner un coût du guide"
+        title={t('budgetMainSection.costGuide.modalTitle')}
       />
     </div>
   );

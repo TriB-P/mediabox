@@ -10,6 +10,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { SmartSelect, createLabelWithHelp } from './TactiqueFormComponents';
 
 interface ListItem {
@@ -29,25 +30,6 @@ interface BudgetGeneralParamsProps {
   disabled?: boolean;
 }
 
-const CURRENCIES = [
-  { id: 'CAD', label: 'CAD - Dollar Canadien' },
-  { id: 'USD', label: 'USD - Dollar Américain' },
-  { id: 'EUR', label: 'EUR - Euro' },
-  { id: 'CHF', label: 'CHF - Franc Suisse' },
-
-];
-
-const BUDGET_MODES = [
-  { 
-    id: 'media', 
-    label: 'Budget média'
-  },
-  { 
-    id: 'client', 
-    label: 'Budget client'
-  }
-];
-
 /**
  * Affiche les champs de formulaire pour les paramètres généraux du budget d'une tactique.
  * Ce composant est mémoïsé pour optimiser les performances en évitant les rendus inutiles.
@@ -66,6 +48,25 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
   unitTypeOptions,
   disabled = false
 }) => {
+  const { t } = useTranslation();
+
+  const CURRENCIES = [
+    { id: 'CAD', label: t('budgetGeneralParams.currencies.cad') },
+    { id: 'USD', label: t('budgetGeneralParams.currencies.usd') },
+    { id: 'EUR', label: t('budgetGeneralParams.currencies.eur') },
+    { id: 'CHF', label: t('budgetGeneralParams.currencies.chf') },
+  ];
+  
+  const BUDGET_MODES = [
+    { 
+      id: 'media', 
+      label: t('budgetGeneralParams.budgetModes.media')
+    },
+    { 
+      id: 'client', 
+      label: t('budgetGeneralParams.budgetModes.client')
+    }
+  ];
   
   const selectedCurrency = formData.TC_Currency || 'CAD';
   const selectedUnitType = formData.TC_Unit_Type || '';
@@ -80,10 +81,10 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
         value={selectedUnitType}
         onChange={onChange}
         items={unitTypeOptions || []}
-        placeholder="Sélectionner un type d'unité..."
+        placeholder={t('budgetGeneralParams.unitType.placeholder')}
         label={createLabelWithHelp(
-          'Type d\'unité', 
-          "Unité d'achat. Ne pas confondre avec les KPI. C'est l'unité dans laquelle on achète cette tactique. Habituellement : Impressions", 
+          t('budgetGeneralParams.unitType.label'), 
+          t('budgetGeneralParams.unitType.tooltip'), 
           onTooltipChange
         )}
       />
@@ -93,8 +94,8 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              'Devise d\'achat', 
-              'Devise dans laquelle les achats média seront effectués. Utilisée pour les calculs de budget et la conversion si différente de la campagne.', 
+              t('budgetGeneralParams.purchaseCurrency.label'), 
+              t('budgetGeneralParams.purchaseCurrency.tooltip'), 
               onTooltipChange
             )}
           </div>
@@ -117,8 +118,8 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              'Mode de saisie', 
-              'Détermine comment interpréter le budget saisi. Budget client = montant total incluant frais. Budget média = montant net pour les plateformes.', 
+              t('budgetGeneralParams.entryMode.label'), 
+              t('budgetGeneralParams.entryMode.tooltip'), 
               onTooltipChange
             )}
           </div>
@@ -141,21 +142,21 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
-          💡 Modes de saisie du budget
+          {t('budgetGeneralParams.infoBox.title')}
         </h5>
         <div className="text-sm text-blue-700 space-y-2">
           <div>
-            <strong>Budget média :</strong>
+            <strong>{t('budgetGeneralParams.infoBox.mediaBudgetTitle')}</strong>
             <ul className="ml-4 mt-1 space-y-1">
-              <li>• Montant net qui sera effectivement dépensé sur les plateformes média</li>
-              <li>• Les frais s'ajoutent par-dessus pour calculer le budget client total</li>
+              <li>• {t('budgetGeneralParams.infoBox.mediaBudgetItem1')}</li>
+              <li>• {t('budgetGeneralParams.infoBox.mediaBudgetItem2')}</li>
             </ul>
           </div>
           <div>
-            <strong>Budget client :</strong>
+            <strong>{t('budgetGeneralParams.infoBox.clientBudgetTitle')}</strong>
             <ul className="ml-4 mt-1 space-y-1">
-              <li>• Montant total incluant le budget média + tous les frais</li>
-              <li>• Correspond au montant facturable au client</li>
+              <li>• {t('budgetGeneralParams.infoBox.clientBudgetItem1')}</li>
+              <li>• {t('budgetGeneralParams.infoBox.clientBudgetItem2')}</li>
             </ul>
           </div>
         </div>
@@ -164,8 +165,7 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
       {unitTypeOptions.length === 0 && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            <strong>Type d'unité :</strong> Aucune liste dynamique configurée. 
-            Vous pouvez configurer les types d'unité dans la section Administration.
+            <strong>{t('budgetGeneralParams.noUnitTypeWarning.label')}</strong> {t('budgetGeneralParams.noUnitTypeWarning.text')}
           </p>
         </div>
       )}
@@ -173,7 +173,7 @@ const BudgetGeneralParams = memo<BudgetGeneralParamsProps>(({
       {disabled && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⏳ Chargement en cours... Les paramètres généraux seront disponibles une fois les données chargées.
+            {t('budgetGeneralParams.loading.text')}
           </p>
         </div>
       )}

@@ -131,7 +131,7 @@ export const translations = {
         poNumber: "Numéro de PO",
         poNumberHelp: "Numéro de bon de commande (Purchase Order) associé à cette campagne",
         poNumberPlaceholder: "Ex: PO-2024-12345",
-        billingId: "ID Facturation (MPCPE",
+        billingId: "ID Facturation (MCPE)",
         billingIdHelp: "Identifiant de facturation pour cette campagne dans MediaOcean",
         billingIdPlaceholder: "Ex: BILL-2024-789",
         tipTitle: "💡 Conseil",
@@ -471,6 +471,7 @@ export const translations = {
       on: "sur",
       all:"Tous",
       clearFilters:"Effacer les filtres",
+      formatted: "Formaté :"
     },
     errors: {
       generic: "Une erreur inattendue s'est produite",
@@ -1882,45 +1883,6 @@ export const translations = {
         title: "Champs à configurer"
       }
     },
-    budgetBonification: {
-      includeBonusLabel: "Cette tactique inclut de la bonification",
-      includeBonusTooltip: "La bonification représente la valeur ajoutée gratuite obtenue auprès du partenaire média. Elle permet de maximiser la portée sans coût supplémentaire. Cette case peut être cochée ou décochée à tout moment.",
-      hasBonusDescription: "Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire. Vous pouvez la décocher pour annuler la bonification.",
-      noBonusDescription: "Cochez cette case si vous avez négocié une valeur supplémentaire gratuite avec le partenaire.",
-      mediaBudgetWarning: "⚠️ Un budget média doit être défini pour calculer correctement la bonification.",
-      referenceBudgetTitle: "📊 Budget média de référence",
-      currentMediaBudget: "Budget média actuel :",
-      realValueMustBeGreater: "La valeur réelle doit être supérieure à ce montant pour générer une bonification.",
-      bonusActivePendingInputTitle: "Bonification activée - En attente de saisie",
-      bonusActivePendingInputDescription: "Saisissez la valeur réelle négociée avec le partenaire média ci-dessous. Cette valeur doit être supérieure au budget média pour générer une économie.",
-      realValueLabel: "Valeur réelle de la tactique",
-      realValueTooltip: "Valeur totale négociée avec le partenaire média (incluant la bonification). Doit être supérieure au budget média pour générer une économie.",
-      economyOf: "Économie de",
-      onNegotiatedValue: "sur la valeur négociée",
-      insufficientValue: "Valeur insuffisante pour bonification",
-      bonusCalculatedLabel: "Bonification (calculée automatiquement)",
-      bonusCalculatedTooltip: "Économie réalisée calculée automatiquement par le système (Valeur réelle - Budget média). Cette valeur représente l'avantage négocié en dollars économisés.",
-      ofMediaBudget: "du budget média",
-      noBonusReasonSameValue: "Aucune bonification car valeur réelle = budget média",
-      bonusWillBeCalculated: "Bonification sera calculée automatiquement",
-      loadingConfiguration: "⏳ Chargement en cours... La configuration de bonification sera disponible une fois les données chargées.",
-      validation: {
-        mustBeGreaterOrEqual: "La valeur réelle doit être supérieure ou égale au budget média pour avoir une bonification",
-        noBonusSameValue: "Aucune bonification (valeur réelle = budget média)"
-      },
-      summary: {
-        title: "🎁 Récapitulatif de la bonification",
-        totalNegotiatedValue: "Valeur négociée totale :",
-        mediaBudgetPaid: "Budget média payé :",
-        bonusObtained: "Bonification obtenue :",
-        represents: "Cela représente",
-        addedValue: "de valeur ajoutée gratuite par rapport au budget média."
-      },
-      disabled: {
-        title: "Bonification désactivée.",
-        description: "Les calculs se baseront uniquement sur le budget média sans valeur ajoutée."
-      }
-    },
     donutChart: {
       noData: "Aucune donnée",
       sections: "sections"
@@ -2323,6 +2285,691 @@ export const translations = {
         selectVersion: "Veuillez sélectionner une version pour continuer."
       }
     },
+    tactiqueDrawer: {
+      fieldLabels: {
+        TC_Media_Type: "Type média",
+        TC_Publisher: "Partenaire",
+        TC_LOB: "Ligne d'affaires",
+        TC_Budget: "Budget"
+      },
+      validation: {
+        fieldIsRequired: "Le champ \"{{label}}\" est obligatoire."
+      },
+      tabs: {
+        info: "Info",
+        strategy: "Stratégie",
+        kpi: "KPI",
+        budget: "Budget",
+        repartition: "Répartition",
+        admin: "Admin",
+        tags: "Tags"
+      },
+      errors: {
+        loadData: "Erreur lors du chargement des données. Veuillez réessayer.",
+        fillRequiredFields: "Veuillez remplir tous les champs obligatoires avant de sauvegarder.",
+        saveData: "Erreur lors de l'enregistrement. Veuillez réessayer.",
+        missingRequiredFields: "Champs obligatoires manquants :"
+      },
+      confirm: {
+        unsavedChanges: "Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?"
+      },
+      title: {
+        edit: "Modifier la tactique : {{label}}",
+        new: "Nouvelle tactique"
+      },
+      buttons: {
+        saving: "Enregistrement..."
+      }
+    },
+    tactiqueFormInfo: {
+      status: {
+        planned: "Planifié",
+        active: "Actif",
+        completed: "Terminé",
+        cancelled: "Annulé"
+      },
+      general: {
+        title: "Informations générales",
+        subtitle: "Configuration de base de la tactique"
+      },
+      label: {
+        placeholder: "Ex: Bannières Display Google",
+        label: "Étiquette *",
+        tooltip: "C'est le nom de votre tactique. Assurez-vous de mettre une description claire et concise."
+      },
+      bucket: {
+        placeholder: "Sélectionner une enveloppe...",
+        label: "Enveloppe",
+        tooltip: "Les enveloppes sont un outil de planification haut niveau. Elles vous permettent de regrouper des tactiques similaires et de suivre leur budget global dans l'onglet 'Stratégie'"
+      },
+      mpa: {
+        placeholder: "Ex: MPA Digital",
+        label: "MPA",
+        tooltip: "Vous permet de définir sur quelle MPA cette tactique s'affichera. Si laissez vide : s'affichera sur la MPA globale"
+      },
+      loading: {
+        data: "Chargement des données..."
+      },
+      noBuckets: {
+        message: "Aucune enveloppe budgétaire définie pour cette campagne. Vous pouvez créer des enveloppes dans la section Stratégie."
+      }
+    },
+    kpi: {
+      form: {
+        label: "KPI",
+        tooltip: "Indicateur de performance clé",
+        selectPlaceholder: "Sélectionner un KPI...",
+        costPer: "Coût par",
+        costPerTooltip: "C'est le coût pour une unité du KPI sélectionné. Par exemple, pour un KPI de type 'CPC', c'est le coût par clic.",
+        volume: "Volume",
+        volumeTooltip: "C'est le volume anticipé du KPI sélectionné."
+      },
+      section: {
+        title: "KPIs et objectifs",
+        subtitle: "Définition des indicateurs de performance",
+        selectMediaObjectivePlaceholder: "Sélectionner un objectif média...",
+        mediaObjective: "Objectif média",
+        mediaObjectiveTooltip: "Objectif média principal de la tactique"
+      },
+      list: {
+        title: "KPIs de performance",
+        maxKpisInfo: "Jusqu'à 5 KPIs peuvent être définis",
+        addKpi: "+ Ajouter un KPI",
+        noKpiDefined: "Aucun KPI défini. Ajoutez un KPI pour commencer.",
+        addFirstKpi: "+ Ajouter le premier KPI",
+        maxKpisReached: "Limite maximale de 5 KPIs atteinte. Supprimez un KPI existant pour en ajouter un nouveau."
+      },
+      status: {
+        loadingData: "Chargement des données...",
+        noKpiAvailable: "Aucun KPI disponible dans les listes dynamiques. Les champs de coût et volume restent utilisables."
+      }
+    },
+    tactiqueFormStrategie: {
+      customDimension: {
+        label: "Dimension personnalisée {{number}}",
+        helpText: "Champs personnalisé pour votre client",
+        selectPlaceholder: "Sélectionner {{labelText}}...",
+        inputPlaceholder: "Saisir {{labelText}}..."
+      },
+      mediaStrategy: {
+        title: "Stratégie média",
+        description: "Configuration stratégique et ciblage"
+      },
+      lob: {
+        placeholder: "Sélectionner une ligne d'affaire...",
+        label: "Ligne d'affaire",
+        helpText: "Liste personalisée pour votre client"
+      },
+      mediaType: {
+        placeholder: "Sélectionner un type de média...",
+        label: "Type média",
+        helpText: "C'est la catégorisation la plus importante. Cette caractéristique affectera le comportement de la tactique à plusieurs niveaux"
+      },
+      buyingMethod: {
+        placeholder: "Sélectionner une méthode d'achat...",
+        label: "Méthode d'achat - Programmatique/SEM",
+        helpText: "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Laissez vide si non applicable"
+      },
+      infoBox: {
+        title: "💡 Partenaire vs Inventaire",
+        partnerTitle: "Partenaire :",
+        partnerBullet1: "• C'est l'entité qui facturera l'agence",
+        partnerBullet2: "• Programmatique : c'est généralement la DSP (ex:DV360)",
+        partnerBullet3: "• OOH : Si l'achat est effectué avec Billups, vous devez mettre Billups",
+        partnerBullet4: "• TV/Radio : Si plusieurs stations seront utilisées, choisissez \"Stations variées\"",
+        partnerBullet5: "• Chaque tactique doit obligatoirement avoir un partenaire",
+        inventoryTitle: "Inventaire :",
+        inventoryBullet1: "• C'est comme un sous-partenaire ou un média qu'on va activer à travers le partenaire",
+        inventoryBullet2: "• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera \"Radio-Canada\"",
+        inventoryBullet3: "• Lors d'un achat avec Billups, vous pouvez indiquer quel partenaire OOH sera utilisé (ex : Astral)",
+        inventoryBullet4: "• Si l'inventaire n'est pas applicable, laissez-le vide"
+      },
+      publisher: {
+        placeholder: "Sélectionner un partenaire...",
+        label: "Partenaire",
+        helpText: "IMPORTANT : C'est l'entité administrative qui envera la facture."
+      },
+      inventory: {
+        placeholder: "Sélectionner un inventaire...",
+        label: "Inventaire",
+        helpText: "Cette valeur est facultative. Il s'agit d'un sous-partenaire ou d'une propriété du partenaire (Ex : Pelmorex > Meteomedia)"
+      },
+      marketDescription: {
+        placeholder: "Ex: Canada, Québec, Montréal",
+        label: "Description du marché"
+      },
+      common: {
+        openFieldHelpText: "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie"
+      },
+      audienceDescription: {
+        placeholder: "Décrivez le ciblage de cette tactique...",
+        label: "Description de l'audience"
+      },
+      productDescription: {
+        placeholder: "Ex: iPhone 15 Pro",
+        label: "Description du produit"
+      },
+      formatDescription: {
+        placeholder: "Décrivez le format utilisé...",
+        label: "Description du format"
+      },
+      locationDescription: {
+        placeholder: "Décrivez l'emplacement",
+        label: "Description de l'emplacement"
+      },
+      frequency: {
+        placeholder: "Ex: 3 fois par semaine",
+        label: "Fréquence",
+        helpText: "Ex : 2x par semaine"
+      },
+      market: {
+        placeholder: "Sélectionner un marché...",
+        label: "Marché",
+        helpText: "Champs fermé utilisé dans certaines taxonomies"
+      },
+      language: {
+        placeholder: "Sélectionner une langue...",
+        label: "Langue",
+        helpText: "Champs ouvert pour la langue de la tactique. Utilisé uniquement dans le plan média. La langue utilisée dans la taxonomie sera déterminée au niveau du placement"
+      },
+      customFields: {
+        title: "Champs personnalisés",
+        description: "Configuration spécifique au client"
+      },
+      production: {
+        title: "Production",
+        description: "Gestion des créatifs et des livrables"
+      },
+      creatives: {
+        placeholder: "Ex: 5 bannières + 2 vidéos",
+        label: "Nombre de créatifs suggérés",
+        helpText: "Facultatif - Nombre de créatifs suggéré à produire pour l'agence de création"
+      },
+      deliveryDate: {
+        label: "Date de livraison des créatifs",
+        helpText: "Facultatif - Date de livraison souhaitée pour assurer une mise en ligne à temps."
+      }
+    },
+    repartition: {
+        mediaBudget: {
+          label: "Budget média :",
+          notDefined: "Non défini"
+        },
+        section: {
+          title: "Répartition temporelle",
+          description: "Configurez les dates de la tactique et répartissez les valeurs selon les breakdowns de la campagne"
+        },
+        startDate: {
+          tooltip: "Date de début de cette tactique spécifique",
+          label: "Date de début *"
+        },
+        endDate: {
+          tooltip: "Date de fin de cette tactique spécifique",
+          label: "Date de fin *"
+        },
+        breakdown: {
+          defaultBadge: "Par défaut",
+          basedOnTacticDates: "• Basé sur les dates de la tactique",
+          totalLabel: "Total:",
+          vsBudget: "vs Budget:",
+          distributeButton: "Distribuer",
+          typeMonthly: "Mensuel",
+          typeWeekly: "Hebdomadaire",
+          typePEBs: "PEBs",
+          typeCustom: "Custom"
+        },
+        period: {
+          costGuideTitle: "Choisir du guide de coûts",
+          unitCostPlaceholder: "Coût/unité",
+          volumePlaceholder: "Volume",
+          totalPlaceholder: "Total",
+          valuePlaceholder: "Valeur"
+        },
+        noBreakdown: {
+          message: "Aucun breakdown configuré pour cette campagne.",
+          details: "Les breakdowns sont définis lors de la création ou modification de la campagne."
+        },
+        costGuideModal: {
+          title: "Sélectionner du guide de coûts"
+        }
+    },
+    tactiqueFormTags: {
+      fields: {
+        buyType: {
+          label: "Type d'achat *",
+          tooltip: "Sélectionnez le type d'achat pour cette tactique",
+          selectPlaceholder: "Sélectionner un type"
+        },
+        cm360Volume: {
+          label: "Volume CM360 *",
+          tooltip: "Entrez le volume prévu pour cette tactique (nombre entier)"
+        },
+        cm360Rate: {
+          label: "Taux CM360 (calculé automatiquement)",
+          tooltip: "Taux calculé automatiquement : Budget Client ÷ Volume CM360 (×1000 si CPM)"
+        }
+      },
+      validation: {
+        volumePositive: "Le volume doit être supérieur à 0"
+      }
+    },
+    tactiqueFormComponents: {
+      selectionButtons: {
+        clearSelection: "Effacer la sélection"
+      },
+      smartSelect: {
+        enterValue: "Saisir une valeur..."
+      }
+    },
+    tactiqueFormBudget: {
+      currencySelector: {
+        loadingRates: "Chargement des taux de change...",
+        unavailableTitle: "Taux de change non disponible",
+        configureMessage: "Veuillez configurer au moins un taux de change pour {tacticCurrency} → {campaignCurrency} dans la section Devises du client.",
+        requiredTitle: "Conversion de devise requise",
+        requiredDescription: "La devise d'achat ({tacticCurrency}) diffère de la devise de campagne ({campaignCurrency}). Veuillez sélectionner la version de taux à utiliser.",
+        versionLabel: "Version du taux de change à utiliser *",
+        versionTooltip: "Sélectionnez la version du taux de change à appliquer pour convertir le budget de la devise d'achat vers la devise de campagne.",
+        selectPlaceholder: "Sélectionner une version de taux...",
+        selectionWarning: "⚠️ Veuillez sélectionner une version de taux pour continuer",
+        selectedRateLabel: "Taux sélectionné :"
+      },
+      form: {
+        title: "Budget et frais",
+        calculationErrors: "Erreurs de calcul :",
+        convergenceWarning: {
+          title: "Convergence imparfaite détectée",
+          description: "Le système n'a pas pu trouver un budget média qui génère exactement le budget client visé.",
+          gap: "Écart :"
+        },
+        sections: {
+          currencyConversion: {
+            title: "Conversion de devise",
+            description: "Sélection du taux de change à appliquer"
+          },
+          mainBudget: {
+            title: "Budget principal",
+            description: "Calculs automatiques du budget, coût et volume"
+          },
+          bonus: {
+            title: "Bonification",
+            description: "Gestion de l'économie négociée"
+          },
+          fees: {
+            title: "Frais",
+            description: "Application des frais configurés pour le client"
+          },
+          summary: {
+            title: "Récapitulatif",
+            description: "Détail des coûts et conversion de devise"
+          }
+        },
+        loadingData: "Chargement des données budgétaires..."
+      },
+      errors: {
+        noRateConfigured: "Aucun taux de change configuré pour {fromCurrency} → {toCurrency}",
+        loadingRatesError: "Erreur lors du chargement des taux de change pour {fromCurrency} → {toCurrency}",
+        rateNotFoundForVersion: "Taux de change non trouvé pour la version \"{version}\"",
+        applyingRateError: "Erreur lors de l'application du taux de change pour \"{version}\""
+      },
+      debug: {
+        budgetData: "Données Budget:",
+        results: "Résultats:",
+        bonification: "Bonification:",
+        converged: "Convergé:"
+      }
+    },
+    tactiqueFormAdmin: {
+      adminField: {
+        useSameAsCampaign: "Utiliser le même que la campagne",
+        inheritedValuePlaceholder: "Valeur héritée de la campagne"
+      },
+      main: {
+        title: "Administration",
+        subtitle: "Configuration administrative et facturation"
+      },
+      billingNumber: {
+        label: "Numéro de facturation",
+        tooltip: "Numéro utilisé pour la facturation de cette tactique",
+        placeholder: "Numéro de facturation spécifique"
+      },
+      po: {
+        label: "PO",
+        tooltip: "Numéro de bon de commande pour cette tactique",
+        placeholder: "PO spécifique"
+      },
+      inheritanceInfo: {
+        title: "💡 À propos de l'héritage",
+        enabledTitle: "Héritage activé :",
+        enabledDesc: " La tactique utilisera les valeurs définies au niveau de la campagne.",
+        disabledTitle: "Héritage désactivé :",
+        disabledDesc: " Vous pouvez définir des valeurs spécifiques pour cette tactique.",
+        updateNote: "Les valeurs héritées sont automatiquement mises à jour si la campagne change."
+      },
+      campaignValues: {
+        title: "📋 Valeurs de la campagne",
+        billingNumberLabel: "Numéro de facturation :",
+        notSet: "Non défini"
+      },
+      loading: {
+        message: "Chargement des données administratives..."
+      },
+      warning: {
+        noCampaignValues: "Aucune valeur administrative n'est définie au niveau de la campagne. Vous devrez saisir des valeurs spécifiques pour cette tactique."
+      }
+    },
+    distributionModal: {
+      title: "Distribuer le montant",
+      form: {
+        startDateLabel: "Date de début",
+        endDateLabel: "Date de fin",
+        distributeOnLabel: "Distribuer sur",
+        unitCost: "Coût / unité",
+        volume: "Volume",
+        totalAmountLabel: "Montant total à distribuer",
+        amountPlaceholder: "Ex: 10000",
+      },
+      preview: {
+        willBeDividedOver: "Sera divisé sur",
+        period: "période",
+        perPeriod: "/ période",
+      },
+      info: {
+        distributionDates: "La distribution se fera uniquement sur les périodes qui intersectent avec les dates choisies",
+        andAreActive: " et qui sont activées (cochées)",
+        unitCostDistribution: "Le montant sera réparti sur le coût par unité de chaque période.",
+        volumeDistribution: "Le montant sera réparti sur le volume de chaque période.",
+      },
+      confirmButton: "Distribuer",
+    },
+    costGuideModal: {
+      title: "Sélectionner du guide de coûts",
+      levelTitles: {
+        mainCategory: "une catégorie principale",
+        subCategory: "une sous-catégorie",
+        specification: "une spécification",
+        optionWithPrice: "une option avec prix"
+      },
+      breadcrumb: {
+        level1: "Niveau 1"
+      },
+      buttons: {
+        back: "← Retour"
+      },
+      selection: {
+        choose: "Choisissez",
+        option: "option"
+      },
+      finalSelection: {
+        unit: "Unité",
+        per: "par"
+      },
+      noOptions: {
+        title: "Aucune option disponible pour cette sélection.",
+        instruction: "Veuillez revenir en arrière et faire une autre sélection."
+      }
+    },
+    budgetSummary: {
+      feeApplication: {
+        mediaBudget: "Budget média"
+      },
+      convergence: {
+        approximateCalculation: "⚠️ Calcul approximatif",
+        gap: "Écart:",
+        totalExceedsTarget: "Le total calculé dépasse le budget visé à cause de la complexité des frais.",
+        totalBelowTarget: "Le total calculé est en dessous du budget visé à cause de la complexité des frais."
+      },
+      currencyConversion: {
+        title: "🔄 Conversion automatique vers la devise de campagne",
+        helpText: {
+          part1: "Conversion automatique de ",
+          part2: " vers ",
+          part3: " en utilisant le taux de change configuré pour le client."
+        },
+        exchangeRate: "Taux de change",
+        automaticConversion: "💱 Conversion automatique :",
+        missingRateWarning: "⚠️ Taux de change manquant"
+      },
+      noBudget: {
+        title: "Récapitulatif budgétaire",
+        message: "Le récapitulatif sera disponible une fois qu'un budget média sera défini."
+      },
+      costDetails: {
+        title: "Détail des coûts",
+        amountsIn: "Montants en",
+        campaignCurrency: "(devise de campagne)",
+        tacticCurrency: "Devise de la tactique :"
+      },
+      lines: {
+        mediaBudget: "Budget média",
+        mediaBudgetDesc: "Montant net pour les plateformes publicitaires",
+        negotiatedBonus: "Bonification négociée",
+        negotiatedBonusDesc: "Valeur ajoutée gratuite obtenue du partenaire",
+        feesSubtotal: "Sous-total frais",
+        totalClientBudget: "TOTAL BUDGET CLIENT",
+        totalClientBudgetDesc: "Montant total facturable au client"
+      },
+      applicableFees: {
+        title: "Frais applicables :",
+        appliedOn: "Appliqué sur :",
+        undefined: "Non défini"
+      },
+      conversionError: {
+        title: "⚠️ Conversion de devise impossible",
+        noRateConfiguredFor: "Aucun taux de change configuré pour :",
+        pleaseConfigure: "Veuillez configurer le taux de change dans la section devises du client.",
+        amountsDisplayedInTacticCurrency: "Les montants sont affichés dans la devise de la tactique"
+      },
+      noFees: {
+        info: "💡 Aucun frais appliqué. Le budget client correspond au budget média. Vous pouvez activer des frais dans la section précédente si nécessaire."
+      }
+    },
+    budgetMainSection: {
+      dynamicLabels: {
+        costPerUnit: "Coût par {unit}",
+        cpmTooltip: "Coût par mille impressions. Montant payé pour 1000 impressions affichées.",
+        costPerUnitTooltip: "Coût unitaire pour le type d'unité sélectionné ({unit}). Ce champ est obligatoire et doit être saisi manuellement.",
+        impressionVolumeLabel: "Volume d'{unit}",
+        unitVolumeLabel: "Volume de {unit}",
+        impressionVolumeTooltip: "Nombre d'{unit} calculé automatiquement selon la formule : (Budget média + Bonification) ÷ CPM × 1000. Ce champ est en lecture seule et calculé par le système.",
+        unitVolumeTooltip: "Nombre de {unit} calculé automatiquement selon la formule : (Budget média + Bonification) ÷ Coût par {unitSingular}. Ce champ est en lecture seule et calculé par le système."
+      },
+      budgetConfig: {
+        clientBudgetLabel: "Budget client",
+        clientBudgetTooltip: "Montant total que le client paiera, incluant le budget média et tous les frais applicables. Le budget média sera calculé en déduisant les frais de ce montant.",
+        mediaBudgetLabel: "Budget média",
+        mediaBudgetTooltip: "Montant net qui sera effectivement dépensé sur les plateformes publicitaires, sans les frais. Le volume d'unités sera calculé sur ce montant plus la bonification."
+      },
+      clientBudgetBox: {
+        title: "💡 Calcul du budget média",
+        clientBudgetEntered: "Budget client saisi :",
+        estimatedMediaBudget: "Budget média estimé :",
+        applicableFees: "Frais applicables :",
+        verification: "Vérification :",
+        calculationNote: "💡 Les calculs exacts sont effectués automatiquement par le système."
+      },
+      mediaBudgetBox: {
+        title: "💰 Budget client total",
+        mediaBudgetEntered: "Budget média saisi :",
+        plusTotalFees: "Plus total des frais :",
+        invoicedClientBudget: "Budget client facturé :"
+      },
+      form: {
+        unit: "unité",
+        units: "unités",
+        calculatedLabel: "(calculé)",
+        calculatedAutomatically: "Calculé automatiquement",
+        requiresValidCost: "Nécessite un coût par unité valide pour le calcul"
+      },
+      costGuide: {
+        loading: "⏳ Chargement du guide...",
+        useGuide: "📋 Utiliser le guide de coût",
+        notAvailable: "📋 Guide de coût non disponible",
+        modalTitle: "Sélectionner un coût du guide"
+      },
+      incompleteWarning: {
+        title: "Configuration incomplète",
+        enterBudget: "• Saisir un budget ({mode})",
+        enterCost: "• Saisir un {costLabel}",
+        clientMode: "client",
+        mediaMode: "média"
+      },
+      loadingMessage: "⏳ Chargement en cours... Les calculs budgétaires seront disponibles une fois les données chargées."
+    },
+    budgetGeneralParams: {
+      currencies: {
+        cad: "CAD - Dollar Canadien",
+        usd: "USD - Dollar Américain",
+        eur: "EUR - Euro",
+        chf: "CHF - Franc Suisse"
+      },
+      budgetModes: {
+        media: "Budget média",
+        client: "Budget client"
+      },
+      unitType: {
+        placeholder: "Sélectionner un type d'unité...",
+        label: "Type d'unité",
+        tooltip: "Unité d'achat. Ne pas confondre avec les KPI. C'est l'unité dans laquelle on achète cette tactique. Habituellement : Impressions"
+      },
+      purchaseCurrency: {
+        label: "Devise d'achat",
+        tooltip: "Devise dans laquelle les achats média seront effectués. Utilisée pour les calculs de budget et la conversion si différente de la campagne."
+      },
+      entryMode: {
+        label: "Mode de saisie",
+        tooltip: "Détermine comment interpréter le budget saisi. Budget client = montant total incluant frais. Budget média = montant net pour les plateformes."
+      },
+      infoBox: {
+        title: "💡 Modes de saisie du budget",
+        mediaBudgetTitle: "Budget média :",
+        mediaBudgetItem1: "Montant net qui sera effectivement dépensé sur les plateformes média",
+        mediaBudgetItem2: "Les frais s'ajoutent par-dessus pour calculer le budget client total",
+        clientBudgetTitle: "Budget client :",
+        clientBudgetItem1: "Montant total incluant le budget média + tous les frais",
+        clientBudgetItem2: "Correspond au montant facturable au client"
+      },
+      noUnitTypeWarning: {
+        label: "Type d'unité :",
+        text: "Aucune liste dynamique configurée. Vous pouvez configurer les types d'unité dans la section Administration."
+      },
+      loading: {
+        text: "⏳ Chargement en cours... Les paramètres généraux seront disponibles une fois les données chargées."
+      }
+    },
+    budgetBonification: {
+      validation: {
+        mustBeGreaterOrEqual: "La valeur réelle doit être supérieure ou égale au budget média.",
+        noBonusSameValue: "La valeur réelle est égale au budget média. Aucune bonification n'est calculée."
+      },
+      labels: {
+        includeBonus: "Inclure une bonification",
+        realValue: "Valeur réelle de la tactique",
+        bonusCalculated: "Valeur de la bonification (calculée)"
+      },
+      tooltips: {
+        includeBonus: "Activez cette option si la valeur négociée avec le fournisseur est supérieure au budget média que vous payez.",
+        realValue: "Indiquez ici la valeur totale de l'espace média que vous obtenez, telle que négociée avec le fournisseur. Ce montant doit être égal ou supérieur à votre budget média.",
+        bonusCalculated: "Ceci est le montant de la bonification, calculé comme la différence entre la valeur réelle et le budget média payé. Ce champ n'est pas modifiable."
+      },
+      descriptions: {
+        hasBonus: "La bonification est activée. Saisissez la valeur réelle de la tactique pour calculer le gain.",
+        noBonus: "Aucune bonification n'est actuellement appliquée sur cette tactique."
+      },
+      warnings: {
+        mediaBudgetRequired: "Veuillez d'abord saisir un budget média pour cette tactique afin de calculer la bonification.",
+        loadingConfiguration: "La configuration de la bonification est en cours de chargement ou désactivée par une autre option."
+      },
+      reference: {
+        title: "Budget de référence pour le calcul",
+        currentMediaBudget: "Budget média actuel",
+        mustBeGreater: "La valeur réelle doit être supérieure à ce montant pour générer une bonification."
+      },
+      pendingInput: {
+        title: "Bonification activée, en attente de la valeur",
+        description: "Saisissez la valeur réelle (négociée) de l'espace média dans le champ ci-dessous pour que la bonification soit automatiquement calculée."
+      },
+      infos: {
+        economyOf: "Soit une économie de",
+        onNegotiatedValue: "sur la valeur négociée.",
+        insufficientValue: "Valeur insuffisante pour calculer une économie.",
+        ofMediaBudget: "du budget média",
+        noBonusReasonSameValue: "La valeur réelle est identique au budget. Pas de bonification.",
+        bonusWillBeCalculated: "La bonification sera calculée une fois la valeur réelle entrée."
+      },
+      summary: {
+        title: "Résumé de la bonification",
+        totalNegotiatedValue: "Valeur totale négociée",
+        mediaBudgetPaid: "Budget média payé",
+        bonusObtained: "Bonification obtenue",
+        represents: "représentant",
+        addedValue: "de valeur ajoutée."
+      },
+      disabled: {
+        title: "Bonification désactivée.",
+        description: "Cochez la case ci-dessus pour l'activer et saisir la valeur réelle."
+      }
+    },
+    budgetFees: {
+      calculationDescription: {
+        percentageOnBudget: "Pourcentage appliqué sur le budget",
+        fixedAmountByUnitVolume: "Montant fixe × volume d'unité",
+        fixedAmountByUnitCount: "Montant fixe × nombre d'unités",
+        independentFixedAmount: "Montant fixe indépendant",
+        undefinedType: "Type non défini",
+      },
+      feeItem: {
+        order: "Ordre",
+        calculatedAmount: "Montant calculé",
+        feeOption: "Option du frais",
+        autoSelected: "Sélectionnée automatiquement",
+        selectOption: "Sélectionner une option...",
+        bufferInfo: " (Buffer: +{buffer}%)",
+        useDifferentUnitVolume: "Utiliser un autre volume d'unité pour calculer ce frais",
+        defaultVolumeInfo: "Par défaut, ce frais utilise le volume d'unité de la tactique ({unitVolume}). Cochez pour saisir un volume différent.",
+        customUnitVolume: "Volume d'unité personnalisé",
+        enterUnitVolume: "Saisir le volume d'unité",
+        volumeCalculationHintPrefix: "Ce volume sera utilisé pour calculer le frais :",
+        customValue: "Valeur personnalisée",
+        finalValueWithBuffer: "Valeur finale avec buffer (+{buffer}%)",
+        fixedValue: "Valeur fixe",
+        nonEditableValue: "Valeur non modifiable",
+        bufferIncluded: " (buffer +{buffer}% inclus)",
+        numberOfUnits: "Nombre d'unités",
+        finalCalculationMultiplier: "Multiplieur pour le calcul final",
+        units: "unités",
+      },
+      feeSummary: {
+        calculationBase: "Base de calcul",
+        mediaBudgetInCurrency: "(budget média en {currency})",
+        mediaBudgetPlusPreviousFeesInCurrency: "(budget média + frais précédents en {currency})",
+        customVolume: "(volume personnalisé)",
+        fixedAmountOf: "Montant fixe de",
+        bufferApplied: "Buffer appliqué",
+        onBaseValue: "sur la valeur de base",
+      },
+      main: {
+        noFeesConfigured: "Aucun frais configuré pour ce client.",
+        feesConfigurableInAdmin: "Les frais peuvent être configurés dans la section Administration du client.",
+        displayCurrency: "Devise d'affichage",
+        currencyNotice: "Les montants de frais sont calculés et affichés dans la devise de la tactique.",
+        systemCalculationNotice: "Les calculs exacts sont effectués automatiquement par le système.",
+        appliedFees: "Frais appliqués",
+        customVolumeAbbr: "Vol. pers.",
+        totalFees: "Total des frais",
+        mediaBudgetWarning: "⚠️ Un budget média doit être défini pour calculer les frais.",
+        loadingConfiguration: "⏳ Chargement en cours... La configuration des frais sera disponible une fois les données chargées.",
+      },
+    },
+    breakdownPeriod: {
+      months: {
+        short: "JAN,FEB,MAR,AVR,MAI,JUN,JUL,AOU,SEP,OCT,NOV,DEC",
+        shortTitleCase: "Jan,Fév,Mar,Avr,Mai,Jun,Jul,Aoû,Sep,Oct,Nov,Déc"
+      }
+    },
+
+    
+
 
 
     },
@@ -2636,6 +3283,8 @@ export const translations = {
       on:"of",
       all:"All",
       clearFilters:"Clear filters",
+      formatted: "Formatted:"
+
     },
     errors: {
       generic: "An unexpected error occurred",
@@ -4046,45 +4695,6 @@ export const translations = {
         title: "Fields to Configure"
       }
     },
-    budgetBonification: {
-      includeBonusLabel: "This tactic includes a bonus",
-      includeBonusTooltip: "The bonus represents the free added value obtained from the media partner. It helps maximize reach at no extra cost. This box can be checked or unchecked at any time.",
-      hasBonusDescription: "Check this box if you have negotiated additional free value with the partner. You can uncheck it to cancel the bonus.",
-      noBonusDescription: "Check this box if you have negotiated additional free value with the partner.",
-      mediaBudgetWarning: "⚠️ A media budget must be set to correctly calculate the bonus.",
-      referenceBudgetTitle: "📊 Reference Media Budget",
-      currentMediaBudget: "Current media budget:",
-      realValueMustBeGreater: "The real value must be greater than this amount to generate a bonus.",
-      bonusActivePendingInputTitle: "Bonus Activated - Awaiting Input",
-      bonusActivePendingInputDescription: "Enter the real value negotiated with the media partner below. This value must be greater than the media budget to generate savings.",
-      realValueLabel: "Real value of the tactic",
-      realValueTooltip: "Total value negotiated with the media partner (including the bonus). Must be greater than the media budget to generate savings.",
-      economyOf: "Saving of",
-      onNegotiatedValue: "on the negotiated value",
-      insufficientValue: "Insufficient value for a bonus",
-      bonusCalculatedLabel: "Bonus (calculated automatically)",
-      bonusCalculatedTooltip: "Savings achieved, calculated automatically by the system (Real Value - Media Budget). This value represents the negotiated benefit in saved dollars.",
-      ofMediaBudget: "of the media budget",
-      noBonusReasonSameValue: "No bonus because real value = media budget",
-      bonusWillBeCalculated: "Bonus will be calculated automatically",
-      loadingConfiguration: "⏳ Loading... The bonus configuration will be available once the data has loaded.",
-      validation: {
-        mustBeGreaterOrEqual: "The real value must be greater than or equal to the media budget to have a bonus",
-        noBonusSameValue: "No bonus (real value = media budget)"
-      },
-      summary: {
-        title: "🎁 Bonus Summary",
-        totalNegotiatedValue: "Total negotiated value:",
-        mediaBudgetPaid: "Media budget paid:",
-        bonusObtained: "Bonus obtained:",
-        represents: "This represents",
-        addedValue: "of free added value compared to the media budget."
-      },
-      disabled: {
-        title: "Bonus disabled.",
-        description: "Calculations will be based solely on the media budget without added value."
-      }
-    },
     donutChart: {
       noData: "No data",
       sections: "sections"
@@ -4487,6 +5097,690 @@ export const translations = {
         selectVersion: "Please select a version to continue."
       }
     },
+    tactiqueDrawer: {
+      fieldLabels: {
+        TC_Media_Type: "Media Type",
+        TC_Publisher: "Partner",
+        TC_LOB: "Line of Business",
+        TC_Budget: "Budget"
+      },
+      validation: {
+        fieldIsRequired: "The field \"{{label}}\" is required."
+      },
+      tabs: {
+        info: "Info",
+        strategy: "Strategy",
+        kpi: "KPI",
+        budget: "Budget",
+        repartition: "Breakdown",
+        admin: "Admin",
+        tags: "Tags"
+      },
+      errors: {
+        loadData: "Error loading data. Please try again.",
+        fillRequiredFields: "Please fill in all required fields before saving.",
+        saveData: "Error while saving. Please try again.",
+        missingRequiredFields: "Missing required fields:"
+      },
+      confirm: {
+        unsavedChanges: "You have unsaved changes. Are you sure you want to close?"
+      },
+      title: {
+        edit: "Edit Tactic: {{label}}",
+        new: "New Tactic"
+      },
+      buttons: {
+        saving: "Saving..."
+      }
+    },
+    tactiqueFormInfo: {
+      status: {
+        planned: "Planned",
+        active: "Active",
+        completed: "Completed",
+        cancelled: "Cancelled"
+      },
+      general: {
+        title: "General Information",
+        subtitle: "Basic tactic configuration"
+      },
+      label: {
+        placeholder: "Ex: Google Display Banners",
+        label: "Label *",
+        tooltip: "This is the name of your tactic. Make sure to provide a clear and concise description."
+      },
+      bucket: {
+        placeholder: "Select a bucket...",
+        label: "Bucket",
+        tooltip: "Buckets are a high-level planning tool. They allow you to group similar tactics and track their overall budget in the 'Strategy' tab."
+      },
+      mpa: {
+        placeholder: "Ex: Digital MPA",
+        label: "MPA",
+        tooltip: "Allows you to define on which MPA this tactic will be displayed. If left empty, it will be displayed on the global MPA."
+      },
+      loading: {
+        data: "Loading data..."
+      },
+      noBuckets: {
+        message: "No budget buckets defined for this campaign. You can create buckets in the Strategy section."
+      }
+    },
+    kpi: {
+      form: {
+        label: "KPI",
+        tooltip: "Key Performance Indicator",
+        selectPlaceholder: "Select a KPI...",
+        costPer: "Cost per",
+        costPerTooltip: "This is the cost for one unit of the selected KPI. For example, for a 'CPC' type KPI, it's the cost per click.",
+        volume: "Volume",
+        volumeTooltip: "This is the anticipated volume of the selected KPI."
+      },
+      section: {
+        title: "KPIs and Objectives",
+        subtitle: "Definition of performance indicators",
+        selectMediaObjectivePlaceholder: "Select a media objective...",
+        mediaObjective: "Media Objective",
+        mediaObjectiveTooltip: "Main media objective of the tactic"
+      },
+      list: {
+        title: "Performance KPIs",
+        maxKpisInfo: "Up to 5 KPIs can be defined",
+        addKpi: "+ Add a KPI",
+        noKpiDefined: "No KPI defined. Add a KPI to get started.",
+        addFirstKpi: "+ Add the first KPI",
+        maxKpisReached: "Maximum limit of 5 KPIs reached. Delete an existing KPI to add a new one."
+      },
+      status: {
+        loadingData: "Loading data...",
+        noKpiAvailable: "No KPIs available in the dynamic lists. The cost and volume fields can still be used."
+      }
+    },
+    tactiqueFormStrategie: {
+      customDimension: {
+        label: "Custom Dimension {{number}}",
+        helpText: "Custom field for your client",
+        selectPlaceholder: "Select {{labelText}}...",
+        inputPlaceholder: "Enter {{labelText}}..."
+      },
+      mediaStrategy: {
+        title: "Media Strategy",
+        description: "Strategic configuration and targeting"
+      },
+      lob: {
+        placeholder: "Select a line of business...",
+        label: "Line of Business",
+        helpText: "Custom list for your client"
+      },
+      mediaType: {
+        placeholder: "Select a media type...",
+        label: "Media Type",
+        helpText: "This is the most important categorization. This characteristic will affect the tactic's behavior on multiple levels"
+      },
+      buyingMethod: {
+        placeholder: "Select a buying method...",
+        label: "Buying Method - Programmatic/SEM",
+        helpText: "Indicate which kind of programmatic or SEM purchase will be used. Leave empty if not applicable"
+      },
+      infoBox: {
+        title: "💡 Partner vs. Inventory",
+        partnerTitle: "Partner:",
+        partnerBullet1: "• This is the entity that will bill the agency",
+        partnerBullet2: "• Programmatic: this is generally the DSP (e.g., DV360)",
+        partnerBullet3: "• OOH: If the purchase is made with Billups, you must select Billups",
+        partnerBullet4: "• TV/Radio: If multiple stations will be used, choose \"Various Stations\"",
+        partnerBullet5: "• Each tactic must have a partner",
+        inventoryTitle: "Inventory:",
+        inventoryBullet1: "• It's like a sub-partner or a medium that will be activated through the partner",
+        inventoryBullet2: "• If you buy a deal with Radio-Canada through DV360, the inventory will be \"Radio-Canada\"",
+        inventoryBullet3: "• When buying with Billups, you can indicate which OOH partner will be used (e.g., Astral)",
+        inventoryBullet4: "• If inventory is not applicable, leave it empty"
+      },
+      publisher: {
+        placeholder: "Select a partner...",
+        label: "Partner",
+        helpText: "IMPORTANT: This is the administrative entity that will send the invoice."
+      },
+      inventory: {
+        placeholder: "Select an inventory...",
+        label: "Inventory",
+        helpText: "This value is optional. It is a sub-partner or a property of the partner (Ex: Pelmorex > Meteomedia)"
+      },
+      marketDescription: {
+        placeholder: "Ex: Canada, Quebec, Montreal",
+        label: "Market Description"
+      },
+      common: {
+        openFieldHelpText: "Open field. Used only in the media plan. Will not be used in the taxonomy"
+      },
+      audienceDescription: {
+        placeholder: "Describe the targeting for this tactic...",
+        label: "Audience Description"
+      },
+      productDescription: {
+        placeholder: "Ex: iPhone 15 Pro",
+        label: "Product Description"
+      },
+      formatDescription: {
+        placeholder: "Describe the format used...",
+        label: "Format Description"
+      },
+      locationDescription: {
+        placeholder: "Describe the location",
+        label: "Location Description"
+      },
+      frequency: {
+        placeholder: "Ex: 3 times a week",
+        label: "Frequency",
+        helpText: "Ex: 2x per week"
+      },
+      market: {
+        placeholder: "Select a market...",
+        label: "Market",
+        helpText: "Closed field used in some taxonomies"
+      },
+      language: {
+        placeholder: "Select a language...",
+        label: "Language",
+        helpText: "Open field for the tactic's language. Used only in the media plan. The language used in the taxonomy will be determined at the placement level"
+      },
+      customFields: {
+        title: "Custom Fields",
+        description: "Client-specific configuration"
+      },
+      production: {
+        title: "Production",
+        description: "Management of creatives and deliverables"
+      },
+      creatives: {
+        placeholder: "Ex: 5 banners + 2 videos",
+        label: "Suggested Number of Creatives",
+        helpText: "Optional - Suggested number of creatives to be produced for the creative agency"
+      },
+      deliveryDate: {
+        label: "Creative Delivery Date",
+        helpText: "Optional - Desired delivery date to ensure a timely launch."
+      }
+    },
+    repartition: {
+        mediaBudget: {
+          label: "Media budget:",
+          notDefined: "Not defined"
+        },
+        section: {
+          title: "Temporal Distribution",
+          description: "Configure the tactic dates and distribute the values according to the campaign breakdowns"
+        },
+        startDate: {
+          tooltip: "Start date of this specific tactic",
+          label: "Start date *"
+        },
+        endDate: {
+          tooltip: "End date of this specific tactic",
+          label: "End date *"
+        },
+        breakdown: {
+          defaultBadge: "Default",
+          basedOnTacticDates: "• Based on tactic dates",
+          totalLabel: "Total:",
+          vsBudget: "vs Budget:",
+          distributeButton: "Distribute",
+          typeMonthly: "Monthly",
+          typeWeekly: "Weekly",
+          typePEBs: "PEBs",
+          typeCustom: "Custom"
+        },
+        period: {
+          costGuideTitle: "Select from cost guide",
+          unitCostPlaceholder: "Cost/unit",
+          volumePlaceholder: "Volume",
+          totalPlaceholder: "Total",
+          valuePlaceholder: "Value"
+        },
+        noBreakdown: {
+          message: "No breakdown configured for this campaign.",
+          details: "Breakdowns are defined when creating or modifying the campaign."
+        },
+        costGuideModal: {
+          title: "Select from cost guide"
+        }
+    },
+    tactiqueFormTags: {
+      fields: {
+        buyType: {
+          label: "Buy Type *",
+          tooltip: "Select the buy type for this tactic",
+          selectPlaceholder: "Select a type"
+        },
+        cm360Volume: {
+          label: "CM360 Volume *",
+          tooltip: "Enter the planned volume for this tactic (integer)"
+        },
+        cm360Rate: {
+          label: "CM360 Rate (calculated automatically)",
+          tooltip: "Automatically calculated rate: Client Budget ÷ CM360 Volume (×1000 if CPM)"
+        }
+      },
+      validation: {
+        volumePositive: "Volume must be greater than 0"
+      }
+    },
+    tactiqueFormComponents: {
+      selectionButtons: {
+        clearSelection: "Clear selection"
+      },
+      smartSelect: {
+        enterValue: "Enter a value..."
+      }
+    },
+    tactiqueFormBudget: {
+      currencySelector: {
+        loadingRates: "Loading exchange rates...",
+        unavailableTitle: "Exchange Rate Unavailable",
+        configureMessage: "Please configure at least one exchange rate for {tacticCurrency} → {campaignCurrency} in the client's Currencies section.",
+        requiredTitle: "Currency Conversion Required",
+        requiredDescription: "The purchase currency ({tacticCurrency}) is different from the campaign currency ({campaignCurrency}). Please select the rate version to use.",
+        versionLabel: "Exchange rate version to use *",
+        versionTooltip: "Select the exchange rate version to apply to convert the budget from the purchase currency to the campaign currency.",
+        selectPlaceholder: "Select a rate version...",
+        selectionWarning: "⚠️ Please select a rate version to continue",
+        selectedRateLabel: "Selected rate:"
+      },
+      form: {
+        title: "Budget and Fees",
+        calculationErrors: "Calculation Errors:",
+        convergenceWarning: {
+          title: "Imperfect Convergence Detected",
+          description: "The system could not find a media budget that generates the exact target client budget.",
+          gap: "Gap:"
+        },
+        sections: {
+          currencyConversion: {
+            title: "Currency Conversion",
+            description: "Selection of the exchange rate to apply"
+          },
+          mainBudget: {
+            title: "Main Budget",
+            description: "Automatic calculations of budget, cost, and volume"
+          },
+          bonus: {
+            title: "Bonus",
+            description: "Management of the negotiated savings"
+          },
+          fees: {
+            title: "Fees",
+            description: "Application of fees configured for the client"
+          },
+          summary: {
+            title: "Summary",
+            description: "Details of costs and currency conversion"
+          }
+        },
+        loadingData: "Loading budget data..."
+      },
+      errors: {
+        noRateConfigured: "No exchange rate configured for {fromCurrency} → {toCurrency}",
+        loadingRatesError: "Error loading exchange rates for {fromCurrency} → {toCurrency}",
+        rateNotFoundForVersion: "Exchange rate not found for version \"{version}\"",
+        applyingRateError: "Error applying the exchange rate for \"{version}\""
+      },
+      debug: {
+        budgetData: "Budget Data:",
+        results: "Results:",
+        bonification: "Bonus:",
+        converged: "Converged:"
+      }
+    },
+    tactiqueFormAdmin: {
+      adminField: {
+        useSameAsCampaign: "Use the same as the campaign",
+        inheritedValuePlaceholder: "Value inherited from the campaign"
+      },
+      main: {
+        title: "Administration",
+        subtitle: "Administrative and billing configuration"
+      },
+      billingNumber: {
+        label: "Billing Number",
+        tooltip: "Number used for billing this tactic",
+        placeholder: "Specific billing number"
+      },
+      po: {
+        label: "PO",
+        tooltip: "Purchase order number for this tactic",
+        placeholder: "Specific PO"
+      },
+      inheritanceInfo: {
+        title: "💡 About Inheritance",
+        enabledTitle: "Inheritance enabled:",
+        enabledDesc: " The tactic will use the values defined at the campaign level.",
+        disabledTitle: "Inheritance disabled:",
+        disabledDesc: " You can define specific values for this tactic.",
+        updateNote: "Inherited values are automatically updated if the campaign changes."
+      },
+      campaignValues: {
+        title: "📋 Campaign Values",
+        billingNumberLabel: "Billing Number:",
+        notSet: "Not set"
+      },
+      loading: {
+        message: "Loading administrative data..."
+      },
+      warning: {
+        noCampaignValues: "No administrative values are set at the campaign level. You will need to enter specific values for this tactic."
+      }
+    },
+    distributionModal: {
+      title: "Distribute Amount",
+      form: {
+        startDateLabel: "Start Date",
+        endDateLabel: "End Date",
+        distributeOnLabel: "Distribute On",
+        unitCost: "Cost / Unit",
+        volume: "Volume",
+        totalAmountLabel: "Total Amount to Distribute",
+        amountPlaceholder: "e.g., 10000",
+      },
+      preview: {
+        willBeDividedOver: "Will be divided over",
+        period: "period",
+        perPeriod: "/ period",
+      },
+      info: {
+        distributionDates: "The distribution will only occur on periods that intersect with the chosen dates",
+        andAreActive: " and that are activated (checked)",
+        unitCostDistribution: "The amount will be distributed over the cost per unit of each period.",
+        volumeDistribution: "The amount will be distributed over the volume of each period.",
+      },
+      confirmButton: "Distribute",
+    },
+    costGuideModal: {
+      title: "Select from Cost Guide",
+      levelTitles: {
+        mainCategory: "a main category",
+        subCategory: "a sub-category",
+        specification: "a specification",
+        optionWithPrice: "an option with a price"
+      },
+      breadcrumb: {
+        level1: "Level 1"
+      },
+      buttons: {
+        back: "← Back"
+      },
+      selection: {
+        choose: "Choose",
+        option: "option"
+      },
+      finalSelection: {
+        unit: "Unit",
+        per: "per"
+      },
+      noOptions: {
+        title: "No options available for this selection.",
+        instruction: "Please go back and make another selection."
+      }
+    },
+    budgetSummary: {
+      feeApplication: {
+        mediaBudget: "Media budget"
+      },
+      convergence: {
+        approximateCalculation: "⚠️ Approximate calculation",
+        gap: "Gap:",
+        totalExceedsTarget: "The calculated total exceeds the target budget due to fee complexity.",
+        totalBelowTarget: "The calculated total is below the target budget due to fee complexity."
+      },
+      currencyConversion: {
+        title: "🔄 Automatic conversion to campaign currency",
+        helpText: {
+          part1: "Automatic conversion from ",
+          part2: " to ",
+          part3: " using the exchange rate configured for the client."
+        },
+        exchangeRate: "Exchange rate",
+        automaticConversion: "💱 Automatic conversion:",
+        missingRateWarning: "⚠️ Missing exchange rate"
+      },
+      noBudget: {
+        title: "Budget Summary",
+        message: "The summary will be available once a media budget is set."
+      },
+      costDetails: {
+        title: "Cost Details",
+        amountsIn: "Amounts in",
+        campaignCurrency: "(campaign currency)",
+        tacticCurrency: "Tactic currency:"
+      },
+      lines: {
+        mediaBudget: "Media Budget",
+        mediaBudgetDesc: "Net amount for advertising platforms",
+        negotiatedBonus: "Negotiated Bonus",
+        negotiatedBonusDesc: "Free added value obtained from the partner",
+        feesSubtotal: "Fees Subtotal",
+        totalClientBudget: "TOTAL CLIENT BUDGET",
+        totalClientBudgetDesc: "Total amount billable to the client"
+      },
+      applicableFees: {
+        title: "Applicable fees:",
+        appliedOn: "Applied on:",
+        undefined: "Undefined"
+      },
+      conversionError: {
+        title: "⚠️ Currency conversion impossible",
+        noRateConfiguredFor: "No exchange rate configured for:",
+        pleaseConfigure: "Please configure the exchange rate in the client's currency section.",
+        amountsDisplayedInTacticCurrency: "Amounts are displayed in the tactic's currency"
+      },
+      noFees: {
+        info: "💡 No fees applied. The client budget equals the media budget. You can activate fees in the previous section if needed."
+      }
+    },
+    budgetMainSection: {
+      dynamicLabels: {
+        costPerUnit: "Cost per {unit}",
+        cpmTooltip: "Cost per mille impressions. Amount paid for 1000 displayed impressions.",
+        costPerUnitTooltip: "Unit cost for the selected unit type ({unit}). This field is mandatory and must be entered manually.",
+        impressionVolumeLabel: "Volume of {unit}",
+        unitVolumeLabel: "Volume of {unit}",
+        impressionVolumeTooltip: "Number of {unit} automatically calculated using the formula: (Media Budget + Bonus) ÷ CPM × 1000. This field is read-only and calculated by the system.",
+        unitVolumeTooltip: "Number of {unit} automatically calculated using the formula: (Media Budget + Bonus) ÷ Cost per {unitSingular}. This field is read-only and calculated by the system."
+      },
+      budgetConfig: {
+        clientBudgetLabel: "Client Budget",
+        clientBudgetTooltip: "Total amount the client will pay, including the media budget and all applicable fees. The media budget will be calculated by deducting fees from this amount.",
+        mediaBudgetLabel: "Media Budget",
+        mediaBudgetTooltip: "Net amount that will actually be spent on advertising platforms, excluding fees. The unit volume will be calculated based on this amount plus the bonus."
+      },
+      clientBudgetBox: {
+        title: "💡 Media Budget Calculation",
+        clientBudgetEntered: "Client budget entered:",
+        estimatedMediaBudget: "Estimated media budget:",
+        applicableFees: "Applicable fees:",
+        verification: "Verification:",
+        calculationNote: "💡 Exact calculations are performed automatically by the system."
+      },
+      mediaBudgetBox: {
+        title: "💰 Total Client Budget",
+        mediaBudgetEntered: "Media budget entered:",
+        plusTotalFees: "Plus total fees:",
+        invoicedClientBudget: "Invoiced client budget:"
+      },
+      form: {
+        unit: "unit",
+        units: "units",
+        calculatedLabel: "(calculated)",
+        calculatedAutomatically: "Calculated automatically",
+        requiresValidCost: "Requires a valid cost per unit for calculation"
+      },
+      costGuide: {
+        loading: "⏳ Loading guide...",
+        useGuide: "📋 Use Cost Guide",
+        notAvailable: "📋 Cost Guide not available",
+        modalTitle: "Select a cost from the guide"
+      },
+      incompleteWarning: {
+        title: "Incomplete Configuration",
+        enterBudget: "• Enter a budget ({mode})",
+        enterCost: "• Enter a {costLabel}",
+        clientMode: "client",
+        mediaMode: "media"
+      },
+      loadingMessage: "⏳ Loading in progress... Budget calculations will be available once the data is loaded."
+    },
+    budgetGeneralParams: {
+      currencies: {
+        cad: "CAD - Canadian Dollar",
+        usd: "USD - US Dollar",
+        eur: "EUR - Euro",
+        chf: "CHF - Swiss Franc"
+      },
+      budgetModes: {
+        media: "Media budget",
+        client: "Client budget"
+      },
+      unitType: {
+        placeholder: "Select a unit type...",
+        label: "Unit Type",
+        tooltip: "Purchase unit. Not to be confused with KPIs. This is the unit in which this tactic is purchased. Usually: Impressions"
+      },
+      purchaseCurrency: {
+        label: "Purchase Currency",
+        tooltip: "Currency in which media purchases will be made. Used for budget calculations and conversion if different from the campaign."
+      },
+      entryMode: {
+        label: "Entry Mode",
+        tooltip: "Determines how to interpret the entered budget. Client budget = total amount including fees. Media budget = net amount for platforms."
+      },
+      infoBox: {
+        title: "💡 Budget Entry Modes",
+        mediaBudgetTitle: "Media Budget:",
+        mediaBudgetItem1: "Net amount that will actually be spent on media platforms",
+        mediaBudgetItem2: "Fees are added on top to calculate the total client budget",
+        clientBudgetTitle: "Client Budget:",
+        clientBudgetItem1: "Total amount including media budget + all fees",
+        clientBudgetItem2: "Corresponds to the amount billable to the client"
+      },
+      noUnitTypeWarning: {
+        label: "Unit Type:",
+        text: "No dynamic list configured. You can configure unit types in the Administration section."
+      },
+      loading: {
+        text: "⏳ Loading... General settings will be available once the data is loaded."
+      }
+    },
+    budgetBonification: {
+      validation: {
+        mustBeGreaterOrEqual: "The real value must be greater than or equal to the media budget.",
+        noBonusSameValue: "The real value is equal to the media budget. No bonus is calculated."
+      },
+      labels: {
+        includeBonus: "Include a bonus",
+        realValue: "Real value of the tactic",
+        bonusCalculated: "Bonus value (calculated)"
+      },
+      tooltips: {
+        includeBonus: "Activate this option if the value negotiated with the supplier is greater than the media budget you are paying.",
+        realValue: "Indicate here the total value of the media space you are getting, as negotiated with the supplier. This amount must be equal to or greater than your media budget.",
+        bonusCalculated: "This is the bonus amount, calculated as the difference between the real value and the media budget paid. This field is not editable."
+      },
+      descriptions: {
+        hasBonus: "The bonus is activated. Enter the actual value of the tactic to calculate the gain.",
+        noBonus: "No bonus is currently applied to this tactic."
+      },
+      warnings: {
+        mediaBudgetRequired: "Please enter a media budget for this tactic first to calculate the bonus.",
+        loadingConfiguration: "The bonus configuration is being loaded or is disabled by another option."
+      },
+      reference: {
+        title: "Reference budget for calculation",
+        currentMediaBudget: "Current media budget",
+        mustBeGreater: "The real value must be greater than this amount to generate a bonus."
+      },
+      pendingInput: {
+        title: "Bonus activated, awaiting value",
+        description: "Enter the real (negotiated) value of the media space in the field below for the bonus to be automatically calculated."
+      },
+      infos: {
+        economyOf: "That's a saving of",
+        onNegotiatedValue: "on the negotiated value.",
+        insufficientValue: "Insufficient value to calculate savings.",
+        ofMediaBudget: "of the media budget",
+        noBonusReasonSameValue: "The real value is identical to the budget. No bonus.",
+        bonusWillBeCalculated: "The bonus will be calculated once the real value is entered."
+      },
+      summary: {
+        title: "Bonus Summary",
+        totalNegotiatedValue: "Total negotiated value",
+        mediaBudgetPaid: "Media budget paid",
+        bonusObtained: "Bonus obtained",
+        represents: "representing",
+        addedValue: "of added value."
+      },
+      disabled: {
+        title: "Bonus disabled.",
+        description: "Check the box above to activate it and enter the real value."
+      }
+    },
+    budgetFees: {
+      calculationDescription: {
+        percentageOnBudget: "Percentage applied to budget",
+        fixedAmountByUnitVolume: "Fixed amount × unit volume",
+        fixedAmountByUnitCount: "Fixed amount × number of units",
+        independentFixedAmount: "Independent fixed amount",
+        undefinedType: "Undefined type",
+      },
+      feeItem: {
+        order: "Order",
+        calculatedAmount: "Calculated amount",
+        feeOption: "Fee option",
+        autoSelected: "Automatically selected",
+        selectOption: "Select an option...",
+        bufferInfo: " (Buffer: +{buffer}%)",
+        useDifferentUnitVolume: "Use a different unit volume to calculate this fee",
+        defaultVolumeInfo: "By default, this fee uses the tactic's unit volume ({unitVolume}). Check to enter a different volume.",
+        customUnitVolume: "Custom unit volume",
+        enterUnitVolume: "Enter unit volume",
+        volumeCalculationHintPrefix: "This volume will be used to calculate the fee:",
+        customValue: "Custom value",
+        finalValueWithBuffer: "Final value with buffer (+{buffer}%)",
+        fixedValue: "Fixed value",
+        nonEditableValue: "Non-editable value",
+        bufferIncluded: " (buffer +{buffer}% included)",
+        numberOfUnits: "Number of units",
+        finalCalculationMultiplier: "Multiplier for final calculation",
+        units: "units",
+      },
+      feeSummary: {
+        calculationBase: "Calculation base",
+        mediaBudgetInCurrency: "(media budget in {currency})",
+        mediaBudgetPlusPreviousFeesInCurrency: "(media budget + previous fees in {currency})",
+        customVolume: "(custom volume)",
+        fixedAmountOf: "Fixed amount of",
+        bufferApplied: "Buffer applied",
+        onBaseValue: "on the base value",
+      },
+      main: {
+        noFeesConfigured: "No fees configured for this client.",
+        feesConfigurableInAdmin: "Fees can be configured in the client's Administration section.",
+        displayCurrency: "Display currency",
+        currencyNotice: "Fee amounts are calculated and displayed in the tactic's currency.",
+        systemCalculationNotice: "Exact calculations are performed automatically by the system.",
+        appliedFees: "Applied Fees",
+        customVolumeAbbr: "Cust. vol.",
+        totalFees: "Total fees",
+        mediaBudgetWarning: "⚠️ A media budget must be set to calculate fees.",
+        loadingConfiguration: "⏳ Loading... Fee configuration will be available once the data is loaded.",
+      },
+    },
+    breakdownPeriod: {
+      months: {
+        short: "JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC",
+        shortTitleCase: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+      }
+    },
+    
+  
 
 
   }

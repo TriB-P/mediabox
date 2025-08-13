@@ -8,6 +8,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import {
   FormInput,
   SmartSelect,
@@ -57,11 +58,12 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
   buckets,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const statusOptions = [
-    { id: 'Planned', label: 'Planifié' },
-    { id: 'Active', label: 'Actif' },
-    { id: 'Completed', label: 'Terminé' },
-    { id: 'Cancelled', label: 'Annulé' },
+    { id: 'Planned', label: t('tactiqueFormInfo.status.planned') },
+    { id: 'Active', label: t('tactiqueFormInfo.status.active') },
+    { id: 'Completed', label: t('tactiqueFormInfo.status.completed') },
+    { id: 'Cancelled', label: t('tactiqueFormInfo.status.cancelled') },
   ];
 
   const isDisabled = loading;
@@ -70,10 +72,10 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
     <div className="p-8 space-y-6">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Informations générales
+          {t('tactiqueFormInfo.general.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration de base de la tactique
+          {t('tactiqueFormInfo.general.subtitle')}
         </p>
       </div>
 
@@ -84,11 +86,11 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           value={formData.TC_Label || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: Bannières Display Google"
+          placeholder={t('tactiqueFormInfo.label.placeholder')}
           required={!isDisabled}
           label={createLabelWithHelp(
-            'Étiquette *',
-            "C'est le nom de votre tactique. Assurez-vous de mettre une description claire et concise.",
+            t('tactiqueFormInfo.label.label'),
+            t('tactiqueFormInfo.label.tooltip'),
             onTooltipChange
           )}
         />
@@ -103,10 +105,10 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
               id: bucket.id,
               label: bucket.name
             }))}
-            placeholder="Sélectionner une enveloppe..."
+            placeholder={t('tactiqueFormInfo.bucket.placeholder')}
             label={createLabelWithHelp(
-              'Enveloppe',
-              "Les enveloppes sont un outil de planification haut niveau. Elles vous permettent de regrouper des tactiques similaires et de suivre leur budget global dans l'onglet 'Stratégie'",
+              t('tactiqueFormInfo.bucket.label'),
+              t('tactiqueFormInfo.bucket.tooltip'),
               onTooltipChange
             )}
           />
@@ -120,10 +122,10 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
           value={formData.TC_MPA || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: MPA Digital"
+          placeholder={t('tactiqueFormInfo.mpa.placeholder')}
           label={createLabelWithHelp(
-            'MPA',
-            "Vous permet de définir sur quelle MPA cette tactique s'affichera. Si laissez vide : s'affichera sur la MPA globale",
+            t('tactiqueFormInfo.mpa.label'),
+            t('tactiqueFormInfo.mpa.tooltip'),
             onTooltipChange
           )}
         />
@@ -138,15 +140,14 @@ const TactiqueFormInfo = memo<TactiqueFormInfoProps>(({
 
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">Chargement des données...</p>
+          <p className="text-sm">{t('tactiqueFormInfo.loading.data')}</p>
         </div>
       )}
 
       {buckets.length === 0 && !loading && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            Aucune enveloppe budgétaire définie pour cette campagne.
-            Vous pouvez créer des enveloppes dans la section Stratégie.
+            {t('tactiqueFormInfo.noBuckets.message')}
           </p>
         </div>
       )}

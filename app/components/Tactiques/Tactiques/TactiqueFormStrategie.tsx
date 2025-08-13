@@ -6,12 +6,12 @@
  * 1. Dimension configurée + liste existe → SmartSelect avec label personnalisé
  * 2. Dimension configurée + pas de liste → FormInput avec label personnalisé  
  * 3. Dimension non configurée → Masqué
- * 
- * NOUVEAU : Ajout du filtrage dynamique des Publishers basé sur TC_Media_Type
+ * * NOUVEAU : Ajout du filtrage dynamique des Publishers basé sur TC_Media_Type
  */
 'use client';
 
 import React, { memo, useMemo, useEffect } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import {
   FormInput,
   FormTextarea,
@@ -118,7 +118,8 @@ const renderCustomDimension = (
   dynamicLists: { [key: string]: ListItem[] },
   formData: any,
   onChange: any,
-  onTooltipChange: any
+  onTooltipChange: any,
+  t: (key: string, options?: any) => string
 ): JSX.Element | null => {
   const fieldName = `TC_Custom_Dim_${dimensionNumber}` as const;
   const configuredLabel = customDimensions.configured[fieldName];
@@ -129,8 +130,8 @@ const renderCustomDimension = (
     return null;
   }
   
-  const labelText = configuredLabel || `Dimension personnalisée ${dimensionNumber}`;
-  const helpText = "Champs personnalisé pour votre client";
+  const labelText = configuredLabel || t('tactiqueFormStrategie.customDimension.label', { number: dimensionNumber });
+  const helpText = t('tactiqueFormStrategie.customDimension.helpText');
   
   // Cas 1 : Dimension configurée + liste existe → SmartSelect
   if (hasList && dynamicLists[fieldName] && dynamicLists[fieldName].length > 0) {
@@ -142,7 +143,7 @@ const renderCustomDimension = (
         value={formData[fieldName] || ''}
         onChange={onChange}
         items={dynamicLists[fieldName] || []}
-        placeholder={`Sélectionner ${labelText}...`}
+        placeholder={t('tactiqueFormStrategie.customDimension.selectPlaceholder', { labelText })}
         label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
       />
     );
@@ -157,7 +158,7 @@ const renderCustomDimension = (
       value={formData[fieldName] || ''}
       onChange={onChange}
       type="text"
-      placeholder={`Saisir ${labelText}...`}
+      placeholder={t('tactiqueFormStrategie.customDimension.inputPlaceholder', { labelText })}
       label={createLabelWithHelp(labelText, helpText, onTooltipChange)}
     />
   );
@@ -177,6 +178,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
   loading = false,
   isPublishersLoading = false // DEPRECATED: Plus utilisé
 }) => {
+  const { t } = useTranslation();
   const isDisabled = loading;
 
   // NOUVEAU : Filtrage des publishers basé sur TC_Media_Type
@@ -226,10 +228,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Stratégie média
+          {t('tactiqueFormStrategie.mediaStrategy.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration stratégique et ciblage
+          {t('tactiqueFormStrategie.mediaStrategy.description')}
         </p>
       </div>
       
@@ -241,10 +243,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_LOB || ''}
             onChange={onChange}
             items={dynamicLists.TC_LOB || []}
-            placeholder="Sélectionner une ligne d'affaire..."
+            placeholder={t('tactiqueFormStrategie.lob.placeholder')}
             label={createLabelWithHelp(
-              'Ligne d\'affaire',
-              'Liste personalisée pour votre client',
+              t('tactiqueFormStrategie.lob.label'),
+              t('tactiqueFormStrategie.lob.helpText'),
               onTooltipChange
             )}
           />
@@ -257,10 +259,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Media_Type || ''}
             onChange={onChange}
             items={dynamicLists.TC_Media_Type || []}
-            placeholder="Sélectionner un type de média..."
+            placeholder={t('tactiqueFormStrategie.mediaType.placeholder')}
             label={createLabelWithHelp(
-              'Type média',
-              'C\'est la catégorisation la plus importante. Cette caractéristique affectera le comportement de la tactique à plusieurs niveaux',
+              t('tactiqueFormStrategie.mediaType.label'),
+              t('tactiqueFormStrategie.mediaType.helpText'),
               onTooltipChange
             )}
           />
@@ -273,10 +275,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Prog_Buying_Method || ''}
             onChange={onChange}
             items={dynamicLists.TC_Prog_Buying_Method || []}
-            placeholder="Sélectionner une méthode d'achat..."
+            placeholder={t('tactiqueFormStrategie.buyingMethod.placeholder')}
             label={createLabelWithHelp(
-              'Méthode d\'achat - Programmatique/SEM',
-              "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Laissez vide si non applicable",
+              t('tactiqueFormStrategie.buyingMethod.label'),
+              t('tactiqueFormStrategie.buyingMethod.helpText'),
               onTooltipChange
             )}
           />
@@ -284,27 +286,27 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
-          💡 Partenaire vs Inventaire
+          {t('tactiqueFormStrategie.infoBox.title')}
         </h5>
         <div className="text-sm text-blue-700 space-y-2">
           <div>
-            <strong>Partenaire :</strong>
+            <strong>{t('tactiqueFormStrategie.infoBox.partnerTitle')}</strong>
             <ul className="ml-4 mt-1 space-y-1">
-              <li>• C'est l'entité qui facturera l'agence</li>
-              <li>• Programmatique : c'est généralement la DSP (ex:DV360)</li>
-              <li>• OOH : Si l'achat est effectué avec Billups, vous devez mettre Billups</li>
-              <li>• TV/Radio : Si plusieurs stations seront utilisées, choisissez "Stations variées"</li>
-              <li>• Chaque tactique doit obligatoirement avoir un partenaire</li>
+              <li>{t('tactiqueFormStrategie.infoBox.partnerBullet1')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.partnerBullet2')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.partnerBullet3')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.partnerBullet4')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.partnerBullet5')}</li>
 
             </ul>
           </div>
           <div>
-            <strong>Inventaire :</strong>
+            <strong>{t('tactiqueFormStrategie.infoBox.inventoryTitle')}</strong>
             <ul className="ml-4 mt-1 space-y-1">
-              <li>• C'est comme un sous-partenaire ou un média qu'on va activer à travers le partenaire</li>
-              <li>• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera "Radio-Canada"</li>
-              <li>• Lors d'un achat avec Billups, vous pouvez indiquer quel partenaire OOH sera utilisé (ex : Astral)</li>
-              <li>• Si l'inventaire n'est pas applicable, laissez-le vide</li>
+              <li>{t('tactiqueFormStrategie.infoBox.inventoryBullet1')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.inventoryBullet2')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.inventoryBullet3')}</li>
+              <li>{t('tactiqueFormStrategie.infoBox.inventoryBullet4')}</li>
 
 
             </ul>
@@ -320,10 +322,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Publisher || ''}
             onChange={onChange}
             items={filteredPublishers || []}
-            placeholder="Sélectionner un partenaire..."
+            placeholder={t('tactiqueFormStrategie.publisher.placeholder')}
             label={createLabelWithHelp(
-              'Partenaire',
-              'IMPORTANT : C\'est l\'entité administrative qui envera la facture.',
+              t('tactiqueFormStrategie.publisher.label'),
+              t('tactiqueFormStrategie.publisher.helpText'),
               onTooltipChange
             )}
           />
@@ -336,10 +338,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Inventory || ''}
             onChange={onChange}
             items={dynamicLists.TC_Inventory || []}
-            placeholder="Sélectionner un inventaire..."
+            placeholder={t('tactiqueFormStrategie.inventory.placeholder')}
             label={createLabelWithHelp(
-              'Inventaire',
-              "Cette valeur est facultative. Il s'agit d'un sous-partenaire ou d'une propriété du partenaire (Ex : Pelmorex > Meteomedia",
+              t('tactiqueFormStrategie.inventory.label'),
+              t('tactiqueFormStrategie.inventory.helpText'),
               onTooltipChange
             )}
           />
@@ -351,10 +353,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Market_Open || ''}
           onChange={onChange}
           rows={2}
-          placeholder="Ex: Canada, Québec, Montréal"
+          placeholder={t('tactiqueFormStrategie.marketDescription.placeholder')}
           label={createLabelWithHelp(
-            'Description du marché',
-            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
+            t('tactiqueFormStrategie.marketDescription.label'),
+            t('tactiqueFormStrategie.common.openFieldHelpText'),
             onTooltipChange
           )}
         />
@@ -365,10 +367,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Targeting_Open || ''}
           onChange={onChange}
           rows={2}
-          placeholder="Décrivez le ciblage de cette tactique..."
+          placeholder={t('tactiqueFormStrategie.audienceDescription.placeholder')}
           label={createLabelWithHelp(
-            'Description de l\'audience',
-            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
+            t('tactiqueFormStrategie.audienceDescription.label'),
+            t('tactiqueFormStrategie.common.openFieldHelpText'),
             onTooltipChange
           )}
         />
@@ -379,10 +381,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Product_Open || ''}
           onChange={onChange}
           rows={2}
-          placeholder="Ex: iPhone 15 Pro"
+          placeholder={t('tactiqueFormStrategie.productDescription.placeholder')}
           label={createLabelWithHelp(
-            'Description du produit',
-            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
+            t('tactiqueFormStrategie.productDescription.label'),
+            t('tactiqueFormStrategie.common.openFieldHelpText'),
             onTooltipChange
           )}
         />
@@ -393,10 +395,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Format_Open || ''}
           onChange={onChange}
           rows={2}
-          placeholder="Décrivez le format utilisé..."
+          placeholder={t('tactiqueFormStrategie.formatDescription.placeholder')}
           label={createLabelWithHelp(
-            'Description du format',
-            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
+            t('tactiqueFormStrategie.formatDescription.label'),
+            t('tactiqueFormStrategie.common.openFieldHelpText'),
             onTooltipChange
           )}
         />
@@ -407,10 +409,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Location_Open || ''}
           onChange={onChange}
           type="text"
-          placeholder="Décrivez l'emplacement"
+          placeholder={t('tactiqueFormStrategie.locationDescription.placeholder')}
           label={createLabelWithHelp(
-            'Description de l\'emplacement',
-            "Champs ouvert. Utilisé uniquement dans le plan média. Ne sera pas utilisé dans la taxonomie",
+            t('tactiqueFormStrategie.locationDescription.label'),
+            t('tactiqueFormStrategie.common.openFieldHelpText'),
             onTooltipChange
           )}
         />
@@ -421,10 +423,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_Frequence || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: 3 fois par semaine"
+          placeholder={t('tactiqueFormStrategie.frequency.placeholder')}
           label={createLabelWithHelp(
-            'Fréquence',
-            "Ex : 2x par semaine",
+            t('tactiqueFormStrategie.frequency.label'),
+            t('tactiqueFormStrategie.frequency.helpText'),
             onTooltipChange
           )}
         />
@@ -436,10 +438,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Market || ''}
             onChange={onChange}
             items={dynamicLists.TC_Market || []}
-            placeholder="Sélectionner un marché..."
+            placeholder={t('tactiqueFormStrategie.market.placeholder')}
             label={createLabelWithHelp(
-              'Marché',
-              "Champs fermé utilisé dans certaines taxonomies",
+              t('tactiqueFormStrategie.market.label'),
+              t('tactiqueFormStrategie.market.helpText'),
               onTooltipChange
             )}
           />
@@ -451,10 +453,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             value={formData.TC_Language_Open || ''}
             onChange={onChange}
             items={dynamicLists.TC_Language_Open || []}
-            placeholder="Sélectionner une langue..."
+            placeholder={t('tactiqueFormStrategie.language.placeholder')}
             label={createLabelWithHelp(
-              'Langue',
-              "Champs ouvert pour la langue de la tactique. Utilisé uniquement dans le plan média. La langue utilisée dans la taxonomie sera déterminée au niveau du placement",
+              t('tactiqueFormStrategie.language.label'),
+              t('tactiqueFormStrategie.language.helpText'),
               onTooltipChange
             )}
           />
@@ -466,18 +468,18 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
       {/* MODIFIÉ : Section des dimensions personnalisées avec logique corrigée */}
       {hasAnyCustomDimension && (
         <FormSection
-          title="Champs personnalisés"
-          description="Configuration spécifique au client"
+          title={t('tactiqueFormStrategie.customFields.title')}
+          description={t('tactiqueFormStrategie.customFields.description')}
         >
-          {renderCustomDimension(1, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
-          {renderCustomDimension(2, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
-          {renderCustomDimension(3, customDimensions, dynamicLists, formData, onChange, onTooltipChange)}
+          {renderCustomDimension(1, customDimensions, dynamicLists, formData, onChange, onTooltipChange, t)}
+          {renderCustomDimension(2, customDimensions, dynamicLists, formData, onChange, onTooltipChange, t)}
+          {renderCustomDimension(3, customDimensions, dynamicLists, formData, onChange, onTooltipChange, t)}
         </FormSection>
       )}
 
       <FormSection
-        title="Production"
-        description="Gestion des créatifs et des livrables"
+        title={t('tactiqueFormStrategie.production.title')}
+        description={t('tactiqueFormStrategie.production.description')}
       >
         <FormInput
           id="TC_NumberCreative"
@@ -485,10 +487,10 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           value={formData.TC_NumberCreative || ''}
           onChange={onChange}
           type="text"
-          placeholder="Ex: 5 bannières + 2 vidéos"
+          placeholder={t('tactiqueFormStrategie.creatives.placeholder')}
           label={createLabelWithHelp(
-            'Nombre de créatifs suggérés',
-            "Facultatif - Nombre de créatifs suggéré à produire pour l'agence de création",
+            t('tactiqueFormStrategie.creatives.label'),
+            t('tactiqueFormStrategie.creatives.helpText'),
             onTooltipChange
           )}
         />
@@ -499,8 +501,8 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           onChange={onChange}
           type="date"
           label={createLabelWithHelp(
-            'Date de livraison des créatifs',
-            'Facultatif - Date de livraison souhaitée pour assurer une mise en ligne à temps.',
+            t('tactiqueFormStrategie.deliveryDate.label'),
+            t('tactiqueFormStrategie.deliveryDate.helpText'),
             onTooltipChange
           )}
         />

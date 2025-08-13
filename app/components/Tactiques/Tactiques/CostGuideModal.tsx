@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CostGuideEntry } from '../../../types/costGuide';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 // Interfaces
 interface CostGuideModalState {
@@ -41,8 +42,10 @@ export default function CostGuideModal({
   onClose,
   onSelect,
   costGuideEntries,
-  title = "Sélectionner du guide de coûts"
+  title: propTitle
 }: CostGuideModalProps) {
+  const { t } = useTranslation();
+  const title = propTitle || t('costGuideModal.title');
   const [modalState, setModalState] = useState<CostGuideModalState>({
     level1Selection: '',
     level2Selection: '',
@@ -166,10 +169,10 @@ export default function CostGuideModal({
    */
   const getCurrentLevelTitle = (): string => {
     switch (modalState.currentLevel) {
-      case 1: return 'une catégorie principale';
-      case 2: return 'une sous-catégorie';
-      case 3: return 'une spécification';
-      case 4: return 'une option avec prix';
+      case 1: return t('costGuideModal.levelTitles.mainCategory');
+      case 2: return t('costGuideModal.levelTitles.subCategory');
+      case 3: return t('costGuideModal.levelTitles.specification');
+      case 4: return t('costGuideModal.levelTitles.optionWithPrice');
       default: return '';
     }
   };
@@ -206,7 +209,7 @@ export default function CostGuideModal({
         {/* Breadcrumb de navigation */}
         <div className="flex items-center space-x-2 text-sm text-slate-600 mb-4">
           <span className={modalState.currentLevel >= 1 ? 'font-medium text-slate-900' : ''}>
-            Niveau 1
+            {t('costGuideModal.breadcrumb.level1')}
           </span>
           {modalState.level1Selection && (
             <>
@@ -251,7 +254,7 @@ export default function CostGuideModal({
     }}
     className="mb-4 px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
   >
-    ← Retour
+    {t('costGuideModal.buttons.back')}
   </button>
 )}
 
@@ -261,7 +264,7 @@ export default function CostGuideModal({
             // Niveaux 1, 2, 3 : affichage des options
             <>
               <h4 className="font-medium text-slate-900 mb-3">
-                Choisissez {getCurrentLevelTitle()}
+                {t('costGuideModal.selection.choose')} {getCurrentLevelTitle()}
               </h4>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
                 {getCostGuideOptions(modalState.currentLevel).map((option) => (
@@ -272,7 +275,7 @@ export default function CostGuideModal({
                   >
                     <span className="font-medium">{option.label}</span>
                     <span className="text-sm text-slate-500">
-                      {option.count} option{(option.count || 0) > 1 ? 's' : ''}
+                      {option.count} {t('costGuideModal.selection.option')}{(option.count || 0) > 1 ? 's' : ''}
                     </span>
                   </button>
                 ))}
@@ -282,7 +285,7 @@ export default function CostGuideModal({
             // Niveau 4 : affichage des entrées finales avec prix
             <>
               <h4 className="font-medium text-slate-900 mb-3">
-                Choisissez {getCurrentLevelTitle()}
+                {t('costGuideModal.selection.choose')} {getCurrentLevelTitle()}
               </h4>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
                 {getFinalCostGuideEntries().map((entry) => (
@@ -294,7 +297,7 @@ export default function CostGuideModal({
                     <div className="flex-1">
                       <div className="font-medium text-slate-900">{entry.level4}</div>
                       <div className="text-sm text-slate-600">
-                        Unité: {entry.purchaseUnit}
+                        {t('costGuideModal.finalSelection.unit')}: {entry.purchaseUnit}
                         {entry.comment && (
                           <span className="ml-2 text-slate-500">• {entry.comment}</span>
                         )}
@@ -307,7 +310,7 @@ export default function CostGuideModal({
                           currency: 'CAD' 
                         })}
                       </div>
-                      <div className="text-xs text-slate-500">par {entry.purchaseUnit}</div>
+                      <div className="text-xs text-slate-500">{t('costGuideModal.finalSelection.per')} {entry.purchaseUnit}</div>
                     </div>
                   </button>
                 ))}
@@ -320,8 +323,8 @@ export default function CostGuideModal({
         {((modalState.currentLevel < 4 && getCostGuideOptions(modalState.currentLevel).length === 0) ||
           (modalState.currentLevel === 4 && getFinalCostGuideEntries().length === 0)) && (
           <div className="text-center py-8 text-slate-500">
-            <p>Aucune option disponible pour cette sélection.</p>
-            <p className="text-sm mt-1">Veuillez revenir en arrière et faire une autre sélection.</p>
+            <p>{t('costGuideModal.noOptions.title')}</p>
+            <p className="text-sm mt-1">{t('costGuideModal.noOptions.instruction')}</p>
           </div>
         )}
 
@@ -331,7 +334,7 @@ export default function CostGuideModal({
             onClick={onClose}
             className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            Fermer
+            {t('common.close')}
           </button>
         </div>
       </div>

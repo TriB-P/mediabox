@@ -11,6 +11,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface CampaignAdminValues {
   CA_Billing_ID?: string;
@@ -78,6 +79,7 @@ const AdminField = memo<{
   placeholder,
   disabled = false
 }) => {
+  const { t } = useTranslation();
   
   /**
    * @callback handleInheritedChange
@@ -103,7 +105,7 @@ const AdminField = memo<{
           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
         />
         <label htmlFor={checkboxId} className="ml-3 text-sm text-gray-700">
-          Utiliser le même que la campagne
+          {t('tactiqueFormAdmin.adminField.useSameAsCampaign')}
         </label>
       </div>
       
@@ -117,7 +119,7 @@ const AdminField = memo<{
           value={inheritedValue || ''}
           disabled
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-500"
-          placeholder="Valeur héritée de la campagne"
+          placeholder={t('tactiqueFormAdmin.adminField.inheritedValuePlaceholder')}
         />
       ) : (
         <input
@@ -165,17 +167,17 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
   campaignAdminValues,
   loading = false
 }) => {
-  
+  const { t } = useTranslation();
   const isDisabled = loading;
 
   return (
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Administration
+          {t('tactiqueFormAdmin.main.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Configuration administrative et facturation
+          {t('tactiqueFormAdmin.main.subtitle')}
         </p>
       </div>
       
@@ -184,69 +186,69 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
         <AdminField
           id="TC_Billing_ID"
           name="TC_Billing_ID"
-          label="Numéro de facturation"
-          tooltip="Numéro utilisé pour la facturation de cette tactique"
+          label={t('tactiqueFormAdmin.billingNumber.label')}
+          tooltip={t('tactiqueFormAdmin.billingNumber.tooltip')}
           value={formData.TC_Billing_ID || ''}
           inheritedValue={campaignAdminValues.CA_Billing_ID || ''}
           useInherited={useInheritedBilling}
           onChange={onChange}
           onInheritedChange={onInheritedBillingChange}
           onTooltipChange={onTooltipChange}
-          placeholder="Numéro de facturation spécifique"
+          placeholder={t('tactiqueFormAdmin.billingNumber.placeholder')}
           disabled={isDisabled}
         />
 
         <AdminField
           id="TC_PO"
           name="TC_PO"
-          label="PO"
-          tooltip="Numéro de bon de commande pour cette tactique"
+          label={t('tactiqueFormAdmin.po.label')}
+          tooltip={t('tactiqueFormAdmin.po.tooltip')}
           value={formData.TC_PO || ''}
           inheritedValue={campaignAdminValues.CA_PO || ''}
           useInherited={useInheritedPO}
           onChange={onChange}
           onInheritedChange={onInheritedPOChange}
           onTooltipChange={onTooltipChange}
-          placeholder="PO spécifique"
+          placeholder={t('tactiqueFormAdmin.po.placeholder')}
           disabled={isDisabled}
         />
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
-          💡 À propos de l'héritage
+          {t('tactiqueFormAdmin.inheritanceInfo.title')}
         </h5>
         <div className="text-sm text-blue-700 space-y-1">
           <p>
-            • <strong>Héritage activé :</strong> La tactique utilisera les valeurs définies au niveau de la campagne.
+            • <strong>{t('tactiqueFormAdmin.inheritanceInfo.enabledTitle')}</strong>{t('tactiqueFormAdmin.inheritanceInfo.enabledDesc')}
           </p>
           <p>
-            • <strong>Héritage désactivé :</strong> Vous pouvez définir des valeurs spécifiques pour cette tactique.
+            • <strong>{t('tactiqueFormAdmin.inheritanceInfo.disabledTitle')}</strong>{t('tactiqueFormAdmin.inheritanceInfo.disabledDesc')}
           </p>
           <p>
-            • Les valeurs héritées sont automatiquement mises à jour si la campagne change.
+            • {t('tactiqueFormAdmin.inheritanceInfo.updateNote')}
           </p>
         </div>
       </div>
 
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-gray-800 mb-3">
-          📋 Valeurs de la campagne
+          {t('tactiqueFormAdmin.campaignValues.title')}
         </h5>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="font-medium text-gray-600">Numéro de facturation :</span>
+            <span className="font-medium text-gray-600">{t('tactiqueFormAdmin.campaignValues.billingNumberLabel')}</span>
             <div className="mt-1 text-gray-800">
               {campaignAdminValues.CA_Billing_ID || (
-                <span className="italic text-gray-500">Non défini</span>
+                <span className="italic text-gray-500">{t('tactiqueFormAdmin.campaignValues.notSet')}</span>
               )}
             </div>
           </div>
           <div>
-            <span className="font-medium text-gray-600">PO :</span>
+            <span className="font-medium text-gray-600">{t('tactiqueFormAdmin.po.label')}:</span>
             <div className="mt-1 text-gray-800">
               {campaignAdminValues.CA_PO || (
-                <span className="italic text-gray-500">Non défini</span>
+                <span className="italic text-gray-500">{t('tactiqueFormAdmin.campaignValues.notSet')}</span>
               )}
             </div>
           </div>
@@ -255,15 +257,14 @@ const TactiqueFormAdmin = memo<TactiqueFormAdminProps>(({
 
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">Chargement des données administratives...</p>
+          <p className="text-sm">{t('tactiqueFormAdmin.loading.message')}</p>
         </div>
       )}
 
       {(!campaignAdminValues.CA_Billing_ID && !campaignAdminValues.CA_PO) && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            ⚠️ Aucune valeur administrative n'est définie au niveau de la campagne. 
-            Vous devrez saisir des valeurs spécifiques pour cette tactique.
+            ⚠️ {t('tactiqueFormAdmin.warning.noCampaignValues')}
           </p>
         </div>
       )}

@@ -14,6 +14,7 @@
 'use client';
 
 import React, { memo, useCallback } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { 
   SmartSelect, 
   SelectionButtons,
@@ -73,6 +74,7 @@ const KPIItem = memo<{
   onTooltipChange 
 }) => {
   
+  const { t } = useTranslation();
   /**
    * Gère le changement de la sélection du type de KPI.
    * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
@@ -122,7 +124,7 @@ const KPIItem = memo<{
             onClick={handleRemove}
             className="px-3 py-1 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
           >
-            Supprimer
+            {t('common.delete')}
           </button>
         )}
       </div>
@@ -132,8 +134,8 @@ const KPIItem = memo<{
           <div>
             <div className="flex items-center gap-3 mb-2">
               {createLabelWithHelp(
-                'KPI', 
-                "Indicateur de performance clé",
+                t('kpi.form.label'), 
+                t('kpi.form.tooltip'),
                 onTooltipChange
               )}
             </div>
@@ -146,7 +148,7 @@ const KPIItem = memo<{
                 value={kpi.TC_Kpi}
                 onChange={handleKpiTypeChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
                 name={`TC_Kpi_${index}`}
-                placeholder="Sélectionner un KPI..."
+                placeholder={t('kpi.form.selectPlaceholder')}
               />
             ) : (
               <SearchableSelect
@@ -158,7 +160,7 @@ const KPIItem = memo<{
                   id: item.id, 
                   label: item.SH_Display_Name_FR 
                 }))}
-                placeholder="Sélectionner un KPI..."
+                placeholder={t('kpi.form.selectPlaceholder')}
                 label=""
               />
             )}
@@ -168,8 +170,8 @@ const KPIItem = memo<{
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              'Coût par', 
-              "C'est le coût pour une unité du KPI sélectionné. Par exemple, pour un KPI de type 'CPC', c'est le coût par clic.",
+              t('kpi.form.costPer'), 
+              t('kpi.form.costPerTooltip'),
               onTooltipChange
             )}
           </div>
@@ -192,8 +194,8 @@ const KPIItem = memo<{
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              'Volume', 
-              "C'est le volume anticipé du KPI sélectionné.",
+              t('kpi.form.volume'), 
+              t('kpi.form.volumeTooltip'),
               onTooltipChange
             )}
           </div>
@@ -229,6 +231,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   dynamicLists,
   loading = false
 }) => {
+  const { t } = useTranslation();
   const kpiOptions = dynamicLists.TC_Kpi || [];
   const isDisabled = loading;
   
@@ -245,10 +248,10 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          KPIs et objectifs
+          {t('kpi.section.title')}
         </h3>
         <p className="text-sm text-gray-600 mt-1">
-          Définition des indicateurs de performance
+          {t('kpi.section.subtitle')}
         </p>
       </div>
       
@@ -259,10 +262,10 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
           value={formData.TC_Media_Objective || ''}
           onChange={onChange}
           items={dynamicLists.TC_Media_Objective || []}
-          placeholder="Sélectionner un objectif média..."
+          placeholder={t('kpi.section.selectMediaObjectivePlaceholder')}
           label={createLabelWithHelp(
-            'Objectif média', 
-            "Objectif média principal de la tactique",
+            t('kpi.section.mediaObjective'), 
+            t('kpi.section.mediaObjectiveTooltip'),
             onTooltipChange
           )}
         />
@@ -272,10 +275,10 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         <div className="flex justify-between items-center mb-6">
           <div>
             <h4 className="text-lg font-semibold text-gray-800">
-              KPIs de performance
+              {t('kpi.list.title')}
             </h4>
             <p className="text-sm text-gray-600 mt-1">
-              Jusqu'à 5 KPIs peuvent être définis
+              {t('kpi.list.maxKpisInfo')}
             </p>
           </div>
           {kpis.length < 5 && !isDisabled && (
@@ -284,7 +287,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
               onClick={handleAddKpi}
               className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
             >
-              + Ajouter un KPI
+              {t('kpi.list.addKpi')}
             </button>
           )}
         </div>
@@ -307,7 +310,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         {kpis.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">
-              Aucun KPI défini. Ajoutez un KPI pour commencer.
+              {t('kpi.list.noKpiDefined')}
             </p>
             <button
               type="button"
@@ -315,7 +318,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
               disabled={isDisabled}
               className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
             >
-              + Ajouter le premier KPI
+              {t('kpi.list.addFirstKpi')}
             </button>
           </div>
         )}
@@ -323,7 +326,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
         {kpis.length >= 5 && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
             <p className="text-sm">
-              Limite maximale de 5 KPIs atteinte. Supprimez un KPI existant pour en ajouter un nouveau.
+              {t('kpi.list.maxKpisReached')}
             </p>
           </div>
         )}
@@ -331,15 +334,14 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
 
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">Chargement des données...</p>
+          <p className="text-sm">{t('kpi.status.loadingData')}</p>
         </div>
       )}
 
       {kpiOptions.length === 0 && !loading && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            Aucun KPI disponible dans les listes dynamiques. 
-            Les champs de coût et volume restent utilisables.
+            {t('kpi.status.noKpiAvailable')}
           </p>
         </div>
       )}

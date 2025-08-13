@@ -7,6 +7,7 @@
 
 import React, { useEffect } from 'react';
 import { TactiqueFormData } from '../../../types/tactiques';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface TactiqueFormTagsProps {
   formData: TactiqueFormData;
@@ -21,6 +22,7 @@ export default function TactiqueFormTags({
   onTooltipChange,
   loading = false
 }: TactiqueFormTagsProps) {
+  const { t } = useTranslation();
 
   /**
    * Calcule le TC_CM360_Rate basé sur les valeurs actuelles
@@ -84,20 +86,20 @@ export default function TactiqueFormTags({
             htmlFor="TC_Buy_Type" 
             className="block text-sm font-medium text-gray-700"
           >
-            Type d'achat *
+            {t('tactiqueFormTags.fields.buyType.label')}
           </label>
           <select
             id="TC_Buy_Type"
             name="TC_Buy_Type"
             value={(formData as any).TC_Buy_Type || ''}
             onChange={onChange}
-            onFocus={() => onTooltipChange('Sélectionnez le type d\'achat pour cette tactique')}
+            onFocus={() => onTooltipChange(t('tactiqueFormTags.fields.buyType.tooltip'))}
             onBlur={() => onTooltipChange(null)}
             disabled={loading}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
             required
           >
-            <option value="">Sélectionner un type</option>
+            <option value="">{t('tactiqueFormTags.fields.buyType.selectPlaceholder')}</option>
             <option value="CPM">CPM</option>
             <option value="CPC">CPC</option>
           </select>
@@ -109,7 +111,7 @@ export default function TactiqueFormTags({
             htmlFor="TC_CM360_Volume" 
             className="block text-sm font-medium text-gray-700"
           >
-            Volume CM360 *
+            {t('tactiqueFormTags.fields.cm360Volume.label')}
           </label>
           <input
             type="number"
@@ -117,7 +119,7 @@ export default function TactiqueFormTags({
             name="TC_CM360_Volume"
             value={(formData as any).TC_CM360_Volume || ''}
             onChange={onChange}
-            onFocus={() => onTooltipChange('Entrez le volume prévu pour cette tactique (nombre entier)')}
+            onFocus={() => onTooltipChange(t('tactiqueFormTags.fields.cm360Volume.tooltip'))}
             onBlur={() => onTooltipChange(null)}
             disabled={loading}
             min="1"
@@ -128,7 +130,7 @@ export default function TactiqueFormTags({
           />
           {(formData as any).TC_CM360_Volume && (formData as any).TC_CM360_Volume <= 0 && (
             <p className="mt-1 text-sm text-red-600">
-              Le volume doit être supérieur à 0
+              {t('tactiqueFormTags.validation.volumePositive')}
             </p>
           )}
         </div>
@@ -141,7 +143,7 @@ export default function TactiqueFormTags({
           htmlFor="TC_CM360_Rate" 
           className="block text-sm font-medium text-gray-700"
         >
-          Taux CM360 (calculé automatiquement)
+          {t('tactiqueFormTags.fields.cm360Rate.label')}
         </label>
         <div className="mt-1 relative">
           <input
@@ -149,7 +151,7 @@ export default function TactiqueFormTags({
             id="TC_CM360_Rate"
             name="TC_CM360_Rate"
             value={calculateCM360Rate().toFixed(4)}
-            onFocus={() => onTooltipChange('Taux calculé automatiquement : Budget Client ÷ Volume CM360 (×1000 si CPM)')}
+            onFocus={() => onTooltipChange(t('tactiqueFormTags.fields.cm360Rate.tooltip'))}
             onBlur={() => onTooltipChange(null)}
             disabled={true}
             className="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm text-gray-500 cursor-not-allowed"

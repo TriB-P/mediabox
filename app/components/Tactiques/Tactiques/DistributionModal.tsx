@@ -9,6 +9,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { Breakdown } from '../../../types/breakdown';
 import { BreakdownPeriod, DistributionModalState } from '../../../hooks/useTactiqueBreakdown';
 import { getPeriodsForDistribution } from './breakdownPeriodUtils';
@@ -36,6 +37,7 @@ export default function DistributionModal({
   getPeriodActiveStatus,
   handlePeriodValueChange
 }: DistributionModalProps) {
+  const { t } = useTranslation();
 
   /**
    * Calcule la valeur par période pour l'affichage
@@ -157,7 +159,7 @@ export default function DistributionModal({
         onClick={handleModalContentClick} // NOUVEAU: Empêcher propagation
       >
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
-          Distribuer le montant
+          {t('distributionModal.title')}
         </h3>
 
         <div className="space-y-4">
@@ -165,7 +167,7 @@ export default function DistributionModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Date de début
+                {t('distributionModal.form.startDateLabel')}
               </label>
               <input
                 type="date"
@@ -177,7 +179,7 @@ export default function DistributionModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Date de fin
+                {t('distributionModal.form.endDateLabel')}
               </label>
               <input
                 type="date"
@@ -193,7 +195,7 @@ export default function DistributionModal({
           {breakdown?.type === 'PEBs' && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Distribuer sur
+                {t('distributionModal.form.distributeOnLabel')}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -208,7 +210,7 @@ export default function DistributionModal({
                       : 'border-slate-300 hover:border-slate-400'
                   }`}
                 >
-                  Coût / unité
+                  {t('distributionModal.form.unitCost')}
                 </button>
                 <button
                   type="button"
@@ -222,7 +224,7 @@ export default function DistributionModal({
                       : 'border-slate-300 hover:border-slate-400'
                   }`}
                 >
-                  Volume
+                  {t('distributionModal.form.volume')}
                 </button>
               </div>
             </div>
@@ -231,14 +233,14 @@ export default function DistributionModal({
           {/* Montant total */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Montant total à distribuer
+              {t('distributionModal.form.totalAmountLabel')}
             </label>
             <input
               type="number"
               step="0.01"
               value={modalState.totalAmount}
               onChange={(e) => setModalState(prev => ({ ...prev, totalAmount: e.target.value }))}
-              placeholder="Ex: 10000"
+              placeholder={t('distributionModal.form.amountPlaceholder')}
               className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
               onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
             />
@@ -251,13 +253,13 @@ export default function DistributionModal({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-blue-700 font-medium">
-                    Sera divisé sur {preview.periodsCount} période{preview.periodsCount > 1 ? 's' : ''}
+                    {t('distributionModal.preview.willBeDividedOver')} {preview.periodsCount} {t('distributionModal.preview.period')}{preview.periodsCount > 1 ? 's' : ''}
                   </span>
                   <span className="text-blue-600 font-semibold">
                     {preview.valuePerPeriod.toLocaleString('fr-CA', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
-                    })} / période
+                    })} {t('distributionModal.preview.perPeriod')}
                   </span>
                 </div>
               </div>
@@ -266,15 +268,15 @@ export default function DistributionModal({
 
           <div className="text-sm text-slate-500 space-y-1">
             <p>
-              La distribution se fera uniquement sur les périodes qui intersectent avec les dates choisies
+              {t('distributionModal.info.distributionDates')}
               {breakdown?.isDefault && 
-                ' et qui sont activées (cochées)'}.
+                t('distributionModal.info.andAreActive')}.
             </p>
             {breakdown?.type === 'PEBs' && (
               <p className="text-indigo-600 font-medium">
                 {modalState.pebsField === 'unitCost' 
-                  ? 'Le montant sera réparti sur le coût par unité de chaque période.'
-                  : 'Le montant sera réparti sur le volume de chaque période.'
+                  ? t('distributionModal.info.unitCostDistribution')
+                  : t('distributionModal.info.volumeDistribution')
                 }
               </p>
             )}
@@ -286,14 +288,14 @@ export default function DistributionModal({
             onClick={handleCancel} // MODIFIÉ: Utiliser le nouveau handler
             className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            Annuler
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleConfirmDistribution} // MODIFIÉ: Utiliser le nouveau handler
             disabled={!modalState.totalAmount || !modalState.startDate || !modalState.endDate}
             className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Distribuer
+            {t('distributionModal.confirmButton')}
           </button>
         </div>
       </div>

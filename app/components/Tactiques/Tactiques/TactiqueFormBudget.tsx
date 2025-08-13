@@ -13,6 +13,7 @@
 'use client';
 
 import React, { memo, useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useTranslation } from '../../../contexts/LanguageContext';
 import { FormSection } from './TactiqueFormComponents';
 import BudgetGeneralParams from './BudgetGeneralParams';
 import BudgetMainSection from './BudgetMainSection';
@@ -99,6 +100,7 @@ const CurrencyVersionSelector = memo<{
   error,
   onTooltipChange 
 }) => {
+  const { t } = useTranslation();
 
   const formatRateDisplay = useCallback((rate: Currency) => {
     return `${rate.CU_Year} (Taux: ${rate.CU_Rate.toFixed(4)})`;
@@ -109,7 +111,7 @@ const CurrencyVersionSelector = memo<{
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center gap-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-          <span className="text-sm text-blue-800">Chargement des taux de change...</span>
+          <span className="text-sm text-blue-800">{t('tactiqueFormBudget.currencySelector.loadingRates')}</span>
         </div>
       </div>
     );
@@ -123,10 +125,10 @@ const CurrencyVersionSelector = memo<{
             <span className="text-red-500 text-lg">⚠️</span>
           </div>
           <div>
-            <p className="text-sm font-medium text-red-800">Taux de change non disponible</p>
+            <p className="text-sm font-medium text-red-800">{t('tactiqueFormBudget.currencySelector.unavailableTitle')}</p>
             <p className="text-sm text-red-700 mt-1">{error}</p>
             <p className="text-xs text-red-600 mt-2">
-              Veuillez configurer au moins un taux de change pour {tacticCurrency} → {campaignCurrency} dans la section Devises du client.
+              {t('tactiqueFormBudget.currencySelector.configureMessage', { tacticCurrency, campaignCurrency })}
             </p>
           </div>
         </div>
@@ -146,10 +148,9 @@ const CurrencyVersionSelector = memo<{
             <span className="text-yellow-600 text-lg">💱</span>
           </div>
           <div>
-            <p className="text-sm font-medium text-yellow-800">Conversion de devise requise</p>
+            <p className="text-sm font-medium text-yellow-800">{t('tactiqueFormBudget.currencySelector.requiredTitle')}</p>
             <p className="text-sm text-yellow-700 mt-1">
-              La devise d'achat ({tacticCurrency}) diffère de la devise de campagne ({campaignCurrency}). 
-              Veuillez sélectionner la version de taux à utiliser.
+              {t('tactiqueFormBudget.currencySelector.requiredDescription', { tacticCurrency, campaignCurrency })}
             </p>
           </div>
         </div>
@@ -157,10 +158,10 @@ const CurrencyVersionSelector = memo<{
 
       <div>
         <label htmlFor="currency-version-select" className="block text-sm font-medium text-gray-700 mb-2">
-          Version du taux de change à utiliser *
+          {t('tactiqueFormBudget.currencySelector.versionLabel')}
           <button
             type="button"
-            onMouseEnter={() => onTooltipChange('Sélectionnez la version du taux de change à appliquer pour convertir le budget de la devise d\'achat vers la devise de campagne.')}
+            onMouseEnter={() => onTooltipChange(t('tactiqueFormBudget.currencySelector.versionTooltip'))}
             onMouseLeave={() => onTooltipChange(null)}
             className="ml-2 text-indigo-600 hover:text-indigo-800"
           >
@@ -174,7 +175,7 @@ const CurrencyVersionSelector = memo<{
           onChange={(e) => onVersionChange(e.target.value)}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
         >
-          <option value="">Sélectionner une version de taux...</option>
+          <option value="">{t('tactiqueFormBudget.currencySelector.selectPlaceholder')}</option>
           {availableRates.map(rate => (
             <option key={rate.id} value={rate.CU_Year}>
               {formatRateDisplay(rate)}
@@ -184,7 +185,7 @@ const CurrencyVersionSelector = memo<{
         
         {!selectedVersion && (
           <div className="mt-2 text-sm text-red-600">
-            ⚠️ Veuillez sélectionner une version de taux pour continuer
+            {t('tactiqueFormBudget.currencySelector.selectionWarning')}
           </div>
         )}
       </div>
@@ -194,7 +195,7 @@ const CurrencyVersionSelector = memo<{
           <div className="flex items-center gap-2">
             <span className="text-green-600">✅</span>
             <div className="text-sm">
-              <span className="font-medium text-green-800">Taux sélectionné :</span>
+              <span className="font-medium text-green-800">{t('tactiqueFormBudget.currencySelector.selectedRateLabel')}</span>
               <span className="text-green-700 ml-1">
                 {availableRates.find(r => r.CU_Year === selectedVersion)?.CU_Rate.toFixed(4)} 
                 ({tacticCurrency} → {campaignCurrency})
@@ -224,6 +225,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   onTooltipChange,
   loading = false
 }) => {
+  const { t } = useTranslation();
   
   const unitTypeOptions = dynamicLists.TC_Unit_Type || [];
 
@@ -311,7 +313,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       const rates = await getCurrencyRatesByPair(clientId, fromCurrency, toCurrency);
       
       if (rates.length === 0) {
-        setCurrencyConversionError(`Aucun taux de change configuré pour ${fromCurrency} → ${toCurrency}`);
+        setCurrencyConversionError(t('tactiqueFormBudget.errors.noRateConfigured', { fromCurrency, toCurrency }));
         setAvailableCurrencyRates([]);
       } else {
         setAvailableCurrencyRates(rates);
@@ -347,12 +349,12 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       }
     } catch (error) {
       console.error(`Erreur lors du chargement des taux ${fromCurrency} -> ${toCurrency}:`, error);
-      setCurrencyConversionError(`Erreur lors du chargement des taux de change pour ${fromCurrency} → ${toCurrency}`);
+      setCurrencyConversionError(t('tactiqueFormBudget.errors.loadingRatesError', { fromCurrency, toCurrency }));
       setAvailableCurrencyRates([]);
     } finally {
       setLoadingCurrencyRates(false);
     }
-  }, [clientId, formData.TC_Currency_Version, updateField]); // CORRECTION : onCalculatedChange retiré des dépendances
+  }, [clientId, formData.TC_Currency_Version, updateField, t]); // CORRECTION : onCalculatedChange retiré des dépendances
 
   /**
    * Gère le changement de version de taux de change sélectionnée
@@ -382,13 +384,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         });
         setCurrencyConversionError(null);
       } else {
-        setCurrencyConversionError(`Taux de change non trouvé pour la version "${version}"`);
+        setCurrencyConversionError(t('tactiqueFormBudget.errors.rateNotFoundForVersion', { version }));
       }
     } catch (error) {
       console.error('Erreur lors de l\'application du taux de change:', error);
-      setCurrencyConversionError(`Erreur lors de l'application du taux de change pour "${version}"`);
+      setCurrencyConversionError(t('tactiqueFormBudget.errors.applyingRateError', { version }));
     }
-  }, [clientId, budgetData.TC_BuyCurrency, campaignCurrency, updateField]); // CORRECTION : Référence stable
+  }, [clientId, budgetData.TC_BuyCurrency, campaignCurrency, updateField, t]); // CORRECTION : Référence stable
 
   /**
    * EFFET pour surveiller les changements de devise d'achat
@@ -686,14 +688,14 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
         <h3 className="text-xl font-semibold text-gray-900">
-          Budget et frais
+          {t('tactiqueFormBudget.form.title')}
         </h3>
       </div>
 
       {errors.length > 0 && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            <strong>Erreurs de calcul :</strong>
+            <strong>{t('tactiqueFormBudget.form.calculationErrors')}</strong>
           </p>
           <ul className="list-disc list-inside text-sm mt-1">
             {errors.map((error: string, index: number) => (
@@ -711,11 +713,11 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium">
-                Convergence imparfaite détectée
+                {t('tactiqueFormBudget.form.convergenceWarning.title')}
               </p>
               <p className="text-sm mt-1">
-                Le système n'a pas pu trouver un budget média qui génère exactement le budget client visé. 
-                Écart: <strong>{Math.abs(lastResult.data.convergenceInfo.finalDifference).toFixed(2)}$ {budgetData.TC_BuyCurrency}</strong>
+                {t('tactiqueFormBudget.form.convergenceWarning.description')}{' '}
+                <strong>{t('tactiqueFormBudget.form.convergenceWarning.gap')} {Math.abs(lastResult.data.convergenceInfo.finalDifference).toFixed(2)}$ {budgetData.TC_BuyCurrency}</strong>
               </p>
             </div>
           </div>
@@ -733,8 +735,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       {/* SECTION : Sélecteur de version de taux de change */}
       {shouldShowCurrencyVersionSelector && (
         <FormSection 
-          title="Conversion de devise"
-          description="Sélection du taux de change à appliquer"
+          title={t('tactiqueFormBudget.form.sections.currencyConversion.title')}
+          description={t('tactiqueFormBudget.form.sections.currencyConversion.description')}
         >
           <CurrencyVersionSelector
             tacticCurrency={budgetData.TC_BuyCurrency}
@@ -750,8 +752,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       )}
 
       <FormSection 
-        title="Budget principal"
-        description="Calculs automatiques du budget, coût et volume"
+        title={t('tactiqueFormBudget.form.sections.mainBudget.title')}
+        description={t('tactiqueFormBudget.form.sections.mainBudget.description')}
       >
         <BudgetMainSection
           formData={legacyFormData}
@@ -769,8 +771,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       </FormSection>
 
       <FormSection 
-        title="Bonification"
-        description="Gestion de l'économie négociée"
+        title={t('tactiqueFormBudget.form.sections.bonus.title')}
+        description={t('tactiqueFormBudget.form.sections.bonus.description')}
       >
         <BudgetBonificationSection
           formData={legacyFormData}
@@ -784,8 +786,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       </FormSection>
 
       <FormSection 
-        title="Frais"
-        description="Application des frais configurés pour le client"
+        title={t('tactiqueFormBudget.form.sections.fees.title')}
+        description={t('tactiqueFormBudget.form.sections.fees.description')}
       >
         <BudgetFeesSection
           clientFees={clientFees}
@@ -800,8 +802,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
       </FormSection>
 
       <FormSection 
-        title="Récapitulatif"
-        description="Détail des coûts et conversion de devise"
+        title={t('tactiqueFormBudget.form.sections.summary.title')}
+        description={t('tactiqueFormBudget.form.sections.summary.description')}
       >
         <BudgetSummarySection
           budgetSummary={budgetSummary}
@@ -829,7 +831,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           <div className="text-xs text-gray-600 space-y-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="font-medium text-gray-800">Données Budget:</div>
+                <div className="font-medium text-gray-800">{t('tactiqueFormBudget.debug.budgetData')}</div>
                 <div>Choice: {budgetData.TC_Budget_Mode}</div>
                 <div>Input: {budgetData.TC_BudgetInput}</div>
                 <div>Unit Price: {budgetData.TC_Unit_Price}</div>
@@ -838,13 +840,13 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
                 <div>Has Valid Data: {hasValidData.toString()}</div>
               </div>
               <div>
-                <div className="font-medium text-gray-800">Résultats:</div>
+                <div className="font-medium text-gray-800">{t('tactiqueFormBudget.debug.results')}</div>
                 <div>Media Budget: {budgetData.TC_Media_Budget.toFixed(2)}</div>
                 <div>Client Budget: {budgetData.TC_Client_Budget.toFixed(2)}</div>
                 <div>Unit Volume: {budgetData.TC_Unit_Volume.toFixed(0)}</div>
-                <div>Bonification: {budgetData.TC_Bonification.toFixed(2)}</div>
+                <div>{t('tactiqueFormBudget.debug.bonification')} {budgetData.TC_Bonification.toFixed(2)}</div>
                 <div>Total Fees: {calculatedTotalFees.toFixed(2)}</div>
-                <div>Convergé: {lastResult?.data?.hasConverged ? 'Oui' : 'Non'}</div>
+                <div>{t('tactiqueFormBudget.debug.converged')} {lastResult?.data?.hasConverged ? t('common.yes') : t('common.no')}</div>
               </div>
             </div>
             
@@ -869,7 +871,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
 
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">Chargement des données budgétaires...</p>
+          <p className="text-sm">{t('tactiqueFormBudget.form.loadingData')}</p>
         </div>
       )}
     </div>

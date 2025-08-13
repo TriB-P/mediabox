@@ -12,6 +12,7 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 import type { ConvergenceInfo } from '../../../lib/budgetCalculations';
+import { useTranslation } from '../../../contexts/LanguageContext';
 
 interface Fee {
   id: string;
@@ -81,7 +82,7 @@ const getFeeTypeIcon = (calculationType: Fee['FE_Calculation_Type']) => {
  * @param {Fee[]} clientFees - La liste complète des frais du client pour retrouver les détails.
  * @returns {{ [feeId: string]: string }} Un objet où les clés sont les ID des frais et les valeurs des chaînes décrivant la base de calcul.
  */
-const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
+const calculateFeeApplications = (activeFees: any[], clientFees: Fee[], t: (key: string) => string) => {
   const applications: { [feeId: string]: string } = {};
   
   const sortedFees = [...activeFees].sort((a, b) => a.order - b.order);
@@ -93,9 +94,9 @@ const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
     if (!fee) continue;
     
     if (fee.FE_Calculation_Mode === 'Directement sur le budget média') {
-      applications[currentFee.feeId] = 'Budget média';
+      applications[currentFee.feeId] = t('budgetSummary.feeApplication.mediaBudget');
     } else {
-      const appliedOn: string[] = ['Budget média'];
+      const appliedOn: string[] = [t('budgetSummary.feeApplication.mediaBudget')];
       
       for (let j = 0; j < i; j++) {
         const previousFee = clientFees.find(f => f.id === sortedFees[j].feeId);
@@ -125,6 +126,7 @@ const calculateFeeApplications = (activeFees: any[], clientFees: Fee[]) => {
  * @param {string} props.label - Le libellé de la ligne.
  * @param {number} props.amount - Le montant à afficher.
  * @param {string} props.currency - Le symbole de la devise.
+ * @param {string} props.language - La locale pour le formatage.
  * @param {boolean} [props.isSubtotal=false] - Si la ligne est un sous-total.
  * @param {boolean} [props.isTotal=false] - Si la ligne est le total final.
  * @param {boolean} [props.isBonus=false] - Si la ligne représente une bonification.
@@ -136,6 +138,7 @@ const SummaryLine = memo<{
   label: string;
   amount: number;
   currency: string;
+  language: string;
   isSubtotal?: boolean;
   isTotal?: boolean;
   isBonus?: boolean;
@@ -145,6 +148,7 @@ const SummaryLine = memo<{
   label, 
   amount, 
   currency, 
+  language,
   isSubtotal = false, 
   isTotal = false, 
   isBonus = false,
@@ -153,13 +157,13 @@ const SummaryLine = memo<{
 }) => {
   
   const formatCurrency = useCallback((value: number, curr: string) => {
-    return new Intl.NumberFormat('fr-CA', {
+    return new Intl.NumberFormat(language, {
       style: 'currency',
       currency: curr,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(value);
-  }, []);
+  }, [language]);
 
   const lineClass = useMemo(() => {
     if (isTotal) return 'text-lg font-bold text-gray-900 bg-gray-50 border-t-2 border-gray-300';
@@ -196,19 +200,23 @@ SummaryLine.displayName = 'SummaryLine';
  * @param {object} props - Les propriétés du composant.
  * @param {ConvergenceInfo} props.convergenceInfo - L'objet contenant les informations de convergence du calcul.
  * @param {string} props.currency - La devise à utiliser pour afficher l'écart.
+ * @param {(key: string) => string} props.t - La fonction de traduction.
+ * @param {string} props.language - La locale pour le formatage.
  * @returns {React.ReactElement} L'élément JSX du message d'avertissement.
  */
 const ConvergenceMessage = memo<{
   convergenceInfo: ConvergenceInfo;
   currency: string;
-}>(({ convergenceInfo, currency }) => {
+  t: (key: string) => string;
+  language: string;
+}>(({ convergenceInfo, currency, t, language }) => {
   
   const formatCurrency = useCallback((value: number) => {
-    return new Intl.NumberFormat('fr-CA', {
+    return new Intl.NumberFormat(language, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(value);
-  }, []);
+  }, [language]);
 
   const absEcart = Math.abs(convergenceInfo.finalDifference);
   const isPositive = convergenceInfo.finalDifference < 0;
@@ -218,16 +226,16 @@ const ConvergenceMessage = memo<{
       <div className="text-xs text-orange-700">
         <div className="flex items-center justify-between">
           <span className="text-orange-600">
-            ⚠️ Calcul approximatif
+            {t('budgetSummary.convergence.approximateCalculation')}
           </span>
           <span className="font-medium">
-            Écart: {isPositive ? '+' : '-'}{formatCurrency(absEcart)} {currency}
+            {t('budgetSummary.convergence.gap')} {isPositive ? '+' : '-'}{formatCurrency(absEcart)} {currency}
           </span>
         </div>
         <div className="mt-1 text-orange-600">
           {isPositive 
-            ? 'Le total calculé dépasse le budget visé à cause de la complexité des frais.'
-            : 'Le total calculé est en dessous du budget visé à cause de la complexité des frais.'
+            ? t('budgetSummary.convergence.totalExceedsTarget')
+            : t('budgetSummary.convergence.totalBelowTarget')
           }
         </div>
       </div>
@@ -243,36 +251,40 @@ ConvergenceMessage.displayName = 'ConvergenceMessage';
  * @param {string} props.originalCurrency - La devise d'origine.
  * @param {BudgetSummary['convertedValues']} props.convertedValues - Les valeurs budgétaires après conversion.
  * @param {(tooltip: string | null) => void} props.onTooltipChange - Fonction pour gérer l'affichage des infobulles.
+ * @param {(key: string) => string} props.t - La fonction de traduction.
+ * @param {string} props.language - La locale pour le formatage.
  * @returns {React.ReactElement | null} L'élément JSX du bloc de conversion, ou `null` si aucune conversion n'est effectuée.
  */
 const CurrencyConversion = memo<{
   originalCurrency: string;
   convertedValues: BudgetSummary['convertedValues'];
   onTooltipChange: (tooltip: string | null) => void;
-}>(({ originalCurrency, convertedValues, onTooltipChange }) => {
+  t: (key: string) => string;
+  language: string;
+}>(({ originalCurrency, convertedValues, onTooltipChange, t, language }) => {
   
   if (!convertedValues) return null;
 
   const formatExchangeRate = useCallback((rate: number) => {
-    return new Intl.NumberFormat('fr-CA', {
+    return new Intl.NumberFormat(language, {
       minimumFractionDigits: 4,
       maximumFractionDigits: 6
     }).format(rate);
-  }, []);
+  }, [language]);
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
       <div className="flex items-center gap-3 mb-3">
         {createLabelWithHelp(
-          '🔄 Conversion automatique vers la devise de campagne',
-          `Conversion automatique de ${originalCurrency} vers ${convertedValues.currency} en utilisant le taux de change configuré pour le client.`,
+          t('budgetSummary.currencyConversion.title'),
+          `${t('budgetSummary.currencyConversion.helpText.part1')}${originalCurrency}${t('budgetSummary.currencyConversion.helpText.part2')}${convertedValues.currency}${t('budgetSummary.currencyConversion.helpText.part3')}`,
           onTooltipChange
         )}
       </div>
       
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span>Taux de change ({originalCurrency} → {convertedValues.currency}) :</span>
+          <span>{t('budgetSummary.currencyConversion.exchangeRate')} ({originalCurrency} → {convertedValues.currency}) :</span>
           <span className="font-mono">{formatExchangeRate(convertedValues.exchangeRate)}</span>
         </div>
       </div>
@@ -304,6 +316,8 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   onTooltipChange
 }) => {
   
+  const { t, language } = useTranslation();
+
   const activeFees = useMemo(() => {
     if (budgetSummary?.feeDetails && budgetSummary.feeDetails.length > 0) {
       return budgetSummary.feeDetails
@@ -336,8 +350,8 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
   }, [budgetSummary?.feeDetails, appliedFees, clientFees]);
 
   const feeApplications = useMemo(() => {
-    return calculateFeeApplications(activeFees, clientFees);
-  }, [activeFees, clientFees]);
+    return calculateFeeApplications(activeFees, clientFees, t);
+  }, [activeFees, clientFees, t]);
 
   const conversionInfo = useMemo(() => {
     const needsConversion = budgetSummary.currency !== campaignCurrency;
@@ -379,10 +393,10 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
     return (
       <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
         <p className="text-sm">
-          <strong>Récapitulatif budgétaire</strong>
+          <strong>{t('budgetSummary.noBudget.title')}</strong>
         </p>
         <p className="text-sm mt-1">
-          Le récapitulatif sera disponible une fois qu'un budget média sera défini.
+          {t('budgetSummary.noBudget.message')}
         </p>
       </div>
     );
@@ -394,11 +408,11 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       {conversionInfo.needsConversion && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
-            💱 Conversion automatique : {budgetSummary.currency} → {campaignCurrency}
+            {t('budgetSummary.currencyConversion.automaticConversion')} {budgetSummary.currency} → {campaignCurrency}
           </div>
           {!conversionInfo.hasConvertedValues && (
             <div className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-full">
-              ⚠️ Taux de change manquant
+              {t('budgetSummary.currencyConversion.missingRateWarning')}
             </div>
           )}
         </div>
@@ -407,30 +421,32 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
           <h3 className="font-semibold text-gray-900">
-            Détail des coûts
+            {t('budgetSummary.costDetails.title')}
           </h3>
           <p className="text-sm text-gray-600">
             {conversionInfo.showConvertedValues 
-              ? `Montants en ${displayCurrency} (devise de campagne)` 
-              : `Devise de la tactique : ${displayCurrency}`}
+              ? `${t('budgetSummary.costDetails.amountsIn')} ${displayCurrency} ${t('budgetSummary.costDetails.campaignCurrency')}` 
+              : `${t('budgetSummary.costDetails.tacticCurrency')} ${displayCurrency}`}
           </p>
         </div>
         
         <div className="divide-y divide-gray-200">
           <SummaryLine
-            label="Budget média"
+            label={t('budgetSummary.lines.mediaBudget')}
             amount={displayValues.mediaBudget}
             currency={displayCurrency}
-            description="Montant net pour les plateformes publicitaires"
+            language={language}
+            description={t('budgetSummary.lines.mediaBudgetDesc')}
             icon="💻"
           />
           
           {displayValues.bonusValue > 0 && (
             <SummaryLine
-              label="Bonification négociée"
+              label={t('budgetSummary.lines.negotiatedBonus')}
               amount={displayValues.bonusValue}
               currency={displayCurrency}
-              description="Valeur ajoutée gratuite obtenue du partenaire"
+              language={language}
+              description={t('budgetSummary.lines.negotiatedBonusDesc')}
               icon="🎁"
               isBonus
             />
@@ -439,12 +455,12 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           {activeFees.length > 0 && (
             <>
               <div className="px-3 py-2 bg-gray-50">
-                <span className="text-sm font-medium text-gray-700">Frais applicables :</span>
+                <span className="text-sm font-medium text-gray-700">{t('budgetSummary.applicableFees.title')}</span>
               </div>
               {activeFees.map((activeFee, index) => {
                 const displayedAmount = displayedFeeAmounts.find(fa => fa.feeId === activeFee.feeId)?.amount || 0;
                 
-                const appliedOn = feeApplications[activeFee.feeId] || 'Non défini';
+                const appliedOn = feeApplications[activeFee.feeId] || t('budgetSummary.applicableFees.undefined');
                 
                 return (
                   <SummaryLine
@@ -452,26 +468,29 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
                     label={activeFee.fee.FE_Name}
                     amount={displayedAmount}
                     currency={displayCurrency}
-                    description={`Appliqué sur : ${appliedOn}`}
+                    language={language}
+                    description={`${t('budgetSummary.applicableFees.appliedOn')} ${appliedOn}`}
                     icon={getFeeTypeIcon(activeFee.fee.FE_Calculation_Type)}
                   />
                 );
               })}
               
               <SummaryLine
-                label="Sous-total frais"
+                label={t('budgetSummary.lines.feesSubtotal')}
                 amount={displayedTotalFees}
                 currency={displayCurrency}
+                language={language}
                 isSubtotal
               />
             </>
           )}
           
           <SummaryLine
-            label="TOTAL BUDGET CLIENT"
+            label={t('budgetSummary.lines.totalClientBudget')}
             amount={displayValues.mediaBudget + displayedTotalFees}
             currency={displayCurrency}
-            description="Montant total facturable au client"
+            language={language}
+            description={t('budgetSummary.lines.totalClientBudgetDesc')}
             isTotal
           />
         </div>
@@ -480,6 +499,8 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           <ConvergenceMessage
             convergenceInfo={budgetSummary.convergenceInfo}
             currency={budgetSummary.currency}
+            t={t}
+            language={language}
           />
         )}
       </div>
@@ -487,12 +508,12 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
       {conversionInfo.needsConversion && !conversionInfo.hasConvertedValues && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-red-800 mb-2">
-            ⚠️ Conversion de devise impossible
+            {t('budgetSummary.conversionError.title')}
           </h5>
           <div className="text-sm text-red-700 space-y-1">
-            <p>Aucun taux de change configuré pour : <strong>{budgetSummary.currency} → {campaignCurrency}</strong></p>
-            <p>Veuillez configurer le taux de change dans la section devises du client.</p>
-            <p className="text-xs mt-2">Les montants sont affichés dans la devise de la tactique ({budgetSummary.currency}).</p>
+            <p>{t('budgetSummary.conversionError.noRateConfiguredFor')} <strong>{budgetSummary.currency} → {campaignCurrency}</strong></p>
+            <p>{t('budgetSummary.conversionError.pleaseConfigure')}</p>
+            <p className="text-xs mt-2">{t('budgetSummary.conversionError.amountsDisplayedInTacticCurrency')} ({budgetSummary.currency}).</p>
           </div>
         </div>
       )}
@@ -502,14 +523,15 @@ const BudgetSummarySection = memo<BudgetSummarySectionProps>(({
           originalCurrency={budgetSummary.currency}
           convertedValues={budgetSummary.convertedValues!}
           onTooltipChange={onTooltipChange}
+          t={t}
+          language={language}
         />
       )}
 
       {activeFees.length === 0 && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
           <p className="text-sm">
-            💡 Aucun frais appliqué. Le budget client correspond au budget média.
-            Vous pouvez activer des frais dans la section précédente si nécessaire.
+            {t('budgetSummary.noFees.info')}
           </p>
         </div>
       )}

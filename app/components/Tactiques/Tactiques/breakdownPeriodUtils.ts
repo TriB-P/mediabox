@@ -9,14 +9,19 @@
 import { Breakdown } from '../../../types/breakdown';
 import { BreakdownPeriod } from '../../../hooks/useTactiqueBreakdown';
 
+// The 't' function should be passed from a component that uses the useTranslation hook.
+type TFunction = (key: string) => string;
+
+
 /**
  * Génère les périodes pour un breakdown mensuel
  * NOUVEAU: Calcule et inclut la date de début pour chaque période
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown, 
-  tactiqueStartDate?: string, 
-  tactiqueEndDate?: string
+  tactiqueStartDate: string | undefined, 
+  tactiqueEndDate: string | undefined,
+  t: TFunction
 ): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -33,8 +38,7 @@ export function generateMonthlyPeriods(
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
 
   while (current <= endDate) {
-    const monthNames = ['JAN', 'FEB', 'MAR', 'AVR', 'MAI', 'JUN',
-      'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const monthNames = t('breakdownPeriod.months.short').split(',');
 
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
@@ -71,8 +75,9 @@ export function generateMonthlyPeriods(
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown, 
-  tactiqueStartDate?: string, 
-  tactiqueEndDate?: string
+  tactiqueStartDate: string | undefined, 
+  tactiqueEndDate: string | undefined,
+  t: TFunction
 ): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -97,8 +102,7 @@ export function generateWeeklyPeriods(
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
     // ID standardisé avec préfixe breakdown pour éviter les collisions
@@ -133,8 +137,9 @@ export function generateWeeklyPeriods(
  */
 export function generatePEBsPeriods(
   breakdown: Breakdown, 
-  tactiqueStartDate?: string, 
-  tactiqueEndDate?: string
+  tactiqueStartDate: string | undefined, 
+  tactiqueEndDate: string | undefined,
+  t: TFunction
 ): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
 
@@ -159,8 +164,7 @@ export function generatePEBsPeriods(
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-      'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
     // ID standardisé identique aux périodes hebdomadaires
@@ -221,8 +225,9 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
  */
 export function generateAllPeriods(
   breakdowns: Breakdown[], 
-  tactiqueStartDate?: string, 
-  tactiqueEndDate?: string
+  tactiqueStartDate: string | undefined, 
+  tactiqueEndDate: string | undefined,
+  t: TFunction
 ): BreakdownPeriod[] {
   const allPeriods: BreakdownPeriod[] = [];
 
@@ -231,13 +236,13 @@ export function generateAllPeriods(
 
     switch (breakdown.type) {
       case 'Mensuel':
-        periods = generateMonthlyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+        periods = generateMonthlyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate, t);
         break;
       case 'Hebdomadaire':
-        periods = generateWeeklyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+        periods = generateWeeklyPeriods(breakdown, tactiqueStartDate, tactiqueEndDate, t);
         break;
       case 'PEBs':
-        periods = generatePEBsPeriods(breakdown, tactiqueStartDate, tactiqueEndDate);
+        periods = generatePEBsPeriods(breakdown, tactiqueStartDate, tactiqueEndDate, t);
         break;
       case 'Custom':
         periods = generateCustomPeriods(breakdown);
