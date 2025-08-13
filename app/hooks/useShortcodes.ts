@@ -114,7 +114,7 @@ export function useShortcodes(): UseShortcodesReturn {
       const cacheEntry = {
         data: cachedShortcodes,
         timestamp: now,
-        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+        expiresAt: now + (168 * 60 * 60 * 1000) // 168h
       };
       localStorage.setItem('mediabox-cache-all-shortcodes', JSON.stringify(cacheEntry));
       
@@ -139,7 +139,7 @@ export function useShortcodes(): UseShortcodesReturn {
       const cacheEntry = {
         data: cachedShortcodes,
         timestamp: now,
-        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+        expiresAt: now + (168 * 60 * 60 * 1000) // 168h
       };
       localStorage.setItem('mediabox-cache-all-shortcodes', JSON.stringify(cacheEntry));
       
@@ -171,7 +171,7 @@ export function useShortcodes(): UseShortcodesReturn {
       const cacheEntry = {
         data: optimizedLists,
         timestamp: now,
-        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+        expiresAt: now + (168 * 60 * 60 * 1000) // 168h
       };
       localStorage.setItem('mediabox-cache-optimized-lists', JSON.stringify(cacheEntry));
       
@@ -206,7 +206,7 @@ export function useShortcodes(): UseShortcodesReturn {
       const cacheEntry = {
         data: optimizedLists,
         timestamp: now,
-        expiresAt: now + (48 * 60 * 60 * 1000) // 48h
+        expiresAt: now + (168 * 60 * 60 * 1000) // 168h
       };
       localStorage.setItem('mediabox-cache-optimized-lists', JSON.stringify(cacheEntry));
       

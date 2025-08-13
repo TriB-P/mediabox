@@ -355,7 +355,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         <div>
           <div className="flex items-center gap-3 mb-2">
             {createLabelWithHelp(
-              `${dynamicLabels.costLabel} *`, 
+              `${dynamicLabels.costLabel}`, 
               dynamicLabels.costTooltip, 
               onTooltipChange
             )}
@@ -372,7 +372,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
                 min="0"
                 step="0.0001"
                 disabled={disabled}
-                required
                 className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
                 placeholder={dynamicLabels.costPlaceholder}
               />
@@ -404,11 +403,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               Formaté : {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
             </div>
           )}
-          {costPerUnit === 0 && (
-            <div className="mt-1 text-xs text-red-600">
-              Champ obligatoire pour calculer le volume
-            </div>
-          )}
+    
         </div>
 
         <div>

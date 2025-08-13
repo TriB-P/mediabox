@@ -26,6 +26,7 @@
     "dnd-kit": "^0.0.2",
     "eslint-config-next": "13.5.1",
     "firebase": "^10.7.1",
+    "framer-motion": "^12.23.12",
     "lucide-react": "^0.510.0",
     "next": "13.5.1",
     "postcss": "8.4.30",

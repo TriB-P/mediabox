@@ -123,16 +123,20 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     sheetId: string,
     sheetName: string,
     range: string,
-    values: string[][]
+    values: (string | number)[][], // MODIFIÉ: Accepte maintenant les nombres
+    useRawFallback: boolean = true
   ): Promise<boolean> => {
     const token = await getAccessToken();
     if (!token) {
       throw new Error('Impossible d\'obtenir le token d\'accès pour l\'écriture.');
     }
-
-    try {
-      const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=RAW`,
+  
+    // NOUVEAU: Fonction pour tenter l'écriture avec un mode spécifique
+    const attemptWrite = async (valueInputOption: 'USER_ENTERED' | 'RAW'): Promise<Response> => {
+      console.log(`[SHEETS API] Tentative d'écriture avec ${valueInputOption} dans ${sheetName}!${range}`);
+      
+      return await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=${valueInputOption}`,
         {
           method: 'PUT',
           headers: {
@@ -142,11 +146,38 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
           body: JSON.stringify({ values }),
         }
       );
-
+    };
+  
+    try {
+      // MODIFIÉ: Essayer d'abord avec USER_ENTERED pour préserver les types
+      let response = await attemptWrite('USER_ENTERED');
+  
+      // Si échec et fallback activé, essayer avec RAW
+      if (!response.ok && useRawFallback) {
+        console.warn(`[SHEETS API] Échec avec USER_ENTERED (${response.status}), tentative avec RAW...`);
+        
+        // Convertir toutes les valeurs en string pour RAW
+        const stringValues = values.map(row => 
+          row.map(cell => String(cell))
+        );
+        
+        response = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=RAW`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ values: stringValues }),
+          }
+        );
+      }
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
-
+  
         if (response.status === 403) {
           throw new Error('Permissions insuffisantes. Vérifiez l\'accès au Google Sheet.');
         } else if (response.status === 404) {
@@ -155,12 +186,71 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
           throw new Error(`Erreur API Sheets: ${errorMessage}`);
         }
       }
+  
+      // NOUVEAU: Log du succès avec information sur le mode utilisé
+      const modeUsed = useRawFallback && !response.headers.get('X-First-Attempt') ? 'RAW (fallback)' : 'USER_ENTERED';
+      console.log(`✅ Écriture réussie avec ${modeUsed} dans ${sheetName}!${range}`);
+      
       return true;
     } catch (err) {
       console.error(`❌ Erreur lors de l'écriture dans la feuille ${sheetName} à la plage ${range}:`, err);
       throw err;
     }
   }, [getAccessToken]);
+
+  /**
+ * NOUVELLE FONCTION: Convertit un tableau de données en (string | number)[][] 
+ * pour préserver les types numériques lors de l'écriture Google Sheets.
+ * Remplace l'ancienne fonction convertDataToStrings.
+ * @param {any[][]} data - Les données à convertir.
+ * @returns {(string | number)[][]} Les données converties avec préservation des types.
+ */
+const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] => {
+  return data.map(row => 
+    row.map(cell => {
+      if (cell === null || cell === undefined) return '';
+      
+      // Si c'est un objet avec une propriété value
+      if (typeof cell === 'object' && cell !== null && 'value' in cell) {
+        const value = cell.value;
+        
+        // Essayer de convertir en nombre si c'est une chaîne numérique
+        if (typeof value === 'string') {
+          const numericValue = Number(value);
+          if (!isNaN(numericValue) && isFinite(numericValue)) {
+            return numericValue;
+          }
+        }
+        
+        return typeof value === 'number' ? value : String(value);
+      }
+      
+      // Si c'est déjà un nombre, le garder comme tel
+      if (typeof cell === 'number') {
+        return cell;
+      }
+      
+      // Si c'est une chaîne, essayer de la convertir en nombre
+      if (typeof cell === 'string') {
+        const trimmedValue = cell.trim();
+        
+        // Éviter de convertir les chaînes vides ou les IDs
+        if (trimmedValue === '' || trimmedValue.includes('-') || trimmedValue.length > 15) {
+          return cell;
+        }
+        
+        const numericValue = Number(trimmedValue);
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          return numericValue;
+        }
+      }
+      
+      // Pour tout autre type, convertir en string
+      return String(cell);
+    })
+  );
+}, []);
+
 
   /**
    * Vide une plage spécifiée dans un Google Sheet.

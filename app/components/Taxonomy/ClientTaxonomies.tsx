@@ -1,3 +1,4 @@
+// app/components/Taxonomy/ClientTaxonomies.tsx
 /**
  * Ce fichier gère l'affichage, l'ajout, la modification et la suppression des taxonomies associées à un client spécifique.
  * Il permet aux utilisateurs de visualiser les taxonomies existantes, d'en créer de nouvelles, de mettre à jour celles qui existent
@@ -39,6 +40,32 @@ const ClientTaxonomies: React.FC = () => {
   const [currentTaxonomy, setCurrentTaxonomy] = useState<Taxonomy | null>(null);
   
   const [expandedTaxonomies, setExpandedTaxonomies] = useState<{[taxonomyId: string]: boolean}>({});
+
+  /**
+   * Fonction pour formater le texte avec des opportunités de line break avant les crochets
+   *
+   * @param {string} text - Le texte à formater
+   * @returns {JSX.Element | string} Le texte formaté avec des breaks ou le texte original
+   */
+  const formatTextWithBreaks = (text: string): JSX.Element | string => {
+    if (!text || !text.includes('[')) {
+      return text;
+    }
+
+    const parts = text.split('[');
+    
+    return (
+      <>
+        {parts[0]}
+        {parts.slice(1).map((part, index) => (
+          <React.Fragment key={index}>
+            <wbr />
+            [<span className="break-words">{part}</span>
+          </React.Fragment>
+        ))}
+      </>
+    );
+  };
 
   /**
    * Effet de chargement des taxonomies lorsque le client sélectionné change.
@@ -322,13 +349,17 @@ const ClientTaxonomies: React.FC = () => {
                             {title && (
                               <div className="mb-2">
                                 <span className="text-xs text-gray-500">Titre:</span>
-                                <p className="text-sm text-gray-900">{title}</p>
+                                <p className="text-sm text-gray-900 overflow-wrap-break-word">
+                                  {formatTextWithBreaks(title as string)}
+                                </p>
                               </div>
                             )}
                             {name && (
                               <div>
                                 <span className="text-xs text-gray-500">Nom:</span>
-                                <p className="text-sm text-gray-900">{name}</p>
+                                <p className="text-sm text-gray-900 overflow-wrap-break-word">
+                                  {formatTextWithBreaks(name as string)}
+                                </p>
                               </div>
                             )}
                           </div>

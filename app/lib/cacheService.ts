@@ -162,7 +162,7 @@ export function cacheUserClients(clients: ClientPermission[], userEmail: string)
     const cacheKey = getClientCacheKey(userEmail);
     localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
     
-    console.log(`[CACHE] Clients stockés pour ${userEmail} (${clients.length} clients, expire dans 48h)`);
+    console.log(`[CACHE] Clients stockés pour ${userEmail} (${clients.length} clients, expire dans 168h)`);
     
     emitProgress({
       type: 'step-complete',
@@ -566,7 +566,7 @@ function haveClientsChanged(currentClients: ClientPermission[], cachedClients: C
 }
 
 /**
- * Vérifie si le cache des shortcodes est encore valide (moins de 48h).
+ * Vérifie si le cache des shortcodes est encore valide (moins de 168h).
  * @returns true si le cache des shortcodes est valide
  */
 function areShortcodesStillFresh(): boolean {
@@ -660,7 +660,7 @@ export async function smartCacheUpdate(currentClients: ClientPermission[], userE
 
     // 3. Décider de la stratégie
     if (!shortcodesFresh || !listsFresh) {
-      // Cache périmé (48h+) ou absent → Refresh complet
+      // Cache périmé (168h+) ou absent → Refresh complet
       console.log('[CACHE] Refresh complet nécessaire (cache périmé ou absent)');
       
       emitProgress({

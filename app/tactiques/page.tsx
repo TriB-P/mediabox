@@ -271,7 +271,7 @@ useEffect(() => {
         onVersionChange={handleVersionChange}
         className="mb-6"
       />
-      
+{/*       
       {loadingStates.shouldShowTopIndicator && (
         <div className={`border rounded-lg p-3 mb-4 ${
           refreshState.isRefreshing 
@@ -293,7 +293,7 @@ useEffect(() => {
             </span>
           </div>
         </div>
-      )}
+      )} */}
 
       {selectionState.duplicationLoading && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">

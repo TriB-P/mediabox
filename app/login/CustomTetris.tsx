@@ -97,8 +97,8 @@ const CustomTetris: React.FC = () => {
     // Vitesse de base : 500ms
     // Réduction de 5ms par pièce placée
     // Minimum : 50ms (très rapide)
-    const baseSpeed = 500;
-    const speedReduction = pieces * 10;
+    const baseSpeed = 400;
+    const speedReduction = pieces * 5;
     const newSpeed = Math.max(baseSpeed - speedReduction, 100);
     return newSpeed;
   }, []);
@@ -110,31 +110,31 @@ const CustomTetris: React.FC = () => {
     // Configuration fixe - remplir les 6 dernières lignes (18-23) avec des blocs partiels
     
     // Ligne 23 (tout en bas) - presque pleine avec quelques trous
-    const line23 = [0,1,1,2,2,2,2,3,0,4,2,2,1,1,1,5,5,4,4,2,2,2,1,0,4,5,4,4,0,2,2,1];
+    const line23 = [1,0,0,0,1,0,2,2,2,0,3,3,3,3,0,4,0,5,0,5,0,1,1,1,0,2,2,2,0,3,0,3];
     for (let x = 0; x < BOARD_WIDTH; x++) {
       newBoard[23][x] = line23[x];
     }
     
     // Ligne 22 - avec plus de trous
-    const line22 = [1,1,0,5,5,5,3,3,4,4,2,2,1,0,5,5,3,3,4,4,5,2,1,4,4,5,5,4,4,2,0,1];
+    const line22 = [1,0,0,0,1,0,2,0,0,0,0,3,0,3,0,4,0,5,0,5,0,1,0,1,0,2,0,2,0,3,3,3];
     for (let x = 0; x < BOARD_WIDTH; x++) {
       newBoard[22][x] = line22[x];
     }
     
     // Ligne 21 - blocs plus espacés
-    const line21 = [5,5,0,0,0,5,3,0,0,4,5,5,0,0,0,0,3,3,0,0,5,5,1,4,0,0,5,3,3,2,0,1];
+    const line21 = [1,0,1,0,1,0,2,2,0,0,0,3,0,3,0,4,0,5,5,5,0,1,1,1,0,2,0,2,0,0,3,0];
     for (let x = 0; x < BOARD_WIDTH; x++) {
       newBoard[21][x] = line21[x];
     }
     
     // Ligne 20 - encore plus de trous
-    const line20 = [5,5,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0,0,5,1,0,0,0,0,0,3,0,0,1];
+    const line20 = [1,1,1,1,1,0,2,0,0,0,0,3,0,3,0,4,0,5,0,5,0,1,0,1,0,2,0,2,0,3,3,3];
     for (let x = 0; x < BOARD_WIDTH; x++) {
       newBoard[20][x] = line20[x];
     }
     
     // Ligne 19 - quelques blocs isolés
-    const line19 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0];
+    const line19 = [1,1,0,1,1,0,2,2,2,0,3,3,3,3,0,4,0,5,5,5,0,1,1,1,0,2,2,2,0,3,0,3];
     for (let x = 0; x < BOARD_WIDTH; x++) {
       newBoard[19][x] = line19[x];
     }
