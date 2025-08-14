@@ -163,6 +163,81 @@ export const documentMappingConfig = {
         type: 'number' as FieldType,
       },
       {
+        field: 'TC_Fee_1_RefCurrency',
+        column: 'TC_Fee_1_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_2_RefCurrency',
+        column: 'TC_Fee_2_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_3_RefCurrency',
+        column: 'TC_Fee_3_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_4_RefCurrency',
+        column: 'TC_Fee_4_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_5_RefCurrency',
+        column: 'TC_Fee_5_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Fee_1_Option_Name',
+        column: 'TC_Fee_1_Option_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_2_Option_Name',
+        column: 'TC_Fee_2_Option_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_3_Option_Name',
+        column: 'TC_Fee_3_Option_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_4_Option_Name',
+        column: 'TC_Fee_4_Option_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_5_Option_Name',
+        column: 'TC_Fee_5_Option_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_1_Name',
+        column: 'TC_Fee_1_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_2_Name',
+        column: 'TC_Fee_2_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_3_Name',
+        column: 'TC_Fee_3_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_4_Name',
+        column: 'TC_Fee_4_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Fee_5_Name',
+        column: 'TC_Fee_5_Name',
+        type: 'text' as FieldType,
+      },
+      {
         field: 'TC_Format_Open',
         column: 'TC_Format_Open',
         type: 'text' as FieldType,
@@ -328,8 +403,18 @@ export const documentMappingConfig = {
         type: 'number' as FieldType,
       },
       {
+        field: 'TC_Media_Budget_RefCurrency',
+        column: 'TC_Media_Budget_RefCurrency',
+        type: 'number' as FieldType,
+      },
+      {
         field: 'TC_Client_Budget',
         column: 'TC_Client_Budget',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Client_Budget_RefCurrency',
+        column: 'TC_Client_Budget_RefCurrency',
         type: 'number' as FieldType,
       },
       {

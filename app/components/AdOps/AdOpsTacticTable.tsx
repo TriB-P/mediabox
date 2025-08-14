@@ -924,10 +924,10 @@ const updateTableRowsColors = (color: string) => {
                 >
                     <div className="w-4 h-4 rounded-full bg-white relative">
                       {/* La première barre de la croix */}
-                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.175rem] -translate-y-1/2 bg-red-500 rotate-45"></div>
+                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.22rem] -translate-y-1/2 bg-red-500 rotate-45"></div>
                       
                       {/* La deuxième barre de la croix */}
-                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.175rem] -translate-y-1/2 bg-red-500 -rotate-45"></div>
+                      <div className="absolute top-1/2 left-1/2 w-3 h-0.5 -translate-x-[0.22rem] -translate-y-1/2 bg-red-500 -rotate-45"></div>
                     </div>
                 </button>
               </div>
@@ -1012,8 +1012,7 @@ const updateTableRowsColors = (color: string) => {
       >
         <div className="w-5 h-5 rounded-full bg-white relative">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-3 h-0.5 bg-red-500 rotate-45"></div>
-            <div className="w-3 h-0.5 bg-red-500 -rotate-45 absolute"></div>
+   
           </div>
         </div>
       </button>

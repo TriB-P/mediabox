@@ -250,7 +250,8 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     campaignCurrency,
     exchangeRates,
     unitTypeOptions,
-    autoCalculate: true
+    autoCalculate: true,
+    clientId
   });
 
   const [feeIntentions, setFeeIntentions] = useState<{ [feeId: string]: boolean }>(() => {

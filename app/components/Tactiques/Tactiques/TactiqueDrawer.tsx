@@ -62,6 +62,8 @@ import {
   getCachedOptimizedLists,
   ShortcodeItem
 } from '../../../lib/cacheService';
+import { getFeeNamesBatch, getFeeOptionNamesBatch } from '../../../lib/feeService';
+
 
 
 interface TactiqueDrawerProps {
@@ -240,6 +242,21 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Fee_5_Option: tactique.TC_Fee_5_Option || '',
     TC_Fee_5_Volume: tactique.TC_Fee_5_Volume || 0,
     TC_Fee_5_Value: tactique.TC_Fee_5_Value || 0,
+    TC_Fee_1_RefCurrency: tactique.TC_Fee_1_RefCurrency || 0,
+    TC_Fee_1_Option_Name: tactique.TC_Fee_1_Option_Name || '',
+    TC_Fee_1_Name: tactique.TC_Fee_1_Name || '',
+    TC_Fee_2_RefCurrency: tactique.TC_Fee_2_RefCurrency || 0,
+    TC_Fee_2_Option_Name: tactique.TC_Fee_2_Option_Name || '',
+    TC_Fee_2_Name: tactique.TC_Fee_2_Name || '',
+    TC_Fee_3_RefCurrency: tactique.TC_Fee_3_RefCurrency || 0,
+    TC_Fee_3_Option_Name: tactique.TC_Fee_3_Option_Name || '',
+    TC_Fee_3_Name: tactique.TC_Fee_3_Name || '',
+    TC_Fee_4_RefCurrency: tactique.TC_Fee_4_RefCurrency || 0,
+    TC_Fee_4_Option_Name: tactique.TC_Fee_4_Option_Name || '',
+    TC_Fee_4_Name: tactique.TC_Fee_4_Name || '',
+    TC_Fee_5_RefCurrency: tactique.TC_Fee_5_RefCurrency || 0,
+    TC_Fee_5_Option_Name: tactique.TC_Fee_5_Option_Name || '',
+    TC_Fee_5_Name: tactique.TC_Fee_5_Name || '',
     
     // Autres champs dynamiques
     ...Object.fromEntries(
@@ -320,6 +337,23 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     TC_Fee_5_Option: formDataAny.TC_Fee_5_Option || '',
     TC_Fee_5_Volume: round2(formDataAny.TC_Fee_5_Volume),
     TC_Fee_5_Value: round2(formDataAny.TC_Fee_5_Value),
+
+    // 🔥 NOUVEAUX CHAMPS FRAIS ÉTENDUS
+    TC_Fee_1_RefCurrency: round2(formDataAny.TC_Fee_1_RefCurrency),
+    TC_Fee_1_Option_Name: formDataAny.TC_Fee_1_Option_Name || '',
+    TC_Fee_1_Name: formDataAny.TC_Fee_1_Name || '',
+    TC_Fee_2_RefCurrency: round2(formDataAny.TC_Fee_2_RefCurrency),
+    TC_Fee_2_Option_Name: formDataAny.TC_Fee_2_Option_Name || '',
+    TC_Fee_2_Name: formDataAny.TC_Fee_2_Name || '',
+    TC_Fee_3_RefCurrency: round2(formDataAny.TC_Fee_3_RefCurrency),
+    TC_Fee_3_Option_Name: formDataAny.TC_Fee_3_Option_Name || '',
+    TC_Fee_3_Name: formDataAny.TC_Fee_3_Name || '',
+    TC_Fee_4_RefCurrency: round2(formDataAny.TC_Fee_4_RefCurrency),
+    TC_Fee_4_Option_Name: formDataAny.TC_Fee_4_Option_Name || '',
+    TC_Fee_4_Name: formDataAny.TC_Fee_4_Name || '',
+    TC_Fee_5_RefCurrency: round2(formDataAny.TC_Fee_5_RefCurrency),
+    TC_Fee_5_Option_Name: formDataAny.TC_Fee_5_Option_Name || '',
+    TC_Fee_5_Name: formDataAny.TC_Fee_5_Name || '',
     
     // CM360 arrondis
     TC_CM360_Volume: round2(formDataAny.TC_CM360_Volume),

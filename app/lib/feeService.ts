@@ -3,6 +3,7 @@
  * dans Firestore. Il permet de gérer les frais associés à des clients,
  * ainsi que les différentes options pour chaque frais.
  * Les opérations incluent la lecture, l'écriture, la mise à jour et la suppression de données.
+ * AJOUT : Fonctions utilitaires pour récupérer les noms des frais et options.
  */
 import {
   collection,
@@ -75,6 +76,119 @@ export const getFeeById = async (clientId: string, feeId: string): Promise<Fee |
   } catch (error) {
     console.error(`Erreur lors de la récupération du frais ${feeId}:`, error);
     return null;
+  }
+};
+
+/**
+ * 🔥 NOUVELLE FONCTION : Récupère le nom d'un frais par son ID.
+ * @param clientId L'ID du client.
+ * @param feeId L'ID du frais.
+ * @returns Une promesse qui résout en le nom du frais ou une chaîne vide si non trouvé.
+ */
+export const getFeeNameById = async (clientId: string, feeId: string): Promise<string> => {
+  try {
+    const fee = await getFeeById(clientId, feeId);
+    return fee?.FE_Name || '';
+  } catch (error) {
+    console.error(`Erreur lors de la récupération du nom du frais ${feeId}:`, error);
+    return '';
+  }
+};
+
+/**
+ * 🔥 NOUVELLE FONCTION : Récupère le nom d'une option de frais par son ID.
+ * @param clientId L'ID du client.
+ * @param feeId L'ID du frais parent.
+ * @param optionId L'ID de l'option.
+ * @returns Une promesse qui résout en le nom de l'option ou une chaîne vide si non trouvée.
+ */
+export const getFeeOptionNameById = async (clientId: string, feeId: string, optionId: string): Promise<string> => {
+  try {
+    const optionRef = doc(db, 'clients', clientId, 'fees', feeId, 'options', optionId);
+    console.log("FIREBASE: LECTURE - Fichier: feeService.ts - Fonction: getFeeOptionNameById - Path: clients/${clientId}/fees/${feeId}/options/${optionId}");
+    const snapshot = await getDoc(optionRef);
+
+    if (!snapshot.exists()) {
+      return '';
+    }
+
+    const optionData = snapshot.data() as FeeOption;
+    return optionData.FO_Option || '';
+  } catch (error) {
+    console.error(`Erreur lors de la récupération du nom de l'option ${optionId}:`, error);
+    return '';
+  }
+};
+
+/**
+ * 🔥 NOUVELLE FONCTION : Récupère les noms des frais et options en batch pour optimiser les performances.
+ * @param clientId L'ID du client.
+ * @param feeIds Liste des IDs de frais à récupérer.
+ * @returns Une promesse qui résout en un objet mappant les IDs aux noms.
+ */
+export const getFeeNamesBatch = async (clientId: string, feeIds: string[]): Promise<{ [feeId: string]: string }> => {
+  try {
+    const feeNames: { [feeId: string]: string } = {};
+    
+    // Récupérer tous les frais en une seule fois
+    const fees = await getClientFees(clientId);
+    
+    // Créer le mapping ID → Nom
+    fees.forEach(fee => {
+      if (feeIds.includes(fee.id)) {
+        feeNames[fee.id] = fee.FE_Name;
+      }
+    });
+    
+    return feeNames;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des noms de frais en batch:', error);
+    return {};
+  }
+};
+
+/**
+ * 🔥 NOUVELLE FONCTION : Récupère les noms des options de frais en batch.
+ * @param clientId L'ID du client.
+ * @param optionRequests Liste des requêtes avec feeId et optionId.
+ * @returns Une promesse qui résout en un objet mappant les clés "feeId:optionId" aux noms.
+ */
+export const getFeeOptionNamesBatch = async (
+  clientId: string, 
+  optionRequests: Array<{ feeId: string; optionId: string }>
+): Promise<{ [key: string]: string }> => {
+  try {
+    const optionNames: { [key: string]: string } = {};
+    
+    // Grouper les requêtes par feeId pour optimiser
+    const requestsByFee: { [feeId: string]: string[] } = {};
+    optionRequests.forEach(({ feeId, optionId }) => {
+      if (!requestsByFee[feeId]) {
+        requestsByFee[feeId] = [];
+      }
+      requestsByFee[feeId].push(optionId);
+    });
+    
+    // Récupérer les options pour chaque frais
+    for (const [feeId, optionIds] of Object.entries(requestsByFee)) {
+      try {
+        const options = await getFeeOptions(clientId, feeId);
+        
+        options.forEach(option => {
+          if (optionIds.includes(option.id)) {
+            const key = `${feeId}:${option.id}`;
+            optionNames[key] = option.FO_Option;
+          }
+        });
+      } catch (error) {
+        console.error(`Erreur lors de la récupération des options pour le frais ${feeId}:`, error);
+      }
+    }
+    
+    return optionNames;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des noms d\'options en batch:', error);
+    return {};
   }
 };
 

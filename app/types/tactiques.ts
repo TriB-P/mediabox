@@ -106,6 +106,32 @@ export interface Tactique {
   TC_Media_Budget_RefCurrency: number;   // Budget média converti dans la devise de référence de la campagne
   TC_Currency_Rate?: number;              // Taux de change utilisé pour la conversion (devise tactique → devise campagne)
 
+  // 🔥 NOUVEAUX CHAMPS FRAIS ÉTENDUS (15 nouveaux champs)
+  // Frais 1
+  TC_Fee_1_RefCurrency?: number;  // TC_Fee_1_Value * TC_Currency_Rate
+  TC_Fee_1_Option?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_1_Name?: string;         // Nom du frais
+  
+  // Frais 2
+  TC_Fee_2_RefCurrency?: number;  // TC_Fee_2_Value * TC_Currency_Rate
+  TC_Fee_2_Option?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_2_Name?: string;         // Nom du frais
+  
+  // Frais 3
+  TC_Fee_3_RefCurrency?: number;  // TC_Fee_3_Value * TC_Currency_Rate
+  TC_Fee_3_Option?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_3_Name?: string;         // Nom du frais
+  
+  // Frais 4
+  TC_Fee_4_RefCurrency?: number;  // TC_Fee_4_Value * TC_Currency_Rate
+  TC_Fee_4_Option?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_4_Name?: string;         // Nom du frais
+  
+  // Frais 5
+  TC_Fee_5_RefCurrency?: number;  // TC_Fee_5_Value * TC_Currency_Rate
+  TC_Fee_5_Option?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_5_Name?: string;         // Nom du frais
+
   isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
 }
 
@@ -351,7 +377,7 @@ export interface TactiqueFormData {
   TC_Unit_Type?: string; // Type d'unité (CPM, CPC, etc.)
   TC_Has_Bonus?: boolean; // Indicateur de bonification
   
-  // Champs de frais (jusqu'à 5 frais possibles)
+  // Champs de frais (jusqu'à 5 frais possibles) - EXISTANTS
   TC_Fee_1_Option?: string;
   TC_Fee_1_Volume?: number;
   TC_Fee_1_Value?: number;
@@ -367,6 +393,32 @@ export interface TactiqueFormData {
   TC_Fee_5_Option?: string;
   TC_Fee_5_Volume?: number;
   TC_Fee_5_Value?: number;
+
+  // 🔥 NOUVEAUX CHAMPS FRAIS ÉTENDUS DANS LE FORMULAIRE (15 nouveaux champs)
+  // Frais 1
+  TC_Fee_1_RefCurrency?: number;  // TC_Fee_1_Value * TC_Currency_Rate
+  TC_Fee_1_Option_Name?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_1_Name?: string;         // Nom du frais
+  
+  // Frais 2
+  TC_Fee_2_RefCurrency?: number;  // TC_Fee_2_Value * TC_Currency_Rate
+  TC_Fee_2_Option_Name?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_2_Name?: string;         // Nom du frais
+  
+  // Frais 3
+  TC_Fee_3_RefCurrency?: number;  // TC_Fee_3_Value * TC_Currency_Rate
+  TC_Fee_3_Option_Name?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_3_Name?: string;         // Nom du frais
+  
+  // Frais 4
+  TC_Fee_4_RefCurrency?: number;  // TC_Fee_4_Value * TC_Currency_Rate
+  TC_Fee_4_Option_Name?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_4_Name?: string;         // Nom du frais
+  
+  // Frais 5
+  TC_Fee_5_RefCurrency?: number;  // TC_Fee_5_Value * TC_Currency_Rate
+  TC_Fee_5_Option_Name?: string;       // Nom de l'option de frais sélectionnée
+  TC_Fee_5_Name?: string;         // Nom du frais
 }
 
 export interface PlacementFormData {
