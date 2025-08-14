@@ -99,7 +99,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
    */
   const getFieldLabelWithConfig = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
-    return getFieldLabel(fieldKey, clientConfig);
+    return getFieldLabel(fieldKey,t, clientConfig);
   };
 
   /**

@@ -4,10 +4,12 @@
  * Ce fichier définit le composant PartnerEditForm, qui est utilisé pour afficher et modifier les détails
  * d'un partenaire (stakeholder). Le composant possède deux états : un mode de visualisation pour afficher
  * les informations et un mode d'édition pour les modifier via un formulaire.
+ * VERSION 2024.1 : Affiche les types de partenaires traduits selon la langue de l'interface.
  */
 'use client';
 
 import { useState, useEffect } from 'react';
+import { translatePartnerType } from '../../lib/partnerTypeService';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
@@ -39,7 +41,7 @@ export default function PartnerEditForm({
   onUpdatePartner,
   onCloseDrawer
 }: PartnerEditFormProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -51,6 +53,16 @@ export default function PartnerEditForm({
     SH_Type: ''
   });
   const [error, setError] = useState('');
+
+  /**
+   * Obtient le type de partenaire traduit selon la langue de l'interface
+   * @param {string} type - Le type de partenaire en anglais
+   * @returns {string} Le type traduit ou le type original
+   */
+  const getDisplayType = (type: string): string => {
+    if (!type) return '';
+    return translatePartnerType(type, language);
+  };
 
   /**
    * Effet de bord qui s'exécute lorsque le partenaire sélectionné (`selectedPartner`) change.
@@ -168,7 +180,15 @@ export default function PartnerEditForm({
             </div>
             <div>
               <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.type')}</span>
-              <p className="mt-1">{selectedPartner.SH_Type || '-'}</p>
+              <p className="mt-1">
+                {selectedPartner.SH_Type ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    {getDisplayType(selectedPartner.SH_Type)}
+                  </span>
+                ) : (
+                  '-'
+                )}
+              </p>
             </div>
             <div>
               <span className="text-sm font-medium text-gray-500">{t('partnerEditForm.common.logoUrl')}</span>
@@ -260,7 +280,16 @@ export default function PartnerEditForm({
             value={formData.SH_Type}
             onChange={handleChange}
             className="form-input"
+            placeholder={t('partnerEditForm.placeholders.typeHint')}
           />
+          {formData.SH_Type && (
+            <div className="mt-1">
+              <span className="text-xs text-gray-500">{t('partnerEditForm.labels.preview')}: </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                {getDisplayType(formData.SH_Type)}
+              </span>
+            </div>
+          )}
         </div>
 
         <div>

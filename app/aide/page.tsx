@@ -529,7 +529,7 @@ export default function AidePage() {
         <img 
           src="/images/loading.gif" 
           alt={language === 'en' ? 'Loading...' : 'Chargement...'}
-          className="w-32 h-32 mb-4"
+          className="w-52 h-32 mb-4"
         />
         <p className="text-xl text-gray-600">
           {language === 'en' ? 'Loading FAQs...' : 'Chargement des FAQs...'}

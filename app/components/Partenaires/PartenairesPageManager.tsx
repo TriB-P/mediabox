@@ -3,12 +3,15 @@
 /**
  * Composant principal qui gère tous les partenaires en utilisant le cache localStorage.
  * VERSION 2024 : Utilise le cache localStorage au lieu d'appels Firebase coûteux.
+ * VERSION 2024.1 : Intègre la traduction des types de partenaires avec recherche bilingue.
  */
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { getCachedAllShortcodes, ShortcodeItem } from '../../lib/cacheService';
 import { updatePartner } from '../../lib/shortcodeService';
+import { createPartnerTypeFilters, matchesPartnerTypeSearch } from '../../lib/partnerTypeService';
+import { useTranslation } from '../../contexts/LanguageContext';
 import PartnersTitle from './PartnersTitle';
 import PartenairesFilter from './PartenairesFilter';
 import PartenairesGrid from './PartenairesGrid';
@@ -46,6 +49,8 @@ const convertShortcodeToPartner = (shortcode: ShortcodeItem): Partner => ({
  * Charge les données depuis le cache localStorage et gère tous les états.
  */
 export default function PartenairesPageManager() {
+  const { t, language } = useTranslation();
+  
   // États pour les données des partenaires
   const [partners, setPartners] = useState<Partner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +58,9 @@ export default function PartenairesPageManager() {
 
   // États pour le filtrage
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTypes, setActiveTypes] = useState<{[key: string]: boolean}>({});
+  const [activeTypeFilters, setActiveTypeFilters] = useState<{
+    [translatedType: string]: { englishType: string; active: boolean }
+  }>({});
 
   // États pour le drawer
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
@@ -90,14 +97,9 @@ export default function PartenairesPageManager() {
 
         setPartners(partnersData);
 
-        // Initialiser les types uniques pour le filtrage
-        const uniqueTypes: {[key: string]: boolean} = {};
-        partnersData.forEach(partner => {
-          if (partner.SH_Type) {
-            uniqueTypes[partner.SH_Type] = false;
-          }
-        });
-        setActiveTypes(uniqueTypes);
+        // Créer les filtres de types traduits
+        const typeFilters = createPartnerTypeFilters(partnersData, language);
+        setActiveTypeFilters(typeFilters);
 
         console.log(`[CACHE] ✅ ${partnersData.length} partenaires chargés depuis le cache`);
 
@@ -113,13 +115,59 @@ export default function PartenairesPageManager() {
   }, []);
 
   /**
+   * Met à jour les filtres de types quand la langue change
+   */
+  useEffect(() => {
+    if (partners.length > 0 && Object.keys(activeTypeFilters).length === 0) {
+      // Seulement à l'initialisation (quand activeTypeFilters est vide)
+      console.log('🚀 Initialisation des filtres de types');
+      const typeFilters = createPartnerTypeFilters(partners, language);
+      setActiveTypeFilters(typeFilters);
+    }
+  }, [partners]); // Seulement quand les partenaires changent, pas la langue
+
+  /**
+   * Met à jour les traductions des filtres quand la langue change (sans toucher aux états actifs)
+   */
+  useEffect(() => {
+    if (partners.length > 0 && Object.keys(activeTypeFilters).length > 0) {
+      console.log('🌍 Changement de langue - mise à jour des traductions uniquement');
+      
+      // Sauvegarder quels types anglais sont actifs
+      const activeEnglishTypes = Object.values(activeTypeFilters)
+        .filter(filter => filter.active)
+        .map(filter => filter.englishType);
+      
+      console.log('💾 Types anglais actifs sauvegardés:', activeEnglishTypes);
+      
+      // Créer les nouveaux filtres avec les nouvelles traductions
+      const newTypeFilters = createPartnerTypeFilters(partners, language);
+      
+      // Réappliquer les états actifs
+      Object.entries(newTypeFilters).forEach(([translatedType, filterData]) => {
+        if (activeEnglishTypes.includes(filterData.englishType)) {
+          newTypeFilters[translatedType].active = true;
+        }
+      });
+      
+      console.log('🔄 Nouveaux filtres avec états préservés:', newTypeFilters);
+      setActiveTypeFilters(newTypeFilters);
+    }
+  }, [language]); // Seulement quand la langue change
+
+  /**
    * Filtre les partenaires selon le terme de recherche et les types actifs
    */
   const filteredPartners = useMemo(() => {
-    const activeTypesList = Object.keys(activeTypes).filter(type => activeTypes[type]);
+    const activeEnglishTypes = Object.values(activeTypeFilters)
+      .filter(filter => filter.active)
+      .map(filter => filter.englishType);
     
-    return partners.filter(partner => {
-      // Filtrage par recherche textuelle
+    console.log('🔍 Types actifs pour le filtrage:', activeEnglishTypes);
+    console.log('📝 Terme de recherche:', searchTerm);
+    
+    const filtered = partners.filter(partner => {
+      // Filtrage par recherche textuelle (bilingue pour les types)
       const searchFields = [
         partner.id,
         partner.SH_Code,
@@ -129,36 +177,44 @@ export default function PartenairesPageManager() {
       ].filter(Boolean).map(field => field?.toLowerCase());
       
       const matchesSearch = searchTerm === '' || 
-                          searchFields.some(field => field?.includes(searchTerm.toLowerCase()));
+                          searchFields.some(field => field?.includes(searchTerm.toLowerCase())) ||
+                          (partner.SH_Type && matchesPartnerTypeSearch(partner.SH_Type, searchTerm, language));
       
       // Filtrage par type
-      const matchesType = activeTypesList.length === 0 || 
-                         (partner.SH_Type && activeTypesList.includes(partner.SH_Type));
+      const matchesType = activeEnglishTypes.length === 0 || 
+                         (partner.SH_Type && activeEnglishTypes.includes(partner.SH_Type));
       
       return matchesSearch && matchesType;
     });
-  }, [partners, searchTerm, activeTypes]);
+
+    console.log(`📊 Résultats du filtrage: ${filtered.length}/${partners.length} partenaires`);
+    return filtered;
+  }, [partners, searchTerm, activeTypeFilters, language]);
 
   /**
    * Bascule l'activation d'un type de filtre
-   * @param type Le type à basculer
+   * @param translatedType Le type traduit à basculer
    */
-  const handleToggleType = (type: string) => {
-    if (activeTypes[type]) {
-      // Désactiver ce type
-      const resetTypes = {...activeTypes};
-      Object.keys(resetTypes).forEach(key => {
-        resetTypes[key] = false;
-      });
-      setActiveTypes(resetTypes);
-    } else {
-      // Activer seulement ce type
-      const newActiveTypes = {...activeTypes};
-      Object.keys(newActiveTypes).forEach(key => {
-        newActiveTypes[key] = key === type;
-      });
-      setActiveTypes(newActiveTypes);
-    }
+  const handleToggleType = (translatedType: string) => {
+    console.log('🔄 Toggle type:', translatedType);
+    setActiveTypeFilters(prev => {
+      const newFilters = { ...prev };
+      
+      if (newFilters[translatedType]?.active) {
+        // Désactiver ce type
+        console.log('❌ Désactivation du type:', translatedType);
+        newFilters[translatedType].active = false;
+      } else {
+        // Désactiver tous les autres types et activer seulement celui-ci
+        console.log('✅ Activation du type:', translatedType);
+        Object.keys(newFilters).forEach(key => {
+          newFilters[key].active = key === translatedType;
+        });
+      }
+      
+      console.log('📊 Nouveaux filtres:', newFilters);
+      return newFilters;
+    });
   };
 
   /**
@@ -252,7 +308,7 @@ export default function PartenairesPageManager() {
         <PartenairesFilter
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
-          activeTypes={activeTypes}
+          activeTypeFilters={activeTypeFilters}
           onToggleType={handleToggleType}
         />
 

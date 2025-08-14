@@ -5,6 +5,7 @@
  * Il sert à afficher les informations détaillées d'un partenaire, à les modifier,
  * et à gérer les contacts et les spécifications techniques qui lui sont associés.
  * Le composant est divisé en onglets pour une navigation claire entre les différentes sections.
+ * VERSION 2024.1 : Affiche les types de partenaires traduits selon la langue de l'interface.
  */
 
 'use client';
@@ -27,6 +28,7 @@ import ContactList from './ContactList';
 import { Spec, SpecFormData, getPartnerSpecs, addSpec, updateSpec, deleteSpec } from '../../lib/specService';
 import SpecForm from './SpecForm';
 import SpecList from './SpecList';
+import { translatePartnerType } from '../../lib/partnerTypeService';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
@@ -57,7 +59,7 @@ interface PartnerDrawerProps {
  * @returns {JSX.Element} Le composant de panneau latéral.
  */
 export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartner }: PartnerDrawerProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -86,6 +88,16 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
     { name: t('partnerDrawer.tabs.contacts'), icon: UserIcon },
     { name: t('partnerDrawer.tabs.specs'), icon: DocumentTextIcon }
   ];
+
+  /**
+   * Obtient le type de partenaire traduit selon la langue de l'interface
+   * @param {Partner} partner - L'objet partenaire
+   * @returns {string} Le type traduit ou une chaîne vide
+   */
+  const getDisplayType = (partner: Partner): string => {
+    if (!partner.SH_Type) return '';
+    return translatePartnerType(partner.SH_Type, language);
+  };
 
   /**
    * Effet pour charger l'URL de l'image du partenaire depuis Firebase Storage
@@ -653,7 +665,7 @@ export default function PartnerDrawer({ isOpen, onClose, partner, onUpdatePartne
                                         )}
                                         {partner.SH_Type && (
                                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mt-2">
-                                            {partner.SH_Type}
+                                            {getDisplayType(partner)}
                                           </span>
                                         )}
                                       </div>

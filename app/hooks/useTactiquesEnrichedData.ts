@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react';
 import { SectionWithTactiques } from '../types/tactiques';
+import { useTranslation } from '../contexts/LanguageContext';
 
 /**
  * Interface pour les propriétés du hook useTactiquesEnrichedData.
@@ -220,6 +221,7 @@ export function useTactiquesEnrichedData({
  * Hook utilitaire pour les fonctions de formatage liées aux données des tactiques, telles que la devise et les pourcentages.
  */
 export function useTactiquesFormatting() {
+  const { t } = useTranslation();
   /**
    * Retourne une fonction pour formater un montant numérique en devise canadienne (CAD), sans décimales.
    * @returns {(amount: number) => string} La fonction de formatage de devise.
@@ -265,11 +267,11 @@ export function useTactiquesFormatting() {
       return {
         totalPlacements,
         totalCreatifs,
-        placementsText: `${totalPlacements} placement${totalPlacements !== 1 ? 's' : ''}`,
-        creatifsText: `${totalCreatifs} créatif${totalCreatifs !== 1 ? 's' : ''}`
+        placementsText: `${totalPlacements} ${t('tactiquesPage.statistics.placement')}${totalPlacements !== 1 ? 's' : ''}`,
+        creatifsText: `${totalCreatifs} ${t('tactiquesPage.statistics.creative')}${totalCreatifs !== 1 ? 's' : ''}`
       };
     };
-  }, []);
+  }, [t]);
 
   return {
     formatCurrency,

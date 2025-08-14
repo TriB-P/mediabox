@@ -5,11 +5,13 @@
  * Son rôle est d'afficher une grille de logos de partenaires.
  * Charge les logos depuis Firebase Storage et gère l'affichage d'un placeholder si manquant.
  * Au clic sur un partenaire, déclenche l'ouverture du panneau latéral via une fonction callback.
+ * VERSION 2024.1 : Affiche les types de partenaires traduits selon la langue de l'interface.
  */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { translatePartnerType } from '../../lib/partnerTypeService';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Partner {
@@ -40,7 +42,7 @@ export default function PartenairesGrid({
   isLoading,
   onPartnerClick
 }: PartenairesGridProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
   const [loadingImages, setLoadingImages] = useState(false);
 
@@ -55,6 +57,16 @@ export default function PartenairesGrid({
       {partner.SH_Display_Name_FR.charAt(0).toUpperCase()}
     </div>
   );
+
+  /**
+   * Obtient le type de partenaire traduit selon la langue de l'interface
+   * @param {Partner} partner - L'objet partenaire
+   * @returns {string} Le type traduit ou une chaîne vide
+   */
+  const getDisplayType = (partner: Partner): string => {
+    if (!partner.SH_Type) return '';
+    return translatePartnerType(partner.SH_Type, language);
+  };
 
   /**
    * Effet de bord pour charger les URLs des logos des partenaires depuis Firebase Storage.
@@ -118,43 +130,47 @@ export default function PartenairesGrid({
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {filteredPartners.map(partner => (
-        <div
-          key={partner.id}
-          className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => onPartnerClick(partner)}
-        >
-          <div className="h-24 w-full flex items-center justify-center mb-3">
-            {imageUrls[partner.id] ? (
-              <div className="h-20 w-20 flex items-center justify-center">
-                <img
-                  src={imageUrls[partner.id]}
-                  alt={partner.SH_Display_Name_FR}
-                  className="max-h-full max-w-full object-contain"
-                  onError={() => {
-                    setImageUrls(prev => {
-                      const newUrls = { ...prev };
-                      delete newUrls[partner.id];
-                      return newUrls;
-                    });
-                  }}
-                  loading="lazy"
-                />
-              </div>
-            ) : (
-              renderPlaceholder(partner)
+      {filteredPartners.map(partner => {
+        const displayType = getDisplayType(partner);
+        
+        return (
+          <div
+            key={partner.id}
+            className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onPartnerClick(partner)}
+          >
+            <div className="h-24 w-full flex items-center justify-center mb-3">
+              {imageUrls[partner.id] ? (
+                <div className="h-20 w-20 flex items-center justify-center">
+                  <img
+                    src={imageUrls[partner.id]}
+                    alt={partner.SH_Display_Name_FR}
+                    className="max-h-full max-w-full object-contain"
+                    onError={() => {
+                      setImageUrls(prev => {
+                        const newUrls = { ...prev };
+                        delete newUrls[partner.id];
+                        return newUrls;
+                      });
+                    }}
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                renderPlaceholder(partner)
+              )}
+            </div>
+            <p className="text-sm font-medium text-center text-gray-900 mt-2">
+              {partner.SH_Display_Name_FR}
+            </p>
+            {displayType && (
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                {displayType}
+              </p>
             )}
           </div>
-          <p className="text-sm font-medium text-center text-gray-900 mt-2">
-            {partner.SH_Display_Name_FR}
-          </p>
-          {partner.SH_Type && (
-            <p className="text-xs text-gray-500 mt-1">
-              {partner.SH_Type}
-            </p>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

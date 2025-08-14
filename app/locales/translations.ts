@@ -4050,6 +4050,10 @@ export const translations = {
       emptyState: {
         noSectionsFound: "Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.",
         selectCampaignAndVersion: "Veuillez sélectionner une campagne et une version pour voir les tactiques."
+      },
+      statistics: {
+        placement: "placement",
+        creative: "créatif"
       }
     },
     
@@ -6914,7 +6918,7 @@ export const translations = {
         copyId: "Copy ID"
       },
       tactique: {
-        noneInSection: "No tactiques in this section"
+        noneInSection: "No tactics in this section"
       }
     },
     taxonomyContextMenu: {
@@ -7964,6 +7968,10 @@ export const translations = {
       emptyState: {
         noSectionsFound: "No sections found for this tab. Create a new section to get started.",
         selectCampaignAndVersion: "Please select a campaign and a version to see the tactics."
+      },
+      statistics: {
+        placement: "placement",
+        creative: "creative"
       }
     },
   }
