@@ -2,12 +2,12 @@
 
 /**
  * Service de gestion du cache localStorage OPTIMISÉ pour optimiser les performances Firebase.
- * NOUVELLE VERSION : Charge TOUS les shortcodes en une seule fois, puis structure les listes.
+ * VERSION OPTIMISÉE : Découverte intelligente + Tracking complet des appels Firebase
  * Conçu pour réduire drastiquement les appels Firebase (de milliers à quelques dizaines).
  */
 
 import { ClientPermission } from './clientService';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, limit, query } from 'firebase/firestore';
 import { db } from './firebase';
 
 // ========================================
@@ -94,6 +94,122 @@ const LIST_TYPES = [
 'CR_URL', 
 'CR_Version'
 ];
+
+// ========================================
+// SYSTÈME DE TRACKING DES APPELS FIREBASE
+// ========================================
+
+interface FirebaseCallTracker {
+  totalCalls: number;
+  callDetails: Array<{
+    callNumber: number;
+    type: 'test' | 'load';
+    client: string;
+    listType: string;
+    path: string;
+    resultCount: number;
+    success: boolean;
+    duration: number;
+  }>;
+}
+
+let firebaseTracker: FirebaseCallTracker = {
+  totalCalls: 0,
+  callDetails: []
+};
+
+/**
+ * Reset le tracker au début de chaque opération
+ */
+function resetFirebaseTracker(): void {
+  firebaseTracker = {
+    totalCalls: 0,
+    callDetails: []
+  };
+  console.log('🔥 [FIREBASE TRACKER] Tracker réinitialisé');
+}
+
+/**
+ * Enregistre un appel Firebase avec tous les détails
+ */
+function trackFirebaseCall(
+  type: 'test' | 'load',
+  client: string,
+  listType: string,
+  resultCount: number,
+  success: boolean,
+  duration: number
+): void {
+  firebaseTracker.totalCalls++;
+  
+  const callDetail = {
+    callNumber: firebaseTracker.totalCalls,
+    type,
+    client,
+    listType,
+    path: `lists/${listType}/clients/${client}/shortcodes`,
+    resultCount,
+    success,
+    duration
+  };
+  
+  firebaseTracker.callDetails.push(callDetail);
+  
+  // Log détaillé pour chaque appel
+  
+
+}
+
+/**
+ * Affiche le rapport final des appels Firebase
+ */
+function showFirebaseReport(): void {
+  console.log('\n📊 [RAPPORT FIREBASE] ===================================');
+  console.log(`🔥 TOTAL D'APPELS FIREBASE: ${firebaseTracker.totalCalls}`);
+  
+  // Grouper par type
+  const testCalls = firebaseTracker.callDetails.filter(c => c.type === 'test');
+  const loadCalls = firebaseTracker.callDetails.filter(c => c.type === 'load');
+  
+  
+  
+  // Grouper par client
+  const clientStats: { [client: string]: { tests: number, loads: number, totalItems: number } } = {};
+  
+  firebaseTracker.callDetails.forEach(call => {
+    if (!clientStats[call.client]) {
+      clientStats[call.client] = { tests: 0, loads: 0, totalItems: 0 };
+    }
+    
+    if (call.type === 'test') {
+      clientStats[call.client].tests++;
+    } else {
+      clientStats[call.client].loads++;
+      clientStats[call.client].totalItems += call.resultCount;
+    }
+  });
+  
+  console.log('\n👥 [DÉTAIL PAR CLIENT] ===================================');
+  Object.entries(clientStats).forEach(([client, stats]) => {
+    console.log(
+      `${client}: ${stats.tests} tests + ${stats.loads} chargements = ` +
+      `${stats.tests + stats.loads} appels (${stats.totalItems} items)`
+    );
+  });
+  
+  // Calcul des économies
+  const uniqueClients = Object.keys(clientStats).filter(c => c !== 'PlusCo');
+  const estimatedOldWay = uniqueClients.length * LIST_TYPES.length + LIST_TYPES.length; // Clients * listes + PlusCo
+  const actualCalls = firebaseTracker.totalCalls;
+  const savedCalls = estimatedOldWay - actualCalls;
+  const savingPercent = Math.round((savedCalls / estimatedOldWay) * 100);
+  
+  console.log('\n💰 [ÉCONOMIES] ===================================');
+  console.log(`Ancienne méthode aurait fait: ${estimatedOldWay} appels`);
+  console.log(`Nouvelle méthode a fait: ${actualCalls} appels`);
+  console.log(`🎉 ÉCONOMIE: ${savedCalls} appels (${savingPercent}%)`);
+  console.log('================================================\n');
+}
 
 // ========================================
 // FONCTION HELPER POUR ÉVÉNEMENTS DE PROGRÈS
@@ -213,6 +329,122 @@ export function getCachedUserClients(userEmail: string): ClientPermission[] | nu
 }
 
 // ========================================
+// FONCTIONS FIREBASE AVEC TRACKING
+// ========================================
+
+/**
+ * Test rapide pour voir si un client a des personnalisations pour un type de liste.
+ * AVEC TRACKING COMPLET.
+ */
+async function hasCustomListForClient(listType: string, clientId: string): Promise<boolean> {
+  const startTime = Date.now();
+  
+  try {
+    const shortcodesRef = collection(db, 'lists', listType, 'clients', clientId, 'shortcodes');
+    const testQuery = query(shortcodesRef, limit(1));
+    const snapshot = await getDocs(testQuery);
+    
+    const duration = Date.now() - startTime;
+    const hasData = !snapshot.empty;
+    const resultCount = hasData ? 1 : 0;
+    
+    trackFirebaseCall('test', clientId, listType, resultCount, true, duration);
+    
+    return hasData;
+    
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    trackFirebaseCall('test', clientId, listType, 0, false, duration);
+    
+    console.error(`❌ [ERREUR TEST] ${clientId}/${listType}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Récupère les IDs des shortcodes pour une liste et un client donnés.
+ * AVEC TRACKING COMPLET.
+ */
+async function getShortcodeIdsForList(listType: string, clientId: string): Promise<string[]> {
+  const startTime = Date.now();
+  
+  try {
+    const shortcodesRef = collection(db, 'lists', listType, 'clients', clientId, 'shortcodes');
+    const snapshot = await getDocs(shortcodesRef);
+    
+    const duration = Date.now() - startTime;
+    const resultIds = snapshot.docs.map(doc => doc.id);
+    
+    trackFirebaseCall('load', clientId, listType, resultIds.length, true, duration);
+    
+    return resultIds;
+    
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    trackFirebaseCall('load', clientId, listType, 0, false, duration);
+    
+    console.error(`❌ [ERREUR LOAD] ${clientId}/${listType}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Découvre toutes les personnalisations d'un client de manière optimisée.
+ * AVEC LOGS DÉTAILLÉS.
+ */
+async function discoverClientCustomizations(clientId: string): Promise<string[]> {
+  try {
+    
+    // ÉTAPE 1: Test rapide sur un échantillon de listes courantes
+    const commonListTypes = [
+      'TC_LOB', 'TC_Media_Type', 'PL_Channel', 'PL_Format',
+      'CA_Division', 'CR_Primary_Product'
+    ];
+    
+    
+    const sampleTests = await Promise.all(
+      commonListTypes.map(async (listType) => ({
+        listType,
+        hasCustom: await hasCustomListForClient(listType, clientId)
+      }))
+    );
+    
+    const sampleCustomizations = sampleTests
+      .filter(test => test.hasCustom)
+      .map(test => test.listType);
+    
+    
+    // Si aucune personnalisation sur l'échantillon, ce client n'a probablement rien
+    if (sampleCustomizations.length === 0) {
+      return [];
+    }
+    
+    // ÉTAPE 2: Si des personnalisations trouvées, tester toutes les autres listes
+    const remainingListTypes = LIST_TYPES.filter(type => !commonListTypes.includes(type));
+    
+    
+    const remainingTests = await Promise.all(
+      remainingListTypes.map(async (listType) => ({
+        listType,
+        hasCustom: await hasCustomListForClient(listType, clientId)
+      }))
+    );
+    
+    const remainingCustomizations = remainingTests
+      .filter(test => test.hasCustom)
+      .map(test => test.listType);
+    
+    const allCustomizations = [...sampleCustomizations, ...remainingCustomizations];
+
+    return allCustomizations;
+    
+  } catch (error) {
+    console.error(`❌ [DÉCOUVERTE ${clientId}] ERREUR:`, error);
+    return [];
+  }
+}
+
+// ========================================
 // NOUVELLES FONCTIONS OPTIMISÉES
 // ========================================
 
@@ -293,71 +525,105 @@ async function loadAllShortcodes(): Promise<{ [shortcodeId: string]: ShortcodeIt
 }
 
 /**
- * ÉTAPE 2: Récupère les IDs des shortcodes pour une liste et un client donnés.
- * Maintenant optimisé pour ne récupérer que les IDs, pas les détails.
- */
-async function getShortcodeIdsForList(listType: string, clientId: string): Promise<string[]> {
-  try {
-    console.log(`FIREBASE: LECTURE - Fichier: cacheService.ts - Fonction: getShortcodeIdsForList - Path: lists/${listType}/clients/${clientId}/shortcodes`);
-    
-    const shortcodesRef = collection(db, 'lists', listType, 'clients', clientId, 'shortcodes');
-    const snapshot = await getDocs(shortcodesRef);
-    
-    return snapshot.docs.map(doc => doc.id);
-  } catch (error) {
-    console.error(`Erreur récupération IDs ${listType}/${clientId}:`, error);
-    return [];
-  }
-}
-
-/**
- * ÉTAPE 3: Construit la structure optimisée des listes pour tous les clients.
+ * NOUVELLE VERSION OPTIMISÉE: Construit la structure des listes pour tous les clients.
+ * AVEC TRACKING COMPLET ET LOGS DÉTAILLÉS.
  */
 async function buildOptimizedListStructure(clientIds: string[]): Promise<OptimizedListStructure> {
   try {
+    console.log(`👥 Clients à analyser: ${clientIds.join(', ')}`);
+    console.log(`📋 Types de listes totaux: ${LIST_TYPES.length}`);
+    
+    // Réinitialiser le tracker
+    resetFirebaseTracker();
+    
     emitProgress({
       type: 'step-start',
       stepId: 'client-overrides',
-      details: 'Construction de la structure des listes...'
+      details: 'Découverte intelligente des personnalisations...'
     });
 
     const optimizedStructure: OptimizedListStructure = {};
-
-    // Pour chaque type de liste
-    for (let listIndex = 0; listIndex < LIST_TYPES.length; listIndex++) {
-      const listType = LIST_TYPES[listIndex];
+    
+    // ÉTAPE 1: Découvrir les personnalisations de chaque client
+    
+    const clientCustomizations: { [clientId: string]: string[] } = {};
+    
+    for (let i = 0; i < clientIds.length; i++) {
+      const clientId = clientIds[i];
       
       emitProgress({
         type: 'details-update',
         stepId: 'client-overrides',
-        details: `Traitement ${listType} (${listIndex + 1}/${LIST_TYPES.length})...`
+        details: `Découverte ${clientId} (${i + 1}/${clientIds.length})...`
       });
-
-      optimizedStructure[listType] = {};
-
-      // Pour chaque client + PlusCo
-      const allClientIds = [...clientIds, 'PlusCo'];
       
-      for (let clientIndex = 0; clientIndex < allClientIds.length; clientIndex++) {
-        const clientId = allClientIds[clientIndex];
-        
-        emitProgress({
-          type: 'details-update',
-          stepId: 'client-overrides',
-          details: `${listType}: ${clientId} (${clientIndex + 1}/${allClientIds.length})...`
-        });
-
-        const shortcodeIds = await getShortcodeIdsForList(listType, clientId);
-        
-        if (shortcodeIds.length > 0) {
-          optimizedStructure[listType][clientId] = shortcodeIds; // Array simple!
-          
-          console.log(`[CACHE] ${listType}/${clientId}: ${shortcodeIds.length} shortcodes`);
-        }
+      clientCustomizations[clientId] = await discoverClientCustomizations(clientId);
+    }
+    
+    // ÉTAPE 2: Charger les listes PlusCo
+    
+    emitProgress({
+      type: 'details-update',
+      stepId: 'client-overrides',
+      details: 'Chargement des listes PlusCo...'
+    });
+    
+    for (let i = 0; i < LIST_TYPES.length; i++) {
+      const listType = LIST_TYPES[i];
+      
+      if (!optimizedStructure[listType]) {
+        optimizedStructure[listType] = {};
+      }
+      
+      const shortcodeIds = await getShortcodeIdsForList(listType, 'PlusCo');
+      if (shortcodeIds.length > 0) {
+        optimizedStructure[listType]['PlusCo'] = shortcodeIds;
       }
     }
+    
+    // ÉTAPE 3: Charger seulement les listes personnalisées trouvées
+    
+    let totalPersonalizedLists = 0;
+    Object.values(clientCustomizations).forEach(lists => totalPersonalizedLists += lists.length);
+    
+    
+    let processedLists = 0;
+    
+    for (const [clientId, customizedListTypes] of Object.entries(clientCustomizations)) {
+      if (customizedListTypes.length === 0) {
+        continue;
+      }
+      
+      
+      emitProgress({
+        type: 'details-update',
+        stepId: 'client-overrides',
+        details: `Chargement ${clientId}: ${customizedListTypes.length} listes personnalisées...`
+      });
+      
+      // Charger les listes personnalisées en séquentiel pour voir les logs
+      for (const listType of customizedListTypes) {
+        const shortcodeIds = await getShortcodeIdsForList(listType, clientId);
+        
+        if (!optimizedStructure[listType]) {
+          optimizedStructure[listType] = {};
+        }
+        
+        if (shortcodeIds.length > 0) {
+          optimizedStructure[listType][clientId] = shortcodeIds;
+        }
+        
+        processedLists++;
+      }
+      
+      emitProgress({
+        type: 'details-update',
+        stepId: 'client-overrides',
+        details: `Progression: ${processedLists}/${totalPersonalizedLists} listes chargées...`
+      });
+    }
 
-    // Sauvegarder la structure
+    // ÉTAPE 4: Sauvegarder la structure
     const now = Date.now();
     const cacheEntry: CacheEntry<OptimizedListStructure> = {
       data: optimizedStructure,
@@ -368,20 +634,24 @@ async function buildOptimizedListStructure(clientIds: string[]): Promise<Optimiz
     const cacheKey = getOptimizedListsCacheKey();
     localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
 
+    // RAPPORT FINAL DÉTAILLÉ
+    showFirebaseReport();
+
     emitProgress({
       type: 'step-complete',
       stepId: 'client-overrides',
-      details: 'Structure des listes construite'
+      details: `Structure optimisée construite (${firebaseTracker.totalCalls} appels Firebase)`
     });
 
     return optimizedStructure;
 
   } catch (error) {
-    console.error('[CACHE] Erreur construction structure:', error);
+    console.error('❌ [CACHE OPTIMISÉ] Erreur construction structure:', error);
+    showFirebaseReport();
     emitProgress({
       type: 'step-error',
       stepId: 'client-overrides',
-      error: 'Erreur lors de la construction des listes'
+      error: 'Erreur lors de la construction optimisée'
     });
     return {};
   }
@@ -542,20 +812,15 @@ export function getListForClient(listType: string, clientId: string): ShortcodeI
 
 /**
  * Compare deux listes de clients pour détecter les changements.
- * @param currentClients Clients actuels depuis Firebase
- * @param cachedClients Clients en cache
- * @returns true si les clients ont changé
  */
 function haveClientsChanged(currentClients: ClientPermission[], cachedClients: ClientPermission[]): boolean {
   if (currentClients.length !== cachedClients.length) {
     return true;
   }
 
-  // Comparer les IDs des clients (version compatible ES5)
   const currentIds = currentClients.map(c => c.clientId).sort();
   const cachedIds = cachedClients.map(c => c.clientId).sort();
 
-  // Comparer les arrays triés
   for (let i = 0; i < currentIds.length; i++) {
     if (currentIds[i] !== cachedIds[i]) {
       return true;
@@ -566,8 +831,7 @@ function haveClientsChanged(currentClients: ClientPermission[], cachedClients: C
 }
 
 /**
- * Vérifie si le cache des shortcodes est encore valide (moins de 168h).
- * @returns true si le cache des shortcodes est valide
+ * Vérifie si le cache des shortcodes est encore valide.
  */
 function areShortcodesStillFresh(): boolean {
   try {
@@ -586,7 +850,6 @@ function areShortcodesStillFresh(): boolean {
 
 /**
  * Vérifie si la structure des listes est encore valide.
- * @returns true si la structure des listes est valide
  */
 function areListsStillFresh(): boolean {
   try {
@@ -604,17 +867,17 @@ function areListsStillFresh(): boolean {
 }
 
 /**
- * Refresh seulement la structure des listes (rapide - pas les shortcodes).
- * Utilisé quand les clients ont changé mais les shortcodes sont encore frais.
+ * NOUVELLE VERSION du refresh rapide optimisé.
+ * AVEC TRACKING COMPLET.
  */
 async function refreshListsOnly(clientIds: string[]): Promise<boolean> {
   try {
-    console.log('[CACHE] Refresh rapide - seulement les listes...');
+    console.log('\n🔄 [REFRESH RAPIDE] Début avec découverte intelligente...');
     
     emitProgress({
       type: 'step-start',
       stepId: 'client-overrides',
-      details: 'Mise à jour des listes client...'
+      details: 'Mise à jour optimisée des listes client...'
     });
 
     const optimizedStructure = await buildOptimizedListStructure(clientIds);
@@ -622,18 +885,18 @@ async function refreshListsOnly(clientIds: string[]): Promise<boolean> {
     emitProgress({
       type: 'step-complete',
       stepId: 'client-overrides',
-      details: 'Listes mises à jour'
+      details: 'Listes mises à jour avec optimisation'
     });
 
-    console.log('[CACHE] Refresh rapide terminé avec succès');
+    console.log('✅ [REFRESH RAPIDE] Terminé avec succès');
     return Object.keys(optimizedStructure).length > 0;
 
   } catch (error) {
-    console.error('[CACHE] Erreur refresh rapide:', error);
+    console.error('❌ [REFRESH RAPIDE] Erreur:', error);
     emitProgress({
       type: 'step-error',
       stepId: 'client-overrides',
-      error: 'Erreur lors de la mise à jour des listes'
+      error: 'Erreur lors de la mise à jour optimisée'
     });
     return false;
   }
@@ -641,9 +904,6 @@ async function refreshListsOnly(clientIds: string[]): Promise<boolean> {
 
 /**
  * FONCTION PRINCIPALE INTELLIGENTE: Décide quoi mettre à jour selon le contexte.
- * @param currentClients Clients actuels depuis Firebase
- * @param userEmail Email de l'utilisateur
- * @returns true si le cache est à jour
  */
 export async function smartCacheUpdate(currentClients: ClientPermission[], userEmail: string): Promise<boolean> {
   try {
@@ -758,7 +1018,6 @@ export function clearAllCache(): number {
 
 /**
  * Force un refresh complet du cache (supprime tout et recharge).
- * Utile pour un bouton "Actualiser" dans l'interface.
  */
 export async function forceRefreshCache(currentClients: ClientPermission[], userEmail: string): Promise<boolean> {
   try {

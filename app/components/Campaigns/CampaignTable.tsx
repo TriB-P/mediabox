@@ -70,7 +70,6 @@ export default function CampaignTable({
           quarterMap.set(item.id, item.SH_Display_Name_FR || item.SH_Code || item.id);
         });
         setQuartersMap(quarterMap);
-        console.log(`[CACHE] ✅ CA_Quarter chargé: ${quarters.length} éléments`);
       }
 
       // Charger CA_Year
@@ -81,7 +80,6 @@ export default function CampaignTable({
           yearMap.set(item.id, item.SH_Display_Name_FR || item.SH_Code || item.id);
         });
         setYearsMap(yearMap);
-        console.log(`[CACHE] ✅ CA_Year chargé: ${years.length} éléments`);
       }
     };
 
@@ -227,7 +225,7 @@ export default function CampaignTable({
 
           {/* Compteur */}
           <div className="ml-auto text-sm text-gray-500">
-            {filteredCampaigns.length} / {campaigns.length} campagnes
+            {filteredCampaigns.length} / {campaigns.length}
           </div>
         </div>
       </div>
