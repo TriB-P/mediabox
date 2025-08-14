@@ -3,6 +3,7 @@
 /**
  * Version refactorisée utilisant la même logique de calcul que le drawer
  * SUPPRIME TableBudgetCalculations.tsx et utilise budgetService directement
+ * MODIFIÉ : Ajout du support multilingue
  */
 'use client';
 
@@ -14,6 +15,7 @@ import { useTableNavigation } from './EditableTableCell';
 import { getColumnsForLevel, TactiqueSubCategory } from './tableColumns.config';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../../hooks/useCampaignSelection';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 import {
   getDynamicList,
   getClientCustomDimensions,
@@ -172,6 +174,7 @@ function convertToBudgetClientFee(fee: Fee): BudgetClientFee {
 /**
  * Composant principal de la vue de tableau avancée des tactiques.
  * VERSION REFACTORISÉE : Utilise maintenant budgetService au lieu de TableBudgetCalculations
+ * MODIFIÉ : Ajout du support multilingue
  */
 export default function TactiquesAdvancedTableView({
   sections,
@@ -188,6 +191,7 @@ export default function TactiquesAdvancedTableView({
   const { selectedClient } = useClient();
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
+  const { t } = useTranslation();
 
   // États existants
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
@@ -214,7 +218,7 @@ export default function TactiquesAdvancedTableView({
     setBudgetDataLoading(true);
 
     try {
-      console.log(`🚀 Début chargement données pour TactiquesAdvancedTableView (version refactorisée)`);
+      console.log(`🚀 ${t('table.loading.startAdvancedTable')}`);
       
       // Chargement des dimensions client
       const clientDimensions = await getClientCustomDimensions(selectedClient.clientId);
@@ -224,27 +228,27 @@ export default function TactiquesAdvancedTableView({
       try {
         const budgetClientFees = await getClientFees(selectedClient.clientId);
         setClientFees(budgetClientFees);
-        console.log(`✅ Frais client chargés: ${Array.isArray(budgetClientFees) ? budgetClientFees.length : 0} frais`);
+        console.log(`✅ ${t('table.loading.clientFeesLoaded', { count: Array.isArray(budgetClientFees) ? budgetClientFees.length : 0 })}`);
       } catch (error) {
-        console.warn('Erreur chargement frais client:', error);
+        console.warn(t('table.loading.clientFeesError'), error);
         setClientFees([]);
       }
 
       try {
         const budgetExchangeRates = await getExchangeRates(selectedClient.clientId);
         setExchangeRates(budgetExchangeRates);
-        console.log(`✅ Taux de change chargés: ${Object.keys(budgetExchangeRates).length} taux`);
+        console.log(`✅ ${t('table.loading.exchangeRatesLoaded', { count: Object.keys(budgetExchangeRates).length })}`);
       } catch (error) {
-        console.warn('Erreur chargement taux de change:', error);
+        console.warn(t('table.loading.exchangeRatesError'), error);
         setExchangeRates({});
       }
 
       try {
         const budgetCampaignCurrency = await getCampaignCurrency(selectedClient.clientId, selectedCampaign.id);
         setCampaignCurrency(budgetCampaignCurrency);
-        console.log(`✅ Devise campagne chargée: ${budgetCampaignCurrency}`);
+        console.log(`✅ ${t('table.loading.currencyLoaded', { currency: budgetCampaignCurrency })}`);
       } catch (error) {
-        console.warn('Erreur chargement devise campagne:', error);
+        console.warn(t('table.loading.currencyError'), error);
         setCampaignCurrency('CAD');
       }
 
@@ -277,7 +281,7 @@ export default function TactiquesAdvancedTableView({
             newDynamicLists[field] = list;
           }
         } catch (fieldError) {
-          console.warn(`⚠️ Erreur chargement ${field}:`, fieldError);
+          console.warn(`⚠️ ${t('table.loading.fieldError', { field })}:`, fieldError);
           newVisibleFields[field] = false;
         }
       }
@@ -294,19 +298,19 @@ export default function TactiquesAdvancedTableView({
         );
         setBuckets(campaignBuckets);
       } catch (bucketError) {
-        console.warn('Erreur lors du chargement des buckets:', bucketError);
+        console.warn(t('table.loading.bucketsError'), bucketError);
         setBuckets([]);
       }
 
-      console.log(`✅ Chargement terminé pour TactiquesAdvancedTableView (version refactorisée)`);
+      console.log(`✅ ${t('table.loading.completedAdvancedTable')}`);
 
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des données:', error);
+      console.error(`❌ ${t('table.loading.generalError')}:`, error);
     } finally {
       setListsLoading(false);
       setBudgetDataLoading(false);
     }
-  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id, t]);
 
   /**
    * NOUVEAU : Wrapper pour onUpdateTactique avec validation budget
@@ -326,7 +330,7 @@ export default function TactiquesAdvancedTableView({
       );
 
       if (isBudgetUpdate && clientFees.length > 0) {
-        console.log(`🧮 Validation budget pour tactique ${tactiqueId}:`, data);
+        console.log(`🧮 ${t('table.budget.validatingTactic', { id: tactiqueId })}:`, data);
         
         // Convertir les frais pour budgetService
         const budgetClientFees = clientFees.map(convertToBudgetClientFee);
@@ -354,10 +358,10 @@ export default function TactiquesAdvancedTableView({
           );
 
           if (!result.success) {
-            console.warn(`⚠️ Validation budget échouée pour ${tactiqueId}:`, result.error);
+            console.warn(`⚠️ ${t('table.budget.validationFailed', { id: tactiqueId })}:`, result.error);
             // On continue quand même la sauvegarde (les erreurs ne sont que des avertissements)
           } else {
-            console.log(`✅ Validation budget réussie pour ${tactiqueId}`);
+            console.log(`✅ ${t('table.budget.validationSuccess', { id: tactiqueId })}`);
           }
         }
       }
@@ -375,11 +379,11 @@ export default function TactiquesAdvancedTableView({
         });
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la mise à jour de la tactique avec budget:', error);
+      console.error(`❌ ${t('table.budget.updateError')}:`, error);
       throw error;
     }
   }, [onUpdateTactique, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync, 
-      clientFees, dynamicLists.TC_Unit_Type, exchangeRates, campaignCurrency, tactiques]);
+      clientFees, dynamicLists.TC_Unit_Type, exchangeRates, campaignCurrency, tactiques, t]);
 
   /**
    * Wrapper pour onUpdatePlacement avec mise à jour taxonomique
@@ -400,10 +404,10 @@ export default function TactiquesAdvancedTableView({
         });
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la mise à jour du placement avec taxonomies:', error);
+      console.error(`❌ ${t('table.taxonomy.placementUpdateError')}:`, error);
       throw error;
     }
-  }, [onUpdatePlacement, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+  }, [onUpdatePlacement, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync, t]);
 
   /**
    * Effet de bord qui déclenche le chargement des données
@@ -424,10 +428,6 @@ export default function TactiquesAdvancedTableView({
     setExchangeRates({});
     setCampaignCurrency('CAD');
   }, [selectedClient?.clientId, selectedCampaign?.id, selectedVersion?.id]);
-
-  /**
-   * SUPPRIMÉ : enrichedColumns (plus nécessaire, géré dans DynamicTableStructure)
-   */
 
   /**
    * MODIFIÉ : useAdvancedTableData avec le nouveau wrapper budget
@@ -461,10 +461,6 @@ export default function TactiquesAdvancedTableView({
     onUpdateCreatif
   });
 
-  /**
-   * SUPPRIMÉ : columns et navigate (maintenant gérés dans DynamicTableStructure)
-   */
-
   const handleLevelChange = (level: TableLevel) => {
     setSelectedLevel(level);
   };
@@ -477,7 +473,7 @@ export default function TactiquesAdvancedTableView({
       try {
         await saveAllChanges();
       } catch (error) {
-        console.error('Erreur lors de la sauvegarde:', error);
+        console.error(t('table.save.generalError'), error);
       }
       return;
     }
@@ -555,18 +551,18 @@ export default function TactiquesAdvancedTableView({
   
       // Attendre toutes les mises à jour de taxonomies
       if (taxonomyPromises.length > 0) {
-        console.log(`🔄 Déclenchement des mises à jour taxonomiques pour ${taxonomyPromises.length} entité(s)`);
+        console.log(`🔄 ${t('table.taxonomy.triggeringUpdates', { count: taxonomyPromises.length })}`);
         await Promise.all(taxonomyPromises);
-        console.log(`✅ Mises à jour taxonomiques terminées`);
+        console.log(`✅ ${t('table.taxonomy.updatesCompleted')}`);
       }
 
     } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde avec budget:', error);
+      console.error(`❌ ${t('table.save.errorWithBudget')}:`, error);
     }
-  }, [saveAllChanges, pendingChanges, tableRows, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync]);
+  }, [saveAllChanges, pendingChanges, tableRows, selectedClient?.clientId, selectedCampaign?.id, updateTaxonomiesAsync, t]);
 
   const handleCancelAllChanges = () => {
-    if (hasUnsavedChanges && !confirm('Êtes-vous sûr de vouloir annuler toutes les modifications ?')) {
+    if (hasUnsavedChanges && !confirm(t('table.actions.confirmCancelChanges'))) {
       return;
     }
     cancelAllChanges();
@@ -578,7 +574,7 @@ export default function TactiquesAdvancedTableView({
         <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              <span className="font-medium text-orange-600">{pendingChanges.size}</span> modification{pendingChanges.size > 1 ? 's' : ''} en attente
+              {t('table.changes.pending', { count: pendingChanges.size })}
             </span>
             
             <div className="flex items-center space-x-2">
@@ -587,7 +583,7 @@ export default function TactiquesAdvancedTableView({
                 disabled={isSaving}
                 className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
-                Annuler
+                {t('table.actions.cancel')}
               </button>
               
               <button
@@ -595,7 +591,7 @@ export default function TactiquesAdvancedTableView({
                 disabled={isSaving}
                 className="flex items-center px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
               >
-                {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+                {isSaving ? t('table.actions.saving') : t('table.actions.save')}
               </button>
             </div>
           </div>
@@ -607,8 +603,10 @@ export default function TactiquesAdvancedTableView({
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             <span className="text-sm text-blue-700">
-              Chargement des {listsLoading && budgetDataLoading ? 'listes dynamiques et données budget' : 
-                              listsLoading ? 'listes dynamiques' : 'données budget'}...
+              {t('table.loading.loadingData', { 
+                type: listsLoading && budgetDataLoading ? 'listsAndBudget' : 
+                      listsLoading ? 'lists' : 'budget'
+              })}
             </span>
           </div>
         </div>

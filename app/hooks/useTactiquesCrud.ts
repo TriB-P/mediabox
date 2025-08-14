@@ -7,8 +7,7 @@
  * de la version et de l'onglet actuellement sélectionnés.
  * Il utilise des fonctions de service distinctes pour interagir avec Firebase et intègre la logique
  * de rafraîchissement des données après chaque modification.
- * 
- * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
+ * * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import { useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
@@ -39,6 +38,7 @@ import {
   getNextOrder,
   type OrderContext
 } from '../lib/orderManagementService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface UseTactiquesCrudProps {
   sections: any[];
@@ -83,6 +83,7 @@ export function useTactiquesCrud({
   onglets,
   onRefresh
 }: UseTactiquesCrudProps) {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
@@ -91,7 +92,7 @@ export function useTactiquesCrud({
    */
   const buildOrderContext = useCallback((additionalContext: Partial<OrderContext> = {}): OrderContext => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte de base manquant pour les opérations d\'ordre');
+      throw new Error(t('useTactiquesCrud.errors.missingBaseContext'));
     }
 
     return {
@@ -101,7 +102,7 @@ export function useTactiquesCrud({
       ongletId: selectedOngletId || undefined,
       ...additionalContext
     };
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, t]);
 
   /**
    * Gère la création d'une nouvelle section.
@@ -112,7 +113,7 @@ export function useTactiquesCrud({
    */
   const handleCreateSection = useCallback(async (sectionData: any) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer une section');
+      throw new Error(t('useTactiquesCrud.errors.missingContextCreateSection'));
     }
     try {
       // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -126,7 +127,7 @@ export function useTactiquesCrud({
         selectedVersionId,
         selectedOngletId,
         {
-          SECTION_Name: sectionData.SECTION_Name || 'Nouvelle section',
+          SECTION_Name: sectionData.SECTION_Name || t('useTactiquesCrud.defaults.newSection'),
           SECTION_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sections.length
           SECTION_Color: sectionData.SECTION_Color || '#6366f1',
           SECTION_Budget: sectionData.SECTION_Budget || 0
@@ -137,7 +138,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création section:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext, t]);
 
   /**
    * Gère la mise à jour d'une section existante.
@@ -148,7 +149,7 @@ export function useTactiquesCrud({
    */
   const handleUpdateSection = useCallback(async (sectionId: string, sectionData: any) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour modifier une section');
+      throw new Error(t('useTactiquesCrud.errors.missingContextUpdateSection'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdateSection - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}");
@@ -164,7 +165,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur modification section:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, t]);
 
   /**
    * Gère la suppression d'une section.
@@ -174,7 +175,7 @@ export function useTactiquesCrud({
    */
   const handleDeleteSection = useCallback(async (sectionId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour supprimer une section');
+      throw new Error(t('useTactiquesCrud.errors.missingContextDeleteSection'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleDeleteSection - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}");
@@ -190,7 +191,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur suppression section:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh, t]);
 
   /**
    * Gère la création d'une nouvelle tactique.
@@ -201,7 +202,7 @@ export function useTactiquesCrud({
    */
   const handleCreateTactique = useCallback(async (sectionId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer une tactique');
+      throw new Error(t('useTactiquesCrud.errors.missingContextCreateTactic'));
     }
     try {
       // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -216,7 +217,7 @@ export function useTactiquesCrud({
         selectedOngletId,
         sectionId,
         {
-          TC_Label: 'Nouvelle tactique',
+          TC_Label: t('useTactiquesCrud.defaults.newTactic'),
           TC_Budget: 0,
           TC_MPA:'',
           TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sectionTactiques.length
@@ -228,7 +229,7 @@ export function useTactiquesCrud({
       );
       const newTactique: Tactique = {
         id: newTactiqueId,
-        TC_Label: 'Nouvelle tactique',
+        TC_Label: t('useTactiquesCrud.defaults.newTactic'),
         TC_Budget: 0,
         TC_MPA: '',
         TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
@@ -242,7 +243,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création tactique:', error);
       return {} as Tactique;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, buildOrderContext, t]);
 
   /**
    * Gère la mise à jour d'une tactique existante.
@@ -254,7 +255,7 @@ export function useTactiquesCrud({
    */
   const handleUpdateTactique = useCallback(async (sectionId: string, tactiqueId: string, data: Partial<Tactique>) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour modifier une tactique');
+      throw new Error(t('useTactiquesCrud.errors.missingContextUpdateTactic'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdateTactique - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}");
@@ -273,7 +274,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur modification tactique:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh, t]);
 
   /**
    * Gère la suppression d'une tactique.
@@ -284,7 +285,7 @@ export function useTactiquesCrud({
    */
   const handleDeleteTactique = useCallback(async (sectionId: string, tactiqueId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour supprimer une tactique');
+      throw new Error(t('useTactiquesCrud.errors.missingContextDeleteTactic'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleDeleteTactique - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}");
@@ -301,7 +302,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur suppression tactique:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh, t]);
 
   /**
    * Gère la création d'un nouveau placement.
@@ -312,7 +313,7 @@ export function useTactiquesCrud({
    */
   const handleCreatePlacement = useCallback(async (tactiqueId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer un placement');
+      throw new Error(t('useTactiquesCrud.errors.missingContextCreatePlacement'));
     }
     let sectionId = '';
     for (const section of sections) {
@@ -322,7 +323,7 @@ export function useTactiquesCrud({
       }
     }
     if (!sectionId) {
-      throw new Error('Section parent non trouvée pour la tactique');
+      throw new Error(t('useTactiquesCrud.errors.parentSectionNotFoundForTactic'));
     }
     try {
       // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -339,7 +340,7 @@ export function useTactiquesCrud({
         sectionId,
         tactiqueId,
         {
-          PL_Label: 'Nouveau placement',
+          PL_Label: t('useTactiquesCrud.defaults.newPlacement'),
           PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de tactiquesPlacements.length
           PL_TactiqueId: tactiqueId,
           PL_Taxonomy_Tags: '',
@@ -351,7 +352,7 @@ export function useTactiquesCrud({
       );
       const newPlacement: Placement = {
         id: newPlacementId,
-        PL_Label: 'Nouveau placement',
+        PL_Label: t('useTactiquesCrud.defaults.newPlacement'),
         PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
         PL_TactiqueId: tactiqueId,
         PL_Taxonomy_Tags: '',
@@ -363,7 +364,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création placement:', error);
       return {} as Placement;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, selectedCampaign, buildOrderContext]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, selectedCampaign, buildOrderContext, t]);
 
   /**
    * Gère la mise à jour d'un placement existant.
@@ -382,7 +383,7 @@ export function useTactiquesCrud({
     tactiqueId?: string
   ) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour modifier un placement');
+      throw new Error(t('useTactiquesCrud.errors.missingContextUpdatePlacement'));
     }
 
     let finalSectionId = sectionId || '';
@@ -404,7 +405,7 @@ export function useTactiquesCrud({
     }
 
     if (!finalSectionId || !finalTactiqueId) {
-      throw new Error('Hiérarchie parent non trouvée pour le placement');
+      throw new Error(t('useTactiquesCrud.errors.parentHierarchyNotFoundForPlacement'));
     }
 
     console.log(`✅ Hiérarchie trouvée: Section=${finalSectionId}, Tactique=${finalTactiqueId}`);
@@ -434,7 +435,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur modification placement:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh, t]);
 
   /**
    * Gère la suppression d'un placement.
@@ -446,7 +447,7 @@ export function useTactiquesCrud({
    */
   const handleDeletePlacement = useCallback(async (sectionId: string, tactiqueId: string, placementId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour supprimer un placement');
+      throw new Error(t('useTactiquesCrud.errors.missingContextDeletePlacement'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleDeletePlacement - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
@@ -464,7 +465,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur suppression placement:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh, t]);
 
   /**
    * Gère la création d'un nouveau créatif.
@@ -475,7 +476,7 @@ export function useTactiquesCrud({
    */
   const handleCreateCreatif = useCallback(async (placementId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour créer un créatif');
+      throw new Error(t('useTactiquesCrud.errors.missingContextCreateCreative'));
     }
     let sectionId = '';
     let tactiqueId = '';
@@ -493,7 +494,7 @@ export function useTactiquesCrud({
       if (tactiqueId) break;
     }
     if (!sectionId || !tactiqueId || !currentPlacement) {
-      throw new Error('Hiérarchie parent non trouvée pour le créatif');
+      throw new Error(t('useTactiquesCrud.errors.parentHierarchyNotFoundForCreative'));
     }
     try {
       // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -511,7 +512,7 @@ export function useTactiquesCrud({
         tactiqueId,
         placementId,
         {
-          CR_Label: 'Nouveau créatif',
+          CR_Label: t('useTactiquesCrud.defaults.newCreative'),
           CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de placementCreatifs.length
           CR_PlacementId: placementId,
           CR_Taxonomy_Tags: '',
@@ -524,7 +525,7 @@ export function useTactiquesCrud({
       );
       const newCreatif: Creatif = {
         id: newCreatifId,
-        CR_Label: 'Nouveau créatif',
+        CR_Label: t('useTactiquesCrud.defaults.newCreative'),
         CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder
         CR_PlacementId: placementId,
         CR_Taxonomy_Tags: '',
@@ -536,7 +537,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création créatif:', error);
       return {} as Creatif;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, buildOrderContext]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, buildOrderContext, t]);
 
   /**
    * Gère la mise à jour d'un créatif existant.
@@ -556,7 +557,7 @@ export function useTactiquesCrud({
     data: Partial<Creatif>
   ) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour modifier un créatif');
+      throw new Error(t('useTactiquesCrud.errors.missingContextUpdateCreative'));
     }
   
     let finalSectionId = sectionId;
@@ -591,7 +592,7 @@ export function useTactiquesCrud({
       }
       
       if (!found || !currentPlacement) {
-        throw new Error('Hiérarchie parent (section, tactique, placement) non trouvée pour le créatif');
+        throw new Error(t('useTactiquesCrud.errors.fullParentHierarchyNotFoundForCreative'));
       }
     } else {
       console.log(`✅ Hiérarchie validée: Section=${finalSectionId}, Tactique=${finalTactiqueId}, Placement=${finalPlacementId}`);
@@ -621,7 +622,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur modification créatif:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, creatifs, selectedCampaign, onRefresh, t]);
 
   /**
    * Gère la suppression d'un créatif.
@@ -634,7 +635,7 @@ export function useTactiquesCrud({
    */
   const handleDeleteCreatif = useCallback(async (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour supprimer un créatif');
+      throw new Error(t('useTactiquesCrud.errors.missingContextDeleteCreative'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleDeleteCreatif - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
@@ -653,7 +654,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur suppression créatif:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, onRefresh, t]);
 
   /**
    * Gère l'ajout d'un nouvel onglet.
@@ -663,7 +664,7 @@ export function useTactiquesCrud({
    */
   const handleAddOnglet = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour créer un onglet');
+      throw new Error(t('useTactiquesCrud.errors.missingContextCreateTab'));
     }
     try {
       // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -676,7 +677,7 @@ export function useTactiquesCrud({
         selectedCampaignId,
         selectedVersionId,
         {
-          ONGLET_Name: 'Nouvel onglet',
+          ONGLET_Name: t('useTactiquesCrud.defaults.newTab'),
           ONGLET_Order: newOrder // ✅ CHANGÉ : Utilise newOrder au lieu de onglets.length
         }
       );
@@ -685,7 +686,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur création onglet:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, buildOrderContext, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, buildOrderContext, onRefresh, t]);
 
   /**
    * Gère le renommage d'un onglet existant.
@@ -696,9 +697,9 @@ export function useTactiquesCrud({
    */
   const handleRenameOnglet = useCallback(async (ongletId: string, newName?: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour renommer un onglet');
+      throw new Error(t('useTactiquesCrud.errors.missingContextRenameTab'));
     }
-    const finalName = newName || prompt('Nouveau nom de l\'onglet:');
+    const finalName = newName || prompt(t('useTactiquesCrud.prompts.newTabName'));
     if (!finalName) return;
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleRenameOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
@@ -714,7 +715,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur renommage onglet:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh, t]);
 
   /**
    * Gère la suppression d'un onglet.
@@ -724,7 +725,7 @@ export function useTactiquesCrud({
    */
   const handleDeleteOnglet = useCallback(async (ongletId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour supprimer un onglet');
+      throw new Error(t('useTactiquesCrud.errors.missingContextDeleteTab'));
     }
     try {
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleDeleteOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
@@ -739,7 +740,7 @@ export function useTactiquesCrud({
       console.error('❌ Erreur suppression onglet:', error);
       throw error;
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onRefresh, t]);
 
   return {
     handleCreateSection,

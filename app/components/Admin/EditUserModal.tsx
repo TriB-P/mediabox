@@ -13,6 +13,7 @@ import { X, Save } from 'lucide-react';
 import { UserWithStatus } from '../../types/invitations';
 import { getRoles } from '../../lib/roleService';
 import { Role } from '../../types/roles';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * @interface EditUserModalProps
@@ -35,6 +36,7 @@ interface EditUserModalProps {
  * @returns {JSX.Element | null} La modale ou null si elle n'est pas ouverte.
  */
 export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUserModalProps) {
+  const { t } = useTranslation();
   const [selectedRole, setSelectedRole] = useState('');
   const [roles, setRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
@@ -88,7 +90,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du rôle:', error);
-      alert(error.message || 'Erreur lors de la mise à jour du rôle');
+      alert(error.message || t('editUserModal.errors.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -111,7 +113,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Modifier le rôle utilisateur
+                  {t('editUserModal.title')}
                 </h3>
                 <button
                   type="button"
@@ -150,16 +152,16 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
 
               <div>
                 <label className="form-label">
-                  Nouveau rôle *
+                  {t('editUserModal.form.newRoleLabel')} *
                 </label>
                 {loadingRoles ? (
                   <div className="form-input bg-gray-50 text-gray-500 flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
-                    Chargement des rôles...
+                    {t('editUserModal.form.loadingRoles')}
                   </div>
                 ) : roles.length === 0 ? (
                   <div className="form-input bg-red-50 text-red-600">
-                    Aucun rôle disponible. Veuillez créer des rôles d'abord.
+                    {t('editUserModal.form.noRolesAvailable')}
                   </div>
                 ) : (
                   <select
@@ -168,7 +170,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                     className="form-input"
                     required
                   >
-                    <option value="">Sélectionnez un rôle</option>
+                    <option value="">{t('editUserModal.form.selectRolePlaceholder')}</option>
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>
                         {role.name}
@@ -179,14 +181,14 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 
                 <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
                   <span className="text-blue-800">
-                    Rôle actuel : <strong>{user.role || 'Aucun rôle'}</strong>
+                    {t('editUserModal.form.currentRole')}: <strong>{user.role || t('editUserModal.form.noRole')}</strong>
                   </span>
                 </div>
 
                 {selectedRoleData && (
                   <div className="mt-3 p-3 bg-green-50 rounded">
                     <h4 className="text-sm font-medium text-green-800 mb-2">
-                      Permissions du rôle "{selectedRoleData.name}" :
+                      {t('editUserModal.permissions.titlePrefix')} "{selectedRoleData.name}" :
                     </h4>
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       {Object.entries(selectedRoleData).map(([key, value]) => {
@@ -213,12 +215,12 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 {saving ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Sauvegarde...
+                    {t('editUserModal.buttons.saving')}
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <Save className="h-4 w-4 mr-2" />
-                    Modifier le rôle
+                    {t('editUserModal.buttons.updateRole')}
                   </div>
                 )}
               </button>
@@ -227,7 +229,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 onClick={onClose}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
             </div>
           </form>

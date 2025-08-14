@@ -3,12 +3,14 @@
  * Il gère l'affichage de la valeur, la commutation entre les modes lecture et édition,
  * la validation des entrées et la gestion des événements clavier pour la navigation.
  * Il inclut également le hook `useTableNavigation` pour permettre la navigation au clavier entre les cellules.
+ * MODIFIÉ : Ajout du support multilingue
  */
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import { validateColumnValue, formatColumnValue } from './tableColumns.config';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface EditableTableCellProps {
   entityId: string;
@@ -28,21 +30,7 @@ interface EditableTableCellProps {
 /**
  * Composant de cellule de tableau éditable.
  * Permet d'afficher et de modifier des valeurs dans un tableau, avec validation et gestion des interactions.
- *
- * @param {EditableTableCellProps} props - Les propriétés du composant.
- * @param {string} props.entityId - L'identifiant unique de l'entité (ligne) à laquelle appartient la cellule.
- * @param {string} props.fieldKey - La clé du champ (colonne) que cette cellule représente.
- * @param {any} props.value - La valeur actuelle de la cellule.
- * @param {DynamicColumn} props.column - La configuration de la colonne pour cette cellule.
- * @param {TableLevel} props.tableLevel - Le niveau du tableau (e.g., 'tactiques', 'phases', 'etapes').
- * @param {boolean} props.isEditable - Indique si la cellule est éditable.
- * @param {boolean} props.isEditing - Indique si la cellule est actuellement en mode édition.
- * @param {boolean} [props.hasError] - Indique si la cellule contient une erreur de validation.
- * @param {(entityId: string, fieldKey: string, value: any) => void} props.onChange - Fonction de rappel appelée lorsque la valeur de la cellule change.
- * @param {(cellKey: string) => void} props.onStartEdit - Fonction de rappel appelée lorsque l'édition de la cellule commence.
- * @param {(cellKey: string) => void} props.onEndEdit - Fonction de rappel appelée lorsque l'édition de la cellule se termine.
- * @param {(direction: 'up' | 'down' | 'left' | 'right') => void} [props.onNavigate] - Fonction de rappel pour la navigation au clavier vers d'autres cellules.
- * @returns {JSX.Element} Le composant de cellule éditable.
+ * MODIFIÉ : Ajout du support multilingue
  */
 export default function EditableTableCell({
   entityId,
@@ -58,6 +46,7 @@ export default function EditableTableCell({
   onEndEdit,
   onNavigate
 }: EditableTableCellProps) {
+  const { t } = useTranslation();
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
@@ -66,7 +55,6 @@ export default function EditableTableCell({
   /**
    * Effet de synchronisation de la valeur locale avec la prop 'value'.
    * Se déclenche lorsque la prop 'value' change, mettant à jour l'état local.
-   * @returns {void}
    */
   useEffect(() => {
     setLocalValue(value);
@@ -76,7 +64,6 @@ export default function EditableTableCell({
    * Effet de focalisation automatique sur le champ d'entrée en mode édition.
    * Se déclenche lorsque le mode `isEditing` devient vrai et qu'un `inputRef` est disponible.
    * Sélectionne également le texte entier pour les champs de type texte ou nombre.
-   * @returns {void}
    */
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -90,7 +77,6 @@ export default function EditableTableCell({
   /**
    * Gère le début de l'édition de la cellule.
    * Appelle `onStartEdit` si la cellule est éditable.
-   * @returns {void}
    */
   const handleStartEdit = useCallback(() => {
     if (!isEditable) return;
@@ -100,8 +86,6 @@ export default function EditableTableCell({
   /**
    * Gère le changement de valeur dans le champ d'édition.
    * Met à jour la valeur locale, valide la nouvelle valeur et notifie le composant parent via `onChange`.
-   * @param {any} newValue - La nouvelle valeur de la cellule.
-   * @returns {void}
    */
   const handleChange = useCallback((newValue: any) => {
     setLocalValue(newValue);
@@ -115,8 +99,6 @@ export default function EditableTableCell({
    * Si 'save' est vrai et la valeur est valide, la valeur est considérée comme déjà sauvegardée.
    * Si 'save' est faux, les modifications sont annulées et la valeur est réinitialisée à la valeur d'origine.
    * Appelle `onEndEdit` pour notifier la fin de l'édition.
-   * @param {boolean} [save=true] - Indique si les modifications doivent être sauvegardées (true) ou annulées (false).
-   * @returns {void}
    */
   const handleEndEdit = useCallback((save: boolean = true) => {
     if (save && isValid) {
@@ -130,8 +112,6 @@ export default function EditableTableCell({
   /**
    * Gère les événements de pression de touche (KeyDown).
    * Gère la navigation au clavier (Enter, Tab, Escape, Arrow keys) et les actions associées (fin d'édition, navigation).
-   * @param {React.KeyboardEvent} e - L'événement clavier.
-   * @returns {void}
    */
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -169,7 +149,6 @@ export default function EditableTableCell({
   /**
    * Gère l'événement de perte de focus (Blur) sur le champ d'édition.
    * Utilise un délai pour permettre les clics sur d'autres éléments avant de terminer l'édition.
-   * @returns {void}
    */
   const handleBlur = useCallback(() => {
     setTimeout(() => {
@@ -179,7 +158,6 @@ export default function EditableTableCell({
 
   /**
    * Rend un champ d'entrée de type texte.
-   * @returns {JSX.Element} Le composant input text.
    */
   const renderTextInput = () => (
     <input
@@ -194,13 +172,12 @@ export default function EditableTableCell({
           ? 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500' 
           : 'border-red-300 focus:border-red-500 focus:ring-red-500'
       }`}
-      placeholder={`Saisir ${column.label.toLowerCase()}`}
+      placeholder={t('table.cell.enterValue', { field: column.label.toLowerCase() })}
     />
   );
 
   /**
    * Rend un champ d'entrée de type nombre.
-   * @returns {JSX.Element} Le composant input number.
    */
   const renderNumberInput = () => (
     <input
@@ -223,7 +200,6 @@ export default function EditableTableCell({
 
   /**
    * Rend un champ de sélection (select/dropdown).
-   * @returns {JSX.Element} Le composant select.
    */
   const renderSelectInput = () => (
     <select
@@ -238,7 +214,7 @@ export default function EditableTableCell({
           : 'border-red-300 focus:border-red-500 focus:ring-red-500'
       }`}
     >
-      <option value="">-- Sélectionner --</option>
+      <option value="">{t('table.select.placeholder')}</option>
       {column.options?.map(option => (
         <option key={option.id} value={option.id}>
           {option.label}
@@ -249,7 +225,6 @@ export default function EditableTableCell({
 
   /**
    * Rend un champ d'entrée de type date.
-   * @returns {JSX.Element} Le composant input date.
    */
   const renderDateInput = () => (
     <input
@@ -269,7 +244,6 @@ export default function EditableTableCell({
 
   /**
    * Rend le champ d'édition approprié en fonction du type de colonne.
-   * @returns {JSX.Element} Le champ d'édition (input, select, etc.).
    */
   const renderEditingField = () => {
     switch (column.type) {
@@ -291,7 +265,6 @@ export default function EditableTableCell({
    * Rend la valeur affichée de la cellule en mode lecture.
    * Si la cellule est non éditable ou en lecture seule, affiche la valeur formatée.
    * Sinon, affiche un bouton cliquable pour passer en mode édition.
-   * @returns {JSX.Element} L'élément affichant la valeur ou le bouton d'édition.
    */
   const renderDisplayValue = () => {
     if (column.type === 'readonly' || !isEditable) {
@@ -313,11 +286,11 @@ export default function EditableTableCell({
             ? 'hover:bg-red-50 text-red-700 border border-red-200' 
             : 'hover:bg-gray-50 text-gray-900'
         }`}
-        title={`Cliquer pour modifier ${column.label.toLowerCase()}`}
+        title={t('table.cell.clickToEditField', { field: column.label.toLowerCase() })}
       >
         {displayValue || (
           <span className="text-gray-400 italic">
-            Cliquer pour saisir
+            {t('table.cell.clickToEnter')}
           </span>
         )}
       </button>
@@ -327,7 +300,6 @@ export default function EditableTableCell({
   /**
    * Rend l'icône de validation (✓ pour valide, ⚠ pour invalide) à côté du champ d'édition.
    * Ne s'affiche qu'en mode édition et pour les colonnes non 'readonly'.
-   * @returns {JSX.Element | null} L'icône de validation ou null.
    */
   const renderValidationIcon = () => {
     if (!isEditing || column.type === 'readonly') return null;
@@ -345,7 +317,6 @@ export default function EditableTableCell({
 
   /**
    * Détermine les classes CSS pour la cellule en fonction de son état (erreur, non éditable).
-   * @returns {string} Les classes CSS à appliquer à la cellule.
    */
   const getCellClasses = () => {
     let classes = 'relative min-h-[32px] flex items-center';
@@ -372,7 +343,7 @@ export default function EditableTableCell({
       
       {hasError && !isEditing && (
         <div className="absolute z-10 top-full left-0 mt-1 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-700 whitespace-nowrap shadow-lg">
-          Valeur invalide pour {column.label.toLowerCase()}
+          {t('table.validation.invalidValueFor', { field: column.label.toLowerCase() })}
         </div>
       )}
     </div>
@@ -382,12 +353,7 @@ export default function EditableTableCell({
 /**
  * Hook personnalisé pour gérer la navigation au clavier entre les cellules d'un tableau.
  * Permet de se déplacer entre les cellules éditables d'une table à l'aide des touches fléchées, Entrée et Tab.
- *
- * @param {any[]} tableRows - Un tableau de toutes les lignes du tableau. Chaque ligne doit avoir un 'id' et une propriété 'isEditable'.
- * @param {DynamicColumn[]} columns - Un tableau des configurations de colonnes du tableau. Chaque colonne doit avoir une 'key' et une propriété 'type'.
- * @param {Set<string>} editingCells - Un Set contenant les clés des cellules actuellement en mode édition.
- * @param {(cellKey: string) => void} onStartEdit - La fonction à appeler pour démarrer l'édition d'une cellule cible.
- * @returns {(fromCellKey: string, direction: 'up' | 'down' | 'left' | 'right') => void} Une fonction `Maps` qui peut être appelée pour déclencher la navigation.
+ * MODIFIÉ : Ajout du support multilingue dans les commentaires
  */
 export function useTableNavigation(
   tableRows: any[],

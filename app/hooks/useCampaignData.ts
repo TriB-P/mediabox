@@ -12,6 +12,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface CampaignData {
   id: string;
@@ -39,6 +40,7 @@ const campaignCache = new Map<string, CampaignData>();
  * @returns {UseCampaignDataResult} Les données de la campagne et l'état de chargement.
  */
 export const useCampaignData = (): UseCampaignDataResult => {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId } = useSelection();
   
@@ -107,12 +109,12 @@ export const useCampaignData = (): UseCampaignDataResult => {
         currentClientId.current = clientId;
         currentCampaignId.current = campaignId;
       } else {
-        setError('Campagne non trouvée');
+        setError(t('useCampaignData.error.notFound'));
         setCampaignData(null);
       }
     } catch (err) {
       console.error('Erreur lors du chargement de la campagne:', err);
-      setError('Erreur lors du chargement de la campagne');
+      setError(t('useCampaignData.error.loadingError'));
       setCampaignData(null);
     } finally {
       setLoading(false);

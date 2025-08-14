@@ -3,6 +3,7 @@
 /**
  * Version refactorisée utilisant la même logique de calcul que le drawer
  * SUPPRIME TableBudgetCalculations.tsx et utilise budgetService directement
+ * MODIFIÉ : Ajout du support multilingue complet
  */
 'use client';
 
@@ -10,6 +11,7 @@ import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { ChevronRightIcon, ChevronDownIcon, QuestionMarkCircleIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import { getFieldLabel, ClientConfig } from '../../../../config/TaxonomyFieldLabels';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 import {
   getColumnsWithHierarchy,
   getTactiqueSubCategories,
@@ -217,6 +219,7 @@ export default function DynamicTableStructure({
   const { selectedClient } = useClient();
   const { selectedCampaign } = useCampaignSelection();
   const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
+  const { t } = useTranslation();
 
   // États existants (taxonomie, sélection, etc.)
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -542,11 +545,11 @@ export default function DynamicTableStructure({
       baseColumns = [
         {
           key: '_hierarchy',
-          label: 'Structure',
+          label: t('table.columns.structure'),
           type: 'readonly' as const,
           width: 300
         },
-        ...createBudgetColumnsComplete(budgetClientFees).map(col => {
+        ...createBudgetColumnsComplete(budgetClientFees, t).map(col => {
           if (isFeeCompositeColumn(col)) {
             return { ...col, width: 320 };
           }
@@ -569,7 +572,7 @@ export default function DynamicTableStructure({
       return [
         {
           key: '_hierarchy',
-          label: 'Structure',
+          label: t('table.columns.structure'),
           type: 'readonly' as const,
           width: 300
         },
@@ -579,7 +582,7 @@ export default function DynamicTableStructure({
       return [
         {
           key: '_hierarchy',
-          label: 'Structure',
+          label: t('table.columns.structure'),
           type: 'readonly' as const,
           width: 300
         },
@@ -591,7 +594,7 @@ export default function DynamicTableStructure({
         selectedLevel === 'creatif' ? selectedCreatifSubCategory :
         undefined;
       
-      const hierarchyColumns = getColumnsWithHierarchy(selectedLevel, subCategory);
+      const hierarchyColumns = getColumnsWithHierarchy(selectedLevel, subCategory, t);
       
       const enrichedColumns = enrichColumnsWithData(hierarchyColumns, buckets, dynamicLists).map(col => {
         if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
@@ -622,15 +625,16 @@ export default function DynamicTableStructure({
     dynamicLists, 
     budgetClientFees,
     clientTaxonomies,
-    dynamicTaxonomyColumns
+    dynamicTaxonomyColumns,
+    t
   ]);
 
   /**
    * Lignes traitées avec filtrage et tri
    */
   const processedRows = useMemo(() => {
-    return processTableRows(tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, getHierarchyLabel);
-  }, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig]);
+    return processTableRows(tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, (row) => getHierarchyLabel(row));
+  }, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, t]);
 
   /**
    * MODIFIÉ : Gestion des changements avec calculs budget unifiés
@@ -704,7 +708,7 @@ export default function DynamicTableStructure({
           
           const displayValue = column.type === 'select' && (column as DynamicColumn).options ? 
             (column as DynamicColumn).options?.find((option: { id: string; label: string }) => option.id === value)?.label || value : value;
-          console.log(`✅ Copié: ${displayValue}`);
+          console.log(`✅ ${t('table.actions.copied')}: ${displayValue}`);
         }
       }
   
@@ -729,7 +733,7 @@ export default function DynamicTableStructure({
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedCells, copiedData, processedRows, columns, isShiftPressed]);
+  }, [selectedCells, copiedData, processedRows, columns, isShiftPressed, t]);
 
   /**
    * Nettoyage des erreurs expirées
@@ -818,13 +822,14 @@ export default function DynamicTableStructure({
           ...prev.filter(err => err.cellKey !== cellKey),
           createValidationError(cellKey, errorMessage)
         ]);
-      }
+      },
+      t
     );
 
     if (errors > 0) {
-      console.log(`${applied} cellule(s) mise(s) à jour, ${errors} erreur(s) de validation`);
+      console.log(`${applied} ${t('table.paste.result')} - ${errors} ${t('table.validation.errors')}`);
     }
-  }, [copiedData, selectedCells, processedRows, columns, handleCellChange]);
+  }, [copiedData, selectedCells, processedRows, columns, handleCellChange, t]);
 
   /**
    * Gère le changement de niveau
@@ -892,7 +897,7 @@ export default function DynamicTableStructure({
         </span>
       </div>
     );
-  }, [pendingChanges, onToggleSection, expandedSections]);
+  }, [pendingChanges, onToggleSection, expandedSections, t]);
 
   /**
    * Gère le double-clic pour démarrer l'édition
@@ -1065,7 +1070,7 @@ export default function DynamicTableStructure({
       
       const formattedValue = isBudgetMode ? 
         value : 
-        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory);
+        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory, (column as DynamicColumn).options);
       
       return (
         <div 
@@ -1112,7 +1117,7 @@ export default function DynamicTableStructure({
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
               >
-                <option value="">-- Sélectionner --</option>
+                <option value="">{t('table.select.placeholder')}</option>
                 {(column as DynamicColumn).options?.map(option => (
                   <option key={option.id} value={option.id}>
                     {option.label}
@@ -1158,9 +1163,9 @@ export default function DynamicTableStructure({
               selectedLevel === 'placement' ? selectedPlacementSubCategory : 
               selectedLevel === 'creatif' ? selectedCreatifSubCategory :
               undefined,
-              (column as DynamicColumn).options
+              (column as DynamicColumn).options,
             ) || (
-              <span className="text-gray-400 italic">Double-clic pour modifier</span>
+              <span className="text-gray-400 italic">{t('table.cell.doubleClickToEdit')}</span>
             )}
           </div>
         )}
@@ -1176,7 +1181,7 @@ export default function DynamicTableStructure({
     getCellValue, editingCells, isCellSelected, hasValidationError, selectedLevel, selectedTactiqueSubCategory, 
     selectedPlacementSubCategory, selectedCreatifSubCategory, handleCellClick, handleCellDoubleClick, 
     pendingChanges, clientFees, campaignCurrency, budgetClientFees, handleCellChange, onStartEdit, onEndEdit,
-    buckets, dynamicLists
+    buckets, dynamicLists, t
   ]);
 
   return (
@@ -1194,7 +1199,7 @@ export default function DynamicTableStructure({
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
-              <span className="capitalize">{level}s</span>
+              <span className="capitalize">{t(`table.levels.${level}s`)}</span>
               <span className="ml-1.5 text-xs bg-white px-1.5 py-0.5 rounded">
                 {entityCounts[level + 's' as keyof typeof entityCounts]}
               </span>
@@ -1205,7 +1210,7 @@ export default function DynamicTableStructure({
         {/* Sous-onglets pour tactiques */}
         {selectedLevel === 'tactique' && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
-            {getTactiqueSubCategories().map(subCategory => (
+            {getTactiqueSubCategories(t).map(subCategory => (
               <button
                 key={subCategory.id}
                 onClick={() => setSelectedTactiqueSubCategory(subCategory.id)}
@@ -1224,7 +1229,7 @@ export default function DynamicTableStructure({
         {/* Sous-onglets pour placements */}
         {selectedLevel === 'placement' && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
-            {getPlacementSubCategories().map(subCategory => (
+            {getPlacementSubCategories(t).map(subCategory => (
               <button
                 key={subCategory.id}
                 onClick={() => setSelectedPlacementSubCategory(subCategory.id)}
@@ -1247,7 +1252,7 @@ export default function DynamicTableStructure({
         {/* Sous-onglets pour créatifs */}
         {selectedLevel === 'creatif' && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
-            {getCreatifSubCategories().map(subCategory => (
+            {getCreatifSubCategories(t).map(subCategory => (
               <button
                 key={subCategory.id}
                 onClick={() => setSelectedCreatifSubCategory(subCategory.id)}
@@ -1270,7 +1275,7 @@ export default function DynamicTableStructure({
         <div className="flex-1 max-w-sm">
           <input
             type="text"
-            placeholder={`Rechercher dans les ${selectedLevel}s...`}
+            placeholder={t(`table.search.${selectedLevel}s`)}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -1285,7 +1290,7 @@ export default function DynamicTableStructure({
                 ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
-            title="Masquer les niveaux inférieurs"
+            title={t('table.toolbar.hideLevels')}
           >
             <EyeSlashIcon className="h-4 w-4" />
           </button>
@@ -1302,14 +1307,14 @@ export default function DynamicTableStructure({
             {showHelpTooltip && (
               <div className="absolute right-0 top-full mt-2 w-80 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
                 <div className="space-y-2">
-                  <div><strong>Sélection :</strong> 1 clic = sélectionner • Shift+Clic = sélection multiple</div>
-                  <div><strong>Édition :</strong> Double-clic pour éditer • Enter/Tab = sauver • Esc = annuler</div>
-                  <div><strong>Copie :</strong> Ctrl+C pour copier • Ctrl+V pour coller</div>
+                  <div><strong>{t('table.help.selection.title')}:</strong> {t('table.help.selection.description')}</div>
+                  <div><strong>{t('table.help.editing.title')}:</strong> {t('table.help.editing.description')}</div>
+                  <div><strong>{t('table.help.copy.title')}:</strong> {t('table.help.copy.description')}</div>
                   {selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'budget' && (
-                    <div><strong>Budget :</strong> Les calculs utilisent la même logique que le drawer</div>
+                    <div><strong>{t('table.help.budget.title')}:</strong> {t('table.help.budget.description')}</div>
                   )}
                   {selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie' && (
-                    <div><strong>Colonnes dynamiques :</strong> Les colonnes changent selon les taxonomies sélectionnées</div>
+                    <div><strong>{t('table.help.columns.title')}:</strong> {t('table.help.columns.description')}</div>
                   )}
                 </div>
                 <div className="absolute top-0 right-4 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
@@ -1318,7 +1323,7 @@ export default function DynamicTableStructure({
           </div>
 
           <span className="text-sm text-gray-500 whitespace-nowrap">
-            {processedRows.length} ligne{processedRows.length > 1 ? 's' : ''}
+            {processedRows.length} {t('table.footer.rows')}
           </span>
 
           {sortConfig && (
@@ -1326,7 +1331,7 @@ export default function DynamicTableStructure({
               onClick={() => setSortConfig(null)}
               className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
             >
-              Effacer tri
+              {t('table.toolbar.clearSort')}
             </button>
           )}
         </div>
@@ -1339,20 +1344,20 @@ export default function DynamicTableStructure({
             <div className="flex items-center space-x-3 text-sm">
               {selectedCells.length > 0 && (
                 <span className="text-indigo-700 pl-2">
-                  <strong>{selectedCells.length}</strong> cellule{selectedCells.length > 1 ? 's' : ''} sélectionnée{selectedCells.length > 1 ? 's' : ''}
+                  {selectedCells.length} {t('table.selection.cellsSelected')}
                 </span>
               )}
 
               {copiedData && (
                 <span className="text-black-700 pl-3">
-                  📋  <strong>"{formatCopiedValueDisplay(copiedData)}"</strong>
+                  📋  <strong>"{formatCopiedValueDisplay(copiedData, t)}"</strong>
                   {copiedData.columnType === 'select' && ' (menu déroulant)'}
                 </span>
               )}
 
               {validationErrors.length > 0 && (
                 <span className="text-red-700">
-                  ⚠️ {validationErrors.length} erreur{validationErrors.length > 1 ? 's' : ''} de validation
+                  ⚠️ {validationErrors.length} {t('table.validation.errors')}
                 </span>
               )}
             </div>
@@ -1427,7 +1432,7 @@ export default function DynamicTableStructure({
               {processedRows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-3 py-6 text-center text-gray-500">
-                    {searchTerm ? 'Aucun résultat trouvé' : 'Aucune donnée à afficher'}
+                    {searchTerm ? t('table.noResults') : t('table.noData')}
                   </td>
                 </tr>
               ) : (

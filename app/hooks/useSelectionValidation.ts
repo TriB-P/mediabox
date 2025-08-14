@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export type ItemType = 'section' | 'tactique' | 'placement' | 'creatif';
 
@@ -85,6 +86,7 @@ export function useSelectionValidation({
   hierarchyMap,
   selectedIds
 }: UseSelectionValidationProps): SelectionValidationResult {
+  const { t } = useTranslation();
 
   return useMemo(() => {
 
@@ -92,7 +94,7 @@ export function useSelectionValidation({
       return {
         isValid: false,
         canMove: false,
-        errorMessage: 'Aucun élément sélectionné',
+        errorMessage: t('selectionValidation.errors.noItemSelected'),
         affectedItemsCount: 0,
         details: {
           selectedItems: [],
@@ -109,7 +111,7 @@ export function useSelectionValidation({
       return {
         isValid: false,
         canMove: false,
-        errorMessage: `Éléments manquants dans la hiérarchie: ${missingIds.join(', ')}`,
+        errorMessage: `${t('selectionValidation.errors.missingItemsPrefix')} ${missingIds.join(', ')}`,
         affectedItemsCount: 0,
         details: {
           selectedItems: selectedIds,
@@ -137,7 +139,7 @@ export function useSelectionValidation({
       return {
         isValid: false,
         canMove: false,
-        errorMessage: `Sélection incomplète : "${firstOrphan.parentName}" a ${missingCount} élément(s) non sélectionné(s). ${totalOrphans} enfant(s) manquant(s) au total.`,
+        errorMessage: `${t('selectionValidation.errors.incompleteSelectionPrefix')}"${firstOrphan.parentName}"${t('selectionValidation.errors.has')} ${missingCount} ${t('selectionValidation.errors.unselectedItems')} ${totalOrphans} ${t('selectionValidation.errors.missingChildrenTotal')}`,
         affectedItemsCount: selectedItems.length,
         details: {
           selectedItems: selectedIds,
@@ -163,7 +165,7 @@ export function useSelectionValidation({
       return {
         isValid: false,
         canMove: false,
-        errorMessage: `Types d'éléments incompatibles : impossible de déplacer des ${levelCheck.mixedLevels?.join(' et des ')} ensemble.`,
+        errorMessage: `${t('selectionValidation.errors.incompatibleTypesPrefix')}${levelCheck.mixedLevels?.join(t('selectionValidation.errors.andSeparator'))}${t('selectionValidation.errors.incompatibleTypesSuffix')}`,
         affectedItemsCount: selectedItems.length,
         details: {
           selectedItems: selectedIds,
@@ -198,7 +200,7 @@ export function useSelectionValidation({
       }
     };
 
-  }, [hierarchyMap, selectedIds]);
+  }, [hierarchyMap, selectedIds, t]);
 }
 
 /**
@@ -448,10 +450,12 @@ export function buildHierarchyMap(sections: Array<{
  * @returns {Object} Un objet contenant le label du bouton, son état désactivé, le message de statut et sa couleur.
  */
 export function useSelectionMessages(validationResult: SelectionValidationResult) {
+  const { t } = useTranslation();
+
   return useMemo(() => {
     if (!validationResult.canMove) {
       return {
-        buttonLabel: 'Sélection invalide',
+        buttonLabel: t('selectionValidation.messages.buttons.invalidSelection'),
         buttonDisabled: true,
         statusMessage: validationResult.errorMessage,
         statusColor: 'red'
@@ -461,19 +465,33 @@ export function useSelectionMessages(validationResult: SelectionValidationResult
     const { moveLevel, targetLevel, affectedItemsCount } = validationResult;
     const directCount = validationResult.details.selectedItems.length;
 
-    let buttonLabel = `Déplacer ${directCount} ${ITEM_LABELS[moveLevel!]}`;
+    const translatedItemLabels = {
+        'section': t('selectionValidation.glossary.items.sections'),
+        'tactique': t('selectionValidation.glossary.items.tactics'),
+        'placement': t('selectionValidation.glossary.items.placements'),
+        'creatif': t('selectionValidation.glossary.items.creatives')
+    };
+
+    const translatedTargetLabels = {
+        'onglet': t('selectionValidation.glossary.targets.tab'),
+        'section': t('selectionValidation.glossary.targets.section'),
+        'tactique': t('selectionValidation.glossary.targets.tactic'),
+        'placement': t('selectionValidation.glossary.targets.placement')
+    };
+
+    let buttonLabel = `${t('selectionValidation.messages.buttons.movePrefix')} ${directCount} ${translatedItemLabels[moveLevel!]}`;
     if (affectedItemsCount > directCount) {
-      buttonLabel += ` (${affectedItemsCount} éléments au total)`;
+      buttonLabel += ` (${affectedItemsCount} ${t('selectionValidation.messages.common.totalItemsSuffix')})`;
     }
-    buttonLabel += ` vers ${TARGET_LABELS[targetLevel!]}`;
+    buttonLabel += ` ${t('selectionValidation.messages.buttons.moveTo')} ${translatedTargetLabels[targetLevel!]}`;
 
     return {
       buttonLabel,
       buttonDisabled: false,
-      statusMessage: `${directCount} ${ITEM_LABELS[moveLevel!]} sélectionné${directCount > 1 ? 's' : ''}${
-        affectedItemsCount > directCount ? ` (${affectedItemsCount} éléments au total)` : ''
+      statusMessage: `${directCount} ${translatedItemLabels[moveLevel!]} ${t(directCount > 1 ? 'selectionValidation.glossary.states.selectedPlural' : 'selectionValidation.glossary.states.selectedSingular')}${
+        affectedItemsCount > directCount ? ` (${affectedItemsCount} ${t('selectionValidation.messages.common.totalItemsSuffix')})` : ''
       }`,
       statusColor: 'green'
     };
-  }, [validationResult]);
+  }, [validationResult, t]);
 }

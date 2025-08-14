@@ -25,6 +25,7 @@ import {
   TaxonomyFormat
 } from '../config/taxonomyFields';
 import { processTaxonomyDelimiters } from '../lib/taxonomyParser';
+import { useTranslation } from '../contexts/LanguageContext';
 
 
 type ParentType = 'campaign' | 'tactic' | 'placement';
@@ -342,6 +343,7 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
  * @returns Un objet contenant la fonction `updateTaxonomies`.
  */
 export const useUpdateTaxonomies = () => {
+  const { t } = useTranslation();
   /**
    * Met à jour les taxonomies pour une campagne, une tactique ou un placement donné.
    * La fonction parcourt l'arborescence des documents Firebase (versions, onglets, sections, tactiques, placements, créatifs)
@@ -492,7 +494,7 @@ export const useUpdateTaxonomies = () => {
 
     } catch (error) {
       console.error('❌ [UpdateTaxonomies] Erreur:', error);
-      throw new Error('La mise à jour des taxonomies a échoué.');
+      throw new Error(t('updateTaxonomies.updateFailed'));
     }
   };
 

@@ -5,13 +5,11 @@
  * OPTIMISÉ VERSION: Utilise le système de cache pour éliminer 80% des appels Firebase.
  * CORRIGÉ: Filtrage simplifié par source directe au lieu de l'ancienne logique "manual".
  * NOUVEAU: Exclusion des champs calculés automatiquement (ex: CR_Sprint_Dates) du rendu.
- * 
- * Optimisations appliquées:
+ * * Optimisations appliquées:
  * A) loadShortcode() → utilise getCachedAllShortcodes() au lieu de getDoc()
  * B) loadFieldOptions() → utilise getListForClient() au lieu de getDynamicList()
  * C) manualVariables → filtrage direct par source ('placement' ou 'créatif') + exclusion calculés
- * 
- * Résultat: Chaque drawer ne voit que SES champs spécifiques (sans les champs calculés)
+ * * Résultat: Chaque drawer ne voit que SES champs spécifiques (sans les champs calculés)
  */
 'use client';
 
@@ -42,6 +40,7 @@ import { processTaxonomyDelimitersSync } from '../lib/taxonomyParser';
 
 // OPTIMISÉ : Import du système de cache
 import { getCachedAllShortcodes, getListForClient } from '../lib/cacheService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface FieldState {
   options: Array<{ id: string; label: string; code?: string }>; // Garder pour compatibilité
@@ -84,6 +83,7 @@ export function useTaxonomyForm({
   formType = 'placement'
 }: UseTaxonomyFormProps) {
 
+  const { t } = useTranslation();
   const [selectedTaxonomyData, setSelectedTaxonomyData] = useState<{
     tags?: Taxonomy;
     platform?: Taxonomy;
@@ -134,8 +134,7 @@ export function useTaxonomyForm({
    * Chaque formType ne voit que SES champs spécifiques :
    * - placement → source === 'placement'
    * - creatif → source === 'créatif'
-   * 
-   * Les champs calculés (comme CR_Sprint_Dates) sont exclus du rendu mais restent
+   * * Les champs calculés (comme CR_Sprint_Dates) sont exclus du rendu mais restent
    * utilisables dans les structures de taxonomie.
    * @returns Un tableau de variables de taxonomie filtrées par source et non calculées.
    */
@@ -358,11 +357,11 @@ export function useTaxonomyForm({
       setParsedVariables(variables);
 
     } catch (error) {
-      setTaxonomiesError('Erreur lors du chargement des taxonomies.');
+      setTaxonomiesError(t('useTaxonomyForm.errors.loadTaxonomies'));
     } finally {
       setTaxonomiesLoading(false);
     }
-  }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean, formType]);
+  }, [clientId, hasTaxonomies, selectedTaxonomyIds.tags, selectedTaxonomyIds.platform, selectedTaxonomyIds.mediaocean, formType, t]);
 
   /**
    * OPTIMISÉ B) : Vérifie si une liste existe depuis le cache au lieu de Firebase
@@ -441,12 +440,12 @@ export function useTaxonomyForm({
             items: [], // NOUVEAU
             hasCustomList: false, 
             isLoading: false, 
-            error: 'Erreur' 
+            error: t('common.error')
           } 
         }));
       }
     }
-  }, [clientId, manualVariables, hasCachedList]);
+  }, [clientId, manualVariables, hasCachedList, t]);
 
   /**
    * Effet de hook pour charger le cache des shortcodes globaux.

@@ -17,6 +17,7 @@ import InvitationModal from './InvitationModal';
 import EditUserModal from './EditUserModal';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * Composant principal de l'onglet de gestion des utilisateurs.
@@ -24,6 +25,7 @@ import { db } from '../../lib/firebase';
  * @returns {JSX.Element} Le rendu de l'onglet de gestion des utilisateurs.
  */
 export default function UsersTab() {
+  const { t } = useTranslation();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserWithStatus[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserWithStatus[]>([]);
@@ -87,7 +89,7 @@ export default function UsersTab() {
   const handleSaveUserRole = async (userId: string, newRole: string) => {
     try {
       if (userId.startsWith('invitation-')) {
-        throw new Error('Impossible de modifier le rôle d\'une invitation. L\'utilisateur doit d\'abord se connecter.');
+        throw new Error(t('usersTab.errors.cannotEditInvitation'));
       }
       
       const userRef = doc(db, 'users', userId);
@@ -111,7 +113,7 @@ export default function UsersTab() {
    */
   const handleSendInvitation = async (invitationData: InvitationFormData) => {
     if (!currentUser?.email) {
-      throw new Error('Utilisateur non connecté');
+      throw new Error(t('usersTab.errors.userNotConnected'));
     }
 
     try {
@@ -131,8 +133,8 @@ export default function UsersTab() {
    */
   const handleRemoveUser = async (userToRemove: UserWithStatus) => {
     const confirmMessage = userToRemove.status === 'active' 
-      ? `Êtes-vous sûr de vouloir désactiver l'utilisateur "${userToRemove.email}" ?`
-      : `Êtes-vous sûr de vouloir supprimer l'invitation pour "${userToRemove.email}" ?`;
+      ? `${t('usersTab.confirm.deactivateUser')} "${userToRemove.email}" ?`
+      : `${t('usersTab.confirm.deleteInvitation')} "${userToRemove.email}" ?`;
     
     if (!confirm(confirmMessage)) {
       return;
@@ -143,7 +145,7 @@ export default function UsersTab() {
       await loadUsers();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression de l\'utilisateur');
+      alert(t('usersTab.errors.userDeletionFailed'));
     }
   };
 
@@ -158,21 +160,21 @@ export default function UsersTab() {
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
             <CheckCircle className="h-3 w-3 mr-1" />
-            Actif
+            {t('usersTab.status.active')}
           </span>
         );
       case 'invited':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
             <Clock className="h-3 w-3 mr-1" />
-            Invité
+            {t('usersTab.status.invited')}
           </span>
         );
       case 'expired':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
             <XCircle className="h-3 w-3 mr-1" />
-            Expiré
+            {t('usersTab.status.expired')}
           </span>
         );
       default:
@@ -212,9 +214,9 @@ export default function UsersTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Gestion des utilisateurs</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('usersTab.header.title')}</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Inviter de nouveaux utilisateurs et gérer les accès à l'application
+            {t('usersTab.header.subtitle')}
           </p>
         </div>
         <button 
@@ -222,7 +224,7 @@ export default function UsersTab() {
           className="btn-primary flex items-center space-x-2"
         >
           <UserPlus className="h-4 w-4" />
-          <span>Inviter utilisateur</span>
+          <span>{t('usersTab.buttons.inviteUser')}</span>
         </button>
       </div>
 
@@ -231,7 +233,7 @@ export default function UsersTab() {
           <div className="flex items-center">
             <CheckCircle className="h-8 w-8 text-green-500" />
             <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">Utilisateurs actifs</p>
+              <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.activeUsers')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {users.filter(u => u.status === 'active').length}
               </p>
@@ -243,7 +245,7 @@ export default function UsersTab() {
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-blue-500" />
             <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">Invitations en attente</p>
+              <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.pendingInvitations')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {users.filter(u => u.status === 'invited').length}
               </p>
@@ -255,7 +257,7 @@ export default function UsersTab() {
           <div className="flex items-center">
             <XCircle className="h-8 w-8 text-red-500" />
             <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">Invitations expirées</p>
+              <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.expiredInvitations')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {users.filter(u => u.status === 'expired').length}
               </p>
@@ -267,7 +269,7 @@ export default function UsersTab() {
           <div className="flex items-center">
             <UserPlus className="h-8 w-8 text-indigo-500" />
             <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">Total</p>
+              <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.total')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {users.length}
               </p>
@@ -283,7 +285,7 @@ export default function UsersTab() {
           </div>
           <input
             type="text"
-            placeholder="Rechercher par nom, email ou rôle..."
+            placeholder={t('usersTab.search.placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
@@ -301,7 +303,7 @@ export default function UsersTab() {
         </div>
         {searchTerm && (
           <p className="mt-2 text-sm text-gray-600">
-            {filteredUsers.length} résultat(s) trouvé(s) pour "{searchTerm}"
+            {filteredUsers.length} {t('usersTab.search.resultsFound')} "{searchTerm}"
           </p>
         )}
       </div>
@@ -312,25 +314,25 @@ export default function UsersTab() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="w-64 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Utilisateur
+                  {t('usersTab.table.header.user')}
                 </th>
                 <th className="w-32 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
+                  {t('usersTab.table.header.status')}
                 </th>
                 <th className="w-24 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rôle
+                  {t('usersTab.table.header.role')}
                 </th>
                 <th className="w-40 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Invité le
+                  {t('usersTab.table.header.invitedOn')}
                 </th>
                 <th className="w-40 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Accepté le
+                  {t('usersTab.table.header.acceptedOn')}
                 </th>
                 <th className="w-32 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Invité par
+                  {t('usersTab.table.header.invitedBy')}
                 </th>
                 <th className="w-20 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('usersTab.table.header.actions')}
                 </th>
               </tr>
             </thead>
@@ -387,7 +389,7 @@ export default function UsersTab() {
                         <button
                           onClick={() => handleEditUser(user)}
                           className="text-indigo-600 hover:text-indigo-900 p-1"
-                          title="Modifier le rôle"
+                          title={t('usersTab.actions.editRole')}
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -396,7 +398,7 @@ export default function UsersTab() {
                         <button
                           onClick={() => {}}
                           className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Renvoyer l'invitation"
+                          title={t('usersTab.actions.resendInvitation')}
                         >
                           <RotateCcw className="h-4 w-4" />
                         </button>
@@ -404,7 +406,7 @@ export default function UsersTab() {
                       <button
                         onClick={() => handleRemoveUser(user)}
                         className="text-red-600 hover:text-red-900 p-1"
-                        title={user.status === 'active' ? 'Désactiver l\'utilisateur' : 'Supprimer l\'invitation'}
+                        title={user.status === 'active' ? t('usersTab.actions.deactivateUser') : t('usersTab.actions.deleteInvitation')}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -420,16 +422,16 @@ export default function UsersTab() {
       {filteredUsers.length === 0 && users.length > 0 && (
         <div className="text-center py-12">
           <Search className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun résultat</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('usersTab.noResults.title')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Aucun utilisateur ne correspond à votre recherche "{searchTerm}".
+            {t('usersTab.noResults.description')} "{searchTerm}".
           </p>
           <div className="mt-6">
             <button 
               onClick={() => setSearchTerm('')}
               className="btn-secondary"
             >
-              Effacer la recherche
+              {t('usersTab.buttons.clearSearch')}
             </button>
           </div>
         </div>
@@ -438,16 +440,16 @@ export default function UsersTab() {
       {users.length === 0 && (
         <div className="text-center py-12">
           <UserPlus className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun utilisateur</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('usersTab.emptyState.title')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Commencez par inviter votre premier utilisateur.
+            {t('usersTab.emptyState.description')}
           </p>
           <div className="mt-6">
             <button 
               onClick={() => setIsInvitationModalOpen(true)}
               className="btn-primary"
             >
-              Inviter un utilisateur
+              {t('usersTab.buttons.inviteAUser')}
             </button>
           </div>
         </div>
@@ -459,12 +461,11 @@ export default function UsersTab() {
             <Clock className="h-5 w-5 text-blue-400" />
             <div className="ml-3">
               <h3 className="text-sm font-medium text-blue-800">
-                À propos des invitations
+                {t('usersTab.invitationInfo.title')}
               </h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>
-                  Les utilisateurs invités recevront un accès automatiquement lors de leur première connexion avec Google.
-                  Les invitations expirent après 7 jours et peuvent être renvoyées si nécessaire.
+                  {t('usersTab.invitationInfo.description')}
                 </p>
               </div>
             </div>

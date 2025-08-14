@@ -7,6 +7,7 @@
  * et par sous-catégorie pour les tactiques, placements ET créatifs, permettant une gestion flexible de
  * l'affichage et de la validation des données dans les tables.
  * MODIFIÉ : Ajout du support des sous-catégories créatifs (Info, Taxonomie, Specs)
+ * MODIFIÉ : Ajout du support multilingue RÉTROCOMPATIBLE
  */
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 
@@ -892,105 +893,130 @@ export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
 };
 
 /**
+ * NOUVEAU : Fonctions pour obtenir des labels traduits (optionnel et rétrocompatible)
+ */
+function getTranslatedLabel(key: string, fallback: string, t?: (key: string) => string): string {
+  return t ? t(key) : fallback;
+}
+
+/**
+ * NOUVEAU : Crée une copie des colonnes avec des labels traduits
+ */
+function translateColumns(columns: DynamicColumn[], t?: (key: string) => string): DynamicColumn[] {
+  if (!t) return columns;
+  
+  return columns.map(col => {
+    const translatedLabel = (() => {
+      switch (col.key) {
+        case 'TC_Label': return t('table.columns.label');
+        case 'TC_Bucket': return t('table.columns.bucket');
+        case 'TC_MPA': return t('table.columns.mpa');
+        case 'TC_Start_Date': return t('table.columns.startDate');
+        case 'TC_End_Date': return t('table.columns.endDate');
+        case 'PL_Label': return t('table.columns.placementName');
+        case 'CR_Label': return t('table.columns.creativeName');
+        case 'PL_Taxonomy_Tags':
+        case 'CR_Taxonomy_Tags': return t('table.columns.taxonomyTags');
+        case 'PL_Taxonomy_Platform':
+        case 'CR_Taxonomy_Platform': return t('table.columns.taxonomyPlatform');
+        case 'PL_Taxonomy_MediaOcean':
+        case 'CR_Taxonomy_MediaOcean': return t('table.columns.taxonomyMediaOcean');
+        case 'SECTION_Name': return t('table.columns.sectionName');
+        // Ajoutez d'autres mappings selon vos besoins
+        default: return col.label;
+      }
+    })();
+    
+    return { ...col, label: translatedLabel };
+  });
+}
+
+/**
  * Récupère la configuration des colonnes pour un niveau de tableau donné.
- * Si le niveau est 'tactique' et qu'une sous-catégorie est spécifiée, elle retourne les colonnes de cette sous-catégorie.
- * Si le niveau est 'placement' et qu'une sous-catégorie est spécifiée, elle retourne les colonnes de cette sous-catégorie.
- * NOUVEAU : Si le niveau est 'creatif' et qu'une sous-catégorie est spécifiée, elle retourne les colonnes de cette sous-catégorie.
- * Sinon, elle retourne les colonnes par défaut pour le niveau spécifié.
- * @param level Le niveau du tableau (e.g., 'section', 'tactique', 'placement', 'creatif').
- * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
- * @param placementSubCategory La sous-catégorie de placement (optionnel).
- * @param creatifSubCategory La sous-catégorie de créatif (optionnel).
- * @returns Un tableau d'objets DynamicColumn correspondant à la configuration des colonnes.
+ * MODIFIÉ : Support optionnel de la traduction
  */
 export function getColumnsForLevel(
   level: TableLevel, 
   tactiqueSubCategory?: TactiqueSubCategory,
   placementSubCategory?: PlacementSubCategory,
-  creatifSubCategory?: CreatifSubCategory
+  creatifSubCategory?: CreatifSubCategory,
+  t?: (key: string) => string
 ): DynamicColumn[] {
+  let columns: DynamicColumn[] = [];
+  
   if (level === 'tactique' && tactiqueSubCategory) {
     const subCategory = TACTIQUE_SUBCATEGORIES.find(sc => sc.id === tactiqueSubCategory);
-    return subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
-  }
-  
-  if (level === 'placement' && placementSubCategory) {
+    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+  } else if (level === 'placement' && placementSubCategory) {
     const subCategory = PLACEMENT_SUBCATEGORIES.find(sc => sc.id === placementSubCategory);
-    return subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
-  }
-  
-  // NOUVEAU : Gestion des sous-catégories de créatif
-  if (level === 'creatif' && creatifSubCategory) {
+    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+  } else if (level === 'creatif' && creatifSubCategory) {
     const subCategory = CREATIF_SUBCATEGORIES.find(sc => sc.id === creatifSubCategory);
-    return subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+  } else {
+    columns = COLUMN_CONFIGS[level] || [];
   }
   
-  return COLUMN_CONFIGS[level] || [];
+  return translateColumns(columns, t);
 }
 
 /**
- * Récupère toutes les configurations de sous-catégories disponibles pour les tactiques.
- * @returns Un tableau d'objets TactiqueSubCategoryConfig.
+ * NOUVEAU : Fonctions pour obtenir les sous-catégories avec traduction optionnelle
  */
-export function getTactiqueSubCategories(): TactiqueSubCategoryConfig[] {
-  return TACTIQUE_SUBCATEGORIES;
+export function getTactiqueSubCategories(t?: (key: string) => string): TactiqueSubCategoryConfig[] {
+  return TACTIQUE_SUBCATEGORIES.map(subCat => ({
+    ...subCat,
+    label: t ? t(`table.tabs.tactique.${subCat.id}`) : subCat.label,
+    columns: translateColumns(subCat.columns, t)
+  }));
 }
 
-/**
- * Récupère toutes les configurations de sous-catégories disponibles pour les placements.
- * @returns Un tableau d'objets PlacementSubCategoryConfig.
- */
-export function getPlacementSubCategories(): PlacementSubCategoryConfig[] {
-  return PLACEMENT_SUBCATEGORIES;
+export function getPlacementSubCategories(t?: (key: string) => string): PlacementSubCategoryConfig[] {
+  return PLACEMENT_SUBCATEGORIES.map(subCat => ({
+    ...subCat,
+    label: t ? t(`table.tabs.placement.${subCat.id}`) : subCat.label,
+    columns: translateColumns(subCat.columns, t)
+  }));
 }
 
-/**
- * NOUVEAU : Récupère toutes les configurations de sous-catégories disponibles pour les créatifs.
- * @returns Un tableau d'objets CreatifSubCategoryConfig.
- */
-export function getCreatifSubCategories(): CreatifSubCategoryConfig[] {
-  return CREATIF_SUBCATEGORIES;
+export function getCreatifSubCategories(t?: (key: string) => string): CreatifSubCategoryConfig[] {
+  return CREATIF_SUBCATEGORIES.map(subCat => ({
+    ...subCat,
+    label: t ? t(`table.tabs.creatif.${subCat.id}`) : subCat.label,
+    columns: translateColumns(subCat.columns, t)
+  }));
 }
 
 /**
  * Récupère une colonne spécifique par sa clé et son niveau, potentiellement filtrée par sous-catégorie.
- * @param level Le niveau du tableau.
- * @param key La clé unique de la colonne à rechercher.
- * @param tactiqueSubCategory La sous-catégorie de tactique (optionnel).
- * @param placementSubCategory La sous-catégorie de placement (optionnel).
- * @param creatifSubCategory La sous-catégorie de créatif (optionnel).
- * @returns L'objet DynamicColumn correspondant ou undefined si non trouvé.
  */
 export function getColumnByKey(
   level: TableLevel, 
   key: string, 
   tactiqueSubCategory?: TactiqueSubCategory,
   placementSubCategory?: PlacementSubCategory,
-  creatifSubCategory?: CreatifSubCategory
+  creatifSubCategory?: CreatifSubCategory,
+  t?: (key: string) => string
 ): DynamicColumn | undefined {
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
   return columns.find(col => col.key === key);
 }
 
 /**
  * Valide une valeur donnée en fonction des règles de validation définies pour une colonne spécifique.
- * @param level Le niveau du tableau.
- * @param key La clé de la colonne.
- * @param value La valeur à valider.
- * @param subCategory La sous-catégorie (tactique, placement ou créatif) (optionnel).
- * @returns Vrai si la valeur est valide selon la colonne, faux sinon.
  */
 export function validateColumnValue(
   level: TableLevel, 
   key: string, 
   value: any, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
+  t?: (key: string) => string
 ): boolean {
   const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
   const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
   const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
   
-  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
   if (!column || !column.validation) return true;
 
   return column.validation(value);
@@ -998,23 +1024,19 @@ export function validateColumnValue(
 
 /**
  * Formate une valeur donnée en utilisant la fonction de formatage spécifiée pour une colonne.
- * @param level Le niveau du tableau.
- * @param key La clé de la colonne.
- * @param value La valeur à formater.
- * @param subCategory La sous-catégorie (tactique, placement ou créatif) (optionnel).
- * @returns La valeur formatée sous forme de chaîne de caractères.
  */
 export function formatColumnValue(
   level: TableLevel, 
   key: string, 
   value: any, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
+  t?: (key: string) => string
 ): string {
   const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
   const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
   const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
   
-  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
   if (!column || !column.format) return String(value || '');
 
   return column.format(value);
@@ -1022,36 +1044,31 @@ export function formatColumnValue(
 
 /**
  * Calcule la largeur totale combinée de toutes les colonnes pour un niveau de tableau donné.
- * @param level Le niveau du tableau.
- * @param subCategory La sous-catégorie (tactique, placement ou créatif) (optionnel).
- * @returns La somme des largeurs des colonnes.
  */
 export function getTotalColumnsWidth(
   level: TableLevel, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
+  t?: (key: string) => string
 ): number {
   const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
   const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
   const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
   
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
   return columns.reduce((total, col) => total + (col.width || 150), 0);
 }
 
 /**
  * Ajoute une colonne spéciale de hiérarchie (indentation visuelle) au début de la liste des colonnes pour un niveau donné.
- * Cette colonne est utilisée pour représenter la structure imbriquée des éléments dans le tableau.
- * @param level Le niveau du tableau.
- * @param subCategory La sous-catégorie (tactique, placement ou créatif) (optionnel).
- * @returns Un tableau de colonnes incluant la colonne de hiérarchie.
  */
 export function getColumnsWithHierarchy(
   level: TableLevel, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
+  t?: (key: string) => string
 ): DynamicColumn[] {
   const hierarchyColumn: DynamicColumn = {
     key: '_hierarchy',
-    label: 'Structure',
+    label: t ? t('table.columns.structure') : 'Structure',
     type: 'readonly',
     width: 300
   };
@@ -1060,6 +1077,6 @@ export function getColumnsWithHierarchy(
   const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
   const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
 
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
   return [hierarchyColumn, ...columns];
 }

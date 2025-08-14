@@ -3,12 +3,14 @@
 /**
  * Version simplifiée qui n'effectue AUCUN calcul
  * Tous les calculs sont gérés par DynamicTableStructure via budgetService
+ * MODIFIÉ : Ajout du support multilingue
  */
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
 import { FeeColumnDefinition } from './budgetColumns.config';
 import { Fee } from '../../../../lib/tactiqueListService';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface ReactiveFeeCompositeProps {
   entityId: string;
@@ -37,6 +39,7 @@ export function ReactiveFeeCompositeReadonly({
   pendingChanges = {}
 }: Omit<ReactiveFeeCompositeProps, 'entityId' | 'isEditable' | 'hasValidationError' | 'onChange'>) {
   
+  const { t } = useTranslation();
   const feeNumber = column.feeNumber;
   
   // Trouver l'index séquentiel pour les champs de données
@@ -69,7 +72,7 @@ export function ReactiveFeeCompositeReadonly({
         }`}
         onClick={onClick}
       >
-        Frais #{feeNumber} introuvable
+        {t('table.budget.feeNotFound', { number: feeNumber })}
       </div>
     );
   }
@@ -88,7 +91,7 @@ export function ReactiveFeeCompositeReadonly({
           }`}></span>
           
           <span className="flex-1 truncate">
-            {selectedOption?.FO_Option || 'Aucune option'}
+            {selectedOption?.FO_Option || t('table.budget.noOption')}
           </span>
           
           <span className={`font-medium text-center ${
@@ -116,6 +119,7 @@ function formatCurrency(value: number, currency: string): string {
 
 /**
  * Composant principal - version simplifiée
+ * MODIFIÉ : Ajout du support multilingue
  */
 export default function ReactiveFeeComposite({
   entityId,
@@ -131,6 +135,7 @@ export default function ReactiveFeeComposite({
   pendingChanges = {}
 }: ReactiveFeeCompositeProps) {
   
+  const { t } = useTranslation();
   const feeNumber = column.feeNumber;
   
   // Trouver l'index séquentiel pour les champs de données
@@ -232,7 +237,7 @@ export default function ReactiveFeeComposite({
         }`}
         onClick={onClick}
       >
-        <span>Frais #{feeNumber} introuvable</span>
+        <span>{t('table.budget.feeNotFound', { number: feeNumber })}</span>
       </div>
     );
   }
@@ -253,7 +258,7 @@ export default function ReactiveFeeComposite({
             onChange={handleEnabledChange}
             disabled={!isEditable}
             className="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-            title={`${currentValues.isEnabled ? 'Désactiver' : 'Activer'} ${associatedFee.FE_Name}`}
+            title={`${currentValues.isEnabled ? t('table.budget.disable') : t('table.budget.enable')} ${associatedFee.FE_Name}`}
             onClick={(e) => e.stopPropagation()}
           />
         </div>
@@ -267,10 +272,10 @@ export default function ReactiveFeeComposite({
             className={`w-full h-full px-2 text-xs border-0 focus:ring-0 focus:outline-none transition-colors ${
               !currentValues.isEnabled ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'
             }`}
-            title={currentValues.isEnabled ? 'Sélectionner une option' : 'Activer le frais pour sélectionner'}
+            title={currentValues.isEnabled ? t('table.budget.selectOption') : t('table.budget.enableToSelect')}
             onClick={(e) => e.stopPropagation()}
           >
-            <option value="">-- Option --</option>
+            <option value="">{t('table.budget.optionPlaceholder')}</option>
             {availableOptions.map(option => (
               <option key={option.id} value={option.id}>
                 {option.FO_Option}
@@ -290,14 +295,14 @@ export default function ReactiveFeeComposite({
               className="w-full h-full px-1 text-xs border-0 focus:ring-0 focus:outline-none text-center bg-yellow-50 hover:bg-yellow-100 transition-colors"
               min="0"
               step="0.01"
-              title="Valeur personnalisée"
+              title={t('table.budget.customValue')}
               placeholder="0"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
               {currentValues.isEnabled && selectedOption && !selectedOption.FO_Editable ? (
-                <span title="Valeur fixe">=</span>
+                <span title={t('table.budget.fixedValue')}>=</span>
               ) : (
                 <span>-</span>
               )}
@@ -308,7 +313,7 @@ export default function ReactiveFeeComposite({
         {/* 4. Montant calculé (readonly) */}
         <div 
           className="w-20 flex items-center justify-center px-2 cursor-pointer transition-colors hover:bg-gray-50"
-          title="Montant calculé automatiquement"
+          title={t('table.budget.autoCalculatedAmount')}
         >
           <span className={`text-xs font-medium transition-colors ${
             currentValues.calculatedAmount > 0 ? 'text-green-700' : 'text-gray-400'
@@ -316,7 +321,7 @@ export default function ReactiveFeeComposite({
             {formattedAmount}
           </span>
           {currentValues.calculatedAmount > 0 && (
-            <span className="ml-1 text-xs text-green-600" title="Calculé automatiquement">
+            <span className="ml-1 text-xs text-green-600" title={t('table.budget.autoCalculated')}>
               ✓
             </span>
           )}

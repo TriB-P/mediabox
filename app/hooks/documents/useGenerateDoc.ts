@@ -8,6 +8,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface UseGenerateDocReturn {
   generateDocument: (sheetUrl: string, sheetName: string) => Promise<boolean>;
@@ -23,6 +24,7 @@ export function useGenerateDoc(): UseGenerateDocReturn {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   /**
    * Extrait l'ID unique d'un Google Sheet à partir de son URL complète.
@@ -42,7 +44,7 @@ export function useGenerateDoc(): UseGenerateDocReturn {
    * @throws {Error} Si l'utilisateur n'est pas authentifié ou si le token d'accès ne peut être récupéré.
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!user) throw new Error('Utilisateur non authentifié');
+    if (!user) throw new Error(t('useGenerateDoc.auth.notAuthenticated'));
 
     const cachedToken = localStorage.getItem('google_sheets_token');
     const cachedTime = localStorage.getItem('google_sheets_token_time');
@@ -71,8 +73,8 @@ export function useGenerateDoc(): UseGenerateDocReturn {
       return credential.accessToken;
     }
 
-    throw new Error('Token d\'accès non récupéré');
-  }, [user]);
+    throw new Error(t('useGenerateDoc.auth.tokenNotRetrieved'));
+  }, [user, t]);
 
   /**
    * Écrit la valeur "ALLO" dans la cellule A1 d'un onglet spécifié d'un Google Sheet.
@@ -91,12 +93,12 @@ export function useGenerateDoc(): UseGenerateDocReturn {
 
       const sheetId = extractSheetId(sheetUrl);
       if (!sheetId) {
-        throw new Error('URL Google Sheet invalide');
+        throw new Error(t('useGenerateDoc.error.invalidSheetUrl'));
       }
 
       const token = await getAccessToken();
       if (!token) {
-        throw new Error('Impossible d\'obtenir le token d\'accès');
+        throw new Error(t('useGenerateDoc.error.tokenNotObtained'));
       }
 
       const range = `${sheetName}!A1`;
@@ -116,27 +118,27 @@ export function useGenerateDoc(): UseGenerateDocReturn {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
+        const errorMessage = errorData.error?.message || `${t('useGenerateDoc.error.httpError')} ${response.status}`;
 
         if (response.status === 403) {
-          throw new Error('Permissions insuffisantes. Vérifiez l\'accès au Google Sheet.');
+          throw new Error(t('useGenerateDoc.error.insufficientPermissions'));
         } else if (response.status === 404) {
-          throw new Error('Google Sheet ou onglet non trouvé.');
+          throw new Error(t('useGenerateDoc.error.sheetOrTabNotFound'));
         } else {
-          throw new Error(`Erreur API: ${errorMessage}`);
+          throw new Error(`${t('useGenerateDoc.error.apiError')} ${errorMessage}`);
         }
       }
 
       return true;
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+      const errorMessage = err instanceof Error ? err.message : t('useGenerateDoc.error.unknownError');
       setError(errorMessage);
       return false;
     } finally {
       setLoading(false);
     }
-  }, [extractSheetId, getAccessToken]);
+  }, [extractSheetId, getAccessToken, t]);
 
   return {
     generateDocument,

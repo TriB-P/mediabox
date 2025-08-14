@@ -10,6 +10,7 @@ import { useSelection } from '../contexts/SelectionContext';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
 import { Campaign } from '../types/campaign';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface Version {
   id: string;
@@ -41,6 +42,7 @@ interface UseCampaignSelectionReturn {
  * et les fonctions pour gérer les changements et rafraîchir les données.
  */
 export function useCampaignSelection(): UseCampaignSelectionReturn {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { 
     selectedCampaignId, 
@@ -93,13 +95,13 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       
     } catch (err) {
       console.error('❌ Erreur chargement campagnes:', err);
-      setError('Erreur lors du chargement des campagnes');
+      setError(t('useCampaignSelection.errorLoadingCampaigns'));
       setCampaigns([]);
     } finally {
       loadingCampaignsRef.current = false;
       setLoading(false);
     }
-  }, [selectedCampaignId]);
+  }, [selectedCampaignId, t]);
   
   /**
    * Charge les versions pour une campagne donnée et un client spécifique.
@@ -130,13 +132,13 @@ export function useCampaignSelection(): UseCampaignSelectionReturn {
       
     } catch (err) {
       console.error('❌ Erreur chargement versions:', err);
-      setError('Erreur lors du chargement des versions');
+      setError(t('useCampaignSelection.errorLoadingVersions'));
       setVersions([]);
     } finally {
       loadingVersionsRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [t]);
   
   /**
    * Effet de bord qui s'exécute lorsque le client sélectionné change.

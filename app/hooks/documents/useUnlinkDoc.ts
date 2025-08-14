@@ -11,6 +11,7 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { DocumentUnlinkResult, Document } from '../../types/document';
 import { createUnlinkedDocument } from '../../lib/documentService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface UseUnlinkDocReturn {
   unlinkDocument: (
@@ -30,6 +31,7 @@ interface UseUnlinkDocReturn {
  * les états de chargement et d'erreur.
  */
 export function useUnlinkDoc(): UseUnlinkDocReturn {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!user) {
-      throw new Error('Utilisateur non authentifié');
+      throw new Error(t('unlinkDoc.error.notAuthenticated'));
     }
 
     // Vérifier le cache d'abord
@@ -100,14 +102,14 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
         return credential.accessToken;
       }
 
-      throw new Error('Token d\'accès non récupéré depuis Firebase Auth');
+      throw new Error(t('unlinkDoc.error.tokenNotRetrieved'));
     } catch (err) {
-      console.error('Erreur lors de l\'authentification Google:', err);
+      console.error(t('unlinkDoc.error.googleAuth'), err);
       localStorage.removeItem('google_unlink_token');
       localStorage.removeItem('google_unlink_token_time');
       throw err;
     }
-  }, [user]);
+  }, [user, t]);
 
   /**
    * Duplique un fichier Google Sheets via l'API Drive.
@@ -142,19 +144,19 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       console.error(`[UNLINK] Erreur duplication ${response.status}:`, errorData);
       
       if (response.status === 403) {
-        throw new Error('Permissions insuffisantes pour dupliquer le fichier.');
+        throw new Error(t('unlinkDoc.error.insufficientPermissions'));
       } else if (response.status === 404) {
-        throw new Error('Document non trouvé. Vérifiez l\'URL du document.');
+        throw new Error(t('unlinkDoc.error.documentNotFound'));
       } else {
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
-        throw new Error(`Erreur API Drive: ${errorMessage}`);
+        throw new Error(`${t('unlinkDoc.error.driveApi')} ${errorMessage}`);
       }
     }
 
     const result = await response.json();
     console.log(`[UNLINK] Fichier dupliqué avec succès. Nouvel ID: ${result.id}`);
     return result.id;
-  }, []);
+  }, [t]);
 
   /**
    * Récupère la liste des feuilles d'un Google Sheets.
@@ -179,12 +181,12 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Erreur lors de la récupération des feuilles: ${errorData.error?.message || response.status}`);
+      throw new Error(`${t('unlinkDoc.error.fetchSheets')} ${errorData.error?.message || response.status}`);
     }
 
     const result = await response.json();
     return result.sheets || [];
-  }, []);
+  }, [t]);
 
   /**
    * Supprime des feuilles spécifiques d'un Google Sheets.
@@ -226,11 +228,11 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Erreur lors de la suppression des feuilles: ${errorData.error?.message || response.status}`);
+      throw new Error(`${t('unlinkDoc.error.deleteSheets')} ${errorData.error?.message || response.status}`);
     }
 
     console.log(`[UNLINK] ${sheetIds.length} feuille(s) supprimée(s) avec succès`);
-  }, []);
+  }, [t]);
 
   /**
    * Convertit toutes les formules d'une feuille en valeurs.
@@ -271,11 +273,11 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Erreur lors de la conversion des formules: ${errorData.error?.message || response.status}`);
+      throw new Error(`${t('unlinkDoc.error.convertFormulas')} ${errorData.error?.message || response.status}`);
     }
 
     console.log(`[UNLINK] Formules converties en valeurs pour la feuille: ${sheetId}`);
-  }, []);
+  }, [t]);
 
   /**
    * Génère l'URL d'accès pour un fichier Google Sheets.
@@ -305,7 +307,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
     if (!user) {
       return {
         success: false,
-        errorMessage: 'Utilisateur non authentifié'
+        errorMessage: t('unlinkDoc.error.notAuthenticated')
       };
     }
 
@@ -320,7 +322,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       if (!originalFileId) {
         return {
           success: false,
-          errorMessage: 'URL de document invalide. Impossible d\'extraire l\'ID du fichier.',
+          errorMessage: t('unlinkDoc.error.invalidUrl'),
           failedStep: 'validation'
         };
       }
@@ -330,7 +332,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       if (!accessToken) {
         return {
           success: false,
-          errorMessage: 'Impossible d\'obtenir le token d\'accès Google',
+          errorMessage: t('unlinkDoc.error.tokenAccessFailed'),
           failedStep: 'validation'
         };
       }
@@ -386,7 +388,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
         {
           id: user.id,
           email: user.email || '',
-          displayName: user.displayName || 'Utilisateur'
+          displayName: user.displayName || t('unlinkDoc.common.user')
         }
       );
 
@@ -404,8 +406,8 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la dissociation';
-      console.error('❌ Erreur dissociation document:', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : t('unlinkDoc.error.unknown');
+      console.error(`❌ ${t('unlinkDoc.error.unlinkProcess')}`, errorMessage);
       setError(errorMessage);
       
       return {
@@ -424,7 +426,8 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
     getSheets,
     deleteSheets,
     convertFormulasToValues,
-    generateSheetsUrl
+    generateSheetsUrl,
+    t
   ]);
 
   return {

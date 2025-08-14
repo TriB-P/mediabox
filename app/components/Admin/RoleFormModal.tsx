@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { Role, RoleFormData } from '../../types/roles';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface RoleFormModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface RoleFormModalProps {
  * @returns {JSX.Element | null} Le composant de la modal ou `null` si `isOpen` est faux.
  */
 export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFormModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<RoleFormData>({
     name: '',
     Access: false,
@@ -84,7 +86,7 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      alert('Le nom du rôle est requis');
+      alert(t('roleFormModal.alerts.nameRequired'));
       return;
     }
 
@@ -94,7 +96,7 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
       onClose();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde du rôle');
+      alert(t('roleFormModal.alerts.saveError'));
     } finally {
       setSaving(false);
     }
@@ -113,16 +115,16 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
   };
 
   const permissions = [
-    { key: 'Access' as const, label: 'Accès' },
-    { key: 'ClientInfo' as const, label: 'Informations Client' },
-    { key: 'CostGuide' as const, label: 'Guide de Coût' },
-    { key: 'Currency' as const, label: 'Devises' },
-    { key: 'CustomCodes' as const, label: 'Codes Personnalisés' },
-    { key: 'Dimensions' as const, label: 'Dimensions' },
-    { key: 'Fees' as const, label: 'Frais' },
-    { key: 'Listes' as const, label: 'Listes' },
-    { key: 'Taxonomy' as const, label: 'Taxonomie' },
-    { key: 'Templates' as const, label: 'Gabarits' },
+    { key: 'Access' as const, label: t('roleFormModal.permissions.access') },
+    { key: 'ClientInfo' as const, label: t('roleFormModal.permissions.clientInfo') },
+    { key: 'CostGuide' as const, label: t('roleFormModal.permissions.costGuide') },
+    { key: 'Currency' as const, label: t('roleFormModal.permissions.currency') },
+    { key: 'CustomCodes' as const, label: t('roleFormModal.permissions.customCodes') },
+    { key: 'Dimensions' as const, label: t('roleFormModal.permissions.dimensions') },
+    { key: 'Fees' as const, label: t('roleFormModal.permissions.fees') },
+    { key: 'Listes' as const, label: t('roleFormModal.permissions.lists') },
+    { key: 'Taxonomy' as const, label: t('roleFormModal.permissions.taxonomy') },
+    { key: 'Templates' as const, label: t('roleFormModal.permissions.templates') },
   ];
 
   if (!isOpen) return null;
@@ -140,7 +142,7 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  {role ? 'Modifier le rôle' : 'Nouveau rôle'}
+                  {role ? t('roleFormModal.title.edit') : t('roleFormModal.title.new')}
                 </h3>
                 <button
                   type="button"
@@ -153,21 +155,21 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
 
               <div className="mb-6">
                 <label className="form-label">
-                  Nom du rôle *
+                  {t('roleFormModal.labels.roleName')}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="form-input"
-                  placeholder="Entrez le nom du rôle"
+                  placeholder={t('roleFormModal.placeholders.roleName')}
                   required
                 />
               </div>
 
               <div>
                 <label className="form-label mb-3">
-                  Permissions
+                  {t('roleFormModal.labels.permissions')}
                 </label>
                 <div className="space-y-3">
                   {permissions.map(permission => (
@@ -200,12 +202,12 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
                 {saving ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Sauvegarde...
+                    {t('roleFormModal.buttons.saving')}
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <Save className="h-4 w-4 mr-2" />
-                    {role ? 'Modifier' : 'Créer'}
+                    {role ? t('common.edit') : t('common.create')}
                   </div>
                 )}
               </button>
@@ -214,7 +216,7 @@ export default function RoleFormModal({ isOpen, onClose, onSave, role }: RoleFor
                 onClick={onClose}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
             </div>
           </form>

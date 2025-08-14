@@ -9,6 +9,7 @@
  * ✅ MODIFIÉ : Il force maintenant une régénération complète des taxonomies des éléments déplacés.
  */
 import { useState, useCallback, useRef } from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { SelectionValidationResult } from './useSelectionValidation';
@@ -55,6 +56,7 @@ export interface MoveModalState {
  * @returns {object} Un objet contenant l'état du modal et les fonctions pour interagir avec.
  */
 export function useSimpleMoveModal() {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   const { updateTaxonomiesAfterMove } = useUpdateTaxonomiesAfterMove();
@@ -107,10 +109,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingCampaigns: false,
-        error: 'Erreur lors du chargement des campagnes'
+        error: t('useSimpleMoveModal.errors.loadCampaigns')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Charge les versions pour une campagne donnée.
@@ -139,10 +141,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingVersions: false,
-        error: 'Erreur lors du chargement des versions'
+        error: t('useSimpleMoveModal.errors.loadVersions')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Charge les onglets pour une campagne et une version données.
@@ -171,10 +173,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingOnglets: false,
-        error: 'Erreur lors du chargement des onglets'
+        error: t('useSimpleMoveModal.errors.loadTabs')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Charge les sections pour une campagne, une version et un onglet donnés.
@@ -208,10 +210,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingSections: false,
-        error: 'Erreur lors du chargement des sections'
+        error: t('useSimpleMoveModal.errors.loadSections')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Charge les tactiques pour une campagne, une version, un onglet et une section donnés.
@@ -251,10 +253,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingTactiques: false,
-        error: 'Erreur lors du chargement des tactiques'
+        error: t('useSimpleMoveModal.errors.loadTactics')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Charge les placements pour une campagne, une version, un onglet, une section et une tactique donnés.
@@ -296,10 +298,10 @@ export function useSimpleMoveModal() {
       setModalState(prev => ({
         ...prev,
         loadingPlacements: false,
-        error: 'Erreur lors du chargement des placements'
+        error: t('useSimpleMoveModal.errors.loadPlacements')
       }));
     }
-  }, [selectedClient?.clientId]);
+  }, [selectedClient?.clientId, t]);
 
   /**
    * Ouvre le modal de déplacement avec les données de validation et les IDs des éléments sélectionnés.
@@ -491,7 +493,7 @@ export function useSimpleMoveModal() {
       console.error('❌ Contexte hiérarchique manquant');
       setModalState(prev => ({
         ...prev,
-        error: 'Contexte hiérarchique manquant pour construire les chemins source'
+        error: t('useSimpleMoveModal.errors.missingHierarchyContext')
       }));
       return;
     }
@@ -514,7 +516,7 @@ export function useSimpleMoveModal() {
       );
 
       if (itemsWithContext.length === 0) {
-        throw new Error('Aucun élément trouvé dans le contexte - impossible de construire les chemins source');
+        throw new Error(t('useSimpleMoveModal.errors.noItemsInContext'));
       }
 
       const operation: MoveService.MoveOperation = {
@@ -574,12 +576,12 @@ export function useSimpleMoveModal() {
         ...prev,
         step: 'result',
         processing: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        error: error instanceof Error ? error.message : t('useSimpleMoveModal.errors.unknownError'),
         result: {
           success: false,
           movedCount: 0,
           skippedCount: modalState.selectedItemIds.length,
-          errors: [error instanceof Error ? error.message : 'Erreur inconnue'],
+          errors: [error instanceof Error ? error.message : t('useSimpleMoveModal.errors.unknownError')],
           warnings: []
         }
       }));
@@ -593,7 +595,8 @@ export function useSimpleMoveModal() {
     selectedCampaignId,
     selectedVersionId,
     selectedOngletId,
-    updateTaxonomiesAfterMoveFunc
+    updateTaxonomiesAfterMoveFunc,
+    t
   ]);
 
   /**

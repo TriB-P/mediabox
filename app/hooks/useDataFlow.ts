@@ -5,6 +5,7 @@
  * Il fournit des utilitaires pour simplifier l'interaction avec les données et les API.
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export type LoadingType = 'INITIAL' | 'REFRESH' | 'OPERATION' | 'NONE';
 
@@ -63,6 +64,7 @@ export function useDataFlow({
   minimumLoadingTime = 1500,
   enableDebug = false
 }: UseDataFlowProps = {}): UseDataFlowReturn {
+  const { t } = useTranslation();
 
   const [state, setState] = useState<DataFlowState>({
     loading: { type: 'NONE', message: '' },
@@ -91,10 +93,11 @@ export function useDataFlow({
    * Démarre un état de chargement initial.
    * Utilisé généralement au premier chargement d'une page ou d'un composant majeur.
    *
-   * @param {string} [message='Chargement des données...'] - Message à afficher pendant le chargement.
+   * @param {string} [message] - Message à afficher pendant le chargement.
    */
-  const startInitialLoading = useCallback((message = 'Chargement des données...') => {
-    log('Début chargement INITIAL', { message });
+  const startInitialLoading = useCallback((message?: string) => {
+    const loadingMessage = message ?? t('dataFlow.loading.initialData');
+    log('Début chargement INITIAL', { message: loadingMessage });
 
     if (loadingTimerRef.current) {
       clearTimeout(loadingTimerRef.current);
@@ -102,7 +105,7 @@ export function useDataFlow({
 
     setState(prev => ({
       ...prev,
-      loading: { type: 'INITIAL', message, progress: 0 },
+      loading: { type: 'INITIAL', message: loadingMessage, progress: 0 },
       error: null,
       operationInProgress: true
     }));
@@ -114,24 +117,25 @@ export function useDataFlow({
       log('Temps minimum écoulé pour INITIAL');
     }, minimumLoadingTime);
 
-  }, [minimumLoadingTime, log]);
+  }, [minimumLoadingTime, log, t]);
 
   /**
    * Démarre un état de chargement de rafraîchissement.
    * Utilisé pour indiquer une actualisation de données sans bloquer l'interface.
    *
-   * @param {string} [message='Actualisation...'] - Message à afficher pendant le rafraîchissement.
+   * @param {string} [message] - Message à afficher pendant le rafraîchissement.
    */
-  const startRefreshLoading = useCallback((message = 'Actualisation...') => {
-    log('Début chargement REFRESH', { message });
+  const startRefreshLoading = useCallback((message?: string) => {
+    const loadingMessage = message ?? t('dataFlow.loading.refreshing');
+    log('Début chargement REFRESH', { message: loadingMessage });
 
     setState(prev => ({
       ...prev,
-      loading: { type: 'REFRESH', message, progress: 50 },
+      loading: { type: 'REFRESH', message: loadingMessage, progress: 50 },
       error: null,
       operationInProgress: true
     }));
-  }, [log]);
+  }, [log, t]);
 
   /**
    * Démarre un état de chargement pour une opération spécifique.
@@ -357,6 +361,7 @@ export function useSectionExpansion(initialExpansions: SectionExpansionState = {
  * @returns {{executeOperation: <T>(operationName: string, operation: () => Promise<T>, successMessage?: string) => Promise<T | null>}} Un objet contenant la fonction `executeOperation`.
  */
 export function useDataFlowOperations(dataFlow: UseDataFlowReturn) {
+  const { t } = useTranslation();
   /**
    * Exécute une opération asynchrone et gère les états de chargement et d'erreur.
    *
@@ -381,13 +386,13 @@ export function useDataFlowOperations(dataFlow: UseDataFlowReturn) {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      dataFlow.setError(`Erreur lors de ${operationName}: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : t('dataFlow.operations.unknownError');
+      dataFlow.setError(`${t('dataFlow.operations.errorDuring')} ${operationName}: ${errorMessage}`);
       return null;
     } finally {
       dataFlow.stopLoading();
     }
-  }, [dataFlow]);
+  }, [dataFlow, t]);
 
   return { executeOperation };
 }

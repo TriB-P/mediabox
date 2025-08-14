@@ -3,12 +3,14 @@
 /**
  * Version simplifiée qui n'effectue AUCUN calcul
  * Tous les calculs sont gérés par DynamicTableStructure via budgetService
+ * MODIFIÉ : Ajout du support multilingue
  */
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DynamicColumn } from './TactiquesAdvancedTableView';
 import { ClientFee as BudgetClientFee } from '../../../../lib/budgetService';
+import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface ReactiveBudgetCellProps {
   entityId: string;
@@ -45,6 +47,7 @@ const CALCULATED_FIELDS = [
 
 /**
  * Composant de cellule budget simplifié - ne fait AUCUN calcul
+ * MODIFIÉ : Ajout du support multilingue
  */
 export default function ReactiveBudgetCell({
   entityId,
@@ -61,6 +64,7 @@ export default function ReactiveBudgetCell({
   onEndEdit
 }: ReactiveBudgetCellProps) {
   
+  const { t } = useTranslation();
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
   
@@ -201,7 +205,7 @@ export default function ReactiveBudgetCell({
             }`}
             autoFocus
           >
-            <option value="">-- Sélectionner --</option>
+            <option value="">{t('table.select.placeholder')}</option>
             {column.options?.map(option => (
               <option key={option.id} value={option.id}>
                 {option.label}
@@ -263,7 +267,7 @@ export default function ReactiveBudgetCell({
         }`}>
           <span className="text-sm">{formattedValue || '-'}</span>
           {isCalculated && (
-            <span className="ml-1 text-xs text-green-600" title="Valeur calculée automatiquement">
+            <span className="ml-1 text-xs text-green-600" title={t('table.budget.autoCalculated')}>
               ✓
             </span>
           )}
@@ -280,11 +284,11 @@ export default function ReactiveBudgetCell({
             ? 'hover:bg-red-50 text-red-700 border border-red-200' 
             : 'hover:bg-gray-50 text-gray-900 mx-1'
         }`}
-        title={`Double-cliquer pour modifier ${column.label.toLowerCase()}`}
+        title={t('table.cell.doubleClickToEditField', { field: column.label.toLowerCase() })}
       >
         {formattedValue || (
           <span className="text-gray-400 italic">
-            Double-clic pour modifier
+            {t('table.cell.doubleClickToEdit')}
           </span>
         )}
       </div>
@@ -315,7 +319,7 @@ export default function ReactiveBudgetCell({
           {renderEditingField()}
           {!isValid && (
             <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-              <span className="text-red-500 text-xs" title="Valeur invalide">⚠</span>
+              <span className="text-red-500 text-xs" title={t('table.validation.invalidValue')}>⚠</span>
             </div>
           )}
         </>

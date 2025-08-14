@@ -6,7 +6,8 @@
  * Fournit un état détaillé du progrès pour l'affichage dans LoadingScreen.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from '../contexts/LanguageContext';
 
 export interface LoadingStep {
   id: string;
@@ -34,40 +35,43 @@ export interface CacheProgressEvent {
   error?: string;
 }
 
-// Définition des étapes de chargement
-const LOADING_STEPS: LoadingStep[] = [
-  {
-    id: 'auth',
-    label: 'Vérification de l\'authentification',
-    status: 'pending'
-  },
-  {
-    id: 'clients',
-    label: 'Chargement des clients accessibles',
-    status: 'pending'
-  },
-  {
-    id: 'global-lists',
-    label: 'Chargement des listes globales',
-    status: 'pending'
-  },
-  {
-    id: 'client-overrides',
-    label: 'Chargement des personnalisations client',
-    status: 'pending'
-  },
-  {
-    id: 'cache-save',
-    label: 'Petite touche finale!',
-    status: 'pending'
-  }
-];
-
 /**
  * Hook personnalisé pour gérer l'état de chargement du cache.
  * @returns État complet du chargement avec méthodes de contrôle
  */
 export function useCacheLoading() {
+  const { t } = useTranslation();
+
+  // Définition des étapes de chargement
+  const LOADING_STEPS: LoadingStep[] = useMemo(() => [
+    {
+      id: 'auth',
+      label: t('cacheLoading.steps.authVerification'),
+      status: 'pending'
+    },
+    {
+      id: 'clients',
+      label: t('cacheLoading.steps.loadingAccessibleClients'),
+      status: 'pending'
+    },
+    {
+      id: 'global-lists',
+      label: t('cacheLoading.steps.loadingGlobalLists'),
+      status: 'pending'
+    },
+    {
+      id: 'client-overrides',
+      label: t('cacheLoading.steps.loadingClientOverrides'),
+      status: 'pending'
+    },
+    {
+      id: 'cache-save',
+      label: t('cacheLoading.steps.finalTouch'),
+      status: 'pending'
+    }
+  ], [t]);
+
+
   const [state, setState] = useState<CacheLoadingState>({
     isLoading: false,
     currentStep: '',
@@ -90,7 +94,7 @@ export function useCacheLoading() {
       currentDetails: undefined,
       error: undefined
     }));
-  }, []);
+  }, [LOADING_STEPS]);
 
   /**
    * Termine le processus de chargement avec succès.
@@ -101,9 +105,9 @@ export function useCacheLoading() {
       isLoading: false,
       progress: 100,
       currentStep: '',
-      currentDetails: 'Chargement terminé avec succès!'
+      currentDetails: t('cacheLoading.messages.success')
     }));
-  }, []);
+  }, [t]);
 
   /**
    * Termine le processus de chargement avec erreur.
@@ -113,9 +117,9 @@ export function useCacheLoading() {
       ...prev,
       isLoading: false,
       error,
-      currentDetails: `Erreur: ${error}`
+      currentDetails: `${t('common.error')}: ${error}`
     }));
-  }, []);
+  }, [t]);
 
   /**
    * Met à jour l'état d'une étape spécifique.
@@ -179,10 +183,10 @@ export function useCacheLoading() {
         break;
       
       case 'cache-error':
-        errorLoading(event.error || 'Erreur inconnue');
+        errorLoading(event.error || t('cacheLoading.errors.unknown'));
         break;
     }
-  }, [updateStep, updateCurrentDetails, completeLoading, errorLoading]);
+  }, [updateStep, updateCurrentDetails, completeLoading, errorLoading, t]);
 
   /**
    * Effet pour écouter les événements du cache.

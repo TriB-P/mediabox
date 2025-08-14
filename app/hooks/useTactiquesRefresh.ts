@@ -12,17 +12,21 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getClientFees } from '../lib/feeService';
 import { ClientFee } from '../lib/budgetService';
+import { useTranslation } from '../contexts/LanguageContext';
+
 interface UseTactiquesRefreshProps {
   selectedClientId?: string;
   loading: boolean;
   onRefresh: (() => Promise<void>) | (() => void);
 }
+
 interface UseTactiquesRefreshReturn {
   isRefreshing: boolean;
   clientFees: ClientFee[];
   clientFeesLoading: boolean;
   handleManualRefresh: () => Promise<void>;
 }
+
 /**
  * Hook pour gérer le rafraîchissement manuel des données et le chargement des frais client.
  *
@@ -37,9 +41,11 @@ export function useTactiquesRefresh({
   loading,
   onRefresh
 }: UseTactiquesRefreshProps): UseTactiquesRefreshReturn {
+  const { t } = useTranslation();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [clientFees, setClientFees] = useState<ClientFee[]>([]);
   const [clientFeesLoading, setClientFeesLoading] = useState(false);
+
   /**
    * Affiche une notification temporaire à l'écran.
    *
@@ -60,6 +66,7 @@ export function useTactiquesRefresh({
       }
     }, type === 'success' ? 2000 : 3000);
   }, []);
+
   /**
    * Gère le déclenchement d'un rafraîchissement manuel des données.
    *
@@ -74,11 +81,12 @@ export function useTactiquesRefresh({
       await Promise.resolve(onRefresh());
     } catch (error) {
       console.error('❌ Erreur refresh manuel:', error);
-      showNotification('❌ Erreur lors de l\'actualisation', 'error');
+      showNotification(t('tactiquesRefresh.notifications.refreshError'), 'error');
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, loading, onRefresh, showNotification]);
+  }, [isRefreshing, loading, onRefresh, showNotification, t]);
+
   /**
    * Effet de chargement des frais client lorsque `selectedClientId` change.
    *
@@ -108,6 +116,7 @@ export function useTactiquesRefresh({
     };
     loadClientFees();
   }, [selectedClientId]);
+
   return {
     isRefreshing,
     clientFees,
@@ -115,6 +124,7 @@ export function useTactiquesRefresh({
     handleManualRefresh
   };
 }
+
 /**
  * Hook utilitaire pour gérer l'état des modales de section et leur expansion.
  *
@@ -128,6 +138,7 @@ export function useTactiquesModals() {
     mode: 'create' as 'create' | 'edit'
   });
   const [sectionExpansions, setSectionExpansions] = useState<{[key: string]: boolean}>({});
+
   /**
    * Ouvre la modale de section avec la section et le mode spécifiés.
    *
@@ -138,6 +149,7 @@ export function useTactiquesModals() {
   const openSectionModal = useCallback((section = null, mode: 'create' | 'edit' = 'create') => {
     setSectionModal({ isOpen: true, section, mode });
   }, []);
+
   /**
    * Ferme la modale de section.
    *
@@ -146,6 +158,7 @@ export function useTactiquesModals() {
   const closeSectionModal = useCallback(() => {
     setSectionModal({ isOpen: false, section: null, mode: 'create' });
   }, []);
+
   /**
    * Gère l'expansion ou la réduction d'une section spécifique.
    *
@@ -158,6 +171,7 @@ export function useTactiquesModals() {
       [sectionId]: !prev[sectionId]
     }));
   }, []);
+
   return {
     sectionModal,
     sectionExpansions,

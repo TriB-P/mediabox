@@ -12,6 +12,7 @@ import { X, Send } from 'lucide-react';
 import { InvitationFormData } from '../../types/invitations';
 import { getRoles } from '../../lib/roleService';
 import { Role } from '../../types/roles';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface InvitationModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface InvitationModalProps {
  * @returns {JSX.Element | null} Le composant de la modale ou null si elle n'est pas ouverte.
  */
 export default function InvitationModal({ isOpen, onClose, onSend }: InvitationModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<InvitationFormData>({
     email: '',
     role: '',
@@ -79,18 +81,18 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
     e.preventDefault();
     
     if (!formData.email.trim()) {
-      alert('L\'adresse email est requise');
+      alert(t('invitationModal.alerts.emailRequired'));
       return;
     }
     
     if (!formData.role) {
-      alert('Le rôle est requis');
+      alert(t('invitationModal.alerts.roleRequired'));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      alert('Veuillez entrer une adresse email valide');
+      alert(t('invitationModal.alerts.invalidEmail'));
       return;
     }
 
@@ -101,7 +103,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de l\'envoi de l\'invitation:', error);
-      alert(error.message || 'Erreur lors de l\'envoi de l\'invitation');
+      alert(error.message || t('invitationModal.alerts.sendError'));
     } finally {
       setSending(false);
     }
@@ -122,7 +124,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Inviter un utilisateur
+                  {t('invitationModal.title')}
                 </h3>
                 <button
                   type="button"
@@ -136,33 +138,33 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
               <div className="space-y-4">
                 <div>
                   <label className="form-label">
-                    Adresse email *
+                    {t('invitationModal.form.emailLabel')}
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="form-input"
-                    placeholder="utilisateur@exemple.com"
+                    placeholder={t('invitationModal.form.emailPlaceholder')}
                     required
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    L'utilisateur recevra un accès lors de sa première connexion
+                    {t('invitationModal.form.emailHelpText')}
                   </p>
                 </div>
 
                 <div>
                   <label className="form-label">
-                    Rôle *
+                    {t('invitationModal.form.roleLabel')}
                   </label>
                   {loadingRoles ? (
                     <div className="form-input bg-gray-50 text-gray-500 flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
-                      Chargement des rôles...
+                      {t('invitationModal.form.loadingRoles')}
                     </div>
                   ) : roles.length === 0 ? (
                     <div className="form-input bg-red-50 text-red-600">
-                      Aucun rôle disponible. Veuillez créer des rôles d'abord.
+                      {t('invitationModal.form.noRolesAvailable')}
                     </div>
                   ) : (
                     <select
@@ -171,7 +173,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
                       className="form-input"
                       required
                     >
-                      <option value="">Sélectionnez un rôle</option>
+                      <option value="">{t('invitationModal.form.selectRolePlaceholder')}</option>
                       {roles.map(role => (
                         <option key={role.id} value={role.id}>
                           {role.name}
@@ -181,7 +183,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
                   )}
                   {!loadingRoles && roles.length > 0 && (
                     <p className="mt-1 text-sm text-gray-500">
-                      Ce rôle déterminera les permissions de l'utilisateur
+                      {t('invitationModal.form.roleHelpText')}
                     </p>
                   )}
                 </div>
@@ -189,7 +191,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
 
               <div className="mt-4 p-3 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  💡 L'invitation expirera automatiquement dans 7 jours si l'utilisateur ne se connecte pas.
+                  {t('invitationModal.info.expiration')}
                 </p>
               </div>
             </div>
@@ -203,12 +205,12 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
                 {sending ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Envoi...
+                    {t('invitationModal.buttons.sending')}
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <Send className="h-4 w-4 mr-2" />
-                    Envoyer l'invitation
+                    {t('invitationModal.buttons.send')}
                   </div>
                 )}
               </button>
@@ -217,7 +219,7 @@ export default function InvitationModal({ isOpen, onClose, onSend }: InvitationM
                 onClick={onClose}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
             </div>
           </form>

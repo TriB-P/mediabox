@@ -5,8 +5,7 @@
  * les placements et les créatifs au sein d'une campagne spécifique.
  * Il assure la communication avec Firebase et intègre des mises à jour optimistes
  * pour une meilleure réactivité de l'interface utilisateur.
- * 
- * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
+ * * MISE À JOUR : Utilise maintenant orderManagementService pour une gestion centralisée des ordres.
  */
 import { useCallback } from 'react';
 import { useSelection } from '../contexts/SelectionContext';
@@ -41,6 +40,7 @@ import {
   getNextOrder,
   type OrderContext
 } from '../lib/orderManagementService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface UseTactiquesOperationsProps {
   selectedCampaign: Campaign | null;
@@ -134,6 +134,7 @@ export const useTactiquesOperations = ({
   removeCreatifLocally
 }: UseTactiquesOperationsProps): UseTactiquesOperationsReturn => {
 
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
   
@@ -145,7 +146,7 @@ export const useTactiquesOperations = ({
    */
   const ensureContext = () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte incomplet pour l\'opération');
+      throw new Error(t('tactiquesOperations.errors.incompleteContextForOperation'));
     }
     return {
       clientId: selectedClient.clientId,
@@ -211,7 +212,7 @@ export const useTactiquesOperations = ({
     const newOrder = await getNextOrder('tactique', orderContext);
 
     const newTactiqueData: Omit<Tactique, 'id'> = {
-      TC_Label: 'Nouvelle tactique',
+      TC_Label: t('tactiquesOperations.defaults.newTacticLabel'),
       TC_Budget: 0,
       TC_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de sectionTactiques.length
       TC_SectionId: sectionId,
@@ -236,7 +237,7 @@ export const useTactiquesOperations = ({
         return { id: tactiqueId, ...newTactiqueData };
       }
     );
-  }, [buildOrderContext, executeOperation]);
+  }, [buildOrderContext, executeOperation, t]);
 
   /**
    * Gère la mise à jour d'une tactique existante.
@@ -313,7 +314,7 @@ export const useTactiquesOperations = ({
     const currentTactique = allTactiques[sectionId || '']?.find(t => t.id === tactiqueId);
 
     if (!sectionId || !currentTactique) {
-      throw new Error('Section ou tactique parente non trouvée pour le placement');
+      throw new Error(t('tactiquesOperations.errors.parentNotFoundForPlacement'));
     }
 
     // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -321,7 +322,7 @@ export const useTactiquesOperations = ({
     const newOrder = await getNextOrder('placement', orderContext);
 
     const newPlacementData: PlacementFormData = {
-      PL_Label: 'Nouveau placement',
+      PL_Label: t('tactiquesOperations.defaults.newPlacementLabel'),
       PL_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de 0
       PL_TactiqueId: tactiqueId
     };
@@ -346,7 +347,7 @@ export const useTactiquesOperations = ({
         return convertFormDataToPlacement({ id: placementId, ...newPlacementData });
       }
     );
-  }, [allTactiques, buildOrderContext, executeOperation, campaignData]);
+  }, [allTactiques, buildOrderContext, executeOperation, campaignData, t]);
 
   /**
    * Gère la mise à jour d'un placement existant.
@@ -380,7 +381,7 @@ export const useTactiquesOperations = ({
     }
 
     if (!sectionId || !tactiqueId || !currentTactique) {
-      throw new Error('Contexte parent non trouvé pour le placement');
+      throw new Error(t('tactiquesOperations.errors.parentContextNotFoundForPlacement'));
     }
 
     return executeOperation(
@@ -405,7 +406,7 @@ export const useTactiquesOperations = ({
         );
       }
     );
-  }, [allTactiques, allPlacements, executeOperation, campaignData]);
+  }, [allTactiques, allPlacements, executeOperation, campaignData, t]);
 
   /**
    * Gère la suppression d'un placement et de ses enfants (créatifs).
@@ -466,7 +467,7 @@ export const useTactiquesOperations = ({
     }
 
     if (!sectionId || !tactiqueId || !currentPlacement || !currentTactique) {
-      throw new Error('Contexte parent non trouvé pour le créatif');
+      throw new Error(t('tactiquesOperations.errors.parentContextNotFoundForCreative'));
     }
 
     // ✅ NOUVEAU : Utilise le service central pour calculer l'ordre
@@ -474,7 +475,7 @@ export const useTactiquesOperations = ({
     const newOrder = await getNextOrder('creatif', orderContext);
 
     const newCreatifData: CreatifFormData = {
-      CR_Label: 'Nouveau créatif',
+      CR_Label: t('tactiquesOperations.defaults.newCreativeLabel'),
       CR_Order: newOrder, // ✅ CHANGÉ : Utilise newOrder au lieu de 0
       CR_PlacementId: placementId
     };
@@ -499,7 +500,7 @@ export const useTactiquesOperations = ({
         return { id: creatifId, ...newCreatifData };
       }
     );
-  }, [allTactiques, allPlacements, buildOrderContext, executeOperation, campaignData]);
+  }, [allTactiques, allPlacements, buildOrderContext, executeOperation, campaignData, t]);
 
   /**
    * Gère la mise à jour d'un créatif existant.
@@ -529,7 +530,7 @@ export const useTactiquesOperations = ({
     }
 
     if (!placementId) {
-      throw new Error('Placement parent non trouvé pour le créatif');
+      throw new Error(t('tactiquesOperations.errors.parentPlacementNotFoundForCreative'));
     }
 
     for (const tactiqueIdIter in allPlacements) {
@@ -542,7 +543,7 @@ export const useTactiquesOperations = ({
     }
 
     if (!tactiqueId || !currentPlacement) {
-      throw new Error('Tactique parent non trouvée pour le placement du créatif');
+      throw new Error(t('tactiquesOperations.errors.parentTacticNotFoundForCreativePlacement'));
     }
 
     for (const sectionIdIter in allTactiques) {
@@ -555,7 +556,7 @@ export const useTactiquesOperations = ({
     }
     
     if (!sectionId || !currentTactique) {
-      throw new Error('Section parente non trouvée pour le créatif');
+      throw new Error(t('tactiquesOperations.errors.parentSectionNotFoundForCreative'));
     }
 
     return executeOperation(
@@ -578,7 +579,7 @@ export const useTactiquesOperations = ({
         );
       }
     );
-  }, [allTactiques, allPlacements, allCreatifs, executeOperation, campaignData]);
+  }, [allTactiques, allPlacements, allCreatifs, executeOperation, campaignData, t]);
 
   /**
    * Gère la suppression d'un créatif.
@@ -630,6 +631,7 @@ export const useTactiquesOperations = ({
  * Un objet contenant la fonction executeWithContext pour exécuter des opérations avec le contexte.
  */
 export function useBasicCrudOperations() {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
@@ -642,7 +644,7 @@ export function useBasicCrudOperations() {
     }) => Promise<T>
   ): Promise<T> => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte incomplet');
+      throw new Error(t('tactiquesOperations.errors.incompleteContext'));
     }
 
     return operation({
@@ -651,7 +653,7 @@ export function useBasicCrudOperations() {
       versionId: selectedVersionId,
       ongletId: selectedOngletId
     });
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, t]);
 
   return { executeWithContext };
 }

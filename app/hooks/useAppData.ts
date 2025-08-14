@@ -1,3 +1,4 @@
+// app/hooks/useAppData.ts
 /**
  * Ce hook gère le chargement et la gestion des données de l'application (campagnes, versions, onglets, tactiques, placements, créatifs)
  * en interagissant avec Firebase. Il utilise les contextes ClientContext et SelectionContext
@@ -7,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
+import { useTranslation } from '../contexts/LanguageContext';
 import { getCampaigns } from '../lib/campaignService';
 import { getVersions } from '../lib/versionService';
 import { getOnglets, getSections, getTactiques } from '../lib/tactiqueService';
@@ -36,26 +38,10 @@ interface LoadingState {
  * Hook principal pour gérer les données de l'application.
  *
  * @returns {object} Un objet contenant les données chargées, l'état de chargement, les fonctions de gestion des changements et une fonction de rafraîchissement.
- * - campaigns: Liste des campagnes disponibles.
- * - versions: Liste des versions pour la campagne sélectionnée.
- * - selectedCampaign: La campagne actuellement sélectionnée.
- * - selectedVersion: La version actuellement sélectionnée.
- * - onglets: Liste des onglets pour la version sélectionnée.
- * - selectedOnglet: L'onglet actuellement sélectionné.
- * - sections: Liste des sections pour l'onglet sélectionné.
- * - tactiques: Objet mapant les ID de section à des listes de tactiques.
- * - placements: Objet mapant les ID de tactique à des listes de placements.
- * - creatifs: Objet mapant les ID de placement à des listes de créatifs.
- * - loading: Indique si des données sont en cours de chargement.
- * - error: Message d'erreur si un problème survient pendant le chargement.
- * - stage: Indique l'étape actuelle du chargement.
- * - handleCampaignChange: Fonction pour changer la campagne sélectionnée.
- * - handleVersionChange: Fonction pour changer la version sélectionnée.
- * - handleOngletChange: Fonction pour changer l'onglet sélectionné.
- * - refresh: Fonction pour forcer un rechargement complet des données.
  */
 export function useAppData() {
   const { selectedClient } = useClient();
+  const { t } = useTranslation(); // Utilisation du hook de traduction
   const { 
     selectedCampaignId, 
     selectedVersionId, 
@@ -116,10 +102,10 @@ export function useAppData() {
     }
     
     isLoadingRef.current = true;
-    setLoading({ isLoading: true, error: null, stage: 'Démarrage...' });
+    setLoading({ isLoading: true, error: null, stage: t('loading.starting') });
     
     try {
-      setLoading(prev => ({ ...prev, stage: 'Chargement des campagnes...' }));
+      setLoading(prev => ({ ...prev, stage: t('loading.campaigns') }));
       
       console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns");
       const campaigns = await getCampaigns(selectedClient.clientId);
@@ -131,7 +117,7 @@ export function useAppData() {
       setData(prev => ({ ...prev, campaigns, selectedCampaign }));
       
       if (selectedCampaignId) {
-        setLoading(prev => ({ ...prev, stage: 'Chargement des versions...' }));
+        setLoading(prev => ({ ...prev, stage: t('loading.versions') }));
         
         console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions");
         const versions = await getVersions(selectedClient.clientId, selectedCampaignId);
@@ -143,7 +129,7 @@ export function useAppData() {
         setData(prev => ({ ...prev, versions, selectedVersion }));
         
         if (selectedVersionId) {
-          setLoading(prev => ({ ...prev, stage: 'Chargement des onglets...' }));
+          setLoading(prev => ({ ...prev, stage: t('loading.tabs') }));
           
           console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets");
           const onglets = await getOnglets(selectedClient.clientId, selectedCampaignId, selectedVersionId);
@@ -161,7 +147,7 @@ export function useAppData() {
           setData(prev => ({ ...prev, onglets, selectedOnglet }));
           
           if (currentOngletId) {
-            setLoading(prev => ({ ...prev, stage: 'Chargement des sections...' }));
+            setLoading(prev => ({ ...prev, stage: t('loading.sections') }));
             
             console.log("FIREBASE: LECTURE - Fichier: useAppData.ts - Fonction: loadAllData - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${currentOngletId}/sections");
             const sections = await getSections(
@@ -173,7 +159,7 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, sections }));
             
-            setLoading(prev => ({ ...prev, stage: 'Chargement des tactiques...' }));
+            setLoading(prev => ({ ...prev, stage: t('loading.tactics') }));
             
             const tactiques: { [sectionId: string]: any[] } = {};
             for (const section of sections) {
@@ -190,7 +176,7 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, tactiques }));
             
-            setLoading(prev => ({ ...prev, stage: 'Chargement des placements...' }));
+            setLoading(prev => ({ ...prev, stage: t('loading.placements') }));
             
             const placements: { [tactiqueId: string]: any[] } = {};
             for (const [sectionId, sectionTactiques] of Object.entries(tactiques)) {
@@ -210,7 +196,7 @@ export function useAppData() {
             
             setData(prev => ({ ...prev, placements }));
             
-            setLoading(prev => ({ ...prev, stage: 'Chargement des créatifs...' }));
+            setLoading(prev => ({ ...prev, stage: t('loading.creatives') }));
             
             const creatifs: { [placementId: string]: any[] } = {};
             for (const [tactiqueId, tactiquePlacements] of Object.entries(placements)) {
@@ -246,18 +232,17 @@ export function useAppData() {
       console.error('❌ Erreur lors du chargement:', err);
       setLoading(prev => ({ 
         ...prev, 
-        error: err instanceof Error ? err.message : 'Erreur de chargement' 
+        error: err instanceof Error ? err.message : t('loading.error')
       }));
     } finally {
       isLoadingRef.current = false;
       setLoading(prev => ({ ...prev, isLoading: false, stage: null }));
     }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId]);
+  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId, t]);
   
   /**
    * Effet de hook qui déclenche le chargement initial des données lorsque le composant est monté
    * ou lorsque les dépendances de `loadAllData` changent.
-   * @returns {void}
    */
   useEffect(() => {
     loadAllData();
@@ -265,9 +250,6 @@ export function useAppData() {
   
   /**
    * Gère le changement de la campagne sélectionnée.
-   * Met à jour la campagne sélectionnée dans le contexte et réinitialise la version.
-   * @param {any} campaign - La campagne nouvellement sélectionnée.
-   * @returns {void}
    */
   const handleCampaignChange = useCallback((campaign: any) => {
     setSelectedVersionId(null);
@@ -276,9 +258,6 @@ export function useAppData() {
   
   /**
    * Gère le changement de la version sélectionnée.
-   * Met à jour la version sélectionnée dans le contexte.
-   * @param {any} version - La version nouvellement sélectionnée.
-   * @returns {void}
    */
   const handleVersionChange = useCallback((version: any) => {
     setSelectedVersionId(version.id);
@@ -286,9 +265,6 @@ export function useAppData() {
   
   /**
    * Gère le changement de l'onglet sélectionné.
-   * Met à jour l'onglet sélectionné dans le contexte.
-   * @param {any} onglet - L'onglet nouvellement sélectionné.
-   * @returns {void}
    */
   const handleOngletChange = useCallback((onglet: any) => {
     setSelectedOngletId(onglet.id);
@@ -296,8 +272,6 @@ export function useAppData() {
   
   /**
    * Force un rechargement complet de toutes les données.
-   * Réinitialise le référant de contexte pour assurer un nouveau chargement.
-   * @returns {void}
    */
   const refresh = useCallback(() => {
     loadedContextRef.current = '';

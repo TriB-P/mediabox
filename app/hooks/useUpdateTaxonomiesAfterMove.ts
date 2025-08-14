@@ -16,6 +16,7 @@ import {
   query,
   where
 } from 'firebase/firestore';
+import { useTranslation } from '../contexts/LanguageContext';
 import { getTaxonomyById } from '../lib/taxonomyService';
 import {
   TAXONOMY_VARIABLE_REGEX,
@@ -54,7 +55,7 @@ interface ResolutionContext {
 /**
  * Récupère les données d'un shortcode depuis Firebase ou le cache.
  */
-async function getShortcode(id: string, cache: Map<string, any>): Promise<any | null> {
+async function getShortcode(id: string, cache: Map<string, any>, t: (key: string) => string): Promise<any | null> {
   if (cache.has(id)) return cache.get(id);
   try {
     console.log("FIREBASE: LECTURE - Fichier: useUpdateTaxonomiesAfterMove.ts - Fonction: getShortcode - Path: shortcodes/${id}");
@@ -64,7 +65,7 @@ async function getShortcode(id: string, cache: Map<string, any>): Promise<any | 
     cache.set(id, data);
     return data;
   } catch (error) {
-    console.error(`Erreur récupération shortcode ${id}:`, error);
+    console.error(`${t('useUpdateTaxonomiesAfterMove.errors.fetchShortcode')} ${id}:`, error);
     cache.set(id, null);
     return null;
   }
@@ -73,7 +74,7 @@ async function getShortcode(id: string, cache: Map<string, any>): Promise<any | 
 /**
  * Récupère un code personnalisé pour un client et un shortcode donnés, depuis Firebase ou le cache.
  */
-async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<string, string | null>): Promise<string | null> {
+async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<string, string | null>, t: (key: string) => string): Promise<string | null> {
   const cacheKey = `${clientId}__${shortcodeId}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
@@ -85,7 +86,7 @@ async function getCustomCode(clientId: string, shortcodeId: string, cache: Map<s
     cache.set(cacheKey, data);
     return data;
   } catch (error) {
-    console.error(`Erreur récupération custom code ${shortcodeId}:`, error);
+    console.error(`${t('useUpdateTaxonomiesAfterMove.errors.fetchCustomCode')} ${shortcodeId}:`, error);
     cache.set(cacheKey, null);
     return null;
   }
@@ -112,9 +113,9 @@ function formatShortcodeValue(shortcodeData: any, customCode: string | null, for
 /**
  * Vérifie si une valeur correspond à un shortcode existant dans le cache
  */
-async function isExistingShortcode(value: string, cache: Map<string, any>): Promise<boolean> {
+async function isExistingShortcode(value: string, cache: Map<string, any>, t: (key: string) => string): Promise<boolean> {
   if (!value) return false;
-  const shortcodeData = await getShortcode(value, cache);
+  const shortcodeData = await getShortcode(value, cache, t);
   return shortcodeData !== null;
 }
 
@@ -123,7 +124,7 @@ async function isExistingShortcode(value: string, cache: Map<string, any>): Prom
  * Plus de *_Taxonomy_Values - les valeurs sont stockées directement (ex: PL_Product, CR_CTA)
  * IGNORE les valeurs manuelles existantes si forceRegeneration est true.
  */
-async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
+async function resolveVariable(variableName: string, format: TaxonomyFormat, context: ResolutionContext, t: (key: string) => string, isCreatif: boolean = false): Promise<string> {
     const source = getFieldSource(variableName);
     let rawValue: any = null;
   
@@ -136,10 +137,10 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
         if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
           // Si c'est un shortcode existant ET qu'on a besoin de formatage
           if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-            if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
-              const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+            if (await isExistingShortcode(rawValue, context.caches.shortcodes, t)) {
+              const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes, t);
               if (shortcodeData) {
-                const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+                const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes, t);
                 const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
                 return formattedValue;
               }
@@ -155,10 +156,10 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
         if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
           // Si c'est un shortcode existant ET qu'on a besoin de formatage
           if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-            if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
-              const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+            if (await isExistingShortcode(rawValue, context.caches.shortcodes, t)) {
+              const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes, t);
               if (shortcodeData) {
-                const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+                const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes, t);
                 const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
                 return formattedValue;
               }
@@ -201,7 +202,7 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
         break;
   
       default:
-        console.warn(`Source inconnue pour variable ${variableName}: ${source}`);
+        console.warn(`${t('useUpdateTaxonomiesAfterMove.warnings.unknownSource')} ${variableName}: ${source}`);
         break;
     }
   
@@ -212,10 +213,10 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
   
     // ✅ 4. Formatage des shortcodes si nécessaire
     if (typeof rawValue === 'string' && formatRequiresShortcode(format)) {
-      if (await isExistingShortcode(rawValue, context.caches.shortcodes)) {
-        const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes);
+      if (await isExistingShortcode(rawValue, context.caches.shortcodes, t)) {
+        const shortcodeData = await getShortcode(rawValue, context.caches.shortcodes, t);
         if (shortcodeData) {
-          const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes);
+          const customCode = await getCustomCode(context.clientId, rawValue, context.caches.customCodes, t);
           const formattedValue = formatShortcodeValue(shortcodeData, customCode, format);
           return formattedValue;
         }
@@ -229,9 +230,9 @@ async function resolveVariable(variableName: string, format: TaxonomyFormat, con
 /**
  * Génère une chaîne de caractères de taxonomie en résolvant les variables et les groupes.
  */
-async function generateLevelString(structure: string, context: ResolutionContext, isCreatif: boolean = false): Promise<string> {
+async function generateLevelString(structure: string, context: ResolutionContext, t: (key: string) => string, isCreatif: boolean = false): Promise<string> {
   const variableResolver = async (variableName: string, format: string) => {
-    return await resolveVariable(variableName, format as TaxonomyFormat, context, isCreatif);
+    return await resolveVariable(variableName, format as TaxonomyFormat, context, t, isCreatif);
   };
   
   return await processTaxonomyDelimiters(structure, variableResolver);
@@ -240,7 +241,7 @@ async function generateLevelString(structure: string, context: ResolutionContext
 /**
  * ✅ MODIFIÉ : Régénère les taxonomies d'un placement en forçant la régénération si spécifié.
  */
-async function regeneratePlacementTaxonomies(clientId: string, placementData: any, campaignData: any, tactiqueData: any, forceRegeneration: boolean = false): Promise<any> {
+async function regeneratePlacementTaxonomies(clientId: string, placementData: any, campaignData: any, tactiqueData: any, t: (key: string) => string, forceRegeneration: boolean = false): Promise<any> {
 
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = { 
@@ -263,7 +264,7 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
       taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4
     ];
 
-    return Promise.all(levels.map(level => generateLevelString(level || '', context, false)));
+    return Promise.all(levels.map(level => generateLevelString(level || '', context, t, false)));
   };
 
   const [tagChains, platformChains, moChains] = await Promise.all([
@@ -293,7 +294,7 @@ async function regeneratePlacementTaxonomies(clientId: string, placementData: an
 /**
  * ✅ MODIFIÉ : Régénère les taxonomies d'un créatif en forçant la régénération si spécifié.
  */
-async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, campaignData: any, tactiqueData: any, placementData: any, forceRegeneration: boolean = false): Promise<any> {
+async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, campaignData: any, tactiqueData: any, placementData: any, t: (key: string) => string, forceRegeneration: boolean = false): Promise<any> {
 
   const caches = { shortcodes: new Map(), customCodes: new Map() };
   const context: ResolutionContext = {
@@ -317,7 +318,7 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
       taxonomy.NA_Name_Level_6 || ''
     ];
 
-    return Promise.all(levels.map(level => generateLevelString(level, context, true)));
+    return Promise.all(levels.map(level => generateLevelString(level, context, t, true)));
   };
 
   const [tagChains, platformChains, moChains] = await Promise.all([
@@ -347,6 +348,7 @@ async function regenerateCreatifTaxonomies(clientId: string, creatifData: any, c
  * Force une régénération complète des taxonomies basée sur le nouveau contexte hiérarchique.
  */
 export const useUpdateTaxonomiesAfterMove = () => {
+  const { t } = useTranslation();
   /**
    * ✅ Met à jour les taxonomies après un déplacement en forçant une régénération complète.
    * Cette fonction ignore les valeurs manuelles existantes et recalcule tout basé sur le nouveau contexte.
@@ -358,7 +360,7 @@ export const useUpdateTaxonomiesAfterMove = () => {
     try {
       const clientId = parentData.clientId;
       if (!clientId) {
-        console.error('❌ ClientId manquant');
+        console.error(t('useUpdateTaxonomiesAfterMove.errors.missingClientId'));
         return;
       }
 
@@ -369,7 +371,7 @@ export const useUpdateTaxonomiesAfterMove = () => {
         if (parentData.campaignId) {
           campaignId = parentData.campaignId;
         } else {
-          console.error('❌ CampaignId manquant');
+          console.error(t('useUpdateTaxonomiesAfterMove.errors.missingCampaignId'));
           return;
         }
       }
@@ -379,13 +381,13 @@ export const useUpdateTaxonomiesAfterMove = () => {
       const campaignSnap = await getDoc(campaignRef);
 
       if (!campaignSnap.exists()) {
-        console.error(`❌ Campagne non trouvée`);
+        console.error(t('useUpdateTaxonomiesAfterMove.errors.campaignNotFound'));
         return;
       }
 
       const campaignSnapData = campaignSnap.data();
       if (!campaignSnapData) {
-        console.error(`❌ Données campagne vides`);
+        console.error(t('useUpdateTaxonomiesAfterMove.errors.emptyCampaignData'));
         return;
       }
 
@@ -440,13 +442,13 @@ export const useUpdateTaxonomiesAfterMove = () => {
                 if (shouldUpdatePlacement) {
                   try {
                     // ✅ Force la régénération complète des taxonomies
-                    const updatedFields = await regeneratePlacementTaxonomies(clientId, placementData, campaignData, tactiqueData, true);
+                    const updatedFields = await regeneratePlacementTaxonomies(clientId, placementData, campaignData, tactiqueData, t, true);
                     console.log("FIREBASE: ÉCRITURE - Fichier: useUpdateTaxonomiesAfterMove.ts - Fonction: updateTaxonomiesAfterMove - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
                     const placementRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId);
                     batch.update(placementRef, updatedFields);
                     updatedCount++;
                   } catch (error) {
-                    console.error(`❌ Erreur placement ${placementId}:`, error);
+                    console.error(`${t('useUpdateTaxonomiesAfterMove.errors.placementError')} ${placementId}:`, error);
                   }
                 }
 
@@ -470,13 +472,13 @@ export const useUpdateTaxonomiesAfterMove = () => {
                   if (shouldUpdateCreatif) {
                     try {
                       // ✅ Force la régénération complète des taxonomies
-                      const updatedFields = await regenerateCreatifTaxonomies(clientId, creatifData, campaignData, tactiqueData, placementData, true);
+                      const updatedFields = await regenerateCreatifTaxonomies(clientId, creatifData, campaignData, tactiqueData, placementData, t, true);
                       console.log("FIREBASE: ÉCRITURE - Fichier: useUpdateTaxonomiesAfterMove.ts - Fonction: updateTaxonomiesAfterMove - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifId}");
                       const creatifRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs', creatifId);
                       batch.update(creatifRef, updatedFields);
                       updatedCount++;
                     } catch (error) {
-                      console.error(`❌ Erreur créatif ${creatifId}:`, error);
+                      console.error(`${t('useUpdateTaxonomiesAfterMove.errors.creativeError')} ${creatifId}:`, error);
                     }
                   }
                 }
@@ -496,8 +498,8 @@ export const useUpdateTaxonomiesAfterMove = () => {
       }
 
     } catch (error) {
-      console.error('❌ [UpdateTaxonomiesAfterMove] Erreur:', error);
-      throw new Error('La régénération des taxonomies après déplacement a échoué.');
+      console.error(t('useUpdateTaxonomiesAfterMove.errors.generalError'), error);
+      throw new Error(t('useUpdateTaxonomiesAfterMove.errors.regenerationFailed'));
     }
   };
 

@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 import { duplicateSelectedItems, DuplicationContext } from '../lib/duplicationService';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface UseTactiquesSelectionProps {
   sections: any[];
@@ -80,6 +81,7 @@ export function useTactiquesSelection({
   onForceSelectionReset
 }: UseTactiquesSelectionProps): UseTactiquesSelectionReturn {
 
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId } = useSelection();
 
@@ -217,7 +219,7 @@ export function useTactiquesSelection({
 
     if (!onDeleteSection || !onDeleteTactique || !onDeletePlacement || !onDeleteCreatif) {
       console.error('Fonctions de suppression non disponibles');
-      showNotification('Fonctions de suppression non configurées', 'error');
+      showNotification(t('useTactiquesSelection.notifications.deleteFunctionsNotConfigured'), 'error');
       return;
     }
 
@@ -238,7 +240,7 @@ export function useTactiquesSelection({
     }
 
     const itemsDescription = itemsToDelete.map(item => `${item.name} (${item.type})`).join(', ');
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer les ${itemsToDelete.length} éléments sélectionnés ?\n\n${itemsDescription}\n\n⚠️ Cette action est irréversible et supprimera également tous les éléments enfants.`;
+    const confirmMessage = `${t('useTactiquesSelection.deleteConfirm.areYouSure')} ${itemsToDelete.length} ${t('useTactiquesSelection.deleteConfirm.selectedItems')}\n\n${itemsDescription}\n\n${t('useTactiquesSelection.deleteConfirm.irreversibleWarning')}`;
     
     if (!confirm(confirmMessage)) {
       return;
@@ -263,7 +265,7 @@ export function useTactiquesSelection({
           successCount++;
         } catch (error) {
           errorCount++;
-          const errorMsg = `Erreur suppression créatif "${item.name}"`;
+          const errorMsg = `${t('useTactiquesSelection.notifications.errorDeleteCreative')} "${item.name}"`;
           errors.push(errorMsg);
           console.error(errorMsg, error);
         }
@@ -276,7 +278,7 @@ export function useTactiquesSelection({
           successCount++;
         } catch (error) {
           errorCount++;
-          const errorMsg = `Erreur suppression placement "${item.name}"`;
+          const errorMsg = `${t('useTactiquesSelection.notifications.errorDeletePlacement')} "${item.name}"`;
           errors.push(errorMsg);
           console.error(errorMsg, error);
         }
@@ -289,7 +291,7 @@ export function useTactiquesSelection({
           successCount++;
         } catch (error) {
           errorCount++;
-          const errorMsg = `Erreur suppression tactique "${item.name}"`;
+          const errorMsg = `${t('useTactiquesSelection.notifications.errorDeleteTactic')} "${item.name}"`;
           errors.push(errorMsg);
           console.error(errorMsg, error);
         }
@@ -302,19 +304,19 @@ export function useTactiquesSelection({
           successCount++;
         } catch (error) {
           errorCount++;
-          const errorMsg = `Erreur suppression section "${item.name}"`;
+          const errorMsg = `${t('useTactiquesSelection.notifications.errorDeleteSection')} "${item.name}"`;
           errors.push(errorMsg);
           console.error(errorMsg, error);
         }
       }
 
       if (successCount > 0) {
-        const successMessage = `✅ ${successCount} élément${successCount > 1 ? 's supprimés' : ' supprimé'} avec succès`;
+        const successMessage = `✅ ${successCount} ${successCount > 1 ? t('useTactiquesSelection.notifications.deleteSuccessPlural') : t('useTactiquesSelection.notifications.deleteSuccessSingular')}`;
         showNotification(successMessage);
       }
 
       if (errorCount > 0) {
-        const errorMessage = `❌ ${errorCount} erreur${errorCount > 1 ? 's' : ''} lors de la suppression`;
+        const errorMessage = `❌ ${errorCount} ${errorCount > 1 ? t('useTactiquesSelection.notifications.deleteErrorPlural') : t('useTactiquesSelection.notifications.deleteErrorSingular')}`;
         showNotification(errorMessage, 'error');
         console.error('Erreurs de suppression:', errors);
       }
@@ -325,7 +327,7 @@ export function useTactiquesSelection({
 
     } catch (error) {
       console.error('Erreur critique lors de la suppression groupée:', error);
-      showNotification('❌ Erreur critique lors de la suppression', 'error');
+      showNotification(t('useTactiquesSelection.notifications.criticalDeleteError'), 'error');
       handleClearSelection();
     } finally {
       setDeletionLoading(false);
@@ -338,7 +340,8 @@ export function useTactiquesSelection({
     onDeleteCreatif,
     handleClearSelection,
     onRefresh,
-    showNotification
+    showNotification,
+    t
   ]);
 
   /**
@@ -351,7 +354,7 @@ export function useTactiquesSelection({
   const handleDuplicateSelected = useCallback(async (itemIds: string[]) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
       console.error('Contexte manquant pour la duplication');
-      showNotification('❌ Contexte manquant pour la duplication', 'error');
+      showNotification(t('useTactiquesSelection.notifications.missingContextDuplication'), 'error');
       return;
     }
 
@@ -379,9 +382,9 @@ export function useTactiquesSelection({
       const result = await duplicateSelectedItems(context, itemIds, itemHierarchy);
 
       if (result.success && result.duplicatedIds.length > 0) {
-        const successMessage = `✅ ${result.duplicatedIds.length} élément${
-          result.duplicatedIds.length > 1 ? 's dupliqués' : ' dupliqué'
-        } avec succès`;
+        const successMessage = `✅ ${result.duplicatedIds.length} ${
+          result.duplicatedIds.length > 1 ? t('useTactiquesSelection.notifications.duplicateSuccessPlural') : t('useTactiquesSelection.notifications.duplicateSuccessSingular')
+        }`;
         
         showNotification(successMessage);
 
@@ -389,14 +392,14 @@ export function useTactiquesSelection({
         handleClearSelection();
 
       } else {
-        const errorMessages = result.errors.length > 0 ? result.errors : ['Erreur inconnue lors de la duplication'];
+        const errorMessages = result.errors.length > 0 ? result.errors : [t('useTactiquesSelection.notifications.unknownDuplicationError')];
         console.error('Erreurs duplication:', errorMessages);
-        showNotification(`❌ Erreur duplication: ${errorMessages[0]}`, 'error');
+        showNotification(`${t('useTactiquesSelection.notifications.duplicationError')} ${errorMessages[0]}`, 'error');
       }
 
     } catch (error) {
       console.error('Erreur critique duplication:', error);
-      showNotification('❌ Erreur critique lors de la duplication', 'error');
+      showNotification(t('useTactiquesSelection.notifications.criticalDuplicationError'), 'error');
     } finally {
       setDuplicationLoading(false);
     }
@@ -411,7 +414,8 @@ export function useTactiquesSelection({
     creatifs,
     onRefresh,
     handleClearSelection,
-    showNotification
+    showNotification,
+    t
   ]);
 
   /**

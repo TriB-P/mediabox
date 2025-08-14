@@ -4,6 +4,7 @@
  * Helper pour la gestion de la sélection de cellules et validation
  * Fonctionnalités similaires à Timeline mais adaptées au tableau dynamique
  * Gère la validation des données collées selon le type de colonne
+ * MODIFIÉ : Ajout du support multilingue
  */
 
 import { DynamicColumn, TableRow } from './TactiquesAdvancedTableView';
@@ -44,11 +45,13 @@ interface ListItem {
 
 /**
  * Valide une valeur selon le type de colonne et ses contraintes
+ * MODIFIÉ : Les messages d'erreur utilisent maintenant des clés de traduction
  */
 export function validateCellValue(
   value: any,
   column: DynamicColumn,
-  copiedData?: CopiedData
+  copiedData?: CopiedData,
+  t?: (key: string, options?: any) => string
 ): CellValidationResult {
   // Valeur vide ou null - généralement acceptée
   if (value === null || value === undefined || value === '') {
@@ -57,16 +60,16 @@ export function validateCellValue(
 
   switch (column.type) {
     case 'select':
-      return validateSelectValue(value, column, copiedData);
+      return validateSelectValue(value, column, copiedData, t);
     
     case 'number':
-      return validateNumberValue(value);
+      return validateNumberValue(value, t);
     
     case 'currency':
-      return validateCurrencyValue(value);
+      return validateCurrencyValue(value, t);
     
     case 'date':
-      return validateDateValue(value);
+      return validateDateValue(value, t);
     
     case 'text':
     default:
@@ -96,11 +99,13 @@ function validateTextValue(
 
 /**
  * Valide une valeur pour un champ select
+ * MODIFIÉ : Ajout du support multilingue pour les messages d'erreur
  */
 function validateSelectValue(
   value: any,
   column: DynamicColumn,
-  copiedData?: CopiedData
+  copiedData?: CopiedData,
+  t?: (key: string, options?: any) => string
 ): CellValidationResult {
   if (!column.options || column.options.length === 0) {
     return { isValid: true, value };
@@ -145,29 +150,42 @@ function validateSelectValue(
     return { isValid: true, value: fuzzyMatch.id };
   }
 
+  const errorMessage = t ? 
+    t('table.validation.noMatchingOption', { value: stringValue }) :
+    `"${stringValue}" ne correspond à aucune option disponible`;
+
   return { 
     isValid: false, 
-    errorMessage: `"${stringValue}" ne correspond à aucune option disponible` 
+    errorMessage
   };
 }
 
 /**
  * Valide une valeur numérique
+ * MODIFIÉ : Ajout du support multilingue pour les messages d'erreur
  */
-function validateNumberValue(value: any): CellValidationResult {
+function validateNumberValue(value: any, t?: (key: string, options?: any) => string): CellValidationResult {
   const numValue = Number(value);
   
   if (isNaN(numValue)) {
+    const errorMessage = t ? 
+      t('table.validation.invalidNumber', { value }) :
+      `"${value}" n'est pas un nombre valide`;
+    
     return { 
       isValid: false, 
-      errorMessage: `"${value}" n'est pas un nombre valide` 
+      errorMessage
     };
   }
 
   if (numValue < 0) {
+    const errorMessage = t ? 
+      t('table.validation.negativeNotAllowed') :
+      'Les nombres négatifs ne sont pas autorisés';
+    
     return { 
       isValid: false, 
-      errorMessage: 'Les nombres négatifs ne sont pas autorisés' 
+      errorMessage
     };
   }
 
@@ -176,27 +194,33 @@ function validateNumberValue(value: any): CellValidationResult {
 
 /**
  * Valide une valeur monétaire
+ * MODIFIÉ : Ajout du support multilingue
  */
-function validateCurrencyValue(value: any): CellValidationResult {
+function validateCurrencyValue(value: any, t?: (key: string, options?: any) => string): CellValidationResult {
   // Nettoyer la valeur (enlever les symboles de devise, espaces, etc.)
   const cleanValue = String(value)
     .replace(/[$€£¥₹₽]/g, '') // Symboles de devise
     .replace(/[,\s]/g, '') // Virgules et espaces
     .trim();
 
-  return validateNumberValue(cleanValue);
+  return validateNumberValue(cleanValue, t);
 }
 
 /**
  * Valide une valeur de date
+ * MODIFIÉ : Ajout du support multilingue pour les messages d'erreur
  */
-function validateDateValue(value: any): CellValidationResult {
+function validateDateValue(value: any, t?: (key: string, options?: any) => string): CellValidationResult {
   const dateValue = new Date(value);
   
   if (isNaN(dateValue.getTime())) {
+    const errorMessage = t ? 
+      t('table.validation.invalidDate', { value }) :
+      `"${value}" n'est pas une date valide`;
+    
     return { 
       isValid: false, 
-      errorMessage: `"${value}" n'est pas une date valide` 
+      errorMessage
     };
   }
 
@@ -244,6 +268,7 @@ export function generateRectangularSelection(
 
 /**
  * Applique des données copiées à une sélection avec validation
+ * MODIFIÉ : Ajout du support multilingue pour les messages d'erreur
  */
 export function applyPastedData(
   selectedCells: SelectedCell[],
@@ -251,7 +276,8 @@ export function applyPastedData(
   rows: TableRow[],
   columns: DynamicColumn[],
   onValidValue: (rowId: string, columnKey: string, value: any) => void,
-  onInvalidValue: (cellKey: string, errorMessage: string) => void
+  onInvalidValue: (cellKey: string, errorMessage: string) => void,
+  t?: (key: string, options?: any) => string
 ): { applied: number; errors: number } {
   let applied = 0;
   let errors = 0;
@@ -263,13 +289,15 @@ export function applyPastedData(
     if (!row?.isEditable || !column) return;
 
     const cellKey = `${row.id}_${cell.columnKey}`;
-    const validation = validateCellValue(copiedData.value, column, copiedData);
+    const validation = validateCellValue(copiedData.value, column, copiedData, t);
 
     if (validation.isValid) {
       onValidValue(row.id, cell.columnKey, validation.value);
       applied++;
     } else {
-      onInvalidValue(cellKey, validation.errorMessage || 'Valeur invalide');
+      const errorMessage = validation.errorMessage || 
+        (t ? t('table.validation.invalidValue') : 'Valeur invalide');
+      onInvalidValue(cellKey, errorMessage);
       errors++;
     }
   });
@@ -298,10 +326,14 @@ export function canCellReceiveValue(
 
 /**
  * Formate une valeur pour l'affichage dans l'indicateur de copie
+ * MODIFIÉ : Ajout du support multilingue
  */
-export function formatCopiedValueDisplay(copiedData: CopiedData): string {
+export function formatCopiedValueDisplay(
+  copiedData: CopiedData, 
+  t?: (key: string, options?: any) => string
+): string {
   if (copiedData.value === null || copiedData.value === undefined) {
-    return '(vide)';
+    return t ? t('table.copy.empty') : '(vide)';
   }
 
   let displayValue: string;

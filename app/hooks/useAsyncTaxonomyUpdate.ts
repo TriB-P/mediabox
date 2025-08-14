@@ -11,6 +11,7 @@
 
 import { useState, useCallback } from 'react';
 import { useUpdateTaxonomies } from './useUpdateTaxonomies';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface TaxonomyUpdateStatus {
   isUpdating: boolean;
@@ -37,6 +38,7 @@ type ParentType = 'campaign' | 'tactic' | 'placement';
  * @property {() => void} dismissNotification - Fonction pour masquer manuellement la notification de mise à jour.
  */
 export const useAsyncTaxonomyUpdate = () => {
+  const { t } = useTranslation();
   const { updateTaxonomies } = useUpdateTaxonomies();
 
   const [status, setStatus] = useState<TaxonomyUpdateStatus>({
@@ -58,7 +60,7 @@ export const useAsyncTaxonomyUpdate = () => {
   ) => {
     setStatus({
       isUpdating: true,
-      message: 'Mise à jour des taxonomies en cours...',
+      message: t('asyncTaxonomyUpdate.status.updating'),
       hasError: false
     });
 
@@ -67,7 +69,7 @@ export const useAsyncTaxonomyUpdate = () => {
 
       setStatus({
         isUpdating: false,
-        message: 'Taxonomies mises à jour avec succès !',
+        message: t('asyncTaxonomyUpdate.status.success'),
         hasError: false
       });
 
@@ -84,7 +86,7 @@ export const useAsyncTaxonomyUpdate = () => {
 
       setStatus({
         isUpdating: false,
-        message: '❌ Erreur lors de la mise à jour des taxonomies',
+        message: t('asyncTaxonomyUpdate.status.error'),
         hasError: true
       });
 
@@ -96,7 +98,7 @@ export const useAsyncTaxonomyUpdate = () => {
         });
       }, 5000);
     }
-  }, [updateTaxonomies]);
+  }, [updateTaxonomies, t]);
 
   /**
    * Masque la notification de statut de mise à jour.

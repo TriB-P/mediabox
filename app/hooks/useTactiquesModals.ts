@@ -22,6 +22,7 @@ import {
   deleteOnglet
 } from '../lib/tactiqueService';
 import { useDataFlow } from './useDataFlow';
+import { useTranslation } from '../contexts/LanguageContext';
 
 interface SectionModalState {
   isOpen: boolean;
@@ -62,7 +63,7 @@ export const useTactiquesModals = ({
   sections,
   onRefresh
 }: UseTactiquesModalsProps): UseTactiquesModalsReturn => {
-
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId, selectedOngletId, setSelectedOngletId } = useSelection();
 
@@ -84,7 +85,7 @@ export const useTactiquesModals = ({
    */
   const ensureContext = () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error('Contexte manquant pour l\'opération sur les modals');
+      throw new Error(t('useTactiquesModals.errors.missingContextForModals'));
     }
     return {
       clientId: selectedClient.clientId,
@@ -137,7 +138,7 @@ export const useTactiquesModals = ({
     const context = ensureContext();
 
     try {
-      dataFlow.startOperationLoading('Sauvegarde section');
+      dataFlow.startOperationLoading(t('useTactiquesModals.loading.savingSection'));
 
       if (sectionModal.mode === 'create') {
         const newSectionData = {
@@ -173,7 +174,7 @@ export const useTactiquesModals = ({
 
     } catch (error) {
       console.error('❌ Erreur sauvegarde section:', error);
-      dataFlow.setError('Erreur lors de la sauvegarde de la section');
+      dataFlow.setError(t('useTactiquesModals.errors.errorSavingSection'));
       throw error;
     } finally {
       dataFlow.stopLoading();
@@ -183,7 +184,8 @@ export const useTactiquesModals = ({
     sectionModal.section,
     sections.length,
     onRefresh,
-    dataFlow
+    dataFlow,
+    t
   ]);
 
   /**
@@ -210,10 +212,10 @@ export const useTactiquesModals = ({
       return;
     }
 
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer la section "${section.SECTION_Name}" et toutes ses tactiques ?`;
+    const confirmMessage = t('useTactiquesModals.confirmations.deleteSection', { sectionName: section.SECTION_Name });
 
     if (confirm(confirmMessage)) {
-      dataFlow.startOperationLoading('Suppression section');
+      dataFlow.startOperationLoading(t('useTactiquesModals.loading.deletingSection'));
 
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleDeleteSection - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}");
       deleteSection(
@@ -226,12 +228,12 @@ export const useTactiquesModals = ({
         await Promise.resolve(onRefresh());
       }).catch(error => {
         console.error('❌ Erreur suppression section:', error);
-        dataFlow.setError('Erreur lors de la suppression de la section');
+        dataFlow.setError(t('useTactiquesModals.errors.errorDeletingSection'));
       }).finally(() => {
         dataFlow.stopLoading();
       });
     }
-  }, [sections, onRefresh, dataFlow]);
+  }, [sections, onRefresh, dataFlow, t]);
 
   /**
    * Gère l'ajout d'un nouvel onglet après avoir demandé un nom à l'utilisateur.
@@ -241,10 +243,10 @@ export const useTactiquesModals = ({
    */
   const handleAddOnglet = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour la création d\'onglet');
+      throw new Error(t('useTactiquesModals.errors.missingContextForTabCreation'));
     }
 
-    const newOngletName = prompt('Nom du nouvel onglet:');
+    const newOngletName = prompt(t('useTactiquesModals.prompts.newTabName'));
     if (!newOngletName?.trim()) {
       return;
     }
@@ -256,12 +258,12 @@ export const useTactiquesModals = ({
     );
 
     if (nameExists) {
-      alert(`Un onglet avec le nom "${trimmedName}" existe déjà. Veuillez choisir un nom différent.`);
+      alert(t('useTactiquesModals.alerts.tabNameExists', { tabName: trimmedName }));
       return;
     }
 
     try {
-      dataFlow.startOperationLoading('Création onglet');
+      dataFlow.startOperationLoading(t('useTactiquesModals.loading.creatingTab'));
 
       const newOngletData = {
         ONGLET_Name: trimmedName,
@@ -283,7 +285,7 @@ export const useTactiquesModals = ({
 
     } catch (error) {
       console.error('❌ Erreur création onglet:', error);
-      dataFlow.setError('Erreur lors de la création de l\'onglet');
+      dataFlow.setError(t('useTactiquesModals.errors.errorCreatingTab'));
     } finally {
       dataFlow.stopLoading();
     }
@@ -291,11 +293,11 @@ export const useTactiquesModals = ({
     selectedClient?.clientId,
     selectedCampaignId,
     selectedVersionId,
-    onglets.length,
     onglets,
     onRefresh,
     setSelectedOngletId,
-    dataFlow
+    dataFlow,
+    t
   ]);
 
   /**
@@ -308,7 +310,7 @@ export const useTactiquesModals = ({
    */
   const handleRenameOnglet = useCallback(async (ongletId: string, newName?: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour le renommage d\'onglet');
+      throw new Error(t('useTactiquesModals.errors.missingContextForTabRename'));
     }
 
     const onglet = onglets.find(o => o.id === ongletId);
@@ -318,7 +320,7 @@ export const useTactiquesModals = ({
       return;
     }
 
-    const finalNewName = newName || prompt('Nouveau nom pour l\'onglet:', onglet.ONGLET_Name);
+    const finalNewName = newName || prompt(t('useTactiquesModals.prompts.newTabNameForRename'), onglet.ONGLET_Name);
     if (!finalNewName?.trim() || finalNewName.trim() === onglet.ONGLET_Name) {
       return;
     }
@@ -331,12 +333,12 @@ export const useTactiquesModals = ({
     );
 
     if (nameExists) {
-      alert(`Un onglet avec le nom "${trimmedName}" existe déjà. Veuillez choisir un nom différent.`);
+      alert(t('useTactiquesModals.alerts.tabNameExists', { tabName: trimmedName }));
       return;
     }
 
     try {
-      dataFlow.startOperationLoading('Renommage onglet');
+      dataFlow.startOperationLoading(t('useTactiquesModals.loading.renamingTab'));
 
       console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleRenameOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
       await updateOnglet(
@@ -351,7 +353,7 @@ export const useTactiquesModals = ({
 
     } catch (error) {
       console.error('❌ Erreur renommage onglet:', error);
-      dataFlow.setError('Erreur lors du renommage de l\'onglet');
+      dataFlow.setError(t('useTactiquesModals.errors.errorRenamingTab'));
     } finally {
       dataFlow.stopLoading();
     }
@@ -361,7 +363,8 @@ export const useTactiquesModals = ({
     selectedVersionId,
     onglets,
     onRefresh,
-    dataFlow
+    dataFlow,
+    t
   ]);
 
   /**
@@ -373,7 +376,7 @@ export const useTactiquesModals = ({
    */
   const handleDeleteOnglet = useCallback(async (ongletId: string) => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId) {
-      throw new Error('Contexte manquant pour la suppression d\'onglet');
+      throw new Error(t('useTactiquesModals.errors.missingContextForTabDeletion'));
     }
 
     const onglet = onglets.find(o => o.id === ongletId);
@@ -384,15 +387,15 @@ export const useTactiquesModals = ({
     }
 
     if (onglets.length <= 1) {
-      alert('Impossible de supprimer le dernier onglet');
+      alert(t('useTactiquesModals.alerts.cannotDeleteLastTab'));
       return;
     }
 
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'onglet "${onglet.ONGLET_Name}" et toutes ses données ?`;
+    const confirmMessage = t('useTactiquesModals.confirmations.deleteTab', { tabName: onglet.ONGLET_Name });
 
     if (confirm(confirmMessage)) {
       try {
-        dataFlow.startOperationLoading('Suppression onglet');
+        dataFlow.startOperationLoading(t('useTactiquesModals.loading.deletingTab'));
 
         console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesModals.ts - Fonction: handleDeleteOnglet - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${ongletId}");
         await deleteOnglet(
@@ -413,7 +416,7 @@ export const useTactiquesModals = ({
 
       } catch (error) {
         console.error('❌ Erreur suppression onglet:', error);
-        dataFlow.setError('Erreur lors de la suppression de l\'onglet');
+        dataFlow.setError(t('useTactiquesModals.errors.errorDeletingTab'));
       } finally {
         dataFlow.stopLoading();
       }
@@ -426,7 +429,8 @@ export const useTactiquesModals = ({
     selectedOngletId,
     setSelectedOngletId,
     onRefresh,
-    dataFlow
+    dataFlow,
+    t
   ]);
 
   return {

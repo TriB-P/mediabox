@@ -3208,10 +3208,827 @@ export const translations = {
         warnings: "Avertissements"
       }
     },
+    loading: {
+      starting: 'Démarrage...',
+      campaigns: 'Chargement des campagnes...',
+      versions: 'Chargement des versions...',
+      tabs: 'Chargement des onglets...',
+      sections: 'Chargement des sections...',
+      tactics: 'Chargement des tactiques...',
+      placements: 'Chargement des placements...',
+      creatives: 'Chargement des créatifs...',
+      error: 'Erreur de chargement'
+    },
+    asyncTaxonomyUpdate: {
+      status: {
+        updating: "Mise à jour des taxonomies en cours...",
+        success: "Taxonomies mises à jour avec succès !",
+        error: "❌ Erreur lors de la mise à jour des taxonomies"
+      }
+    },
+    cacheLoading: {
+      steps: {
+        authVerification: "Vérification de l'authentification",
+        loadingAccessibleClients: "Chargement des clients accessibles",
+        loadingGlobalLists: "Chargement des listes globales",
+        loadingClientOverrides: "Chargement des personnalisations client",
+        finalTouch: "Petite touche finale!"
+      },
+      messages: {
+        success: "Chargement terminé avec succès!"
+      },
+      errors: {
+        unknown: "Erreur inconnue"
+      }
+    },
+    useCampaignData: {
+      error: {
+        notFound: "Campagne non trouvée",
+        loadingError: "Erreur lors du chargement de la campagne"
+      }
+    },
+    useCampaignSelection: {
+      errorLoadingCampaigns: "Erreur lors du chargement des campagnes",
+      errorLoadingVersions: "Erreur lors du chargement des versions"
+    },
+    dataFlow: {
+      loading: {
+        initialData: "Chargement des données...",
+        refreshing: "Actualisation..."
+      },
+      operations: {
+        unknownError: "Erreur inconnue",
+        errorDuring: "Erreur lors de"
+      }
+    },
+    selectionValidation: {
+      errors: {
+        noItemSelected: "Aucun élément sélectionné",
+        missingItemsPrefix: "Éléments manquants dans la hiérarchie:",
+        incompleteSelectionPrefix: "Sélection incomplète : ",
+        has: " a",
+        unselectedItems: "élément(s) non sélectionné(s).",
+        missingChildrenTotal: "enfant(s) manquant(s) au total.",
+        incompatibleTypesPrefix: "Types d'éléments incompatibles : impossible de déplacer des ",
+        andSeparator: " et des ",
+        incompatibleTypesSuffix: " ensemble."
+      },
+      messages: {
+        buttons: {
+          invalidSelection: "Sélection invalide",
+          movePrefix: "Déplacer",
+          moveTo: "vers"
+        },
+        common: {
+          totalItemsSuffix: "éléments au total"
+        }
+      },
+      glossary: {
+        items: {
+          sections: "sections",
+          tactics: "tactiques",
+          placements: "placements",
+          creatives: "créatifs"
+        },
+        targets: {
+          tab: "un onglet",
+          section: "une section",
+          tactic: "une tactique",
+          placement: "un placement"
+        },
+        states: {
+          selectedSingular: "sélectionné",
+          selectedPlural: "sélectionnés"
+        }
+      }
+    },
+    useShortcodes: {
+      notifications: {
+        loadError: "Erreur lors du chargement des shortcodes",
+        createCustomListSuccess: "Liste personnalisée créée avec succès",
+        createCustomListError: "Erreur lors de la création de la liste personnalisée",
+        deleteCustomListSuccess: "Liste personnalisée supprimée avec succès",
+        deleteCustomListError: "Erreur lors de la suppression de la liste personnalisée",
+        addShortcodeSuccess: "Shortcode ajouté avec succès",
+        addShortcodeError: "Erreur lors de l'ajout du shortcode",
+        removeShortcodeSuccess: "Shortcode retiré avec succès",
+        removeShortcodeError: "Erreur lors de la suppression du shortcode",
+        createShortcodeSuccess: "Shortcode créé et ajouté avec succès",
+        createShortcodeError: "Erreur lors de la création du shortcode",
+        updateShortcodeSuccess: "Shortcode mis à jour avec succès",
+        updateShortcodeError: "Erreur lors de la mise à jour du shortcode"
+      }
+    },
+    useSimpleMoveModal: {
+      errors: {
+        loadCampaigns: "Erreur lors du chargement des campagnes",
+        loadVersions: "Erreur lors du chargement des versions",
+        loadTabs: "Erreur lors du chargement des onglets",
+        loadSections: "Erreur lors du chargement des sections",
+        loadTactics: "Erreur lors du chargement des tactiques",
+        loadPlacements: "Erreur lors du chargement des placements",
+        missingHierarchyContext: "Contexte hiérarchique manquant pour construire les chemins source",
+        noItemsInContext: "Aucun élément trouvé dans le contexte - impossible de construire les chemins source",
+        unknownError: "Erreur inconnue"
+      }
+    },
+    useTactiquesModals: {
+      errors: {
+        missingContextForModals: "Contexte manquant pour l'opération sur les modals",
+        errorSavingSection: "Erreur lors de la sauvegarde de la section",
+        errorDeletingSection: "Erreur lors de la suppression de la section",
+        missingContextForTabCreation: "Contexte manquant pour la création d'onglet",
+        errorCreatingTab: "Erreur lors de la création de l'onglet",
+        missingContextForTabRename: "Contexte manquant pour le renommage d'onglet",
+        errorRenamingTab: "Erreur lors du renommage de l'onglet",
+        missingContextForTabDeletion: "Contexte manquant pour la suppression d'onglet",
+        errorDeletingTab: "Erreur lors de la suppression de l'onglet"
+      },
+      loading: {
+        savingSection: "Sauvegarde section",
+        deletingSection: "Suppression section",
+        creatingTab: "Création onglet",
+        renamingTab: "Renommage onglet",
+        deletingTab: "Suppression onglet"
+      },
+      confirmations: {
+        deleteSection: "Êtes-vous sûr de vouloir supprimer la section \"{{sectionName}}\" et toutes ses tactiques ?",
+        deleteTab: "Êtes-vous sûr de vouloir supprimer l'onglet \"{{tabName}}\" et toutes ses données ?"
+      },
+      prompts: {
+        newTabName: "Nom du nouvel onglet:",
+        newTabNameForRename: "Nouveau nom pour l'onglet:"
+      },
+      alerts: {
+        tabNameExists: "Un onglet avec le nom \"{{tabName}}\" existe déjà. Veuillez choisir un nom différent.",
+        cannotDeleteLastTab: "Impossible de supprimer le dernier onglet"
+      }
+    },
+    useTactiquesCrud: {
+      errors: {
+        missingBaseContext: "Contexte de base manquant pour les opérations d'ordre",
+        missingContextCreateSection: "Contexte manquant pour créer une section",
+        missingContextUpdateSection: "Contexte manquant pour modifier une section",
+        missingContextDeleteSection: "Contexte manquant pour supprimer une section",
+        missingContextCreateTactic: "Contexte manquant pour créer une tactique",
+        missingContextUpdateTactic: "Contexte manquant pour modifier une tactique",
+        missingContextDeleteTactic: "Contexte manquant pour supprimer une tactique",
+        missingContextCreatePlacement: "Contexte manquant pour créer un placement",
+        parentSectionNotFoundForTactic: "Section parent non trouvée pour la tactique",
+        missingContextUpdatePlacement: "Contexte manquant pour modifier un placement",
+        parentHierarchyNotFoundForPlacement: "Hiérarchie parent non trouvée pour le placement",
+        missingContextDeletePlacement: "Contexte manquant pour supprimer un placement",
+        missingContextCreateCreative: "Contexte manquant pour créer un créatif",
+        parentHierarchyNotFoundForCreative: "Hiérarchie parent non trouvée pour le créatif",
+        missingContextUpdateCreative: "Contexte manquant pour modifier un créatif",
+        fullParentHierarchyNotFoundForCreative: "Hiérarchie parent (section, tactique, placement) non trouvée pour le créatif",
+        missingContextDeleteCreative: "Contexte manquant pour supprimer un créatif",
+        missingContextCreateTab: "Contexte manquant pour créer un onglet",
+        missingContextRenameTab: "Contexte manquant pour renommer un onglet",
+        missingContextDeleteTab: "Contexte manquant pour supprimer un onglet"
+      },
+      defaults: {
+        newSection: "Nouvelle section",
+        newTactic: "Nouvelle tactique",
+        newPlacement: "Nouveau placement",
+        newCreative: "Nouveau créatif",
+        newTab: "Nouvel onglet"
+      },
+      prompts: {
+        newTabName: "Nouveau nom de l'onglet:"
+      }
+    },
+    tactiquesOperations: {
+      errors: {
+        incompleteContextForOperation: "Contexte incomplet pour l'opération",
+        parentNotFoundForPlacement: "Section ou tactique parente non trouvée pour le placement",
+        parentContextNotFoundForPlacement: "Contexte parent non trouvé pour le placement",
+        parentContextNotFoundForCreative: "Contexte parent non trouvé pour le créatif",
+        parentPlacementNotFoundForCreative: "Placement parent non trouvé pour le créatif",
+        parentTacticNotFoundForCreativePlacement: "Tactique parent non trouvée pour le placement du créatif",
+        parentSectionNotFoundForCreative: "Section parente non trouvée pour le créatif",
+        incompleteContext: "Contexte incomplet"
+      },
+      defaults: {
+        newTacticLabel: "Nouvelle tactique",
+        newPlacementLabel: "Nouveau placement",
+        newCreativeLabel: "Nouveau créatif"
+      }
+    },
+    tactiquesRefresh: {
+      notifications: {
+        refreshError: "❌ Erreur lors de l'actualisation"
+      }
+    },
+    useTactiquesSelection: {
+      notifications: {
+        deleteFunctionsNotConfigured: "Fonctions de suppression non configurées",
+        errorDeleteCreative: "Erreur suppression créatif",
+        errorDeletePlacement: "Erreur suppression placement",
+        errorDeleteTactic: "Erreur suppression tactique",
+        errorDeleteSection: "Erreur suppression section",
+        deleteSuccessSingular: "élément supprimé avec succès",
+        deleteSuccessPlural: "éléments supprimés avec succès",
+        deleteErrorSingular: "erreur lors de la suppression",
+        deleteErrorPlural: "erreurs lors de la suppression",
+        criticalDeleteError: "❌ Erreur critique lors de la suppression",
+        missingContextDuplication: "❌ Contexte manquant pour la duplication",
+        duplicateSuccessSingular: "élément dupliqué avec succès",
+        duplicateSuccessPlural: "éléments dupliqués avec succès",
+        unknownDuplicationError: "Erreur inconnue lors de la duplication",
+        duplicationError: "❌ Erreur duplication:",
+        criticalDuplicationError: "❌ Erreur critique lors de la duplication"
+      },
+      deleteConfirm: {
+        areYouSure: "Êtes-vous sûr de vouloir supprimer les",
+        selectedItems: "éléments sélectionnés ?",
+        irreversibleWarning: "⚠️ Cette action est irréversible et supprimera également tous les éléments enfants."
+      }
+    },
+    useTaxonomyForm: {
+      errors: {
+        loadTaxonomies: "Erreur lors du chargement des taxonomies."
+      }
+    },
+    updateTaxonomies: {
+      updateFailed: "La mise à jour des taxonomies a échoué."
+    },
+    useUpdateTaxonomiesAfterMove: {
+      errors: {
+        fetchShortcode: "❌ Erreur récupération shortcode",
+        fetchCustomCode: "❌ Erreur récupération custom code",
+        missingClientId: "❌ ClientId manquant",
+        missingCampaignId: "❌ CampaignId manquant",
+        campaignNotFound: "❌ Campagne non trouvée",
+        emptyCampaignData: "❌ Données campagne vides",
+        placementError: "❌ Erreur placement",
+        creativeError: "❌ Erreur créatif",
+        generalError: "❌ [UpdateTaxonomiesAfterMove] Erreur:",
+        regenerationFailed: "La régénération des taxonomies après déplacement a échoué."
+      },
+      warnings: {
+        unknownSource: "Source inconnue pour variable"
+      }
+    },
+    duplicateTemplate: {
+      unauthenticatedUser: "Utilisateur non authentifié",
+      tokenNotRetrieved: "Token d'accès non récupéré depuis Firebase Auth",
+      insufficientPermissions: "Permissions insuffisantes pour dupliquer le fichier. Vérifiez que le template est bien partagé avec votre compte Google.",
+      templateNotFound: "Template non trouvé. Vérifiez l'URL du template.",
+      driveApiError: "Erreur API Drive:",
+      invalidTemplateUrl: "URL de template invalide. Impossible d'extraire l'ID du fichier.",
+      accessTokenError: "Impossible d'obtenir le token d'accès Google Drive",
+      unknownError: "Erreur inconnue lors de la duplication"
+    },
+    useGenerateDoc: {
+      auth: {
+        notAuthenticated: "Utilisateur non authentifié",
+        tokenNotRetrieved: "Token d'accès non récupéré"
+      },
+      error: {
+        invalidSheetUrl: "URL Google Sheet invalide",
+        tokenNotObtained: "Impossible d'obtenir le token d'accès",
+        httpError: "Erreur HTTP",
+        insufficientPermissions: "Permissions insuffisantes. Vérifiez l'accès au Google Sheet.",
+        sheetOrTabNotFound: "Google Sheet ou onglet non trouvé.",
+        apiError: "Erreur API:",
+        unknownError: "Erreur inconnue"
+      }
+    },
+    unlinkDoc: {
+      error: {
+        notAuthenticated: "Utilisateur non authentifié",
+        tokenNotRetrieved: "Token d'accès non récupéré depuis Firebase Auth",
+        googleAuth: "Erreur lors de l'authentification Google:",
+        insufficientPermissions: "Permissions insuffisantes pour dupliquer le fichier.",
+        documentNotFound: "Document non trouvé. Vérifiez l'URL du document.",
+        driveApi: "Erreur API Drive:",
+        fetchSheets: "Erreur lors de la récupération des feuilles:",
+        deleteSheets: "Erreur lors de la suppression des feuilles:",
+        convertFormulas: "Erreur lors de la conversion des formules:",
+        invalidUrl: "URL de document invalide. Impossible d'extraire l'ID du fichier.",
+        tokenAccessFailed: "Impossible d'obtenir le token d'accès Google",
+        unknown: "Erreur inconnue lors de la dissociation",
+        unlinkProcess: "Erreur dissociation document:"
+      },
+      common: {
+        user: "Utilisateur"
+      }
+    },
+    editUserModal: {
+      title: "Modifier le rôle utilisateur",
+      form: {
+        newRoleLabel: "Nouveau rôle",
+        loadingRoles: "Chargement des rôles...",
+        noRolesAvailable: "Aucun rôle disponible. Veuillez créer des rôles d'abord.",
+        selectRolePlaceholder: "Sélectionnez un rôle",
+        currentRole: "Rôle actuel",
+        noRole: "Aucun rôle"
+      },
+      permissions: {
+        titlePrefix: "Permissions du rôle"
+      },
+      buttons: {
+        saving: "Sauvegarde...",
+        updateRole: "Modifier le rôle"
+      },
+      errors: {
+        updateFailed: "Erreur lors de la mise à jour du rôle"
+      }
+    },
+    invitationModal: {
+      title: "Inviter un utilisateur",
+      form: {
+        emailLabel: "Adresse email *",
+        emailPlaceholder: "utilisateur@exemple.com",
+        emailHelpText: "L'utilisateur recevra un accès lors de sa première connexion",
+        roleLabel: "Rôle *",
+        loadingRoles: "Chargement des rôles...",
+        noRolesAvailable: "Aucun rôle disponible. Veuillez créer des rôles d'abord.",
+        selectRolePlaceholder: "Sélectionnez un rôle",
+        roleHelpText: "Ce rôle déterminera les permissions de l'utilisateur"
+      },
+      info: {
+        expiration: "💡 L'invitation expirera automatiquement dans 7 jours si l'utilisateur ne se connecte pas."
+      },
+      buttons: {
+        sending: "Envoi...",
+        send: "Envoyer l'invitation"
+      },
+      alerts: {
+        emailRequired: "L'adresse email est requise",
+        roleRequired: "Le rôle est requis",
+        invalidEmail: "Veuillez entrer une adresse email valide",
+        sendError: "Erreur lors de l'envoi de l'invitation"
+      }
+    },
+    permissionsTab: {
+      title: "Gestion des permissions",
+      newRole: "Nouveau Rôle",
+      table: {
+        role: "Rôle",
+        actions: "Actions"
+      },
+      permissions: {
+        access: "Accès",
+        clientInfo: "Infos Client",
+        costGuide: "Guide de Coût",
+        currency: "Devises",
+        customCodes: "Codes Personnalisés",
+        dimensions: "Dimensions",
+        fees: "Frais",
+        lists: "Listes",
+        taxonomy: "Taxonomie",
+        templates: "Gabarits"
+      },
+      actions: {
+        editRole: "Modifier le rôle",
+        deleteRole: "Supprimer le rôle"
+      },
+      notifications: {
+        confirmDelete: "Êtes-vous sûr de vouloir supprimer le rôle \"{{roleName}}\" ?",
+        deleteError: "Erreur lors de la suppression du rôle"
+      },
+      emptyState: {
+        noRoles: "Aucun rôle configuré",
+        createFirstRole: "Créer votre premier rôle"
+      }
+    },
+    roleFormModal: {
+      title: {
+        edit: "Modifier le rôle",
+        new: "Nouveau rôle"
+      },
+      labels: {
+        roleName: "Nom du rôle *",
+        permissions: "Permissions"
+      },
+      placeholders: {
+        roleName: "Entrez le nom du rôle"
+      },
+      permissions: {
+        access: "Accès",
+        clientInfo: "Informations Client",
+        costGuide: "Guide de Coût",
+        currency: "Devises",
+        customCodes: "Codes Personnalisés",
+        dimensions: "Dimensions",
+        fees: "Frais",
+        lists: "Listes",
+        taxonomy: "Taxonomie",
+        templates: "Gabarits"
+      },
+      buttons: {
+        saving: "Sauvegarde..."
+      },
+      alerts: {
+        nameRequired: "Le nom du rôle est requis",
+        saveError: "Erreur lors de la sauvegarde du rôle"
+      }
+    },
+    usersTab: {
+      errors: {
+        cannotEditInvitation: "Impossible de modifier le rôle d'une invitation. L'utilisateur doit d'abord se connecter.",
+        userNotConnected: "Utilisateur non connecté",
+        userDeletionFailed: "Erreur lors de la suppression de l'utilisateur"
+      },
+      confirm: {
+        deactivateUser: "Êtes-vous sûr de vouloir désactiver l'utilisateur",
+        deleteInvitation: "Êtes-vous sûr de vouloir supprimer l'invitation pour"
+      },
+      status: {
+        active: "Actif",
+        invited: "Invité",
+        expired: "Expiré"
+      },
+      header: {
+        title: "Gestion des utilisateurs",
+        subtitle: "Inviter de nouveaux utilisateurs et gérer les accès à l'application"
+      },
+      buttons: {
+        inviteUser: "Inviter utilisateur",
+        clearSearch: "Effacer la recherche",
+        inviteAUser: "Inviter un utilisateur"
+      },
+      stats: {
+        activeUsers: "Utilisateurs actifs",
+        pendingInvitations: "Invitations en attente",
+        expiredInvitations: "Invitations expirées",
+        total: "Total"
+      },
+      search: {
+        placeholder: "Rechercher par nom, email ou rôle...",
+        resultsFound: "résultat(s) trouvé(s) pour"
+      },
+      table: {
+        header: {
+          user: "Utilisateur",
+          status: "Statut",
+          role: "Rôle",
+          invitedOn: "Invité le",
+          acceptedOn: "Accepté le",
+          invitedBy: "Invité par",
+          actions: "Actions"
+        }
+      },
+      actions: {
+        editRole: "Modifier le rôle",
+        resendInvitation: "Renvoyer l'invitation",
+        deactivateUser: "Désactiver l'utilisateur",
+        deleteInvitation: "Supprimer l'invitation"
+      },
+      noResults: {
+        title: "Aucun résultat",
+        description: "Aucun utilisateur ne correspond à votre recherche"
+      },
+      emptyState: {
+        title: "Aucun utilisateur",
+        description: "Commencez par inviter votre premier utilisateur."
+      },
+      invitationInfo: {
+        title: "À propos des invitations",
+        description: "Les utilisateurs invités recevront un accès automatiquement lors de leur première connexion avec Google. Les invitations expirent après 7 jours et peuvent être renvoyées si nécessaire."
+      }
+    },
+    table: {
+      // Recherche et navigation
+      search: {
+        sections: "Rechercher dans les sections...",
+        tactiques: "Rechercher dans les tactiques...",
+        placements: "Rechercher dans les placements...",
+        creatifs: "Rechercher dans les créatifs..."
+      },
+      
+      // Barre d'outils
+      toolbar: {
+        hideLevels: "Masquer les niveaux inférieurs",
+        clearSort: "Effacer tri"
+      },
+      
+      // Niveaux/entités
+      levels: {
+        sections: "sections",
+        tactiques: "tactiques", 
+        placements: "placements",
+        creatifs: "créatifs"
+      },
+      
+      // Onglets de sous-catégories
+      tabs: {
+        tactique: {
+          info: "Info",
+          strategie: "Stratégie", 
+          budget: "Budget",
+          admin: "Admin"
+        },
+        placement: {
+          info: "Info",
+          taxonomie: "Taxonomie"
+        },
+        creatif: {
+          info: "Info",
+          taxonomie: "Taxonomie",
+          specs: "Specs"
+        }
+      },
+      
+      // Aide contextuelle
+      help: {
+        selection: {
+          title: "Sélection",
+          description: "1 clic = sélectionner • Shift+Clic = sélection multiple"
+        },
+        editing: {
+          title: "Édition", 
+          description: "Double-clic pour éditer • Enter/Tab = sauver • Esc = annuler"
+        },
+        copy: {
+          title: "Copie",
+          description: "Ctrl+C pour copier • Ctrl+V pour coller"
+        },
+        budget: {
+          title: "Budget",
+          description: "Les calculs utilisent la même logique que le drawer"
+        },
+        columns: {
+          title: "Colonnes dynamiques",
+          description: "Les colonnes changent selon les taxonomies sélectionnées"
+        }
+      },
+      
+      // Pied de page
+      footer: {
+        rows: "lignes"
+      },
+      
+      // Sélection
+      selection: {
+        cellsSelected: "cellules sélectionnées"
+      },
+      
+      // Validation
+      validation: {
+        errors: "erreurs de validation",
+        invalidValue: "Valeur invalide",
+        invalidValueFor: "Valeur invalide pour {{field}}",
+        noMatchingOption: "\"{{value}}\" ne correspond à aucune option disponible",
+        invalidNumber: "\"{{value}}\" n'est pas un nombre valide",
+        negativeNotAllowed: "Les nombres négatifs ne sont pas autorisés",
+        invalidDate: "\"{{value}}\" n'est pas une date valide"
+      },
+      
+      // Messages généraux
+      noResults: "Aucun résultat trouvé",
+      noData: "Aucune donnée à afficher",
+      
+      // Cellules
+      cell: {
+        doubleClickToEdit: "Double-clic pour modifier",
+        doubleClickToEditField: "Double-cliquer pour modifier {{field}}",
+        clickToEnter: "Cliquer pour saisir",
+        clickToEditField: "Cliquer pour modifier {{field}}",
+        enterValue: "Saisir {{field}}"
+      },
+      
+      // Actions
+      actions: {
+        cancel: "Annuler",
+        save: "Sauvegarder", 
+        saving: "Sauvegarde...",
+        copied: "Copié",
+        confirmCancelChanges: "Êtes-vous sûr de vouloir annuler toutes les modifications ?"
+      },
+      
+      // Changements en attente
+      changes: {
+        pending: "modifications en attente"
+      },
+      
+      // Chargement
+      loading: {
+        startAdvancedTable: "Début chargement données pour TactiquesAdvancedTableView (version refactorisée)",
+        clientFeesLoaded: "Frais client chargés: {{count}} frais",
+        clientFeesError: "Erreur chargement frais client:",
+        exchangeRatesLoaded: "Taux de change chargés: {{count}} taux", 
+        exchangeRatesError: "Erreur chargement taux de change:",
+        currencyLoaded: "Devise campagne chargée: {{currency}}",
+        currencyError: "Erreur chargement devise campagne:",
+        fieldError: "Erreur chargement {{field}}",
+        bucketsError: "Erreur lors du chargement des buckets:",
+        completedAdvancedTable: "Chargement terminé pour TactiquesAdvancedTableView (version refactorisée)",
+        generalError: "Erreur lors du chargement des données",
+        loadingData: "Chargement des {{type === 'listsAndBudget' ? 'listes dynamiques et données budget' : type === 'lists' ? 'listes dynamiques' : 'données budget'}}..."
+      },
+      
+      // Budget
+      budget: {
+        mediaBudget: "Budget média",
+        clientBudget: "Budget client",
+        validatingTactic: "Validation budget pour tactique {{id}}",
+        validationFailed: "Validation budget échouée pour {{id}}",
+        validationSuccess: "Validation budget réussie pour {{id}}",
+        updateError: "Erreur lors de la mise à jour de la tactique avec budget",
+        feeNotFound: "Frais #{{number}} introuvable",
+        noOption: "Aucune option",
+        disable: "Désactiver",
+        enable: "Activer", 
+        selectOption: "Sélectionner une option",
+        enableToSelect: "Activer le frais pour sélectionner",
+        optionPlaceholder: "-- Option --",
+        customValue: "Valeur personnalisée",
+        fixedValue: "Valeur fixe",
+        autoCalculatedAmount: "Montant calculé automatiquement",
+        autoCalculated: "Calculé automatiquement",
+        feeColumnsCreated: "colonnes de frais créées",
+        standardCalculation: "Calcul standard",
+        converged: "Calcul convergé",
+        approximation: "Approximation (écart: {{error}}$)",
+        notConverged: "Non convergé (écart: {{error}}$)"
+      },
+      
+      // Taxonomie
+      taxonomy: {
+        placementUpdateError: "Erreur lors de la mise à jour du placement avec taxonomies",
+        triggeringUpdates: "Déclenchement des mises à jour taxonomiques pour {{count}} entité(s)",
+        updatesCompleted: "Mises à jour taxonomiques terminées"
+      },
+      
+      // Sauvegarde
+      save: {
+        errorWithBudget: "Erreur lors de la sauvegarde avec budget",
+        generalError: "Erreur lors de la sauvegarde:"
+      },
+      
+      // Colonnes
+      columns: {
+        structure: "Structure",
+        label: "Étiquette",
+        bucket: "Enveloppe",
+        mpa: "MPA",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        placementName: "Nom du placement",
+        creativeName: "Nom du créatif",
+        taxonomyTags: "Taxonomie pour les tags",
+        taxonomyPlatform: "Taxonomie pour la plateforme", 
+        taxonomyMediaOcean: "Taxonomie pour MediaOcean",
+        product: "Produit",
+        location: "Emplacement",
+        demographics: "Démographie",
+        device: "Appareil",
+        targeting: "Ciblage",
+        specName: "Nom de la spec",
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "Type de fichier",
+        maxWeight: "Poids max",
+        weight: "Poids",
+        animation: "Animation",
+        title: "Titre",
+        text: "Texte",
+        specSheetLink: "Lien spec sheet",
+        notes: "Notes",
+        sectionName: "Nom de la section",
+        lob: "Ligne d'affaire",
+        mediaType: "Type média",
+        partner: "Partenaire",
+        inventory: "Inventaire", 
+        marketDescription: "Description du marché",
+        audienceDescription: "Description de l'audience",
+        productDescription: "Description du produit",
+        formatDescription: "Description du format",
+        locationDescription: "Description de l'emplacement",
+        frequency: "Fréquence",
+        market: "Marché",
+        language: "Langue",
+        buyingMethod: "Méthode d'achat",
+        customDim1: "Dimension personnalisée 1",
+        customDim2: "Dimension personnalisée 2", 
+        customDim3: "Dimension personnalisée 3",
+        suggestedCreatives: "Nombre de créatifs suggérés",
+        assetDeliveryDate: "Date de livraison des créatifs",
+        inputMode: "Mode de saisie",
+        inputBudget: "Budget saisi",
+        currency: "Devise",
+        buyCurrency: "Devise d'achat",
+        unitType: "Type d'unité",
+        costPerUnit: "Coût par unité",
+        volume: "Volume",
+        unitVolume: "Volume d'unité",
+        realValue: "Valeur réelle",
+        bonus: "Bonification",
+        exchangeRate: "Taux de change",
+        totalMedia: "Total média",
+        totalClient: "Total client",
+        billingNumber: "Numéro de facturation",
+        po: "PO"
+      },
+      
+      // Couleurs
+      colors: {
+        red: "Rouge",
+        orange: "Orange", 
+        yellow: "Jaune",
+        green: "Vert",
+        blue: "Bleu",
+        indigo: "Indigo",
+        violet: "Violet",
+        pink: "Rose",
+        gray: "Gris"
+      },
+      
+      // Statuts
+      status: {
+        planned: "Planifiée",
+        active: "Active",
+        completed: "Terminée",
+        cancelled: "Annulée"
+      },
+      
+      // Types de média
+      mediaType: {
+        display: "Display",
+        video: "Vidéo",
+        social: "Social", 
+        search: "Recherche",
+        audio: "Audio",
+        tv: "Télévision",
+        print: "Imprimé",
+        ooh: "Affichage extérieur"
+      },
+      
+      // Méthodes d'achat
+      buyingMethod: {
+        programmatic: "Programmatique",
+        direct: "Direct",
+        guaranteed: "Garanti",
+        auction: "Enchères"
+      },
+      
+      // Langues
+      language: {
+        french: "Français",
+        english: "Anglais",
+        spanish: "Espagnol",
+        bilingual: "Bilingue"
+      },
+      
+      // Marchés
+      market: {
+        quebec: "Québec",
+        ontario: "Ontario",
+        bc: "Colombie-Britannique",
+        alberta: "Alberta",
+        manitoba: "Manitoba", 
+        saskatchewan: "Saskatchewan",
+        newBrunswick: "Nouveau-Brunswick",
+        novaScotia: "Nouvelle-Écosse",
+        pei: "Île-du-Prince-Édouard",
+        newfoundland: "Terre-Neuve-et-Labrador",
+        nwt: "Territoires du Nord-Ouest",
+        nunavut: "Nunavut",
+        yukon: "Yukon",
+        national: "National"
+      },
+      
+      // Copie/Collage
+      copy: {
+        empty: "(vide)"
+      },
+      
+      paste: {
+        result: "{{applied}} cellule(s) mise(s) à jour, {{errors}} erreur(s) de validation"
+      },
+      
+      // Hiérarchie
+      hierarchy: {
+        unnamedSection: "Section sans nom",
+        unnamedTactic: "Tactique sans nom",
+        unnamedPlacement: "Placement sans nom", 
+        unnamedCreative: "Créatif sans nom",
+        unnamedElement: "Élément sans nom"
+      },
+      
+      // Labels de niveaux
+      levelLabels: {
+        section: "SEC",
+        tactic: "TAC",
+        placement: "PLA",
+        creative: "CRE",
+        unknown: "UNK"
+      },
+      
+      // Sélection
+      select: {
+        placeholder: "-- Sélectionner --"
+      }
+    },
+
 
     
 
 
+  
 
     },
 
@@ -6259,12 +7076,824 @@ export const translations = {
         errors: "Errors",
         warnings: "Warnings"
       }
-    }
-  
+    },
+    loading: {
+      starting: 'Starting...',
+      campaigns: 'Loading campaigns...',
+      versions: 'Loading versions...',
+      tabs: 'Loading tabs...',
+      sections: 'Loading sections...',
+      tactics: 'Loading tactics...',
+      placements: 'Loading placements...',
+      creatives: 'Loading creatives...',
+      error: 'Loading error'
+    },
+    asyncTaxonomyUpdate: {
+      status: {
+        updating: "Updating taxonomies...",
+        success: "Taxonomies updated successfully!",
+        error: "❌ Error updating taxonomies"
+      }
+    },
+    cacheLoading: {
+      steps: {
+        authVerification: "Verifying authentication",
+        loadingAccessibleClients: "Loading accessible clients",
+        loadingGlobalLists: "Loading global lists",
+        loadingClientOverrides: "Loading client customizations",
+        finalTouch: "Final touch!"
+      },
+      messages: {
+        success: "Loading completed successfully!"
+      },
+      errors: {
+        unknown: "Unknown error"
+      }
+    },
+    useCampaignData: {
+      error: {
+        notFound: "Campaign not found",
+        loadingError: "Error loading campaign"
+      }
+    },
+    useCampaignSelection: {
+      errorLoadingCampaigns: "Error loading campaigns",
+      errorLoadingVersions: "Error loading versions"
+    },
+    dataFlow: {
+      loading: {
+        initialData: "Loading data...",
+        refreshing: "Refreshing..."
+      },
+      operations: {
+        unknownError: "Unknown error",
+        errorDuring: "Error during"
+      }
+    },
+    selectionValidation: {
+      errors: {
+        noItemSelected: "No item selected",
+        missingItemsPrefix: "Missing items in hierarchy:",
+        incompleteSelectionPrefix: "Incomplete selection: ",
+        has: " has",
+        unselectedItems: "unselected element(s).",
+        missingChildrenTotal: "missing child(ren) in total.",
+        incompatibleTypesPrefix: "Incompatible item types: cannot move ",
+        andSeparator: " and ",
+        incompatibleTypesSuffix: " together."
+      },
+      messages: {
+        buttons: {
+          invalidSelection: "Invalid Selection",
+          movePrefix: "Move",
+          moveTo: "to"
+        },
+        common: {
+          totalItemsSuffix: "items in total"
+        }
+      },
+      glossary: {
+        items: {
+          sections: "sections",
+          tactics: "tactics",
+          placements: "placements",
+          creatives: "creatives"
+        },
+        targets: {
+          tab: "a tab",
+          section: "a section",
+          tactic: "a tactic",
+          placement: "a placement"
+        },
+        states: {
+          selectedSingular: "selected",
+          selectedPlural: "selected"
+        }
+      }
+    },
+    useShortcodes: {
+      notifications: {
+        loadError: "Error loading shortcodes",
+        createCustomListSuccess: "Custom list created successfully",
+        createCustomListError: "Error creating custom list",
+        deleteCustomListSuccess: "Custom list deleted successfully",
+        deleteCustomListError: "Error deleting custom list",
+        addShortcodeSuccess: "Shortcode added successfully",
+        addShortcodeError: "Error adding shortcode",
+        removeShortcodeSuccess: "Shortcode removed successfully",
+        removeShortcodeError: "Error removing shortcode",
+        createShortcodeSuccess: "Shortcode created and added successfully",
+        createShortcodeError: "Error creating shortcode",
+        updateShortcodeSuccess: "Shortcode updated successfully",
+        updateShortcodeError: "Error updating shortcode"
+      }
+    },
+    useSimpleMoveModal: {
+      errors: {
+        loadCampaigns: "Error loading campaigns",
+        loadVersions: "Error loading versions",
+        loadTabs: "Error loading tabs",
+        loadSections: "Error loading sections",
+        loadTactics: "Error loading tactics",
+        loadPlacements: "Error loading placements",
+        missingHierarchyContext: "Missing hierarchy context to build source paths",
+        noItemsInContext: "No items found in context - cannot build source paths",
+        unknownError: "Unknown error"
+      }
+    },
+    useTactiquesModals: {
+      errors: {
+        missingContextForModals: "Missing context for modals operation",
+        errorSavingSection: "Error while saving the section",
+        errorDeletingSection: "Error while deleting the section",
+        missingContextForTabCreation: "Missing context for tab creation",
+        errorCreatingTab: "Error while creating the tab",
+        missingContextForTabRename: "Missing context for tab rename",
+        errorRenamingTab: "Error while renaming the tab",
+        missingContextForTabDeletion: "Missing context for tab deletion",
+        errorDeletingTab: "Error while deleting the tab"
+      },
+      loading: {
+        savingSection: "Saving section",
+        deletingSection: "Deleting section",
+        creatingTab: "Creating tab",
+        renamingTab: "Renaming tab",
+        deletingTab: "Deleting tab"
+      },
+      confirmations: {
+        deleteSection: "Are you sure you want to delete the section \"{{sectionName}}\" and all its tactics?",
+        deleteTab: "Are you sure you want to delete the tab \"{{tabName}}\" and all its data?"
+      },
+      prompts: {
+        newTabName: "Name for the new tab:",
+        newTabNameForRename: "New name for the tab:"
+      },
+      alerts: {
+        tabNameExists: "A tab with the name \"{{tabName}}\" already exists. Please choose a different name.",
+        cannotDeleteLastTab: "Cannot delete the last tab"
+      }
+    },
+    useTactiquesCrud: {
+      errors: {
+        missingBaseContext: "Missing base context for order operations",
+        missingContextCreateSection: "Missing context to create a section",
+        missingContextUpdateSection: "Missing context to update a section",
+        missingContextDeleteSection: "Missing context to delete a section",
+        missingContextCreateTactic: "Missing context to create a tactic",
+        missingContextUpdateTactic: "Missing context to update a tactic",
+        missingContextDeleteTactic: "Missing context to delete a tactic",
+        missingContextCreatePlacement: "Missing context to create a placement",
+        parentSectionNotFoundForTactic: "Parent section not found for the tactic",
+        missingContextUpdatePlacement: "Missing context to update a placement",
+        parentHierarchyNotFoundForPlacement: "Parent hierarchy not found for the placement",
+        missingContextDeletePlacement: "Missing context to delete a placement",
+        missingContextCreateCreative: "Missing context to create a creative",
+        parentHierarchyNotFoundForCreative: "Parent hierarchy not found for the creative",
+        missingContextUpdateCreative: "Missing context to update a creative",
+        fullParentHierarchyNotFoundForCreative: "Parent hierarchy (section, tactic, placement) not found for the creative",
+        missingContextDeleteCreative: "Missing context to delete a creative",
+        missingContextCreateTab: "Missing context to create a tab",
+        missingContextRenameTab: "Missing context to rename a tab",
+        missingContextDeleteTab: "Missing context to delete a tab"
+      },
+      defaults: {
+        newSection: "New section",
+        newTactic: "New tactic",
+        newPlacement: "New placement",
+        newCreative: "New creative",
+        newTab: "New tab"
+      },
+      prompts: {
+        newTabName: "New tab name:"
+      }
+    },
+    tactiquesOperations: {
+      errors: {
+        incompleteContextForOperation: "Incomplete context for the operation",
+        parentNotFoundForPlacement: "Parent section or tactic not found for the placement",
+        parentContextNotFoundForPlacement: "Parent context not found for the placement",
+        parentContextNotFoundForCreative: "Parent context not found for the creative",
+        parentPlacementNotFoundForCreative: "Parent placement not found for the creative",
+        parentTacticNotFoundForCreativePlacement: "Parent tactic not found for the creative's placement",
+        parentSectionNotFoundForCreative: "Parent section not found for the creative",
+        incompleteContext: "Incomplete context"
+      },
+      defaults: {
+        newTacticLabel: "New tactic",
+        newPlacementLabel: "New placement",
+        newCreativeLabel: "New creative"
+      }
+    },
+    tactiquesRefresh: {
+      notifications: {
+        refreshError: "❌ Error during refresh"
+      }
+    },
+    useTactiquesSelection: {
+      notifications: {
+        deleteFunctionsNotConfigured: "Delete functions not configured",
+        errorDeleteCreative: "Error deleting creative",
+        errorDeletePlacement: "Error deleting placement",
+        errorDeleteTactic: "Error deleting tactic",
+        errorDeleteSection: "Error deleting section",
+        deleteSuccessSingular: "item deleted successfully",
+        deleteSuccessPlural: "items deleted successfully",
+        deleteErrorSingular: "error during deletion",
+        deleteErrorPlural: "errors during deletion",
+        criticalDeleteError: "❌ Critical error during deletion",
+        missingContextDuplication: "❌ Missing context for duplication",
+        duplicateSuccessSingular: "item duplicated successfully",
+        duplicateSuccessPlural: "items duplicated successfully",
+        unknownDuplicationError: "Unknown error during duplication",
+        duplicationError: "❌ Duplication error:",
+        criticalDuplicationError: "❌ Critical error during duplication"
+      },
+      deleteConfirm: {
+        areYouSure: "Are you sure you want to delete the",
+        selectedItems: "selected items?",
+        irreversibleWarning: "⚠️ This action is irreversible and will also delete all child elements."
+      }
+    },
+    useTaxonomyForm: {
+      errors: {
+        loadTaxonomies: "Error loading taxonomies."
+      }
+    },
+    updateTaxonomies: {
+      updateFailed: "Failed to update taxonomies."
+    },
+    useUpdateTaxonomiesAfterMove: {
+      errors: {
+        fetchShortcode: "❌ Error fetching shortcode",
+        fetchCustomCode: "❌ Error fetching custom code",
+        missingClientId: "❌ Missing ClientId",
+        missingCampaignId: "❌ Missing CampaignId",
+        campaignNotFound: "❌ Campaign not found",
+        emptyCampaignData: "❌ Empty campaign data",
+        placementError: "❌ Placement error",
+        creativeError: "❌ Creative error",
+        generalError: "❌ [UpdateTaxonomiesAfterMove] Error:",
+        regenerationFailed: "Taxonomy regeneration after move failed."
+      },
+      warnings: {
+        unknownSource: "Unknown source for variable"
+      }
+    },
+    duplicateTemplate: {
+      unauthenticatedUser: "User not authenticated",
+      tokenNotRetrieved: "Access token not retrieved from Firebase Auth",
+      insufficientPermissions: "Insufficient permissions to duplicate the file. Check that the template is correctly shared with your Google account.",
+      templateNotFound: "Template not found. Check the template URL.",
+      driveApiError: "Drive API Error:",
+      invalidTemplateUrl: "Invalid template URL. Could not extract file ID.",
+      accessTokenError: "Could not get Google Drive access token",
+      unknownError: "Unknown error during duplication"
+    },
+    useGenerateDoc: {
+      auth: {
+        notAuthenticated: "User not authenticated",
+        tokenNotRetrieved: "Access token not retrieved"
+      },
+      error: {
+        invalidSheetUrl: "Invalid Google Sheet URL",
+        tokenNotObtained: "Could not get access token",
+        httpError: "HTTP Error",
+        insufficientPermissions: "Insufficient permissions. Check access to the Google Sheet.",
+        sheetOrTabNotFound: "Google Sheet or tab not found.",
+        apiError: "API Error:",
+        unknownError: "Unknown error"
+      }
+    },
+    unlinkDoc: {
+      error: {
+        notAuthenticated: "User not authenticated",
+        tokenNotRetrieved: "Access token not retrieved from Firebase Auth",
+        googleAuth: "Error during Google authentication:",
+        insufficientPermissions: "Insufficient permissions to duplicate the file.",
+        documentNotFound: "Document not found. Please check the document URL.",
+        driveApi: "Drive API Error:",
+        fetchSheets: "Error fetching sheets:",
+        deleteSheets: "Error deleting sheets:",
+        convertFormulas: "Error converting formulas:",
+        invalidUrl: "Invalid document URL. Could not extract file ID.",
+        tokenAccessFailed: "Could not get Google access token",
+        unknown: "Unknown error during unlinking",
+        unlinkProcess: "Document unlinking error:"
+      },
+      common: {
+        user: "User"
+      }
+    },
+    editUserModal: {
+      title: "Edit User Role",
+      form: {
+        newRoleLabel: "New role",
+        loadingRoles: "Loading roles...",
+        noRolesAvailable: "No roles available. Please create roles first.",
+        selectRolePlaceholder: "Select a role",
+        currentRole: "Current role",
+        noRole: "No role"
+      },
+      permissions: {
+        titlePrefix: "Permissions for role"
+      },
+      buttons: {
+        saving: "Saving...",
+        updateRole: "Update Role"
+      },
+      errors: {
+        updateFailed: "Error updating role"
+      }
+    },
+    invitationModal: {
+      title: "Invite a user",
+      form: {
+        emailLabel: "Email address *",
+        emailPlaceholder: "user@example.com",
+        emailHelpText: "The user will receive access upon their first login",
+        roleLabel: "Role *",
+        loadingRoles: "Loading roles...",
+        noRolesAvailable: "No roles available. Please create roles first.",
+        selectRolePlaceholder: "Select a role",
+        roleHelpText: "This role will determine the user's permissions"
+      },
+      info: {
+        expiration: "💡 The invitation will automatically expire in 7 days if the user does not log in."
+      },
+      buttons: {
+        sending: "Sending...",
+        send: "Send invitation"
+      },
+      alerts: {
+        emailRequired: "Email address is required",
+        roleRequired: "Role is required",
+        invalidEmail: "Please enter a valid email address",
+        sendError: "Error sending invitation"
+      }
+    },
+    permissionsTab: {
+      title: "Permission Management",
+      newRole: "New Role",
+      table: {
+        role: "Role",
+        actions: "Actions"
+      },
+      permissions: {
+        access: "Access",
+        clientInfo: "Client Info",
+        costGuide: "Cost Guide",
+        currency: "Currency",
+        customCodes: "Custom Codes",
+        dimensions: "Dimensions",
+        fees: "Fees",
+        lists: "Lists",
+        taxonomy: "Taxonomy",
+        templates: "Templates"
+      },
+      actions: {
+        editRole: "Edit role",
+        deleteRole: "Delete role"
+      },
+      notifications: {
+        confirmDelete: "Are you sure you want to delete the role \"{{roleName}}\"?",
+        deleteError: "Error deleting role"
+      },
+      emptyState: {
+        noRoles: "No roles configured",
+        createFirstRole: "Create your first role"
+      }
+    },
+    roleFormModal: {
+      title: {
+        edit: "Edit Role",
+        new: "New Role"
+      },
+      labels: {
+        roleName: "Role Name *",
+        permissions: "Permissions"
+      },
+      placeholders: {
+        roleName: "Enter the role name"
+      },
+      permissions: {
+        access: "Access",
+        clientInfo: "Client Information",
+        costGuide: "Cost Guide",
+        currency: "Currencies",
+        customCodes: "Custom Codes",
+        dimensions: "Dimensions",
+        fees: "Fees",
+        lists: "Lists",
+        taxonomy: "Taxonomy",
+        templates: "Templates"
+      },
+      buttons: {
+        saving: "Saving..."
+      },
+      alerts: {
+        nameRequired: "The role name is required",
+        saveError: "Error while saving the role"
+      }
+    },
+    usersTab: {
+      errors: {
+        cannotEditInvitation: "Cannot change the role of an invitation. The user must log in first.",
+        userNotConnected: "User not logged in",
+        userDeletionFailed: "Error while deleting the user"
+      },
+      confirm: {
+        deactivateUser: "Are you sure you want to deactivate the user",
+        deleteInvitation: "Are you sure you want to delete the invitation for"
+      },
+      status: {
+        active: "Active",
+        invited: "Invited",
+        expired: "Expired"
+      },
+      header: {
+        title: "User Management",
+        subtitle: "Invite new users and manage application access"
+      },
+      buttons: {
+        inviteUser: "Invite user",
+        clearSearch: "Clear search",
+        inviteAUser: "Invite a user"
+      },
+      stats: {
+        activeUsers: "Active users",
+        pendingInvitations: "Pending invitations",
+        expiredInvitations: "Expired invitations",
+        total: "Total"
+      },
+      search: {
+        placeholder: "Search by name, email, or role...",
+        resultsFound: "result(s) found for"
+      },
+      table: {
+        header: {
+          user: "User",
+          status: "Status",
+          role: "Role",
+          invitedOn: "Invited on",
+          acceptedOn: "Accepted on",
+          invitedBy: "Invited by",
+          actions: "Actions"
+        }
+      },
+      actions: {
+        editRole: "Edit role",
+        resendInvitation: "Resend invitation",
+        deactivateUser: "Deactivate user",
+        deleteInvitation: "Delete invitation"
+      },
+      noResults: {
+        title: "No results",
+        description: "No user matches your search for"
+      },
+      emptyState: {
+        title: "No users",
+        description: "Start by inviting your first user."
+      },
+      invitationInfo: {
+        title: "About invitations",
+        description: "Invited users will automatically receive access upon their first login with Google. Invitations expire after 7 days and can be resent if necessary."
+      }
+    },
+    table: {
+      // Search and navigation
+      search: {
+        sections: "Search in sections...",
+        tactiques: "Search in tactics...",
+        placements: "Search in placements...",
+        creatifs: "Search in creatives..."
+      },
+      
+      // Toolbar
+      toolbar: {
+        hideLevels: "Hide lower levels",
+        clearSort: "Clear sort"
+      },
+      
+      // Levels/entities
+      levels: {
+        sections: "sections",
+        tactiques: "tactics",
+        placements: "placements", 
+        creatifs: "creatives"
+      },
+      
+      // Sub-category tabs
+      tabs: {
+        tactique: {
+          info: "Info",
+          strategie: "Strategy",
+          budget: "Budget", 
+          admin: "Admin"
+        },
+        placement: {
+          info: "Info",
+          taxonomie: "Taxonomy"
+        },
+        creatif: {
+          info: "Info",
+          taxonomie: "Taxonomy",
+          specs: "Specs"
+        }
+      },
+      
+      // Contextual help
+      help: {
+        selection: {
+          title: "Selection",
+          description: "1 click = select • Shift+Click = multiple selection"
+        },
+        editing: {
+          title: "Editing",
+          description: "Double-click to edit • Enter/Tab = save • Esc = cancel"
+        },
+        copy: {
+          title: "Copy",
+          description: "Ctrl+C to copy • Ctrl+V to paste"
+        },
+        budget: {
+          title: "Budget",
+          description: "Calculations use the same logic as the drawer"
+        },
+        columns: {
+          title: "Dynamic columns", 
+          description: "Columns change according to selected taxonomies"
+        }
+      },
+      
+      // Footer
+      footer: {
+        rows: "rows"
+      },
+      
+      // Selection
+      selection: {
+        cellsSelected: "cells selected"
+      },
+      
+      // Validation
+      validation: {
+        errors: "validation errors",
+        invalidValue: "Invalid value",
+        invalidValueFor: "Invalid value for {{field}}",
+        noMatchingOption: "\"{{value}}\" does not match any available option",
+        invalidNumber: "\"{{value}}\" is not a valid number",
+        negativeNotAllowed: "Negative numbers are not allowed",
+        invalidDate: "\"{{value}}\" is not a valid date"
+      },
+      
+      // General messages
+      noResults: "No results found",
+      noData: "No data to display",
+      
+      // Cells
+      cell: {
+        doubleClickToEdit: "Double-click to edit",
+        doubleClickToEditField: "Double-click to edit {{field}}",
+        clickToEnter: "Click to enter",
+        clickToEditField: "Click to edit {{field}}",
+        enterValue: "Enter {{field}}"
+      },
+      
+      // Actions
+      actions: {
+        cancel: "Cancel",
+        save: "Save",
+        saving: "Saving...",
+        copied: "Copied",
+        confirmCancelChanges: "Are you sure you want to cancel all changes?"
+      },
+      
+      // Pending changes
+      changes: {
+        pending: "pending changes"
+      },
+      
+      // Loading
+      loading: {
+        startAdvancedTable: "Starting data loading for TactiquesAdvancedTableView (refactored version)",
+        clientFeesLoaded: "Client fees loaded: {{count}} fees",
+        clientFeesError: "Error loading client fees:",
+        exchangeRatesLoaded: "Exchange rates loaded: {{count}} rates",
+        exchangeRatesError: "Error loading exchange rates:",
+        currencyLoaded: "Campaign currency loaded: {{currency}}",
+        currencyError: "Error loading campaign currency:",
+        fieldError: "Error loading {{field}}",
+        bucketsError: "Error loading buckets:",
+        completedAdvancedTable: "Loading completed for TactiquesAdvancedTableView (refactored version)", 
+        generalError: "Error loading data",
+        loadingData: "Loading {{type === 'listsAndBudget' ? 'dynamic lists and budget data' : type === 'lists' ? 'dynamic lists' : 'budget data'}}..."
+      },
+      
+      // Budget
+      budget: {
+        mediaBudget: "Media budget",
+        clientBudget: "Client budget",
+        validatingTactic: "Validating budget for tactic {{id}}",
+        validationFailed: "Budget validation failed for {{id}}",
+        validationSuccess: "Budget validation successful for {{id}}",
+        updateError: "Error updating tactic with budget",
+        feeNotFound: "Fee #{{number}} not found",
+        noOption: "No option",
+        disable: "Disable",
+        enable: "Enable",
+        selectOption: "Select an option",
+        enableToSelect: "Enable fee to select",
+        optionPlaceholder: "-- Option --",
+        customValue: "Custom value",
+        fixedValue: "Fixed value",
+        autoCalculatedAmount: "Automatically calculated amount",
+        autoCalculated: "Automatically calculated",
+        feeColumnsCreated: "fee columns created",
+        standardCalculation: "Standard calculation",
+        converged: "Calculation converged",
+        approximation: "Approximation (gap: ${{error}})",
+        notConverged: "Not converged (gap: ${{error}})"
+      },
+      
+      // Taxonomy
+      taxonomy: {
+        placementUpdateError: "Error updating placement with taxonomies",
+        triggeringUpdates: "Triggering taxonomy updates for {{count}} entit{{count === 1 ? 'y' : 'ies'}}",
+        updatesCompleted: "Taxonomy updates completed"
+      },
+      
+      // Save
+      save: {
+        errorWithBudget: "Error saving with budget",
+        generalError: "Error saving:"
+      },
+      
+      // Columns
+      columns: {
+        structure: "Structure",
+        label: "Label",
+        bucket: "Bucket",
+        mpa: "MPA", 
+        startDate: "Start Date",
+        endDate: "End Date",
+        placementName: "Placement Name",
+        creativeName: "Creative Name",
+        taxonomyTags: "Taxonomy for tags",
+        taxonomyPlatform: "Taxonomy for platform",
+        taxonomyMediaOcean: "Taxonomy for MediaOcean",
+        product: "Product",
+        location: "Location",
+        demographics: "Demographics",
+        device: "Device",
+        targeting: "Targeting",
+        specName: "Spec Name",
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "File Type",
+        maxWeight: "Max Weight",
+        weight: "Weight",
+        animation: "Animation",
+        title: "Title",
+        text: "Text",
+        specSheetLink: "Spec Sheet Link",
+        notes: "Notes",
+        sectionName: "Section Name",
+        lob: "Line of Business",
+        mediaType: "Media Type",
+        partner: "Partner",
+        inventory: "Inventory",
+        marketDescription: "Market Description",
+        audienceDescription: "Audience Description", 
+        productDescription: "Product Description",
+        formatDescription: "Format Description",
+        locationDescription: "Location Description",
+        frequency: "Frequency",
+        market: "Market",
+        language: "Language",
+        buyingMethod: "Buying Method",
+        customDim1: "Custom Dimension 1",
+        customDim2: "Custom Dimension 2",
+        customDim3: "Custom Dimension 3",
+        suggestedCreatives: "Number of Suggested Creatives",
+        assetDeliveryDate: "Asset Delivery Date",
+        inputMode: "Input Mode",
+        inputBudget: "Input Budget",
+        currency: "Currency",
+        buyCurrency: "Buy Currency",
+        unitType: "Unit Type",
+        costPerUnit: "Cost Per Unit",
+        volume: "Volume",
+        unitVolume: "Unit Volume",
+        realValue: "Real Value",
+        bonus: "Bonus",
+        exchangeRate: "Exchange Rate",
+        totalMedia: "Total Media",
+        totalClient: "Total Client",
+        billingNumber: "Billing Number",
+        po: "PO"
+      },
+      
+      // Colors
+      colors: {
+        red: "Red",
+        orange: "Orange",
+        yellow: "Yellow",
+        green: "Green", 
+        blue: "Blue",
+        indigo: "Indigo",
+        violet: "Violet",
+        pink: "Pink",
+        gray: "Gray"
+      },
+      
+      // Status
+      status: {
+        planned: "Planned",
+        active: "Active",
+        completed: "Completed",
+        cancelled: "Cancelled"
+      },
+      
+      // Media types
+      mediaType: {
+        display: "Display",
+        video: "Video",
+        social: "Social",
+        search: "Search",
+        audio: "Audio",
+        tv: "Television",
+        print: "Print",
+        ooh: "Out of Home"
+      },
+      
+      // Buying methods
+      buyingMethod: {
+        programmatic: "Programmatic",
+        direct: "Direct",
+        guaranteed: "Guaranteed",
+        auction: "Auction"
+      },
+      
+      // Languages
+      language: {
+        french: "French",
+        english: "English",
+        spanish: "Spanish",
+        bilingual: "Bilingual"
+      },
+      
+      // Markets
+      market: {
+        quebec: "Quebec",
+        ontario: "Ontario",
+        bc: "British Columbia",
+        alberta: "Alberta",
+        manitoba: "Manitoba",
+        saskatchewan: "Saskatchewan",
+        newBrunswick: "New Brunswick",
+        novaScotia: "Nova Scotia",
+        pei: "Prince Edward Island",
+        newfoundland: "Newfoundland and Labrador",
+        nwt: "Northwest Territories",
+        nunavut: "Nunavut",
+        yukon: "Yukon",
+        national: "National"
+      },
+      
+      // Copy/Paste
+      copy: {
+        empty: "(empty)"
+      },
+      
+      paste: {
+        result: "{{applied}} cell(s) updated, {{errors}} validation error(s)"
+      },
+      
+      // Hierarchy
+      hierarchy: {
+        unnamedSection: "Unnamed section",
+        unnamedTactic: "Unnamed tactic", 
+        unnamedPlacement: "Unnamed placement",
+        unnamedCreative: "Unnamed creative",
+        unnamedElement: "Unnamed element"
+      },
+      
+      // Level labels
+      levelLabels: {
+        section: "SEC",
+        tactic: "TAC",
+        placement: "PLA",
+        creative: "CRE",
+        unknown: "UNK"
+      },
+      
+      // Selection
+      select: {
+        placeholder: "-- Select --"
+      }
     
-    
-  
 
 
+    },
   }
 };

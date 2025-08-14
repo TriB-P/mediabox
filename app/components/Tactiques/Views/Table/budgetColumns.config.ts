@@ -4,17 +4,18 @@
  * Configuration simplifiée pour les colonnes budget
  * SUPPRIME toute logique de calcul (maintenant dans budgetService)
  * GARDE uniquement la configuration des colonnes
+ * MODIFIÉ : Ajout du support multilingue
  */
 
 import { DynamicColumn } from './TactiquesAdvancedTableView';
 import { ClientFee as BudgetClientFee } from '../../../../lib/budgetService';
 
 /**
- * Options pour le mode de saisie budget
+ * Options pour le mode de saisie budget avec traduction
  */
-export const BUDGET_MODE_OPTIONS = [
-  { id: 'media', label: 'Budget média' },
-  { id: 'client', label: 'Budget client' }
+export const getBudgetModeOptions = (t: (key: string) => string) => [
+  { id: 'media', label: t('table.budget.mediaBudget') },
+  { id: 'client', label: t('table.budget.clientBudget') }
 ];
 
 /**
@@ -42,54 +43,54 @@ export interface FeeColumnDefinition extends Omit<DynamicColumn, 'type'> {
 }
 
 /**
- * Configuration des colonnes budget principales
+ * Configuration des colonnes budget principales avec traduction
  */
-export const BUDGET_BASE_COLUMNS: DynamicColumn[] = [
+export const getBudgetBaseColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_Unit_Type',
-    label: 'Type d\'unité',
+    label: t('table.columns.unitType'),
     type: 'select',
     width: 140,
     options: [] // Sera peuplé dynamiquement
   },
   {
     key: 'TC_BuyCurrency', 
-    label: 'Devise d\'achat',
+    label: t('table.columns.buyCurrency'),
     type: 'select',
     width: 120,
     options: CURRENCY_OPTIONS
   },
   {
     key: 'TC_Budget_Mode',
-    label: 'Mode de saisie',
+    label: t('table.columns.inputMode'),
     type: 'select', 
     width: 130,
-    options: BUDGET_MODE_OPTIONS
+    options: getBudgetModeOptions(t)
   },
   {
     key: 'TC_BudgetInput',
-    label: 'Budget saisi',
+    label: t('table.columns.inputBudget'),
     type: 'currency',
     width: 130
   },
   {
     key: 'TC_Unit_Price',
-    label: 'Coût par unité',
+    label: t('table.columns.costPerUnit'),
     type: 'currency', 
     width: 120
   },
   {
     key: 'TC_Unit_Volume',
-    label: 'Volume d\'unité',
+    label: t('table.columns.unitVolume'),
     type: 'readonly',
     width: 110
   }
 ];
 
 /**
- * SIMPLIFIÉ : Création des colonnes de frais sans logique de calcul
+ * SIMPLIFIÉ : Création des colonnes de frais sans logique de calcul avec traduction
  */
-export function createFeeColumns(clientFees: BudgetClientFee[]): FeeColumnDefinition[] {
+export function createFeeColumns(clientFees: BudgetClientFee[], t?: (key: string) => string): FeeColumnDefinition[] {
   const feeColumns: FeeColumnDefinition[] = [];
   
   // Trier les frais par leur FE_Order et créer une colonne pour chaque frais existant
@@ -111,40 +112,52 @@ export function createFeeColumns(clientFees: BudgetClientFee[]): FeeColumnDefini
     });
   });
   
-  console.log(`[BUDGET COLONNES] ✅ ${feeColumns.length} colonnes de frais créées :`, 
+  const logMessage = t ? 
+    `${t('table.budget.feeColumnsCreated')}: ${feeColumns.length}` :
+    `${feeColumns.length} colonnes de frais créées`;
+  
+  console.log(`[BUDGET COLONNES] ✅ ${logMessage} :`, 
     sortedFees.map(fee => `${fee.FE_Name} (TC_Fee_${fee.FE_Order})`));
   
   return feeColumns;
 }
 
 /**
- * Configuration des colonnes de totaux calculés
+ * Configuration des colonnes de totaux calculés avec traduction
  */
-export const BUDGET_TOTAL_COLUMNS: DynamicColumn[] = [
+export const getBudgetTotalColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_Media_Budget',
-    label: 'Total média',
+    label: t('table.columns.totalMedia'),
     type: 'readonly',
     width: 120
   },
   {
     key: 'TC_Client_Budget', 
-    label: 'Total client',
+    label: t('table.columns.totalClient'),
     type: 'readonly',
     width: 120
   }
 ];
 
 /**
- * SIMPLIFIÉ : Fonction pour créer la configuration complète des colonnes budget
+ * SIMPLIFIÉ : Fonction pour créer la configuration complète des colonnes budget avec traduction
  */
-export function createBudgetColumnsComplete(clientFees: BudgetClientFee[]): (DynamicColumn | FeeColumnDefinition)[] {
-  const feeColumns = createFeeColumns(clientFees);
+export function createBudgetColumnsComplete(
+  clientFees: BudgetClientFee[], 
+  t?: (key: string) => string
+): (DynamicColumn | FeeColumnDefinition)[] {
+  if (!t) {
+    // Fallback si pas de traduction
+    return [];
+  }
+  
+  const feeColumns = createFeeColumns(clientFees, t);
   
   return [
-    ...BUDGET_BASE_COLUMNS,
+    ...getBudgetBaseColumns(t),
     ...feeColumns,
-    ...BUDGET_TOTAL_COLUMNS
+    ...getBudgetTotalColumns(t)
   ];
 }
 

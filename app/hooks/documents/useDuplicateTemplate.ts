@@ -11,6 +11,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TemplateDigestionResult } from '../../types/document';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface UseDuplicateTemplateReturn {
   duplicateTemplate: (
@@ -31,6 +32,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   /**
    * Extrait l'ID du fichier Google depuis son URL.
@@ -81,7 +83,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!user) {
-      throw new Error('Utilisateur non authentifié');
+      throw new Error(t('duplicateTemplate.unauthenticatedUser'));
     }
 
     // Vérifier le cache d'abord (comme GenerateDoc)
@@ -130,7 +132,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
         return credential.accessToken;
       }
 
-      throw new Error('Token d\'accès non récupéré depuis Firebase Auth');
+      throw new Error(t('duplicateTemplate.tokenNotRetrieved'));
     } catch (err) {
       console.error('Erreur lors de l\'authentification Google Drive:', err);
       // Nettoyer le cache en cas d'erreur
@@ -138,7 +140,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       localStorage.removeItem('google_drive_token_time');
       throw err;
     }
-  }, [user]);
+  }, [user, t]);
 
   /**
    * Duplique un fichier Google Drive via l'API.
@@ -183,19 +185,19 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       console.error(`[DRIVE API] Erreur ${response.status}:`, errorData);
       
       if (response.status === 403) {
-        throw new Error('Permissions insuffisantes pour dupliquer le fichier. Vérifiez que le template est bien partagé avec votre compte Google.');
+        throw new Error(t('duplicateTemplate.insufficientPermissions'));
       } else if (response.status === 404) {
-        throw new Error('Template non trouvé. Vérifiez l\'URL du template.');
+        throw new Error(t('duplicateTemplate.templateNotFound'));
       } else {
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
-        throw new Error(`Erreur API Drive: ${errorMessage}`);
+        throw new Error(`${t('duplicateTemplate.driveApiError')} ${errorMessage}`);
       }
     }
 
     const result = await response.json();
     console.log(`[DRIVE API] Fichier dupliqué avec succès. Nouvel ID: ${result.id}`);
     return result.id;
-  }, []);
+  }, [t]);
 
   /**
    * Génère l'URL d'accès pour un fichier Google dupliqué.
@@ -252,7 +254,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
     if (!user) {
       return {
         success: false,
-        errorMessage: 'Utilisateur non authentifié'
+        errorMessage: t('duplicateTemplate.unauthenticatedUser')
       };
     }
 
@@ -267,7 +269,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       if (!templateFileId) {
         return {
           success: false,
-          errorMessage: 'URL de template invalide. Impossible d\'extraire l\'ID du fichier.'
+          errorMessage: t('duplicateTemplate.invalidTemplateUrl')
         };
       }
 
@@ -285,7 +287,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       if (!accessToken) {
         return {
           success: false,
-          errorMessage: 'Impossible d\'obtenir le token d\'accès Google Drive'
+          errorMessage: t('duplicateTemplate.accessTokenError')
         };
       }
 
@@ -309,7 +311,7 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
       };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la duplication';
+      const errorMessage = err instanceof Error ? err.message : t('duplicateTemplate.unknownError');
       console.error('❌ Erreur duplication template:', errorMessage);
       setError(errorMessage);
       
@@ -326,7 +328,8 @@ export function useDuplicateTemplate(): UseDuplicateTemplateReturn {
     extractFolderId,
     getAccessToken,
     duplicateFile,
-    generateFileUrl
+    generateFileUrl,
+    t
   ]);
 
   return {

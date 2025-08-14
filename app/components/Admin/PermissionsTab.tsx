@@ -13,13 +13,14 @@ import { getRoles, updateRole, createRole, deleteRole } from '../../lib/roleServ
 import { Role, RoleFormData } from '../../types/roles';
 import { Save, Plus, Trash2, Edit2 } from 'lucide-react';
 import RoleFormModal from './RoleFormModal';
-
+import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
  * Affiche et gère l'onglet des permissions des rôles dans le panneau d'administration.
  * @returns {JSX.Element} Le composant React de l'onglet des permissions.
  */
 export default function PermissionsTab() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -124,7 +125,7 @@ export default function PermissionsTab() {
    * @returns {Promise<void>} Une promesse qui se résout après la suppression et le rechargement.
    */
   const handleDeleteRole = async (roleId: string, roleName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le rôle "${roleName}" ?`)) {
+    if (!confirm(t('permissionsTab.notifications.confirmDelete', { roleName }))) {
       return;
     }
 
@@ -134,7 +135,7 @@ export default function PermissionsTab() {
       await loadRoles();
     } catch (error) {
       console.error('Erreur lors de la suppression du rôle:', error);
-      alert('Erreur lors de la suppression du rôle');
+      alert(t('permissionsTab.notifications.deleteError'));
     }
   };
 
@@ -167,16 +168,16 @@ export default function PermissionsTab() {
   };
 
   const permissions = [
-    { key: 'Access' as const, label: 'Accès' },
-    { key: 'ClientInfo' as const, label: 'Infos Client' },
-    { key: 'CostGuide' as const, label: 'Guide de Coût' },
-    { key: 'Currency' as const, label: 'Devises' },
-    { key: 'CustomCodes' as const, label: 'Codes Personnalisés' },
-    { key: 'Dimensions' as const, label: 'Dimensions' },
-    { key: 'Fees' as const, label: 'Frais' },
-    { key: 'Listes' as const, label: 'Listes' },
-    { key: 'Taxonomy' as const, label: 'Taxonomie' },
-    { key: 'Templates' as const, label: 'Gabarits' },
+    { key: 'Access' as const, label: t('permissionsTab.permissions.access') },
+    { key: 'ClientInfo' as const, label: t('permissionsTab.permissions.clientInfo') },
+    { key: 'CostGuide' as const, label: t('permissionsTab.permissions.costGuide') },
+    { key: 'Currency' as const, label: t('permissionsTab.permissions.currency') },
+    { key: 'CustomCodes' as const, label: t('permissionsTab.permissions.customCodes') },
+    { key: 'Dimensions' as const, label: t('permissionsTab.permissions.dimensions') },
+    { key: 'Fees' as const, label: t('permissionsTab.permissions.fees') },
+    { key: 'Listes' as const, label: t('permissionsTab.permissions.lists') },
+    { key: 'Taxonomy' as const, label: t('permissionsTab.permissions.taxonomy') },
+    { key: 'Templates' as const, label: t('permissionsTab.permissions.templates') },
   ];
 
   if (loading) {
@@ -190,13 +191,13 @@ export default function PermissionsTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Gestion des permissions</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('permissionsTab.title')}</h2>
         <button 
           onClick={openCreateModal}
           className="btn-primary flex items-center space-x-2"
         >
           <Plus className="h-4 w-4" />
-          <span>Nouveau Rôle</span>
+          <span>{t('permissionsTab.newRole')}</span>
         </button>
       </div>
 
@@ -206,7 +207,7 @@ export default function PermissionsTab() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rôle
+                  {t('permissionsTab.table.role')}
                 </th>
                 {permissions.map(permission => (
                   <th key={permission.key} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -214,7 +215,7 @@ export default function PermissionsTab() {
                   </th>
                 ))}
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('permissionsTab.table.actions')}
                 </th>
               </tr>
             </thead>
@@ -247,14 +248,14 @@ export default function PermissionsTab() {
                       <button
                         onClick={() => openEditModal(role)}
                         className="text-indigo-600 hover:text-indigo-900"
-                        title="Modifier le rôle"
+                        title={t('permissionsTab.actions.editRole')}
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteRole(role.id, role.name || role.id)}
                         className="text-red-600 hover:text-red-900"
-                        title="Supprimer le rôle"
+                        title={t('permissionsTab.actions.deleteRole')}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -269,12 +270,12 @@ export default function PermissionsTab() {
 
       {roles.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">Aucun rôle configuré</p>
+          <p className="text-gray-500">{t('permissionsTab.emptyState.noRoles')}</p>
           <button 
             onClick={openCreateModal}
             className="mt-4 btn-primary"
           >
-            Créer votre premier rôle
+            {t('permissionsTab.emptyState.createFirstRole')}
           </button>
         </div>
       )}
