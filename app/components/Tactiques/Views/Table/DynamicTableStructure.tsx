@@ -92,6 +92,15 @@ interface CampaignBucket {
 interface ListItem {
   id: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
+}
+
+function getLocalizedDisplayName(item: ListItem, currentLanguage: string): string {
+  if (currentLanguage === 'en') {
+    return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.id;
+  } else {
+    return item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.SH_Display_Name_EN || item.id;
+  }
 }
 
 interface DynamicTableStructureProps {
@@ -220,6 +229,8 @@ export default function DynamicTableStructure({
   const { selectedCampaign } = useCampaignSelection();
   const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
   const { t } = useTranslation();
+  const currentLanguage = useTranslation().language || 'fr';
+
 
   // États existants (taxonomie, sélection, etc.)
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -255,9 +266,9 @@ export default function DynamicTableStructure({
     const unitTypeList = dynamicLists.TC_Unit_Type || [];
     return unitTypeList.map(item => ({
       id: item.id,
-      SH_Display_Name_FR: item.SH_Display_Name_FR
+      SH_Display_Name_FR: getLocalizedDisplayName(item, currentLanguage)
     }));
-  }, [dynamicLists.TC_Unit_Type]);
+  }, [dynamicLists.TC_Unit_Type, currentLanguage]);
 
   /**
    * NOUVEAU : Fonction centralisée pour effectuer les calculs budget
@@ -404,28 +415,8 @@ export default function DynamicTableStructure({
     });
 
     if (usedTaxonomyIds.size === 0) {
-      // Champs de base si aucune taxonomie
-      const baseFields = isPlacementTaxonomy 
-        ? [
-            { key: 'PL_Product', label: 'Produit', width: 150 },
-            { key: 'PL_Location', label: 'Emplacement', width: 150 },
-            { key: 'PL_Audience_Demographics', label: 'Démographie', width: 150 },
-            { key: 'PL_Device', label: 'Appareil', width: 120 },
-            { key: 'PL_Targeting', label: 'Ciblage', width: 140 }
-          ]
-        : [
-            { key: 'CR_Product', label: 'Produit', width: 150 },
-            { key: 'CR_Audience_Demographics', label: 'Démographie', width: 150 },
-            { key: 'CR_Device', label: 'Appareil', width: 120 },
-            { key: 'CR_Targeting', label: 'Ciblage', width: 140 }
-          ];
-
-      return baseFields.map(field => ({
-        key: field.key,
-        label: field.label,
-        type: 'text' as const,
-        width: field.width
-      }));
+      // Aucune taxonomie assignée = onglet vide
+      return [];
     }
 
     // Analyser les taxonomies pour extraire les variables manuelles
@@ -508,7 +499,7 @@ export default function DynamicTableStructure({
 
       const column = {
         key: variableName,
-        label: getFieldLabel(variableName, clientConfig),
+        label: getFieldLabel(variableName, t, clientConfig),
         type: options.length > 0 ? 'select' : 'text',
         width: 180,
         options
@@ -562,10 +553,10 @@ export default function DynamicTableStructure({
           return col;
         }
         
-        const enrichedCol = enrichColumnsWithData([col as DynamicColumn], buckets, dynamicLists)[0];
+        const enrichedCol = enrichColumnsWithData([col as DynamicColumn], buckets, dynamicLists, currentLanguage)[0];
         return {
           ...enrichedCol,
-          options: enrichedCol.options || getColumnOptions(enrichedCol.key, buckets, dynamicLists)
+          options: enrichedCol.options || getColumnOptions(enrichedCol.key, buckets, dynamicLists, currentLanguage)
         };
       });
     } else if (selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie') {
@@ -594,10 +585,10 @@ export default function DynamicTableStructure({
         selectedLevel === 'creatif' ? selectedCreatifSubCategory :
         undefined;
       
-      const hierarchyColumns = getColumnsWithHierarchy(selectedLevel, subCategory, t);
+        const hierarchyColumns = getColumnsWithHierarchy(selectedLevel, t, subCategory);
       
-      const enrichedColumns = enrichColumnsWithData(hierarchyColumns, buckets, dynamicLists).map(col => {
-        if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
+        const enrichedColumns = enrichColumnsWithData(hierarchyColumns, buckets, dynamicLists, currentLanguage).map(col => {
+          if (['PL_Taxonomy_Tags', 'PL_Taxonomy_Platform', 'PL_Taxonomy_MediaOcean',
           'CR_Taxonomy_Tags', 'CR_Taxonomy_Platform', 'CR_Taxonomy_MediaOcean'].includes(col.key)) {
           return {
             ...col,
@@ -1070,7 +1061,7 @@ export default function DynamicTableStructure({
       
       const formattedValue = isBudgetMode ? 
         value : 
-        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory, (column as DynamicColumn).options);
+        formatDisplayValue(column.key, value, buckets, dynamicLists, selectedLevel, subCategory, (column as DynamicColumn).options,currentLanguage);
       
       return (
         <div 

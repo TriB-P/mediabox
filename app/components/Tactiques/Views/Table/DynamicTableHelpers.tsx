@@ -11,6 +11,8 @@ import React from 'react';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { TableRow, DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 import { formatColumnValue, TactiqueSubCategory, PlacementSubCategory, CreatifSubCategory } from './tableColumns.config';
+import { useTranslation } from '../../../../contexts/LanguageContext';
+
 
 interface CampaignBucket {
   id: string;
@@ -23,11 +25,20 @@ interface CampaignBucket {
 interface ListItem {
   id: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
+}
+
+function getLocalizedDisplayName(item: ListItem, currentLanguage: string): string {
+  if (currentLanguage === 'en') {
+    return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.id;
+  } else {
+    return item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.SH_Display_Name_EN || item.id;
+  }
 }
 
 /**
@@ -36,7 +47,8 @@ interface SortConfig {
 export function enrichColumnsWithData(
   baseColumns: DynamicColumn[],
   buckets: CampaignBucket[],
-  dynamicLists: { [key: string]: ListItem[] }
+  dynamicLists: { [key: string]: ListItem[] },
+  currentLanguage: string = 'fr'
 ): DynamicColumn[] {
   return baseColumns
     .map(column => {
@@ -51,25 +63,25 @@ export function enrichColumnsWithData(
             }));
             break;
 
-          case 'TC_LOB':
-          case 'TC_Media_Type':
-          case 'TC_Publisher':
-          case 'TC_Prog_Buying_Method':
-          case 'TC_Custom_Dim_1':
-          case 'TC_Custom_Dim_2':
-          case 'TC_Custom_Dim_3':
-          case 'TC_Inventory':
-          case 'TC_Market':
-          case 'TC_Language_Open':
-          case 'TC_Media_Objective':
-          case 'TC_Kpi':
-          case 'TC_Unit_Type':
-            const listData = dynamicLists[column.key] || [];
-            enrichedColumn.options = listData.map(item => ({
-              id: item.id,
-              label: item.SH_Display_Name_FR
-            }));
-            break;
+            case 'TC_LOB':
+              case 'TC_Media_Type':
+              case 'TC_Publisher':
+              case 'TC_Prog_Buying_Method':
+              case 'TC_Custom_Dim_1':
+              case 'TC_Custom_Dim_2':
+              case 'TC_Custom_Dim_3':
+              case 'TC_Inventory':
+              case 'TC_Market':
+              case 'TC_Language_Open':
+              case 'TC_Media_Objective':
+              case 'TC_Kpi':
+              case 'TC_Unit_Type':
+                const listData = dynamicLists[column.key] || [];
+                enrichedColumn.options = listData.map(item => ({
+                  id: item.id,
+                  label: getLocalizedDisplayName(item, currentLanguage)
+                }));
+                break;
 
           // Support des taxonomies de placement
           case 'PL_Taxonomy_Tags':
@@ -142,8 +154,8 @@ export function formatDisplayValue(
   dynamicLists: { [key: string]: ListItem[] },
   selectedLevel: TableLevel,
   subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
-  // NOUVEAU : Paramètre pour les options de colonnes enrichies (pour les taxonomies)
-  columnOptions?: Array<{ id: string; label: string }>
+  columnOptions?: Array<{ id: string; label: string }>,
+  currentLanguage: string = 'fr'
 ): string {
   // Cas spécial pour TC_Bucket : afficher le nom au lieu de l'ID
   if (columnKey === 'TC_Bucket' && value) {
@@ -154,7 +166,7 @@ export function formatDisplayValue(
   // Cas spéciaux pour les listes dynamiques : afficher le label au lieu de l'ID
   if (value && dynamicLists[columnKey]) {
     const item = dynamicLists[columnKey].find(item => item.id === value);
-    return item ? item.SH_Display_Name_FR : value;
+    return item ? getLocalizedDisplayName(item, currentLanguage) : value;
   }
   
   // MODIFIÉ : Cas spéciaux pour TOUS les champs avec options (taxonomies ET variables manuelles)
@@ -162,9 +174,10 @@ export function formatDisplayValue(
     const option = columnOptions.find(option => option.id === value);
     return option ? option.label : value;
   }
+  const { t } = useTranslation();
 
   // Formatage standard pour les autres types
-  return formatColumnValue(selectedLevel, columnKey, value, subCategory);
+  return formatColumnValue(selectedLevel, columnKey, value, t, subCategory);
 }
 
 /**

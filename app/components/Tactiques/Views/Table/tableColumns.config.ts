@@ -1,165 +1,50 @@
 // app/components/Tactiques/Views/Table/tableColumns.config.ts
 
 /**
- * Ce fichier de configuration définit les options, les règles de validation,
- * les fonctions de formatage et la structure des colonnes pour les tableaux dynamiques
- * de l'application. Il organise les colonnes par niveau (section, tactique, placement, créatif)
- * et par sous-catégorie pour les tactiques, placements ET créatifs, permettant une gestion flexible de
- * l'affichage et de la validation des données dans les tables.
- * MODIFIÉ : Ajout du support des sous-catégories créatifs (Info, Taxonomie, Specs)
- * MODIFIÉ : Ajout du support multilingue RÉTROCOMPATIBLE
+ * Configuration des colonnes de tableau avec support de traduction complète
+ * Tous les labels et options sont maintenant traduits dynamiquement
+ * SUPPRIME la rétrocompatibilité - la fonction t() est obligatoire
  */
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 
 /**
- * Options pour la sélection des couleurs utilisées dans l'interface.
- * Chaque option a un identifiant unique (id) et un libellé affichable (label).
+ * Fonctions de création d'options traduites pour les menus déroulants
  */
-export const COLOR_OPTIONS = [
-  { id: '#ef4444', label: 'Rouge' },
-  { id: '#f97316', label: 'Orange' },
-  { id: '#eab308', label: 'Jaune' },
-  { id: '#22c55e', label: 'Vert' },
-  { id: '#3b82f6', label: 'Bleu' },
-  { id: '#6366f1', label: 'Indigo' },
-  { id: '#a855f7', label: 'Violet' },
-  { id: '#ec4899', label: 'Rose' },
-  { id: '#6b7280', label: 'Gris' }
+
+
+export const getCurrencyOptions = (t: (key: string) => string) => [
+  { id: 'CAD', label: t('options.currency.cad') },
+  { id: 'USD', label: t('options.currency.usd') },
+  { id: 'EUR', label: t('options.currency.eur') },
+  { id: 'CHF', label: t('options.currency.chf') }
+];
+
+export const getBudgetChoiceOptions = (t: (key: string) => string) => [
+  { id: 'client', label: t('options.budgetChoice.client') },
+  { id: 'media', label: t('options.budgetChoice.media') }
 ];
 
 /**
- * Options pour la sélection du statut d'une entité.
- * Définit les différents états possibles comme Planifiée, Active, Terminée, Annulée.
- */
-export const STATUS_OPTIONS = [
-  { id: 'Planned', label: 'Planifiée' },
-  { id: 'Active', label: 'Active' },
-  { id: 'Completed', label: 'Terminée' },
-  { id: 'Cancelled', label: 'Annulée' }
-];
-
-/**
- * Options pour la sélection du type de média.
- * Liste les catégories de médias comme Display, Vidéo, Social, etc.
- */
-export const MEDIA_TYPE_OPTIONS = [
-  { id: 'Display', label: 'Display' },
-  { id: 'Video', label: 'Vidéo' },
-  { id: 'Social', label: 'Social' },
-  { id: 'Search', label: 'Recherche' },
-  { id: 'Audio', label: 'Audio' },
-  { id: 'TV', label: 'Télévision' },
-  { id: 'Print', label: 'Imprimé' },
-  { id: 'OOH', label: 'Affichage extérieur' }
-];
-
-/**
- * Options pour la sélection de la méthode d'achat.
- * Inclut les méthodes comme Programmatique, Direct, Garanti, Enchères.
- */
-export const BUYING_METHOD_OPTIONS = [
-  { id: 'Programmatic', label: 'Programmatique' },
-  { id: 'Direct', label: 'Direct' },
-  { id: 'Guaranteed', label: 'Garanti' },
-  { id: 'Auction', label: 'Enchères' }
-];
-
-/**
- * Options pour la sélection de la langue.
- * Représente les langues disponibles comme Français, Anglais, Espagnol et Bilingue.
- */
-export const LANGUAGE_OPTIONS = [
-  { id: 'FR', label: 'Français' },
-  { id: 'EN', label: 'Anglais' },
-  { id: 'ES', label: 'Espagnol' },
-  { id: 'BILINGUAL', label: 'Bilingue' }
-];
-
-/**
- * Options pour la sélection du marché géographique.
- * Liste les provinces canadiennes et une option Nationale.
- */
-export const MARKET_OPTIONS = [
-  { id: 'QC', label: 'Québec' },
-  { id: 'ON', label: 'Ontario' },
-  { id: 'BC', label: 'Colombie-Britannique' },
-  { id: 'AB', label: 'Alberta' },
-  { id: 'MB', label: 'Manitoba' },
-  { id: 'SK', label: 'Saskatchewan' },
-  { id: 'NB', label: 'Nouveau-Brunswick' },
-  { id: 'NS', label: 'Nouvelle-Écosse' },
-  { id: 'PE', label: 'Île-du-Prince-Édouard' },
-  { id: 'NL', label: 'Terre-Neuve-et-Labrador' },
-  { id: 'NT', label: 'Territoires du Nord-Ouest' },
-  { id: 'NU', label: 'Nunavut' },
-  { id: 'YT', label: 'Yukon' },
-  { id: 'NATIONAL', label: 'National' }
-];
-
-/**
- * Options pour la sélection de la devise.
- * Inclut les devises courantes comme CAD, USD, EUR, GBP.
- */
-export const CURRENCY_OPTIONS = [
-  { id: 'CAD', label: 'CAD' },
-  { id: 'USD', label: 'USD' },
-  { id: 'EUR', label: 'EUR' },
-  { id: 'CHF', label: 'CHF' }
-];
-
-/**
- * Options pour le choix du type de budget.
- * Permet de distinguer entre le budget client et le budget média.
- */
-export const BUDGET_CHOICE_OPTIONS = [
-  { id: 'client', label: 'Budget client' },
-  { id: 'media', label: 'Budget média' }
-];
-
-/**
- * Valide si une valeur est présente (non nulle, non indéfinie, non vide).
- * @param value La valeur à valider.
- * @returns Vrai si la valeur est requise et non vide, faux sinon.
+ * Fonctions de validation (inchangées)
  */
 export const validateRequired = (value: any): boolean => {
   return value !== null && value !== undefined && value !== '';
 };
 
-/**
- * Valide si une valeur est un nombre valide et non négatif.
- * @param value La valeur à valider.
- * @returns Vrai si la valeur est un nombre non négatif, faux sinon.
- */
 export const validateNumber = (value: any): boolean => {
   return !isNaN(Number(value)) && Number(value) >= 0;
 };
 
-/**
- * Valide si une valeur est un budget valide (nombre non négatif).
- * C'est une fonction utilitaire similaire à validateNumber mais spécifique au contexte budgétaire.
- * @param value La valeur du budget à valider.
- * @returns Vrai si la valeur est un nombre non négatif, faux sinon.
- */
 export const validateBudget = (value: any): boolean => {
   return !isNaN(Number(value)) && Number(value) >= 0;
 };
 
-/**
- * Valide si une valeur représente une date valide.
- * @param value La valeur de la date à valider.
- * @returns Vrai si la valeur est une date valide ou vide, faux sinon.
- */
 export const validateDate = (value: any): boolean => {
   if (!value) return true;
   const date = new Date(value);
   return !isNaN(date.getTime());
 };
 
-/**
- * Valide si une valeur est une adresse e-mail valide.
- * @param value L'adresse e-mail à valider.
- * @returns Vrai si la valeur est une adresse e-mail valide ou vide, faux sinon.
- */
 export const validateEmail = (value: any): boolean => {
   if (!value) return true;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -167,9 +52,7 @@ export const validateEmail = (value: any): boolean => {
 };
 
 /**
- * Formate une valeur numérique en format monétaire canadien (CAD) sans décimales.
- * @param value La valeur à formater.
- * @returns La chaîne de caractères formatée en devise.
+ * Fonctions de formatage (inchangées)
  */
 export const formatCurrency = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -183,11 +66,6 @@ export const formatCurrency = (value: any): string => {
   }).format(num);
 };
 
-/**
- * Formate une valeur numérique selon les conventions locales canadiennes.
- * @param value La valeur à formater.
- * @returns La chaîne de caractères formatée en nombre.
- */
 export const formatNumber = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
@@ -196,39 +74,27 @@ export const formatNumber = (value: any): string => {
   return new Intl.NumberFormat('fr-CA').format(num);
 };
 
-/**
- * Formate une valeur de date en chaîne de caractères selon le format local canadien.
- * @param value La valeur de la date à formater.
- * @returns La chaîne de caractères formatée en date.
- */
 export const formatDate = (value: any): string => {
   if (!value) return '';
   
   let date: Date;
   
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    // Pour les dates au format ISO YYYY-MM-DD, créer une date locale
     const [year, month, day] = value.split('-').map(Number);
-    date = new Date(year, month - 1, day); // month - 1 car les mois sont 0-indexés
+    date = new Date(year, month - 1, day);
   } else {
-    // Pour les autres formats, utiliser le constructeur standard
     date = new Date(value);
   }
   
   if (isNaN(date.getTime())) return value;
 
-  // Formater en DD-MM-YYYY pour l'affichage
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   
   return `${day}/${month}/${year}`;
 };
-/**
- * Formate une valeur numérique en pourcentage.
- * @param value La valeur à formater.
- * @returns La chaîne de caractères formatée en pourcentage.
- */
+
 export const formatPercentage = (value: any): string => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
@@ -238,23 +104,14 @@ export const formatPercentage = (value: any): string => {
 };
 
 /**
- * Définit les identifiants des sous-catégories pour les tactiques.
+ * Types pour les sous-catégories
  */
 export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin';
-
-/**
- * Définit les identifiants des sous-catégories pour les placements.
- */
 export type PlacementSubCategory = 'info' | 'taxonomie';
-
-/**
- * NOUVEAU : Définit les identifiants des sous-catégories pour les créatifs.
- */
 export type CreatifSubCategory = 'info' | 'taxonomie' | 'specs';
 
 /**
- * Interface pour la configuration d'une sous-catégorie de tactique.
- * Comprend un identifiant, un libellé et la liste des colonnes associées.
+ * Interfaces pour les configurations de sous-catégories
  */
 export interface TactiqueSubCategoryConfig {
   id: TactiqueSubCategory;
@@ -262,20 +119,12 @@ export interface TactiqueSubCategoryConfig {
   columns: DynamicColumn[];
 }
 
-/**
- * Interface pour la configuration d'une sous-catégorie de placement.
- * Comprend un identifiant, un libellé et la liste des colonnes associées.
- */
 export interface PlacementSubCategoryConfig {
   id: PlacementSubCategory;
   label: string;
   columns: DynamicColumn[];
 }
 
-/**
- * NOUVEAU : Interface pour la configuration d'une sous-catégorie de créatif.
- * Comprend un identifiant, un libellé et la liste des colonnes associées.
- */
 export interface CreatifSubCategoryConfig {
   id: CreatifSubCategory;
   label: string;
@@ -283,34 +132,32 @@ export interface CreatifSubCategoryConfig {
 }
 
 /**
- * Définition des colonnes pour la sous-catégorie 'Info' des tactiques.
- * Ces colonnes sont utilisées pour les informations générales d'une tactique.
- * MODIFIÉ : Ajout des champs TC_Start_Date et TC_End_Date
+ * Définition des colonnes avec traduction obligatoire
  */
-const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
+const getTactiqueInfoColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_Label',
-    label: 'Étiquette',
+    label: t('columns.tactique.label'),
     type: 'text',
     width: 250,
     validation: validateRequired
   },
   {
     key: 'TC_Bucket',
-    label: 'Enveloppe',
+    label: t('columns.tactique.bucket'),
     type: 'select',
     width: 180,
     options: []
   },
   {
     key: 'TC_MPA',
-    label: 'MPA',
+    label: t('columns.tactique.mpa'),
     type: 'text',
     width: 250,
   },
   {
     key: 'TC_Start_Date',
-    label: 'Date de début',
+    label: t('columns.tactique.startDate'),
     type: 'date',
     width: 150,
     validation: validateDate,
@@ -318,7 +165,7 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_End_Date',
-    label: 'Date de fin',
+    label: t('columns.tactique.endDate'),
     type: 'date',
     width: 150,
     validation: validateDate,
@@ -326,369 +173,122 @@ const TACTIQUE_INFO_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-/**
- * Définition des colonnes pour la sous-catégorie 'Info' des placements.
- * Ajout des colonnes PL_Start_Date et PL_End_Date
- */
-const PLACEMENT_INFO_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'PL_Label',
-    label: 'Nom du placement',
-    type: 'text',
-    width: 250,
-    validation: validateRequired
-  },
-  {
-    key: 'PL_Start_Date',
-    label: 'Date de début',
-    type: 'date',
-    width: 150,
-    validation: validateDate,
-    format: formatDate
-  },
-  {
-    key: 'PL_End_Date',
-    label: 'Date de fin',
-    type: 'date',
-    width: 150,
-    validation: validateDate,
-    format: formatDate
-  },
-  {
-    key: 'PL_Taxonomy_Tags',
-    label: 'Taxonomie pour les tags',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  },
-  {
-    key: 'PL_Taxonomy_Platform',
-    label: 'Taxonomie pour la plateforme',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  },
-  {
-    key: 'PL_Taxonomy_MediaOcean',
-    label: 'Taxonomie pour MediaOcean',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  }
-];
-
-/**
- * Définition des colonnes pour la sous-catégorie 'Taxonomie' des placements.
- * Ces colonnes seront générées dynamiquement selon les taxonomies sélectionnées.
- * Pour l'instant, on définit les champs manuels de base qui peuvent apparaître.
- */
-const PLACEMENT_TAXONOMIE_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'PL_Product',
-    label: 'Produit',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'PL_Location',
-    label: 'Emplacement',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'PL_Audience_Demographics',
-    label: 'Démographie',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'PL_Device',
-    label: 'Appareil',
-    type: 'text',
-    width: 120
-  },
-  {
-    key: 'PL_Targeting',
-    label: 'Ciblage',
-    type: 'text',
-    width: 140
-  }
-];
-
-/**
- * NOUVEAU : Définition des colonnes pour la sous-catégorie 'Info' des créatifs.
- */
-const CREATIF_INFO_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'CR_Label',
-    label: 'Nom du créatif',
-    type: 'text',
-    width: 250,
-    validation: validateRequired
-  },
-  {
-    key: 'CR_Start_Date',
-    label: 'Date de début',
-    type: 'date',
-    width: 150,
-    validation: validateDate,
-    format: formatDate
-  },
-  {
-    key: 'CR_End_Date',
-    label: 'Date de fin',
-    type: 'date',
-    width: 150,
-    validation: validateDate,
-    format: formatDate
-  },
-  {
-    key: 'CR_Taxonomy_Tags',
-    label: 'Taxonomie pour les tags',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  },
-  {
-    key: 'CR_Taxonomy_Platform',
-    label: 'Taxonomie pour la plateforme',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  },
-  {
-    key: 'CR_Taxonomy_MediaOcean',
-    label: 'Taxonomie pour MediaOcean',
-    type: 'select',
-    width: 200,
-    options: [] // Sera enrichi dynamiquement avec les taxonomies du client
-  }
-];
-
-/**
- * NOUVEAU : Définition des colonnes pour la sous-catégorie 'Taxonomie' des créatifs.
- * Ces colonnes seront générées dynamiquement selon les taxonomies sélectionnées.
- */
-const CREATIF_TAXONOMIE_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'CR_Product',
-    label: 'Produit',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'CR_Audience_Demographics',
-    label: 'Démographie',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'CR_Device',
-    label: 'Appareil',
-    type: 'text',
-    width: 120
-  },
-  {
-    key: 'CR_Targeting',
-    label: 'Ciblage',
-    type: 'text',
-    width: 140
-  }
-];
-
-/**
- * NOUVEAU : Définition des colonnes pour la sous-catégorie 'Specs' des créatifs.
- * Ces colonnes contiennent les spécifications techniques du créatif.
- */
-const CREATIF_SPECS_COLUMNS: DynamicColumn[] = [
-  {
-    key: 'CR_Spec_Name',
-    label: 'Nom de la spec',
-    type: 'text',
-    width: 200
-  },
-  {
-    key: 'CR_Spec_Format',
-    label: 'Format',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'CR_Spec_Ratio',
-    label: 'Ratio',
-    type: 'text',
-    width: 120
-  },
-  {
-    key: 'CR_Spec_FileType',
-    label: 'Type de fichier',
-    type: 'text',
-    width: 130
-  },
-  {
-    key: 'CR_Spec_MaxWeight',
-    label: 'Poids max',
-    type: 'text',
-    width: 120
-  },
-  {
-    key: 'CR_Spec_Weight',
-    label: 'Poids',
-    type: 'text',
-    width: 100
-  },
-  {
-    key: 'CR_Spec_Animation',
-    label: 'Animation',
-    type: 'text',
-    width: 120
-  },
-  {
-    key: 'CR_Spec_Title',
-    label: 'Titre',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'CR_Spec_Text',
-    label: 'Texte',
-    type: 'text',
-    width: 150
-  },
-  {
-    key: 'CR_Spec_SpecSheetLink',
-    label: 'Lien spec sheet',
-    type: 'text',
-    width: 200
-  },
-  {
-    key: 'CR_Spec_Notes',
-    label: 'Notes',
-    type: 'text',
-    width: 200
-  }
-];
-
-/**
- * Définition des colonnes pour la sous-catégorie 'Stratégie' des tactiques.
- * Ces colonnes couvrent les aspects stratégiques et créatifs d'une tactique.
- */
-const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
+const getTactiqueStrategieColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_LOB',
-    label: 'Ligne d\'affaire',
+    label: t('columns.tactique.lob'),
     type: 'select',
     width: 150,
     options: []
   },
   {
     key: 'TC_Media_Type',
-    label: 'Type média',
+    label: t('columns.tactique.mediaType'),
     type: 'select',
     width: 150,
-    options: MEDIA_TYPE_OPTIONS
+    options: []
   },
   {
     key: 'TC_Publisher',
-    label: 'Partenaire',
+    label: t('columns.tactique.publisher'),
     type: 'select',
     width: 180,
     options: []
   },
   {
     key: 'TC_Inventory',
-    label: 'Inventaire',
+    label: t('columns.tactique.inventory'),
     type: 'select',
     width: 150,
     options: []
   },
   {
     key: 'TC_Market_Open',
-    label: 'Description du marché',
+    label: t('columns.tactique.marketOpen'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_Targeting_Open',
-    label: 'Description de l\'audience',
+    label: t('columns.tactique.targetingOpen'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_Product_Open',
-    label: 'Description du produit',
+    label: t('columns.tactique.productOpen'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_Format_Open',
-    label: 'Description du format',
+    label: t('columns.tactique.formatOpen'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_Location_Open',
-    label: 'Description de l\'emplacement',
+    label: t('columns.tactique.locationOpen'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_Frequence',
-    label: 'Fréquence',
+    label: t('columns.tactique.frequency'),
     type: 'text',
     width: 150
   },
   {
     key: 'TC_Market',
-    label: 'Marché',
+    label: t('columns.tactique.market'),
     type: 'select',
     width: 140,
-    options: MARKET_OPTIONS
+    options: []
   },
   {
     key: 'TC_Language_Open',
-    label: 'Langue',
+    label: t('columns.tactique.language'),
     type: 'select',
     width: 120,
-    options: LANGUAGE_OPTIONS
+    options: []
   },
   {
     key: 'TC_Prog_Buying_Method',
-    label: 'Méthode d\'achat',
+    label: t('columns.tactique.buyingMethod'),
     type: 'select',
     width: 150,
-    options: BUYING_METHOD_OPTIONS
+    options: []
   },
   {
     key: 'TC_Custom_Dim_1',
-    label: 'Dimension personnalisée 1',
+    label: t('columns.tactique.customDim1'),
     type: 'select',
     width: 180,
     options: []
   },
   {
     key: 'TC_Custom_Dim_2',
-    label: 'Dimension personnalisée 2',
+    label: t('columns.tactique.customDim2'),
     type: 'select',
     width: 180,
     options: []
   },
   {
     key: 'TC_Custom_Dim_3',
-    label: 'Dimension personnalisée 3',
+    label: t('columns.tactique.customDim3'),
     type: 'select',
     width: 180,
     options: []
   },
   {
     key: 'TC_NumberCreative',
-    label: 'Nombre de créatifs suggérés',
+    label: t('columns.tactique.numberCreative'),
     type: 'text',
     width: 200
   },
   {
     key: 'TC_AssetDate',
-    label: 'Date de livraison des créatifs',
+    label: t('columns.tactique.assetDate'),
     type: 'date',
     width: 180,
     validation: validateDate,
@@ -696,21 +296,17 @@ const TACTIQUE_STRATEGIE_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-/**
- * Définition des colonnes pour la sous-catégorie 'Budget' des tactiques.
- * Ces colonnes gèrent les informations financières et budgétaires d'une tactique.
- */
-const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
+const getTactiqueBudgetColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_Budget_Mode',
-    label: 'Mode de saisie',
+    label: t('columns.tactique.budgetMode'),
     type: 'select',
     width: 150,
-    options: BUDGET_CHOICE_OPTIONS
+    options: getBudgetChoiceOptions(t)
   },
   {
     key: 'TC_BudgetInput',
-    label: 'Budget saisi',
+    label: t('columns.tactique.budgetInput'),
     type: 'currency',
     width: 150,
     validation: validateBudget,
@@ -718,21 +314,21 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_BuyCurrency',
-    label: 'Devise',
+    label: t('columns.tactique.buyCurrency'),
     type: 'select',
     width: 100,
-    options: CURRENCY_OPTIONS
+    options: getCurrencyOptions(t)
   },
   {
     key: 'TC_Unit_Type',
-    label: 'Type d\'unité',
+    label: t('columns.tactique.unitType'),
     type: 'select',
     width: 120,
     options: []
   },
   {
     key: 'TC_Unit_Price',
-    label: 'Coût par unité',
+    label: t('columns.tactique.unitPrice'),
     type: 'currency',
     width: 130,
     validation: validateBudget,
@@ -740,7 +336,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Unit_Volume',
-    label: 'Volume',
+    label: t('columns.tactique.unitVolume'),
     type: 'number',
     width: 100,
     validation: validateNumber,
@@ -748,7 +344,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Media_Budget',
-    label: 'Budget média',
+    label: t('columns.tactique.mediaBudget'),
     type: 'currency',
     width: 150,
     validation: validateBudget,
@@ -756,7 +352,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Client_Budget',
-    label: 'Budget client',
+    label: t('columns.tactique.clientBudget'),
     type: 'currency',
     width: 150,
     validation: validateBudget,
@@ -764,7 +360,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Media_Value',
-    label: 'Valeur réelle',
+    label: t('columns.tactique.mediaValue'),
     type: 'currency',
     width: 130,
     validation: validateBudget,
@@ -772,7 +368,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Bonification',
-    label: 'Bonification',
+    label: t('columns.tactique.bonification'),
     type: 'currency',
     width: 130,
     validation: validateBudget,
@@ -780,7 +376,7 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   },
   {
     key: 'TC_Currency_Rate',
-    label: 'Taux de change',
+    label: t('columns.tactique.currencyRate'),
     type: 'number',
     width: 120,
     validation: validateNumber,
@@ -788,287 +384,351 @@ const TACTIQUE_BUDGET_COLUMNS: DynamicColumn[] = [
   }
 ];
 
-/**
- * Définition des colonnes pour la sous-catégorie 'Admin' des tactiques.
- * Ces colonnes contiennent les informations administratives et de facturation.
- */
-const TACTIQUE_ADMIN_COLUMNS: DynamicColumn[] = [
+const getTactiqueAdminColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'TC_Billing_ID',
-    label: 'Numéro de facturation',
+    label: t('columns.tactique.billingId'),
     type: 'text',
     width: 180
   },
   {
     key: 'TC_PO',
-    label: 'PO',
+    label: t('columns.tactique.po'),
     type: 'text',
     width: 150
   }
 ];
 
+const getPlacementInfoColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'PL_Label',
+    label: t('columns.placement.label'),
+    type: 'text',
+    width: 250,
+    validation: validateRequired
+  },
+  {
+    key: 'PL_Start_Date',
+    label: t('columns.placement.startDate'),
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'PL_End_Date',
+    label: t('columns.placement.endDate'),
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'PL_Taxonomy_Tags',
+    label: t('columns.placement.taxonomyTags'),
+    type: 'select',
+    width: 200,
+    options: []
+  },
+  {
+    key: 'PL_Taxonomy_Platform',
+    label: t('columns.placement.taxonomyPlatform'),
+    type: 'select',
+    width: 200,
+    options: []
+  },
+  {
+    key: 'PL_Taxonomy_MediaOcean',
+    label: t('columns.placement.taxonomyMediaOcean'),
+    type: 'select',
+    width: 200,
+    options: []
+  }
+];
+
+const getPlacementTaxonomieColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'PL_Product',
+    label: t('columns.placement.product'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'PL_Location',
+    label: t('columns.placement.location'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'PL_Audience_Demographics',
+    label: t('columns.placement.audienceDemographics'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'PL_Device',
+    label: t('columns.placement.device'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'PL_Targeting',
+    label: t('columns.placement.targeting'),
+    type: 'text',
+    width: 140
+  }
+];
+
+const getCreatifInfoColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'CR_Label',
+    label: t('columns.creatif.label'),
+    type: 'text',
+    width: 250,
+    validation: validateRequired
+  },
+  {
+    key: 'CR_Start_Date',
+    label: t('columns.creatif.startDate'),
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'CR_End_Date',
+    label: t('columns.creatif.endDate'),
+    type: 'date',
+    width: 150,
+    validation: validateDate,
+    format: formatDate
+  },
+  {
+    key: 'CR_Taxonomy_Tags',
+    label: t('columns.creatif.taxonomyTags'),
+    type: 'select',
+    width: 200,
+    options: []
+  },
+  {
+    key: 'CR_Taxonomy_Platform',
+    label: t('columns.creatif.taxonomyPlatform'),
+    type: 'select',
+    width: 200,
+    options: []
+  },
+  {
+    key: 'CR_Taxonomy_MediaOcean',
+    label: t('columns.creatif.taxonomyMediaOcean'),
+    type: 'select',
+    width: 200,
+    options: []
+  }
+];
+
+const getCreatifTaxonomieColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'CR_Product',
+    label: t('columns.creatif.product'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'CR_Audience_Demographics',
+    label: t('columns.creatif.audienceDemographics'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'CR_Device',
+    label: t('columns.creatif.device'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'CR_Targeting',
+    label: t('columns.creatif.targeting'),
+    type: 'text',
+    width: 140
+  }
+];
+
+const getCreatifSpecsColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'CR_Spec_Name',
+    label: t('columns.creatif.specName'),
+    type: 'text',
+    width: 200
+  },
+  {
+    key: 'CR_Spec_Format',
+    label: t('columns.creatif.specFormat'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'CR_Spec_Ratio',
+    label: t('columns.creatif.specRatio'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'CR_Spec_FileType',
+    label: t('columns.creatif.specFileType'),
+    type: 'text',
+    width: 130
+  },
+  {
+    key: 'CR_Spec_MaxWeight',
+    label: t('columns.creatif.specMaxWeight'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'CR_Spec_Weight',
+    label: t('columns.creatif.specWeight'),
+    type: 'text',
+    width: 100
+  },
+  {
+    key: 'CR_Spec_Animation',
+    label: t('columns.creatif.specAnimation'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'CR_Spec_Title',
+    label: t('columns.creatif.specTitle'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'CR_Spec_Text',
+    label: t('columns.creatif.specText'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'CR_Spec_SpecSheetLink',
+    label: t('columns.creatif.specSheetLink'),
+    type: 'text',
+    width: 200
+  },
+  {
+    key: 'CR_Spec_Notes',
+    label: t('columns.creatif.specNotes'),
+    type: 'text',
+    width: 200
+  }
+];
+
 /**
- * Configuration complète des sous-catégories de tactiques, associant chaque sous-catégorie
- * à son libellé et à l'ensemble des colonnes qui la composent.
+ * Fonctions pour créer les configurations de sous-catégories traduites
  */
-export const TACTIQUE_SUBCATEGORIES: TactiqueSubCategoryConfig[] = [
+export const getTactiqueSubCategories = (t: (key: string) => string): TactiqueSubCategoryConfig[] => [
   {
     id: 'info',
-    label: 'Info',
-    columns: TACTIQUE_INFO_COLUMNS
+    label: t('tabs.tactique.info'),
+    columns: getTactiqueInfoColumns(t)
   },
   {
     id: 'strategie',
-    label: 'Stratégie',
-    columns: TACTIQUE_STRATEGIE_COLUMNS
+    label: t('tabs.tactique.strategy'),
+    columns: getTactiqueStrategieColumns(t)
   },
   {
     id: 'budget',
-    label: 'Budget',
-    columns: TACTIQUE_BUDGET_COLUMNS
+    label: t('tabs.tactique.budget'),
+    columns: getTactiqueBudgetColumns(t)
   },
   {
     id: 'admin',
-    label: 'Admin',
-    columns: TACTIQUE_ADMIN_COLUMNS
+    label: t('tabs.tactique.admin'),
+    columns: getTactiqueAdminColumns(t)
   }
 ];
 
-/**
- * Configuration complète des sous-catégories de placements, associant chaque sous-catégorie
- * à son libellé et à l'ensemble des colonnes qui la composent.
- */
-export const PLACEMENT_SUBCATEGORIES: PlacementSubCategoryConfig[] = [
+export const getPlacementSubCategories = (t: (key: string) => string): PlacementSubCategoryConfig[] => [
   {
     id: 'info',
-    label: 'Info',
-    columns: PLACEMENT_INFO_COLUMNS
+    label: t('tabs.placement.info'),
+    columns: getPlacementInfoColumns(t)
   },
   {
     id: 'taxonomie',
-    label: 'Taxonomie',
-    columns: PLACEMENT_TAXONOMIE_COLUMNS
+    label: t('tabs.placement.taxonomy'),
+    columns: getPlacementTaxonomieColumns(t)
   }
 ];
 
-/**
- * NOUVEAU : Configuration complète des sous-catégories de créatifs, associant chaque sous-catégorie
- * à son libellé et à l'ensemble des colonnes qui la composent.
- */
-export const CREATIF_SUBCATEGORIES: CreatifSubCategoryConfig[] = [
+export const getCreatifSubCategories = (t: (key: string) => string): CreatifSubCategoryConfig[] => [
   {
     id: 'info',
-    label: 'Info',
-    columns: CREATIF_INFO_COLUMNS
+    label: t('tabs.creatif.info'),
+    columns: getCreatifInfoColumns(t)
   },
   {
     id: 'taxonomie',
-    label: 'Taxonomie',
-    columns: CREATIF_TAXONOMIE_COLUMNS
+    label: t('tabs.creatif.taxonomy'),
+    columns: getCreatifTaxonomieColumns(t)
   },
   {
     id: 'specs',
-    label: 'Specs',
-    columns: CREATIF_SPECS_COLUMNS
+    label: t('tabs.creatif.specs'),
+    columns: getCreatifSpecsColumns(t)
   }
 ];
 
 /**
- * Configuration globale des colonnes pour chaque niveau de la table (section, tactique, placement, créatif).
- * Cela permet de définir les colonnes par défaut pour chaque type d'entité.
+ * Configuration des colonnes principales par niveau
  */
-export const COLUMN_CONFIGS: Record<TableLevel, DynamicColumn[]> = {
+export const getColumnConfigs = (t: (key: string) => string): Record<TableLevel, DynamicColumn[]> => ({
   section: [
     {
       key: 'SECTION_Name',
-      label: 'Nom de la section',
+      label: t('columns.section.name'),
       type: 'text',
       width: 300,
       validation: validateRequired
     },
   ],
-  tactique: TACTIQUE_INFO_COLUMNS,
-  placement: PLACEMENT_INFO_COLUMNS,
-  creatif: CREATIF_INFO_COLUMNS // MODIFIÉ : Utilise les colonnes Info par défaut
-};
+  tactique: getTactiqueInfoColumns(t),
+  placement: getPlacementInfoColumns(t),
+  creatif: getCreatifInfoColumns(t)
+});
 
 /**
- * NOUVEAU : Fonctions pour obtenir des labels traduits (optionnel et rétrocompatible)
- */
-function getTranslatedLabel(key: string, fallback: string, t?: (key: string) => string): string {
-  return t ? t(key) : fallback;
-}
-
-/**
- * NOUVEAU : Crée une copie des colonnes avec des labels traduits
- */
-function translateColumns(columns: DynamicColumn[], t?: (key: string) => string): DynamicColumn[] {
-  if (!t) return columns;
-  
-  return columns.map(col => {
-    const translatedLabel = (() => {
-      switch (col.key) {
-        case 'TC_Label': return t('table.columns.label');
-        case 'TC_Bucket': return t('table.columns.bucket');
-        case 'TC_MPA': return t('table.columns.mpa');
-        case 'TC_Start_Date': return t('table.columns.startDate');
-        case 'TC_End_Date': return t('table.columns.endDate');
-        case 'PL_Label': return t('table.columns.placementName');
-        case 'CR_Label': return t('table.columns.creativeName');
-        case 'PL_Taxonomy_Tags':
-        case 'CR_Taxonomy_Tags': return t('table.columns.taxonomyTags');
-        case 'PL_Taxonomy_Platform':
-        case 'CR_Taxonomy_Platform': return t('table.columns.taxonomyPlatform');
-        case 'PL_Taxonomy_MediaOcean':
-        case 'CR_Taxonomy_MediaOcean': return t('table.columns.taxonomyMediaOcean');
-        case 'SECTION_Name': return t('table.columns.sectionName');
-        // Ajoutez d'autres mappings selon vos besoins
-        default: return col.label;
-      }
-    })();
-    
-    return { ...col, label: translatedLabel };
-  });
-}
-
-/**
- * Récupère la configuration des colonnes pour un niveau de tableau donné.
- * MODIFIÉ : Support optionnel de la traduction
+ * Fonctions principales pour récupérer les colonnes (OBLIGENT la traduction)
  */
 export function getColumnsForLevel(
   level: TableLevel, 
+  t: (key: string) => string,
   tactiqueSubCategory?: TactiqueSubCategory,
   placementSubCategory?: PlacementSubCategory,
-  creatifSubCategory?: CreatifSubCategory,
-  t?: (key: string) => string
+  creatifSubCategory?: CreatifSubCategory
 ): DynamicColumn[] {
-  let columns: DynamicColumn[] = [];
-  
   if (level === 'tactique' && tactiqueSubCategory) {
-    const subCategory = TACTIQUE_SUBCATEGORIES.find(sc => sc.id === tactiqueSubCategory);
-    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+    const subCategory = getTactiqueSubCategories(t).find(sc => sc.id === tactiqueSubCategory);
+    return subCategory ? subCategory.columns : getColumnConfigs(t)[level];
   } else if (level === 'placement' && placementSubCategory) {
-    const subCategory = PLACEMENT_SUBCATEGORIES.find(sc => sc.id === placementSubCategory);
-    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+    const subCategory = getPlacementSubCategories(t).find(sc => sc.id === placementSubCategory);
+    return subCategory ? subCategory.columns : getColumnConfigs(t)[level];
   } else if (level === 'creatif' && creatifSubCategory) {
-    const subCategory = CREATIF_SUBCATEGORIES.find(sc => sc.id === creatifSubCategory);
-    columns = subCategory ? subCategory.columns : COLUMN_CONFIGS[level];
+    const subCategory = getCreatifSubCategories(t).find(sc => sc.id === creatifSubCategory);
+    return subCategory ? subCategory.columns : getColumnConfigs(t)[level];
   } else {
-    columns = COLUMN_CONFIGS[level] || [];
+    return getColumnConfigs(t)[level] || [];
   }
-  
-  return translateColumns(columns, t);
 }
 
-/**
- * NOUVEAU : Fonctions pour obtenir les sous-catégories avec traduction optionnelle
- */
-export function getTactiqueSubCategories(t?: (key: string) => string): TactiqueSubCategoryConfig[] {
-  return TACTIQUE_SUBCATEGORIES.map(subCat => ({
-    ...subCat,
-    label: t ? t(`table.tabs.tactique.${subCat.id}`) : subCat.label,
-    columns: translateColumns(subCat.columns, t)
-  }));
-}
-
-export function getPlacementSubCategories(t?: (key: string) => string): PlacementSubCategoryConfig[] {
-  return PLACEMENT_SUBCATEGORIES.map(subCat => ({
-    ...subCat,
-    label: t ? t(`table.tabs.placement.${subCat.id}`) : subCat.label,
-    columns: translateColumns(subCat.columns, t)
-  }));
-}
-
-export function getCreatifSubCategories(t?: (key: string) => string): CreatifSubCategoryConfig[] {
-  return CREATIF_SUBCATEGORIES.map(subCat => ({
-    ...subCat,
-    label: t ? t(`table.tabs.creatif.${subCat.id}`) : subCat.label,
-    columns: translateColumns(subCat.columns, t)
-  }));
-}
-
-/**
- * Récupère une colonne spécifique par sa clé et son niveau, potentiellement filtrée par sous-catégorie.
- */
-export function getColumnByKey(
-  level: TableLevel, 
-  key: string, 
-  tactiqueSubCategory?: TactiqueSubCategory,
-  placementSubCategory?: PlacementSubCategory,
-  creatifSubCategory?: CreatifSubCategory,
-  t?: (key: string) => string
-): DynamicColumn | undefined {
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
-  return columns.find(col => col.key === key);
-}
-
-/**
- * Valide une valeur donnée en fonction des règles de validation définies pour une colonne spécifique.
- */
-export function validateColumnValue(
-  level: TableLevel, 
-  key: string, 
-  value: any, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
-  t?: (key: string) => string
-): boolean {
-  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
-  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
-  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
-  
-  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
-  if (!column || !column.validation) return true;
-
-  return column.validation(value);
-}
-
-/**
- * Formate une valeur donnée en utilisant la fonction de formatage spécifiée pour une colonne.
- */
-export function formatColumnValue(
-  level: TableLevel, 
-  key: string, 
-  value: any, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
-  t?: (key: string) => string
-): string {
-  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
-  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
-  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
-  
-  const column = getColumnByKey(level, key, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
-  if (!column || !column.format) return String(value || '');
-
-  return column.format(value);
-}
-
-/**
- * Calcule la largeur totale combinée de toutes les colonnes pour un niveau de tableau donné.
- */
-export function getTotalColumnsWidth(
-  level: TableLevel, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
-  t?: (key: string) => string
-): number {
-  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
-  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
-  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
-  
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
-  return columns.reduce((total, col) => total + (col.width || 150), 0);
-}
-
-/**
- * Ajoute une colonne spéciale de hiérarchie (indentation visuelle) au début de la liste des colonnes pour un niveau donné.
- */
 export function getColumnsWithHierarchy(
   level: TableLevel, 
-  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory,
-  t?: (key: string) => string
+  t: (key: string) => string,
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
 ): DynamicColumn[] {
   const hierarchyColumn: DynamicColumn = {
     key: '_hierarchy',
-    label: t ? t('table.columns.structure') : 'Structure',
+    label: t('columns.structure'),
     type: 'readonly',
     width: 300
   };
@@ -1077,6 +737,65 @@ export function getColumnsWithHierarchy(
   const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
   const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
 
-  const columns = getColumnsForLevel(level, tactiqueSubCategory, placementSubCategory, creatifSubCategory, t);
+  const columns = getColumnsForLevel(level, t, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
   return [hierarchyColumn, ...columns];
+}
+
+export function getColumnByKey(
+  level: TableLevel, 
+  key: string, 
+  t: (key: string) => string,
+  tactiqueSubCategory?: TactiqueSubCategory,
+  placementSubCategory?: PlacementSubCategory,
+  creatifSubCategory?: CreatifSubCategory
+): DynamicColumn | undefined {
+  const columns = getColumnsForLevel(level, t, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  return columns.find(col => col.key === key);
+}
+
+export function validateColumnValue(
+  level: TableLevel, 
+  key: string, 
+  value: any, 
+  t: (key: string) => string,
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+): boolean {
+  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
+  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
+  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
+  
+  const column = getColumnByKey(level, key, t, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  if (!column || !column.validation) return true;
+
+  return column.validation(value);
+}
+
+export function formatColumnValue(
+  level: TableLevel, 
+  key: string, 
+  value: any, 
+  t: (key: string) => string,
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+): string {
+  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
+  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
+  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
+  
+  const column = getColumnByKey(level, key, t, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  if (!column || !column.format) return String(value || '');
+
+  return column.format(value);
+}
+
+export function getTotalColumnsWidth(
+  level: TableLevel, 
+  t: (key: string) => string,
+  subCategory?: TactiqueSubCategory | PlacementSubCategory | CreatifSubCategory
+): number {
+  const tactiqueSubCategory = level === 'tactique' ? subCategory as TactiqueSubCategory : undefined;
+  const placementSubCategory = level === 'placement' ? subCategory as PlacementSubCategory : undefined;
+  const creatifSubCategory = level === 'creatif' ? subCategory as CreatifSubCategory : undefined;
+  
+  const columns = getColumnsForLevel(level, t, tactiqueSubCategory, placementSubCategory, creatifSubCategory);
+  return columns.reduce((total, col) => total + (col.width || 150), 0);
 }

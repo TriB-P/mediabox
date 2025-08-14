@@ -29,6 +29,7 @@ import { getBreakdowns } from '../lib/breakdownService';
 import { Breakdown } from '../types/breakdown';
 
 import { useClient } from '../contexts/ClientContext';
+import { useTranslation } from '../contexts/LanguageContext';
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline';
 
@@ -39,6 +40,7 @@ type ViewMode = 'hierarchy' | 'table' | 'timeline';
  * @returns {JSX.Element} Le composant de la page des tactiques.
  */
 export default function TactiquesPage() {
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   
   const {
@@ -237,7 +239,7 @@ useEffect(() => {
     <div className={getContainerClasses()}>
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
-          <h1 className="text-2xl font-bold text-gray-900">Tactiques</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('tactiquesPage.header.title')}</h1>
           
           {selectedOnglet && (
             <button
@@ -250,7 +252,7 @@ useEffect(() => {
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
                 }
               `}
-              title="Actualiser les données"
+              title={t('tactiquesPage.header.refreshTooltip')}
             >
               <ArrowPathIcon 
                 className={`h-4 w-4 ${(refreshState.isRefreshing || loading) ? 'animate-spin' : ''}`} 
@@ -271,8 +273,7 @@ useEffect(() => {
         onVersionChange={handleVersionChange}
         className="mb-6"
       />
-{/*       
-      {loadingStates.shouldShowTopIndicator && (
+{/* {loadingStates.shouldShowTopIndicator && (
         <div className={`border rounded-lg p-3 mb-4 ${
           refreshState.isRefreshing 
             ? 'bg-blue-50 border-blue-200' 
@@ -299,7 +300,7 @@ useEffect(() => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-            <span className="text-sm text-green-700">Duplication en cours...</span>
+            <span className="text-sm text-green-700">{t('tactiquesPage.notifications.duplicationInProgress')}</span>
           </div>
         </div>
       )}
@@ -308,7 +309,7 @@ useEffect(() => {
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-            <span className="text-sm text-red-700">Suppression en cours...</span>
+            <span className="text-sm text-red-700">{t('tactiquesPage.notifications.deletionInProgress')}</span>
           </div>
         </div>
       )}
@@ -317,7 +318,7 @@ useEffect(() => {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-sm text-blue-700">Chargement des frais du client...</span>
+            <span className="text-sm text-blue-700">{t('tactiquesPage.notifications.loadingClientFees')}</span>
           </div>
         </div>
       )}
@@ -327,13 +328,13 @@ useEffect(() => {
           <div className="flex items-center space-x-3">
             <div className="text-red-600">⚠️</div>
             <div>
-              <h3 className="text-sm font-medium text-red-800">Erreur de chargement</h3>
+              <h3 className="text-sm font-medium text-red-800">{t('tactiquesPage.error.loadingTitle')}</h3>
               <p className="text-sm text-red-600 mt-1">{error}</p>
               <button
                 onClick={handleRefreshWithReset}
                 className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
               >
-                Réessayer
+                {t('tactiquesPage.error.retry')}
               </button>
             </div>
           </div>
@@ -342,7 +343,7 @@ useEffect(() => {
 
       {loadingStates.shouldShowFullLoader && (
         <LoadingSpinner 
-          message={stage || "Chargement des tactiques..."} 
+          message={stage || t('tactiquesPage.loader.loadingTactics')} 
           minimumDuration={1500}
         />
       )}
@@ -371,7 +372,7 @@ useEffect(() => {
                     className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                   >
                     <PlusIcon className="h-5 w-5 mr-1.5" />
-                    Nouvelle section
+                    {t('tactiquesPage.actions.newSection')}
                   </button>
                 </div>
 
@@ -381,7 +382,7 @@ useEffect(() => {
                     <span>{statistics.creatifsText}</span>
                     {selectionState.selectedItems.size > 0 && (
                       <span className="text-indigo-600 font-medium">
-                        {selectionState.selectedItems.size} sélectionné{selectionState.selectedItems.size > 1 ? 's' : ''}
+                        {selectionState.selectedItems.size} {t(selectionState.selectedItems.size > 1 ? 'tactiquesPage.selection.selectedPlural' : 'tactiquesPage.selection.selectedSingular')}
                       </span>
                     )}
                   </div>
@@ -424,14 +425,14 @@ useEffect(() => {
     ) : (
       <div className="bg-white p-8 rounded-lg shadow text-center">
         <p className="text-gray-500">
-          Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.
+          {t('tactiquesPage.emptyState.noSectionsFound')}
         </p>
         <button
           onClick={handleAddSection}
           className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
         >
           <PlusIcon className="h-5 w-5 mr-1.5" />
-          Nouvelle section
+          {t('tactiquesPage.actions.newSection')}
         </button>
       </div>
     )}
@@ -492,7 +493,7 @@ useEffect(() => {
       {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500">
-            Veuillez sélectionner une campagne et une version pour voir les tactiques.
+            {t('tactiquesPage.emptyState.selectCampaignAndVersion')}
           </p>
         </div>
       )}

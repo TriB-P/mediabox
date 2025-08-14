@@ -3817,7 +3817,7 @@ export const translations = {
         bucketsError: "Erreur lors du chargement des buckets:",
         completedAdvancedTable: "Chargement terminé pour TactiquesAdvancedTableView (version refactorisée)",
         generalError: "Erreur lors du chargement des données",
-        loadingData: "Chargement des {{type === 'listsAndBudget' ? 'listes dynamiques et données budget' : type === 'lists' ? 'listes dynamiques' : 'données budget'}}..."
+        loadingData: "Chargement des données..."
       },
       
       // Budget
@@ -4023,6 +4023,37 @@ export const translations = {
         placeholder: "-- Sélectionner --"
       }
     },
+    tactiquesPage: {
+      header: {
+        title: "Tactiques",
+        refreshTooltip: "Actualiser les données"
+      },
+      notifications: {
+        duplicationInProgress: "Duplication en cours...",
+        deletionInProgress: "Suppression en cours...",
+        loadingClientFees: "Chargement des frais du client..."
+      },
+      error: {
+        loadingTitle: "Erreur de chargement",
+        retry: "Réessayer"
+      },
+      loader: {
+        loadingTactics: "Chargement des tactiques..."
+      },
+      actions: {
+        newSection: "Nouvelle section"
+      },
+      selection: {
+        selectedSingular: "sélectionné",
+        selectedPlural: "sélectionnés"
+      },
+      emptyState: {
+        noSectionsFound: "Aucune section trouvée pour cet onglet. Créez une nouvelle section pour commencer.",
+        selectCampaignAndVersion: "Veuillez sélectionner une campagne et une version pour voir les tactiques."
+      }
+    },
+    
+
 
 
     
@@ -7562,43 +7593,24 @@ export const translations = {
     table: {
       // Search and navigation
       search: {
-        sections: "Search in sections...",
-        tactiques: "Search in tactics...",
-        placements: "Search in placements...",
-        creatifs: "Search in creatives..."
+        sections: "Search sections...",
+        tactiques: "Search tactics...",
+        placements: "Search placements...",
+        creatifs: "Search creatives..."
       },
       
       // Toolbar
       toolbar: {
-        hideLevels: "Hide lower levels",
+        hideLevels: "Hide child levels",
         clearSort: "Clear sort"
       },
       
       // Levels/entities
       levels: {
         sections: "sections",
-        tactiques: "tactics",
-        placements: "placements", 
+        tactiques: "tactics", 
+        placements: "placements",
         creatifs: "creatives"
-      },
-      
-      // Sub-category tabs
-      tabs: {
-        tactique: {
-          info: "Info",
-          strategie: "Strategy",
-          budget: "Budget", 
-          admin: "Admin"
-        },
-        placement: {
-          info: "Info",
-          taxonomie: "Taxonomy"
-        },
-        creatif: {
-          info: "Info",
-          taxonomie: "Taxonomy",
-          specs: "Specs"
-        }
       },
       
       // Contextual help
@@ -7608,7 +7620,7 @@ export const translations = {
           description: "1 click = select • Shift+Click = multiple selection"
         },
         editing: {
-          title: "Editing",
+          title: "Editing", 
           description: "Double-click to edit • Enter/Tab = save • Esc = cancel"
         },
         copy: {
@@ -7620,8 +7632,8 @@ export const translations = {
           description: "Calculations use the same logic as the drawer"
         },
         columns: {
-          title: "Dynamic columns", 
-          description: "Columns change according to selected taxonomies"
+          title: "Dynamic columns",
+          description: "Columns change based on selected taxonomies"
         }
       },
       
@@ -7662,7 +7674,7 @@ export const translations = {
       // Actions
       actions: {
         cancel: "Cancel",
-        save: "Save",
+        save: "Save", 
         saving: "Saving...",
         copied: "Copied",
         confirmCancelChanges: "Are you sure you want to cancel all changes?"
@@ -7670,7 +7682,7 @@ export const translations = {
       
       // Pending changes
       changes: {
-        pending: "pending changes"
+        pending: "{{count}} pending changes"
       },
       
       // Loading
@@ -7678,15 +7690,15 @@ export const translations = {
         startAdvancedTable: "Starting data loading for TactiquesAdvancedTableView (refactored version)",
         clientFeesLoaded: "Client fees loaded: {{count}} fees",
         clientFeesError: "Error loading client fees:",
-        exchangeRatesLoaded: "Exchange rates loaded: {{count}} rates",
+        exchangeRatesLoaded: "Exchange rates loaded: {{count}} rates", 
         exchangeRatesError: "Error loading exchange rates:",
         currencyLoaded: "Campaign currency loaded: {{currency}}",
         currencyError: "Error loading campaign currency:",
         fieldError: "Error loading {{field}}",
         bucketsError: "Error loading buckets:",
-        completedAdvancedTable: "Loading completed for TactiquesAdvancedTableView (refactored version)", 
+        completedAdvancedTable: "Loading completed for TactiquesAdvancedTableView (refactored version)",
         generalError: "Error loading data",
-        loadingData: "Loading {{type === 'listsAndBudget' ? 'dynamic lists and budget data' : type === 'lists' ? 'dynamic lists' : 'budget data'}}..."
+        loadingData: "Loading {{type}} data"
       },
       
       // Budget
@@ -7700,25 +7712,21 @@ export const translations = {
         feeNotFound: "Fee #{{number}} not found",
         noOption: "No option",
         disable: "Disable",
-        enable: "Enable",
+        enable: "Enable", 
         selectOption: "Select an option",
         enableToSelect: "Enable fee to select",
         optionPlaceholder: "-- Option --",
         customValue: "Custom value",
         fixedValue: "Fixed value",
-        autoCalculatedAmount: "Automatically calculated amount",
-        autoCalculated: "Automatically calculated",
-        feeColumnsCreated: "fee columns created",
-        standardCalculation: "Standard calculation",
-        converged: "Calculation converged",
-        approximation: "Approximation (gap: ${{error}})",
-        notConverged: "Not converged (gap: ${{error}})"
+        autoCalculatedAmount: "Auto-calculated amount",
+        autoCalculated: "Auto-calculated",
+        feeColumnsCreated: "{{count}} fee columns created"
       },
       
       // Taxonomy
       taxonomy: {
         placementUpdateError: "Error updating placement with taxonomies",
-        triggeringUpdates: "Triggering taxonomy updates for {{count}} entit{{count === 1 ? 'y' : 'ies'}}",
+        triggeringUpdates: "Triggering taxonomy updates for {{count}} entity(ies)",
         updatesCompleted: "Taxonomy updates completed"
       },
       
@@ -7726,138 +7734,6 @@ export const translations = {
       save: {
         errorWithBudget: "Error saving with budget",
         generalError: "Error saving:"
-      },
-      
-      // Columns
-      columns: {
-        structure: "Structure",
-        label: "Label",
-        bucket: "Bucket",
-        mpa: "MPA", 
-        startDate: "Start Date",
-        endDate: "End Date",
-        placementName: "Placement Name",
-        creativeName: "Creative Name",
-        taxonomyTags: "Taxonomy for tags",
-        taxonomyPlatform: "Taxonomy for platform",
-        taxonomyMediaOcean: "Taxonomy for MediaOcean",
-        product: "Product",
-        location: "Location",
-        demographics: "Demographics",
-        device: "Device",
-        targeting: "Targeting",
-        specName: "Spec Name",
-        format: "Format",
-        ratio: "Ratio",
-        fileType: "File Type",
-        maxWeight: "Max Weight",
-        weight: "Weight",
-        animation: "Animation",
-        title: "Title",
-        text: "Text",
-        specSheetLink: "Spec Sheet Link",
-        notes: "Notes",
-        sectionName: "Section Name",
-        lob: "Line of Business",
-        mediaType: "Media Type",
-        partner: "Partner",
-        inventory: "Inventory",
-        marketDescription: "Market Description",
-        audienceDescription: "Audience Description", 
-        productDescription: "Product Description",
-        formatDescription: "Format Description",
-        locationDescription: "Location Description",
-        frequency: "Frequency",
-        market: "Market",
-        language: "Language",
-        buyingMethod: "Buying Method",
-        customDim1: "Custom Dimension 1",
-        customDim2: "Custom Dimension 2",
-        customDim3: "Custom Dimension 3",
-        suggestedCreatives: "Number of Suggested Creatives",
-        assetDeliveryDate: "Asset Delivery Date",
-        inputMode: "Input Mode",
-        inputBudget: "Input Budget",
-        currency: "Currency",
-        buyCurrency: "Buy Currency",
-        unitType: "Unit Type",
-        costPerUnit: "Cost Per Unit",
-        volume: "Volume",
-        unitVolume: "Unit Volume",
-        realValue: "Real Value",
-        bonus: "Bonus",
-        exchangeRate: "Exchange Rate",
-        totalMedia: "Total Media",
-        totalClient: "Total Client",
-        billingNumber: "Billing Number",
-        po: "PO"
-      },
-      
-      // Colors
-      colors: {
-        red: "Red",
-        orange: "Orange",
-        yellow: "Yellow",
-        green: "Green", 
-        blue: "Blue",
-        indigo: "Indigo",
-        violet: "Violet",
-        pink: "Pink",
-        gray: "Gray"
-      },
-      
-      // Status
-      status: {
-        planned: "Planned",
-        active: "Active",
-        completed: "Completed",
-        cancelled: "Cancelled"
-      },
-      
-      // Media types
-      mediaType: {
-        display: "Display",
-        video: "Video",
-        social: "Social",
-        search: "Search",
-        audio: "Audio",
-        tv: "Television",
-        print: "Print",
-        ooh: "Out of Home"
-      },
-      
-      // Buying methods
-      buyingMethod: {
-        programmatic: "Programmatic",
-        direct: "Direct",
-        guaranteed: "Guaranteed",
-        auction: "Auction"
-      },
-      
-      // Languages
-      language: {
-        french: "French",
-        english: "English",
-        spanish: "Spanish",
-        bilingual: "Bilingual"
-      },
-      
-      // Markets
-      market: {
-        quebec: "Quebec",
-        ontario: "Ontario",
-        bc: "British Columbia",
-        alberta: "Alberta",
-        manitoba: "Manitoba",
-        saskatchewan: "Saskatchewan",
-        newBrunswick: "New Brunswick",
-        novaScotia: "Nova Scotia",
-        pei: "Prince Edward Island",
-        newfoundland: "Newfoundland and Labrador",
-        nwt: "Northwest Territories",
-        nunavut: "Nunavut",
-        yukon: "Yukon",
-        national: "National"
       },
       
       // Copy/Paste
@@ -7872,28 +7748,223 @@ export const translations = {
       // Hierarchy
       hierarchy: {
         unnamedSection: "Unnamed section",
-        unnamedTactic: "Unnamed tactic", 
-        unnamedPlacement: "Unnamed placement",
+        unnamedTactic: "Unnamed tactic",
+        unnamedPlacement: "Unnamed placement", 
         unnamedCreative: "Unnamed creative",
         unnamedElement: "Unnamed element"
-      },
-      
-      // Level labels
-      levelLabels: {
-        section: "SEC",
-        tactic: "TAC",
-        placement: "PLA",
-        creative: "CRE",
-        unknown: "UNK"
       },
       
       // Selection
       select: {
         placeholder: "-- Select --"
       }
-    
-
-
+    },
+    tabs: {
+      tactique: {
+        info: "Info",
+        strategy: "Strategy", 
+        budget: "Budget",
+        admin: "Admin"
+      },
+      placement: {
+        info: "Info",
+        taxonomy: "Taxonomy"
+      },
+      creatif: {
+        info: "Info",
+        taxonomy: "Taxonomy",
+        specs: "Specs"
+      }
+    },
+    columns: {
+      structure: "Structure",
+      
+      section: {
+        name: "Section name"
+      },
+      
+      tactique: {
+        label: "Label",
+        bucket: "Bucket",
+        mpa: "MPA",
+        startDate: "Start date",
+        endDate: "End date",
+        lob: "Line of business",
+        mediaType: "Media type",
+        publisher: "Publisher",
+        inventory: "Inventory", 
+        marketOpen: "Market description",
+        targetingOpen: "Audience description",
+        productOpen: "Product description",
+        formatOpen: "Format description",
+        locationOpen: "Location description",
+        frequency: "Frequency",
+        market: "Market",
+        language: "Language",
+        buyingMethod: "Buying method",
+        customDim1: "Custom dimension 1",
+        customDim2: "Custom dimension 2", 
+        customDim3: "Custom dimension 3",
+        numberCreative: "Number of suggested creatives",
+        assetDate: "Creative delivery date",
+        budgetMode: "Input mode",
+        budgetInput: "Input budget",
+        buyCurrency: "Buy currency",
+        unitType: "Unit type",
+        unitPrice: "Cost per unit",
+        unitVolume: "Unit volume",
+        mediaBudget: "Media budget",
+        clientBudget: "Client budget",
+        mediaValue: "Real value",
+        bonification: "Bonus",
+        currencyRate: "Exchange rate",
+        billingId: "Billing number",
+        po: "PO"
+      },
+      
+      placement: {
+        label: "Placement name",
+        startDate: "Start date",
+        endDate: "End date",
+        taxonomyTags: "Taxonomy for tags",
+        taxonomyPlatform: "Taxonomy for platform", 
+        taxonomyMediaOcean: "Taxonomy for MediaOcean",
+        product: "Product",
+        location: "Location",
+        audienceDemographics: "Demographics",
+        device: "Device",
+        targeting: "Targeting"
+      },
+      
+      creatif: {
+        label: "Creative name",
+        startDate: "Start date",
+        endDate: "End date",
+        taxonomyTags: "Taxonomy for tags",
+        taxonomyPlatform: "Taxonomy for platform",
+        taxonomyMediaOcean: "Taxonomy for MediaOcean",
+        product: "Product",
+        audienceDemographics: "Demographics",
+        device: "Device",
+        targeting: "Targeting",
+        specName: "Spec name",
+        specFormat: "Format",
+        specRatio: "Ratio",
+        specFileType: "File type",
+        specMaxWeight: "Max weight",
+        specWeight: "Weight",
+        specAnimation: "Animation",
+        specTitle: "Title",
+        specText: "Text",
+        specSheetLink: "Spec sheet link",
+        specNotes: "Notes"
+      }
+    },
+    options: {
+      currency: {
+        cad: "CAD ($)",
+        usd: "USD ($)",
+        eur: "EUR (€)",
+        chf: "CHF"
+      },
+      
+      budgetChoice: {
+        client: "Client budget",
+        media: "Media budget"
+      }
+    },
+    fields: {
+      placement: {
+        audienceBehaviour: "Audience Behavior",
+        audienceDemographics: "Audience Demographics", 
+        audienceEngagement: "Audience Engagement",
+        audienceInterest: "Audience Interest",
+        audienceOther: "Audience Other",
+        creativeGrouping: "Creative Grouping",
+        device: "Device",
+        channel: "Channel",
+        format: "Format",
+        language: "Language",
+        marketDetails: "Market Details",
+        product: "Product",
+        segmentOpen: "Segment Open",
+        tacticCategory: "Tactic Category",
+        targeting: "Targeting",
+        placementLocation: "Placement Location",
+        customDim1: "Custom Dimension 1",
+        customDim2: "Custom Dimension 2", 
+        customDim3: "Custom Dimension 3",
+        label: "Label",
+        order: "Order",
+        tactiqueId: "Tactic ID",
+        taxonomyTags: "Taxonomy Tags",
+        taxonomyPlatform: "Taxonomy Platform",
+        taxonomyMediaOcean: "Taxonomy MediaOcean"
+      },
+      
+      creatif: {
+        customDim1: "Custom Dimension 1",
+        customDim2: "Custom Dimension 2",
+        customDim3: "Custom Dimension 3",
+        cta: "Call to Action",
+        formatDetails: "Format Details",
+        offer: "Offer",
+        platformName: "Platform Name",
+        primaryProduct: "Primary Product",
+        url: "URL",
+        version: "Version",
+        label: "Label",
+        order: "Order",
+        placementId: "Placement ID",
+        startDate: "Start Date",
+        endDate: "End Date",
+        sprintDates: "Sprint Dates",
+        taxonomyTags: "Taxonomy Tags",
+        taxonomyPlatform: "Taxonomy Platform",
+        taxonomyMediaOcean: "Taxonomy MediaOcean",
+        specPartnerId: "Partner ID",
+        specSelectedSpecId: "Selected Spec ID",
+        specName: "Spec Name",
+        specFormat: "Spec Format",
+        specRatio: "Aspect Ratio",
+        specFileType: "File Type",
+        specMaxWeight: "Max Weight",
+        specWeight: "Weight",
+        specAnimation: "Animation",
+        specTitle: "Title",
+        specText: "Text",
+        specSheetLink: "Spec Sheet Link",
+        specNotes: "Notes"
+      }
+    },
+    tactiquesPage: {
+      header: {
+        title: "Tactics",
+        refreshTooltip: "Refresh data"
+      },
+      notifications: {
+        duplicationInProgress: "Duplication in progress...",
+        deletionInProgress: "Deletion in progress...",
+        loadingClientFees: "Loading client fees..."
+      },
+      error: {
+        loadingTitle: "Loading error",
+        retry: "Retry"
+      },
+      loader: {
+        loadingTactics: "Loading tactics..."
+      },
+      actions: {
+        newSection: "New section"
+      },
+      selection: {
+        selectedSingular: "selected",
+        selectedPlural: "selected"
+      },
+      emptyState: {
+        noSectionsFound: "No sections found for this tab. Create a new section to get started.",
+        selectCampaignAndVersion: "Please select a campaign and a version to see the tactics."
+      }
     },
   }
 };

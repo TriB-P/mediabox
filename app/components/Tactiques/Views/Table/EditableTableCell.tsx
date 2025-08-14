@@ -89,7 +89,7 @@ export default function EditableTableCell({
    */
   const handleChange = useCallback((newValue: any) => {
     setLocalValue(newValue);
-    const valid = validateColumnValue(tableLevel, fieldKey, newValue);
+    const valid = validateColumnValue(tableLevel, fieldKey, newValue, t);
     setIsValid(valid);
     onChange(entityId, fieldKey, newValue);
   }, [tableLevel, fieldKey, entityId, onChange]);
@@ -268,14 +268,14 @@ export default function EditableTableCell({
    */
   const renderDisplayValue = () => {
     if (column.type === 'readonly' || !isEditable) {
-      const formattedValue = formatColumnValue(tableLevel, fieldKey, value);
+      const formattedValue = formatColumnValue(tableLevel, fieldKey, value, t);
       return (
         <span className={`text-sm ${!isEditable ? 'text-gray-400' : 'text-gray-900'}`}>
           {formattedValue || '-'}
         </span>
       );
     }
-    const formattedValue = formatColumnValue(tableLevel, fieldKey, value);
+    const formattedValue = formatColumnValue(tableLevel, fieldKey, value, t);
     const displayValue = formattedValue || '';
     
     return (

@@ -104,6 +104,14 @@ interface TactiquesAdvancedTableViewProps {
   formatCurrency: (amount: number) => string;
 }
 
+function getLocalizedDisplayName(item: ListItem, currentLanguage: string): string {
+  if (currentLanguage === 'en') {
+    return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Code || item.id;
+  } else {
+    return item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.SH_Code || item.id;
+  }
+}
+
 /**
  * Fonction utilitaire pour récupérer une liste depuis le cache ou Firebase
  */
@@ -192,6 +200,8 @@ export default function TactiquesAdvancedTableView({
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
   const { t } = useTranslation();
+  const currentLanguage = useTranslation().language || 'fr';
+
 
   // États existants
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ListItem[] }>({});
@@ -630,6 +640,7 @@ export default function TactiquesAdvancedTableView({
         clientFees={clientFees}
         exchangeRates={exchangeRates}
         campaignCurrency={campaignCurrency}
+        currentLanguage={currentLanguage}  // ← AJOUTER cette prop
       />
     </div>
   );
