@@ -95,11 +95,11 @@ interface ListItem {
   SH_Display_Name_EN: string;
 }
 
-function getLocalizedDisplayName(item: ListItem, currentLanguage: string): string {
+function getLocalizedDisplayName(item: any, currentLanguage: string): string {
   if (currentLanguage === 'en') {
-    return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.id;
+    return item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.SH_Code || item.id;
   } else {
-    return item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.SH_Display_Name_EN || item.id;
+    return item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.SH_Code || item.id;
   }
 }
 
@@ -121,10 +121,11 @@ interface DynamicTableStructureProps {
     creatifs: number;
   };
   buckets: CampaignBucket[];
-  dynamicLists: { [key: string]: ListItem[] };
+  dynamicLists: { [key: string]: any[] }; // ← Changer le type pour éviter le conflit
   clientFees: Fee[];
   exchangeRates: { [key: string]: number };
   campaignCurrency: string;
+  currentLanguage?: string;
 }
 
 type TableColumn = DynamicColumn | FeeColumnDefinition;
@@ -223,6 +224,7 @@ export default function DynamicTableStructure({
   clientFees,
   exchangeRates,
   campaignCurrency
+  
 }: DynamicTableStructureProps): React.ReactElement {
   
   const { selectedClient } = useClient();
@@ -617,6 +619,7 @@ export default function DynamicTableStructure({
     budgetClientFees,
     clientTaxonomies,
     dynamicTaxonomyColumns,
+    currentLanguage, // ← AJOUTER cette dépendance
     t
   ]);
 
@@ -1155,6 +1158,8 @@ export default function DynamicTableStructure({
               selectedLevel === 'creatif' ? selectedCreatifSubCategory :
               undefined,
               (column as DynamicColumn).options,
+              currentLanguage // ✅ Passer currentLanguage
+
             ) || (
               <span className="text-gray-400 italic">{t('table.cell.doubleClickToEdit')}</span>
             )}

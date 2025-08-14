@@ -48,7 +48,7 @@ export function enrichColumnsWithData(
   baseColumns: DynamicColumn[],
   buckets: CampaignBucket[],
   dynamicLists: { [key: string]: ListItem[] },
-  currentLanguage: string = 'fr'
+  currentLanguage: string = 'fr' // ← Valeur par défaut
 ): DynamicColumn[] {
   return baseColumns
     .map(column => {
@@ -56,50 +56,24 @@ export function enrichColumnsWithData(
 
       if (column.type === 'select') {
         switch (column.key) {
-          case 'TC_Bucket':
-            enrichedColumn.options = buckets.map(bucket => ({
-              id: bucket.id,
-              label: bucket.name
+          case 'TC_LOB':
+          case 'TC_Media_Type':
+          case 'TC_Publisher':
+          case 'TC_Prog_Buying_Method':
+          case 'TC_Custom_Dim_1':
+          case 'TC_Custom_Dim_2':
+          case 'TC_Custom_Dim_3':
+          case 'TC_Inventory':
+          case 'TC_Market':
+          case 'TC_Language_Open':
+          case 'TC_Media_Objective':
+          case 'TC_Kpi':
+          case 'TC_Unit_Type':
+            const listData = dynamicLists[column.key] || [];
+            enrichedColumn.options = listData.map(item => ({
+              id: item.id,
+              label: getLocalizedDisplayName(item, currentLanguage) // ✅ Utilisation corrigée
             }));
-            break;
-
-            case 'TC_LOB':
-              case 'TC_Media_Type':
-              case 'TC_Publisher':
-              case 'TC_Prog_Buying_Method':
-              case 'TC_Custom_Dim_1':
-              case 'TC_Custom_Dim_2':
-              case 'TC_Custom_Dim_3':
-              case 'TC_Inventory':
-              case 'TC_Market':
-              case 'TC_Language_Open':
-              case 'TC_Media_Objective':
-              case 'TC_Kpi':
-              case 'TC_Unit_Type':
-                const listData = dynamicLists[column.key] || [];
-                enrichedColumn.options = listData.map(item => ({
-                  id: item.id,
-                  label: getLocalizedDisplayName(item, currentLanguage)
-                }));
-                break;
-
-          // Support des taxonomies de placement
-          case 'PL_Taxonomy_Tags':
-          case 'PL_Taxonomy_Platform':
-          case 'PL_Taxonomy_MediaOcean':
-            // Ces options seront enrichies dynamiquement avec les taxonomies du client
-            // dans TactiquesAdvancedTableView.tsx
-            break;
-
-          // NOUVEAU : Support des taxonomies de créatif
-          case 'CR_Taxonomy_Tags':
-          case 'CR_Taxonomy_Platform':
-          case 'CR_Taxonomy_MediaOcean':
-            // Ces options seront enrichies dynamiquement avec les taxonomies du client
-            // dans TactiquesAdvancedTableView.tsx
-            break;
-
-          default:
             break;
         }
       }

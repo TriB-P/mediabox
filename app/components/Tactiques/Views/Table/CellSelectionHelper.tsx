@@ -41,6 +41,8 @@ interface CampaignBucket {
 interface ListItem {
   id: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
+
 }
 
 /**
@@ -360,7 +362,8 @@ export function formatCopiedValueDisplay(
 export function getColumnOptions(
   columnKey: string,
   buckets: CampaignBucket[],
-  dynamicLists: { [key: string]: ListItem[] }
+  dynamicLists: { [key: string]: ListItem[] },
+  currentLanguage: string = 'fr' // ← AJOUTER ce paramètre
 ): Array<{ id: string; label: string }> {
   switch (columnKey) {
     case 'TC_Bucket':
@@ -385,7 +388,10 @@ export function getColumnOptions(
       const listData = dynamicLists[columnKey] || [];
       return listData.map(item => ({
         id: item.id,
-        label: item.SH_Display_Name_FR
+        // ✅ Utiliser la bonne langue ici
+        label: currentLanguage === 'en' 
+          ? (item.SH_Display_Name_EN || item.SH_Display_Name_FR || item.id)
+          : (item.SH_Display_Name_FR || item.SH_Display_Name_EN || item.id)
       }));
 
     default:

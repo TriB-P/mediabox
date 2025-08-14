@@ -640,8 +640,8 @@ export default function TactiquesAdvancedTableView({
         clientFees={clientFees}
         exchangeRates={exchangeRates}
         campaignCurrency={campaignCurrency}
-        currentLanguage={currentLanguage}  // ← AJOUTER cette prop
-      />
+        currentLanguage={currentLanguage}
+        />
     </div>
   );
 }
