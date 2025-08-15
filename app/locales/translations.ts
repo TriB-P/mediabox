@@ -473,6 +473,7 @@ export const translations = {
       clearFilters:"Effacer les filtres",
       formatted: "Formaté :",
       tab:"Onglet",
+      in:"dans"
 
     },
     errors: {
@@ -3000,7 +3001,14 @@ export const translations = {
         inventoryLogoAlt: "Logo inventaire",
         addPlacement: "Ajouter un placement",
         editTitle: "Modifier la tactique",
-        noPlacement: "Aucun placement dans cette tactique"
+        noPlacement: "Aucun placement dans cette tactique",
+        addComment: "Ajouter un commentaire",
+        commentModal: {
+          title: "Commentaire sur la tactique",
+          label: "Commentaire",
+          placeholder: "Saisissez votre commentaire..."
+        }
+    
       }
     },
     tactiquesHierarchyView: {
@@ -3578,7 +3586,7 @@ export const translations = {
         campaignNotFound: "Campagne non trouvée.",
         versionNotFound: "Version non trouvée.",
         cannotExtractSheetId: "Impossible d'extraire l'ID du Google Sheet pour la duplication des onglets",
-        tabsDuplicationFailed: "Échec de la duplication des onglets",
+        tabsDuplicationFailed: "Échec de la duplication des onglets. Vérifiez que votre navigateur autorise les pop-ups",
         tabsDuplicationError: "Erreur durant la duplication des onglets",
         dataInjectionError: "Erreur lors de l'injection des données",
         unknownInjectionError: "Erreur inconnue lors de l'injection",
@@ -4095,6 +4103,185 @@ export const translations = {
         placeholder: "-- Sélectionner --"
       }
     },
+    tabs: {
+      tactique: {
+        info: "Infos",
+        strategy: "Stratégie", 
+        budget: "Budget",
+        admin: "Admin"
+      },
+      placement: {
+        info: "Infos",
+        taxonomy: "Taxonomie"
+      },
+      creatif: {
+        info: "Infos",
+        taxonomy: "Taxonomie",
+        specs: "Specs"
+      }
+    },
+    columns: {
+      structure: "Structure",
+      
+      section: {
+        name: "Nom de la section"
+      },
+      
+      tactique: {
+        label: "Libellé",
+        bucket: "Bucket",
+        mpa: "MPA",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        lob: "Ligne d'affaires",
+        mediaType: "Type de média",
+        publisher: "Éditeur",
+        inventory: "Inventaire", 
+        marketOpen: "Description du marché",
+        targetingOpen: "Description de l'audience",
+        productOpen: "Description du produit",
+        formatOpen: "Description du format",
+        locationOpen: "Description du lieu",
+        frequency: "Fréquence",
+        market: "Marché",
+        language: "Langue",
+        buyingMethod: "Méthode d'achat",
+        customDim1: "Dimension personnalisée 1",
+        customDim2: "Dimension personnalisée 2", 
+        customDim3: "Dimension personnalisée 3",
+        numberCreative: "Nombre de créatifs suggérés",
+        assetDate: "Date de livraison des créatifs",
+        budgetMode: "Mode de saisie",
+        budgetInput: "Budget saisi",
+        buyCurrency: "Devise d'achat",
+        unitType: "Type d'unité",
+        unitPrice: "Coût par unité",
+        unitVolume: "Volume unitaire",
+        mediaBudget: "Budget média",
+        clientBudget: "Budget client",
+        mediaValue: "Valeur réelle",
+        bonification: "Bonification",
+        currencyRate: "Taux de change",
+        billingId: "Numéro de facturation",
+        po: "Bon de commande"
+      },
+      
+      placement: {
+        label: "Nom du placement",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        taxonomyTags: "Taxonomie pour les tags",
+        taxonomyPlatform: "Taxonomie pour la plateforme", 
+        taxonomyMediaOcean: "Taxonomie pour MediaOcean",
+        product: "Produit",
+        location: "Lieu",
+        audienceDemographics: "Données démographiques",
+        device: "Appareil",
+        targeting: "Ciblage"
+      },
+      
+      creatif: {
+        label: "Nom du créatif",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        taxonomyTags: "Taxonomie pour les tags",
+        taxonomyPlatform: "Taxonomie pour la plateforme",
+        taxonomyMediaOcean: "Taxonomie pour MediaOcean",
+        product: "Produit",
+        audienceDemographics: "Données démographiques",
+        device: "Appareil",
+        targeting: "Ciblage",
+        specName: "Nom de la spécification",
+        specFormat: "Format",
+        specRatio: "Ratio",
+        specFileType: "Type de fichier",
+        specMaxWeight: "Poids maximum",
+        specWeight: "Poids",
+        specAnimation: "Animation",
+        specTitle: "Titre",
+        specText: "Texte",
+        specSheetLink: "Lien de la fiche technique",
+        specNotes: "Notes"
+      }
+    },
+    options: {
+      currency: {
+        cad: "CAD ($)",
+        usd: "USD ($)",
+        eur: "EUR (€)",
+        chf: "CHF"
+      },
+      
+      budgetChoice: {
+        client: "Budget client",
+        media: "Budget média"
+      }
+    },
+    fields: {
+      placement: {
+        audienceBehaviour: "Comportement de l'audience",
+        audienceDemographics: "Données démographiques de l'audience", 
+        audienceEngagement: "Engagement de l'audience",
+        audienceInterest: "Intérêt de l'audience",
+        audienceOther: "Autre audience",
+        creativeGrouping: "Groupement de créatifs",
+        device: "Appareil",
+        channel: "Chaîne",
+        format: "Format",
+        language: "Langue",
+        marketDetails: "Détails du marché",
+        product: "Produit",
+        segmentOpen: "Segment ouvert",
+        tacticCategory: "Catégorie tactique",
+        targeting: "Ciblage",
+        placementLocation: "Lieu du placement",
+        customDim1: "Dimension personnalisée 1",
+        customDim2: "Dimension personnalisée 2", 
+        customDim3: "Dimension personnalisée 3",
+        label: "Libellé",
+        order: "Ordre",
+        tactiqueId: "ID tactique",
+        taxonomyTags: "Taxonomie des tags",
+        taxonomyPlatform: "Taxonomie de la plateforme",
+        taxonomyMediaOcean: "Taxonomie de MediaOcean"
+      },
+      
+      creatif: {
+        customDim1: "Dimension personnalisée 1",
+        customDim2: "Dimension personnalisée 2",
+        customDim3: "Dimension personnalisée 3",
+        cta: "Appel à l'action",
+        formatDetails: "Détails du format",
+        offer: "Offre",
+        platformName: "Nom de la plateforme",
+        primaryProduct: "Produit principal",
+        url: "URL",
+        version: "Version",
+        label: "Libellé",
+        order: "Ordre",
+        placementId: "ID du placement",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        sprintDates: "Dates de sprint",
+        taxonomyTags: "Taxonomie des tags",
+        taxonomyPlatform: "Taxonomie de la plateforme",
+        taxonomyMediaOcean: "Taxonomie de MediaOcean",
+        specPartnerId: "ID du partenaire",
+        specSelectedSpecId: "ID de la spécification sélectionnée",
+        specName: "Nom de la spécification",
+        specFormat: "Format de la spécification",
+        specRatio: "Ratio d'aspect",
+        specFileType: "Type de fichier",
+        specMaxWeight: "Poids maximum",
+        specWeight: "Poids",
+        specAnimation: "Animation",
+        specTitle: "Titre",
+        specText: "Texte",
+        specSheetLink: "Lien de la fiche technique",
+        specNotes: "Notes"
+      }
+    },
+    
     tactiquesPage: {
       header: {
         title: "Tactiques",
@@ -4581,7 +4768,8 @@ export const translations = {
       all:"All",
       clearFilters:"Clear filters",
       formatted: "Formatted:",
-      tab:"Tabs"
+      tab:"Tabs",
+      in:"in",
 
     },
     errors: {
@@ -7108,7 +7296,14 @@ export const translations = {
         inventoryLogoAlt: "Inventory logo",
         addPlacement: "Add a placement",
         editTitle: "Edit tactic",
-        noPlacement: "No placements in this tactic"
+        noPlacement: "No placements in this tactic",
+        addComment: "Add a comment",
+        commentModal: {
+          title: "Comment on the tactic",
+          label: "Comment",
+          placeholder: "Write your comment..."
+        }
+    
       }
     },
     tactiquesHierarchyView: {
@@ -7686,7 +7881,7 @@ export const translations = {
         campaignNotFound: "Campaign not found.",
         versionNotFound: "Version not found.",
         cannotExtractSheetId: "Could not extract Google Sheet ID for tab duplication",
-        tabsDuplicationFailed: "Tab duplication failed",
+        tabsDuplicationFailed: "Tab duplication failed. Make sure your browser allows pop-ups",
         tabsDuplicationError: "Error during tab duplication",
         dataInjectionError: "Error during data injection",
         unknownInjectionError: "Unknown error during injection",

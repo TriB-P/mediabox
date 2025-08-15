@@ -1,12 +1,10 @@
 /**
  * Ce hook gère les calculs complexes liés au budget d'une campagne, y compris
  * le budget média, les volumes d'unités, et surtout, le calcul des frais clients.
- * Il assure une gestion cohérente des données budgétaires, des erreurs et
- * permet de déclencher des recalculs. Il intègre une logique spécifique pour
- * le calcul séquentiel et cumulatif des frais.
- * AJOUT : Calcul des champs RefCurrency et intégration des noms de frais/options.
+ * CORRECTION : Élimination de la boucle infinie en stabilisant les références
+ * et en optimisant les appels d'assignation des noms.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { budgetService, BudgetData, ClientFee, BudgetCalculationResult } from '../lib/budgetService';
 import { getFeeNamesBatch, getFeeOptionNamesBatch } from '../lib/feeService';
 
@@ -17,7 +15,7 @@ interface UseBudgetCalculationsProps {
   exchangeRates: { [key: string]: number };
   unitTypeOptions: Array<{ id: string; SH_Display_Name_FR: string }>;
   autoCalculate?: boolean;
-  clientId?: string; // 🔥 AJOUTÉ : Pour récupérer les noms des frais
+  clientId?: string;
 }
 
 interface UseBudgetCalculationsReturn {
@@ -37,9 +35,6 @@ interface UseBudgetCalculationsReturn {
 
 /**
  * 🔥 NOUVELLE FONCTION : Calcule les montants en devise de référence pour tous les frais.
- * @param {BudgetData} budgetData Les données actuelles du budget.
- * @param {number} currencyRate Le taux de change à appliquer.
- * @returns {Partial<BudgetData>} Un objet contenant les montants RefCurrency calculés.
  */
 function calculateFeeRefCurrencyAmounts(
   budgetData: BudgetData, 
@@ -47,7 +42,6 @@ function calculateFeeRefCurrencyAmounts(
 ): Partial<BudgetData> {
   const updates: any = {};
   
-  // Calculer pour chaque frais (1 à 5)
   for (let i = 1; i <= 5; i++) {
     const valueKey = `TC_Fee_${i}_Value`;
     const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
@@ -60,11 +54,26 @@ function calculateFeeRefCurrencyAmounts(
 }
 
 /**
- * 🔥 NOUVELLE FONCTION : Récupère et assigne les noms des frais et options.
- * @param {BudgetData} budgetData Les données actuelles du budget.
- * @param {ClientFee[]} clientFees La liste des frais clients avec leurs options.
- * @param {string} clientId L'ID du client pour récupérer les noms.
- * @returns {Promise<Partial<BudgetData>>} Un objet contenant les noms assignés.
+ * 🔥 FONCTION OPTIMISÉE : Vérifie si les options de frais ont changé pour éviter les appels inutiles
+ */
+function hasOptionsChanged(
+  currentData: BudgetData,
+  previousData: BudgetData | null
+): boolean {
+  if (!previousData) return true;
+  
+  for (let i = 1; i <= 5; i++) {
+    const optionKey = `TC_Fee_${i}_Option` as keyof BudgetData;
+    if (currentData[optionKey] !== previousData[optionKey]) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 🔥 FONCTION OPTIMISÉE : Récupère et assigne les noms des frais et options SEULEMENT si nécessaire.
  */
 async function assignFeeAndOptionNames(
   budgetData: BudgetData,
@@ -79,14 +88,13 @@ async function assignFeeAndOptionNames(
     const updates: any = {};
     const sortedFees = [...clientFees].sort((a, b) => a.FE_Order - b.FE_Order);
     
-    // Préparer les requêtes pour les noms d'options
     const optionRequests: Array<{ feeId: string; optionId: string }> = [];
     
     sortedFees.forEach((fee, orderIndex) => {
       const feeNumber = orderIndex + 1;
-      const optionKey = `TC_Fee_${feeNumber}_Option`; // ID de l'option (existant)
+      const optionKey = `TC_Fee_${feeNumber}_Option`;
       const nameKey = `TC_Fee_${feeNumber}_Name`;
-      const optionNameKey = `TC_Fee_${feeNumber}_Option_Name`; // 🔥 CORRIGÉ: Nom de l'option
+      const optionNameKey = `TC_Fee_${feeNumber}_Option_Name`;
       
       const selectedOptionId = (budgetData as any)[optionKey] as string;
       
@@ -107,8 +115,8 @@ async function assignFeeAndOptionNames(
       
       sortedFees.forEach((fee, orderIndex) => {
         const feeNumber = orderIndex + 1;
-        const optionKey = `TC_Fee_${feeNumber}_Option`; // ID de l'option (existant)
-        const optionNameKey = `TC_Fee_${feeNumber}_Option_Name`; // 🔥 CORRIGÉ: Nom de l'option
+        const optionKey = `TC_Fee_${feeNumber}_Option`;
+        const optionNameKey = `TC_Fee_${feeNumber}_Option_Name`;
         
         const selectedOptionId = (budgetData as any)[optionKey] as string;
         
@@ -130,9 +138,6 @@ async function assignFeeAndOptionNames(
 /**
  * Calcule correctement les frais en appliquant les bonnes formules selon le type de frais
  * et la logique séquentielle/cumulative.
- * @param {BudgetData} budgetData Les données actuelles du budget.
- * @param {ClientFee[]} clientFees La liste des frais clients avec leurs options.
- * @returns {Partial<BudgetData>} Un objet contenant les montants de frais calculés à mettre à jour dans `BudgetData`.
  */
 function calculateFeesCorrectly(
   budgetData: BudgetData, 
@@ -251,17 +256,7 @@ function calculateFeesCorrectly(
 }
 
 /**
- * Hook personnalisé pour gérer toutes les logiques de calcul et d'état
- * liées aux budgets de campagne.
- * @param {UseBudgetCalculationsProps} props Les propriétés pour l'initialisation du hook.
- * @param {any} props.initialData Les données initiales du budget, souvent chargées depuis Firestore.
- * @param {ClientFee[]} props.clientFees La liste des frais clients applicables.
- * @param {string} props.campaignCurrency La devise de la campagne.
- * @param {{[key: string]: number}} props.exchangeRates Les taux de change.
- * @param {Array<{id: string; SH_Display_Name_FR: string}>} props.unitTypeOptions Les options de type d'unité.
- * @param {boolean} [props.autoCalculate=true] Indique si le calcul doit être déclenché automatiquement lors des changements de données.
- * @param {string} [props.clientId] L'ID du client pour récupérer les noms des frais et options.
- * @returns {UseBudgetCalculationsReturn} Un objet contenant les données du budget, l'état de calcul, les erreurs, et les fonctions de manipulation.
+ * 🔥 HOOK CORRIGÉ : Hook personnalisé pour gérer toutes les logiques de calcul et d'état
  */
 export function useBudgetCalculations({
   initialData,
@@ -270,7 +265,7 @@ export function useBudgetCalculations({
   exchangeRates,
   unitTypeOptions,
   autoCalculate = true,
-  clientId // 🔥 AJOUTÉ
+  clientId
 }: UseBudgetCalculationsProps): UseBudgetCalculationsReturn {
   
   const [budgetData, setBudgetData] = useState<BudgetData>(() => {
@@ -285,6 +280,10 @@ export function useBudgetCalculations({
   const [lastResult, setLastResult] = useState<BudgetCalculationResult | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   
+  // 🔥 CORRECTION : Référence pour éviter la boucle infinie
+  const previousBudgetDataRef = useRef<BudgetData | null>(null);
+  const isCalculatingRef = useRef(false);
+  
   const hasValidData = budgetData.TC_BudgetInput > 0 && budgetData.TC_Unit_Price > 0;
   const errors = lastResult?.error ? [lastResult.error] : [];
   
@@ -296,16 +295,134 @@ export function useBudgetCalculations({
   }, [debugMode]);
   
   /**
-   * Effet pour déclencher un auto-calcul lorsque les données pertinentes du budget changent,
-   * à condition que `autoCalculate` soit activé et que les données soient valides.
+   * 🔥 CORRECTION : Fonction de calcul stable qui ne dépend pas de budgetData
+   */
+  const calculateWithCorrectFees = useCallback(async (currentBudgetData: BudgetData) => {
+    if (currentBudgetData.TC_BudgetInput <= 0 || currentBudgetData.TC_Unit_Price <= 0) {
+      return;
+    }
+    
+    if (isCalculatingRef.current) {
+      return; // Éviter les calculs multiples simultanés
+    }
+    
+    isCalculatingRef.current = true;
+    setIsCalculating(true);
+    
+    try {
+      const result = budgetService.calculateComplete(
+        currentBudgetData,
+        clientFees,
+        exchangeRates,
+        campaignCurrency,
+        unitTypeOptions
+      );
+      
+      setLastResult(result);
+      
+      if (result.success && result.data) {
+        const correctedFeesAndBonus = calculateFeesCorrectly(result.data.updatedData, clientFees);
+        
+        // Calculer les montants RefCurrency
+        const currencyRate = result.data.updatedData.TC_Currency_Rate || 1;
+        const refCurrencyUpdates = calculateFeeRefCurrencyAmounts({
+          ...result.data.updatedData,
+          ...correctedFeesAndBonus
+        }, currencyRate);
+        
+        let finalData = {
+          ...result.data.updatedData,
+          ...correctedFeesAndBonus,
+          ...refCurrencyUpdates
+        };
+        
+        // 🔥 OPTIMISATION : Assigner les noms seulement si les options ont changé
+        if (clientId && hasOptionsChanged(finalData, previousBudgetDataRef.current)) {
+          try {
+            const namesUpdates = await assignFeeAndOptionNames(finalData, clientFees, clientId);
+            finalData = {
+              ...finalData,
+              ...namesUpdates
+            };
+          } catch (error) {
+            console.warn('Erreur lors de l\'assignation des noms:', error);
+          }
+        }
+        
+        previousBudgetDataRef.current = finalData;
+        setBudgetData(finalData);
+      } else {
+        console.error('❌ Calcul principal échoué:', result.error);
+      }
+      
+    } catch (error) {
+      console.error('💥 Erreur lors du calcul:', error);
+      setLastResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      });
+    } finally {
+      isCalculatingRef.current = false;
+      setIsCalculating(false);
+    }
+  }, [clientFees, exchangeRates, campaignCurrency, unitTypeOptions, clientId]);
+  
+  /**
+   * 🔥 CORRECTION : Effet qui utilise une référence stable et évite la boucle
    */
   useEffect(() => {
-    if (autoCalculate && hasValidData && !isCalculating) {
-      calculateWithCorrectFees();
+    if (!autoCalculate || !hasValidData || isCalculatingRef.current) {
+      return;
     }
+    
+    // Vérifier si les données pertinentes ont réellement changé
+    const currentRelevantData = {
+      TC_BudgetInput: budgetData.TC_BudgetInput,
+      TC_Unit_Price: budgetData.TC_Unit_Price,
+      TC_Budget_Mode: budgetData.TC_Budget_Mode,
+      TC_Media_Value: budgetData.TC_Media_Value,
+      TC_BuyCurrency: budgetData.TC_BuyCurrency,
+      TC_Unit_Type: budgetData.TC_Unit_Type,
+      TC_Fee_1_Option: budgetData.TC_Fee_1_Option,
+      TC_Fee_2_Option: budgetData.TC_Fee_2_Option,
+      TC_Fee_3_Option: budgetData.TC_Fee_3_Option,
+      TC_Fee_4_Option: budgetData.TC_Fee_4_Option,
+      TC_Fee_5_Option: budgetData.TC_Fee_5_Option,
+      TC_Fee_1_Volume: budgetData.TC_Fee_1_Volume,
+      TC_Fee_2_Volume: budgetData.TC_Fee_2_Volume,
+      TC_Fee_3_Volume: budgetData.TC_Fee_3_Volume,
+      TC_Fee_4_Volume: budgetData.TC_Fee_4_Volume,
+      TC_Fee_5_Volume: budgetData.TC_Fee_5_Volume,
+    };
+    
+    const previousRelevantData = previousBudgetDataRef.current ? {
+      TC_BudgetInput: previousBudgetDataRef.current.TC_BudgetInput,
+      TC_Unit_Price: previousBudgetDataRef.current.TC_Unit_Price,
+      TC_Budget_Mode: previousBudgetDataRef.current.TC_Budget_Mode,
+      TC_Media_Value: previousBudgetDataRef.current.TC_Media_Value,
+      TC_BuyCurrency: previousBudgetDataRef.current.TC_BuyCurrency,
+      TC_Unit_Type: previousBudgetDataRef.current.TC_Unit_Type,
+      TC_Fee_1_Option: previousBudgetDataRef.current.TC_Fee_1_Option,
+      TC_Fee_2_Option: previousBudgetDataRef.current.TC_Fee_2_Option,
+      TC_Fee_3_Option: previousBudgetDataRef.current.TC_Fee_3_Option,
+      TC_Fee_4_Option: previousBudgetDataRef.current.TC_Fee_4_Option,
+      TC_Fee_5_Option: previousBudgetDataRef.current.TC_Fee_5_Option,
+      TC_Fee_1_Volume: previousBudgetDataRef.current.TC_Fee_1_Volume,
+      TC_Fee_2_Volume: previousBudgetDataRef.current.TC_Fee_2_Volume,
+      TC_Fee_3_Volume: previousBudgetDataRef.current.TC_Fee_3_Volume,
+      TC_Fee_4_Volume: previousBudgetDataRef.current.TC_Fee_4_Volume,
+      TC_Fee_5_Volume: previousBudgetDataRef.current.TC_Fee_5_Volume,
+    } : null;
+    
+    // Comparer les données pertinentes
+    if (previousRelevantData && JSON.stringify(currentRelevantData) === JSON.stringify(previousRelevantData)) {
+      return; // Pas de changement pertinent
+    }
+    
+    calculateWithCorrectFees(budgetData);
   }, [
-    budgetData.TC_BudgetInput, 
-    budgetData.TC_Unit_Price, 
+    budgetData.TC_BudgetInput,
+    budgetData.TC_Unit_Price,
     budgetData.TC_Budget_Mode,
     budgetData.TC_Media_Value,
     budgetData.TC_BuyCurrency,
@@ -322,14 +439,9 @@ export function useBudgetCalculations({
     budgetData.TC_Fee_5_Volume,
     autoCalculate,
     hasValidData,
-    isCalculating
+    calculateWithCorrectFees
   ]);
   
-  /**
-   * Met à jour un champ spécifique des données du budget.
-   * @param {keyof BudgetData} field Le nom du champ à mettre à jour.
-   * @param {any} value La nouvelle valeur du champ.
-   */
   const updateField = useCallback((field: keyof BudgetData, value: any) => {
     setBudgetData(prev => ({
       ...prev,
@@ -337,10 +449,6 @@ export function useBudgetCalculations({
     }));
   }, []);
   
-  /**
-   * Met à jour plusieurs champs des données du budget simultanément.
-   * @param {Partial<BudgetData>} updates Un objet contenant les champs à mettre à jour.
-   */
   const updateMultipleFields = useCallback((updates: Partial<BudgetData>) => {
     setBudgetData(prev => ({
       ...prev,
@@ -348,102 +456,21 @@ export function useBudgetCalculations({
     }));
   }, []);
   
-  /**
-   * 🔥 FONCTION MODIFIÉE : Exécute le calcul complet du budget, en incluant la correction des frais,
-   * les calculs RefCurrency et l'assignation des noms.
-   * Met à jour l'état `budgetData` avec les résultats.
-   */
-  const calculateWithCorrectFees = useCallback(async () => {
-    if (!hasValidData) {
-      return;
-    }
-    
-    setIsCalculating(true);
-    
-    try {
-      const result = budgetService.calculateComplete(
-        budgetData,
-        clientFees,
-        exchangeRates,
-        campaignCurrency,
-        unitTypeOptions
-      );
-      
-      setLastResult(result);
-      
-      if (result.success && result.data) {
-        const correctedFeesAndBonus = calculateFeesCorrectly(result.data.updatedData, clientFees);
-        
-        // 🔥 NOUVEAU : Calculer les montants RefCurrency
-        const currencyRate = result.data.updatedData.TC_Currency_Rate || 1;
-        const refCurrencyUpdates = calculateFeeRefCurrencyAmounts({
-          ...result.data.updatedData,
-          ...correctedFeesAndBonus
-        }, currencyRate);
-        
-        let finalData = {
-          ...result.data.updatedData,
-          ...correctedFeesAndBonus,
-          ...refCurrencyUpdates
-        };
-        
-        // 🔥 NOUVEAU : Assigner les noms des frais et options si clientId est disponible
-        if (clientId) {
-          try {
-            const namesUpdates = await assignFeeAndOptionNames(finalData, clientFees, clientId);
-            finalData = {
-              ...finalData,
-              ...namesUpdates
-            };
-          } catch (error) {
-            console.warn('Erreur lors de l\'assignation des noms:', error);
-            // Continuer sans les noms en cas d'erreur
-          }
-        }
-        
-        setBudgetData(finalData);
-      } else {
-        console.error('❌ Calcul principal échoué:', result.error);
-      }
-      
-    } catch (error) {
-      console.error('💥 Erreur lors du calcul:', error);
-      setLastResult({
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      });
-    } finally {
-      setIsCalculating(false);
-    }
-  }, [budgetData, clientFees, exchangeRates, campaignCurrency, unitTypeOptions, hasValidData, clientId]);
-  
-  /**
-   * Fonction pour déclencher un calcul manuel du budget.
-   */
   const calculate = useCallback(() => {
-    calculateWithCorrectFees();
-  }, [calculateWithCorrectFees]);
+    calculateWithCorrectFees(budgetData);
+  }, [calculateWithCorrectFees, budgetData]);
   
-  /**
-   * Réinitialise les données du budget à leur état par défaut.
-   */
   const reset = useCallback(() => {
+    previousBudgetDataRef.current = null;
     setBudgetData(budgetService.createDefaultData(clientFees));
     setLastResult(null);
   }, [clientFees]);
   
-  /**
-   * Bascule le mode de débogage du service de budget.
-   */
   const toggleDebug = useCallback(() => {
     const newMode = !debugMode;
     setDebugMode(newMode);
   }, [debugMode]);
   
-  /**
-   * Retourne les données actuelles du budget formatées pour être enregistrées dans Firestore.
-   * @returns {BudgetData} Les données du budget.
-   */
   const getDataForFirestore = useCallback(() => {
     return budgetData;
   }, [budgetData]);
@@ -466,13 +493,6 @@ export function useBudgetCalculations({
 
 /**
  * Hook utilitaire en lecture seule pour effectuer un calcul de budget.
- * Il ne gère pas l'état interne et est destiné à des calculs ponctuels.
- * @param {BudgetData} budgetData Les données du budget à utiliser pour le calcul.
- * @param {ClientFee[]} clientFees La liste des frais clients.
- * @param {string} campaignCurrency La devise de la campagne.
- * @param {{[key: string]: number}} exchangeRates Les taux de change.
- * @param {Array<{id: string; SH_Display_Name_FR: string}>} unitTypeOptions Les options de type d'unité.
- * @returns {() => BudgetCalculationResult} Une fonction qui, lorsqu'elle est appelée, exécute le calcul complet et retourne le résultat.
  */
 export function useBudgetCalculationsReadOnly(
   budgetData: BudgetData,

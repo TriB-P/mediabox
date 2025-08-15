@@ -295,24 +295,7 @@ export default function CreateDocumentModal({
                 </div>
               )}
 
-              {/* Informations sur la campagne et version sélectionnées */}
-              {selectedCampaignId && selectedVersionId && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-blue-700 font-medium">{t('createDocument.campaignLabel')}: </span>
-                      <span className="text-blue-600">{campaignName}</span>
-                    </div>
-                    <div>
-                      <span className="text-blue-700 font-medium">{t('createDocument.versionLabel')}: </span>
-                      <span className="text-blue-600">{versionName}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-2">
-                    {t('createDocument.changeSelectionNote')}
-                  </p>
-                </div>
-              )}
+            
 
               {/* Message d'erreur si pas de sélection */}
               {(!selectedCampaignId || !selectedVersionId) && (

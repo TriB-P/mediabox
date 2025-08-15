@@ -26,6 +26,7 @@ export interface Tactique {
   TC_Order: number;
   TC_MPA: string;
   TC_SectionId: string; // Référence à la section parente
+  TC_Comment?: string; 
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
 
   // Champs Info
@@ -311,6 +312,7 @@ export interface TactiqueFormData {
   TC_Budget: number;
   TC_MPA: string;
   TC_SectionId: string;
+  TC_Comment?: string; // Commentaire sur la tactique
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
   TC_Bucket?: string;
   TC_LOB?: string;

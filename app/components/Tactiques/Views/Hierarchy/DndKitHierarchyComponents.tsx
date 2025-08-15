@@ -28,6 +28,11 @@ import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { getCachedAllShortcodes, ShortcodeItem } from '../../../../lib/cacheService';
 import { useTranslation } from '../../../../contexts/LanguageContext';
 
+import {
+  // ... existants
+  ChatBubbleLeftIcon, // NOUVEAU
+} from '@heroicons/react/24/outline';
+
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
 }
@@ -509,6 +514,8 @@ interface DndKitTactiqueItemProps extends BaseItemProps {
   onSelectPlacement: (placementId: string, isSelected: boolean) => void;
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
+  onSaveComment?: (sectionId: string, tactiqueId: string, comment: string) => Promise<void>; // AJOUTE CETTE LIGNE
+
 }
 
 /**
@@ -541,7 +548,9 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   onSelect,
   onSelectPlacement,
   onSelectCreatif,
-  onOpenTaxonomyMenu
+  onOpenTaxonomyMenu,
+  onSaveComment // AJOUTE CETTE LIGNE
+
 }) => {
   const { t } = useTranslation();
   const {
@@ -568,6 +577,27 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   const [inventoryImageUrl, setInventoryImageUrl] = useState<string | null>(null);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [commentText, setCommentText] = useState(tactique.TC_Comment || '');
+
+  const handleCommentSave = async () => {
+    try {
+      if (onSaveComment) {
+        await onSaveComment(sectionId, tactique.id, commentText);
+        setCommentModalOpen(false);
+      } else {
+        console.error('onSaveComment function not provided');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du commentaire:', error);
+    }
+  };
+  
+  const handleCommentCancel = () => {
+    setCommentText(tactique.TC_Comment || '');
+    setCommentModalOpen(false);
+  };
+  
 
   useEffect(() => {
     const loadPartnerAndInventoryImages = async () => {
@@ -653,6 +683,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
 
   // Créer les IDs des placements pour le SortableContext
   const placementIds = placements.map(placement => `placement-${placement.id}`);
+
 
   return (
     <div
@@ -755,6 +786,19 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
             {tactique.TC_Label}
           </div>
 
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCommentModalOpen(true);
+            }}
+            className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
+              tactique.TC_Comment ? 'text-blue-600' : 'text-gray-300'
+            }`}
+            title={tactique.TC_Comment || t('dndKit.tactiqueItem.addComment')}
+          >
+            <ChatBubbleLeftIcon className={`h-4 w-4 ${tactique.TC_Comment ? 'fill-blue-100' : ''}`} />
+          </button>
+
           {placements.length > 0 && (
             <span className="ml-5 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
               {placements.length}
@@ -854,6 +898,45 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
           )}
         </div>
       )}
+
+      {/* Modal de commentaire */}
+{commentModalOpen && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">
+        {t('dndKit.tactiqueItem.commentModal.title')}
+      </h3>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {t('dndKit.tactiqueItem.commentModal.label')}
+        </label>
+        <textarea
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          rows={4}
+          placeholder={t('dndKit.tactiqueItem.commentModal.placeholder')}
+        />
+      </div>
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={handleCommentCancel}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={handleCommentSave}
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          {t('common.save')}
+        </button>
+      </div>
     </div>
+  </div>
+)}
+    </div>
+    
   );
+  
 };

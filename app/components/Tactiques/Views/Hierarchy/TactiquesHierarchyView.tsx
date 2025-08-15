@@ -323,6 +323,20 @@ export default function TactiquesHierarchyView({
     });
   };
 
+  const handleSaveComment = async (sectionId: string, tactiqueId: string, comment: string) => {
+    if (!onUpdateTactique) return;
+  
+    try {
+      await onUpdateTactique(sectionId, tactiqueId, { TC_Comment: comment });
+      
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du commentaire:', error);
+    }
+  };
+
   const handleEditPlacement = (tactiqueId: string, placement: Placement) => {
     let sectionId = '';
     for (const section of sections) {
@@ -914,6 +928,8 @@ export default function TactiquesHierarchyView({
                               onSelectCreatif={handleCreatifSelect}
                               onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
                               onCopyId={handleCopyId}
+                              onSaveComment={handleSaveComment} // NOUVEAU
+
                             />
                           );
                         })}

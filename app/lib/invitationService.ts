@@ -1,4 +1,4 @@
-// Fichier: app/lib/invitationService.ts
+// app/lib/invitationService.ts
 
 /**
  * Ce fichier contient des fonctions pour gérer les invitations des utilisateurs
@@ -287,22 +287,57 @@ export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
 }
 
 /**
- * Supprime un utilisateur ou une invitation. Si l'utilisateur est actif, son rôle est désactivé.
- * Si c'est une invitation, l'invitation est supprimée.
+ * Nettoie toutes les permissions d'un utilisateur dans la collection userPermissions.
+ * Supprime le document principal de l'utilisateur dans userPermissions (avec toutes ses sous-collections).
+ * @param userEmail L'email de l'utilisateur dont il faut nettoyer les permissions.
+ * @returns Une promesse vide.
+ */
+async function cleanupUserPermissions(userEmail: string): Promise<void> {
+  try {
+    // Récupérer tous les documents de la sous-collection 'clients' pour cet utilisateur
+    const clientsCollection = collection(db, 'userPermissions', userEmail, 'clients');
+    console.log(`FIREBASE: LECTURE - Fichier: invitationService.ts - Fonction: cleanupUserPermissions - Path: userPermissions/${userEmail}/clients`);
+    const clientsSnapshot = await getDocs(clientsCollection);
+
+    // Supprimer tous les documents de la sous-collection 'clients'
+    const deletePromises = clientsSnapshot.docs.map(clientDoc => {
+      console.log(`FIREBASE: ÉCRITURE - Fichier: invitationService.ts - Fonction: cleanupUserPermissions - Path: userPermissions/${userEmail}/clients/${clientDoc.id}`);
+      return deleteDoc(clientDoc.ref);
+    });
+
+    await Promise.all(deletePromises);
+
+    // Supprimer le document parent de userPermissions
+    const userPermissionRef = doc(db, 'userPermissions', userEmail);
+    console.log(`FIREBASE: ÉCRITURE - Fichier: invitationService.ts - Fonction: cleanupUserPermissions - Path: userPermissions/${userEmail}`);
+    await deleteDoc(userPermissionRef);
+
+  } catch (error) {
+    console.error(`Erreur lors du nettoyage des permissions pour ${userEmail}:`, error);
+    // On ne relance pas l'erreur pour ne pas empêcher la suppression de l'utilisateur principal
+  }
+}
+
+/**
+ * Supprime complètement un utilisateur ou une invitation de Firestore.
+ * Pour les utilisateurs actifs, supprime le document users ET nettoie les permissions.
+ * Pour les invitations, supprime l'invitation de la collection invitations.
  * @param userWithStatus L'objet UserWithStatus représentant l'utilisateur ou l'invitation à supprimer.
  * @returns Une promesse vide.
  */
 export async function removeUser(userWithStatus: UserWithStatus): Promise<void> {
   try {
     if (userWithStatus.status === 'active') {
+      // Suppression complète de l'utilisateur actif
       const userRef = doc(db, 'users', userWithStatus.id);
-      console.log("FIREBASE: ÉCRITURE - Fichier: invitationService.ts - Fonction: removeUser - Path: users/${userWithStatus.id}");
-      await updateDoc(userRef, {
-        role: null,
-        deactivatedAt: serverTimestamp(),
-        deactivatedBy: 'admin',
-      });
+      console.log(`FIREBASE: ÉCRITURE - Fichier: invitationService.ts - Fonction: removeUser - Path: users/${userWithStatus.id}`);
+      await deleteDoc(userRef);
+
+      // Nettoyage des permissions utilisateur
+      await cleanupUserPermissions(userWithStatus.email);
+      
     } else {
+      // Suppression de l'invitation (invited ou expired)
       const invitation = await getInvitationByEmail(userWithStatus.email);
       if (invitation) {
         await deleteInvitation(invitation.id);

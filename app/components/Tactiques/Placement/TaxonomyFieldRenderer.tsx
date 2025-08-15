@@ -200,31 +200,38 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       .replace(/\b\w/g, l => l.toUpperCase()); // Mettre en majuscule la première lettre de chaque mot
   };
 
-  /**
+/**
    * Gère le changement de valeur avec validation en temps réel
    */
-  const handleInputChange = (variable: ParsedTaxonomyVariable, inputValue: string) => {
-    const { cleanValue, hasInvalidChars } = sanitizeInput(inputValue);
-    
-    // Mettre à jour l'état d'erreur
-    setValidationErrors(prev => ({
-      ...prev,
-      [variable.variable]: hasInvalidChars
-    }));
-    
-    // Toujours propager la valeur nettoyée
-    onFieldChange(variable.variable, cleanValue, 'open');
-    
-    // Effacer l'erreur après un délai si la valeur est maintenant propre
-    if (!hasInvalidChars && validationErrors[variable.variable]) {
-      setTimeout(() => {
-        setValidationErrors(prev => ({
-          ...prev,
-          [variable.variable]: false
-        }));
-      }, 1000);
-    }
-  };
+const handleInputChange = (variable: ParsedTaxonomyVariable, inputValue: string) => {
+  // Exclure CR_URL de la validation car les URLs contiennent des caractères spéciaux légitimes
+  if (variable.variable === 'CR_URL') {
+    // Propager directement la valeur sans validation ni nettoyage
+    onFieldChange(variable.variable, inputValue, 'open');
+    return;
+  }
+  
+  const { cleanValue, hasInvalidChars } = sanitizeInput(inputValue);
+  
+  // Mettre à jour l'état d'erreur
+  setValidationErrors(prev => ({
+    ...prev,
+    [variable.variable]: hasInvalidChars
+  }));
+  
+  // Toujours propager la valeur nettoyée
+  onFieldChange(variable.variable, cleanValue, 'open');
+  
+  // Effacer l'erreur après un délai si la valeur est maintenant propre
+  if (!hasInvalidChars && validationErrors[variable.variable]) {
+    setTimeout(() => {
+      setValidationErrors(prev => ({
+        ...prev,
+        [variable.variable]: false
+      }));
+    }, 1000);
+  }
+};
 
   // ==================== FONCTIONS DE RENDU ====================
   

@@ -19,11 +19,10 @@ interface UseCombinedDocExportReturn {
 
 /**
  * Hook personnalisé pour extraire diverses données d'une campagne et les exporter vers Google Sheets.
- * Il combine les fonctionnalités de plusieurs hooks d'extraction de données et du hook de génération de document.
- * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
- * Les onglets sont synchronisés si le template original a TE_Duplicate = TRUE.
- * @returns {UseCombinedDocExportReturn} Un objet contenant la fonction exportCombinedData,
- * les états de chargement et d'erreur.
+ * CORRIGÉ : Gestion optimale des nombres selon la locale pour éviter les formats textuels.
+ * - Templates EN : nombres avec points affichés comme nombres
+ * - Templates FR : nombres avec virgules affichés comme nombres
+ * - Aucun nombre ne sera affiché avec des apostrophes (format textuel)
  */
 export function useCombinedDocExport(): UseCombinedDocExportReturn {
   const { t } = useTranslation();
@@ -39,21 +38,17 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * Détecte si une erreur est due à un blocage de pop-up et retourne un message approprié.
-   * @param {any} error L'erreur capturée.
-   * @returns {string} Le message d'erreur formaté pour l'utilisateur.
    */
   const handleAuthError = useCallback((error: any): string => {
     const errorCode = error?.code || '';
     const errorMessage = error?.message || '';
 
-    // Détecter les erreurs de pop-up bloquée
     if (errorCode === 'auth/popup-blocked' || 
         errorMessage.includes('popup-blocked') ||
         errorMessage.includes('popup_blocked_by_browser')) {
       return t('useCombinedDocExport.error.popupBlocked');
     }
 
-    // Détecter les erreurs d'autorisation
     if (errorCode === 'auth/unauthorized-domain') {
       return t('useCombinedDocExport.error.unauthorizedDomain');
     }
@@ -62,42 +57,81 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       return t('useCombinedDocExport.error.operationNotAllowed');
     }
 
-    // Détecter les erreurs de réseau
     if (errorCode === 'auth/network-request-failed' || errorMessage.includes('network')) {
       return t('useCombinedDocExport.error.networkRequestFailed');
     }
 
-    // Détecter les erreurs de session expirée
     if (errorCode === 'auth/user-token-expired' || errorMessage.includes('token')) {
       return t('useCombinedDocExport.error.sessionExpired');
     }
 
-    // Message générique pour les autres erreurs d'authentification
     if (errorCode.startsWith('auth/')) {
       return `${t('useCombinedDocExport.error.googleAuthGenericStart')} ${errorMessage}. ${t('useCombinedDocExport.error.googleAuthGenericEnd')}`;
     }
 
-    // Retourner le message original si ce n'est pas une erreur d'authentification spécifique
     return errorMessage;
   }, [t]);
 
   /**
-   * Convertit un tableau de données en string[][] pour Google Sheets.
-   * Gère différents types de données (primitives, objets avec propriété value, etc.)
-   * @param {any[][]} data - Les données à convertir.
-   * @returns {string[][]} Les données converties en chaînes de caractères.
+   * NOUVELLE FONCTION : Nettoie et convertit les données en nombres purs.
+   * Cette fonction s'assure que tous les nombres sont envoyés comme type 'number' 
+   * et non comme chaînes de caractères, évitant ainsi le format textuel avec apostrophe.
    */
-  const convertDataToStrings = useCallback((data: any[][]): string[][] => {
+  const convertToCleanNumbers = useCallback((data: any[][]): (string | number)[][] => {
     return data.map(row => 
       row.map(cell => {
-        if (cell === null || cell === undefined) return '';
+        if (cell === null || cell === undefined || cell === '') {
+          return cell;
+        }
         
         // Si c'est un objet avec une propriété value
         if (typeof cell === 'object' && cell !== null && 'value' in cell) {
-          return String(cell.value);
+          const value = cell.value;
+          
+          if (typeof value === 'string') {
+            const cleanValue = value.trim();
+            // Nettoyer les caractères non numériques en gardant points, virgules et signes
+            const normalizedValue = cleanValue
+              .replace(/[^\d.,\-+]/g, '') // Garder chiffres, points, virgules, signes
+              .replace(/,/g, '.'); // Normaliser virgules en points pour JavaScript
+            
+            const numericValue = Number(normalizedValue);
+            if (!isNaN(numericValue) && isFinite(numericValue)) {
+              return numericValue; // Retourner comme NUMBER pur
+            }
+          }
+          
+          return typeof value === 'number' ? value : String(value);
         }
         
-        // Si c'est déjà une valeur primitive
+        // Si c'est déjà un nombre, le garder tel quel
+        if (typeof cell === 'number') {
+          return cell;
+        }
+        
+        // Si c'est une chaîne, essayer de la convertir
+        if (typeof cell === 'string') {
+          const cleanValue = cell.trim();
+          
+          // Ne pas convertir les chaînes vides, les IDs ou les textes longs
+          if (cleanValue === '' || 
+              cleanValue.includes('-') && cleanValue.length > 10 || 
+              cleanValue.length > 15 ||
+              /[a-zA-Z]/.test(cleanValue)) {
+            return cell;
+          }
+          
+          // Nettoyer et normaliser les nombres
+          const normalizedValue = cleanValue
+            .replace(/[^\d.,\-+]/g, '')
+            .replace(/,/g, '.');
+          
+          const numericValue = Number(normalizedValue);
+          if (!isNaN(numericValue) && isFinite(numericValue)) {
+            return numericValue; // Retourner comme NUMBER pur
+          }
+        }
+        
         return String(cell);
       })
     );
@@ -105,10 +139,6 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * Extrait l'ID unique d'un Google Sheet à partir de son URL complète.
-   * Cette fonction est dupliquée de useGenerateDoc pour éviter les dépendances circulaires
-   * et permettre une utilisation autonome dans ce hook.
-   * @param {string} url - L'URL complète du Google Sheet.
-   * @returns {string | null} L'ID du Google Sheet si trouvé, sinon null.
    */
   const extractSheetId = useCallback((url: string): string | null => {
     const regex = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
@@ -118,11 +148,6 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * Obtient un token d'accès Google pour interagir avec les APIs Google Sheets.
-   * Le token est mis en cache localement pour une durée limitée afin d'éviter des demandes répétées.
-   * Cette fonction est dupliquée de useGenerateDoc pour les mêmes raisons que extractSheetId.
-   * AMÉLIORÉ : Gestion spécifique des erreurs de pop-up bloquée.
-   * @returns {Promise<string | null>} Le token d'accès Google, ou null si l'utilisateur n'est pas authentifié ou si le token ne peut être récupéré.
-   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si le token d'accès ne peut être récupéré.
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!user) throw new Error(t('useCombinedDocExport.error.unauthenticated'));
@@ -157,14 +182,11 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
       throw new Error(t('useCombinedDocExport.error.accessTokenNotRetrieved'));
     } catch (authError) {
-      // NOUVEAU : Gestion spécifique des erreurs d'authentification
       console.error('❌ Erreur d\'authentification Google:', authError);
       
-      // Nettoyer le cache en cas d'erreur
       localStorage.removeItem('google_sheets_token');
       localStorage.removeItem('google_sheets_token_time');
       
-      // Relancer l'erreur avec un message amélioré
       const enhancedMessage = handleAuthError(authError);
       const enhancedError = new Error(enhancedMessage);
       enhancedError.name = 'AuthenticationError';
@@ -173,73 +195,48 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   }, [user, handleAuthError, t]);
 
   /**
-   * Écrit un tableau de données 2D dans un Google Sheet spécifié à une plage donnée.
-   * @param {string} sheetId - L'ID du Google Sheet cible.
-   * @param {string} sheetName - Le nom de l'onglet dans lequel écrire.
-   * @param {string} range - La plage de cellules où écrire les données (ex: "A1").
-   * @param {string[][]} values - Le tableau 2D de chaînes de caractères à écrire.
-   * @returns {Promise<boolean>} Vrai si l'écriture a réussi, faux sinon.
-   * @throws {Error} Si le token d'accès ne peut être obtenu, ou en cas d'erreur API.
+   * FONCTION CORRIGÉE : Écrit un tableau de données 2D dans un Google Sheet.
+   * Utilise exclusivement USER_ENTERED pour que Google Sheets interprète automatiquement
+   * les nombres selon la locale du document (. pour EN, , pour FR) tout en gardant le type number.
    */
   const writeToGoogleSheet = useCallback(async (
     sheetId: string,
     sheetName: string,
     range: string,
-    values: (string | number)[][], // MODIFIÉ: Accepte maintenant les nombres
-    useRawFallback: boolean = true
+    values: (string | number)[][]
   ): Promise<boolean> => {
     const token = await getAccessToken();
     if (!token) {
       throw new Error(t('useCombinedDocExport.error.accessTokenWriteFailed'));
     }
-  
-    // NOUVEAU: Fonction pour tenter l'écriture avec un mode spécifique
-    const attemptWrite = async (valueInputOption: 'USER_ENTERED' | 'RAW'): Promise<Response> => {
-      console.log(`[SHEETS API] Tentative d'écriture avec ${valueInputOption} dans ${sheetName}!${range}`);
-      
-      return await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=${valueInputOption}`,
+
+    // Nettoyer les données pour obtenir des nombres purs
+    const cleanValues = convertToCleanNumbers(values);
+    
+    console.log(`[SHEETS API] Écriture de ${cleanValues.length} lignes dans ${sheetName}!${range}`);
+    console.log(`[SHEETS API] Échantillon de données:`, cleanValues.slice(0, 2));
+
+    try {
+      // UTILISER EXCLUSIVEMENT USER_ENTERED
+      // Cette méthode permet à Google Sheets d'interpréter automatiquement :
+      // - Les nombres comme des nombres (pas de texte avec apostrophe)
+      // - L'affichage selon la locale du document (. ou , automatiquement)
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=USER_ENTERED`,
         {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ values }),
+          body: JSON.stringify({ values: cleanValues }),
         }
       );
-    };
-  
-    try {
-      // MODIFIÉ: Essayer d'abord avec USER_ENTERED pour préserver les types
-      let response = await attemptWrite('USER_ENTERED');
-  
-      // Si échec et fallback activé, essayer avec RAW
-      if (!response.ok && useRawFallback) {
-        console.warn(`[SHEETS API] Échec avec USER_ENTERED (${response.status}), tentative avec RAW...`);
-        
-        // Convertir toutes les valeurs en string pour RAW
-        const stringValues = values.map(row => 
-          row.map(cell => String(cell))
-        );
-        
-        response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=RAW`,
-          {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ values: stringValues }),
-          }
-        );
-      }
-  
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
-  
+
         if (response.status === 403) {
           throw new Error(t('useCombinedDocExport.error.insufficientPermissions'));
         } else if (response.status === 404) {
@@ -248,79 +245,17 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
           throw new Error(`${t('useCombinedDocExport.error.apiError')} ${errorMessage}`);
         }
       }
-  
-      // NOUVEAU: Log du succès avec information sur le mode utilisé
-      const modeUsed = useRawFallback && !response.headers.get('X-First-Attempt') ? 'RAW (fallback)' : 'USER_ENTERED';
-      console.log(`✅ Écriture réussie avec ${modeUsed} dans ${sheetName}!${range}`);
-      
+
+      console.log(`✅ Écriture réussie dans ${sheetName}!${range} avec USER_ENTERED`);
       return true;
     } catch (err) {
       console.error(`❌ Erreur lors de l'écriture dans la feuille ${sheetName} à la plage ${range}:`, err);
       throw err;
     }
-  }, [getAccessToken, t]);
-
-/**
- * NOUVELLE FONCTION: Convertit un tableau de données en (string | number)[][] 
- * pour préserver les types numériques lors de l'écriture Google Sheets.
- * Remplace l'ancienne fonction convertDataToStrings.
- * @param {any[][]} data - Les données à convertir.
- * @returns {(string | number)[][]} Les données converties avec préservation des types.
- */
-const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] => {
-  return data.map(row => 
-    row.map(cell => {
-      if (cell === null || cell === undefined) return '';
-      
-      // Si c'est un objet avec une propriété value
-      if (typeof cell === 'object' && cell !== null && 'value' in cell) {
-        const value = cell.value;
-        
-        // Essayer de convertir en nombre si c'est une chaîne numérique
-        if (typeof value === 'string') {
-          const numericValue = Number(value);
-          if (!isNaN(numericValue) && isFinite(numericValue)) {
-            return numericValue;
-          }
-        }
-        
-        return typeof value === 'number' ? value : String(value);
-      }
-      
-      // Si c'est déjà un nombre, le garder comme tel
-      if (typeof cell === 'number') {
-        return cell;
-      }
-      
-      // Si c'est une chaîne, essayer de la convertir en nombre
-      if (typeof cell === 'string') {
-        const trimmedValue = cell.trim();
-        
-        // Éviter de convertir les chaînes vides ou les IDs
-        if (trimmedValue === '' || trimmedValue.includes('-') || trimmedValue.length > 15) {
-          return cell;
-        }
-        
-        const numericValue = Number(trimmedValue);
-        if (!isNaN(numericValue) && isFinite(numericValue)) {
-          return numericValue;
-        }
-      }
-      
-      // Pour tout autre type, convertir en string
-      return String(cell);
-    })
-  );
-}, []);
-
+  }, [getAccessToken, convertToCleanNumbers, t]);
 
   /**
    * Vide une plage spécifiée dans un Google Sheet.
-   * @param {string} sheetId - L'ID du Google Sheet cible.
-   * @param {string} sheetName - Le nom de l'onglet à vider.
-   * @param {string} range - La plage à vider (ex: "A1:Z1000" ou "A:Z" pour toute la feuille).
-   * @returns {Promise<boolean>} Vrai si le nettoyage a réussi, faux sinon.
-   * @throws {Error} Si le token d'accès ne peut être obtenu, ou en cas d'erreur API.
    */
   const clearSheetRange = useCallback(async (
     sheetId: string,
@@ -366,11 +301,6 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
 
   /**
    * Recherche et récupère les informations du template depuis un document existant.
-   * @param clientId L'ID du client.
-   * @param campaignId L'ID de la campagne.
-   * @param versionId L'ID de la version.
-   * @param sheetUrl L'URL du Google Sheet pour trouver le document correspondant.
-   * @returns Les informations du template ou null si non trouvé.
    */
   const findTemplateFromDocument = useCallback(async (
     clientId: string,
@@ -379,18 +309,15 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
     sheetUrl: string
   ): Promise<any | null> => {
     try {
-      // Récupérer tous les documents de la version
       const { getDocumentsByVersion } = await import('../../lib/documentService');
       const documents = await getDocumentsByVersion(clientId, campaignId, versionId);
       
-      // Trouver le document qui correspond à cette URL
       const currentDocument = documents.find(doc => doc.url === sheetUrl);
       if (!currentDocument) {
         console.warn('[EXPORT] Document non trouvé pour cette URL, impossible de vérifier TE_Duplicate');
         return null;
       }
 
-      // Récupérer les informations du template
       const { getTemplateById } = await import('../../lib/templateService');
       const template = await getTemplateById(clientId, currentDocument.template.id);
       
@@ -403,12 +330,6 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
 
   /**
    * Gère la synchronisation des onglets si le template l'exige.
-   * @param template Le template avec ses propriétés.
-   * @param sheetId L'ID du Google Sheet.
-   * @param clientId L'ID du client.
-   * @param campaignId L'ID de la campagne.
-   * @param versionId L'ID de la version.
-   * @returns Le résultat de la synchronisation des onglets.
    */
   const handleTabsRefresh = useCallback(async (
     template: any,
@@ -417,7 +338,6 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
     campaignId: string,
     versionId: string
   ) => {
-    // Vérifier si le template nécessite la synchronisation d'onglets
     if (!template || !template.TE_Duplicate) {
       console.log('[EXPORT] Template ne nécessite pas de synchronisation d\'onglets');
       return { success: true };
@@ -452,16 +372,9 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
   }, [duplicateAndManageTabs, t]);
 
   /**
-   * Fonction principale pour extraire et exporter les données combinées vers Google Sheets.
-   * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
-   * Les onglets sont synchronisés si le template original a TE_Duplicate = TRUE.
-   * AMÉLIORÉ : Gestion des erreurs de pop-up bloquée avec messages explicites.
-   * @param {string} clientId L'ID du client.
-   * @param {string} campaignId L'ID de la campagne.
-   * @param {string} versionId L'ID de la version.
-   * @param {string} sheetUrl L'URL du Google Sheet cible.
-   * @param {'FR' | 'EN'} exportLanguage La langue pour la conversion des shortcodes (optionnel, par défaut FR).
-   * @returns {Promise<boolean>} Vrai si l'exportation a réussi, faux sinon.
+   * FONCTION PRINCIPALE CORRIGÉE pour extraire et exporter les données combinées vers Google Sheets.
+   * Les nombres seront automatiquement affichés avec la bonne locale (. pour EN, , pour FR)
+   * mais stockés comme des vrais nombres (pas du texte).
    */
   const exportCombinedData = useCallback(async (
     clientId: string,
@@ -486,7 +399,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
     }
 
     try {
-      // 0.1. Récupérer les informations du template pour vérifier TE_Duplicate
+      // 0.1. Récupérer les informations du template
       const template = await findTemplateFromDocument(clientId, campaignId, versionId, sheetUrl);
 
       // 0.2. Synchroniser les onglets si nécessaire (AVANT de vider les feuilles)
@@ -494,13 +407,12 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
         const tabsResult = await handleTabsRefresh(template, sheetId, clientId, campaignId, versionId);
         if (!tabsResult.success) {
           console.warn('[EXPORT] Échec synchronisation onglets, poursuite de l\'exportation:', tabsResult.errorMessage);
-          // Ne pas faire échouer l'export entier, juste logger l'avertissement
         }
       }
 
       // 0.3. Vider les feuilles cibles après synchronisation des onglets
-      await clearSheetRange(sheetId, 'MB_Data', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Data
-      await clearSheetRange(sheetId, 'MB_Splits', 'A:Z'); // Vide toutes les colonnes de A à Z dans MB_Splits
+      await clearSheetRange(sheetId, 'MB_Data', 'A:Z');
+      await clearSheetRange(sheetId, 'MB_Splits', 'A:Z');
 
       // 1. Extraire les données de campagne
       const campaignDataResult = await extractCampaignData(clientId, campaignId);
@@ -531,25 +443,22 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       if (convertError) throw new Error(convertError);
       if (!convertedCleanedData) throw new Error(t('useCombinedDocExport.error.hierarchyShortcodeConversion'));
 
-      // Note: Les données de breakdown ne contiennent généralement pas de shortcodes,
-      // donc on les garde telles quelles
-
       console.log(`[COMBINED EXPORT] Conversion des shortcodes terminée en ${exportLanguage}, écriture vers Google Sheets...`);
 
-      // 6. Convertir les données en string[][] pour Google Sheets
-      const campaignDataAsStrings = convertDataToStrings(convertedCampaignData);
-      const cleanedDataAsStrings = convertDataToStrings(convertedCleanedData);
-
-      // 7. Écrire les données converties dans Google Sheets
+      // 6. Écrire les données converties dans Google Sheets
+      // IMPORTANT : Les nombres seront automatiquement affichés selon la locale du document
+      // - Document EN : affichage avec points (1234.56) 
+      // - Document FR : affichage avec virgules (1234,56)
+      // - Dans tous les cas : stockés comme nombres (pas de texte avec apostrophe)
       const writePromises = [];
 
       // Données de campagne converties dans MB_Data, cellule A1
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', campaignDataAsStrings));
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', convertedCampaignData));
 
       // Données nettoyées converties dans MB_Data, cellule A4
-      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', cleanedDataAsStrings));
+      writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', convertedCleanedData));
 
-      // Données de breakdown dans MB_Splits, cellule A1 (déjà en string[][])
+      // Données de breakdown dans MB_Splits, cellule A1
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Splits', 'A1', breakdownDataResult));
 
       const results = await Promise.all(writePromises);
@@ -559,18 +468,17 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
         throw new Error(t('useCombinedDocExport.error.multipleWritesFailed'));
       }
 
-      console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès (shortcodes convertis en ${exportLanguage})`);
+      const templateLang = template?.TE_Language || 'Auto';
+      console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès`);
+      console.log(`[COMBINED EXPORT] Template: ${templateLang}, Shortcodes: ${exportLanguage}, Nombres: format automatique selon locale du document`);
       return true;
 
     } catch (err) {
-      // AMÉLIORÉ : Gestion spécifique des erreurs d'authentification
       let errorMessage: string;
       
       if (err instanceof Error && err.name === 'AuthenticationError') {
-        // Erreur d'authentification déjà formatée par handleAuthError
         errorMessage = err.message;
       } else {
-        // Autres erreurs
         errorMessage = err instanceof Error ? err.message : t('useCombinedDocExport.error.unknownExportError');
       }
       
@@ -587,7 +495,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
     extractCampaignData, campaignError,
     convertShortcodes, convertError,
     extractSheetId, writeToGoogleSheet, clearSheetRange,
-    findTemplateFromDocument, handleTabsRefresh, convertDataToStrings
+    findTemplateFromDocument, handleTabsRefresh
   ]);
 
   const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading || tabsLoading;
