@@ -4,6 +4,7 @@
  * FIXED: Value reset issue in the tactic drawer
  * NEW: Standardized period IDs compatible with the timeline
  * NEW: Support for PEBs type with 3 inputs (cost/unit, volume, calculated total)
+ * NEW: Date validation with campaign limits
  * REFACTORED: Simplified code with custom hooks and external modal
  */
 
@@ -39,6 +40,8 @@ interface TactiqueFormRepartitionProps {
   breakdowns: Breakdown[];
   loading?: boolean;
   clientId?: string;
+  campaignStartDate?: string;
+  campaignEndDate?: string;
 }
 
 /**
@@ -70,7 +73,9 @@ export default function TactiqueFormRepartition({
   onTooltipChange,
   breakdowns,
   loading = false,
-  clientId
+  clientId,
+  campaignStartDate,
+  campaignEndDate
 }: TactiqueFormRepartitionProps) {
 
   const { t } = useTranslation();
@@ -121,6 +126,47 @@ export default function TactiqueFormRepartition({
       setPeriods([]);
     }
   }, [breakdowns, formData.TC_Start_Date, formData.TC_End_Date, t]);
+
+  // FONCTION HELPER POUR CALCULER LES LIMITES DE DATES
+  const getDateLimits = () => {
+    const tacticStart = formData.TC_Start_Date || '';
+    const tacticEnd = formData.TC_End_Date || '';
+    
+    // Pour TC_Start_Date : min = CA_Start_Date, max = min(TC_End_Date, CA_End_Date)
+    let startDateMin = campaignStartDate || '';
+    let startDateMax = '';
+    
+    if (tacticEnd && campaignEndDate) {
+      // Prendre la date la plus proche (la plus tôt)
+      startDateMax = tacticEnd <= campaignEndDate ? tacticEnd : campaignEndDate;
+    } else if (tacticEnd) {
+      startDateMax = tacticEnd;
+    } else if (campaignEndDate) {
+      startDateMax = campaignEndDate;
+    }
+    
+    // Pour TC_End_Date : min = max(TC_Start_Date, CA_Start_Date), max = CA_End_Date
+    let endDateMin = '';
+    let endDateMax = campaignEndDate || '';
+    
+    if (tacticStart && campaignStartDate) {
+      // Prendre la date la plus lointaine (la plus tard)
+      endDateMin = tacticStart >= campaignStartDate ? tacticStart : campaignStartDate;
+    } else if (tacticStart) {
+      endDateMin = tacticStart;
+    } else if (campaignStartDate) {
+      endDateMin = campaignStartDate;
+    }
+
+    return {
+      startDateMin,
+      startDateMax,
+      endDateMin,
+      endDateMax
+    };
+  };
+
+  const dateLimits = getDateLimits();
 
   // Function to toggle the collapse/expand state of a breakdown
   const toggleBreakdownCollapse = (breakdownId: string) => {
@@ -270,20 +316,20 @@ export default function TactiqueFormRepartition({
   return (
     <div className="p-8 space-y-8">
 
-<div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 mb-6">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-indigo-600 font-medium">{t('repartition.mediaBudget.label')}</span>
-        <span className="text-sm font-semibold text-indigo-800">
-          {formData.TC_Media_Budget && formData.TC_Media_Budget > 0
-            ? `${parseFloat(formData.TC_Media_Budget.toString()).toLocaleString('fr-CA', { 
-                minimumFractionDigits: 0, 
-                maximumFractionDigits: 2 
-              })}`
-            : t('repartition.mediaBudget.notDefined')
-          }
-        </span>
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 mb-6">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-indigo-600 font-medium">{t('repartition.mediaBudget.label')}</span>
+          <span className="text-sm font-semibold text-indigo-800">
+            {formData.TC_Media_Budget && formData.TC_Media_Budget > 0
+              ? `${parseFloat(formData.TC_Media_Budget.toString()).toLocaleString('fr-CA', { 
+                  minimumFractionDigits: 0, 
+                  maximumFractionDigits: 2 
+                })}`
+              : t('repartition.mediaBudget.notDefined')
+            }
+          </span>
+        </div>
       </div>
-    </div>
 
       <FormSection
         title={t('repartition.section.title')}
@@ -291,6 +337,23 @@ export default function TactiqueFormRepartition({
       >
 
         <div className="bg-slate-50 rounded-xl p-6 mb-8">
+          {/* Affichage des limites de campagne */}
+          {(campaignStartDate || campaignEndDate) && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm text-blue-700">
+                <span className="font-medium">{t('repartition.campaignDates.title')}</span>
+                <div className="mt-1 flex items-center gap-4">
+                  {campaignStartDate && (
+                    <span>{t('repartition.campaignDates.start')}: {new Date(campaignStartDate).toLocaleDateString('fr-CA')}</span>
+                  )}
+                  {campaignEndDate && (
+                    <span>{t('repartition.campaignDates.end')}: {new Date(campaignEndDate).toLocaleDateString('fr-CA')}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="flex items-center gap-3 mb-3">
@@ -306,11 +369,21 @@ export default function TactiqueFormRepartition({
                 type="date"
                 name="TC_Start_Date"
                 value={formData.TC_Start_Date || ''}
-                max={formData.TC_End_Date || ''}
+                min={dateLimits.startDateMin}
+                max={dateLimits.startDateMax}
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
+              {/* Message d'aide pour les limites */}
+              {(campaignStartDate || campaignEndDate) && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('repartition.startDate.limitHelp', {
+                    min: campaignStartDate ? new Date(campaignStartDate).toLocaleDateString('fr-CA') : '-',
+                    max: campaignEndDate ? new Date(campaignEndDate).toLocaleDateString('fr-CA') : '-'
+                  })}
+                </p>
+              )}
             </div>
 
             <div>
@@ -327,12 +400,21 @@ export default function TactiqueFormRepartition({
                 type="date"
                 name="TC_End_Date"
                 value={formData.TC_End_Date || ''}
-                min={formData.TC_Start_Date || ''}
-
+                min={dateLimits.endDateMin}
+                max={dateLimits.endDateMax}
                 onChange={onChange}
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
+              {/* Message d'aide pour les limites */}
+              {(campaignStartDate || campaignEndDate) && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('repartition.endDate.limitHelp', {
+                    min: campaignStartDate ? new Date(campaignStartDate).toLocaleDateString('fr-CA') : '-',
+                    max: campaignEndDate ? new Date(campaignEndDate).toLocaleDateString('fr-CA') : '-'
+                  })}
+                </p>
+              )}
             </div>
           </div>
         </div>

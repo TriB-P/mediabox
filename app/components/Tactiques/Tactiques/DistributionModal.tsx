@@ -4,6 +4,7 @@
  * Permet de choisir des dates personnalisées, le champ à distribuer pour PEBs,
  * et affiche un aperçu en temps réel de la distribution.
  * CORRIGÉ: Ajout de stopPropagation pour éviter la fermeture du drawer parent
+ * NOUVEAU: Exclusion des périodes décochées du breakdown par défaut pour PEBs et Weekly
  */
 
 'use client';
@@ -12,7 +13,7 @@ import React from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import { Breakdown } from '../../../types/breakdown';
 import { BreakdownPeriod, DistributionModalState } from '../../../hooks/useTactiqueBreakdown';
-import { getPeriodsForDistribution } from './breakdownPeriodUtils';
+import { getPeriodsForDistribution, extractPeriodStartDate } from './breakdownPeriodUtils';
 
 interface DistributionModalProps {
   isOpen: boolean;
@@ -40,7 +41,60 @@ export default function DistributionModal({
   const { t } = useTranslation();
 
   /**
+   * NOUVEAU: Récupère les dates de début des périodes décochées du breakdown par défaut
+   */
+  const getUncheckedDefaultPeriodStartDates = (): Date[] => {
+    // Trouver le breakdown par défaut
+    const defaultBreakdown = periods.find(p => {
+      // On cherche un breakdown par défaut en regardant les périodes
+      const breakdownData = formData.breakdowns?.[p.breakdownId];
+      return breakdownData && Object.values(breakdownData.periods || {}).some((period: any) => 
+        period.isToggled !== undefined
+      );
+    });
+
+    if (!defaultBreakdown) return [];
+
+    // Récupérer toutes les périodes du breakdown par défaut
+    const defaultBreakdownId = defaultBreakdown.breakdownId;
+    const defaultPeriods = periods.filter(p => p.breakdownId === defaultBreakdownId);
+
+    // Filtrer les périodes décochées et extraire leurs dates de début
+    const uncheckedDates: Date[] = [];
+    
+    defaultPeriods.forEach(period => {
+      const isActive = getPeriodActiveStatus(period.id, period.breakdownId);
+      if (!isActive) {
+        const startDate = extractPeriodStartDate(period);
+        if (startDate) {
+          uncheckedDates.push(startDate);
+        }
+      }
+    });
+
+    return uncheckedDates;
+  };
+
+  /**
+   * NOUVEAU: Vérifie si une période doit être exclue en fonction des périodes décochées
+   */
+  const shouldExcludePeriod = (period: BreakdownPeriod, uncheckedDates: Date[]): boolean => {
+    if (!breakdown || (breakdown.type !== 'PEBs' && breakdown.type !== 'Hebdomadaire')) {
+      return false; // Pas d'exclusion pour les autres types
+    }
+
+    const periodStartDate = extractPeriodStartDate(period);
+    if (!periodStartDate) return false;
+
+    // Vérifier si cette date correspond à une période décochée
+    return uncheckedDates.some(uncheckedDate => {
+      return periodStartDate.getTime() === uncheckedDate.getTime();
+    });
+  };
+
+  /**
    * Calcule la valeur par période pour l'affichage
+   * MODIFIÉ: Prend en compte l'exclusion des périodes décochées
    */
   const getDistributionPreview = (): { periodsCount: number; valuePerPeriod: number } => {
     if (!modalState.breakdownId || !modalState.totalAmount || 
@@ -58,9 +112,15 @@ export default function DistributionModal({
       modalState.endDate
     );
 
+    // NOUVEAU: Récupérer les dates des périodes décochées
+    const uncheckedDates = getUncheckedDefaultPeriodStartDates();
+
     // Filtrer selon les périodes actives pour le breakdown par défaut
     const activePeriods = concernedPeriods.filter(period => {
-      if (!breakdown?.isDefault) return true;
+      if (!breakdown?.isDefault) {
+        // NOUVEAU: Pour les breakdowns non-par défaut, exclure selon les périodes décochées
+        return !shouldExcludePeriod(period, uncheckedDates);
+      }
       return getPeriodActiveStatus(period.id, period.breakdownId);
     });
 
@@ -72,10 +132,10 @@ export default function DistributionModal({
 
   /**
    * Confirme et applique la distribution
-   * CORRIGÉ: Ajout de stopPropagation
+   * MODIFIÉ: Ajoute l'exclusion des périodes décochées pour PEBs et Weekly
    */
   const handleConfirmDistribution = (e: React.MouseEvent) => {
-    e.stopPropagation(); // NOUVEAU: Empêcher la propagation
+    e.stopPropagation(); // Empêcher la propagation
 
     if (!modalState.breakdownId || !modalState.totalAmount || 
         !modalState.startDate || !modalState.endDate || !breakdown) return;
@@ -94,10 +154,19 @@ export default function DistributionModal({
     const isDefaultBreakdown = breakdown.isDefault;
     const isPEBs = breakdown.type === 'PEBs';
 
-    // Filtrer les périodes actives
-    const activePeriodsList = concernedPeriods.filter(period =>
-      !isDefaultBreakdown || getPeriodActiveStatus(period.id, breakdown.id) !== false
-    );
+    // NOUVEAU: Récupérer les dates des périodes décochées du breakdown par défaut
+    const uncheckedDates = getUncheckedDefaultPeriodStartDates();
+
+    // Filtrer les périodes actives avec la nouvelle logique
+    const activePeriodsList = concernedPeriods.filter(period => {
+      if (isDefaultBreakdown) {
+        // Pour les breakdowns par défaut, utiliser le statut d'activation habituel
+        return getPeriodActiveStatus(period.id, breakdown.id) !== false;
+      } else {
+        // NOUVEAU: Pour les autres breakdowns (PEBs, Weekly), exclure les périodes décochées
+        return !shouldExcludePeriod(period, uncheckedDates);
+      }
+    });
 
     if (activePeriodsList.length === 0) return;
 
@@ -123,7 +192,7 @@ export default function DistributionModal({
   };
 
   /**
-   * NOUVEAU: Handler pour le bouton Annuler avec stopPropagation
+   * Handler pour le bouton Annuler avec stopPropagation
    */
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation(); // Empêcher la propagation
@@ -131,14 +200,14 @@ export default function DistributionModal({
   };
 
   /**
-   * NOUVEAU: Handler pour empêcher la fermeture sur clic à l'intérieur du modal
+   * Handler pour empêcher la fermeture sur clic à l'intérieur du modal
    */
   const handleModalContentClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Empêcher la propagation des clics internes
   };
 
   /**
-   * NOUVEAU: Handler pour l'overlay - ferme seulement si clic direct sur l'overlay
+   * Handler pour l'overlay - ferme seulement si clic direct sur l'overlay
    */
   const handleOverlayClick = (e: React.MouseEvent) => {
     // Fermer seulement si le clic est directement sur l'overlay (pas sur le contenu)
@@ -152,11 +221,11 @@ export default function DistributionModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      onClick={handleOverlayClick} // NOUVEAU: Handler pour l'overlay
+      onClick={handleOverlayClick}
     >
       <div 
         className="bg-white rounded-xl p-6 w-full max-w-lg mx-4"
-        onClick={handleModalContentClick} // NOUVEAU: Empêcher propagation
+        onClick={handleModalContentClick}
       >
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
           {t('distributionModal.title')}
@@ -174,7 +243,7 @@ export default function DistributionModal({
                 value={modalState.startDate}
                 onChange={(e) => setModalState(prev => ({ ...prev, startDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
+                onClick={(e) => e.stopPropagation()}
               />
             </div>
             <div>
@@ -186,7 +255,7 @@ export default function DistributionModal({
                 value={modalState.endDate}
                 onChange={(e) => setModalState(prev => ({ ...prev, endDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
+                onClick={(e) => e.stopPropagation()}
               />
             </div>
           </div>
@@ -201,7 +270,7 @@ export default function DistributionModal({
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.stopPropagation(); // NOUVEAU: Empêcher propagation
+                    e.stopPropagation();
                     setModalState(prev => ({ ...prev, pebsField: 'unitCost' }));
                   }}
                   className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
@@ -215,7 +284,7 @@ export default function DistributionModal({
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.stopPropagation(); // NOUVEAU: Empêcher propagation
+                    e.stopPropagation();
                     setModalState(prev => ({ ...prev, pebsField: 'value' }));
                   }}
                   className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
@@ -242,7 +311,7 @@ export default function DistributionModal({
               onChange={(e) => setModalState(prev => ({ ...prev, totalAmount: e.target.value }))}
               placeholder={t('distributionModal.form.amountPlaceholder')}
               className="w-full px-4 py-3 border-0 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              onClick={(e) => e.stopPropagation()} // NOUVEAU: Empêcher propagation
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
 
@@ -271,6 +340,12 @@ export default function DistributionModal({
               {t('distributionModal.info.distributionDates')}
               {breakdown?.isDefault && 
                 t('distributionModal.info.andAreActive')}.
+              {/* NOUVEAU: Message pour PEBs et Weekly */}
+              {!breakdown?.isDefault && (breakdown?.type === 'PEBs' || breakdown?.type === 'Hebdomadaire') && (
+                <span className="block text-indigo-600 font-medium mt-1">
+                  {t('distributionModal.info.excludesUncheckedPeriods') || 'Exclut les périodes décochées du calendrier par défaut.'}
+                </span>
+              )}
             </p>
             {breakdown?.type === 'PEBs' && (
               <p className="text-indigo-600 font-medium">
@@ -285,13 +360,13 @@ export default function DistributionModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={handleCancel} // MODIFIÉ: Utiliser le nouveau handler
+            onClick={handleCancel}
             className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
             {t('common.cancel')}
           </button>
           <button
-            onClick={handleConfirmDistribution} // MODIFIÉ: Utiliser le nouveau handler
+            onClick={handleConfirmDistribution}
             disabled={!modalState.totalAmount || !modalState.startDate || !modalState.endDate}
             className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

@@ -41,6 +41,7 @@ export const translations = {
       }
     },
     campaigns: {
+      
       title: "Campagnes",
       noClientSelected: "Aucun client sélectionné",
       noClientMessage: "Veuillez sélectionner un client pour voir ses campagnes.",
@@ -56,6 +57,10 @@ export const translations = {
       deletingError: "Erreur lors de la suppression",
       noData: "Aucune campagne trouvée",
       noResults: "Aucun résultat pour votre recherche",
+      
+      
+      
+      
       status: {
         active: "Actif",
         inactive: "Inactif",
@@ -253,7 +258,11 @@ export const translations = {
         setOfficialTitle: "Définir comme version officielle",
         deleteVersionTitle: "Supprimer cette version",
         namePlaceholder: "Nom de la version",
-        noVersions: "Aucune version créée pour cette campagne."
+        noVersions: "Aucune version créée pour cette campagne.",
+        duplicateVersionTitle: "Dupliquer cette version",
+        duplicateError: "Erreur lors de la duplication de la version",
+        duplicateNamePlaceholder: "Nom de la version dupliquée",
+        duplicate: "Dupliquer"
       }
     },
     clients: {
@@ -2301,7 +2310,10 @@ export const translations = {
         TC_Budget: "Budget"
       },
       validation: {
-        fieldIsRequired: "Le champ \"{{label}}\" est obligatoire."
+        fieldIsRequired: "Le champ \"{{label}}\" est obligatoire.",
+        startDateBeforeCampaign:"La date de début de la tactique est avant la date de début de la campagne",
+        endDateAfterCampaign: "La date de fin de la tactique est après la date de fin de la campagne"
+        
       },
       tabs: {
         info: "Info",
@@ -4705,7 +4717,12 @@ export const translations = {
         setOfficialTitle: "Set as official version",
         deleteVersionTitle: "Delete this version",
         namePlaceholder: "Version name",
-        noVersions: "No versions created for this campaign."
+        noVersions: "No versions created for this campaign.",
+        duplicateVersionTitle: "Duplicate this version",
+        duplicateError: "Error while duplicating the version",
+        duplicateNamePlaceholder: "Duplicated version name", 
+        duplicate: "Duplicate"
+
       }
     },
     tactics: {
@@ -6596,7 +6613,9 @@ export const translations = {
         TC_Budget: "Budget"
       },
       validation: {
-        fieldIsRequired: "The field \"{{label}}\" is required."
+        fieldIsRequired: "The field \"{{label}}\" is required.",
+        startDateBeforeCampaign:"The start date of the tactic is before the start date of the campaign.",
+        endDateAfterCampaign: "The end date of the tactic is after the end date of the campaign."
       },
       tabs: {
         info: "Info",

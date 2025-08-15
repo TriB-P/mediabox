@@ -119,26 +119,72 @@ interface CustomDimensionsState {
   };
 }
 
-/**
- * Fonction de validation des champs obligatoires
- * @param formData - Les données du formulaire à valider
- * @param requiredFields - La liste des champs requis
- * @param t - La fonction de traduction
- * @returns Un objet contenant les erreurs de validation (vide si tout est valide)
- */
-const validateRequiredFields = (formData: TactiqueFormData, requiredFields: any[], t: (key: string, options?: any) => string): ValidationErrors => {
-  const errors: ValidationErrors = {};
-  
-  requiredFields.forEach(({ field, label }) => {
-    const value = (formData as any)[field];
-    
-    // Vérifier si le champ est vide, null, undefined ou une chaîne vide
-    if (!value || (typeof value === 'string' && value.trim() === '')) {
-      errors[field] = t('tactiqueDrawer.validation.fieldIsRequired', { label });
-    }
-  });
-  
-  return errors;
+
+const validateRequiredFields = (
+ formData: TactiqueFormData, 
+ requiredFields: any[], 
+ campaignStartDate: string | undefined,
+ campaignEndDate: string | undefined,
+ t: (key: string, options?: any) => string
+): ValidationErrors => {
+ const errors: ValidationErrors = {};
+ 
+ // Validation des champs obligatoires existants
+ requiredFields.forEach(({ field, label }) => {
+   const value = (formData as any)[field];
+   
+   // Vérifier si le champ est vide, null, undefined ou une chaîne vide
+   if (!value || (typeof value === 'string' && value.trim() === '')) {
+     errors[field] = t('tactiqueDrawer.validation.fieldIsRequired', { label });
+   }
+ });
+
+ // Validation des dates par rapport à la campagne
+ const tacticStartDate = formData.TC_Start_Date;
+ const tacticEndDate = formData.TC_End_Date;
+
+ // Si on a les dates de campagne et de tactique, valider les limites
+ if (campaignStartDate && campaignEndDate && (tacticStartDate || tacticEndDate)) {
+   
+   // Validation TC_Start_Date
+   if (tacticStartDate) {
+     if (tacticStartDate < campaignStartDate) {
+       errors['TC_Start_Date'] = t('tactiqueDrawer.validation.startDateBeforeCampaign', { 
+         campaignStartDate: new Date(campaignStartDate).toLocaleDateString('fr-CA')
+       });
+     }
+     
+     if (tacticStartDate > campaignEndDate) {
+       errors['TC_Start_Date'] = t('tactiqueDrawer.validation.startDateAfterCampaign', { 
+         campaignEndDate: new Date(campaignEndDate).toLocaleDateString('fr-CA')
+       });
+     }
+   }
+
+   // Validation TC_End_Date
+   if (tacticEndDate) {
+     if (tacticEndDate > campaignEndDate) {
+       errors['TC_End_Date'] = t('tactiqueDrawer.validation.endDateAfterCampaign', { 
+         campaignEndDate: new Date(campaignEndDate).toLocaleDateString('fr-CA')
+       });
+     }
+     
+     if (tacticEndDate < campaignStartDate) {
+       errors['TC_End_Date'] = t('tactiqueDrawer.validation.endDateBeforeCampaign', { 
+         campaignStartDate: new Date(campaignStartDate).toLocaleDateString('fr-CA')
+       });
+     }
+   }
+
+   // Validation cohérence interne des dates de tactique
+   if (tacticStartDate && tacticEndDate) {
+     if (tacticStartDate > tacticEndDate) {
+       errors['TC_End_Date'] = t('tactiqueDrawer.validation.endDateBeforeStartDate');
+     }
+   }
+ }
+ 
+ return errors;
 };
 
 /**
@@ -612,8 +658,14 @@ export default function TactiqueDrawer({
   useEffect(() => {
     // Nettoyer les erreurs de validation quand les données changent
     if (Object.keys(validationErrors).length > 0) {
-      const errors = validateRequiredFields(formData, REQUIRED_FIELDS, t);
-      setValidationErrors(errors);
+      const errors = validateRequiredFields(
+        formData, 
+        REQUIRED_FIELDS, 
+        selectedCampaign?.CA_Start_Date,
+        selectedCampaign?.CA_End_Date,
+        t
+      );
+            setValidationErrors(errors);
     }
   }, [formData, validationErrors, REQUIRED_FIELDS, t]);
 
@@ -871,8 +923,14 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
   e.preventDefault();
 
   // 1. VALIDATION DES CHAMPS OBLIGATOIRES
-  const errors = validateRequiredFields(formData, REQUIRED_FIELDS, t);
-  
+  const errors = validateRequiredFields(
+    formData, 
+    REQUIRED_FIELDS, 
+    selectedCampaign?.CA_Start_Date,
+    selectedCampaign?.CA_End_Date,
+    t
+  );
+    
   if (Object.keys(errors).length > 0) {
     setValidationErrors(errors);
     

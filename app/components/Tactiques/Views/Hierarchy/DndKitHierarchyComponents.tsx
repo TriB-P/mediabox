@@ -580,16 +580,23 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [commentText, setCommentText] = useState(tactique.TC_Comment || '');
 
+  useEffect(() => {
+    setCommentText(tactique.TC_Comment || '');
+  }, [tactique.TC_Comment]);
+
   const handleCommentSave = async () => {
     try {
       if (onSaveComment) {
         await onSaveComment(sectionId, tactique.id, commentText);
         setCommentModalOpen(false);
+        // ✅ L'état sera automatiquement synchronisé par useEffect
       } else {
         console.error('onSaveComment function not provided');
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du commentaire:', error);
+      // ✅ En cas d'erreur, remettre la valeur originale
+      setCommentText(tactique.TC_Comment || '');
     }
   };
   
@@ -907,9 +914,7 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
         {t('dndKit.tactiqueItem.commentModal.title')}
       </h3>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          {t('dndKit.tactiqueItem.commentModal.label')}
-        </label>
+        
         <textarea
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}

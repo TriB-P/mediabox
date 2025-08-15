@@ -3,7 +3,7 @@
  * Ce fichier contient des fonctions de service pour interagir avec les données de version
  * dans Firebase Firestore. Il permet de gérer les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
  * pour les versions associées à des campagnes spécifiques, ainsi que la gestion
- * de la version officielle d'une campagne.
+ * de la version officielle d'une campagne et la duplication de versions complètes.
  */
 import {
   collection,
@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { addOnglet } from './tactiqueService'
+import { duplicateVersionWithHierarchy } from './versionDuplicationUtils'
 
 export interface Version {
   id: string;
@@ -95,6 +96,59 @@ export const createVersion = async (
     return docRef.id
   } catch (error) {
     console.error('Erreur lors de la création de la version:', error)
+    throw error
+  }
+}
+
+/**
+ * Duplique une version existante avec tout son contenu (buckets, onglets, sections, tactiques, placements, créatifs).
+ * @param clientId L'ID du client.
+ * @param campaignId L'ID de la campagne.
+ * @param sourceVersionId L'ID de la version source à dupliquer.
+ * @param newVersionName Le nom de la nouvelle version dupliquée.
+ * @param userEmail L'e-mail de l'utilisateur qui effectue la duplication.
+ * @returns Une promesse qui résout en l'ID de la nouvelle version dupliquée.
+ */
+export const duplicateVersion = async (
+  clientId: string,
+  campaignId: string,
+  sourceVersionId: string,
+  newVersionName: string,
+  userEmail: string
+): Promise<string> => {
+  try {
+    // 1. Vérifier que la version source existe
+    const sourceVersionRef = doc(db, 'clients', clientId, 'campaigns', campaignId, 'versions', sourceVersionId)
+    console.log(`FIREBASE: LECTURE - Fichier: versionService.ts - Fonction: duplicateVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions/${sourceVersionId}`);
+    const sourceVersionDoc = await getDoc(sourceVersionRef)
+    
+    if (!sourceVersionDoc.exists()) {
+      throw new Error('Version source introuvable')
+    }
+
+    const sourceVersionData = sourceVersionDoc.data() as Version
+
+    // 2. Créer la nouvelle version
+    const versionsRef = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions')
+    const newVersion = {
+      name: newVersionName,
+      isOfficial: false,
+      createdAt: new Date().toISOString(),
+      createdBy: userEmail
+    }
+    
+    console.log(`FIREBASE: ÉCRITURE - Fichier: versionService.ts - Fonction: duplicateVersion - Path: clients/${clientId}/campaigns/${campaignId}/versions`);
+    const newVersionRef = await addDoc(versionsRef, newVersion)
+    const newVersionId = newVersionRef.id
+
+    // 3. Dupliquer tout le contenu de la version source
+    await duplicateVersionWithHierarchy(clientId, campaignId, sourceVersionId, newVersionId)
+
+    console.log(`✅ Version "${sourceVersionData.name}" dupliquée avec succès vers "${newVersionName}"`)
+    return newVersionId
+
+  } catch (error) {
+    console.error('Erreur lors de la duplication de la version:', error)
     throw error
   }
 }
