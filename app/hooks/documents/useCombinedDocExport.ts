@@ -9,6 +9,7 @@ import { useCampaignDataDoc } from './useCampaignDataDoc';
 import { useConvertShortcodesDoc } from './useConvertShortcodesDoc';
 import { useDuplicateTabsDoc } from './useDuplicateTabsDoc';
 import { getDocumentById } from '../../lib/documentService';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface UseCombinedDocExportReturn {
   exportCombinedData: (clientId: string, campaignId: string, versionId: string, sheetUrl: string, exportLanguage?: 'FR' | 'EN') => Promise<boolean>;
@@ -25,6 +26,7 @@ interface UseCombinedDocExportReturn {
  * les états de chargement et d'erreur.
  */
 export function useCombinedDocExport(): UseCombinedDocExportReturn {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,50 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   const { extractCampaignData, loading: campaignLoading, error: campaignError } = useCampaignDataDoc();
   const { convertShortcodes, loading: convertLoading, error: convertError } = useConvertShortcodesDoc();
   const { duplicateAndManageTabs, loading: tabsLoading } = useDuplicateTabsDoc();
+
+  /**
+   * Détecte si une erreur est due à un blocage de pop-up et retourne un message approprié.
+   * @param {any} error L'erreur capturée.
+   * @returns {string} Le message d'erreur formaté pour l'utilisateur.
+   */
+  const handleAuthError = useCallback((error: any): string => {
+    const errorCode = error?.code || '';
+    const errorMessage = error?.message || '';
+
+    // Détecter les erreurs de pop-up bloquée
+    if (errorCode === 'auth/popup-blocked' || 
+        errorMessage.includes('popup-blocked') ||
+        errorMessage.includes('popup_blocked_by_browser')) {
+      return t('useCombinedDocExport.error.popupBlocked');
+    }
+
+    // Détecter les erreurs d'autorisation
+    if (errorCode === 'auth/unauthorized-domain') {
+      return t('useCombinedDocExport.error.unauthorizedDomain');
+    }
+
+    if (errorCode === 'auth/operation-not-allowed') {
+      return t('useCombinedDocExport.error.operationNotAllowed');
+    }
+
+    // Détecter les erreurs de réseau
+    if (errorCode === 'auth/network-request-failed' || errorMessage.includes('network')) {
+      return t('useCombinedDocExport.error.networkRequestFailed');
+    }
+
+    // Détecter les erreurs de session expirée
+    if (errorCode === 'auth/user-token-expired' || errorMessage.includes('token')) {
+      return t('useCombinedDocExport.error.sessionExpired');
+    }
+
+    // Message générique pour les autres erreurs d'authentification
+    if (errorCode.startsWith('auth/')) {
+      return `${t('useCombinedDocExport.error.googleAuthGenericStart')} ${errorMessage}. ${t('useCombinedDocExport.error.googleAuthGenericEnd')}`;
+    }
+
+    // Retourner le message original si ce n'est pas une erreur d'authentification spécifique
+    return errorMessage;
+  }, [t]);
 
   /**
    * Convertit un tableau de données en string[][] pour Google Sheets.
@@ -74,11 +120,12 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
    * Obtient un token d'accès Google pour interagir avec les APIs Google Sheets.
    * Le token est mis en cache localement pour une durée limitée afin d'éviter des demandes répétées.
    * Cette fonction est dupliquée de useGenerateDoc pour les mêmes raisons que extractSheetId.
+   * AMÉLIORÉ : Gestion spécifique des erreurs de pop-up bloquée.
    * @returns {Promise<string | null>} Le token d'accès Google, ou null si l'utilisateur n'est pas authentifié ou si le token ne peut être récupéré.
    * @throws {Error} Si l'utilisateur n'est pas authentifié ou si le token d'accès ne peut être récupéré.
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!user) throw new Error('Utilisateur non authentifié');
+    if (!user) throw new Error(t('useCombinedDocExport.error.unauthenticated'));
 
     const cachedToken = localStorage.getItem('google_sheets_token');
     const cachedTime = localStorage.getItem('google_sheets_token_time');
@@ -92,23 +139,38 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       localStorage.removeItem('google_sheets_token_time');
     }
 
-    const { getAuth, GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
-    const auth = getAuth();
+    try {
+      const { getAuth, GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+      const auth = getAuth();
 
-    const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-    console.log("FIREBASE: LECTURE - Fichier: useCombinedDocExport.ts - Fonction: getAccessToken - Path: N/A");
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+      console.log("FIREBASE: LECTURE - Fichier: useCombinedDocExport.ts - Fonction: getAccessToken - Path: N/A");
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
 
-    if (credential?.accessToken) {
-      localStorage.setItem('google_sheets_token', credential.accessToken);
-      localStorage.setItem('google_sheets_token_time', Date.now().toString());
-      return credential.accessToken;
+      if (credential?.accessToken) {
+        localStorage.setItem('google_sheets_token', credential.accessToken);
+        localStorage.setItem('google_sheets_token_time', Date.now().toString());
+        return credential.accessToken;
+      }
+
+      throw new Error(t('useCombinedDocExport.error.accessTokenNotRetrieved'));
+    } catch (authError) {
+      // NOUVEAU : Gestion spécifique des erreurs d'authentification
+      console.error('❌ Erreur d\'authentification Google:', authError);
+      
+      // Nettoyer le cache en cas d'erreur
+      localStorage.removeItem('google_sheets_token');
+      localStorage.removeItem('google_sheets_token_time');
+      
+      // Relancer l'erreur avec un message amélioré
+      const enhancedMessage = handleAuthError(authError);
+      const enhancedError = new Error(enhancedMessage);
+      enhancedError.name = 'AuthenticationError';
+      throw enhancedError;
     }
-
-    throw new Error('Token d\'accès non récupéré');
-  }, [user]);
+  }, [user, handleAuthError, t]);
 
   /**
    * Écrit un tableau de données 2D dans un Google Sheet spécifié à une plage donnée.
@@ -128,7 +190,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   ): Promise<boolean> => {
     const token = await getAccessToken();
     if (!token) {
-      throw new Error('Impossible d\'obtenir le token d\'accès pour l\'écriture.');
+      throw new Error(t('useCombinedDocExport.error.accessTokenWriteFailed'));
     }
   
     // NOUVEAU: Fonction pour tenter l'écriture avec un mode spécifique
@@ -179,11 +241,11 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
   
         if (response.status === 403) {
-          throw new Error('Permissions insuffisantes. Vérifiez l\'accès au Google Sheet.');
+          throw new Error(t('useCombinedDocExport.error.insufficientPermissions'));
         } else if (response.status === 404) {
-          throw new Error(`Google Sheet ou onglet '${sheetName}' non trouvé.`);
+          throw new Error(`${t('useCombinedDocExport.error.sheetOrTabNotFoundStart')} '${sheetName}' ${t('useCombinedDocExport.error.sheetOrTabNotFoundEnd')}`);
         } else {
-          throw new Error(`Erreur API Sheets: ${errorMessage}`);
+          throw new Error(`${t('useCombinedDocExport.error.apiError')} ${errorMessage}`);
         }
       }
   
@@ -196,9 +258,9 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       console.error(`❌ Erreur lors de l'écriture dans la feuille ${sheetName} à la plage ${range}:`, err);
       throw err;
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, t]);
 
-  /**
+/**
  * NOUVELLE FONCTION: Convertit un tableau de données en (string | number)[][] 
  * pour préserver les types numériques lors de l'écriture Google Sheets.
  * Remplace l'ancienne fonction convertDataToStrings.
@@ -267,7 +329,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
   ): Promise<boolean> => {
     const token = await getAccessToken();
     if (!token) {
-      throw new Error('Impossible d\'obtenir le token d\'accès pour le nettoyage.');
+      throw new Error(t('useCombinedDocExport.error.accessTokenClearFailed'));
     }
 
     try {
@@ -287,11 +349,11 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
 
         if (response.status === 403) {
-          throw new Error('Permissions insuffisantes pour vider le Google Sheet.');
+          throw new Error(t('useCombinedDocExport.error.insufficientClearPermissions'));
         } else if (response.status === 404) {
-          throw new Error(`Google Sheet ou onglet '${sheetName}' non trouvé lors du nettoyage.`);
+          throw new Error(`${t('useCombinedDocExport.error.sheetOrTabNotFoundStart')} '${sheetName}' ${t('useCombinedDocExport.error.sheetOrTabNotFoundCleaningEnd')}`);
         } else {
-          throw new Error(`Erreur API Sheets lors du nettoyage: ${errorMessage}`);
+          throw new Error(`${t('useCombinedDocExport.error.apiClearError')} ${errorMessage}`);
         }
       }
       console.log(`✅ Plage '${sheetName}!${range}' vidée avec succès.`);
@@ -300,7 +362,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       console.error(`❌ Erreur lors du nettoyage de la feuille ${sheetName} à la plage ${range}:`, err);
       throw err;
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, t]);
 
   /**
    * Recherche et récupère les informations du template depuis un document existant.
@@ -375,24 +437,25 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       if (!success) {
         return {
           success: false,
-          errorMessage: 'Échec de la synchronisation des onglets'
+          errorMessage: t('useCombinedDocExport.error.tabSyncFailed')
         };
       }
 
       return { success: true };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur durant la synchronisation des onglets';
+      const errorMessage = err instanceof Error ? err.message : t('useCombinedDocExport.error.tabSyncError');
       return {
         success: false,
         errorMessage
       };
     }
-  }, [duplicateAndManageTabs]);
+  }, [duplicateAndManageTabs, t]);
 
   /**
    * Fonction principale pour extraire et exporter les données combinées vers Google Sheets.
    * Les shortcodes sont automatiquement convertis en noms d'affichage selon la langue spécifiée.
    * Les onglets sont synchronisés si le template original a TE_Duplicate = TRUE.
+   * AMÉLIORÉ : Gestion des erreurs de pop-up bloquée avec messages explicites.
    * @param {string} clientId L'ID du client.
    * @param {string} campaignId L'ID de la campagne.
    * @param {string} versionId L'ID de la version.
@@ -408,7 +471,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
     exportLanguage: 'FR' | 'EN' = 'FR'
   ): Promise<boolean> => {
     if (!user) {
-      setError('Utilisateur non authentifié. Veuillez vous connecter.');
+      setError(t('useCombinedDocExport.error.unauthenticatedConnect'));
       return false;
     }
 
@@ -417,7 +480,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
 
     const sheetId = extractSheetId(sheetUrl);
     if (!sheetId) {
-      setError('URL Google Sheet invalide.');
+      setError(t('useCombinedDocExport.error.invalidSheetUrl'));
       setLoading(false);
       return false;
     }
@@ -453,7 +516,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
 
       // Vérifier si toutes les données ont été extraites avec succès
       if (!campaignDataResult || !breakdownDataResult || !cleanedDataResult) {
-        throw new Error('Données manquantes après extraction.');
+        throw new Error(t('useCombinedDocExport.error.missingDataAfterExtraction'));
       }
 
       console.log(`[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes en ${exportLanguage}...`);
@@ -461,12 +524,12 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       // 4. Convertir les shortcodes dans les données de campagne avec la langue spécifiée
       const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId, exportLanguage);
       if (convertError) throw new Error(convertError);
-      if (!convertedCampaignData) throw new Error('Erreur lors de la conversion des shortcodes de campagne.');
+      if (!convertedCampaignData) throw new Error(t('useCombinedDocExport.error.campaignShortcodeConversion'));
 
       // 5. Convertir les shortcodes dans les données de hiérarchie avec la langue spécifiée
       const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId, exportLanguage);
       if (convertError) throw new Error(convertError);
-      if (!convertedCleanedData) throw new Error('Erreur lors de la conversion des shortcodes de hiérarchie.');
+      if (!convertedCleanedData) throw new Error(t('useCombinedDocExport.error.hierarchyShortcodeConversion'));
 
       // Note: Les données de breakdown ne contiennent généralement pas de shortcodes,
       // donc on les garde telles quelles
@@ -493,14 +556,24 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       const allSuccess = results.every(res => res === true);
 
       if (!allSuccess) {
-        throw new Error('Une ou plusieurs écritures dans Google Sheets ont échoué.');
+        throw new Error(t('useCombinedDocExport.error.multipleWritesFailed'));
       }
 
       console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès (shortcodes convertis en ${exportLanguage})`);
       return true;
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'exportation combinée.';
+      // AMÉLIORÉ : Gestion spécifique des erreurs d'authentification
+      let errorMessage: string;
+      
+      if (err instanceof Error && err.name === 'AuthenticationError') {
+        // Erreur d'authentification déjà formatée par handleAuthError
+        errorMessage = err.message;
+      } else {
+        // Autres erreurs
+        errorMessage = err instanceof Error ? err.message : t('useCombinedDocExport.error.unknownExportError');
+      }
+      
       console.error('❌ Erreur exportCombinedData:', errorMessage);
       setError(errorMessage);
       return false;
@@ -508,7 +581,7 @@ const convertDataWithTypes = useCallback((data: any[][]): (string | number)[][] 
       setLoading(false);
     }
   }, [
-    user,
+    user, t,
     cleanData, cleanError,
     extractBreakdownData, breakdownError,
     extractCampaignData, campaignError,

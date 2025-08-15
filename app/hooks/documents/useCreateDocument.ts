@@ -8,9 +8,9 @@
  * 4. Duplication des onglets si TE_Duplicate = TRUE
  * 5. Injection des données de campagne/version dans le document
  * 6. Mise à jour du statut final (completed/error)
- * 
- * IMPORTANT: Les shortcodes sont convertis selon la langue du template (TE_Language)
+ * * IMPORTANT: Les shortcodes sont convertis selon la langue du template (TE_Language)
  * et non selon la langue d'exportation du client.
+ * * AMÉLIORÉ: Propagation des erreurs détaillées (notamment pop-ups bloquées)
  */
 'use client';
 
@@ -38,6 +38,7 @@ import {
   DocumentCreationOptions,
   DocumentStatus 
 } from '../../types/document';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface UseCreateDocumentReturn {
   createDocument: (
@@ -59,13 +60,14 @@ interface UseCreateDocumentReturn {
  * les états de chargement, d'erreur et de progression.
  */
 export function useCreateDocument(): UseCreateDocumentReturn {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{step: string; details: string} | null>(null);
 
   const { duplicateTemplate, loading: duplicateLoading } = useDuplicateTemplate();
-  const { exportCombinedData, loading: exportLoading } = useCombinedDocExport();
+  const { exportCombinedData, loading: exportLoading, error: exportError } = useCombinedDocExport();
   const { duplicateAndManageTabs, loading: tabsLoading } = useDuplicateTabsDoc();
 
   /**
@@ -98,7 +100,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     clientId: string,
     formData: DocumentFormData
   ) => {
-    updateProgress('Validation', 'Validation des données...');
+    updateProgress(t('useCreateDocument.progress.validationStep'), t('useCreateDocument.progress.validatingData'));
 
     // 1. Vérifier que le nom n'existe pas déjà
     const nameExists = await documentNameExists(
@@ -109,36 +111,36 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     );
 
     if (nameExists) {
-      throw new Error(`Un document avec le nom "${formData.name}" existe déjà pour cette version.`);
+      throw new Error(t('useCreateDocument.error.documentNameExistsStart') + `"${formData.name}"` + t('useCreateDocument.error.documentNameExistsEnd'));
     }
 
-    updateProgress('Validation', 'Récupération des informations du template...');
+    updateProgress(t('useCreateDocument.progress.validationStep'), t('useCreateDocument.progress.fetchingTemplateInfo'));
 
     // 2. Récupérer les informations du template
     const template = await getTemplateById(clientId, formData.templateId);
     if (!template) {
-      throw new Error('Template non trouvé.');
+      throw new Error(t('useCreateDocument.error.templateNotFound'));
     }
 
-    updateProgress('Validation', 'Récupération des informations de la campagne...');
+    updateProgress(t('useCreateDocument.progress.validationStep'), t('useCreateDocument.progress.fetchingCampaignInfo'));
 
     // 3. Récupérer les informations de la campagne
     const campaigns = await getCampaigns(clientId);
     const campaign = campaigns.find(c => c.id === formData.campaignId);
     if (!campaign) {
-      throw new Error('Campagne non trouvée.');
+      throw new Error(t('useCreateDocument.error.campaignNotFound'));
     }
 
-    updateProgress('Validation', 'Récupération des informations de la version...');
+    updateProgress(t('useCreateDocument.progress.validationStep'), t('useCreateDocument.progress.fetchingVersionInfo'));
 
     // 4. Récupérer les informations de la version
     const versions = await getVersions(clientId, formData.campaignId);
     const version = versions.find(v => v.id === formData.versionId);
     if (!version) {
-      throw new Error('Version non trouvée.');
+      throw new Error(t('useCreateDocument.error.versionNotFound'));
     }
 
-    updateProgress('Validation', 'Récupération des informations du client...');
+    updateProgress(t('useCreateDocument.progress.validationStep'), t('useCreateDocument.progress.fetchingClientInfo'));
 
     // 5. Récupérer les informations du client
     const clientInfo = await getClientInfo(clientId);
@@ -149,7 +151,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       version,
       clientInfo
     };
-  }, [updateProgress]);
+  }, [updateProgress, t]);
 
   /**
    * Gère la duplication des onglets si le template l'exige.
@@ -169,14 +171,14 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       return { success: true };
     }
 
-    updateProgress('Onglets', 'Duplication des onglets selon la structure de campagne...');
+    updateProgress(t('useCreateDocument.progress.tabsStep'), t('useCreateDocument.progress.duplicatingTabs'));
 
     // Extraire l'ID du sheet
     const sheetId = extractSheetId(documentUrl);
     if (!sheetId) {
       return {
         success: false,
-        errorMessage: 'Impossible d\'extraire l\'ID du Google Sheet pour la duplication des onglets'
+        errorMessage: t('useCreateDocument.error.cannotExtractSheetId')
       };
     }
 
@@ -192,23 +194,24 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       if (!success) {
         return {
           success: false,
-          errorMessage: 'Échec de la duplication des onglets'
+          errorMessage: t('useCreateDocument.error.tabsDuplicationFailed')
         };
       }
 
       return { success: true };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur durant la duplication des onglets';
+      const errorMessage = err instanceof Error ? err.message : t('useCreateDocument.error.tabsDuplicationError');
       return {
         success: false,
         errorMessage
       };
     }
-  }, [updateProgress, extractSheetId, duplicateAndManageTabs]);
+  }, [updateProgress, extractSheetId, duplicateAndManageTabs, t]);
 
   /**
    * Injecte les données dans le document dupliqué via le hook combiné.
    * Utilise la langue du template pour la conversion des shortcodes.
+   * AMÉLIORÉ: Récupère l'erreur spécifique du hook exportCombinedData au lieu d'utiliser un message générique.
    * @param documentUrl L'URL du document dupliqué.
    * @param context Le contexte de création.
    * @param templateLanguage La langue du template pour la conversion des shortcodes.
@@ -219,7 +222,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     context: DocumentCreationContext,
     templateLanguage: string
   ) => {
-    updateProgress('Injection', 'Extraction des données de la campagne...');
+    updateProgress(t('useCreateDocument.progress.injectionStep'), t('useCreateDocument.progress.extractingCampaignData'));
 
     const { clientId, formData } = context;
 
@@ -233,24 +236,25 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         formData.campaignId,
         formData.versionId,
         documentUrl,
-        exportLanguage // Utilisation de la langue du template
+        exportLanguage
       );
 
       return {
         success,
         rowsInjected: success ? 100 : 0, // Placeholder - le hook combiné ne retourne pas ces détails
         sheetsUpdated: success ? ['MB_Data', 'MB_Splits'] : [],
-        errorMessage: success ? undefined : 'Erreur lors de l\'injection des données'
+        // AMÉLIORÉ: Utiliser l'erreur spécifique du hook exportCombinedData au lieu d'un message générique
+        errorMessage: success ? undefined : (exportError || t('useCreateDocument.error.dataInjectionError'))
       };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'injection';
+      const errorMessage = err instanceof Error ? err.message : t('useCreateDocument.error.unknownInjectionError');
       return {
         success: false,
         errorMessage
       };
     }
-  }, [updateProgress, exportCombinedData]);
+  }, [updateProgress, exportCombinedData, exportError, t]);
 
   /**
    * Fonction principale pour créer un document complet.
@@ -267,7 +271,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     if (!user) {
       return {
         success: false,
-        errorMessage: 'Utilisateur non authentifié',
+        errorMessage: t('useCreateDocument.error.userNotAuthenticated'),
         failedStep: 'validation'
       };
     }
@@ -304,7 +308,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       };
 
       // 2. DUPLICATION DU TEMPLATE
-      updateProgress('Duplication', `Duplication du template "${template.TE_Name}"...`);
+      updateProgress(t('useCreateDocument.progress.duplicationStep'), t('useCreateDocument.progress.duplicatingTemplate') + ` "${template.TE_Name}"...`);
       
       const duplicationResult = await duplicateTemplate(
         template.TE_URL,
@@ -316,13 +320,13 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         return {
           success: false,
           duplicationResult,
-          errorMessage: duplicationResult.errorMessage || 'Échec de la duplication du template',
+          errorMessage: duplicationResult.errorMessage || t('useCreateDocument.error.templateDuplicationFailed'),
           failedStep: 'duplication'
         };
       }
 
       // 3. CRÉATION DE L'ENTRÉE FIREBASE
-      updateProgress('Sauvegarde', 'Création de l\'entrée dans la base de données...');
+      updateProgress(t('useCreateDocument.progress.savingStep'), t('useCreateDocument.progress.creatingDatabaseEntry'));
       
       const documentId = await createDocument(context, duplicationResult.duplicatedUrl);
 
@@ -370,13 +374,13 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         return {
           success: false,
           duplicationResult,
-          errorMessage: tabsResult.errorMessage || 'Échec de la duplication des onglets',
+          errorMessage: tabsResult.errorMessage || t('useCreateDocument.error.tabsDuplicationFailed'),
           failedStep: 'duplication'
         };
       }
 
       // 6. INJECTION DES DONNÉES
-      updateProgress('Injection', 'Injection des données dans le document...');
+      updateProgress(t('useCreateDocument.progress.injectionStep'), t('useCreateDocument.progress.injectingData'));
       
       const injectionResult = await injectDataIntoDocument(
         duplicationResult.duplicatedUrl,
@@ -403,7 +407,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
           true
         );
 
-        updateProgress('Terminé', 'Document créé avec succès !');
+        updateProgress(t('useCreateDocument.progress.finishedStep'), t('useCreateDocument.progress.documentCreatedSuccessfully'));
       } else {
         await updateDocumentStatus(
           clientId,
@@ -463,7 +467,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de la création du document';
+      const errorMessage = err instanceof Error ? err.message : t('useCreateDocument.error.unknownCreationError');
       console.error('❌ Erreur création document:', errorMessage);
       setError(errorMessage);
       
@@ -482,7 +486,8 @@ export function useCreateDocument(): UseCreateDocumentReturn {
     duplicateTemplate, 
     handleTabsDuplication,
     injectDataIntoDocument, 
-    updateProgress
+    updateProgress,
+    t
   ]);
 
   const overallLoading = loading || duplicateLoading || exportLoading || tabsLoading;

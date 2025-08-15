@@ -1883,6 +1883,11 @@ export const translations = {
       },
       configuredState: {
         title: "Champs à configurer"
+      },
+      hiddenFields: {
+        message: "ont été ignorés car ils n'acceptent pas les valeurs libres et n'ont pas de liste configurée pour ce client.",
+        prefix: "Les champs",
+
       }
     },
     donutChart: {
@@ -3515,6 +3520,73 @@ export const translations = {
         user: "Utilisateur"
       }
     },
+    useCombinedDocExport: {
+      error: {
+        popupBlocked: "🚫 Les pop-ups sont bloquées par votre navigateur.",
+        unauthorizedDomain: "Domaine non autorisé pour l'authentification Google. Contactez l'administrateur.",
+        operationNotAllowed: "Connexion Google désactivée. Contactez l'administrateur.",
+        networkRequestFailed: "Problème de connexion réseau. Vérifiez votre connexion internet et réessayez.",
+        sessionExpired: "Session expirée. Veuillez vous reconnecter et réessayer.",
+        googleAuthGenericStart: "Erreur d'authentification Google :",
+        googleAuthGenericEnd: "Veuillez réessayer ou contacter le support.",
+        unauthenticated: "Utilisateur non authentifié",
+        accessTokenNotRetrieved: "Token d'accès non récupéré",
+        accessTokenWriteFailed: "Impossible d'obtenir le token d'accès pour l'écriture.",
+        insufficientPermissions: "Permissions insuffisantes. Vérifiez l'accès au Google Sheet.",
+        sheetOrTabNotFoundStart: "Google Sheet ou onglet",
+        sheetOrTabNotFoundEnd: "non trouvé.",
+        apiError: "Erreur API Sheets :",
+        accessTokenClearFailed: "Impossible d'obtenir le token d'accès pour le nettoyage.",
+        insufficientClearPermissions: "Permissions insuffisantes pour vider le Google Sheet.",
+        sheetOrTabNotFoundCleaningEnd: "non trouvé lors du nettoyage.",
+        apiClearError: "Erreur API Sheets lors du nettoyage :",
+        tabSyncFailed: "Échec de la synchronisation des onglets",
+        tabSyncError: "Erreur durant la synchronisation des onglets",
+        unauthenticatedConnect: "Utilisateur non authentifié. Veuillez vous connecter.",
+        invalidSheetUrl: "URL Google Sheet invalide.",
+        missingDataAfterExtraction: "Données manquantes après extraction.",
+        campaignShortcodeConversion: "Erreur lors de la conversion des shortcodes de campagne.",
+        hierarchyShortcodeConversion: "Erreur lors de la conversion des shortcodes de hiérarchie.",
+        multipleWritesFailed: "Une ou plusieurs écritures dans Google Sheets ont échoué.",
+        unknownExportError: "Erreur inconnue lors de l'exportation combinée."
+      }
+    },
+    useCreateDocument: {
+      progress: {
+        validationStep: "Validation",
+        validatingData: "Validation des données...",
+        fetchingTemplateInfo: "Récupération des informations du template...",
+        fetchingCampaignInfo: "Récupération des informations de la campagne...",
+        fetchingVersionInfo: "Récupération des informations de la version...",
+        fetchingClientInfo: "Récupération des informations du client...",
+        tabsStep: "Onglets",
+        duplicatingTabs: "Duplication des onglets selon la structure de campagne...",
+        injectionStep: "Injection",
+        extractingCampaignData: "Extraction des données de la campagne...",
+        duplicationStep: "Duplication",
+        duplicatingTemplate: "Duplication du template",
+        savingStep: "Sauvegarde",
+        creatingDatabaseEntry: "Création de l'entrée dans la base de données...",
+        injectingData: "Injection des données dans le document...",
+        finishedStep: "Terminé",
+        documentCreatedSuccessfully: "Document créé avec succès !"
+      },
+      error: {
+        documentNameExistsStart: "Un document avec le nom ",
+        documentNameExistsEnd: " existe déjà pour cette version.",
+        templateNotFound: "Template non trouvé.",
+        campaignNotFound: "Campagne non trouvée.",
+        versionNotFound: "Version non trouvée.",
+        cannotExtractSheetId: "Impossible d'extraire l'ID du Google Sheet pour la duplication des onglets",
+        tabsDuplicationFailed: "Échec de la duplication des onglets",
+        tabsDuplicationError: "Erreur durant la duplication des onglets",
+        dataInjectionError: "Erreur lors de l'injection des données",
+        unknownInjectionError: "Erreur inconnue lors de l'injection",
+        userNotAuthenticated: "Utilisateur non authentifié",
+        templateDuplicationFailed: "Échec de la duplication du template",
+        unknownCreationError: "Erreur inconnue lors de la création du document"
+      }
+    },
     editUserModal: {
       title: "Modifier le rôle utilisateur",
       form: {
@@ -4055,6 +4127,138 @@ export const translations = {
         placement: "placement",
         creative: "créatif"
       }
+    },
+    clientTaxonomies: {
+      errors: {
+        loadFailed: "Erreur lors du chargement des taxonomies.",
+        addFailed: "Erreur lors de l'ajout de la taxonomie.",
+        updateFailed: "Erreur lors de la mise à jour de la taxonomie.",
+        deleteFailed: "Erreur lors de la suppression de la taxonomie.",
+        replaceFailed: "Une erreur est survenue lors du remplacement.",
+        searchFailed: "Une erreur est survenue lors de la recherche."
+      },
+      success: {
+        added: "Taxonomie ajoutée avec succès.",
+        updated: "Taxonomie mise à jour avec succès.",
+        deleted: "Taxonomie supprimée avec succès.",
+        replacementsMade: "{count} remplacements ont été effectués."
+      },
+      info: {
+        noneFound: "Aucun texte correspondant n'a été trouvé."
+      },
+      confirm: {
+        delete: "Êtes-vous sûr de vouloir supprimer cette taxonomie ?"
+      },
+      selectClientPrompt: "Veuillez sélectionner un client pour voir ses taxonomies.",
+      header: {
+        title: "Taxonomies du client"
+      },
+      buttons: {
+        searchAndReplace: "Rechercher & Remplacer",
+        add: "Ajouter une taxonomie",
+        replace: "Remplacer"
+      },
+      permissions: {
+        cannotModify: "Vous n'avez pas les permissions pour modifier.",
+        cannotAdd: "Vous n'avez pas les permissions pour ajouter.",
+        cannotDelete: "Vous n'avez pas les permissions pour supprimer.",
+        readOnly: "Vous avez un accès en lecture seule aux taxonomies."
+      },
+      loading: {
+        taxonomies: "Chargement des taxonomies..."
+      },
+      emptyState: {
+        noTaxonomies: "Aucune taxonomie n'a été trouvée pour ce client."
+      },
+      details: {
+        standard: "Standard",
+        custom: "Personnalisée",
+        description: "Description",
+        noDescription: "Aucune description fournie.",
+        taxonomyLevels: "Structure de la taxonomie",
+        level: "Niveau {{level}}",
+        title: "Titre",
+        name: "Nom"
+      },
+      form: {
+        editTitle: "Modifier la taxonomie",
+        addTitle: "Ajouter une nouvelle taxonomie"
+      },
+      searchModal: {
+        title: "Rechercher dans les taxonomies",
+        searchLabel: "Texte à rechercher",
+        searchPlaceholder: "Entrez le texte à trouver...",
+        searching: "Recherche en cours...",
+        results: "Résultats de la recherche {{count}}",
+        foundIn: "Trouvé dans",
+        noResults: "Aucun résultat trouvé pour votre recherche."
+      },
+      searchReplaceModal: {
+        searchLabel: "Rechercher ce texte",
+        searchPlaceholder: "Texte à trouver",
+        replaceLabel: "Remplacer par ce texte",
+        replacePlaceholder: "Texte de remplacement (laisser vide pour supprimer)",
+        replacing: "Remplacement en cours..."
+      }
+    },
+    taxonomyForm: {
+      generalInfo: {
+        title: "Informations générales",
+        displayNameLabel: "Nom d'affichage*",
+        standardTaxonomyLabel: "Taxonomie standard",
+        noStandardTaxonomy: "Aucune (personnalisée)",
+        descriptionLabel: "Description",
+      },
+      help: {
+        title: "Fonctions spéciales",
+        baseVariables: {
+          title: "Variables de base",
+          copyButton: "Copier",
+          copyCharactersButton: "Copier les caractères",
+          description: "Insérez vos variables avec le format souhaité.",
+        },
+        concatenation: {
+          title: "Concatenation",
+          description: "Affiche les délimiteurs seulement si les variables ont des valeurs",
+          example: 'Exemple : <[CR_CTA]-[CR_Offer]-[PL_Format]> → "ABC-DEF" au lieu de "ABC--DEF"',
+        },
+        lowercase: {
+          title: "Conversion en minuscules",
+          description: "Convertit tout le contenu en lettres minuscules.",
+          example: "Exemple : ▶FACEBOOK◀ → facebook",
+        },
+        specialChars: {
+          title: "Nettoyage des caractères spéciaux",
+          description: "Supprime les caractères spéciaux, convertit les accents (é→e), remplace espaces et _ par des tirets.",
+          example: "Exemple : 〔Café & Co_Ltd!〕 → cafe-co-ltd",
+        },
+        conditionalReplacement: {
+          title: "Remplacement conditionnel",
+          description: 'Première occurrence : affiche le contenu. Occurrences suivantes : remplace par "&".',
+          example: "Exemple : www.taxo?fun.com〈?〉utm_medium... → www.taxo?fun.com&utm_medium...",
+        },
+      },
+      levels: {
+        title: "Niveaux de taxonomie",
+        level: "Niveau",
+        resetToDefaultTooltip: "Réinitialiser à la valeur standard",
+        resetButton: "Réinitialiser",
+        levelTitleLabel: "Titre",
+        structureLabel: "Structure",
+        addVariableButton: "Variable",
+      },
+      variableMenu: {
+        filterPlaceholder: "Filtrer les variables...",
+        noVariableFound: "Aucune variable trouvée",
+        formatFor: "Format pour",
+      },
+      tooltips: {
+        unknownVariable: "Variable inconnue",
+        invalidFormat: "Format invalide pour cette variable",
+        missingFormat: "Format manquant - utiliser variable:format",
+        variableLabel: "Variable",
+        formatLabel: "Format",
+      },
     },
     
 
@@ -5787,7 +5991,12 @@ export const translations = {
       },
       configuredState: {
         title: "Fields to Configure"
+      },
+      hiddenFields: {
+        message: "were ignored because they do not accept free values and do not have a list configured for this client.",
+        prefix:"The fields"
       }
+      
     },
     donutChart: {
       noData: "No data",
@@ -7419,6 +7628,73 @@ export const translations = {
         user: "User"
       }
     },
+    useCombinedDocExport: {
+      error: {
+        popupBlocked: "🚫 Pop-ups are blocked by your browser.",
+        unauthorizedDomain: "Domain not authorized for Google authentication. Contact the administrator.",
+        operationNotAllowed: "Google sign-in disabled. Contact the administrator.",
+        networkRequestFailed: "Network connection problem. Check your internet connection and try again.",
+        sessionExpired: "Session expired. Please log in again and retry.",
+        googleAuthGenericStart: "Google authentication error:",
+        googleAuthGenericEnd: "Please try again or contact support.",
+        unauthenticated: "User not authenticated",
+        accessTokenNotRetrieved: "Access token not retrieved",
+        accessTokenWriteFailed: "Could not get access token for writing.",
+        insufficientPermissions: "Insufficient permissions. Check access to the Google Sheet.",
+        sheetOrTabNotFoundStart: "Google Sheet or tab",
+        sheetOrTabNotFoundEnd: "not found.",
+        apiError: "Sheets API Error:",
+        accessTokenClearFailed: "Could not get access token for clearing.",
+        insufficientClearPermissions: "Insufficient permissions to clear the Google Sheet.",
+        sheetOrTabNotFoundCleaningEnd: "not found during cleanup.",
+        apiClearError: "Sheets API error during cleanup:",
+        tabSyncFailed: "Tab synchronization failed",
+        tabSyncError: "Error during tab synchronization",
+        unauthenticatedConnect: "User not authenticated. Please log in.",
+        invalidSheetUrl: "Invalid Google Sheet URL.",
+        missingDataAfterExtraction: "Missing data after extraction.",
+        campaignShortcodeConversion: "Error converting campaign shortcodes.",
+        hierarchyShortcodeConversion: "Error converting hierarchy shortcodes.",
+        multipleWritesFailed: "One or more writes to Google Sheets failed.",
+        unknownExportError: "Unknown error during combined export."
+      }
+    },
+    useCreateDocument: {
+      progress: {
+        validationStep: "Validation",
+        validatingData: "Validating data...",
+        fetchingTemplateInfo: "Retrieving template information...",
+        fetchingCampaignInfo: "Retrieving campaign information...",
+        fetchingVersionInfo: "Retrieving version information...",
+        fetchingClientInfo: "Retrieving client information...",
+        tabsStep: "Tabs",
+        duplicatingTabs: "Duplicating tabs according to campaign structure...",
+        injectionStep: "Injection",
+        extractingCampaignData: "Extracting campaign data...",
+        duplicationStep: "Duplication",
+        duplicatingTemplate: "Duplicating template",
+        savingStep: "Saving",
+        creatingDatabaseEntry: "Creating database entry...",
+        injectingData: "Injecting data into the document...",
+        finishedStep: "Finished",
+        documentCreatedSuccessfully: "Document created successfully!"
+      },
+      error: {
+        documentNameExistsStart: "A document with the name ",
+        documentNameExistsEnd: " already exists for this version.",
+        templateNotFound: "Template not found.",
+        campaignNotFound: "Campaign not found.",
+        versionNotFound: "Version not found.",
+        cannotExtractSheetId: "Could not extract Google Sheet ID for tab duplication",
+        tabsDuplicationFailed: "Tab duplication failed",
+        tabsDuplicationError: "Error during tab duplication",
+        dataInjectionError: "Error during data injection",
+        unknownInjectionError: "Unknown error during injection",
+        userNotAuthenticated: "User not authenticated",
+        templateDuplicationFailed: "Template duplication failed",
+        unknownCreationError: "Unknown error during document creation"
+      }
+    },
     editUserModal: {
       title: "Edit User Role",
       form: {
@@ -7973,6 +8249,138 @@ export const translations = {
         placement: "placement",
         creative: "creative"
       }
+    },
+    clientTaxonomies: {
+      errors: {
+        loadFailed: "Failed to load taxonomies.",
+        addFailed: "Failed to add taxonomy.",
+        updateFailed: "Failed to update taxonomy.",
+        deleteFailed: "Failed to delete taxonomy.",
+        replaceFailed: "An error occurred during replacement.",
+        searchFailed: "An error occurred during the search."
+      },
+      success: {
+        added: "Taxonomy added successfully.",
+        updated: "Taxonomy updated successfully.",
+        deleted: "Taxonomy deleted successfully.",
+        replacementsMade: "{count} replacements were made."
+      },
+      info: {
+        noneFound: "No matching text was found."
+      },
+      confirm: {
+        delete: "Are you sure you want to delete this taxonomy?"
+      },
+      selectClientPrompt: "Please select a client to view their taxonomies.",
+      header: {
+        title: "Client Taxonomies"
+      },
+      buttons: {
+        searchAndReplace: "Search & Replace",
+        add: "Add Taxonomy",
+        replace: "Replace"
+      },
+      permissions: {
+        cannotModify: "You do not have permission to modify.",
+        cannotAdd: "You do not have permission to add.",
+        cannotDelete: "You do not have permission to delete.",
+        readOnly: "You have read-only access to taxonomies."
+      },
+      loading: {
+        taxonomies: "Loading taxonomies..."
+      },
+      emptyState: {
+        noTaxonomies: "No taxonomies were found for this client."
+      },
+      details: {
+        standard: "Standard",
+        custom: "Custom",
+        description: "Description",
+        noDescription: "No description provided.",
+        taxonomyLevels: "Taxonomy Structure",
+        level: "Level {{level}}",
+        title: "Title",
+        name: "Name"
+      },
+      form: {
+        editTitle: "Edit Taxonomy",
+        addTitle: "Add New Taxonomy"
+      },
+      searchModal: {
+        title: "Search in Taxonomies",
+        searchLabel: "Text to search for",
+        searchPlaceholder: "Enter text to find...",
+        searching: "Searching...",
+        results: "Search Results {{count}}",
+        foundIn: "Found in",
+        noResults: "No results found for your search."
+      },
+      searchReplaceModal: {
+        searchLabel: "Find this text",
+        searchPlaceholder: "Text to find",
+        replaceLabel: "Replace with this text",
+        replacePlaceholder: "Replacement text (leave empty to delete)",
+        replacing: "Replacing..."
+      }
+    },
+    taxonomyForm: {
+      generalInfo: {
+        title: "General Information",
+        displayNameLabel: "Display Name*",
+        standardTaxonomyLabel: "Standard Taxonomy",
+        noStandardTaxonomy: "None (custom)",
+        descriptionLabel: "Description",
+      },
+      help: {
+        title: "Special Functions",
+        baseVariables: {
+          title: "Base Variables",
+          copyButton: "Copy",
+          copyCharactersButton: "Copy characters",
+          description: "Insert your variables with the desired format.",
+        },
+        concatenation: {
+          title: "Concatenation",
+          description: "Displays delimiters only if the variables have values",
+          example: 'Example: <[CR_CTA]-[CR_Offer]-[PL_Format]> → "ABC-DEF" instead of "ABC--DEF"',
+        },
+        lowercase: {
+          title: "Lowercase Conversion",
+          description: "Converts all content to lowercase letters.",
+          example: "Example: ▶FACEBOOK◀ → facebook",
+        },
+        specialChars: {
+          title: "Special Character Cleanup",
+          description: "Removes special characters, converts accents (é→e), replaces spaces and _ with dashes.",
+          example: "Example: 〔Café & Co_Ltd!〕 → cafe-co-ltd",
+        },
+        conditionalReplacement: {
+          title: "Conditional Replacement",
+          description: 'First occurrence: displays the content. Subsequent occurrences: replaces with "&".',
+          example: "Example: www.taxo?fun.com〈?〉utm_medium... → www.taxo?fun.com&utm_medium...",
+        },
+      },
+      levels: {
+        title: "Taxonomy Levels",
+        level: "Level",
+        resetToDefaultTooltip: "Reset to standard value",
+        resetButton: "Reset",
+        levelTitleLabel: "Title",
+        structureLabel: "Structure",
+        addVariableButton: "Variable",
+      },
+      variableMenu: {
+        filterPlaceholder: "Filter variables...",
+        noVariableFound: "No variable found",
+        formatFor: "Format for",
+      },
+      tooltips: {
+        unknownVariable: "Unknown variable",
+        invalidFormat: "Invalid format for this variable",
+        missingFormat: "Missing format - use variable:format",
+        variableLabel: "Variable",
+        formatLabel: "Format",
+      },
     },
   }
 };

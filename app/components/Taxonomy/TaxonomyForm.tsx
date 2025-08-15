@@ -19,6 +19,7 @@ import {
   isFormatAllowed,
   FormatOption 
 } from '../../config/taxonomyFields';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TaxonomyFormProps {
   taxonomy?: Taxonomy;
@@ -27,6 +28,7 @@ interface TaxonomyFormProps {
 }
 
 const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCancel }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<TaxonomyFormData>({
     NA_Display_Name: '',
     NA_Description: '',
@@ -405,14 +407,14 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
       if (fullMatch.includes(':')) {
         const [variableName, format] = fullMatch.split(':');
         if (!isKnownVariable(variableName)) {
-          title = 'Variable inconnue';
+          title = t('taxonomyForm.tooltips.unknownVariable');
         } else if (!isFormatAllowed(variableName, format as any)) {
-          title = 'Format invalide pour cette variable';
+          title = t('taxonomyForm.tooltips.invalidFormat');
         } else {
-          title = `Variable: ${variableName} | Format: ${format}`;
+          title = `${t('taxonomyForm.tooltips.variableLabel')}: ${variableName} | ${t('taxonomyForm.tooltips.formatLabel')}: ${format}`;
         }
       } else {
-        title = 'Format manquant - utiliser variable:format';
+        title = t('taxonomyForm.tooltips.missingFormat');
       }
       
       // Ajouter la variable formatée + possibilité de break après ]
@@ -452,12 +454,12 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
       <div className="bg-white p-6 rounded-lg shadow divide-y divide-gray-200">
         {/* Informations générales */}
         <div className="pb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Informations générales</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('taxonomyForm.generalInfo.title')}</h3>
           
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label htmlFor="NA_Display_Name" className="block text-sm font-medium text-gray-700">
-                Nom d'affichage*
+                {t('taxonomyForm.generalInfo.displayNameLabel')}
               </label>
               <input
                 type="text"
@@ -472,7 +474,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
             
             <div>
               <label htmlFor="defaultTaxo" className="block text-sm font-medium text-gray-700">
-                Taxonomie standard
+                {t('taxonomyForm.generalInfo.standardTaxonomyLabel')}
               </label>
               <select
                 id="defaultTaxo"
@@ -482,20 +484,20 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 disabled={loading}
               >
-                <option value="">Aucune (personnalisée)</option>
+                <option value="">{t('taxonomyForm.generalInfo.noStandardTaxonomy')}</option>
                 {defaultTaxonomies.map(taxo => (
                   <option key={taxo.id} value={taxo.id}>
                     {taxo.name}
                   </option>
                 ))}
               </select>
-              {loading && <div className="mt-2 text-sm text-gray-500">Chargement...</div>}
+              {loading && <div className="mt-2 text-sm text-gray-500">{t('common.loading')}</div>}
             </div>
           </div>
           
           <div className="mt-4">
             <label htmlFor="NA_Description" className="block text-sm font-medium text-gray-700">
-              Description
+              {t('taxonomyForm.generalInfo.descriptionLabel')}
             </label>
             <textarea
               id="NA_Description"
@@ -522,7 +524,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                   <ChevronRightIcon className="h-5 w-5 text-blue-500 mr-2" />
                 )}
                 <InformationCircleIcon className="h-5 w-5 text-blue-500 mr-2" />
-                <h4 className="text-md font-medium text-blue-700">Fonctions spéciales</h4>
+                <h4 className="text-md font-medium text-blue-700">{t('taxonomyForm.help.title')}</h4>
               </div>
             </div>
             
@@ -533,97 +535,97 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
 
                   {/* Variables de base */}
                   <div className="border-l-4 border-gray-300 pl-3">
-                    <h5 className="font-medium text-gray-800 mb-2">Variables de base</h5>
+                    <h5 className="font-medium text-gray-800 mb-2">{t('taxonomyForm.help.baseVariables.title')}</h5>
                     <div className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
                       <code className="text-sm">[variable:format]</code>
                       <button
                         type="button"
                         onClick={() => copyToClipboard('[variable:format]')}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Copier"
+                        title={t('taxonomyForm.help.baseVariables.copyButton')}
                       >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="text-gray-600 text-xs">Insérez vos variables avec le format souhaité.</p>
+                    <p className="text-gray-600 text-xs">{t('taxonomyForm.help.baseVariables.description')}</p>
                   </div>
 
                   {/* Groupes conditionnels */}
                   <div className="border-l-4 border-green-300 pl-3">
-                    <h5 className="font-medium text-green-800 mb-2">Concatenation</h5>
+                    <h5 className="font-medium text-green-800 mb-2">{t('taxonomyForm.help.concatenation.title')}</h5>
                     <div className="flex items-center justify-between bg-green-50 p-2 rounded mb-2">
                       <code className="text-sm">&lt;contenu&gt;</code>
                       <button
                         type="button"
                         onClick={() => copyToClipboard('<>')}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Copier les caractères"
+                        title={t('taxonomyForm.help.baseVariables.copyCharactersButton')}
                       >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="text-gray-600 text-xs">Affiche les délimiteurs seulement si les variables ont des valeurs</p>
+                    <p className="text-gray-600 text-xs">{t('taxonomyForm.help.concatenation.description')}</p>
                     <p className="text-xs text-green-600 mt-1">
-                      {'Exemple : <[CR_CTA]-[CR_Offer]-[PL_Format]> → "ABC-DEF" au lieu de "ABC--DEF"'}
+                      {t('taxonomyForm.help.concatenation.example')}
                     </p>
                   </div>
 
                   {/* Conversion minuscules */}
                   <div className="border-l-4 border-blue-300 pl-3">
-                    <h5 className="font-medium text-blue-800 mb-2">Conversion en minuscules</h5>
+                    <h5 className="font-medium text-blue-800 mb-2">{t('taxonomyForm.help.lowercase.title')}</h5>
                     <div className="flex items-center justify-between bg-blue-50 p-2 rounded mb-2">
                       <code className="text-sm">▶contenu◀</code>
                       <button
                         type="button"
                         onClick={() => copyToClipboard('▶◀')}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Copier les caractères"
+                        title={t('taxonomyForm.help.baseVariables.copyCharactersButton')}
                       >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="text-gray-600 text-xs">Convertit tout le contenu en lettres minuscules.</p>
-                    <p className="text-xs text-blue-600 mt-1">Exemple : ▶FACEBOOK◀ → facebook</p>
+                    <p className="text-gray-600 text-xs">{t('taxonomyForm.help.lowercase.description')}</p>
+                    <p className="text-xs text-blue-600 mt-1">{t('taxonomyForm.help.lowercase.example')}</p>
                   </div>
 
                   {/* Nettoyage caractères spéciaux */}
                   <div className="border-l-4 border-purple-300 pl-3">
-                    <h5 className="font-medium text-purple-800 mb-2">Nettoyage des caractères spéciaux</h5>
+                    <h5 className="font-medium text-purple-800 mb-2">{t('taxonomyForm.help.specialChars.title')}</h5>
                     <div className="flex items-center justify-between bg-purple-50 p-2 rounded mb-2">
                       <code className="text-sm">〔contenu〕</code>
                       <button
                         type="button"
                         onClick={() => copyToClipboard('〔〕')}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Copier les caractères"
+                        title={t('taxonomyForm.help.baseVariables.copyCharactersButton')}
                       >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     </div>
                     <p className="text-gray-600 text-xs">
-                      Supprime les caractères spéciaux, convertit les accents (é→e), remplace espaces et _ par des tirets.
+                      {t('taxonomyForm.help.specialChars.description')}
                     </p>
-                    <p className="text-xs text-purple-600 mt-1">Exemple : 〔Café & Co_Ltd!〕 → cafe-co-ltd</p>
+                    <p className="text-xs text-purple-600 mt-1">{t('taxonomyForm.help.specialChars.example')}</p>
                   </div>
 
                   {/* Remplacement conditionnel */}
                   <div className="border-l-4 border-orange-300 pl-3">
-                    <h5 className="font-medium text-orange-800 mb-2">Remplacement conditionnel</h5>
+                    <h5 className="font-medium text-orange-800 mb-2">{t('taxonomyForm.help.conditionalReplacement.title')}</h5>
                     <div className="flex items-center justify-between bg-orange-50 p-2 rounded mb-2">
                       <code className="text-sm">〈contenu〉</code>
                       <button
                         type="button"
                         onClick={() => copyToClipboard('〈〉')}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Copier les caractères"
+                        title={t('taxonomyForm.help.baseVariables.copyCharactersButton')}
                       >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     </div>
                     <p className="text-gray-600 text-xs">
-                      Première occurrence : affiche le contenu. Occurrences suivantes : remplace par "&".
+                      {t('taxonomyForm.help.conditionalReplacement.description')}
                     </p>
-                    <p className="text-xs text-orange-600 mt-1">Exemple : www.taxo?fun.com〈?〉utm_medium... →  www.taxo?fun.com&utm_medium...</p>
+                    <p className="text-xs text-orange-600 mt-1">{t('taxonomyForm.help.conditionalReplacement.example')}</p>
                   </div>
 
                   
@@ -635,7 +637,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
         
         {/* Niveaux de taxonomie */}
         <div className="pt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Niveaux de taxonomie</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('taxonomyForm.levels.title')}</h3>
           
           {[1, 2, 3, 4, 5, 6].map((level) => (
             <div key={level} className="mb-6 border border-gray-200 rounded-md overflow-hidden">
@@ -650,7 +652,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                   ) : (
                     <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
                   )}
-                  <h4 className="text-md font-medium text-gray-700">Niveau {level}</h4>
+                  <h4 className="text-md font-medium text-gray-700">{t('taxonomyForm.levels.level')} {level}</h4>
                 </div>
                 
                 {/* Bouton de réinitialisation (visible uniquement si une taxonomie standard est sélectionnée) */}
@@ -662,10 +664,10 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                       resetLevel(level);
                     }}
                     className="text-gray-500 hover:text-indigo-600 flex items-center"
-                    title="Réinitialiser à la valeur standard"
+                    title={t('taxonomyForm.levels.resetToDefaultTooltip')}
                   >
                     <ArrowPathIcon className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Réinitialiser</span>
+                    <span className="text-xs">{t('taxonomyForm.levels.resetButton')}</span>
                   </button>
                 )}
               </div>
@@ -678,7 +680,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                       htmlFor={`NA_Name_Level_${level}_Title`} 
                       className="block text-sm font-medium text-gray-700"
                     >
-                      Titre
+                      {t('taxonomyForm.levels.levelTitleLabel')}
                     </label>
                     <input
                       type="text"
@@ -696,7 +698,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                         htmlFor={`NA_Name_Level_${level}`} 
                         className="block text-sm font-medium text-gray-700"
                       >
-                        Structure
+                        {t('taxonomyForm.levels.structureLabel')}
                       </label>
                       <button
                         type="button"
@@ -708,7 +710,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                         className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
                       >
                         <PlusIcon className="h-3 w-3 mr-1" />
-                        Variable
+                        {t('taxonomyForm.levels.addVariableButton')}
                       </button>
                     </div>
                     <div className="relative">
@@ -747,7 +749,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
             <div className="px-3 py-2 border-b border-gray-200">
               <input
                 type="text"
-                placeholder="Filtrer les variables..."
+                placeholder={t('taxonomyForm.variableMenu.filterPlaceholder')}
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 className="w-full text-sm border-gray-300 rounded-md"
@@ -768,7 +770,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
                 ))
               ) : (
                 <div className="px-4 py-2 text-sm text-gray-500">
-                  Aucune variable trouvée
+                  {t('taxonomyForm.variableMenu.noVariableFound')}
                 </div>
               )}
             </div>
@@ -778,7 +780,7 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
           {formatMenuOpen && selectedVariable && (
             <div className="bg-white shadow-lg rounded-md border border-gray-200 w-48 ml-1">
               <div className="px-3 py-2 text-xs font-semibold border-b border-gray-200">
-                Format pour {selectedVariable}
+                {t('taxonomyForm.variableMenu.formatFor')} {selectedVariable}
               </div>
               <div className="max-h-[90vh] overflow-y-auto py-1">
                 {getAvailableFormatsForSelectedVariable().map((format) => (
@@ -804,13 +806,13 @@ const TaxonomyForm: React.FC<TaxonomyFormProps> = ({ taxonomy, onSubmit, onCance
           onClick={onCancel}
           className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          Annuler
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
-          {taxonomy ? 'Mettre à jour' : 'Ajouter'}
+          {taxonomy ? t('common.update') : t('common.create')}
         </button>
       </div>
     </form>

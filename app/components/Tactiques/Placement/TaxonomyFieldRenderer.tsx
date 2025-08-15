@@ -1,12 +1,12 @@
-// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Avec validation en temps réel
+// app/components/Tactiques/Placement/TaxonomyFieldRenderer.tsx - Avec filtrage des champs sans liste
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
-import { getFieldLabel, ClientConfig } from '../../../config/TaxonomyFieldLabels';
+import { ClientConfig } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -92,14 +92,112 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   // État pour tracker les erreurs de validation par champ
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: boolean }>({});
 
+  // 🔥 NOUVEAU : Filtrage des champs selon les nouvelles règles
+  const { visibleVariables, hiddenFields } = useMemo(() => {
+    const visible: ParsedTaxonomyVariable[] = [];
+    const hidden: string[] = [];
+
+    manualVariables.forEach(variable => {
+      const fieldKey = variable.variable;
+      const fieldState = fieldStates[fieldKey];
+      
+      // Pour les champs TC_ (tactique), garder le comportement actuel
+      if (fieldKey.startsWith('TC_')) {
+        visible.push(variable);
+        return;
+      }
+      
+      // Pour les champs PL_ et CR_, appliquer la nouvelle logique
+      if (fieldKey.startsWith('PL_') || fieldKey.startsWith('CR_')) {
+        // Vérifier si le champ accepte le format 'open'
+        const variableConfig = getVariableConfig(fieldKey);
+        const allowedFormats = variableConfig?.allowedFormats || [];
+        const isOpenFormat = allowedFormats.includes('open');
+        const hasCustomList = fieldState?.hasCustomList === true;
+        
+        // Afficher le champ SI :
+        // - Format 'open' OU
+        // - A une liste configurée
+        if (isOpenFormat || hasCustomList) {
+          visible.push(variable);
+        } else {
+          // Obtenir le label pour l'affichage du message
+          let fieldLabel = fieldKey;
+          
+          // Vérifier d'abord les dimensions personnalisées
+          if (fieldKey === 'PL_Custom_Dim_1' && clientConfig?.Custom_Dim_PL_1) {
+            fieldLabel = clientConfig.Custom_Dim_PL_1;
+          } else if (fieldKey === 'PL_Custom_Dim_2' && clientConfig?.Custom_Dim_PL_2) {
+            fieldLabel = clientConfig.Custom_Dim_PL_2;
+          } else if (fieldKey === 'PL_Custom_Dim_3' && clientConfig?.Custom_Dim_PL_3) {
+            fieldLabel = clientConfig.Custom_Dim_PL_3;
+          } else if (fieldKey === 'CR_Custom_Dim_1' && clientConfig?.Custom_Dim_CR_1) {
+            fieldLabel = clientConfig.Custom_Dim_CR_1;
+          } else if (fieldKey === 'CR_Custom_Dim_2' && clientConfig?.Custom_Dim_CR_2) {
+            fieldLabel = clientConfig.Custom_Dim_CR_2;
+          } else if (fieldKey === 'CR_Custom_Dim_3' && clientConfig?.Custom_Dim_CR_3) {
+            fieldLabel = clientConfig.Custom_Dim_CR_3;
+          } else {
+            // Utiliser cleanFieldName pour nettoyer le nom technique
+            fieldLabel = fieldKey
+              .replace(/^(PL_|CR_)/, '') // Enlever les préfixes PL_ ou CR_
+              .replace(/_/g, ' ')        // Remplacer les underscores par des espaces
+              .replace(/\b\w/g, l => l.toUpperCase()); // Mettre en majuscule la première lettre de chaque mot
+          }
+          
+          hidden.push(fieldLabel);
+        }
+        return;
+      }
+      
+      // Pour tous les autres champs, garder le comportement actuel
+      visible.push(variable);
+    });
+
+    return { visibleVariables: visible, hiddenFields: hidden };
+  }, [manualVariables, fieldStates, clientConfig, t]);
+
   // ==================== FONCTIONS UTILITAIRES ====================
 
   /**
    * Obtient le label à afficher pour un champ donné en utilisant la config client
+   * CORRIGÉ : Utilise cleanFieldName en fallback si la traduction échoue
    */
   const getFieldLabelWithConfig = (variable: ParsedTaxonomyVariable): string => {
     const fieldKey = variable.variable;
-    return getFieldLabel(fieldKey,t, clientConfig);
+    
+    // Pour les dimensions personnalisées, vérifier d'abord la config client
+    if (fieldKey === 'PL_Custom_Dim_1' && clientConfig?.Custom_Dim_PL_1) {
+      return clientConfig.Custom_Dim_PL_1;
+    }
+    if (fieldKey === 'PL_Custom_Dim_2' && clientConfig?.Custom_Dim_PL_2) {
+      return clientConfig.Custom_Dim_PL_2;
+    }
+    if (fieldKey === 'PL_Custom_Dim_3' && clientConfig?.Custom_Dim_PL_3) {
+      return clientConfig.Custom_Dim_PL_3;
+    }
+    if (fieldKey === 'CR_Custom_Dim_1' && clientConfig?.Custom_Dim_CR_1) {
+      return clientConfig.Custom_Dim_CR_1;
+    }
+    if (fieldKey === 'CR_Custom_Dim_2' && clientConfig?.Custom_Dim_CR_2) {
+      return clientConfig.Custom_Dim_CR_2;
+    }
+    if (fieldKey === 'CR_Custom_Dim_3' && clientConfig?.Custom_Dim_CR_3) {
+      return clientConfig.Custom_Dim_CR_3;
+    }
+    
+    // Utiliser cleanFieldName pour tous les autres champs
+    return cleanFieldName(fieldKey);
+  };
+
+  /**
+   * Nettoie un nom de champ technique pour le rendre plus lisible
+   */
+  const cleanFieldName = (fieldName: string): string => {
+    return fieldName
+      .replace(/^(PL_|CR_)/, '') // Enlever les préfixes PL_ ou CR_
+      .replace(/_/g, ' ')        // Remplacer les underscores par des espaces
+      .replace(/\b\w/g, l => l.toUpperCase()); // Mettre en majuscule la première lettre de chaque mot
   };
 
   /**
@@ -146,7 +244,7 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
     let isValueInOptions = false;
     let matchingOption = null;
     
-    if (hasShortcodeList && fieldState.items && fieldState.items.length > 0) { // MODIFIÉ : utiliser items
+    if (hasShortcodeList && fieldState.items && fieldState.items.length > 0) {
       matchingOption = fieldState.items.find(opt => opt.id === currentValue);
       isValueInOptions = !!matchingOption;
     }
@@ -182,11 +280,11 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         value={selectValue}
         onChange={(e) => {
           const selectedId = e.target.value;
-          const selectedOption = fieldState.items?.find(opt => opt.id === selectedId); // MODIFIÉ : utiliser items
+          const selectedOption = fieldState.items?.find(opt => opt.id === selectedId);
           const primaryFormat = allowedFormats.find(f => formatRequiresShortcode(f)) || 'code';
           onFieldChange(variable.variable, selectedOption?.SH_Display_Name_FR || '', primaryFormat, selectedId);
         }}
-        items={fieldState.items || []} // MODIFIÉ : utiliser items au lieu d'options
+        items={fieldState.items || []}
         placeholder={t('taxonomyFieldRenderer.select.placeholder')}
         label=""
       />
@@ -287,7 +385,24 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
 
   return (
     <div className="space-y-4">
-      {manualVariables.length === 0 ? (
+      {/* 🔥 NOUVEAU : Message pour les champs masqués */}
+      {hiddenFields.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <div className="flex-shrink-0 mt-0.5">
+              <span className="text-amber-600">ℹ️</span>
+            </div>
+            <div className="text-sm">
+              <p>
+              {t('taxonomyFieldRenderer.hiddenFields.prefix')} <strong>{hiddenFields.join("', '")}</strong>' {t('taxonomyFieldRenderer.hiddenFields.message')}.
+              </p>
+              
+            </div>
+          </div>
+        </div>
+      )}
+
+      {visibleVariables.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg">
           <h4 className="text-md font-medium text-gray-900 mb-2">
             {t('taxonomyFieldRenderer.emptyState.title')}
@@ -299,9 +414,9 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
       ) : (
         <div className="space-y-3">
           <h4 className="text-md font-medium text-gray-900 border-b border-gray-200 pb-2">
-            {t('taxonomyFieldRenderer.configuredState.title', { count: manualVariables.length })}
+            {t('taxonomyFieldRenderer.configuredState.title', { count: visibleVariables.length })}
           </h4>
-          {manualVariables.map((variable) => renderVariableCard(variable))}
+          {visibleVariables.map((variable) => renderVariableCard(variable))}
         </div>
       )}
     </div>

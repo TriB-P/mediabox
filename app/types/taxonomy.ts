@@ -41,3 +41,11 @@ export interface TaxonomyFormData {
   NA_Name_Level_5_Title: string;
   NA_Name_Level_6_Title: string;
 }
+
+export interface SearchResult {
+  taxonomyId: string;
+  taxonomyName: string;
+  level: number;
+  fieldName: string;
+  content: string;
+}

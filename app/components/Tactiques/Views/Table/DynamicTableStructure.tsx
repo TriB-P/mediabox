@@ -4,6 +4,7 @@
  * Version refactorisée utilisant la même logique de calcul que le drawer
  * SUPPRIME TableBudgetCalculations.tsx et utilise budgetService directement
  * MODIFIÉ : Ajout du support multilingue complet
+ * 🔥 NOUVEAU : Ajout du filtrage des colonnes PL_/CR_ sans format 'open' et sans liste
  */
 'use client';
 
@@ -384,7 +385,8 @@ export default function DynamicTableStructure({
   }, [selectedClient?.clientId]);
 
   /**
-   * Génère les colonnes dynamiques pour l'onglet taxonomie
+   * 🔥 MODIFIÉ : Génère les colonnes dynamiques pour l'onglet taxonomie avec filtrage
+   * Applique la même logique que TaxonomyFieldRenderer pour masquer les champs sans format 'open' et sans liste
    */
   const generateTaxonomyColumns = useCallback(async (): Promise<DynamicColumn[]> => {
     if (!selectedClient?.clientId) return [];
@@ -460,14 +462,48 @@ export default function DynamicTableStructure({
       return varName.startsWith(prefix) || knownVariables.includes(varName);
     });
 
-    // Générer les colonnes
-    const columns: DynamicColumn[] = [];
+    // 🔥 NOUVEAU : Filtrer les variables selon la même logique que TaxonomyFieldRenderer
+    const filteredVariables: string[] = [];
     
     for (const variableName of relevantVariables) {
       const config = getVariableConfig(variableName);
       if (!config) continue;
 
-      // Masquer les dimensions personnalisées non configurées
+      // Pour les champs TC_ (tactique), garder le comportement actuel
+      if (variableName.startsWith('TC_')) {
+        filteredVariables.push(variableName);
+        continue;
+      }
+      
+      // Pour les champs PL_ et CR_, appliquer la nouvelle logique
+      if (variableName.startsWith('PL_') || variableName.startsWith('CR_')) {
+        // Vérifier si le champ accepte le format 'open'
+        const allowedFormats = config.allowedFormats || [];
+        const isOpenFormat = allowedFormats.includes('open');
+        
+        // Vérifier si une liste est configurée pour ce client
+        let hasCustomList = false;
+        try {
+          const cachedList = getListForClient(variableName, selectedClient.clientId);
+          hasCustomList = cachedList !== null && cachedList.length > 0;
+        } catch (error) {
+          hasCustomList = false;
+        }
+        
+        // Inclure le champ SI : format 'open' OU liste configurée
+        if (isOpenFormat || hasCustomList) {
+          filteredVariables.push(variableName);
+        }
+        // Sinon, masquer silencieusement le champ (pas de message informatif dans le tableau)
+        continue;
+      }
+      
+      // Pour tous les autres champs, garder le comportement actuel
+      filteredVariables.push(variableName);
+    }
+
+    // Masquer les dimensions personnalisées non configurées
+    const finalVariables = filteredVariables.filter(variableName => {
       const isCustomDim = variableName.match(/^(PL|CR)_Custom_Dim_[123]$/);
       if (isCustomDim) {
         let hasClientConfig = false;
@@ -479,8 +515,20 @@ export default function DynamicTableStructure({
         if (variableName === 'CR_Custom_Dim_2' && clientConfig.Custom_Dim_CR_2) hasClientConfig = true;
         if (variableName === 'CR_Custom_Dim_3' && clientConfig.Custom_Dim_CR_3) hasClientConfig = true;
         
-        if (!hasClientConfig) continue;
+        return hasClientConfig;
       }
+      
+      return true;
+    });
+
+    console.log(`[TABLEAU TAXONOMIE] ${isPlacementTaxonomy ? 'Placement' : 'Créatif'} → ${finalVariables.length} colonnes générées (filtrées):`, finalVariables);
+
+    // Générer les colonnes
+    const columns: DynamicColumn[] = [];
+    
+    for (const variableName of finalVariables) {
+      const config = getVariableConfig(variableName);
+      if (!config) continue;
 
       const hasShortcodeFormat = config.allowedFormats.some(formatRequiresShortcode);
       let options: Array<{ id: string; label: string }> = [];
@@ -511,7 +559,7 @@ export default function DynamicTableStructure({
     }
 
     return columns.sort((a, b) => a.label.localeCompare(b.label));
-  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, tableRows, pendingChanges, clientConfig]);
+  }, [selectedClient?.clientId, selectedLevel, selectedPlacementSubCategory, selectedCreatifSubCategory, tableRows, pendingChanges, clientConfig, t]);
 
   /**
    * Génère les colonnes dynamiques de taxonomie
