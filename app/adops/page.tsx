@@ -1,12 +1,9 @@
 // app/adops/page.tsx
 /**
- * Ce fichier définit la page "AdOps" de l'application.
- * Elle permet de visualiser et de gérer les opérations publicitaires
- * pour une campagne et une version de campagne sélectionnées.
- * La page affiche 4 composants principaux organisés en grille.
- * MODIFIÉ : État centralisé pour synchroniser les composants + gestion CM360 centralisée
- * AMÉLIORÉ : Regroupement visuel des composants dans des conteneurs blancs
- * CORRIGÉ : Rechargement des données après modification des couleurs
+ * Ce fichier définit la page "AdOps" de l'application refactorisée.
+ * REFACTORISÉ : Layout simplifié avec dropdowns en cascade et tableau pleine largeur
+ * SUPPRIMÉ : TacticList et TacticInfo - remplacés par dropdowns et métriques intégrées
+ * NOUVEAU : Gestion multi-tactiques avec niveau hiérarchique dans le tableau
  */
 'use client';
 
@@ -24,31 +21,10 @@ import { useAdOpsData } from '../hooks/useAdOpsData';
 import { getCM360TagsForTactique, detectChanges, detectMetricsChanges } from '../lib/cm360Service';
 import type { CM360TagHistory } from '../lib/cm360Service';
 
-// Import des composants AdOps
+// Import des composants AdOps MODIFIÉS
 import AdOpsDropdowns from '../components/AdOps/AdOpsDropdowns';
-import AdOpsTacticInfo from '../components/AdOps/AdOpsTacticInfo';
-import AdOpsTacticList from '../components/AdOps/AdOpsTacticList';
-import AdOpsTable from '../components/AdOps/AdOpsTacticTable';
 import AdOpsProgressBar from '../components/AdOps/AdOpsProgressBar';
-
-// Interface pour une tactique sélectionnée - MODIFIÉE : Compatible avec useAdOpsData
-interface SelectedTactique {
-  id: string;
-  TC_Label?: string;
-  TC_Publisher?: string;
-  TC_Media_Type?: string;
-  TC_Prog_Buying_Method?: string;
-  TC_Media_Budget?: number;
-  TC_BuyCurrency?: string;
-  TC_CM360_Rate?: number;
-  TC_CM360_Volume?: number;
-  TC_Buy_Type?: string;
-  ongletName: string;
-  sectionName: string;
-  ongletId: string;
-  sectionId: string;
-  placementsWithTags: any[];
-}
+import AdOpsTacticTable from '../components/AdOps/AdOpsTacticTable'; // MODIFIÉ : Utilise la version simplifiée
 
 interface Creative {
   id: string;
@@ -63,22 +39,19 @@ interface Creative {
 }
 
 /**
- * Composant principal de la page AdOps.
- * Permet de gérer les opérations publicitaires pour les campagnes.
- *
- * @returns {JSX.Element} Le composant React de la page AdOps.
+ * Composant principal de la page AdOps refactorisée.
+ * Layout simplifié : Dropdowns → Tableau pleine largeur
  */
 export default function AdOpsPage() {
   const { selectedClient } = useClient();
   const { t } = useTranslation();
-  const [selectedTactique, setSelectedTactique] = useState<SelectedTactique | null>(null);
   
-  // States centralisés pour CM360 - MODIFIÉ : Structure hierarchique par tactique
+  // États centralisés pour CM360
   const [cm360Tags, setCm360Tags] = useState<Map<string, CM360TagHistory>>(new Map());
   const [cm360Loading, setCm360Loading] = useState(false);
   const [creativesData, setCreativesData] = useState<{ [tactiqueId: string]: { [placementId: string]: Creative[] } }>({});
   
-  // NOUVEAU : État pour le rafraîchissement manuel
+  // État pour le rafraîchissement manuel
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const {
@@ -92,10 +65,15 @@ export default function AdOpsPage() {
     handleVersionChange,
   } = useCampaignSelection();
 
-  // Hook centralisé pour les données AdOps
+  // Hook centralisé pour les données AdOps avec gestion tactiques
   const {
     tactiques,
     publishers,
+    tactiqueOptions,
+    selectedTactiques,
+    toggleTactique,
+    selectAllTactiques,
+    deselectAllTactiques,
     loading: adOpsLoading,
     error: adOpsError,
     togglePublisher,
@@ -103,14 +81,13 @@ export default function AdOpsPage() {
     deselectAllPublishers,
     selectedPublishers,
     filteredTactiques,
-    reloadData: reloadAdOpsData // NOUVEAU : Fonction de rechargement
+    reloadData: reloadAdOpsData
   } = useAdOpsData(selectedCampaign, selectedVersion);
 
   /**
-   * NOUVELLE FONCTION CENTRALISÉE : Charge les créatifs ET les tags CM360 pour TOUTES les tactiques
-   * MODIFIÉ : Chargement multiple pour afficher les indicateurs avant sélection
+   * MODIFIÉE : Charge les créatifs ET les tags CM360 pour les tactiques filtrées
    */
-  const loadCM360TagsForAllTactiques = async () => {
+  const loadCM360TagsForFilteredTactiques = async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !filteredTactiques.length) {
       setCm360Tags(new Map());
       setCreativesData({});
@@ -123,9 +100,9 @@ export default function AdOpsPage() {
     const allCreativesByTactique: { [tactiqueId: string]: { [placementId: string]: Creative[] } } = {};
 
     try {
-      console.log('🔄 [AdOpsPage] Chargement CM360 pour', filteredTactiques.length, 'tactiques');
+      console.log('🔄 [AdOpsPage] Chargement CM360 pour', filteredTactiques.length, 'tactiques filtrées');
       
-      // Charger les données pour chaque tactique en parallèle
+      // Charger les données pour chaque tactique filtrée en parallèle
       const tactiquePromises = filteredTactiques.map(async (tactique) => {
         const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${tactique.ongletId}/sections/${tactique.sectionId}/tactiques/${tactique.id}`;
         const updatedPlacements: any[] = [];
@@ -185,7 +162,6 @@ export default function AdOpsPage() {
             if (type === 'metrics') {
               // Pour les métriques, utiliser les données de la tactique
               const tactiqueMetrics = {
-
                 TC_CM360_Rate: tactique.TC_CM360_Rate,
                 TC_CM360_Volume: tactique.TC_CM360_Volume,
                 TC_Buy_Type: tactique.TC_Buy_Type
@@ -247,35 +223,21 @@ export default function AdOpsPage() {
   };
 
   /**
-   * NOUVEAU CALLBACK : Recharge les métriques après mise à jour des métriques
-   */
-  const handleMetricsUpdated = async () => {
-    console.log('🔄 [AdOpsPage] Rechargement tags CM360 après mise à jour métriques');
-    await loadCM360TagsForAllTactiques();
-  };
-
-  /**
-   * NOUVEAU CALLBACK : Recharge les tags CM360 depuis le tableau
+   * Callback : Recharge les tags CM360 depuis le tableau
    */
   const handleCM360TagsReload = async () => {
     console.log('🔄 [AdOpsPage] Rechargement tags CM360 depuis tableau');
-    await loadCM360TagsForAllTactiques();
+    await loadCM360TagsForFilteredTactiques();
   };
 
   /**
-   * NOUVEAU CALLBACK : Recharge toutes les données (tactiques + créatifs + tags CM360)
-   * Utilisé après modification des couleurs pour voir les changements
+   * Callback : Recharge toutes les données après modification couleurs
    */
   const handleDataReload = async () => {
     console.log('🔄 [AdOpsPage] Rechargement complet des données après modification couleurs');
     
     try {
-      // 1. D'abord recharger les données de base (tactiques avec placements/créatifs mis à jour)
       await reloadAdOpsData();
-      
-      // 2. Puis recharger les tags CM360 avec les nouvelles données
-     // await loadCM360TagsForAllTactiques();
-      
       console.log('✅ [AdOpsPage] Rechargement complet terminé');
     } catch (error) {
       console.error('❌ [AdOpsPage] Erreur lors du rechargement complet:', error);
@@ -283,8 +245,7 @@ export default function AdOpsPage() {
   };
 
   /**
-   * NOUVELLE FONCTION : Rafraîchissement manuel complet
-   * Recharge les tags CM360 et créatifs pour voir les dernières modifications
+   * Rafraîchissement manuel complet
    */
   const handleManualRefresh = async () => {
     if (!selectedCampaign || !selectedVersion || filteredTactiques.length === 0) return;
@@ -293,10 +254,7 @@ export default function AdOpsPage() {
     console.log('🔄 [AdOpsPage] Rafraîchissement manuel démarré');
     
     try {
-      // Forcer le rechargement des tags CM360 et créatifs
-      // Cette fonction va recharger toutes les données depuis Firestore
-      await loadCM360TagsForAllTactiques();
-      
+      await loadCM360TagsForFilteredTactiques();
       console.log('✅ [AdOpsPage] Rafraîchissement manuel terminé');
     } catch (error) {
       console.error('❌ [AdOpsPage] Erreur lors du rafraîchissement:', error);
@@ -310,7 +268,6 @@ export default function AdOpsPage() {
    */
   const handleCampaignChangeLocal = (campaign: any) => {
     handleCampaignChange(campaign);
-    setSelectedTactique(null);
     setCm360Tags(new Map());
     setCreativesData({});
   };
@@ -320,32 +277,22 @@ export default function AdOpsPage() {
    */
   const handleVersionChangeLocal = (version: any) => {
     handleVersionChange(version);
-    setSelectedTactique(null);
     setCm360Tags(new Map());
     setCreativesData({});
   };
 
-  /**
-   * Gère la sélection d'une tactique
-   */
-  const handleTactiqueSelect = (tactique: SelectedTactique | null) => {
-    setSelectedTactique(tactique);
-  };
-
-  // EFFET CORRIGÉ : Charger les tags CM360 pour toutes les tactiques filtrées
-  // Utilise les IDs des tactiques pour éviter la boucle infinie
+  // EFFET : Charger les tags CM360 pour les tactiques filtrées
   useEffect(() => {
     const tactiqueIds = filteredTactiques.map(t => t.id).sort().join(',');
     
     if (filteredTactiques.length > 0) {
       console.log('🎯 [AdOpsPage] Tactiques filtrées changées, chargement tags CM360 pour', filteredTactiques.length, 'tactiques');
-      loadCM360TagsForAllTactiques();
+      loadCM360TagsForFilteredTactiques();
     } else {
       setCm360Tags(new Map());
       setCreativesData({});
     }
   }, [
-    // Dépendances stables pour éviter la boucle infinie
     filteredTactiques.map(t => t.id).sort().join(','),
     selectedClient?.clientId,
     selectedCampaign?.id, 
@@ -360,14 +307,13 @@ export default function AdOpsPage() {
       <AuthenticatedLayout>
         <div className="space-y-4">
           
-          {/* En-tête avec titre et informations de campagne */}
+          {/* En-tête avec titre */}
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">{t('adOpsPage.header.title')}</h1>
           </div>
           
-         {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
-         <div className="flex items-center gap-4">
-            {/* CampaignVersionSelector qui prend toute la largeur disponible */}
+          {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
+          <div className="flex items-center gap-4">
             <div className="flex-1">
               <CampaignVersionSelector
                 campaigns={campaigns}
@@ -382,7 +328,7 @@ export default function AdOpsPage() {
               />
             </div>
             
-            {/* NOUVEAU : Bouton de rafraîchissement */}
+            {/* Bouton de rafraîchissement */}
             {selectedCampaign && selectedVersion && (
               <button
                 onClick={handleManualRefresh}
@@ -426,7 +372,7 @@ export default function AdOpsPage() {
             </div>
           )}
           
-          {/* Contenu principal - AMÉLIORÉ : Regroupement visuel */}
+          {/* Contenu principal - LAYOUT SIMPLIFIÉ */}
           {!isLoading && !hasError && (
             <>
               {!selectedCampaign && (
@@ -446,66 +392,37 @@ export default function AdOpsPage() {
               )}
               
               {selectedCampaign && selectedVersion && (
-                <div className="grid grid-cols-12 gap-6">
+                <div className="space-y-6">
                   
-                  {/* CONTENEUR GAUCHE - Dropdowns + TacticList dans un seul fond blanc */}
-                  <div className="col-span-4">
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                      {/* Dropdowns dans la partie haute */}
-                      <div className="border-b border-gray-200">
-                        <AdOpsDropdowns 
-                          publishers={publishers}
-                          loading={adOpsLoading}
-                          error={adOpsError}
-                          togglePublisher={togglePublisher}
-                          selectAllPublishers={selectAllPublishers}
-                          deselectAllPublishers={deselectAllPublishers}
-                          selectedPublishers={selectedPublishers}
-                        />
-                      </div>
-                      
-                      {/* TacticList dans la partie basse */}
-                      <div className="min-h-[400px]">
-                        <AdOpsTacticList 
-                          filteredTactiques={filteredTactiques}
-                          loading={adOpsLoading || cm360Loading || isRefreshing}
-                          error={adOpsError}
-                          onTactiqueSelect={handleTactiqueSelect}
-                          selectedTactique={selectedTactique}
-                          cm360Tags={cm360Tags}
-                          creativesData={creativesData}
-                        />
-                      </div>
-                    </div>
+                  {/* NOUVEAU : Dropdowns en cascade dans un conteneur blanc */}
+                  <div className="bg-white rounded-lg shadow">
+                    <AdOpsDropdowns 
+                      publishers={publishers}
+                      tactiqueOptions={tactiqueOptions}
+                      selectedPublishers={selectedPublishers}
+                      selectedTactiques={selectedTactiques}
+                      loading={adOpsLoading}
+                      error={adOpsError}
+                      togglePublisher={togglePublisher}
+                      selectAllPublishers={selectAllPublishers}
+                      deselectAllPublishers={deselectAllPublishers}
+                      toggleTactique={toggleTactique}
+                      selectAllTactiques={selectAllTactiques}
+                      deselectAllTactiques={deselectAllTactiques}
+                    />
                   </div>
                   
-                  {/* CONTENEUR DROITE - TacticInfo + TacticTable dans un seul fond blanc */}
-                  <div className="col-span-8">
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                      {/* TacticInfo dans la partie haute */}
-                      <div className="border-b border-gray-200">
-                        <AdOpsTacticInfo 
-                          selectedTactique={selectedTactique}
-                          selectedCampaign={selectedCampaign}
-                          selectedVersion={selectedVersion}
-                          cm360Tags={cm360Tags}
-                          onMetricsUpdated={handleMetricsUpdated}
-                        />
-                      </div>
-                      
-                      {/* TacticTable dans la partie basse */}
-                      <div className="min-h-[400px]">
-                        <AdOpsTable 
-                          selectedTactique={selectedTactique}
-                          selectedCampaign={selectedCampaign}
-                          selectedVersion={selectedVersion}
-                          cm360Tags={cm360Tags}
-                          creativesData={creativesData}
-                          onCM360TagsReload={handleCM360TagsReload}
-                          onDataReload={handleDataReload}
-                        />
-                      </div>
-                    </div>
+                  {/* NOUVEAU : Tableau pleine largeur avec niveau tactiques */}
+                  <div className="bg-white rounded-lg shadow">
+                    <AdOpsTacticTable 
+                      selectedTactiques={filteredTactiques}
+                      selectedCampaign={selectedCampaign}
+                      selectedVersion={selectedVersion}
+                      cm360Tags={cm360Tags}
+                      creativesData={creativesData}
+                      onCM360TagsReload={handleCM360TagsReload}
+                      onDataReload={handleDataReload}
+                    />
                   </div>
                   
                 </div>

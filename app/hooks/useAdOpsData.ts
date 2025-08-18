@@ -5,6 +5,7 @@
  * et extrait la liste unique des publishers pour le dropdown
  * CORRIGÉ : Affiche SH_Display_Name_FR au lieu des IDs
  * AJOUTÉ : Fonction de rechargement pour actualiser les données après modifications
+ * MODIFIÉ : Ajout gestion sélection multiple des tactiques en cascade avec publishers
  */
 
 import { useState, useEffect } from 'react';
@@ -17,8 +18,8 @@ import { getCachedAllShortcodes, getListForClient } from '../lib/cacheService';
 interface AdOpsTactique extends Tactique {
   ongletName: string;
   sectionName: string;
-  ongletId: string; // Ajout des IDs
-  sectionId: string; // Ajout des IDs  
+  ongletId: string;
+  sectionId: string; 
   placementsWithTags: Placement[];
 }
 
@@ -29,17 +30,33 @@ interface Publisher {
   isSelected: boolean;
 }
 
+// NOUVEAU : Interface pour la gestion des tactiques
+interface TactiqueOption {
+  id: string;
+  label: string;
+  publisherId: string;
+  isSelected: boolean;
+  tactiqueData: AdOpsTactique; // Référence vers les données complètes
+}
+
 interface UseAdOpsDataReturn {
   tactiques: AdOpsTactique[];
   publishers: Publisher[];
+  // NOUVEAU : Gestion des tactiques
+  tactiqueOptions: TactiqueOption[];
+  selectedTactiques: string[]; // IDs des tactiques sélectionnées
+  toggleTactique: (tactiqueId: string) => void;
+  selectAllTactiques: () => void;
+  deselectAllTactiques: () => void;
+  // Existant
   loading: boolean;
   error: string | null;
   togglePublisher: (publisherId: string) => void;
   selectAllPublishers: () => void;
   deselectAllPublishers: () => void;
-  selectedPublishers: string[]; // IDs des publishers sélectionnés
-  filteredTactiques: AdOpsTactique[];
-  reloadData: () => Promise<void>; // NOUVEAU : Fonction pour recharger les données
+  selectedPublishers: string[];
+  filteredTactiques: AdOpsTactique[]; // MODIFIÉ : Filtrées par publishers ET tactiques sélectionnées
+  reloadData: () => Promise<void>;
 }
 
 interface Campaign {
@@ -59,6 +76,10 @@ export function useAdOpsData(
   const { selectedClient } = useClient();
   const [tactiques, setTactiques] = useState<AdOpsTactique[]>([]);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
+  
+  // NOUVEAU : États pour la gestion des tactiques
+  const [tactiqueOptions, setTactiqueOptions] = useState<TactiqueOption[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +118,7 @@ export function useAdOpsData(
     if (!selectedClient || !selectedCampaign || !selectedVersion) {
       setTactiques([]);
       setPublishers([]);
+      setTactiqueOptions([]);
       return;
     }
 
@@ -158,8 +180,8 @@ export function useAdOpsData(
                 id: tactiqueDoc.id,
                 ongletName,
                 sectionName,
-                ongletId: ongletDoc.id, // Ajout de l'ID de l'onglet
-                sectionId: sectionDoc.id, // Ajout de l'ID de la section
+                ongletId: ongletDoc.id,
+                sectionId: sectionDoc.id,
                 placementsWithTags
               };
               
@@ -190,8 +212,20 @@ export function useAdOpsData(
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
+      // NOUVEAU : Créer les options de tactiques pour le dropdown
+      const tactiqueOptionsList: TactiqueOption[] = tactiquesWithTags
+        .map(tactique => ({
+          id: tactique.id,
+          label: tactique.TC_Label || 'Tactique sans nom',
+          publisherId: tactique.TC_Publisher || '',
+          isSelected: true, // Par défaut, toutes sont sélectionnées
+          tactiqueData: tactique
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
       setTactiques(tactiquesWithTags);
       setPublishers(publishersList);
+      setTactiqueOptions(tactiqueOptionsList);
       
     } catch (err) {
       console.error('Erreur lors de la récupération des données AdOps:', err);
@@ -203,32 +237,105 @@ export function useAdOpsData(
 
   /**
    * Toggle la sélection d'un publisher
+   * MODIFIÉ : Met à jour aussi les tactiques correspondantes
    */
   const togglePublisher = (publisherId: string) => {
-    setPublishers(prev => 
-      prev.map(pub => 
+    setPublishers(prev => {
+      const updated = prev.map(pub => 
         pub.id === publisherId 
           ? { ...pub, isSelected: !pub.isSelected }
           : pub
-      )
-    );
+      );
+      
+      // Si un publisher est désélectionné, désélectionner ses tactiques
+      const publisher = updated.find(p => p.id === publisherId);
+      if (publisher && !publisher.isSelected) {
+        setTactiqueOptions(prevTactiques =>
+          prevTactiques.map(tactique =>
+            tactique.publisherId === publisherId
+              ? { ...tactique, isSelected: false }
+              : tactique
+          )
+        );
+      }
+      // Si un publisher est sélectionné, sélectionner toutes ses tactiques
+      else if (publisher && publisher.isSelected) {
+        setTactiqueOptions(prevTactiques =>
+          prevTactiques.map(tactique =>
+            tactique.publisherId === publisherId
+              ? { ...tactique, isSelected: true }
+              : tactique
+          )
+        );
+      }
+      
+      return updated;
+    });
   };
 
   /**
    * Sélectionne tous les publishers
+   * MODIFIÉ : Met à jour aussi toutes les tactiques
    */
   const selectAllPublishers = () => {
     setPublishers(prev => 
       prev.map(pub => ({ ...pub, isSelected: true }))
     );
+    setTactiqueOptions(prev =>
+      prev.map(tactique => ({ ...tactique, isSelected: true }))
+    );
   };
 
   /**
    * Désélectionne tous les publishers
+   * MODIFIÉ : Met à jour aussi toutes les tactiques
    */
   const deselectAllPublishers = () => {
     setPublishers(prev => 
       prev.map(pub => ({ ...pub, isSelected: false }))
+    );
+    setTactiqueOptions(prev =>
+      prev.map(tactique => ({ ...tactique, isSelected: false }))
+    );
+  };
+
+  // NOUVEAU : Fonctions de gestion des tactiques
+
+  /**
+   * Toggle la sélection d'une tactique
+   */
+  const toggleTactique = (tactiqueId: string) => {
+    setTactiqueOptions(prev =>
+      prev.map(tactique =>
+        tactique.id === tactiqueId
+          ? { ...tactique, isSelected: !tactique.isSelected }
+          : tactique
+      )
+    );
+  };
+
+  /**
+   * Sélectionne toutes les tactiques (filtrées par publishers sélectionnés)
+   */
+  const selectAllTactiques = () => {
+    const selectedPublisherIds = publishers
+      .filter(pub => pub.isSelected)
+      .map(pub => pub.id);
+
+    setTactiqueOptions(prev =>
+      prev.map(tactique => ({
+        ...tactique,
+        isSelected: selectedPublisherIds.includes(tactique.publisherId)
+      }))
+    );
+  };
+
+  /**
+   * Désélectionne toutes les tactiques
+   */
+  const deselectAllTactiques = () => {
+    setTactiqueOptions(prev =>
+      prev.map(tactique => ({ ...tactique, isSelected: false }))
     );
   };
 
@@ -240,11 +347,24 @@ export function useAdOpsData(
     .map(pub => pub.id);
 
   /**
-   * Tactiques filtrées selon les publishers sélectionnés
+   * NOUVEAU : Liste des tactiques sélectionnées (IDs)
    */
-  const filteredTactiques = tactiques.filter(tactique => 
-    selectedPublishers.includes(tactique.TC_Publisher || '')
-  );
+  const selectedTactiques = tactiqueOptions
+    .filter(tactique => tactique.isSelected)
+    .map(tactique => tactique.id);
+
+  /**
+   * Tactiques filtrées selon les publishers ET tactiques sélectionnées
+   * MODIFIÉ : Double filtrage en cascade
+   */
+  const filteredTactiques = tactiques.filter(tactique => {
+    // D'abord filtrer par publisher sélectionné
+    const publisherSelected = selectedPublishers.includes(tactique.TC_Publisher || '');
+    // Puis filtrer par tactique sélectionnée
+    const tactiqueSelected = selectedTactiques.includes(tactique.id);
+    
+    return publisherSelected && tactiqueSelected;
+  });
 
   // Effect pour charger les données quand la campagne/version change
   useEffect(() => {
@@ -254,6 +374,13 @@ export function useAdOpsData(
   return {
     tactiques,
     publishers,
+    // NOUVEAU : Gestion des tactiques
+    tactiqueOptions,
+    selectedTactiques,
+    toggleTactique,
+    selectAllTactiques,
+    deselectAllTactiques,
+    // Existant
     loading,
     error,
     togglePublisher,
@@ -261,6 +388,6 @@ export function useAdOpsData(
     deselectAllPublishers,
     selectedPublishers,
     filteredTactiques,
-    reloadData: fetchAdOpsData // NOUVEAU : Exposer la fonction de rechargement
+    reloadData: fetchAdOpsData
   };
 }

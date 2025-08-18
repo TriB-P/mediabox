@@ -1,31 +1,75 @@
 // app/components/AdOps/AdOpsTableRow.tsx
 /**
- * Composant AdOpsTableRow avec intégration CM360
- * Gère l'affichage d'une ligne du tableau avec indicateurs de changements
- * et modal d'historique pour les valeurs modifiées.
- * CORRIGÉ : Formatage des dates sans décalage de fuseau horaire
- * AMÉLIORÉ : Indicateur CM360 agrandi
- * NOUVEAU : Support expansion colonnes tags
+ * Composant ligne du tableau AdOps avec badges, indicateurs CM360 cliquables et support couleurs
+ * SÉPARÉ du tableau principal pour réduire la complexité
+ * CORRIGÉ : Indicateurs de changement cliquables + meilleure gestion couleurs
  */
 'use client';
 
-import { useTranslation } from '../../contexts/LanguageContext';
 import React, { useState } from 'react';
 import { 
-  ChevronDownIcon, 
-  ChevronRightIcon, 
-  CheckIcon,
-  ExclamationTriangleIcon ,
+  ExclamationTriangleIcon,
   CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import AdOpsActionButtons from './AdOpsActionButtons';
 import CM360HistoryModal from './CM360HistoryModal';
-import { CM360TagHistory, CM360TagData } from '../../lib/cm360Service';
+import { CM360TagHistory } from '../../lib/cm360Service';
+import { useTranslation } from '../../contexts/LanguageContext';
+
+// Interfaces
+interface AdOpsTactique {
+  id: string;
+  TC_Label?: string;
+  TC_Media_Budget?: number;
+  TC_BuyCurrency?: string;
+  TC_CM360_Rate?: number;
+  TC_CM360_Volume?: number;
+  TC_Buy_Type?: string;
+  TC_Publisher?: string;
+  ongletName: string;
+  sectionName: string;
+  ongletId: string;
+  sectionId: string;
+  placementsWithTags: any[];
+}
+
+interface Placement {
+  id: string;
+  PL_Label?: string;
+  PL_Tag_Type?: string;
+  PL_Tag_Start_Date?: string;
+  PL_Tag_End_Date?: string;
+  PL_Rotation_Type?: string;
+  PL_Floodlight?: string;
+  PL_Third_Party_Measurement?: boolean;
+  PL_VPAID?: boolean;
+  PL_Tag_1?: string;
+  PL_Tag_2?: string;
+  PL_Tag_3?: string;
+  PL_Adops_Color?: string;
+  PL_Order?: number;
+}
+
+interface Creative {
+  id: string;
+  CR_Label?: string;
+  CR_Tag_Start_Date?: string;
+  CR_Tag_End_Date?: string;
+  CR_Rotation_Weight?: number;
+  CR_Tag_5?: string;
+  CR_Tag_6?: string;
+  CR_Adops_Color?: string;
+  CR_Order?: number;
+}
 
 interface TableRow {
-  type: 'placement' | 'creative';
-  level: number;
-  data: any;
+  type: 'tactique' | 'placement' | 'creative';
+  level: 0 | 1 | 2;
+  data: AdOpsTactique | Placement | Creative;
+  tactiqueId?: string;
   placementId?: string;
   isExpanded?: boolean;
   children?: TableRow[];
@@ -35,40 +79,80 @@ interface AdOpsTableRowProps {
   row: TableRow;
   index: number;
   isSelected: boolean;
-  onToggleExpanded: (placementId: string) => void;
-  onRowSelection: (rowId: string, index: number, event: React.MouseEvent) => void;
-  selectedTactique: any;
+  selectedTactiques: AdOpsTactique[];
   selectedCampaign: any;
   selectedVersion: any;
-  selectedRows: Set<string>;
-  // Nouvelles props pour CM360
+  cm360Status: 'none' | 'created' | 'changed' | 'partial';
   cm360History?: CM360TagHistory;
-  cm360Status: 'none' | 'created' | 'changed';
-  cm360Tags?: Map<string, CM360TagHistory>; // Nouveau prop
-  // NOUVEAU : Support expansion colonnes tags
-  isTagColumnsExpanded?: boolean;
+  cm360Tags?: Map<string, CM360TagHistory>;
+  showBudgetParams: boolean;
+  showTaxonomies: boolean;
+  copiedField: string | null;
+  onRowSelection: (rowId: string, index: number, event: React.MouseEvent) => void;
+  onToggleExpanded: (rowId: string, rowType: string) => void;
+  onCopyToClipboard: (value: any, fieldId: string) => void;
+  formatCurrency: (amount: number | undefined, currency: string | undefined) => string;
+  formatNumber: (num: number | undefined) => string;
+  formatDate: (dateString: string | undefined) => string;
 }
 
 /**
- * Composant pour une ligne du tableau AdOps avec support CM360
+ * Composant badge pour les types de lignes
  */
-export default function AdOpsTableRow({
-  row,
-  index,
-  isSelected,
-  onToggleExpanded,
-  onRowSelection,
-  selectedTactique,
-  selectedCampaign,
-  selectedVersion,
-  selectedRows,
+const TypeBadge = ({ type }: { type: 'tactique' | 'placement' | 'creative' }) => {
+  const badgeConfig = {
+    tactique: {
+      label: 'TAC',
+      className: 'bg-blue-100 text-blue-800 border-blue-200'
+    },
+    placement: {
+      label: 'PLA',
+      className: 'bg-green-100 text-green-800 border-green-200'
+    },
+    creative: {
+      label: 'CRE',
+      className: 'bg-purple-100 text-purple-800 border-purple-200'
+    }
+  };
+
+  const config = badgeConfig[type];
+  
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${config.className}`}>
+      {config.label}
+    </span>
+  );
+};
+
+/**
+ * Composant cellule avec indicateurs de changement CM360 cliquables
+ */
+const CM360Cell = ({ 
+  value, 
+  fieldName, 
+  fieldLabel,
   cm360History,
-  cm360Status,
+  rowId,
+  rowType,
+  itemLabel,
   cm360Tags,
-  isTagColumnsExpanded = false // NOUVEAU : Défaut à false
-}: AdOpsTableRowProps) {
+  copiedField,
+  onCopyToClipboard,
+  className = '' 
+}: { 
+  value: any; 
+  fieldName: string; 
+  fieldLabel: string;
+  cm360History?: CM360TagHistory;
+  rowId: string;
+  rowType: 'tactique' | 'placement' | 'creative';
+  itemLabel: string;
+  cm360Tags?: Map<string, CM360TagHistory>;
+  copiedField: string | null;
+  onCopyToClipboard: (value: any, fieldId: string) => void;
+  className?: string; 
+}) => {
   const { t } = useTranslation();
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     fieldName: string;
@@ -79,26 +163,17 @@ export default function AdOpsTableRow({
     fieldLabel: ''
   });
 
-  /**
-   * Copie une valeur dans le presse-papiers avec feedback
-   */
-  const copyToClipboard = async (value: string | number | boolean | undefined, fieldName: string) => {
-    if (value === undefined || value === null) return;
-    
-    try {
-      await navigator.clipboard.writeText(String(value));
-      setCopiedField(fieldName);
-      setTimeout(() => setCopiedField(null), 1000);
-    } catch (err) {
-      console.error('Erreur copie:', err);
-    }
-  };
+  const isChanged = cm360History?.changedFields?.includes(fieldName) || false;
+  const displayValue = value === undefined || value === null ? '-' : String(value);
+  const isEmpty = value === undefined || value === null;
+  const cellId = `${rowId}-${fieldName}`;
 
   /**
    * Ouvre le modal d'historique pour un champ spécifique
    */
-  const openHistoryModal = (fieldName: string, fieldLabel: string, event: React.MouseEvent) => {
+  const openHistoryModal = (event: React.MouseEvent) => {
     event.stopPropagation();
+    event.preventDefault();
     setModalState({
       isOpen: true,
       fieldName,
@@ -117,345 +192,36 @@ export default function AdOpsTableRow({
     });
   };
 
-  /**
-   * Vérifie si un champ a été modifié
-   */
-  const isFieldChanged = (fieldName: string): boolean => {
-    if (!cm360History?.changedFields) return false;
-    return cm360History.changedFields.includes(fieldName);
-  };
-
-  /**
-   * Composant pour une cellule avec support CM360
-   */
-  const CM360Cell = ({ 
-    value, 
-    fieldName, 
-    fieldLabel,
-    className = '',
-    isClickable = true 
-  }: { 
-    value: any; 
-    fieldName: string; 
-    fieldLabel: string;
-    className?: string; 
-    isClickable?: boolean;
-  }) => {
-    const isCopied = copiedField === fieldName;
-    const isChanged = isFieldChanged(fieldName);
-    const displayValue = value === undefined || value === null ? '-' : String(value);
-    const isEmpty = value === undefined || value === null;
-    
-    return (
+  return (
+    <>
       <td className={`px-6 py-4 whitespace-nowrap text-sm relative ${className}`}>
         <div className="flex items-center gap-1">
-          {/* Valeur principale */}
           <span 
             className={`cursor-pointer hover:bg-gray-100 px-1 py-1 rounded transition-colors ${
               isEmpty ? 'text-gray-400' : 'text-gray-900'
-            }`}
-            onClick={() => isClickable && copyToClipboard(value, fieldName)}
-            title={t('tableRow.clickToCopy')}
+            } ${isChanged ? 'bg-red-50 text-red-900 ring-1 ring-red-200' : ''}`}
+            onClick={() => onCopyToClipboard(value, cellId)}
+            title={isChanged ? `${fieldLabel} modifié depuis dernier tag CM360` : t('tableRow.clickToCopy')}
           >
             {displayValue}
           </span>
           
-          {/* Indicateur de copie */}
-          {isCopied && (
+          {copiedField === cellId && (
             <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
           )}
           
-          {/* Indicateur de changement CM360 */}
+          {/* NOUVEAU : Indicateur de changement CM360 CLIQUABLE */}
           {isChanged && cm360History && (
             <button
-              onClick={(e) => openHistoryModal(fieldName, fieldLabel, e)}
+              onClick={openHistoryModal}
               className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
-              title={`${fieldLabel} ${t('tableRow.modifiedSinceLastTag')} - ${t('tableRow.clickToSeeHistory')}`}
+              title={`${fieldLabel} a changé - Cliquer pour voir l'historique`}
             >
               <ExclamationTriangleIcon className="w-4 h-4" />
             </button>
           )}
         </div>
       </td>
-    );
-  };
-
-  /**
-   * Formate les valeurs booléennes
-   */
-  const formatBoolean = (value: boolean | undefined): string => {
-    if (value === undefined || value === null) return '-';
-    return value ? t('common.yes') : t('common.no');
-  };
-
-  /**
-   * CORRIGÉ : Formate les dates sans décalage de fuseau horaire
-   */
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return '-';
-    try {
-      // CORRIGÉ : Forcer l'interprétation locale pour éviter le décalage UTC
-      const parts = dateString.split('-');
-      if (parts.length === 3) {
-        // Créer la date en local (année, mois-1, jour)
-        const year = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1; // Les mois commencent à 0 en JS
-        const day = parseInt(parts[2]);
-        const localDate = new Date(year, month, day);
-        return localDate.toLocaleDateString('fr-CA');
-      }
-      // Fallback pour autres formats
-      return dateString;
-    } catch {
-      return dateString;
-    }
-  };
-
-  /**
-   * Détermine la couleur de fond de la ligne
-   */
-  const getRowBackgroundStyle = (): React.CSSProperties => {
-    const colorValue = row.type === 'placement' 
-      ? row.data.PL_Adops_Color 
-      : row.data.CR_Adops_Color;
-    
-    if (!colorValue) return {};
-    
-    return {
-      backgroundColor: colorValue
-    };
-  };
-
-  /**
-   * Vérifie si un placement a des créatifs sélectionnés
-   */
-  const hasSelectedChildren = (): boolean => {
-    if (row.type !== 'placement' || !row.children) return false;
-    
-    return row.children.some(child => 
-      selectedRows.has(`creative-${child.data.id}`)
-    );
-  };
-
-  /**
-   * Détermine si la ligne a une couleur personnalisée
-   */
-  const hasCustomColor = (): boolean => {
-    const colorValue = row.type === 'placement' 
-      ? row.data.PL_Adops_Color 
-      : row.data.CR_Adops_Color;
-    return !!colorValue;
-  };
-
-  const rowId = `${row.type}-${row.data.id}`;
-  const isPlacement = row.type === 'placement';
-  const isCreative = row.type === 'creative';
-  const hasChildren = isPlacement && row.children && row.children.length > 0;
-  const backgroundStyle = getRowBackgroundStyle();
-  const customColor = hasCustomColor();
-
-  return (
-    <>
-      <tr 
-        className={`
-          ${isSelected ? '' : (!customColor ? 'hover:bg-gray-50' : '')}
-          ${isCreative ? 'border-l-4 border-l-gray-300' : ''}
-          transition-colors duration-150
-        `}
-        style={backgroundStyle}
-      >
-        {/* Checkbox */}
-        <td className="w-8 px-2 py-4">
-          <div 
-            className="flex items-center justify-center cursor-pointer"
-            onClick={(e) => onRowSelection(rowId, index, e)}
-          >
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => {}}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 pointer-events-none"
-            />
-          </div>
-        </td>
-
-        {/* Statut CM360 - AMÉLIORÉ : Indicateurs agrandis */}
-        <td className="w-6 px-2 py-4">
-          <div className="flex items-center justify-center">
-            {cm360Status === 'created' && (
-              <CheckCircleIcon 
-                className="w-6 h-6 text-green-600 flex items-center justify-center text-lg font-bold"
-                title={t('tableRow.tagCreatedInCm360')}
-              />
-            
-            )}
-            {cm360Status === 'changed' && (
-              <ExclamationTriangleIcon 
-                className="w-6 h-6 text-red-600" 
-                title={t('tableRow.changesDetectedSinceLastTag')}
-              />
-            )}
-          </div>
-        </td>
-
-        {/* Label avec indentation et expansion */}
-        <td className="py-4 whitespace-nowrap text-sm font-medium">
-          <div className={`flex items-center ${isCreative ? 'ml-6' : ''}`}>
-            {isPlacement && hasChildren && (
-              <button
-                onClick={() => onToggleExpanded(row.data.id)}
-                className="mr-2 p-1 rounded hover:bg-gray-200"
-              >
-                {row.isExpanded ? (
-                  <ChevronDownIcon className="w-4 h-4" />
-                ) : (
-                  <ChevronRightIcon className="w-4 h-4" />
-                )}
-              </button>
-            )}
-            
-        
-            
-            <div className="flex items-center gap-1">
-              <span
-                className={`cursor-pointer hover:bg-gray-100 px-2 py-1 rounded ${
-                  isCreative ? 'text-gray-600 text-sm' : 'text-gray-900'
-                }`}
-                onClick={() => copyToClipboard(
-                  isPlacement ? row.data.PL_Label : row.data.CR_Label, 
-                  'label'
-                )}
-                title={t('tableRow.clickToCopy')}
-              >
-                {isPlacement ? (row.data.PL_Label || t('tableRow.unnamedPlacement')) : (row.data.CR_Label || t('tableRow.unnamedCreative'))}
-              </span>
-              
-              {copiedField === 'label' && (
-                <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
-              )}
-              
-              {/* Indicateur de changement pour le label */}
-              {isFieldChanged(isPlacement ? 'PL_Label' : 'CR_Label') && cm360History && (
-                <button
-                  onClick={(e) => openHistoryModal(
-                    isPlacement ? 'PL_Label' : 'CR_Label',
-                    t('tableRow.label'),
-                    e
-                  )}
-                  className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
-                  title={`${t('tableRow.labelModified')} - ${t('tableRow.clickToSeeHistory')}`}
-                >
-                  <ExclamationTriangleIcon className="w-4 h-4" />
-                </button>
-              )}
-
-            {isPlacement && hasChildren && (
-              <span className={`mr-2 text-xs px-2 py-1 rounded-full ${
-                hasSelectedChildren() 
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {row.children?.length}
-                {hasSelectedChildren()}
-              </span>
-            )}
-            </div>
-          </div>
-        </td>
-
-        {/* Actions */}
-        <td className="px-6 py-4 whitespace-nowrap">
-          <AdOpsActionButtons
-            rowType={row.type}
-            data={row.data}
-            selectedTactique={selectedTactique}
-            selectedCampaign={selectedCampaign}
-            selectedVersion={selectedVersion}
-            cm360History={cm360History}
-            cm360Tags={cm360Tags}
-          />
-        </td>
-
-        {/* NOUVEAU : Colonnes tags conditionnelles */}
-        {isTagColumnsExpanded && (
-          <>
-            {/* Tag 1 - PL_Tag_1 ou CR_Tag_5 */}
-            <CM360Cell 
-              value={isPlacement ? row.data.PL_Tag_1 : row.data.CR_Tag_5} 
-              fieldName={isPlacement ? 'PL_Tag_1' : 'CR_Tag_5'}
-              fieldLabel="Campaign / Creative"
-            />
-
-            {/* Tag 2 - PL_Tag_2 ou CR_Tag_6 */}
-            <CM360Cell 
-              value={isPlacement ? row.data.PL_Tag_2 : row.data.CR_Tag_6} 
-              fieldName={isPlacement ? 'PL_Tag_2' : 'CR_Tag_6'}
-              fieldLabel="Placement / UTM"
-            />
-
-            {/* Tag 3 - PL_Tag_3 ou vide pour créatifs */}
-            <CM360Cell 
-              value={isPlacement ? row.data.PL_Tag_3 : undefined} 
-              fieldName={isPlacement ? 'PL_Tag_3' : ''}
-              fieldLabel="Ad"
-              isClickable={isPlacement}
-            />
-          </>
-        )}
-
-        {/* Tag Type avec support CM360 */}
-        <CM360Cell 
-          value={isPlacement ? row.data.PL_Tag_Type : '-'} 
-          fieldName="PL_Tag_Type"
-          fieldLabel={t('tableRow.tagType')}
-          isClickable={isPlacement}
-        />
-
-        {/* Date Début avec support CM360 - CORRIGÉ */}
-        <CM360Cell 
-          value={formatDate(isPlacement ? row.data.PL_Tag_Start_Date : row.data.CR_Tag_Start_Date)} 
-          fieldName={isPlacement ? 'PL_Tag_Start_Date' : 'CR_Tag_Start_Date'}
-          fieldLabel={t('tableRow.startDate')}
-        />
-
-        {/* Date Fin avec support CM360 - CORRIGÉ */}
-        <CM360Cell 
-          value={formatDate(isPlacement ? row.data.PL_Tag_End_Date : row.data.CR_Tag_End_Date)} 
-          fieldName={isPlacement ? 'PL_Tag_End_Date' : 'CR_Tag_End_Date'}
-          fieldLabel={t('tableRow.endDate')}
-        />
-
-        {/* Rotation Type / Weight avec support CM360 */}
-        <CM360Cell 
-          value={isPlacement ? row.data.PL_Rotation_Type : row.data.CR_Rotation_Weight} 
-          fieldName={isPlacement ? 'PL_Rotation_Type' : 'CR_Rotation_Weight'}
-          fieldLabel={isPlacement ? t('tableRow.rotationType') : t('tableRow.rotationWeight')}
-        />
-
-        {/* Floodlight avec support CM360 */}
-        <CM360Cell 
-          value={isPlacement ? row.data.PL_Floodlight : '-'} 
-          fieldName="PL_Floodlight"
-          fieldLabel={t('tableRow.floodlight')}
-          isClickable={isPlacement}
-        />
-
-        {/* Third Party Measurement avec support CM360 */}
-        <CM360Cell 
-          value={formatBoolean(isPlacement ? row.data.PL_Third_Party_Measurement : undefined)} 
-          fieldName="PL_Third_Party_Measurement"
-          fieldLabel={t('tableRow.thirdPartyMeasurement')}
-          isClickable={isPlacement}
-        />
-
-        {/* VPAID avec support CM360 */}
-        <CM360Cell 
-          value={formatBoolean(isPlacement ? row.data.PL_VPAID : undefined)} 
-          fieldName="PL_VPAID"
-          fieldLabel={t('tableRow.vpaid')}
-          isClickable={isPlacement}
-        />
-      </tr>
 
       {/* Modal d'historique CM360 */}
       {modalState.isOpen && cm360History && (
@@ -464,13 +230,405 @@ export default function AdOpsTableRow({
           onClose={closeHistoryModal}
           fieldName={modalState.fieldName}
           fieldLabel={modalState.fieldLabel}
-          currentValue={row.data[modalState.fieldName]}
+          currentValue={value}
           tags={cm360History.tags}
-          itemType={row.type}
-          itemLabel={isPlacement ? row.data.PL_Label : row.data.CR_Label}
+          itemType={rowType}
+          itemLabel={itemLabel}
           cm360Tags={cm360Tags}
         />
       )}
     </>
+  );
+};
+
+/**
+ * Composant principal de ligne du tableau
+ */
+export default function AdOpsTableRow({
+  row,
+  index,
+  isSelected,
+  selectedTactiques,
+  selectedCampaign,
+  selectedVersion,
+  cm360Status,
+  cm360History,
+  cm360Tags,
+  showBudgetParams,
+  showTaxonomies,
+  copiedField,
+  onRowSelection,
+  onToggleExpanded,
+  onCopyToClipboard,
+  formatCurrency,
+  formatNumber,
+  formatDate
+}: AdOpsTableRowProps) {
+  const { t } = useTranslation();
+  const rowId = `${row.type}-${row.data.id}`;
+  const hasChildren = row.children && row.children.length > 0;
+
+  // CORRIGÉ : Couleur de fond et style de ligne selon le type
+  const getRowStyles = (): { className: string; style: React.CSSProperties } => {
+    let className = 'transition-colors ';
+    let style: React.CSSProperties = {};
+    
+    // Couleur utilisateur (prioritaire) - SUPPORT TACTIQUES AJOUTÉ
+    const userColor = row.type === 'tactique'
+      ? (row.data as any).TC_Adops_Color // NOUVEAU : Support couleur tactiques
+      : row.type === 'placement' 
+      ? (row.data as Placement).PL_Adops_Color 
+      : (row.data as Creative).CR_Adops_Color;
+    
+    if (userColor) {
+      style.backgroundColor = userColor;
+      // Garder un contraste minimal pour la lisibilité
+      className += 'text-gray-900 ';
+    } else {
+      // Styles par défaut selon le type (si pas de couleur utilisateur)
+      if (row.type === 'tactique') {
+        className += 'bg-slate-50 border-b-2 border-slate-200 ';
+      } else if (row.type === 'placement') {
+        className += 'bg-white border-l-4 border-l-indigo-200 ';
+      } else {
+        className += 'bg-gray-50 border-l-4 border-l-gray-300 ';
+      }
+    }
+    
+    // État de sélection
+    if (isSelected) {
+      className += 'ring-2 ring-indigo-500 bg-indigo-50 ';
+    } else {
+      className += 'hover:bg-gray-50 ';
+    }
+    
+    return { className, style };
+  };
+
+  const rowStyles = getRowStyles();
+  const itemLabel = row.type === 'tactique' 
+    ? (row.data as AdOpsTactique).TC_Label || 'Tactique sans nom'
+    : row.type === 'placement'
+    ? (row.data as Placement).PL_Label || 'Placement sans nom'
+    : (row.data as Creative).CR_Label || 'Créatif sans nom';
+
+  return (
+    <tr className={rowStyles.className} style={rowStyles.style}>
+      {/* Checkbox */}
+      <td className="w-8 px-2 py-4">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onRowSelection(rowId, index, e)}
+          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+      </td>
+
+      {/* Statut CM360 */}
+      <td className="w-6 px-2 py-4">
+        <div className="flex items-center justify-center">
+          {cm360Status === 'created' && (
+            <CheckCircleIcon className="w-6 h-6 text-green-600" title="Tags créés" />
+          )}
+          {(cm360Status === 'changed' || cm360Status === 'partial') && (
+            <ExclamationTriangleIcon className="w-6 h-6 text-red-600" title="Changements détectés" />
+          )}
+        </div>
+      </td>
+
+      {/* Label avec indentation et badges de type */}
+      <td className="py-4 whitespace-nowrap text-sm">
+        <div className={`flex items-center gap-3 ${
+          row.level === 1 ? 'ml-6' : row.level === 2 ? 'ml-12' : ''
+        }`}>
+          {hasChildren && (
+            <button
+              onClick={() => onToggleExpanded(rowId, row.type)}
+              className="mr-2 p-1 rounded hover:bg-gray-200"
+            >
+              {row.isExpanded ? (
+                <ChevronDownIcon className="w-4 h-4" />
+              ) : (
+                <ChevronRightIcon className="w-4 h-4" />
+              )}
+            </button>
+          )}
+          
+          {/* Badge de type */}
+          <TypeBadge type={row.type} />
+          
+          {/* Label avec indicateur de changement cliquable */}
+          <div className="flex items-center gap-1">
+            <span 
+              className={`cursor-pointer hover:bg-gray-100 px-2 py-1 rounded ${
+                row.type === 'tactique' ? 'font-bold text-gray-900' :
+                row.type === 'placement' ? 'font-medium text-gray-800' :
+                'font-normal text-gray-600'
+              }`}
+              onClick={() => onCopyToClipboard(itemLabel, `${rowId}-label`)}
+            >
+              {itemLabel}
+            </span>
+            
+            {copiedField === `${rowId}-label` && (
+              <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
+            )}
+            
+            {/* Indicateur de changement pour le label CLIQUABLE */}
+            {cm360History?.changedFields?.includes(
+              row.type === 'tactique' ? 'TC_Label' : 
+              row.type === 'placement' ? 'PL_Label' : 'CR_Label'
+            ) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Ouvrir modal pour le label
+                }}
+                className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
+                title="Label modifié - Cliquer pour voir l'historique"
+              >
+                <ExclamationTriangleIcon className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Actions */}
+      <td className="w-80 px-6 py-4">
+        {row.type !== 'tactique' && (
+          <AdOpsActionButtons
+            rowType={row.type as 'placement' | 'creative'}
+            data={row.data}
+            selectedTactique={selectedTactiques.find(t => t.id === row.tactiqueId)}
+            selectedCampaign={selectedCampaign}
+            selectedVersion={selectedVersion}
+            cm360History={cm360History}
+            cm360Tags={cm360Tags}
+          />
+        )}
+      </td>
+
+      {/* CONDITIONNEL : Colonnes budgétaires avec indicateurs de changement cliquables */}
+      {showBudgetParams && (
+        <>
+          {/* Budget */}
+          <CM360Cell 
+            value={row.type === 'tactique' ? formatCurrency((row.data as AdOpsTactique).TC_Media_Budget, (row.data as AdOpsTactique).TC_BuyCurrency) : '-'}
+            fieldName="TC_Media_Budget"
+            fieldLabel="Budget"
+            cm360History={row.type === 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Rate */}
+          <CM360Cell 
+            value={row.type === 'tactique' ? formatCurrency((row.data as AdOpsTactique).TC_CM360_Rate, (row.data as AdOpsTactique).TC_BuyCurrency) : '-'}
+            fieldName="TC_CM360_Rate"
+            fieldLabel="Rate"
+            cm360History={row.type === 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Volume */}
+          <CM360Cell 
+            value={row.type === 'tactique' ? formatNumber((row.data as AdOpsTactique).TC_CM360_Volume) : '-'}
+            fieldName="TC_CM360_Volume"
+            fieldLabel="Volume"
+            cm360History={row.type === 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Currency */}
+          <CM360Cell 
+            value={row.type === 'tactique' ? (row.data as AdOpsTactique).TC_BuyCurrency || 'N/A' : '-'}
+            fieldName="TC_BuyCurrency"
+            fieldLabel="Currency"
+            cm360History={row.type === 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Buy Type */}
+          <CM360Cell 
+            value={row.type === 'tactique' ? (row.data as AdOpsTactique).TC_Buy_Type || 'N/A' : '-'}
+            fieldName="TC_Buy_Type"
+            fieldLabel="Buy Type"
+            cm360History={row.type === 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+        </>
+      )}
+
+      {/* CONDITIONNEL : Colonnes taxonomies avec indicateurs de changement cliquables */}
+      {showTaxonomies && (
+        <>
+          {/* Tag 1 */}
+          <CM360Cell 
+            value={row.type === 'placement' ? (row.data as Placement).PL_Tag_1 : 
+                   row.type === 'creative' ? (row.data as Creative).CR_Tag_5 : '-'}
+            fieldName={row.type === 'placement' ? 'PL_Tag_1' : 'CR_Tag_5'}
+            fieldLabel="Tag 1"
+            cm360History={row.type !== 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Tag 2 */}
+          <CM360Cell 
+            value={row.type === 'placement' ? (row.data as Placement).PL_Tag_2 : 
+                   row.type === 'creative' ? (row.data as Creative).CR_Tag_6 : '-'}
+            fieldName={row.type === 'placement' ? 'PL_Tag_2' : 'CR_Tag_6'}
+            fieldLabel="Tag 2"
+            cm360History={row.type !== 'tactique' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+
+          {/* Tag 3 */}
+          <CM360Cell 
+            value={row.type === 'placement' ? (row.data as Placement).PL_Tag_3 : '-'}
+            fieldName="PL_Tag_3"
+            fieldLabel="Tag 3"
+            cm360History={row.type === 'placement' ? cm360History : undefined}
+            rowId={rowId}
+            rowType={row.type}
+            itemLabel={itemLabel}
+            cm360Tags={cm360Tags}
+            copiedField={copiedField}
+            onCopyToClipboard={onCopyToClipboard}
+          />
+        </>
+      )}
+
+      {/* Colonnes fixes avec indicateurs de changement cliquables */}
+      <CM360Cell 
+        value={row.type === 'placement' ? (row.data as Placement).PL_Tag_Type || '-' : '-'}
+        fieldName="PL_Tag_Type"
+        fieldLabel="Tag Type"
+        cm360History={row.type === 'placement' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? formatDate((row.data as Placement).PL_Tag_Start_Date) : 
+               row.type === 'creative' ? formatDate((row.data as Creative).CR_Tag_Start_Date) : '-'}
+        fieldName={row.type === 'placement' ? 'PL_Tag_Start_Date' : 'CR_Tag_Start_Date'}
+        fieldLabel="Date début"
+        cm360History={row.type !== 'tactique' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? formatDate((row.data as Placement).PL_Tag_End_Date) : 
+               row.type === 'creative' ? formatDate((row.data as Creative).CR_Tag_End_Date) : '-'}
+        fieldName={row.type === 'placement' ? 'PL_Tag_End_Date' : 'CR_Tag_End_Date'}
+        fieldLabel="Date fin"
+        cm360History={row.type !== 'tactique' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? (row.data as Placement).PL_Rotation_Type : 
+               row.type === 'creative' ? (row.data as Creative).CR_Rotation_Weight : '-'}
+        fieldName={row.type === 'placement' ? 'PL_Rotation_Type' : 'CR_Rotation_Weight'}
+        fieldLabel="Rotation"
+        cm360History={row.type !== 'tactique' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? (row.data as Placement).PL_Floodlight || '-' : '-'}
+        fieldName="PL_Floodlight"
+        fieldLabel="Floodlight"
+        cm360History={row.type === 'placement' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? 
+                ((row.data as Placement).PL_Third_Party_Measurement ? t('common.yes') : t('common.no')) : '-'}
+        fieldName="PL_Third_Party_Measurement"
+        fieldLabel="Third Party"
+        cm360History={row.type === 'placement' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+      
+      <CM360Cell 
+        value={row.type === 'placement' ? 
+                ((row.data as Placement).PL_VPAID ? t('common.yes') : t('common.no')) : '-'}
+        fieldName="PL_VPAID"
+        fieldLabel="VPAID"
+        cm360History={row.type === 'placement' ? cm360History : undefined}
+        rowId={rowId}
+        rowType={row.type}
+        itemLabel={itemLabel}
+        cm360Tags={cm360Tags}
+        copiedField={copiedField}
+        onCopyToClipboard={onCopyToClipboard}
+      />
+    </tr>
   );
 }
