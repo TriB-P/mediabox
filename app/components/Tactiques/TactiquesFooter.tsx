@@ -1,8 +1,11 @@
+// app/components/Tactiques/TactiquesFooter.tsx
+
 /**
  * Ce fichier gère le pied de page de l'application des tactiques.
  * Il permet de naviguer entre les différents onglets de tactiques, d'en ajouter de nouveaux,
  * de renommer les onglets existants et de les supprimer.
- * Il inclut également des boutons pour changer le mode d'affichage des tactiques (hiérarchie, tableau, timeline).
+ * Il inclut également des boutons pour changer le mode d'affichage des tactiques (hiérarchie, tableau, timeline, taxonomy).
+ * MODIFIÉ : Ajout du mode 'taxonomy' avec icône de tag
  */
 
 'use client';
@@ -12,6 +15,7 @@ import {
   ListBulletIcon, 
   TableCellsIcon, 
   ViewColumnsIcon,
+  BookOpenIcon,
   PlusIcon,
   PencilIcon,
   XMarkIcon,
@@ -21,8 +25,8 @@ import { Onglet } from '../../types/tactiques';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TactiquesFooterProps {
-  viewMode: 'hierarchy' | 'table' | 'timeline';
-  setViewMode: (mode: 'hierarchy' | 'table' | 'timeline') => void;
+  viewMode: 'hierarchy' | 'table' | 'timeline' | 'taxonomy';
+  setViewMode: (mode: 'hierarchy' | 'table' | 'timeline' | 'taxonomy') => void;
   onglets: Onglet[];
   selectedOnglet: Onglet | null;
   onSelectOnglet: (onglet: Onglet) => void;
@@ -34,8 +38,8 @@ interface TactiquesFooterProps {
 /**
  * Composant de pied de page pour la gestion des onglets et des modes de vue des tactiques.
  * @param {TactiquesFooterProps} props - Les propriétés du composant.
- * @param {'hierarchy' | 'table' | 'timeline'} props.viewMode - Le mode d'affichage actuel.
- * @param {(mode: 'hierarchy' | 'table' | 'timeline') => void} props.setViewMode - Fonction pour définir le mode d'affichage.
+ * @param {'hierarchy' | 'table' | 'timeline' | 'taxonomy'} props.viewMode - Le mode d'affichage actuel.
+ * @param {(mode: 'hierarchy' | 'table' | 'timeline' | 'taxonomy') => void} props.setViewMode - Fonction pour définir le mode d'affichage.
  * @param {Onglet[]} props.onglets - La liste de tous les onglets disponibles.
  * @param {Onglet | null} props.selectedOnglet - L'onglet actuellement sélectionné.
  * @param {(onglet: Onglet) => void} props.onSelectOnglet - Fonction pour sélectionner un onglet.
@@ -256,11 +260,18 @@ export default function TactiquesFooter({
             >
               <ViewColumnsIcon className="h-5 w-5" />
             </button>
+            <button
+              onClick={() => setViewMode('taxonomy')}
+              className={`p-2 rounded-full ${
+                viewMode === 'taxonomy' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'
+              }`}
+              title={t('tacticsFooter.viewMode.taxonomy')}
+            >
+              <BookOpenIcon className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
     </footer>
   );
-      
-
 }

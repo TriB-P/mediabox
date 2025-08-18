@@ -5,6 +5,8 @@
  * de navigation latérale persistante et une barre supérieure affichant les informations
  * de l'utilisateur connecté avec un menu pour se déconnecter et un toggle de langue.
  * Le contenu de chaque page est injecté via la prop `children`.
+ * 
+ * VERSION OPTIMISÉE : Meilleure utilisation de l'espace sur les grands écrans
  */
 
 'use client';
@@ -97,7 +99,13 @@ export default function AuthenticatedLayout({
             <LanguageToggle />
           </div>
         </div>
-        <div className="p-6 max-w-7xl mx-auto">
+        {/* 
+          Optimisation pour grands écrans :
+          - Utilise plus d'espace horizontal disponible
+          - Garde un padding raisonnable (2rem = 32px sur grands écrans)
+          - Maintient la lisibilité et l'esthétique
+        */}
+        <div className="px-4 py-6 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
           {children}
         </div>
       </main>

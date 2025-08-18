@@ -6,6 +6,7 @@
  * MODIFIÉ : Utilise les données centralisées d'AdOpsPage avec filtrage hierarchique
  * AMÉLIORÉ : Sans fond blanc individuel + colonne Actions élargie
  * CORRIGÉ : Rechargement des données après modification des couleurs
+ * NOUVEAU : Expansion des colonnes tags avec chevron + filtres rétractables
  */
 'use client';
 
@@ -15,7 +16,9 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   CloudArrowUpIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChevronRightIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 import { doc, updateDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -126,6 +129,8 @@ export default function AdOpsTacticTable({
   const [cm360Loading, setCm360Loading] = useState(false);
   const [cm360Filter, setCm360Filter] = useState<CM360Filter>('all');
   const [colorFilter, setColorFilter] = useState<string>('all'); // NOUVEAU : Filtre par couleur
+  const [isTagColumnsExpanded, setIsTagColumnsExpanded] = useState(false); // NOUVEAU : État expansion colonnes tags
+  const [isFiltersVisible, setIsFiltersVisible] = useState(false); // NOUVEAU : État visibilité filtres
 
   // NOUVEAU : Options de filtre par couleur
   const COLOR_FILTER_OPTIONS = [
@@ -845,6 +850,8 @@ const updateTableRowsColors = (color: string) => {
     // Réinitialiser tous les filtres
     setCm360Filter('all');
     setColorFilter('all');
+    setIsTagColumnsExpanded(false); // NOUVEAU : Réinitialiser l'expansion des colonnes
+    setIsFiltersVisible(false); // NOUVEAU : Masquer les filtres
   }, [selectedTactique?.id]); // IMPORTANT : Dépendre de l'ID pour déclencher le rechargement
 
   if (!selectedTactique) {
@@ -945,98 +952,116 @@ const updateTableRowsColors = (color: string) => {
 
       {/* Barre de recherche et filtres */}
       <div className="mb-3 space-y-3">
-        {/* Recherche */}
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('adOpsTacticTable.search.placeholder')}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        {/* Recherche avec icône de filtre */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('adOpsTacticTable.search.placeholder')}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          
+          {/* Bouton filtre */}
+          <button
+            onClick={() => setIsFiltersVisible(!isFiltersVisible)}
+            className={`p-2 border rounded-md transition-colors flex items-center gap-2 ${
+              isFiltersVisible || cm360Filter !== 'all' || colorFilter !== 'all'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+            title="Afficher/masquer les filtres"
+          >
+            <FunnelIcon className="w-4 h-4" />
+            {(cm360Filter !== 'all' || colorFilter !== 'all') && (
+              <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+            )}
+          </button>
         </div>
         
-        {/* Filtres Statut et Couleur sur une seule ligne - Style harmonisé */}
-<div className="flex items-center gap-6 flex-wrap">
-  {/* Filtres CM360 */}
-  <div className="flex items-center gap-2">
-    <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.statusLabel')}</span>
-    <div className="flex items-center gap-1">
-      {[
-        { value: 'all' as CM360Filter, label: t('adOpsTacticTable.filters.all'), color: 'gray' },
-        { value: 'created' as CM360Filter, label: t('adOpsTacticTable.filters.tagsCreated'), color: 'green' },
-        { value: 'changed' as CM360Filter, label: t('adOpsTacticTable.filters.toModify'), color: 'orange' },
-        { value: 'none' as CM360Filter, label: t('adOpsTacticTable.filters.toCreate'), color: 'blue' }
-      ].map(filter => (
-        <button
-          key={filter.value}
-          onClick={() => setCm360Filter(filter.value)}
-          className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
-            cm360Filter === filter.value
-              ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {filter.label}
-        </button>
-      ))}
-    </div>
-  </div>
-  
-  {/* Filtres par couleur - Style mixte */}
-  <div className="flex items-center gap-2">
-    <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.colorLabel')}</span>
-    <div className="flex items-center gap-1">
-      {/* Bouton "Tous" textuel */}
-      <button
-        onClick={() => setColorFilter('all')}
-        className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
-          colorFilter === 'all'
-            ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-        }`}
-      >
-        {t('adOpsTacticTable.filters.all')}
-      </button>
-      
-      {/* Bouton "Aucune" avec croix */}
-      <button
-        onClick={() => setColorFilter('none')}
-        className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center bg-white ${
-          colorFilter === 'none'
-            ? 'border-indigo-500 ring-2 ring-indigo-200'
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
-        title={t('adOpsTacticTable.tooltips.filterNoColor')}
-      >
-        <div className="w-5 h-5 rounded-full bg-white relative">
-          <div className="absolute inset-0 flex items-center justify-center">
-   
+        {/* Filtres Statut et Couleur - Affichage conditionnel */}
+        {isFiltersVisible && (
+          <div className="flex items-center gap-6 flex-wrap p-3 bg-gray-50 rounded-lg border">
+            {/* Filtres CM360 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.statusLabel')}</span>
+              <div className="flex items-center gap-1">
+                {[
+                  { value: 'all' as CM360Filter, label: t('adOpsTacticTable.filters.all'), color: 'gray' },
+                  { value: 'created' as CM360Filter, label: t('adOpsTacticTable.filters.tagsCreated'), color: 'green' },
+                  { value: 'changed' as CM360Filter, label: t('adOpsTacticTable.filters.toModify'), color: 'orange' },
+                  { value: 'none' as CM360Filter, label: t('adOpsTacticTable.filters.toCreate'), color: 'blue' }
+                ].map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setCm360Filter(filter.value)}
+                    className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
+                      cm360Filter === filter.value
+                        ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Filtres par couleur - Style mixte */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">{t('adOpsTacticTable.filters.colorLabel')}</span>
+              <div className="flex items-center gap-1">
+                {/* Bouton "Tous" textuel */}
+                <button
+                  onClick={() => setColorFilter('all')}
+                  className={`px-3 h-6 text-xs rounded-full border transition-colors flex items-center ${
+                    colorFilter === 'all'
+                      ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {t('adOpsTacticTable.filters.all')}
+                </button>
+                
+                {/* Bouton "Aucune" avec croix */}
+                <button
+                  onClick={() => setColorFilter('none')}
+                  className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center bg-white ${
+                    colorFilter === 'none'
+                      ? 'border-indigo-500 ring-2 ring-indigo-200'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  title={t('adOpsTacticTable.tooltips.filterNoColor')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-white relative">
+                    <div className="absolute inset-0 flex items-center justify-center">
+             
+                    </div>
+                  </div>
+                </button>
+                
+                {/* Boutons couleurs pleines */}
+                {COLORS.map(color => (
+                  <button
+                    key={color.value}
+                    onClick={() => setColorFilter(color.value)}
+                    className={`w-6 h-6 rounded-full border-2 transition-all duration-200 ${
+                      colorFilter === color.value
+                        ? 'border-indigo-500 ring-2 ring-indigo-200'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={`${t('adOpsTacticTable.tooltips.filterByColor')} ${color.name.toLowerCase()}`}
+                  >
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </button>
-      
-      {/* Boutons couleurs pleines */}
-      {COLORS.map(color => (
-        <button
-          key={color.value}
-          onClick={() => setColorFilter(color.value)}
-          className={`w-6 h-6 rounded-full border-2 transition-all duration-200 ${
-            colorFilter === color.value
-              ? 'border-indigo-500 ring-2 ring-indigo-200'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
-          style={{ backgroundColor: color.value }}
-          title={`${t('adOpsTacticTable.tooltips.filterByColor')} ${color.name.toLowerCase()}`}
-        >
-        </button>
-      ))}
-    </div>
-  </div>
-</div>
-
-
+        )}
       </div>
 
       {/* Tableau scrollable avec colonne Actions élargie */}
@@ -1061,8 +1086,30 @@ const updateTableRowsColors = (color: string) => {
               </th>
               <th className="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase"></th>
-              {/* AMÉLIORÉ : Colonne Actions encore plus élargie */}
-              <th className="w-96 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.actions')}</th>
+              {/* NOUVEAU : Colonne Actions avec chevron d'expansion */}
+              <th className="w-96 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <div className="flex items-center gap-2">
+                  {t('adOpsTacticTable.headers.actions')}
+                  <button
+                    onClick={() => setIsTagColumnsExpanded(!isTagColumnsExpanded)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <ChevronRightIcon
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isTagColumnsExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                </div>
+              </th>
+              {/* NOUVEAU : Colonnes tags conditionnelles */}
+              {isTagColumnsExpanded && (
+                <>
+                  <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag 1</th>
+                  <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag 2</th>
+                  <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tag 3</th>
+                </>
+              )}
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.tagType')}</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.startDate')}</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('adOpsTacticTable.headers.endDate')}</th>
@@ -1075,7 +1122,7 @@ const updateTableRowsColors = (color: string) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={isTagColumnsExpanded ? 14 : 11} className="px-6 py-8 text-center text-gray-500">
                   {searchTerm ? `${t('adOpsTacticTable.table.noResultsFor')} "${searchTerm}"` : t('adOpsTacticTable.table.noPlacementsFound')}
                 </td>
               </tr>
@@ -1100,6 +1147,7 @@ const updateTableRowsColors = (color: string) => {
                     cm360History={cm360History}
                     cm360Status={cm360Status}
                     cm360Tags={filteredTags}
+                    isTagColumnsExpanded={isTagColumnsExpanded}
                   />
                 );
               })

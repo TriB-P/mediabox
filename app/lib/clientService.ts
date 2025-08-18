@@ -9,6 +9,8 @@
  * 
  * MODIFICATION : getUserClients() récupère maintenant les logos depuis la collection racine "clients"
  * au lieu de la sous-collection "userPermissions/{email}/clients"
+ * 
+ * NOUVELLE MODIFICATION : Les utilisateurs avec le rôle "admin" ont automatiquement accès à tous les clients
  */
 import {
   collection,
@@ -58,9 +60,64 @@ export interface ClientInfo {
 }
 
 /**
+ * Récupère le rôle d'un utilisateur depuis la collection users
+ * @param userEmail L'adresse e-mail de l'utilisateur
+ * @returns Le rôle de l'utilisateur ou null si non trouvé
+ */
+async function getUserRole(userEmail: string): Promise<string | null> {
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', userEmail));
+    console.log("FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getUserRole - Path: users");
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return null;
+    }
+    
+    const userData = snapshot.docs[0].data();
+    return userData.role || null;
+  } catch (error) {
+    console.error('Erreur lors de la récupération du rôle utilisateur:', error);
+    return null;
+  }
+}
+
+/**
+ * Récupère tous les clients de la collection clients (pour les admins)
+ * @returns Un tableau de tous les clients avec le rôle admin
+ */
+async function getAllClientsForAdmin(): Promise<ClientPermission[]> {
+  try {
+    const clientsRef = collection(db, 'clients');
+    console.log("FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getAllClientsForAdmin - Path: clients");
+    const snapshot = await getDocs(clientsRef);
+    
+    const clients: ClientPermission[] = [];
+    
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      clients.push({
+        clientId: doc.id,
+        CL_Name: data.CL_Name || '',
+        CL_Logo: data.CL_Logo || '',
+        role: 'admin', // Tous les clients sont accessibles en tant qu'admin
+        grantedAt: new Date(), // Accès automatique
+      });
+    });
+    
+    return clients;
+  } catch (error) {
+    console.error('Erreur lors de la récupération de tous les clients:', error);
+    return [];
+  }
+}
+
+/**
  * Récupère la liste de tous les clients auxquels un utilisateur spécifique a accès.
- * NOUVELLE VERSION : Récupère les données de base depuis userPermissions puis les données 
- * complètes (incluant CL_Logo) depuis la collection racine "clients".
+ * NOUVELLE VERSION : 
+ * - Si l'utilisateur a le rôle "admin", il a accès à TOUS les clients avec le rôle "admin"
+ * - Sinon, récupère les données depuis userPermissions puis les données complètes depuis la collection racine "clients"
  * 
  * @param userEmail L'adresse e-mail de l'utilisateur pour lequel récupérer les permissions.
  * @returns Une promesse qui résout en un tableau d'objets ClientPermission.
@@ -69,7 +126,16 @@ export async function getUserClients(
   userEmail: string
 ): Promise<ClientPermission[]> {
   try {
-    // 1. Récupérer d'abord les permissions/rôles depuis userPermissions
+    // 1. Vérifier d'abord si l'utilisateur est admin
+    const userRole = await getUserRole(userEmail);
+    
+    if (userRole === 'admin') {
+      console.log(`Utilisateur ${userEmail} est admin - accès à tous les clients`);
+      return await getAllClientsForAdmin();
+    }
+    
+    // 2. Logique normale pour les utilisateurs non-admin
+    // Récupérer d'abord les permissions/rôles depuis userPermissions
     const permissionsRef = collection(
       db,
       'userPermissions',
@@ -79,7 +145,7 @@ export async function getUserClients(
     console.log("FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getUserClients - Path: userPermissions/${userEmail}/clients");
     const permissionsSnapshot = await getDocs(permissionsRef);
     
-    // 2. Extraire les informations de permissions (rôle, grantedAt)
+    // 3. Extraire les informations de permissions (rôle, grantedAt)
     const permissionsData = permissionsSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -89,7 +155,7 @@ export async function getUserClients(
       };
     });
 
-    // 3. Pour chaque client autorisé, récupérer les données complètes depuis la collection racine
+    // 4. Pour chaque client autorisé, récupérer les données complètes depuis la collection racine
     const clients: ClientPermission[] = [];
     
     for (const permission of permissionsData) {
@@ -101,11 +167,11 @@ export async function getUserClients(
         if (clientDoc.exists()) {
           const clientData = clientDoc.data();
           
-          // 4. Fusionner les données de permissions avec les données maîtres
+          // 5. Fusionner les données de permissions avec les données maîtres
           clients.push({
             clientId: permission.clientId,
             CL_Name: clientData.CL_Name || '',
-            CL_Logo: clientData.CL_Logo || '', // MAINTENANT DEPUIS LA COLLECTION RACINE
+            CL_Logo: clientData.CL_Logo || '',
             role: permission.role,
             grantedAt: permission.grantedAt,
           });
@@ -231,6 +297,65 @@ export async function updateClientInfo(
     });
   } catch (error) {
     console.error('Erreur lors de la mise à jour des infos client:', error);
+    throw error;
+  }
+}
+
+/**
+ * Crée un nouveau client dans la collection Firestore.
+ * @param clientId L'ID personnalisé du client (défini par l'utilisateur).
+ * @param clientName Le nom du client (CL_Name).
+ * @returns Une promesse qui résout une fois le client créé.
+ */
+export async function createClient(
+  clientId: string,
+  clientName: string
+): Promise<void> {
+  try {
+    // Vérifier si le client existe déjà
+    const clientRef = doc(db, 'clients', clientId);
+    console.log(`FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: createClient - Path: clients/${clientId}`);
+    const existingClient = await getDoc(clientRef);
+    
+    if (existingClient.exists()) {
+      throw new Error(`Un client avec l'ID "${clientId}" existe déjà`);
+    }
+
+    // Créer le nouveau client avec les champs minimum
+    const newClientData: Partial<ClientInfo> = {
+      CL_Name: clientName,
+      CL_Logo: '',
+      CL_Office: [],
+      CL_Agency: '',
+      CL_Export_Language: 'FR',
+      CL_Default_Drive_Folder: '',
+      CL_Cost_Guide_ID: '',
+      CL_Custom_Fee_1: '',
+      CL_Custom_Fee_2: '',
+      CL_Custom_Fee_3: '',
+      Custom_Dim_CA_1: '',
+      Custom_Dim_CA_2: '',
+      Custom_Dim_CA_3: '',
+      Custom_Dim_TC_1: '',
+      Custom_Dim_TC_2: '',
+      Custom_Dim_TC_3: '',
+      Custom_Dim_PL_1: '',
+      Custom_Dim_PL_2: '',
+      Custom_Dim_PL_3: '',
+      Custom_Dim_CR_1: '',
+      Custom_Dim_CR_2: '',
+      Custom_Dim_CR_3: '',
+    };
+
+    console.log(`FIREBASE: ÉCRITURE - Fichier: clientService.ts - Fonction: createClient - Path: clients/${clientId}`);
+    await setDoc(clientRef, {
+      ...newClientData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la création du client:', error);
     throw error;
   }
 }

@@ -80,6 +80,8 @@ export interface Tactique {
   TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
   TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
   TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
+  TC_CM360_Volume_Linked_To_Unit_Volume?: boolean; // Lie automatiquement TC_CM360_Volume à TC_Unit_Volume
+
 
   // Champs Admin
   TC_Billing_ID?: string; // Numéro de facturation
@@ -360,6 +362,8 @@ export interface TactiqueFormData {
   TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
   TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
   TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
+  TC_CM360_Volume_Linked_To_Unit_Volume?: boolean; // Lie automatiquement TC_CM360_Volume à TC_Unit_Volume
+
 
   // 🔥 CORRECTION BUDGET : Ajout des champs budgétaires manquants
   TC_Media_Budget?: number; // Budget média calculé

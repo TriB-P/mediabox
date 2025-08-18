@@ -655,10 +655,32 @@ export const translations = {
         }
     },
     clientDropdown: {
-      searchPlaceholder: "Rechercher un client...",
-      noClientAvailable: "Aucun client disponible",
-      noClientFound:"Aucun client trouvé",
       selectClient: "Sélectionner un client",
+      searchPlaceholder: "Rechercher un client...",
+      noClientFound: "Aucun client trouvé",
+      status: {
+        noClientAvailable: "Aucun client disponible",
+      },
+      create: {
+        title: "Créer un nouveau client",
+      },
+      createModal: {
+        title: "Créer un nouveau client",
+        successMessage: "Client créé avec succès ! Veuillez rafraîchir la page pour voir le nouveau client.",
+        form: {
+          clientIdLabel: "ID du client *",
+          clientIdPlaceholder: "ex: client-abc-123",
+          clientIdHelpText: "Lettres, chiffres, tirets et underscores uniquement",
+          clientNameLabel: "Nom du client *",
+          clientNamePlaceholder: "ex: Acme Corporation",
+          creatingButton: "Création...",
+        },
+        errors: {
+          fillAllFields: "Veuillez remplir tous les champs",
+          invalidId: "L'ID ne peut contenir que des lettres, chiffres, tirets et underscores",
+          creationError: "Erreur lors de la création du client",
+        },
+      },
     },
     campaignSelector: {
       selectCampaign: "Sélectionner une campagne",
@@ -1958,7 +1980,8 @@ export const translations = {
       viewMode: {
         hierarchy: "Vue hiérarchique",
         table: "Vue tableau",
-        timeline: "Vue timeline"
+        timeline: "Vue timeline",
+        taxonomy: "Taxonomie"
       }
     },
     taxonomyPreview: {
@@ -2144,8 +2167,8 @@ export const translations = {
       changesDetectedSinceLastTag: "Modifications détectées depuis le dernier tag",
       unnamedPlacement: "Placement sans nom",
       unnamedCreative: "Créatif sans nom",
-      label: "Libellé",
-      labelModified: "Libellé modifié",
+      label: "Étiquette",
+      labelModified: "Étiquette modifiée",
       tagType: "Type de Tag",
       startDate: "Date Début",
       endDate: "Date Fin",
@@ -2562,7 +2585,14 @@ export const translations = {
         },
         cm360Volume: {
           label: "Volume CM360 *",
-          tooltip: "Entrez le volume prévu pour cette tactique (nombre entier)"
+          tooltip: "Entrez le volume prévu pour cette tactique (nombre entier)",
+          tooltipLinked: "Ce volume est automatiquement synchronisé avec le volume d'unités calculé dans l'onglet Budget",
+          placeholderLinked: "Synchronisé avec le volume d'unités",
+          linkedMessage: "Automatiquement synchronisé avec le volume d'unités du budget"
+        },
+        cm360VolumeLinkage: {
+          label: "Lier au volume d'unités",
+          tooltip: "Cochez cette case pour synchroniser automatiquement le volume CM360 avec le volume d'unités calculé dans l'onglet Budget."
         },
         cm360Rate: {
           label: "Taux CM360 (calculé automatiquement)",
@@ -4140,7 +4170,7 @@ export const translations = {
       },
       
       tactique: {
-        label: "Libellé",
+        label: "Étiquette",
         bucket: "Bucket",
         mpa: "MPA",
         startDate: "Date de début",
@@ -4250,7 +4280,7 @@ export const translations = {
         customDim1: "Dimension personnalisée 1",
         customDim2: "Dimension personnalisée 2", 
         customDim3: "Dimension personnalisée 3",
-        label: "Libellé",
+        label: "Étiquette",
         order: "Ordre",
         tactiqueId: "ID tactique",
         taxonomyTags: "Taxonomie des tags",
@@ -4269,7 +4299,7 @@ export const translations = {
         primaryProduct: "Produit principal",
         url: "URL",
         version: "Version",
-        label: "Libellé",
+        label: "Étiquette",
         order: "Ordre",
         placementId: "ID du placement",
         startDate: "Date de début",
@@ -4292,8 +4322,7 @@ export const translations = {
         specSheetLink: "Lien de la fiche technique",
         specNotes: "Notes"
       }
-    },
-    
+    }, 
     tactiquesPage: {
       header: {
         title: "Tactiques",
@@ -4458,6 +4487,36 @@ export const translations = {
         variableLabel: "Variable",
         formatLabel: "Format",
       },
+    },
+    taxonomy: {
+      title: "Vue Taxonomie",
+      taxonomyType: "Type de taxonomie",
+      lineType: "Type de ligne",
+      level: "Niveau",
+      search: "Recherche",
+      searchPlaceholder: "Rechercher par étiquette ou taxo...",
+      levelLabel: "Niveau {{level}}",
+      noTaxonomyAssigned: "Aucune taxonomie assignée",
+      taxonomyNotFound: "Taxonomie introuvable",
+      noTitleConfigured: "Aucun titre configuré",
+      noData: "Aucune donnée à afficher",
+      noSearchResults: "Aucun résultat trouvé pour cette recherche",
+      copyValue: "Copier la valeur",
+      types: {
+        tags: "Tags",
+        platform: "Plateforme", 
+        mediaocean: "MediaOcean"
+      },
+      lineTypes: {
+        all: "Tout (hiérarchie complète)",
+        placements: "Placements uniquement",
+        creatifs: "Créatifs uniquement"
+      },
+      columns: {
+        label: "Libellé",
+        levelTitle: "Titre du niveau",
+        value: "Valeur"
+      }
     },
     
 
@@ -4958,10 +5017,32 @@ export const translations = {
       }
     },
     clientDropdown: {
-      searchPlaceholder: "Search a client...",
-      noClientAvailable: "No available client",
-      noClientFound:"No client found",
       selectClient: "Select a client",
+      searchPlaceholder: "Search for a client...",
+      noClientFound: "No client found",
+      status: {
+        noClientAvailable: "No client available",
+      },
+      create: {
+        title: "Create a new client",
+      },
+      createModal: {
+        title: "Create a new client",
+        successMessage: "Client created successfully! Please refresh the page to see the new client.",
+        form: {
+          clientIdLabel: "Client ID *",
+          clientIdPlaceholder: "e.g., client-abc-123",
+          clientIdHelpText: "Only letters, numbers, dashes, and underscores",
+          clientNameLabel: "Client Name *",
+          clientNamePlaceholder: "e.g., Acme Corporation",
+          creatingButton: "Creating...",
+        },
+        errors: {
+          fillAllFields: "Please fill in all fields",
+          invalidId: "The ID can only contain letters, numbers, dashes, and underscores",
+          creationError: "Error while creating the client",
+        },
+      },
     },
     campaignSelector : {
       selectCampaign: "Select a campaign", 
@@ -6261,7 +6342,9 @@ export const translations = {
       viewMode: {
         hierarchy: "Hierarchy view",
         table: "Table view",
-        timeline: "Timeline view"
+        timeline: "Timeline view",
+        taxonomy: "Taxonomy"
+
       }
     },
     taxonomyPreview: {
@@ -6864,7 +6947,14 @@ export const translations = {
         },
         cm360Volume: {
           label: "CM360 Volume *",
-          tooltip: "Enter the planned volume for this tactic (integer)"
+          tooltip: "Enter the planned volume for this tactic (integer)",
+          tooltipLinked: "This volume is automatically synchronized with the unit volume calculated in the Budget tab.",
+          placeholderLinked: "Synchronized with unit volume",
+          linkedMessage: "Automatically synchronized with the budget unit volume"
+        },
+        cm360VolumeLinkage: {
+          label: "Link to unit volume",
+          tooltip: "Check this box to automatically synchronize the CM360 volume with the unit volume calculated in the Budget tab." 
         },
         cm360Rate: {
           label: "CM360 Rate (calculated automatically)",
@@ -8596,5 +8686,36 @@ export const translations = {
         formatLabel: "Format",
       },
     },
+    taxonomy: {
+      title: "Taxonomy View",
+      taxonomyType: "Taxonomy Type",
+      lineType: "Line Type",
+      level: "Level",
+      search: "Search",
+      searchPlaceholder: "Search by label or taxonomy...",
+      levelLabel: "Level {{level}}",
+      noTaxonomyAssigned: "No taxonomy assigned",
+      taxonomyNotFound: "Taxonomy not found",
+      noTitleConfigured: "No title configured",
+      noData: "No data available",
+      noSearchResults: "No results found for this search",
+      copyValue: "Copy value",
+      types: {
+        tags: "Tags",
+        platform: "Platform", 
+        mediaocean: "MediaOcean"
+      },
+      lineTypes: {
+        all: "All (full hierarchy)",
+        placements: "Placements only",
+        creatives: "Creatives only"
+      },
+      columns: {
+        label: "Label",
+        levelTitle: "Level Title",
+        value: "Value"
+      }
+    },
+    
   }
 };

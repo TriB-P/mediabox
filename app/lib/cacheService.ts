@@ -539,7 +539,6 @@ async function buildOptimizedListStructure(clientIds: string[]): Promise<Optimiz
     emitProgress({
       type: 'step-start',
       stepId: 'client-overrides',
-      details: 'Découverte intelligente des personnalisations...'
     });
 
     const optimizedStructure: OptimizedListStructure = {};

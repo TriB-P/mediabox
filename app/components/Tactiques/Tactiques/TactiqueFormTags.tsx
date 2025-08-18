@@ -3,6 +3,7 @@
 /**
  * Composant pour l'onglet Tags du formulaire de tactique
  * Contient les champs spécifiques aux tags : Buy Type, CM360 Volume et Rate calculé
+ * VERSION NOUVELLE : Ajout de la liaison automatique CM360 Volume → Unit Volume
  */
 
 import React, { useEffect } from 'react';
@@ -76,6 +77,58 @@ export default function TactiqueFormTags({
     onChange
   ]);
 
+  /**
+   * Gère le changement de la case à cocher de liaison
+   */
+  const handleLinkageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const isLinked = event.target.checked;
+    
+    // Créer un événement pour le champ de liaison
+    const linkageEvent = {
+      target: {
+        name: 'TC_CM360_Volume_Linked_To_Unit_Volume',
+        value: isLinked.toString(),
+        type: 'checkbox',
+        checked: isLinked
+      }
+    } as React.ChangeEvent<HTMLInputElement>;
+    
+    onChange(linkageEvent);
+
+    // Si on active la liaison, synchroniser immédiatement avec TC_Unit_Volume
+    if (isLinked) {
+      const unitVolume = (formData as any).TC_Unit_Volume || 0;
+      const volumeEvent = {
+        target: {
+          name: 'TC_CM360_Volume',
+          value: unitVolume.toString(),
+          type: 'number'
+        }
+      } as React.ChangeEvent<HTMLInputElement>;
+      
+      onChange(volumeEvent);
+    }
+  };
+
+  /**
+   * Gère le changement manuel du volume CM360 (seulement si non lié)
+   */
+  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const isLinked = (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume || false;
+    
+    // Si lié, ignorer les modifications manuelles
+    if (isLinked) {
+      return;
+    }
+    
+    onChange(event);
+  };
+
+  // Détermine si le champ volume est en mode lecture seule
+  const isVolumeReadonly = (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume || false;
+  const unitVolume = (formData as any).TC_Unit_Volume || 0;
+  const cm360Volume = (formData as any).TC_CM360_Volume || 0;
+
   return (
     <div className="space-y-6 p-6">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -105,30 +158,80 @@ export default function TactiqueFormTags({
           </select>
         </div>
 
-        {/* TC_CM360_Volume - Volume CM360 */}
+        {/* TC_CM360_Volume - Volume CM360 avec liaison */}
         <div>
-          <label 
-            htmlFor="TC_CM360_Volume" 
-            className="block text-sm font-medium text-gray-700"
-          >
-            {t('tactiqueFormTags.fields.cm360Volume.label')}
-          </label>
-          <input
-            type="number"
-            id="TC_CM360_Volume"
-            name="TC_CM360_Volume"
-            value={(formData as any).TC_CM360_Volume || ''}
-            onChange={onChange}
-            onFocus={() => onTooltipChange(t('tactiqueFormTags.fields.cm360Volume.tooltip'))}
-            onBlur={() => onTooltipChange(null)}
-            disabled={loading}
-            min="1"
-            step="1"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
-            placeholder="Ex: 1000000"
-            required
-          />
-          {(formData as any).TC_CM360_Volume && (formData as any).TC_CM360_Volume <= 0 && (
+          <div className="flex items-center justify-between mb-2">
+            <label 
+              htmlFor="TC_CM360_Volume" 
+              className="block text-sm font-medium text-gray-700"
+            >
+              {t('tactiqueFormTags.fields.cm360Volume.label')}
+            </label>
+            
+            {/* Case à cocher pour la liaison */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="TC_CM360_Volume_Linked"
+                name="TC_CM360_Volume_Linked_To_Unit_Volume"
+                checked={(formData as any).TC_CM360_Volume_Linked_To_Unit_Volume || false}
+                onChange={handleLinkageChange}
+                disabled={loading}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+              />
+              <label 
+                htmlFor="TC_CM360_Volume_Linked" 
+                className="ml-2 text-xs text-gray-600"
+                onMouseEnter={() => onTooltipChange(t('tactiqueFormTags.fields.cm360VolumeLinkage.tooltip'))}
+                onMouseLeave={() => onTooltipChange(null)}
+              >
+                {t('tactiqueFormTags.fields.cm360VolumeLinkage.label')}
+              </label>
+            </div>
+          </div>
+
+          <div className="relative">
+            <input
+              type="number"
+              id="TC_CM360_Volume"
+              name="TC_CM360_Volume"
+              value={isVolumeReadonly ? unitVolume : cm360Volume}
+              onChange={handleVolumeChange}
+              onFocus={() => onTooltipChange(
+                isVolumeReadonly 
+                  ? t('tactiqueFormTags.fields.cm360Volume.tooltipLinked')
+                  : t('tactiqueFormTags.fields.cm360Volume.tooltip')
+              )}
+              onBlur={() => onTooltipChange(null)}
+              disabled={loading}
+              readOnly={isVolumeReadonly}
+              min="1"
+              step="1"
+              className={`mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                isVolumeReadonly
+                  ? 'border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed'
+                  : 'border-gray-300 disabled:bg-gray-50 disabled:text-gray-500'
+              }`}
+              placeholder={isVolumeReadonly ? t('tactiqueFormTags.fields.cm360Volume.placeholderLinked') : "Ex: 1000000"}
+              required
+            />
+            
+            {/* Indicateur visuel quand lié */}
+            {isVolumeReadonly && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <span className="text-indigo-500 text-sm">🔗</span>
+              </div>
+            )}
+          </div>
+
+          {/* Messages d'aide */}
+          {isVolumeReadonly && (
+            <p className="mt-1 text-xs text-indigo-600">
+              {t('tactiqueFormTags.fields.cm360Volume.linkedMessage')}
+            </p>
+          )}
+          
+          {!isVolumeReadonly && cm360Volume && cm360Volume <= 0 && (
             <p className="mt-1 text-sm text-red-600">
               {t('tactiqueFormTags.validation.volumePositive')}
             </p>
@@ -164,12 +267,7 @@ export default function TactiqueFormTags({
             </span>
           </div>
         </div>
-        
-  
       </div>
-
-     
-
     </div>
   );
 }

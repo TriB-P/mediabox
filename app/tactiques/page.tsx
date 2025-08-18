@@ -1,9 +1,12 @@
+// app/tactiques/page.tsx
+
 /**
  * Ce fichier contient le composant principal de la page des tactiques.
  * Il gère l'affichage des données des campagnes, versions, onglets, sections, tactiques, placements et créatifs.
  * Il orchestre l'interaction entre les différents hooks (données, CRUD, sélection, UI)
  * et les composants d'interface utilisateur pour offrir une expérience complète de gestion des tactiques.
  * Il inclut des fonctionnalités de chargement, d'erreur, de rafraîchissement et de gestion des sélections.
+ * MODIFIÉ : Ajout de la vue 'taxonomy' avec TactiquesAdvancedTaxonomyView
  */
 'use client';
 
@@ -18,6 +21,7 @@ import CampaignVersionSelector from '../components/Others/CampaignVersionSelecto
 import TactiquesHierarchyView from '../components/Tactiques/Views/Hierarchy/TactiquesHierarchyView';
 import TactiquesAdvancedTableView from '../components/Tactiques/Views/Table/TactiquesAdvancedTableView';
 import TactiquesTimelineView from '../components/Tactiques/Views/Timeline/TactiquesTimelineView';
+import TactiquesAdvancedTaxonomyView from '../components/Tactiques/Views/Taxonomy/TactiquesAdvancedTaxonomyView';
 import TactiquesFooter from '../components/Tactiques/TactiquesFooter';
 import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import LoadingSpinner from '../components/Others/LoadingSpinner';
@@ -31,11 +35,12 @@ import { Breakdown } from '../types/breakdown';
 import { useClient } from '../contexts/ClientContext';
 import { useTranslation } from '../contexts/LanguageContext';
 
-type ViewMode = 'hierarchy' | 'table' | 'timeline';
+type ViewMode = 'hierarchy' | 'table' | 'timeline' | 'taxonomy';
 
 /**
  * Composant principal de la page des tactiques.
  * Gère l'état global, les interactions utilisateur et l'affichage des différentes vues des tactiques.
+ * MODIFIÉ : Ajout du support pour la vue 'taxonomy'
  *
  * @returns {JSX.Element} Le composant de la page des tactiques.
  */
@@ -212,28 +217,28 @@ export default function TactiquesPage() {
   const hasError = !!error;
 
   // Effet pour charger les breakdowns quand la campagne change
-useEffect(() => {
-  const loadBreakdowns = async () => {
-    if (!selectedClient?.clientId || !selectedCampaign?.id) {
-      setBreakdowns([]);
-      return;
-    }
+  useEffect(() => {
+    const loadBreakdowns = async () => {
+      if (!selectedClient?.clientId || !selectedCampaign?.id) {
+        setBreakdowns([]);
+        return;
+      }
 
-    try {
-      setBreakdownsLoading(true);
-      console.log(`FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBreakdowns - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/breakdowns`);
-      const breakdownsData = await getBreakdowns(selectedClient.clientId, selectedCampaign.id);
-      setBreakdowns(breakdownsData);
-    } catch (error) {
-      console.error('Erreur lors du chargement des breakdowns:', error);
-      setBreakdowns([]);
-    } finally {
-      setBreakdownsLoading(false);
-    }
-  };
+      try {
+        setBreakdownsLoading(true);
+        console.log(`FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBreakdowns - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/breakdowns`);
+        const breakdownsData = await getBreakdowns(selectedClient.clientId, selectedCampaign.id);
+        setBreakdowns(breakdownsData);
+      } catch (error) {
+        console.error('Erreur lors du chargement des breakdowns:', error);
+        setBreakdowns([]);
+      } finally {
+        setBreakdownsLoading(false);
+      }
+    };
 
-  loadBreakdowns();
-}, [selectedClient?.clientId, selectedCampaign?.id]);
+    loadBreakdowns();
+  }, [selectedClient?.clientId, selectedCampaign?.id]);
 
   return (
     <div className={getContainerClasses()}>
@@ -273,28 +278,6 @@ useEffect(() => {
         onVersionChange={handleVersionChange}
         className="mb-6"
       />
-{/* {loadingStates.shouldShowTopIndicator && (
-        <div className={`border rounded-lg p-3 mb-4 ${
-          refreshState.isRefreshing 
-            ? 'bg-blue-50 border-blue-200' 
-            : 'bg-indigo-50 border-indigo-200'
-        }`}>
-          <div className="flex items-center space-x-3">
-            <div className={`animate-spin rounded-full h-4 w-4 border-b-2 ${
-              refreshState.isRefreshing 
-                ? 'border-blue-600' 
-                : 'border-indigo-600'
-            }`}></div>
-            <span className={`text-sm ${
-              refreshState.isRefreshing 
-                ? 'text-blue-700' 
-                : 'text-indigo-700'
-            }`}>
-              {refreshState.isRefreshing ? 'Actualisation des données...' : (stage || 'Actualisation en cours...')}
-            </span>
-          </div>
-        </div>
-      )} */}
 
       {selectionState.duplicationLoading && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
@@ -392,52 +375,53 @@ useEffect(() => {
 
             {!hasError && (
               <>
-{viewMode === 'hierarchy' && (
-  <>
-    {enrichedData.sectionsWithTactiques.length > 0 ? (
-      <TactiquesHierarchyView
-        key={hierarchyViewKey}
-        sections={enrichedData.sectionsWithTactiques}
-        placements={enrichedData.enrichedPlacements} 
-        creatifs={enrichedData.enrichedCreatifs} 
-        onSectionExpand={modalState.handleSectionExpand}
-        onEditSection={handleEditSection}
-        onDeleteSection={crudActions.handleDeleteSection}
-        onCreateTactique={crudActions.handleCreateTactique}
-        onUpdateTactique={crudActions.handleUpdateTactique}
-        onDeleteTactique={crudActions.handleDeleteTactique}
-        onCreatePlacement={crudActions.handleCreatePlacement}
-        onUpdatePlacement={crudActions.handleUpdatePlacement}
-        onDeletePlacement={crudActions.handleDeletePlacement}
-        onCreateCreatif={crudActions.handleCreateCreatif}
-        onUpdateCreatif={crudActions.handleUpdateCreatif}
-        onDeleteCreatif={crudActions.handleDeleteCreatif}
-        formatCurrency={formatCurrency}
-        totalBudget={totalBudget}
-        onRefresh={handleRefreshWithReset}
-        onDragRefresh={refreshState.handleManualRefresh} // ✅ EXACTEMENT la fonction du bouton qui marche !
-        onDuplicateSelected={selectionState.handleDuplicateSelected}
-        onDeleteSelected={selectionState.handleDeleteSelected}
-        onClearSelection={selectionState.handleClearSelection}
-        loading={loadingStates.isLoading}
-        hierarchyContext={enrichedData.hierarchyContextForMove}
-      />
-    ) : (
-      <div className="bg-white p-8 rounded-lg shadow text-center">
-        <p className="text-gray-500">
-          {t('tactiquesPage.emptyState.noSectionsFound')}
-        </p>
-        <button
-          onClick={handleAddSection}
-          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
-        >
-          <PlusIcon className="h-5 w-5 mr-1.5" />
-          {t('tactiquesPage.actions.newSection')}
-        </button>
-      </div>
-    )}
-  </>
-)}
+                {viewMode === 'hierarchy' && (
+                  <>
+                    {enrichedData.sectionsWithTactiques.length > 0 ? (
+                      <TactiquesHierarchyView
+                        key={hierarchyViewKey}
+                        sections={enrichedData.sectionsWithTactiques}
+                        placements={enrichedData.enrichedPlacements} 
+                        creatifs={enrichedData.enrichedCreatifs} 
+                        onSectionExpand={modalState.handleSectionExpand}
+                        onEditSection={handleEditSection}
+                        onDeleteSection={crudActions.handleDeleteSection}
+                        onCreateTactique={crudActions.handleCreateTactique}
+                        onUpdateTactique={crudActions.handleUpdateTactique}
+                        onDeleteTactique={crudActions.handleDeleteTactique}
+                        onCreatePlacement={crudActions.handleCreatePlacement}
+                        onUpdatePlacement={crudActions.handleUpdatePlacement}
+                        onDeletePlacement={crudActions.handleDeletePlacement}
+                        onCreateCreatif={crudActions.handleCreateCreatif}
+                        onUpdateCreatif={crudActions.handleUpdateCreatif}
+                        onDeleteCreatif={crudActions.handleDeleteCreatif}
+                        formatCurrency={formatCurrency}
+                        totalBudget={totalBudget}
+                        onRefresh={handleRefreshWithReset}
+                        onDragRefresh={refreshState.handleManualRefresh}
+                        onDuplicateSelected={selectionState.handleDuplicateSelected}
+                        onDeleteSelected={selectionState.handleDeleteSelected}
+                        onClearSelection={selectionState.handleClearSelection}
+                        loading={loadingStates.isLoading}
+                        hierarchyContext={enrichedData.hierarchyContextForMove}
+                      />
+                    ) : (
+                      <div className="bg-white p-8 rounded-lg shadow text-center">
+                        <p className="text-gray-500">
+                          {t('tactiquesPage.emptyState.noSectionsFound')}
+                        </p>
+                        <button
+                          onClick={handleAddSection}
+                          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
+                        >
+                          <PlusIcon className="h-5 w-5 mr-1.5" />
+                          {t('tactiquesPage.actions.newSection')}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {viewMode === 'table' && (
                   <div className="w-full">
                     <TactiquesAdvancedTableView
@@ -454,24 +438,34 @@ useEffect(() => {
                   </div>
                 )}
 
-                  {viewMode === 'timeline' && selectedCampaign && (
-                    <TactiquesTimelineView
-                      tactiques={enrichedData.flatTactiques}
-                      sectionNames={enrichedData.sectionNames}
-                      campaignStartDate={selectedCampaign.CA_Start_Date}
-                      campaignEndDate={selectedCampaign.CA_End_Date}
-                      formatCurrency={formatCurrency}
-                      onEditTactique={(tactiqueId, sectionId) => {
-                        const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
-                        if (tactique) {
-                          console.log('Éditer tactique:', tactique);
-                        }
-                      }}
-                      // Nouvelles props ajoutées
-                      breakdowns={breakdowns || []}
-                      onUpdateTactique={crudActions.handleUpdateTactique}
+                {viewMode === 'timeline' && selectedCampaign && (
+                  <TactiquesTimelineView
+                    tactiques={enrichedData.flatTactiques}
+                    sectionNames={enrichedData.sectionNames}
+                    campaignStartDate={selectedCampaign.CA_Start_Date}
+                    campaignEndDate={selectedCampaign.CA_End_Date}
+                    formatCurrency={formatCurrency}
+                    onEditTactique={(tactiqueId, sectionId) => {
+                      const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
+                      if (tactique) {
+                        console.log('Éditer tactique:', tactique);
+                      }
+                    }}
+                    breakdowns={breakdowns || []}
+                    onUpdateTactique={crudActions.handleUpdateTactique}
+                  />
+                )}
+
+                {viewMode === 'taxonomy' && (
+                  <div className="w-full">
+                    <TactiquesAdvancedTaxonomyView
+                      sections={sections}
+                      tactiques={tactiques}
+                      placements={placements}
+                      creatifs={creatifs}
                     />
-                  )}
+                  </div>
+                )}
               </>
             )}
           </div>

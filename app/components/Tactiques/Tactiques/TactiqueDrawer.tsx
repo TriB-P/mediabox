@@ -250,6 +250,8 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Buy_Type: tactique.TC_Buy_Type || '',
     TC_CM360_Volume: tactique.TC_CM360_Volume || 0,
     TC_CM360_Rate: tactique.TC_CM360_Rate || 0,
+    TC_CM360_Volume_Linked_To_Unit_Volume: tactique.TC_CM360_Volume_Linked_To_Unit_Volume || false,
+
     
     // CHAMPS BUDGÉTAIRES
     TC_Media_Budget: tactique.TC_Media_Budget || 0,
@@ -404,6 +406,8 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     // CM360 arrondis
     TC_CM360_Volume: round2(formDataAny.TC_CM360_Volume),
     TC_CM360_Rate: round2(formDataAny.TC_CM360_Rate),
+    TC_CM360_Volume_Linked_To_Unit_Volume: formDataAny.TC_CM360_Volume_Linked_To_Unit_Volume || false,
+
     
     // KPIs arrondis
     TC_Kpi_CostPer: round2(formDataAny.TC_Kpi_CostPer|| 0),
@@ -431,6 +435,8 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Budget_Mode: 'media',
   TC_BuyCurrency: 'CAD',
   TC_Unit_Type:'SH_48HPEEYW',
+  TC_CM360_Volume_Linked_To_Unit_Volume: false,
+
 });
 
 /**
@@ -668,6 +674,30 @@ export default function TactiqueDrawer({
             setValidationErrors(errors);
     }
   }, [formData, validationErrors, REQUIRED_FIELDS, t]);
+
+    /**
+   * 🆕 useEffect pour synchroniser automatiquement TC_CM360_Volume avec TC_Unit_Volume
+   * quand la liaison est activée
+   */
+  useEffect(() => {
+    const isLinked = (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume || false;
+    const unitVolume = (formData as any).TC_Unit_Volume || 0;
+    const currentCM360Volume = (formData as any).TC_CM360_Volume || 0;
+
+    // Si la liaison est active et que les volumes sont différents, synchroniser
+    if (isLinked && unitVolume !== currentCM360Volume && unitVolume > 0) {
+      console.log(`🔗 Synchronisation CM360 Volume: ${currentCM360Volume} → ${unitVolume}`);
+      
+      setFormData(prev => ({
+        ...prev,
+        TC_CM360_Volume: unitVolume
+      }));
+      setIsDirty(true);
+    }
+  }, [
+    (formData as any).TC_Unit_Volume, 
+    (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume
+  ]);
 
   /**
    * Charge toutes les données avec logique correcte pour les dimensions personnalisées
@@ -930,7 +960,7 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
     selectedCampaign?.CA_End_Date,
     t
   );
-    
+
   if (Object.keys(errors).length > 0) {
     setValidationErrors(errors);
     
@@ -954,6 +984,13 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
 
     let dataToSave = { ...formData };
 
+    // 🆕 3. SYNCHRONISATION FINALE CM360 VOLUME SI LIÉ - AJOUTER CE BLOC
+    const isLinked = (dataToSave as any).TC_CM360_Volume_Linked_To_Unit_Volume || false;
+    if (isLinked) {
+      const unitVolume = (dataToSave as any).TC_Unit_Volume || 0;
+      (dataToSave as any).TC_CM360_Volume = unitVolume;
+    }
+
     // 3. CALCULS AUTOMATIQUES AVANT SAUVEGARDE
     // Calcul automatique de TC_CM360_Rate si nécessaire
     const calculatedRate = calculateCM360Rate(dataToSave);
@@ -974,6 +1011,8 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
     if (useInheritedPO) {
       (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
     }
+
+   
 
     const mappedData = mapFormToTactique(dataToSave);
 

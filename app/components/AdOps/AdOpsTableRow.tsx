@@ -5,6 +5,7 @@
  * et modal d'historique pour les valeurs modifiées.
  * CORRIGÉ : Formatage des dates sans décalage de fuseau horaire
  * AMÉLIORÉ : Indicateur CM360 agrandi
+ * NOUVEAU : Support expansion colonnes tags
  */
 'use client';
 
@@ -44,6 +45,8 @@ interface AdOpsTableRowProps {
   cm360History?: CM360TagHistory;
   cm360Status: 'none' | 'created' | 'changed';
   cm360Tags?: Map<string, CM360TagHistory>; // Nouveau prop
+  // NOUVEAU : Support expansion colonnes tags
+  isTagColumnsExpanded?: boolean;
 }
 
 /**
@@ -61,7 +64,8 @@ export default function AdOpsTableRow({
   selectedRows,
   cm360History,
   cm360Status,
-  cm360Tags
+  cm360Tags,
+  isTagColumnsExpanded = false // NOUVEAU : Défaut à false
 }: AdOpsTableRowProps) {
   const { t } = useTranslation();
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -371,6 +375,33 @@ export default function AdOpsTableRow({
             cm360Tags={cm360Tags}
           />
         </td>
+
+        {/* NOUVEAU : Colonnes tags conditionnelles */}
+        {isTagColumnsExpanded && (
+          <>
+            {/* Tag 1 - PL_Tag_1 ou CR_Tag_5 */}
+            <CM360Cell 
+              value={isPlacement ? row.data.PL_Tag_1 : row.data.CR_Tag_5} 
+              fieldName={isPlacement ? 'PL_Tag_1' : 'CR_Tag_5'}
+              fieldLabel="Campaign / Creative"
+            />
+
+            {/* Tag 2 - PL_Tag_2 ou CR_Tag_6 */}
+            <CM360Cell 
+              value={isPlacement ? row.data.PL_Tag_2 : row.data.CR_Tag_6} 
+              fieldName={isPlacement ? 'PL_Tag_2' : 'CR_Tag_6'}
+              fieldLabel="Placement / UTM"
+            />
+
+            {/* Tag 3 - PL_Tag_3 ou vide pour créatifs */}
+            <CM360Cell 
+              value={isPlacement ? row.data.PL_Tag_3 : undefined} 
+              fieldName={isPlacement ? 'PL_Tag_3' : ''}
+              fieldLabel="Ad"
+              isClickable={isPlacement}
+            />
+          </>
+        )}
 
         {/* Tag Type avec support CM360 */}
         <CM360Cell 
