@@ -4369,7 +4369,7 @@ export const translations = {
         added: "Taxonomie ajoutée avec succès.",
         updated: "Taxonomie mise à jour avec succès.",
         deleted: "Taxonomie supprimée avec succès.",
-        replacementsMade: "{count} remplacements ont été effectués."
+        replacementsMade: "{{count}} remplacements ont été effectués."
       },
       info: {
         noneFound: "Aucun texte correspondant n'a été trouvé."
@@ -8567,7 +8567,7 @@ export const translations = {
         added: "Taxonomy added successfully.",
         updated: "Taxonomy updated successfully.",
         deleted: "Taxonomy deleted successfully.",
-        replacementsMade: "{count} replacements were made."
+        replacementsMade: "{{count}} replacements were made."
       },
       info: {
         noneFound: "No matching text was found."
