@@ -17,7 +17,7 @@ import { CM360TagHistory, CM360TagData } from '../../lib/cm360Service';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface AdOpsActionButtonsProps {
-  rowType: 'placement' | 'creative';
+  rowType: 'placement' | 'creative' | 'tactique';
   data: any;
   selectedTactique: any;
   selectedCampaign: any;
@@ -256,6 +256,7 @@ export default function AdOpsActionButtons({
       </>
     );
   }
+
 
   return <div className="text-gray-400 text-xs">-</div>;
 }

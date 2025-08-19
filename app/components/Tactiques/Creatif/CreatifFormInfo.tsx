@@ -8,7 +8,7 @@
  * et d'associer des taxonomies (catégories pré-définies) qui sont récupérées depuis Firebase
  * en fonction du client sélectionné.
  * 
- * AJOUT : Champ calculé CR_Sprint_Dates en lecture seule (format MMMdd-MMMdd)
+ * CORRIGÉ : Synchronisation automatique du champ calculé CR_Sprint_Dates avec le formulaire parent
  */
 
 'use client';
@@ -80,7 +80,7 @@ const formatDateToMMMdd = (dateString: string): string => {
  * Ce composant gère la saisie du nom du créatif, les dates et la sélection des taxonomies
  * applicables pour les tags, la plateforme et MediaOcean.
  * Il récupère dynamiquement les taxonomies disponibles pour le client spécifié.
- * AJOUT : Calcul et affichage du champ CR_Sprint_Dates en lecture seule.
+ * CORRIGÉ : Synchronisation automatique du champ CR_Sprint_Dates avec le formulaire parent.
  *
  * @param {CreatifFormInfoProps} props - Les propriétés du composant.
  * @param {object} props.formData - Les données actuelles du formulaire pour ce composant.
@@ -118,6 +118,21 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
     }
     return '';
   }, [formData.CR_Start_Date, formData.CR_End_Date]);
+
+  // 🔥 NOUVEAU : Synchronisation automatique avec le formulaire parent
+  useEffect(() => {
+    // Seulement si la valeur calculée est différente de celle dans formData
+    if (sprintDates !== (formData.CR_Sprint_Dates || '')) {
+      const syntheticEvent = {
+        target: {
+          name: 'CR_Sprint_Dates',
+          value: sprintDates
+        }
+      } as React.ChangeEvent<HTMLInputElement>;
+      
+      onChange(syntheticEvent);
+    }
+  }, [sprintDates, formData.CR_Sprint_Dates, onChange]);
 
   useEffect(() => {
     if (clientId) {
@@ -214,11 +229,11 @@ const CreatifFormInfo = memo<CreatifFormInfoProps>(({
           />
         </div>
 
-        {/* NOUVEAU CHAMP CR_Sprint_Dates EN LECTURE SEULE */}
+        {/* CHAMP CR_Sprint_Dates EN LECTURE SEULE - UTILISE LA VALEUR DU FORMDATA */}
         <FormInput
           id="CR_Sprint_Dates"
           name="CR_Sprint_Dates"
-          value={sprintDates}
+          value={formData.CR_Sprint_Dates || ''}
           onChange={() => {}} // Fonction vide car le champ est en lecture seule
           type="text"
           label={createLabelWithHelp(

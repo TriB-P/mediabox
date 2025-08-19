@@ -263,6 +263,8 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     range: string
   ): Promise<boolean> => {
     const token = await getAccessToken();
+    console.log("NETTOYAGE DU FICHIER", range)
+
     if (!token) {
       throw new Error(t('useCombinedDocExport.error.accessTokenClearFailed'));
     }
@@ -411,8 +413,8 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       }
 
       // 0.3. Vider les feuilles cibles après synchronisation des onglets
-      await clearSheetRange(sheetId, 'MB_Data', 'A:Z');
-      await clearSheetRange(sheetId, 'MB_Splits', 'A:Z');
+      await clearSheetRange(sheetId, 'MB_Data', 'A:EZ');
+      await clearSheetRange(sheetId, 'MB_Splits', 'A:EZ');
 
       // 1. Extraire les données de campagne
       const campaignDataResult = await extractCampaignData(clientId, campaignId);

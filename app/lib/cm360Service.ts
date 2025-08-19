@@ -26,10 +26,7 @@ import {
       [key: string]: any;
     };
     
-    // Métriques de la tactique
-    tactiqueMetrics?: {
-      [key: string]: any;
-    };
+
     
     // Historique
     createdAt: string;
@@ -44,9 +41,7 @@ import {
     tableData: {
       [key: string]: any;
     };
-    tactiqueMetrics?: {
-      [key: string]: any;
-    };
+
     // Données de campagne pour construire le chemin Firestore
     campaignData: {
       campaignId: string;
@@ -105,7 +100,6 @@ import {
         itemId: tagData.itemId,
         tactiqueId: tagData.tactiqueId,
         tableData: tagData.tableData,
-        tactiqueMetrics: tagData.tactiqueMetrics,
         createdAt: new Date().toISOString(),
         version: existingTags.length + 1
       };
@@ -139,7 +133,6 @@ import {
     ongletId: string,
     sectionId: string,
     tactiqueId: string,
-    tactiqueMetrics: any
   ): Promise<boolean> {
     try {
       const basePath = `clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}`;
@@ -150,7 +143,7 @@ import {
       
       if (tactiqueSnap.exists()) {
         const data = tactiqueSnap.data();
-        existingMetricsTags = data.cm360MetricsTags || [];
+        existingMetricsTags = data.cm360Tags || [];
       }
       
       // Créer seulement si aucun tag de métriques n'existe
@@ -160,13 +153,12 @@ import {
           itemId: 'tactics',
           tactiqueId: tactiqueId,
           tableData: {},
-          tactiqueMetrics: cleanUndefinedValues(tactiqueMetrics),
           createdAt: new Date().toISOString(),
           version: 1
         };
         
         await updateDoc(tactiqueRef, {
-          cm360MetricsTags: arrayUnion(metricsTag)
+          cm360Tags: arrayUnion(metricsTag)
         });
         
         console.log('✅ Premier tag de métriques créé pour la tactique');
@@ -202,7 +194,7 @@ import {
       
       if (tactiqueSnap.exists()) {
         const data = tactiqueSnap.data();
-        existingMetricsTags = data.cm360MetricsTags || [];
+        existingMetricsTags = data.cm360Tags || [];
       }
       
       const newVersion = existingMetricsTags.length + 1;
@@ -212,13 +204,12 @@ import {
         itemId: 'tactics',
         tactiqueId: tactiqueId,
         tableData: {},
-        tactiqueMetrics: cleanUndefinedValues(currentMetrics),
         createdAt: new Date().toISOString(),
         version: newVersion
       };
       
       await updateDoc(tactiqueRef, {
-        cm360MetricsTags: arrayUnion(metricsTag)
+        cm360Tags: arrayUnion(metricsTag)
       });
       
       console.log(`✅ Nouvelle version de métriques créée: v${newVersion}`);
@@ -251,7 +242,7 @@ import {
       
       if (tactiqueSnap.exists()) {
         const tactiqueData = tactiqueSnap.data();
-        const metricsTags = tactiqueData.cm360MetricsTags || [];
+        const metricsTags = tactiqueData.cm360Tags || [];
         
         if (metricsTags.length > 0) {
           const sortedTags = metricsTags.sort((a: CM360TagData, b: CM360TagData) => b.version - a.version);
@@ -417,12 +408,8 @@ import {
     const metricsHistory = cm360Tags.get('metrics-tactics');
     console.log('📈 [detectMetricsChanges] Historique metrics-tactics:', metricsHistory);
     
-    if (!metricsHistory?.latestTag?.tactiqueMetrics) {
-      console.log('❌ [detectMetricsChanges] Pas de latestTag ou tactiqueMetrics');
-      return { hasChanges: false, changedFields: [] };
-    }
+
     
-    console.log('💾 [detectMetricsChanges] Métriques sauvegardées:', metricsHistory.latestTag.tactiqueMetrics);
     
     const changedFields: string[] = [];
     const metricsToCheck = [
@@ -430,25 +417,7 @@ import {
       'TC_CM360_Volume', 'TC_Buy_Type'
     ];
     
-    metricsToCheck.forEach(field => {
-      const currentValue = currentMetrics[field];
-      const tagValue = metricsHistory.latestTag!.tactiqueMetrics![field];
-      
-      // AMÉLIORATION : Comparaison plus robuste des valeurs
-      const areEqual = compareValues(currentValue, tagValue);
-      
-      console.log(`🔍 [detectMetricsChanges] ${field}:`, {
-        current: currentValue,
-        saved: tagValue,
-        areEqual: areEqual,
-        different: !areEqual
-      });
-      
-      if (!areEqual) {
-        changedFields.push(field);
-        console.log(`⚠️ [detectMetricsChanges] Changement détecté pour ${field}`);
-      }
-    });
+
     
     const result = {
       hasChanges: changedFields.length > 0,
@@ -529,7 +498,6 @@ import {
     cm360Tags: Map<string, CM360TagHistory>,
     placements: any[],
     creativesData: { [placementId: string]: any[] },
-    tactiqueMetrics?: any
   ): 'none' | 'created' | 'changed' | 'partial' {
     // 1. Collecter tous les éléments (placements + créatifs)
     const allElements: string[] = [];
@@ -608,7 +576,6 @@ import {
     cm360Tags: Map<string, CM360TagHistory>,
     placements: any[],
     creativesData: { [placementId: string]: any[] },
-    tactiqueMetrics?: any
   ): {
     hasChanges: boolean;
     changedTypes: string[];
@@ -712,15 +679,13 @@ import {
     const history = relevantTags
       .filter(tag => {
         const hasInTableData = tag.tableData && tag.tableData[fieldName] !== undefined;
-        const hasInMetrics = tag.tactiqueMetrics && tag.tactiqueMetrics[fieldName] !== undefined;
-        return hasInTableData || hasInMetrics;
+        return hasInTableData;
       })
       .map(tag => {
         const tableValue = tag.tableData ? tag.tableData[fieldName] : undefined;
-        const metricsValue = tag.tactiqueMetrics ? tag.tactiqueMetrics[fieldName] : undefined;
         
         return {
-          value: tableValue !== undefined ? tableValue : metricsValue,
+          value: tableValue,
           timestamp: tag.createdAt,
           version: tag.version
         };

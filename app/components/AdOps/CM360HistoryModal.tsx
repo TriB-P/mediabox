@@ -16,7 +16,7 @@ interface CM360HistoryModalProps {
   fieldLabel: string;
   currentValue: any;
   tags: CM360TagData[];
-  itemType: 'placement' | 'creative' | 'metrics';
+  itemType: 'placement' | 'creative' | 'tactique';
   itemLabel: string;
   cm360Tags?: Map<string, CM360TagHistory>; // Nouveau prop optionnel
 }

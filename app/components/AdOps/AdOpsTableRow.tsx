@@ -1,8 +1,7 @@
 // app/components/AdOps/AdOpsTableRow.tsx
 /**
  * Composant ligne du tableau AdOps avec badges, indicateurs CM360 cliquables et support couleurs
- * SÉPARÉ du tableau principal pour réduire la complexité
- * CORRIGÉ : Indicateurs de changement cliquables + meilleure gestion couleurs + indentation créatifs
+ * CORRIGÉ : Sélection Shift fonctionnelle - onChange remplacé par onClick
  */
 'use client';
 
@@ -201,7 +200,7 @@ const CM360Cell = ({
               isEmpty ? 'text-gray-400' : 'text-gray-900'
             } ${isChanged ? 'bg-red-50 text-red-900 ring-1 ring-red-200' : ''}`}
             onClick={() => onCopyToClipboard(value, cellId)}
-            title={isChanged ? `${fieldLabel} modifié depuis dernier tag CM360` : t('tableRow.clickToCopy')}
+            title={isChanged ? `${fieldLabel} modifié depuis dernier tag CM360` : 'Cliquer pour copier'}
           >
             {displayValue}
           </span>
@@ -210,11 +209,11 @@ const CM360Cell = ({
             <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
           )}
           
-          {/* NOUVEAU : Indicateur de changement CM360 CLIQUABLE */}
+          {/* AMÉLIORÉ : Indicateur de changement CM360 plus visible */}
           {isChanged && cm360History && (
             <button
               onClick={openHistoryModal}
-              className="text-red-600 hover:text-red-800 transition-colors p-1 rounded hover:bg-red-50"
+              className="text-orange-600 hover:text-orange-800 transition-colors p-1 rounded hover:bg-orange-50 flex-shrink-0"
               title={`${fieldLabel} a changé - Cliquer pour voir l'historique`}
             >
               <ExclamationTriangleIcon className="w-4 h-4" />
@@ -268,24 +267,23 @@ export default function AdOpsTableRow({
   const rowId = `${row.type}-${row.data.id}`;
   const hasChildren = row.children && row.children.length > 0;
 
-  // CORRIGÉ : Couleur de fond et style de ligne selon le type
+  // Couleur de fond et style de ligne selon le type
   const getRowStyles = (): { className: string; style: React.CSSProperties } => {
     let className = 'transition-colors ';
     let style: React.CSSProperties = {};
     
-    // Couleur utilisateur (prioritaire) - SUPPORT TACTIQUES AJOUTÉ
+    // Couleur utilisateur (prioritaire) - Support tactiques
     const userColor = row.type === 'tactique'
-      ? (row.data as any).TC_Adops_Color // NOUVEAU : Support couleur tactiques
+      ? (row.data as any).TC_Adops_Color
       : row.type === 'placement' 
       ? (row.data as Placement).PL_Adops_Color 
       : (row.data as Creative).CR_Adops_Color;
     
     if (userColor) {
       style.backgroundColor = userColor;
-      // Garder un contraste minimal pour la lisibilité
       className += 'text-gray-900 ';
     } else {
-      // Styles par défaut selon le type (si pas de couleur utilisateur)
+      // Styles par défaut selon le type
       if (row.type === 'tactique') {
         className += 'bg-slate-50 border-b-2 border-slate-200 ';
       } else if (row.type === 'placement') {
@@ -314,29 +312,33 @@ export default function AdOpsTableRow({
 
   return (
     <tr className={rowStyles.className} style={rowStyles.style}>
-      {/* Checkbox */}
+      {/* CORRIGÉ : Checkbox avec onClick au lieu de onChange pour supporter Shift */}
       <td className="w-8 px-2 py-4">
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={(e) => onRowSelection(rowId, index, e)}
-          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          onClick={(e) => onRowSelection(rowId, index, e)}
+          readOnly
+          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
       </td>
 
-      {/* Statut CM360 */}
+      {/* CORRIGÉ : Statut CM360 avec indicateurs appropriés */}
       <td className="w-6 px-2 py-4">
         <div className="flex items-center justify-center">
           {cm360Status === 'created' && (
-            <CheckCircleIcon className="w-6 h-6 text-green-600" title="Tags créés" />
+            <CheckCircleIcon className="w-6 h-6 text-green-600" title="Tags créés et à jour" />
           )}
           {(cm360Status === 'changed' || cm360Status === 'partial') && (
-            <ExclamationTriangleIcon className="w-6 h-6 text-red-600" title="Changements détectés" />
+            <ExclamationTriangleIcon className="w-6 h-6 text-orange-600" title="Changements détectés" />
+          )}
+          {cm360Status === 'none' && (
+            <div className="w-2 h-2 bg-gray-300 rounded-full" title="Aucun tag créé" />
           )}
         </div>
       </td>
 
-      {/* CORRIGÉ : Label avec indentation des créatifs améliorée */}
+      {/* Label avec indentation des créatifs */}
       <td className="py-4 whitespace-nowrap text-sm">
         <div className={`flex items-center gap-3 ${
           row.level === 1 ? 'ml-5' : row.level === 2 ? 'ml-16' : ''
@@ -374,7 +376,7 @@ export default function AdOpsTableRow({
               <CheckIcon className="w-4 h-4 text-green-600 animate-pulse" />
             )}
             
-            {/* Indicateur de changement pour le label CLIQUABLE */}
+            {/* Indicateur de changement pour le label */}
             {cm360History?.changedFields?.includes(
               row.type === 'tactique' ? 'TC_Label' : 
               row.type === 'placement' ? 'PL_Label' : 'CR_Label'
@@ -398,7 +400,7 @@ export default function AdOpsTableRow({
       <td className="w-80 px-6 py-4">
         {row.type !== 'tactique' && (
           <AdOpsActionButtons
-            rowType={row.type as 'placement' | 'creative'}
+            rowType={row.type as 'placement' | 'creative' | 'tactique'}
             data={row.data}
             selectedTactique={selectedTactiques.find(t => t.id === row.tactiqueId)}
             selectedCampaign={selectedCampaign}
@@ -409,7 +411,7 @@ export default function AdOpsTableRow({
         )}
       </td>
 
-      {/* CONDITIONNEL : Colonnes budgétaires avec indicateurs de changement cliquables */}
+      {/* Colonnes budgétaires conditionnelles */}
       {showBudgetParams && (
         <>
           {/* Budget */}
@@ -484,7 +486,7 @@ export default function AdOpsTableRow({
         </>
       )}
 
-      {/* CONDITIONNEL : Colonnes taxonomies avec indicateurs de changement cliquables */}
+      {/* Colonnes taxonomies conditionnelles */}
       {showTaxonomies && (
         <>
           {/* Tag 1 */}
@@ -533,7 +535,7 @@ export default function AdOpsTableRow({
         </>
       )}
 
-      {/* Colonnes fixes avec indicateurs de changement cliquables */}
+      {/* Colonnes fixes */}
       <CM360Cell 
         value={row.type === 'placement' ? (row.data as Placement).PL_Tag_Type || '-' : '-'}
         fieldName="PL_Tag_Type"

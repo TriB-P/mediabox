@@ -2615,9 +2615,9 @@ export const translations = {
       currencySelector: {
         loadingRates: "Chargement des taux de change...",
         unavailableTitle: "Taux de change non disponible",
-        configureMessage: "Veuillez configurer au moins un taux de change pour {tacticCurrency} → {campaignCurrency} dans la section Devises du client.",
+        configureMessage: "Veuillez configurer au moins un taux de change pour {{tacticCurrency}} → {{campaignCurrency}} dans la section Devises du client.",
         requiredTitle: "Conversion de devise requise",
-        requiredDescription: "La devise d'achat ({tacticCurrency}) diffère de la devise de campagne ({campaignCurrency}). Veuillez sélectionner la version de taux à utiliser.",
+        requiredDescription: "La devise d'achat ({{tacticCurrency}}) diffère de la devise de campagne ({{campaignCurrency}}). Veuillez sélectionner la version de taux à utiliser.",
         versionLabel: "Version du taux de change à utiliser *",
         versionTooltip: "Sélectionnez la version du taux de change à appliquer pour convertir le budget de la devise d'achat vers la devise de campagne.",
         selectPlaceholder: "Sélectionner une version de taux...",
@@ -2657,10 +2657,10 @@ export const translations = {
         loadingData: "Chargement des données budgétaires..."
       },
       errors: {
-        noRateConfigured: "Aucun taux de change configuré pour {fromCurrency} → {toCurrency}",
-        loadingRatesError: "Erreur lors du chargement des taux de change pour {fromCurrency} → {toCurrency}",
-        rateNotFoundForVersion: "Taux de change non trouvé pour la version \"{version}\"",
-        applyingRateError: "Erreur lors de l'application du taux de change pour \"{version}\""
+        noRateConfigured: "Aucun taux de change configuré pour {{fromCurrency}} → {{toCurrency}}",
+        loadingRatesError: "Erreur lors du chargement des taux de change pour {{fromCurrency}} → {{toCurrency}}",
+        rateNotFoundForVersion: "Taux de change non trouvé pour la version \"{{version}}\"",
+        applyingRateError: "Erreur lors de l'application du taux de change pour \"{{version}}\""
       },
       debug: {
         budgetData: "Données Budget:",
@@ -6977,9 +6977,9 @@ export const translations = {
       currencySelector: {
         loadingRates: "Loading exchange rates...",
         unavailableTitle: "Exchange Rate Unavailable",
-        configureMessage: "Please configure at least one exchange rate for {tacticCurrency} → {campaignCurrency} in the client's Currencies section.",
+        configureMessage: "Please configure at least one exchange rate for {{tacticCurrency}} → {{campaignCurrency}} in the client's Currencies section.",
         requiredTitle: "Currency Conversion Required",
-        requiredDescription: "The purchase currency ({tacticCurrency}) is different from the campaign currency ({campaignCurrency}). Please select the rate version to use.",
+        requiredDescription: "The purchase currency ({{tacticCurrency}}) is different from the campaign currency ({{campaignCurrency}}). Please select the rate version to use.",
         versionLabel: "Exchange rate version to use *",
         versionTooltip: "Select the exchange rate version to apply to convert the budget from the purchase currency to the campaign currency.",
         selectPlaceholder: "Select a rate version...",
@@ -7019,10 +7019,10 @@ export const translations = {
         loadingData: "Loading budget data..."
       },
       errors: {
-        noRateConfigured: "No exchange rate configured for {fromCurrency} → {toCurrency}",
-        loadingRatesError: "Error loading exchange rates for {fromCurrency} → {toCurrency}",
-        rateNotFoundForVersion: "Exchange rate not found for version \"{version}\"",
-        applyingRateError: "Error applying the exchange rate for \"{version}\""
+        noRateConfigured: "No exchange rate configured for {{fromCurrency}} → {{toCurrency}}",
+        loadingRatesError: "Error loading exchange rates for {{fromCurrency}} → {{toCurrency}}",
+        rateNotFoundForVersion: "Exchange rate not found for version \"{{version}}\"",
+        applyingRateError: "Error applying the exchange rate for \"{{version}}\""
       },
       debug: {
         budgetData: "Budget Data:",

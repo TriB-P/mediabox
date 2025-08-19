@@ -288,9 +288,6 @@ export default function AdOpsDropdowns({
         
         {/* Dropdown Publishers */}
         <div className="relative" ref={publisherDropdownRef}>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('adOpsDropdown.publishers.label')}
-          </label>
           <button
             type="button"
             onClick={togglePublisherDropdown}
@@ -385,9 +382,6 @@ export default function AdOpsDropdowns({
 
         {/* NOUVEAU : Dropdown Tactiques */}
         <div className="relative" ref={tactiqueDropdownRef}>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('adOpsDropdown.tactiques.label')}
-          </label>
           <button
             type="button"
             onClick={toggleTactiqueDropdown}

@@ -1,8 +1,11 @@
+// app/hooks/useBudgetCalculations.ts
+
 /**
  * Ce hook gère les calculs complexes liés au budget d'une campagne, y compris
  * le budget média, les volumes d'unités, et surtout, le calcul des frais clients.
  * CORRECTION : Élimination de la boucle infinie en stabilisant les références
  * et en optimisant les appels d'assignation des noms.
+ * CORRECTION BUDGETS REFCURRENCY : Ajout du calcul des budgets en devise de référence
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { budgetService, BudgetData, ClientFee, BudgetCalculationResult } from '../lib/budgetService';
@@ -34,14 +37,15 @@ interface UseBudgetCalculationsReturn {
 }
 
 /**
- * 🔥 NOUVELLE FONCTION : Calcule les montants en devise de référence pour tous les frais.
+ * 🔥 FONCTION CORRIGÉE : Calcule les montants en devise de référence pour tous les frais ET les budgets.
  */
-function calculateFeeRefCurrencyAmounts(
+function calculateRefCurrencyAmounts(
   budgetData: BudgetData, 
   currencyRate: number
 ): Partial<BudgetData> {
   const updates: any = {};
   
+  // Calcul des frais en devise de référence (logique existante)
   for (let i = 1; i <= 5; i++) {
     const valueKey = `TC_Fee_${i}_Value`;
     const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
@@ -49,6 +53,13 @@ function calculateFeeRefCurrencyAmounts(
     const feeValue = (budgetData as any)[valueKey] || 0;
     updates[refCurrencyKey] = feeValue * currencyRate;
   }
+  
+  // 🆕 CORRECTION : Calcul des budgets en devise de référence
+  const clientBudget = budgetData.TC_Client_Budget || 0;
+  const mediaBudget = budgetData.TC_Media_Budget || 0;
+  
+  updates.TC_Client_Budget_RefCurrency = clientBudget * currencyRate;
+  updates.TC_Media_Budget_RefCurrency = mediaBudget * currencyRate;
   
   return updates as Partial<BudgetData>;
 }
@@ -323,9 +334,9 @@ export function useBudgetCalculations({
       if (result.success && result.data) {
         const correctedFeesAndBonus = calculateFeesCorrectly(result.data.updatedData, clientFees);
         
-        // Calculer les montants RefCurrency
+        // 🆕 CORRECTION : Calculer TOUS les montants RefCurrency (frais + budgets)
         const currencyRate = result.data.updatedData.TC_Currency_Rate || 1;
-        const refCurrencyUpdates = calculateFeeRefCurrencyAmounts({
+        const refCurrencyUpdates = calculateRefCurrencyAmounts({
           ...result.data.updatedData,
           ...correctedFeesAndBonus
         }, currencyRate);
