@@ -395,32 +395,10 @@ async function getShortcodeIdsForList(listType: string, clientId: string): Promi
 async function discoverClientCustomizations(clientId: string): Promise<string[]> {
   try {
     
-    // ÉTAPE 1: Test rapide sur un échantillon de listes courantes
-    const commonListTypes = [
-      'TC_LOB', 'TC_Media_Type', 'PL_Channel', 'PL_Format',
-      'CA_Division', 'CR_Primary_Product'
-    ];
-    
-    
-    const sampleTests = await Promise.all(
-      commonListTypes.map(async (listType) => ({
-        listType,
-        hasCustom: await hasCustomListForClient(listType, clientId)
-      }))
-    );
-    
-    const sampleCustomizations = sampleTests
-      .filter(test => test.hasCustom)
-      .map(test => test.listType);
-    
-    
-    // Si aucune personnalisation sur l'échantillon, ce client n'a probablement rien
-    if (sampleCustomizations.length === 0) {
-      return [];
-    }
+
     
     // ÉTAPE 2: Si des personnalisations trouvées, tester toutes les autres listes
-    const remainingListTypes = LIST_TYPES.filter(type => !commonListTypes.includes(type));
+    const remainingListTypes = LIST_TYPES;
     
     
     const remainingTests = await Promise.all(
@@ -434,7 +412,7 @@ async function discoverClientCustomizations(clientId: string): Promise<string[]>
       .filter(test => test.hasCustom)
       .map(test => test.listType);
     
-    const allCustomizations = [...sampleCustomizations, ...remainingCustomizations];
+    const allCustomizations = [ ...remainingCustomizations];
 
     return allCustomizations;
     
@@ -750,7 +728,6 @@ export function getCachedOptimizedLists(): OptimizedListStructure | null {
     if (!cachedData) return null;
 
     const cacheEntry: CacheEntry<OptimizedListStructure> = JSON.parse(cachedData);
-    
     if (!isCacheEntryValid(cacheEntry)) {
       localStorage.removeItem(cacheKey);
       return null;

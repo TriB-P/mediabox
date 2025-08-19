@@ -2,7 +2,7 @@
 /**
  * Composant ligne du tableau AdOps avec badges, indicateurs CM360 cliquables et support couleurs
  * SÉPARÉ du tableau principal pour réduire la complexité
- * CORRIGÉ : Indicateurs de changement cliquables + meilleure gestion couleurs
+ * CORRIGÉ : Indicateurs de changement cliquables + meilleure gestion couleurs + indentation créatifs
  */
 'use client';
 
@@ -336,10 +336,10 @@ export default function AdOpsTableRow({
         </div>
       </td>
 
-      {/* Label avec indentation et badges de type */}
+      {/* CORRIGÉ : Label avec indentation des créatifs améliorée */}
       <td className="py-4 whitespace-nowrap text-sm">
         <div className={`flex items-center gap-3 ${
-          row.level === 1 ? 'ml-6' : row.level === 2 ? 'ml-12' : ''
+          row.level === 1 ? 'ml-5' : row.level === 2 ? 'ml-16' : ''
         }`}>
           {hasChildren && (
             <button

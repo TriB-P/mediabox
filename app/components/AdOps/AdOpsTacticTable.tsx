@@ -3,15 +3,17 @@
  * Composant AdOpsTacticTable SIMPLIFIÉ avec niveau hiérarchique Tactiques
  * REFACTORISÉ : Tableau principal allégé utilisant AdOpsTableRow séparé
  * CORRIGÉ : Gestion des couleurs optimisée sans rechargement intempestif
+ * AMÉLIORÉ : Boutons de filtres remontés, panneau de filtres, sélection avec Shift
  */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MagnifyingGlassIcon, 
   XMarkIcon,
   FunnelIcon,
-  CheckIcon
+  CheckIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -102,6 +104,7 @@ export default function AdOpsTacticTable({
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   
   // États de filtres
   const [cm360Filter, setCm360Filter] = useState<CM360Filter>('all');
@@ -307,6 +310,23 @@ export default function AdOpsTacticTable({
       });
     }
     
+    // Filtre par couleur
+    if (colorFilter !== 'all') {
+      baseRows = baseRows.filter(row => {
+        const userColor = row.type === 'tactique'
+          ? (row.data as any).TC_Adops_Color
+          : row.type === 'placement' 
+          ? (row.data as any).PL_Adops_Color 
+          : (row.data as any).CR_Adops_Color;
+        
+        if (colorFilter === 'none') {
+          return !userColor;
+        } else {
+          return userColor === colorFilter;
+        }
+      });
+    }
+    
     return baseRows;
   };
 
@@ -331,17 +351,34 @@ export default function AdOpsTacticTable({
   };
 
   /**
-   * Gère la sélection des lignes
+   * NOUVEAU : Gère la sélection des lignes avec support Shift pour les plages
    */
   const handleRowSelection = (rowId: string, index: number, event: React.MouseEvent) => {
     event.stopPropagation();
     
     const newSelection = new Set(selectedRows);
+    const filteredRows = getFilteredRows();
     
-    if (newSelection.has(rowId)) {
-      newSelection.delete(rowId);
+    if (event.shiftKey && lastSelectedIndex !== null) {
+      // Sélection de plage avec Shift
+      const startIndex = Math.min(lastSelectedIndex, index);
+      const endIndex = Math.max(lastSelectedIndex, index);
+      
+      // Ajouter toutes les lignes dans la plage
+      for (let i = startIndex; i <= endIndex; i++) {
+        if (filteredRows[i]) {
+          const currentRowId = `${filteredRows[i].type}-${filteredRows[i].data.id}`;
+          newSelection.add(currentRowId);
+        }
+      }
     } else {
-      newSelection.add(rowId);
+      // Sélection normale
+      if (newSelection.has(rowId)) {
+        newSelection.delete(rowId);
+      } else {
+        newSelection.add(rowId);
+      }
+      setLastSelectedIndex(index);
     }
     
     setSelectedRows(newSelection);
@@ -500,6 +537,7 @@ export default function AdOpsTacticTable({
     setShowTactiques(true);
     setShowPlacements(true);
     setShowCreatives(true);
+    setLastSelectedIndex(null);
   }, [selectedTactiques, creativesData]);
 
   const filteredRows = getFilteredRows();
@@ -517,12 +555,74 @@ export default function AdOpsTacticTable({
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* En-tête avec actions */}
+      {/* NOUVEAU : En-tête avec titre et boutons de filtrage remontés */}
       <div className="flex items-center justify-between mb-3 px-4 pt-4">
-        <div>
+        <div className="flex items-center gap-4">
           <h3 className="text-lg font-medium text-gray-900">
             {selectedTactiques.length} {selectedTactiques.length > 1 ? 'tactiques sélectionnées' : 'tactique sélectionnée'}
           </h3>
+          
+          {/* REMONTÉ : Boutons de filtrage par type */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowTactiques(!showTactiques)}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                showTactiques
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-xs">TAC</span>
+            </button>
+            
+            <button
+              onClick={() => setShowPlacements(!showPlacements)}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                showPlacements
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-xs">PLA</span>
+            </button>
+            
+            <button
+              onClick={() => setShowCreatives(!showCreatives)}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                showCreatives
+                  ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-xs">CRE</span>
+            </button>
+            
+            <div className="w-px h-4 bg-gray-300 mx-1"></div>
+            
+            <button
+              onClick={() => setShowBudgetParams(!showBudgetParams)}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                showBudgetParams
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <span>💰</span>
+              <span>Budget</span>
+            </button>
+            
+            <button
+              onClick={() => setShowTaxonomies(!showTaxonomies)}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                showTaxonomies
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <span>🏷️</span>
+              <span>Tags</span>
+            </button>
+          </div>
         </div>
         
         {selectedRows.size > 0 && (
@@ -600,6 +700,62 @@ export default function AdOpsTacticTable({
             <FunnelIcon className="w-4 h-4" />
           </button>
         </div>
+
+        {/* NOUVEAU : Panneau de filtres déroulant */}
+        {isFiltersVisible && (
+          <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Filtre CM360 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Statut CM360
+                </label>
+                <select
+                  value={cm360Filter}
+                  onChange={(e) => setCm360Filter(e.target.value as CM360Filter)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">Tous</option>
+                  <option value="created">Tags créés</option>
+                  <option value="changed">Changements détectés</option>
+                  <option value="none">Aucun tag</option>
+                </select>
+              </div>
+
+              {/* Filtre couleur */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Couleur
+                </label>
+                <select
+                  value={colorFilter}
+                  onChange={(e) => setColorFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="none">Aucune couleur</option>
+                  {COLORS.map((color) => (
+                    <option key={color.value} value={color.value}>
+                      {color.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => {
+                  setCm360Filter('all');
+                  setColorFilter('all');
+                }}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tableau pleine largeur */}
@@ -624,73 +780,7 @@ export default function AdOpsTacticTable({
               </th>
               <th className="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">CM360</th>
               <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
-              <th className="w-80 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span>Actions</span>
-                  
-                  <div className="flex items-center gap-1">
-                    {/* Boutons de filtrage par type */}
-                    <button
-                      onClick={() => setShowTactiques(!showTactiques)}
-                      className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                        showTactiques
-                          ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span className="text-xs">TAC</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowPlacements(!showPlacements)}
-                      className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                        showPlacements
-                          ? 'bg-green-100 text-green-700 border border-green-300'
-                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span className="text-xs">PLA</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowCreatives(!showCreatives)}
-                      className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                        showCreatives
-                          ? 'bg-purple-100 text-purple-700 border border-purple-300'
-                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span className="text-xs">CRE</span>
-                    </button>
-                    
-                    <div className="w-px h-4 bg-gray-300 mx-1"></div>
-                    
-                    <button
-                      onClick={() => setShowBudgetParams(!showBudgetParams)}
-                      className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                        showBudgetParams
-                          ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span>💰</span>
-                      <span>Budget</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowTaxonomies(!showTaxonomies)}
-                      className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                        showTaxonomies
-                          ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span>🏷️</span>
-                      <span>Tags</span>
-                    </button>
-                  </div>
-                </div>
-              </th>
+              <th className="w-80 px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               
               {/* Colonnes conditionnelles */}
               {showBudgetParams && (

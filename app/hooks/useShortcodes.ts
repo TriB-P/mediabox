@@ -225,6 +225,8 @@ export function useShortcodes(): UseShortcodesReturn {
     }
 
     const optimizedLists = getCachedOptimizedLists();
+    console.log("[DEBUG LISTE] ",optimizedLists)
+
     if (!optimizedLists) {
       setCustomDimensions(new Set());
       return;
@@ -241,7 +243,7 @@ export function useShortcodes(): UseShortcodesReturn {
     });
 
     setCustomDimensions(customDims);
-    console.log(`[SHORTCODES] ${customDims.size} dimensions personnalisées détectées pour ${selectedClient.CL_Name}`);
+    console.log(`[SHORTCODES] ${customDims.size} dimensions personnalisées détectées pour ${selectedClient.CL_Name} (ID :${selectedClient.clientId})`);
   }, [selectedClient]);
 
   /**
