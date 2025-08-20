@@ -393,6 +393,8 @@ export default function DynamicTableStructure({
     
     const isPlacementTaxonomy = selectedLevel === 'placement' && selectedPlacementSubCategory === 'taxonomie';
     const isCreatifTaxonomy = selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie';
+
+    
     
     if (!isPlacementTaxonomy && !isCreatifTaxonomy) return [];
 
@@ -996,6 +998,20 @@ export default function DynamicTableStructure({
     }
 
     if (selectedLevel === 'creatif' && selectedCreatifSubCategory === 'taxonomie' && row.type !== 'creatif') {
+      return (
+        <div 
+          className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${
+            isSelected ? 'ring-2 ring-indigo-500 ring-inset bg-indigo-50' : 'bg-gray-100'
+          }`}
+          onClick={() => handleCellClick(rowIndex, column.key)}
+        >
+          -
+        </div>
+      );
+    }
+
+        // Mode specs - ne montrer que pour les lignes tactiques
+    if (selectedLevel === 'tactique' && selectedTactiqueSubCategory === 'specs' && row.type !== 'tactique') {
       return (
         <div 
           className={`min-h-[32px] flex items-center justify-center text-gray-400 text-sm ${

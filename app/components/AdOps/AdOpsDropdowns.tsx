@@ -1,15 +1,11 @@
 // app/components/AdOps/AdOpsDropdowns.tsx
 /**
- * Composant AdOpsDropdowns
- * Ce composant affiche deux dropdowns multi-sélection en cascade :
- * 1. Publishers pour filtrer les tactiques
- * 2. Tactiques filtrées selon les publishers sélectionnés
- * MODIFIÉ : Ajout dropdown tactiques en cascade avec publishers
- * AMÉLIORÉ : Sans fond blanc individuel, s'intègre dans un conteneur parent
+ * Composant AdOpsDropdowns unifié et optimisé
+ * CORRIGÉ : Types unifiés, logique simplifiée, performance améliorée
  */
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { 
   ChevronDownIcon, 
   CheckIcon,
@@ -17,42 +13,164 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../contexts/LanguageContext';
 
-interface Publisher {
-  id: string;
-  name: string;
-  tactiqueCount: number;
-  isSelected: boolean;
+// Import des types unifiés
+import {
+  AdOpsDropdownsProps,
+  AdOpsPublisher,
+  AdOpsTactiqueOption
+} from '../../types/adops';
+
+// ================================
+// INTERFACES LOCALES
+// ================================
+
+interface DropdownState {
+  isOpen: boolean;
+  searchTerm: string;
 }
 
-// NOUVEAU : Interface pour les tactiques
-interface TactiqueOption {
-  id: string;
-  label: string;
-  publisherId: string;
+interface DropdownItemProps {
+  item: AdOpsPublisher | AdOpsTactiqueOption;
   isSelected: boolean;
+  onClick: () => void;
+  showCount?: boolean;
 }
 
-interface AdOpsDropdownsProps {
-  publishers: Publisher[];
-  // NOUVEAU : Props pour les tactiques
-  tactiqueOptions: TactiqueOption[];
-  selectedPublishers: string[];
-  selectedTactiques: string[];
-  loading: boolean;
-  error: string | null;
-  // Fonctions publishers
-  togglePublisher: (publisherId: string) => void;
-  selectAllPublishers: () => void;
-  deselectAllPublishers: () => void;
-  // NOUVEAU : Fonctions tactiques
-  toggleTactique: (tactiqueId: string) => void;
-  selectAllTactiques: () => void;
-  deselectAllTactiques: () => void;
-}
+// ================================
+// COMPOSANTS UTILITAIRES
+// ================================
 
 /**
- * Composant principal pour les listes déroulantes AdOps.
- * Affiche deux dropdowns en cascade : Publishers → Tactiques
+ * Élément de dropdown optimisé
+ */
+const DropdownItem = React.memo(({ item, isSelected, onClick, showCount = false }: DropdownItemProps) => {
+  const handleClick = useCallback(() => {
+    onClick();
+  }, [onClick]);
+
+  return (
+    <div
+      onClick={handleClick}
+      className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+    >
+      <div className="flex items-center flex-1 min-w-0">
+        <div className={`w-4 h-4 mr-3 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center ${
+          isSelected ? 'bg-indigo-600 border-indigo-600' : ''
+        }`}>
+          {isSelected && (
+            <CheckIcon className="w-3 h-3 text-white" />
+          )}
+        </div>
+        <span className="truncate">
+          {'name' in item ? item.name : item.label}
+        </span>
+      </div>
+      {showCount && 'tactiqueCount' in item && (
+        <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
+          {item.tactiqueCount}
+        </span>
+      )}
+    </div>
+  );
+});
+
+DropdownItem.displayName = 'DropdownItem';
+
+/**
+ * Barre de recherche de dropdown optimisée
+ */
+const DropdownSearchBar = React.memo(({ 
+  value, 
+  onChange, 
+  placeholder,
+  inputRef 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  }, [onChange]);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  return (
+    <div className="p-3 border-b border-gray-200 bg-gray-50">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={handleChange}
+          onClick={handleClick}
+          placeholder={placeholder}
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+    </div>
+  );
+});
+
+DropdownSearchBar.displayName = 'DropdownSearchBar';
+
+/**
+ * En-tête de dropdown avec actions globales
+ */
+const DropdownHeader = React.memo(({ 
+  isAllSelected, 
+  onToggleAll, 
+  filteredCount,
+  searchTerm,
+  itemType 
+}: {
+  isAllSelected: boolean;
+  onToggleAll: () => void;
+  filteredCount: number;
+  searchTerm: string;
+  itemType: string;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="p-3 border-b border-gray-200 bg-gray-50">
+      <button
+        onClick={onToggleAll}
+        className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
+      >
+        <div className={`w-4 h-4 mr-2 border border-gray-300 rounded flex items-center justify-center ${
+          isAllSelected ? 'bg-indigo-600 border-indigo-600' : ''
+        }`}>
+          {isAllSelected && (
+            <CheckIcon className="w-3 h-3 text-white" />
+          )}
+        </div>
+        {t(isAllSelected ? 'adOpsDropdown.actions.deselect' : 'adOpsDropdown.actions.select')} {t(filteredCount > 0 ? 'adOpsDropdown.actions.theResults' : 'adOpsDropdown.actions.all')}
+      </button>
+      
+      {searchTerm && (
+        <div className="mt-1 text-xs text-gray-500">
+          {filteredCount} {t(filteredCount !== 1 ? 'adOpsDropdown.search.resultsFound' : 'adOpsDropdown.search.resultFound')}
+        </div>
+      )}
+    </div>
+  );
+});
+
+DropdownHeader.displayName = 'DropdownHeader';
+
+// ================================
+// COMPOSANT PRINCIPAL
+// ================================
+
+/**
+ * Composant dropdowns AdOps optimisé
  */
 export default function AdOpsDropdowns({ 
   publishers,
@@ -70,44 +188,142 @@ export default function AdOpsDropdowns({
 }: AdOpsDropdownsProps) {
   const { t } = useTranslation();
   
-  // États pour les dropdowns
-  const [isPublisherDropdownOpen, setIsPublisherDropdownOpen] = useState(false);
-  const [isTactiqueDropdownOpen, setIsTactiqueDropdownOpen] = useState(false);
-  const [publisherSearchTerm, setPublisherSearchTerm] = useState('');
-  const [tactiqueSearchTerm, setTactiqueSearchTerm] = useState('');
+  // États locaux
+  const [publisherDropdown, setPublisherDropdown] = useState<DropdownState>({
+    isOpen: false,
+    searchTerm: ''
+  });
   
-  // Refs pour gérer les clics extérieurs
+  const [tactiqueDropdown, setTactiqueDropdown] = useState<DropdownState>({
+    isOpen: false,
+    searchTerm: ''
+  });
+  
+  // Refs pour la gestion des clics extérieurs et du focus
   const publisherDropdownRef = useRef<HTMLDivElement>(null);
   const tactiqueDropdownRef = useRef<HTMLDivElement>(null);
   const publisherSearchInputRef = useRef<HTMLInputElement>(null);
   const tactiqueSearchInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Filtre les publishers selon le terme de recherche
-   */
-  const filteredPublishers = publishers.filter(publisher =>
-    publisher.name.toLowerCase().includes(publisherSearchTerm.toLowerCase())
-  );
+  // Mémoisation des éléments filtrés
+  const filteredPublishers = useMemo(() => {
+    return publishers.filter(publisher =>
+      publisher.name.toLowerCase().includes(publisherDropdown.searchTerm.toLowerCase())
+    );
+  }, [publishers, publisherDropdown.searchTerm]);
 
-  /**
-   * NOUVEAU : Filtre les tactiques selon le terme de recherche ET les publishers sélectionnés
-   */
-  const filteredTactiques = tactiqueOptions.filter(tactique => {
-    const matchesSearch = tactique.label.toLowerCase().includes(tactiqueSearchTerm.toLowerCase());
-    const publisherSelected = selectedPublishers.includes(tactique.publisherId);
-    return matchesSearch && publisherSelected;
-  });
+  const filteredTactiques = useMemo(() => {
+    return tactiqueOptions.filter(tactique => {
+      const matchesSearch = tactique.label.toLowerCase().includes(tactiqueDropdown.searchTerm.toLowerCase());
+      const publisherSelected = selectedPublishers.includes(tactique.publisherId);
+      return matchesSearch && publisherSelected;
+    });
+  }, [tactiqueOptions, tactiqueDropdown.searchTerm, selectedPublishers]);
 
-  /**
-   * Ferme les dropdowns si on clique à l'extérieur
-   */
+  // Mémoisation des textes des boutons
+  const buttonTexts = useMemo(() => {
+    const getPublisherText = () => {
+      if (loading) return t('common.loading');
+      if (publishers.length === 0) return t('adOpsDropdown.button.noPublishers');
+      
+      const selectedCount = publishers.filter(pub => pub.isSelected).length;
+      if (selectedCount === 0) return t('adOpsDropdown.button.selectPublishers');
+      if (selectedCount === publishers.length) return t('adOpsDropdown.button.allPublishers');
+      return `${selectedCount} ${t(selectedCount > 1 ? 'adOpsDropdown.button.publisherPlural' : 'adOpsDropdown.button.publisherSingular')}`;
+    };
+
+    const getTactiqueText = () => {
+      if (loading) return t('common.loading');
+      
+      const availableTactiques = tactiqueOptions.filter(tactique => 
+        selectedPublishers.includes(tactique.publisherId)
+      );
+      
+      if (availableTactiques.length === 0) return t('adOpsDropdown.button.noTactiques');
+      
+      const selectedCount = availableTactiques.filter(tactique => tactique.isSelected).length;
+      if (selectedCount === 0) return t('adOpsDropdown.button.selectTactiques');
+      if (selectedCount === availableTactiques.length) return t('adOpsDropdown.button.allTactiques');
+      return `${selectedCount} ${t(selectedCount > 1 ? 'adOpsDropdown.button.tactiquePlural' : 'adOpsDropdown.button.tactiqueSingular')}`;
+    };
+
+    return {
+      publisher: getPublisherText(),
+      tactique: getTactiqueText()
+    };
+  }, [loading, publishers, tactiqueOptions, selectedPublishers, t]);
+
+  // Gestionnaires de dropdown
+  const togglePublisherDropdown = useCallback(() => {
+    setPublisherDropdown(prev => ({
+      isOpen: !prev.isOpen,
+      searchTerm: prev.isOpen ? '' : prev.searchTerm
+    }));
+  }, []);
+
+  const toggleTactiqueDropdown = useCallback(() => {
+    setTactiqueDropdown(prev => ({
+      isOpen: !prev.isOpen,
+      searchTerm: prev.isOpen ? '' : prev.searchTerm
+    }));
+  }, []);
+
+  // Gestionnaires de sélection globale
+  const handleSelectAllPublishers = useCallback(() => {
+    const filteredSelected = filteredPublishers.filter(pub => pub.isSelected);
+    const allFilteredSelected = filteredSelected.length === filteredPublishers.length;
+    
+    if (allFilteredSelected) {
+      filteredPublishers.forEach(pub => {
+        if (pub.isSelected) {
+          togglePublisher(pub.id);
+        }
+      });
+    } else {
+      filteredPublishers.forEach(pub => {
+        if (!pub.isSelected) {
+          togglePublisher(pub.id);
+        }
+      });
+    }
+  }, [filteredPublishers, togglePublisher]);
+
+  const handleSelectAllTactiques = useCallback(() => {
+    const filteredSelected = filteredTactiques.filter(tactique => tactique.isSelected);
+    const allFilteredSelected = filteredSelected.length === filteredTactiques.length;
+    
+    if (allFilteredSelected) {
+      filteredTactiques.forEach(tactique => {
+        if (tactique.isSelected) {
+          toggleTactique(tactique.id);
+        }
+      });
+    } else {
+      filteredTactiques.forEach(tactique => {
+        if (!tactique.isSelected) {
+          toggleTactique(tactique.id);
+        }
+      });
+    }
+  }, [filteredTactiques, toggleTactique]);
+
+  // Vérification de sélection totale
+  const areAllPublishersSelected = useMemo(() => {
+    return filteredPublishers.length > 0 && filteredPublishers.every(pub => pub.isSelected);
+  }, [filteredPublishers]);
+
+  const areAllTactiquesSelected = useMemo(() => {
+    return filteredTactiques.length > 0 && filteredTactiques.every(tactique => tactique.isSelected);
+  }, [filteredTactiques]);
+
+  // Gestion des clics extérieurs
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (publisherDropdownRef.current && !publisherDropdownRef.current.contains(event.target as Node)) {
-        setIsPublisherDropdownOpen(false);
+        setPublisherDropdown(prev => ({ ...prev, isOpen: false }));
       }
       if (tactiqueDropdownRef.current && !tactiqueDropdownRef.current.contains(event.target as Node)) {
-        setIsTactiqueDropdownOpen(false);
+        setTactiqueDropdown(prev => ({ ...prev, isOpen: false }));
       }
     }
 
@@ -117,143 +333,20 @@ export default function AdOpsDropdowns({
     };
   }, []);
 
-  /**
-   * Focus automatique sur l'input de recherche quand les dropdowns s'ouvrent
-   */
+  // Focus automatique sur les inputs de recherche
   useEffect(() => {
-    if (isPublisherDropdownOpen && publisherSearchInputRef.current) {
+    if (publisherDropdown.isOpen && publisherSearchInputRef.current) {
       setTimeout(() => publisherSearchInputRef.current?.focus(), 100);
     }
-  }, [isPublisherDropdownOpen]);
+  }, [publisherDropdown.isOpen]);
 
   useEffect(() => {
-    if (isTactiqueDropdownOpen && tactiqueSearchInputRef.current) {
+    if (tactiqueDropdown.isOpen && tactiqueSearchInputRef.current) {
       setTimeout(() => tactiqueSearchInputRef.current?.focus(), 100);
     }
-  }, [isTactiqueDropdownOpen]);
+  }, [tactiqueDropdown.isOpen]);
 
-  /**
-   * Toggle l'ouverture/fermeture du dropdown publishers
-   */
-  const togglePublisherDropdown = () => {
-    if (isPublisherDropdownOpen) {
-      setPublisherSearchTerm('');
-    }
-    setIsPublisherDropdownOpen(!isPublisherDropdownOpen);
-  };
-
-  /**
-   * NOUVEAU : Toggle l'ouverture/fermeture du dropdown tactiques
-   */
-  const toggleTactiqueDropdown = () => {
-    if (isTactiqueDropdownOpen) {
-      setTactiqueSearchTerm('');
-    }
-    setIsTactiqueDropdownOpen(!isTactiqueDropdownOpen);
-  };
-
-  /**
-   * Gère la sélection/désélection de tous les publishers (filtrés)
-   */
-  const handleSelectAllPublishers = () => {
-    const filteredSelected = filteredPublishers.filter(pub => pub.isSelected);
-    const allFilteredSelected = filteredSelected.length === filteredPublishers.length;
-    
-    if (allFilteredSelected) {
-      // Désélectionner tous les publishers filtrés
-      filteredPublishers.forEach(pub => {
-        if (pub.isSelected) {
-          togglePublisher(pub.id);
-        }
-      });
-    } else {
-      // Sélectionner tous les publishers filtrés
-      filteredPublishers.forEach(pub => {
-        if (!pub.isSelected) {
-          togglePublisher(pub.id);
-        }
-      });
-    }
-  };
-
-  /**
-   * NOUVEAU : Gère la sélection/désélection de toutes les tactiques (filtrées)
-   */
-  const handleSelectAllTactiques = () => {
-    const filteredSelected = filteredTactiques.filter(tactique => tactique.isSelected);
-    const allFilteredSelected = filteredSelected.length === filteredTactiques.length;
-    
-    if (allFilteredSelected) {
-      // Désélectionner toutes les tactiques filtrées
-      filteredTactiques.forEach(tactique => {
-        if (tactique.isSelected) {
-          toggleTactique(tactique.id);
-        }
-      });
-    } else {
-      // Sélectionner toutes les tactiques filtrées
-      filteredTactiques.forEach(tactique => {
-        if (!tactique.isSelected) {
-          toggleTactique(tactique.id);
-        }
-      });
-    }
-  };
-
-  /**
-   * Vérifie si tous les publishers filtrés sont sélectionnés
-   */
-  const areAllPublishersSelected = () => {
-    if (filteredPublishers.length === 0) return false;
-    return filteredPublishers.every(pub => pub.isSelected);
-  };
-
-  /**
-   * NOUVEAU : Vérifie si toutes les tactiques filtrées sont sélectionnées
-   */
-  const areAllTactiquesSelected = () => {
-    if (filteredTactiques.length === 0) return false;
-    return filteredTactiques.every(tactique => tactique.isSelected);
-  };
-
-  /**
-   * Formate le texte du bouton principal publishers
-   */
-  const getPublisherButtonText = () => {
-    if (loading) return t('common.loading');
-    if (publishers.length === 0) return t('adOpsDropdown.button.noPublishers');
-    
-    const selectedCount = publishers.filter(pub => pub.isSelected).length;
-    if (selectedCount === 0) return t('adOpsDropdown.button.selectPublishers');
-    if (selectedCount === publishers.length) return t('adOpsDropdown.button.allPublishers');
-    return `${selectedCount} ${t(selectedCount > 1 ? 'adOpsDropdown.button.publisherPlural' : 'adOpsDropdown.button.publisherSingular')}`;
-  };
-
-  /**
-   * NOUVEAU : Formate le texte du bouton principal tactiques
-   */
-  const getTactiqueButtonText = () => {
-    if (loading) return t('common.loading');
-    
-    const availableTactiques = tactiqueOptions.filter(tactique => 
-      selectedPublishers.includes(tactique.publisherId)
-    );
-    
-    if (availableTactiques.length === 0) return t('adOpsDropdown.button.noTactiques');
-    
-    const selectedCount = availableTactiques.filter(tactique => tactique.isSelected).length;
-    if (selectedCount === 0) return t('adOpsDropdown.button.selectTactiques');
-    if (selectedCount === availableTactiques.length) return t('adOpsDropdown.button.allTactiques');
-    return `${selectedCount} ${t(selectedCount > 1 ? 'adOpsDropdown.button.tactiquePlural' : 'adOpsDropdown.button.tactiqueSingular')}`;
-  };
-
-  /**
-   * Gère les clics sur l'input de recherche (empêche la fermeture du dropdown)
-   */
-  const handleSearchClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
+  // Rendu conditionnel pour les états de chargement et d'erreur
   if (loading) {
     return (
       <div className="p-4">
@@ -283,7 +376,6 @@ export default function AdOpsDropdowns({
 
   return (
     <div className="p-4">
-      {/* Grid avec deux dropdowns côte à côte */}
       <div className="grid grid-cols-2 gap-4">
         
         {/* Dropdown Publishers */}
@@ -296,83 +388,42 @@ export default function AdOpsDropdowns({
               publishers.length === 0 ? 'cursor-not-allowed opacity-50' : ''
             }`}
           >
-            <span className="truncate">{getPublisherButtonText()}</span>
-            <ChevronDownIcon className={`w-5 h-5 ml-2 transition-transform ${isPublisherDropdownOpen ? 'rotate-180' : ''}`} />
+            <span className="truncate">{buttonTexts.publisher}</span>
+            <ChevronDownIcon className={`w-5 h-5 ml-2 transition-transform ${publisherDropdown.isOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Menu déroulant Publishers */}
-          {isPublisherDropdownOpen && publishers.length > 0 && (
+          {publisherDropdown.isOpen && publishers.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-80 overflow-hidden">
               
-              {/* Barre de recherche */}
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    ref={publisherSearchInputRef}
-                    type="text"
-                    value={publisherSearchTerm}
-                    onChange={(e) => setPublisherSearchTerm(e.target.value)}
-                    onClick={handleSearchClick}
-                    placeholder={t('adOpsDropdown.search.placeholder')}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
+              <DropdownSearchBar
+                value={publisherDropdown.searchTerm}
+                onChange={(value) => setPublisherDropdown(prev => ({ ...prev, searchTerm: value }))}
+                placeholder={t('adOpsDropdown.search.placeholder')}
+                inputRef={publisherSearchInputRef}
+              />
 
-              {/* En-tête avec actions globales */}
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
-                <button
-                  onClick={handleSelectAllPublishers}
-                  className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                >
-                  <div className={`w-4 h-4 mr-2 border border-gray-300 rounded flex items-center justify-center ${
-                    areAllPublishersSelected() ? 'bg-indigo-600 border-indigo-600' : ''
-                  }`}>
-                    {areAllPublishersSelected() && (
-                      <CheckIcon className="w-3 h-3 text-white" />
-                    )}
-                  </div>
-                  {t(areAllPublishersSelected() ? 'adOpsDropdown.actions.deselect' : 'adOpsDropdown.actions.select')} {t(filteredPublishers.length > 0 ? 'adOpsDropdown.actions.theResults' : 'adOpsDropdown.actions.all')}
-                </button>
-                
-                {/* Compteur de résultats */}
-                {publisherSearchTerm && (
-                  <div className="mt-1 text-xs text-gray-500">
-                    {filteredPublishers.length} {t(filteredPublishers.length !== 1 ? 'adOpsDropdown.search.resultsFound' : 'adOpsDropdown.search.resultFound')}
-                  </div>
-                )}
-              </div>
+              <DropdownHeader
+                isAllSelected={areAllPublishersSelected}
+                onToggleAll={handleSelectAllPublishers}
+                filteredCount={filteredPublishers.length}
+                searchTerm={publisherDropdown.searchTerm}
+                itemType="publishers"
+              />
 
-              {/* Liste des publishers filtrés */}
               <div className="py-1 max-h-48 overflow-y-auto">
                 {filteredPublishers.length > 0 ? (
                   filteredPublishers.map((publisher) => (
-                    <div
+                    <DropdownItem
                       key={publisher.id}
+                      item={publisher}
+                      isSelected={publisher.isSelected}
                       onClick={() => togglePublisher(publisher.id)}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <div className={`w-4 h-4 mr-3 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center ${
-                          publisher.isSelected ? 'bg-indigo-600 border-indigo-600' : ''
-                        }`}>
-                          {publisher.isSelected && (
-                            <CheckIcon className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                        <span className="truncate">{publisher.name}</span>
-                      </div>
-                      <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
-                        {publisher.tactiqueCount}
-                      </span>
-                    </div>
+                      showCount={true}
+                    />
                   ))
                 ) : (
                   <div className="px-3 py-4 text-sm text-gray-500 text-center">
-                    {t('adOpsDropdown.search.noneFound', { searchTerm: publisherSearchTerm })}
+                    {t('adOpsDropdown.search.noneFound', { searchTerm: publisherDropdown.searchTerm })}
                   </div>
                 )}
               </div>
@@ -380,7 +431,7 @@ export default function AdOpsDropdowns({
           )}
         </div>
 
-        {/* NOUVEAU : Dropdown Tactiques */}
+        {/* Dropdown Tactiques */}
         <div className="relative" ref={tactiqueDropdownRef}>
           <button
             type="button"
@@ -390,80 +441,42 @@ export default function AdOpsDropdowns({
               filteredTactiques.length === 0 ? 'cursor-not-allowed opacity-50' : ''
             }`}
           >
-            <span className="truncate">{getTactiqueButtonText()}</span>
-            <ChevronDownIcon className={`w-5 h-5 ml-2 transition-transform ${isTactiqueDropdownOpen ? 'rotate-180' : ''}`} />
+            <span className="truncate">{buttonTexts.tactique}</span>
+            <ChevronDownIcon className={`w-5 h-5 ml-2 transition-transform ${tactiqueDropdown.isOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Menu déroulant Tactiques */}
-          {isTactiqueDropdownOpen && filteredTactiques.length > 0 && (
+          {tactiqueDropdown.isOpen && filteredTactiques.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-80 overflow-hidden">
               
-              {/* Barre de recherche */}
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    ref={tactiqueSearchInputRef}
-                    type="text"
-                    value={tactiqueSearchTerm}
-                    onChange={(e) => setTactiqueSearchTerm(e.target.value)}
-                    onClick={handleSearchClick}
-                    placeholder={t('adOpsDropdown.tactiques.searchPlaceholder')}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
+              <DropdownSearchBar
+                value={tactiqueDropdown.searchTerm}
+                onChange={(value) => setTactiqueDropdown(prev => ({ ...prev, searchTerm: value }))}
+                placeholder={t('adOpsDropdown.tactiques.searchPlaceholder')}
+                inputRef={tactiqueSearchInputRef}
+              />
 
-              {/* En-tête avec actions globales */}
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
-                <button
-                  onClick={handleSelectAllTactiques}
-                  className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                >
-                  <div className={`w-4 h-4 mr-2 border border-gray-300 rounded flex items-center justify-center ${
-                    areAllTactiquesSelected() ? 'bg-indigo-600 border-indigo-600' : ''
-                  }`}>
-                    {areAllTactiquesSelected() && (
-                      <CheckIcon className="w-3 h-3 text-white" />
-                    )}
-                  </div>
-                  {t(areAllTactiquesSelected() ? 'adOpsDropdown.actions.deselect' : 'adOpsDropdown.actions.select')} {t(filteredTactiques.length > 0 ? 'adOpsDropdown.actions.theResults' : 'adOpsDropdown.actions.all')}
-                </button>
-                
-                {/* Compteur de résultats */}
-                {tactiqueSearchTerm && (
-                  <div className="mt-1 text-xs text-gray-500">
-                    {filteredTactiques.length} {t(filteredTactiques.length !== 1 ? 'adOpsDropdown.search.resultsFound' : 'adOpsDropdown.search.resultFound')}
-                  </div>
-                )}
-              </div>
+              <DropdownHeader
+                isAllSelected={areAllTactiquesSelected}
+                onToggleAll={handleSelectAllTactiques}
+                filteredCount={filteredTactiques.length}
+                searchTerm={tactiqueDropdown.searchTerm}
+                itemType="tactiques"
+              />
 
-              {/* Liste des tactiques filtrées */}
               <div className="py-1 max-h-48 overflow-y-auto">
                 {filteredTactiques.length > 0 ? (
                   filteredTactiques.map((tactique) => (
-                    <div
+                    <DropdownItem
                       key={tactique.id}
+                      item={tactique}
+                      isSelected={tactique.isSelected}
                       onClick={() => toggleTactique(tactique.id)}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <div className={`w-4 h-4 mr-3 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center ${
-                          tactique.isSelected ? 'bg-indigo-600 border-indigo-600' : ''
-                        }`}>
-                          {tactique.isSelected && (
-                            <CheckIcon className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                        <span className="truncate">{tactique.label}</span>
-                      </div>
-                    </div>
+                      showCount={false}
+                    />
                   ))
                 ) : (
                   <div className="px-3 py-4 text-sm text-gray-500 text-center">
-                    {t('adOpsDropdown.tactiques.noneFound', { searchTerm: tactiqueSearchTerm })}
+                    {t('adOpsDropdown.tactiques.noneFound', { searchTerm: tactiqueDropdown.searchTerm })}
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, Variants } from 'framer-motion';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
 import CreateDocumentModal from '../components/Others/CreateDocumentModal';
@@ -29,6 +30,38 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus, DocumentCreationResult } from '../types/document';
+
+const ease: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: ease } },
+};
+
+const containerVariants: Variants = {
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: ease } },
+};
+
+const cardVariants: Variants = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: ease } },
+};
+
+const buttonHoverTap = {
+  hover: { scale: 1.05 },
+  tap: { scale: 0.95 },
+};
+
 
 /**
  * Page principale de gestion des documents.
@@ -396,16 +429,21 @@ export default function DocumentsPage() {
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <div className="space-y-6">
+        <motion.div 
+          className="space-y-6"
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+        >
 
           {/* En-tête */}
-          <div className="flex items-center justify-between">
+          <motion.div className="flex items-center justify-between" variants={itemVariants}>
             <div className="flex items-center space-x-3">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{t('documents.title')}</h1>
               </div>
             </div>
-            <button
+            <motion.button
               onClick={handleCreateDocument}
               disabled={!selectedClient}
               className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
@@ -414,15 +452,18 @@ export default function DocumentsPage() {
                   : 'bg-gray-400 cursor-not-allowed'
               }`}
               title={!selectedClient ? t('documents.newDocumentDisabled') : ""}
+              variants={buttonHoverTap}
+              whileHover="hover"
+              whileTap="tap"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               {t('documents.newDocument')}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
           {/* Message si pas de client sélectionné */}
           {!selectedClient && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <motion.div className="bg-amber-50 border border-amber-200 rounded-lg p-4" variants={cardVariants}>
               <div className="flex items-start space-x-3">
                 <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
@@ -432,14 +473,14 @@ export default function DocumentsPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Interface principale */}
           {selectedClient && (
-            <>
+            <motion.div variants={containerVariants} initial="initial" animate="animate" className="space-y-6">
               {/* Sélecteur campagne/version */}
-              <div className="flex justify-between items-center">
+              <motion.div className="flex justify-between items-center" variants={itemVariants}>
                 <div className="flex-1 max-w-4xl">
                   <CampaignVersionSelector
                     campaigns={campaigns}
@@ -453,10 +494,10 @@ export default function DocumentsPage() {
                     className="mb-0"
                   />
                 </div>
-              </div>
+              </motion.div>
 
               {/* Liste des documents */}
-              <div className="bg-white shadow rounded-lg">
+              <motion.div className="bg-white shadow rounded-lg" variants={cardVariants}>
                 <div className="px-6 py-4">
                   {/* États de chargement et d'erreur */}
                   {isLoading && (
@@ -507,18 +548,21 @@ export default function DocumentsPage() {
                           <p className="text-sm text-gray-500 mt-1">
                             {t('documents.noDocumentsMessage')}
                           </p>
-                          <button
+                          <motion.button
                             onClick={handleCreateDocument}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mt-4"
+                            variants={buttonHoverTap}
+                            whileHover="hover"
+                            whileTap="tap"
                           >
                             <PlusIcon className="h-4 w-4 mr-2" />
                             {t('documents.createFirstDocument')}
-                          </button>
+                          </motion.button>
                         </div>
                       ) : (
-                        <div className="space-y-8">
+                        <motion.div className="space-y-8" variants={containerVariants}>
                           {Object.entries(groupDocumentsByTemplate(documents)).map(([templateName, templateDocuments]) => (
-                            <div key={templateName} className="space-y-4">
+                            <motion.div key={templateName} className="space-y-4" variants={itemVariants}>
                               {/* En-tête de section par template */}
                               <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                                 <div className="flex items-center space-x-2">
@@ -534,11 +578,12 @@ export default function DocumentsPage() {
                               </div>
 
                               {/* Documents de ce template */}
-                              <div className="space-y-3">
+                              <motion.div className="space-y-3" variants={containerVariants}>
                                 {templateDocuments.map((document) => (
-                                  <div
+                                  <motion.div
                                     key={document.id}
                                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                    variants={cardVariants}
                                   >
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1 min-w-0">
@@ -596,82 +641,94 @@ export default function DocumentsPage() {
                                       <div className="flex items-center space-x-2">
                                         {document.status === DocumentStatus.COMPLETED && (
                                           <>
-                                            <a
+                                            <motion.a
                                               href={document.url}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                              variants={buttonHoverTap}
+                                              whileHover="hover"
+                                              whileTap="tap"
                                             >
                                               <LinkIcon className="h-4 w-4 mr-1" />
                                               {t('documents.actions.open')}
-                                            </a>
+                                            </motion.a>
                                             
                                             {!document.isUnlinked && (
                                               <>
-                                                <button
+                                                <motion.button
                                                   onClick={() => handleRefreshDocument(document)}
                                                   disabled={refreshingDocumentId === document.id || exportLoading}
-                                                  className={`inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                                                  className={`inline-flex items-center justify-center w-9 h-9 border border-blue-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
                                                     refreshingDocumentId === document.id || exportLoading
                                                       ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                                       : 'text-blue-700 bg-white hover:bg-blue-50'
                                                   }`}
                                                   title={t('documents.actions.refreshTooltip')}
+                                                  variants={buttonHoverTap}
+                                                  whileHover="hover"
+                                                  whileTap="tap"
                                                 >
                                                   {refreshingDocumentId === document.id ? (
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
                                                   ) : (
                                                     <ArrowPathIcon className="h-4 w-4" />
                                                   )}
-                                                </button>
+                                                </motion.button>
 
-                                                <button
+                                                <motion.button
                                                   onClick={() => handleOpenUnlinkModal(document)}
                                                   disabled={unlinkLoading}
-                                                  className={`inline-flex items-center px-3 py-2 border border-orange-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 ${
+                                                  className={`inline-flex items-center justify-center w-9 h-9 border border-orange-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 ${
                                                     unlinkLoading
                                                       ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                                       : 'text-orange-700 bg-white hover:bg-orange-50'
                                                   }`}
                                                   title={t('documents.actions.unlinkTooltip')}
+                                                  variants={buttonHoverTap}
+                                                  whileHover="hover"
+                                                  whileTap="tap"
                                                 >
                                                   <LinkSlashIcon className="h-4 w-4" />
-                                                </button>
+                                                </motion.button>
                                               </>
                                             )}
                                           </>
                                         )}
                                         
-                                        <button
+                                        <motion.button
                                           onClick={() => handleDeleteDocument(document)}
                                           disabled={deletingDocumentId === document.id}
-                                          className={`inline-flex items-center px-3 py-2 border border-red-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                                          className={`inline-flex items-center justify-center w-9 h-9 border border-red-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
                                             deletingDocumentId === document.id
                                               ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                               : 'text-red-700 bg-white hover:bg-red-50'
                                           }`}
                                           title={t('documents.actions.deleteTooltip')}
+                                          variants={buttonHoverTap}
+                                          whileHover="hover"
+                                          whileTap="tap"
                                         >
                                           {deletingDocumentId === document.id ? (
                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />
                                           ) : (
                                             <TrashIcon className="h-4 w-4" />
                                           )}
-                                        </button>
+                                        </motion.button>
                                       </div>
                                     </div>
-                                  </div>
+                                  </motion.div>
                                 ))}
-                              </div>
-                            </div>
+                              </motion.div>
+                            </motion.div>
                           ))}
-                        </div>
+                        </motion.div>
                       )}
                     </>
                   )}
                 </div>
-              </div>
-            </>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* Modal de création */}
@@ -689,7 +746,7 @@ export default function DocumentsPage() {
             onConfirm={handleUnlinkConfirm}
             loading={unlinkLoading}
           />
-        </div>
+        </motion.div>
       </AuthenticatedLayout>
     </ProtectedRoute>
   );

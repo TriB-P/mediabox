@@ -1611,7 +1611,7 @@ export const translations = {
         specTooltip: "Sélectionnez une spec pour auto-remplir tous les champs ci-dessous",
         specPrefix: "Spec",
         specSuffix: "appliquée",
-        resetButton: "Reset",
+        resetButton: "Réinitialiser",
         noSpecs: "Ce partenaire n'a pas de spécifications pré-configurées.",
       },
       details: {
@@ -2011,7 +2011,7 @@ export const translations = {
       },
       card: {
         tags: "Tags",
-        platform: "Platform",
+        platform: "Plateforme",
         mediaocean: "MediaOcean",
       },
     },
@@ -2071,7 +2071,7 @@ export const translations = {
       validation: {
         title: "Erreurs de validation :",
         startDateBeforePlacement: "La date de début tag créatif ne peut pas être antérieure au {{date}} (date début tag placement)",
-        endDateAfterPlacement: "La date de fin tag créatif ne peut pas dépasser le {{date}} (date fin tag placement)",
+        endDateAfterPlacement: "La date de fin tag créatif ne peut pas dépasser le {{date}} (la date de fin du placement qui contient ce créatif)",
         startAfterEnd: "La date de début tag créatif doit être antérieure à la date de fin"
       },
       fields: {
@@ -2118,35 +2118,102 @@ export const translations = {
         ad: "Ad",
         creative: "Créatif",
         url: "URL"
+      },
+      interface: {
+        table: {
+          noTacticsSelected: "Aucune tactique sélectionnée",
+          selectTacticsPrompt: "Sélectionnez des tactiques dans les dropdowns ci-dessus",
+          tacticSelected: "tactique sélectionnée",
+          tacticsSelected: "tactiques sélectionnées",
+          budgetInfo: "💰 Informations budgétaires",
+          fullTaxonomies: "🏷️ Taxonomonies complètes",
+          selected: "sélectionnées",
+          creating: "Création...",
+          deleting: "Suppression...",
+          applyColor: "Appliquer couleur",
+          removeColor: "Supprimer couleur",
+          deselect: "Désélectionner",
+          searchPlaceholder: "Rechercher dans les tactiques, placements, créatifs...",
+          noResultsFor: "Aucun résultat pour",
+          noDataWithFilters: "Aucune donnée trouvée avec les filtres actuels",
+          header: {
+            name: "Nom",
+            actions: "Actions",
+            budget: "Budget",
+            rate: "Rate",
+            volume: "Volume",
+            currency: "Currency",
+            buyType: "Buy Type",
+            campaignCreative: "Campaign / Creative",
+            placementUrlUtm: "Placement / URL + UTM",
+            ad: "Ad",
+            tagType: "Tag Type",
+            startDate: "Date début",
+            endDate: "Date fin",
+            rotation: "Rotation",
+            floodlight: "Floodlight",
+            thirdParty: "Third Party",
+            vpaid: "VPAID"
+          }
+        },
+        filters: {
+          cm360Status: "Statut CM360",
+          all: "Tous",
+          tagsCreated: "Tags créés",
+          toModify: "À modifier",
+          toCreate: "À créer",
+          color: "Couleur",
+          allColors: "Toutes",
+          filterNoColor: "Filtrer éléments sans couleur",
+          filterByColor: "Filtrer par couleur",
+          reset: "Réinitialiser"
+        },
+        status: {
+          elementsDisplayed: "éléments affichés",
+          filteredBy: "filtrés par",
+          activeFilters: "Filtres actifs"
+        }
       }
     },
     colorPicker: {
-      title: "Choisir une couleur",
+      title: "Sélecteur de couleur",
       applyColor: "Appliquer la couleur {{colorName}}",
       removeColor: "Supprimer la couleur",
       none: "Aucune",
-      applyInfo: "La couleur sera appliquée à toutes les lignes sélectionnées et sauvegardée automatiquement."
+      applyInfo: "Cliquez sur une couleur pour l'appliquer à la sélection.",
+      accessibility: {
+        instructions: "Utilisez les boutons de couleur pour appliquer une couleur aux éléments sélectionnés. Appuyez sur Échap pour fermer ce sélecteur."
+      }
     },
     adOpsDropdown: {
-      title: "Publishers",
+      title: "Filtres Publishers & Tactiques",
+      actions: {
+        deselect: "Désélectionner",
+        select: "Sélectionner",
+        theResults: "les résultats",
+        all: "tout"
+      },
+      search: {
+        resultsFound: "résultats trouvés",
+        resultFound: "résultat trouvé",
+        placeholder: "Rechercher un publisher...",
+        noneFound: "Aucun publisher trouvé pour \"{searchTerm}\""
+      },
       button: {
         noPublishers: "Aucun publisher",
         selectPublishers: "Sélectionner des publishers",
         allPublishers: "Tous les publishers",
+        publisherPlural: "publishers sélectionnés",
         publisherSingular: "publisher sélectionné",
-        publisherPlural: "publishers sélectionnés"
+        noTactiques: "Aucune tactique",
+        selectTactiques: "Sélectionner des tactiques",
+        allTactiques: "Toutes les tactiques",
+        tactiquePlural: "tactiques sélectionnées",
+        tactiqueSingular: "tactique sélectionnée"
       },
-      search: {
-        placeholder: "Rechercher un publisher...",
-        resultFound: "résultat trouvé",
-        resultsFound: "résultats trouvés",
-        noneFound: "Aucun publisher trouvé pour \"{{searchTerm}}\""
-      },
-      actions: {
-        select: "Sélectionner",
-        deselect: "Désélectionner",
-        theResults: "les résultats",
-        all: "tout"
+      tactiques: {
+        searchPlaceholder: "Rechercher une tactique...",
+        noneFound: "Aucune tactique trouvée pour \"{searchTerm}\""
       }
     },
     adOpsProgressBar: {
@@ -2177,74 +2244,6 @@ export const translations = {
       floodlight: "Floodlight",
       thirdPartyMeasurement: "Mesure Tierce Partie",
       vpaid: "VPAID"
-    },
-    adOpsTacticInfo: {
-      metricCard: {
-        historyTooltip: "{{title}} a été modifié depuis le dernier tag - Cliquer pour voir l'historique",
-        copyTooltip: "Cliquer pour copier {{title}}",
-        noValue: "Valeur non disponible",
-        copied: "✓ Copié"
-      },
-      noTacticSelected: "Aucune tactique sélectionnée",
-      metrics: {
-        mediaBudget: "Budget Média",
-        cm360Rate: "Taux CM360",
-        cm360Volume: "Volume CM360"
-      },
-      badges: {
-        currency: "Devise",
-        buyType: "Type d'achat"
-      },
-      updateButton: {
-        updating: "Mise à jour...",
-        confirmChanges: "Changements effectués dans CM360"
-      },
-      historyModal: {
-        defaultItemLabel: "Tactique"
-      }
-    },
-    adOpsTacticList: {
-      common: {
-        notAvailable: "N/A"
-      },
-      header: {
-        title: "Tactiques",
-        tactic: "tactique",
-        tactic_plural: "tactiques",
-        deselect: "Désélectionner"
-      },
-      filters: {
-        all: "Tous",
-        complete: "Complets ✓",
-        modified: "Modifiés ⚠️",
-        toCreate: "À créer"
-      },
-      emptyState: {
-        noTacticFound: "Aucune tactique trouvée",
-        noTacticForFilter: "Aucune tactique",
-        completeFilter: "complète (tous tags créés)",
-        modifiedFilter: "avec modifications",
-        noTagsFilter: "sans tags",
-        changeFilter: "Changez le filtre pour voir d'autres tactiques"
-      },
-      tacticCard: {
-        unnamedTactic: "Tactique sans nom"
-      },
-      tooltip: {
-        allCreated: "Tous les éléments et métriques ont des tags créés, aucun changement",
-        changesDetected: "Modifications détectées dans:",
-        partialTags: "Tags partiels - certains éléments ou métriques n'ont pas de tags",
-        noTags: "Aucun tag créé"
-      },
-      changesSummary: {
-        placements: "placements",
-        creatives: "créatifs",
-        metrics: "métriques"
-      },
-      legend: {
-        complete: "Complet (tous créés)",
-        modifications: "Modifications"
-      }
     },
     adOpsTacticTable: {
       colorFilter: {
@@ -2345,7 +2344,8 @@ export const translations = {
         budget: "Budget",
         repartition: "Répartition",
         admin: "Admin",
-        tags: "Tags"
+        tags: "Tags",
+        specs: 'Specs'
       },
       errors: {
         loadData: "Erreur lors du chargement des données. Veuillez réessayer.",
@@ -4150,7 +4150,9 @@ export const translations = {
         info: "Infos",
         strategy: "Stratégie", 
         budget: "Budget",
-        admin: "Admin"
+        admin: "Admin",
+        specs: 'Specs'
+
       },
       placement: {
         info: "Infos",
@@ -4205,7 +4207,18 @@ export const translations = {
         bonification: "Bonification",
         currencyRate: "Taux de change",
         billingId: "Numéro de facturation",
-        po: "Bon de commande"
+        po: "Bon de commande",
+        specName: 'Nom spec',
+        specFormat: 'Format',
+        specRatio: 'Ratio',
+        specFileType: 'Type fichier',
+        specMaxWeight: 'Poids max',
+        specWeight: 'Poids',
+        specAnimation: 'Animation',
+        specTitle: 'Titre',
+        specText: 'Texte',
+        specSheetLink: 'Lien spec sheet',
+        specNotes: 'Notes'
       },
       
       placement: {
@@ -4516,6 +4529,60 @@ export const translations = {
         label: "Libellé",
         levelTitle: "Titre du niveau",
         value: "Valeur"
+      }
+    },
+    tactiqueFormSpecs: {
+      selection: {
+        title: 'Sélection de spécification',
+        description: 'Choisissez un partenaire puis une spécification technique pour auto-remplir les champs.',
+        partnerPlaceholder: 'Sélectionner un partenaire...',
+        partnerLabel: 'Partenaire',
+        partnerTooltip: 'Sélectionnez le partenaire pour lequel vous voulez charger une spécification technique.',
+        specLoadingPlaceholder: 'Chargement des specs...',
+        specSelectPlaceholder: 'Sélectionner une spec...',
+        specLabel: 'Spécification',
+        specTooltip: 'Choisissez une spécification technique pré-configurée pour ce partenaire.',
+        noSpecs: 'Aucune spécification trouvée pour ce partenaire.',
+        specPrefix: 'Spec',
+        specSuffix: 'appliquée',
+        resetButton: 'Réinitialiser'
+      },
+      details: {
+        title: 'Détails de la spécification',
+        description: 'Vous pouvez modifier manuellement tous les champs après avoir sélectionné une spec.',
+        namePlaceholder: 'Nom de la spécification...',
+        nameLabel: 'Nom',
+        nameTooltip: 'Nom descriptif de la spécification technique.',
+        formatPlaceholder: 'Ex: 300x250, 728x90...',
+        formatLabel: 'Format',
+        formatTooltip: 'Dimensions du format publicitaire.',
+        ratioPlaceholder: 'Ex: 16:9, 4:3...',
+        ratioLabel: 'Ratio',
+        ratioTooltip: 'Ratio d\'aspect du format.',
+        fileTypePlaceholder: 'Ex: JPG, PNG, GIF...',
+        fileTypeLabel: 'Type de fichier',
+        fileTypeTooltip: 'Format de fichier accepté.',
+        animationPlaceholder: 'Ex: Autorisée, Non autorisée...',
+        animationLabel: 'Animation',
+        animationTooltip: 'Indique si l\'animation est autorisée.',
+        maxWeightPlaceholder: 'Ex: 150kb, 1MB...',
+        maxWeightLabel: 'Poids maximum',
+        maxWeightTooltip: 'Poids maximal autorisé pour le fichier.',
+        weightPlaceholder: 'Ex: 40kb...',
+        weightLabel: 'Poids',
+        weightTooltip: 'Poids recommandé pour le fichier.',
+        titlePlaceholder: 'Contraintes sur le titre...',
+        titleLabel: 'Titre',
+        titleTooltip: 'Contraintes et recommandations pour le titre.',
+        textPlaceholder: 'Contraintes sur le texte...',
+        textLabel: 'Texte',
+        textTooltip: 'Contraintes et recommandations pour le texte.',
+        specSheetLinkPlaceholder: 'URL vers la feuille de specs...',
+        specSheetLinkLabel: 'Lien spec sheet',
+        specSheetLinkTooltip: 'Lien vers la documentation complète des spécifications.',
+        notesPlaceholder: 'Notes additionnelles...',
+        notesLabel: 'Notes',
+        notesTooltip: 'Notes et commentaires supplémentaires.'
       }
     },
     
@@ -6434,7 +6501,7 @@ export const translations = {
       validation: {
         title: "Validation errors:",
         startDateBeforePlacement: "Creative tag start date cannot be earlier than {{date}} (placement tag start date)",
-        endDateAfterPlacement: "Creative tag end date cannot exceed {{date}} (placement tag end date)",
+        endDateAfterPlacement: "Creative tag end date cannot exceed {{date}} (parent placement tag end date)",
         startAfterEnd: "Creative tag start date must be before the end date"
       },
       fields: {
@@ -6481,35 +6548,102 @@ export const translations = {
         ad: "Ad",
         creative: "Creative",
         url: "URL"
+      },
+      interface: {
+        table: {
+          noTacticsSelected: "No tactic selected",
+          selectTacticsPrompt: "Select tactics in the dropdowns above",
+          tacticSelected: "tactic selected",
+          tacticsSelected: "tactics selected",
+          budgetInfo: "💰 Budget Information",
+          fullTaxonomies: "🏷️ Full Taxonomies",
+          selected: "selected",
+          creating: "Creating...",
+          deleting: "Deleting...",
+          applyColor: "Apply color",
+          removeColor: "Remove color",
+          deselect: "Deselect",
+          searchPlaceholder: "Search in tactics, placements, creatives...",
+          noResultsFor: "No results for",
+          noDataWithFilters: "No data found with current filters",
+          header: {
+            name: "Name",
+            actions: "Actions",
+            budget: "Budget",
+            rate: "Rate",
+            volume: "Volume",
+            currency: "Currency",
+            buyType: "Buy Type",
+            campaignCreative: "Campaign / Creative",
+            placementUrlUtm: "Placement / URL + UTM",
+            ad: "Ad",
+            tagType: "Tag Type",
+            startDate: "Start Date",
+            endDate: "End Date",
+            rotation: "Rotation",
+            floodlight: "Floodlight",
+            thirdParty: "Third Party",
+            vpaid: "VPAID"
+          }
+        },
+        filters: {
+          cm360Status: "CM360 Status",
+          all: "All",
+          tagsCreated: "Tags created",
+          toModify: "To modify",
+          toCreate: "To create",
+          color: "Color",
+          allColors: "All",
+          filterNoColor: "Filter elements without color",
+          filterByColor: "Filter by color",
+          reset: "Reset"
+        },
+        status: {
+          elementsDisplayed: "elements displayed",
+          filteredBy: "filtered by",
+          activeFilters: "Active filters"
+        }
       }
     },
     colorPicker: {
-      title: "Choose a color",
-      applyColor: "Apply {{colorName}} color",
+      title: "Color Picker",
+      applyColor: "Apply the color {{colorName}}",
       removeColor: "Remove color",
       none: "None",
-      applyInfo: "The color will be applied to all selected rows and saved automatically."
+      applyInfo: "Click a color to apply it to the selection.",
+      accessibility: {
+        instructions: "Use the color buttons to apply a color to the selected elements. Press Escape to close this picker."
+      }
     },
     adOpsDropdown: {
-      title: "Publishers",
+      title: "Publishers & Tactics Filters",
+      actions: {
+        deselect: "Deselect",
+        select: "Select",
+        theResults: "the results",
+        all: "all"
+      },
+      search: {
+        resultsFound: "results found",
+        resultFound: "result found",
+        placeholder: "Search for a publisher...",
+        noneFound: "No publisher found for \"{searchTerm}\""
+      },
       button: {
         noPublishers: "No publishers",
         selectPublishers: "Select publishers",
         allPublishers: "All publishers",
+        publisherPlural: "publishers selected",
         publisherSingular: "publisher selected",
-        publisherPlural: "publishers selected"
+        noTactiques: "No tactics",
+        selectTactiques: "Select tactics",
+        allTactiques: "All tactics",
+        tactiquePlural: "tactics selected",
+        tactiqueSingular: "tactic selected"
       },
-      search: {
-        placeholder: "Search for a publisher...",
-        resultFound: "result found",
-        resultsFound: "results found",
-        noneFound: "No publisher found for \"{{searchTerm}}\""
-      },
-      actions: {
-        select: "Select",
-        deselect: "Deselect",
-        theResults: "the results",
-        all: "all"
+      tactiques: {
+        searchPlaceholder: "Search for a tactic...",
+        noneFound: "No tactic found for \"{searchTerm}\""
       }
     },
     adOpsProgressBar: {
@@ -6540,74 +6674,6 @@ export const translations = {
       floodlight: "Floodlight",
       thirdPartyMeasurement: "Third Party Measurement",
       vpaid: "VPAID"
-    },
-    adOpsTacticInfo: {
-      metricCard: {
-        historyTooltip: "{{title}} has been modified since the last tag - Click to see history",
-        copyTooltip: "Click to copy {{title}}",
-        noValue: "Value not available",
-        copied: "✓ Copied"
-      },
-      noTacticSelected: "No tactic selected",
-      metrics: {
-        mediaBudget: "Media Budget",
-        cm360Rate: "CM360 Rate",
-        cm360Volume: "CM360 Volume"
-      },
-      badges: {
-        currency: "Currency",
-        buyType: "Buy Type"
-      },
-      updateButton: {
-        updating: "Updating...",
-        confirmChanges: "Confirm changes in CM360"
-      },
-      historyModal: {
-        defaultItemLabel: "Tactic"
-      }
-    },
-    adOpsTacticList: {
-      common: {
-        notAvailable: "N/A"
-      },
-      header: {
-        title: "Tactics",
-        tactic: "tactic",
-        tactic_plural: "tactics",
-        deselect: "Deselect"
-      },
-      filters: {
-        all: "All",
-        complete: "Complete ✓",
-        modified: "To modify ⚠️",
-        toCreate: "To create"
-      },
-      emptyState: {
-        noTacticFound: "No tactics found",
-        noTacticForFilter: "No tactic",
-        completeFilter: "complete (all tags created)",
-        modifiedFilter: "with modifications",
-        noTagsFilter: "without tags",
-        changeFilter: "Change the filter to see other tactics"
-      },
-      tacticCard: {
-        unnamedTactic: "Unnamed tactic"
-      },
-      tooltip: {
-        allCreated: "All elements and metrics have tags created, no changes",
-        changesDetected: "Changes detected in:",
-        partialTags: "Partial tags - some elements or metrics do not have tags",
-        noTags: "No tags created"
-      },
-      changesSummary: {
-        placements: "placements",
-        creatives: "creatives",
-        metrics: "metrics"
-      },
-      legend: {
-        complete: "Complete (all created)",
-        modifications: "Modifications"
-      }
     },
     adOpsTacticTable: {
       colorFilter: {
@@ -6707,7 +6773,9 @@ export const translations = {
         budget: "Budget",
         repartition: "Breakdown",
         admin: "Admin",
-        tags: "Tags"
+        tags: "Tags",
+        specs: 'Specs'
+
       },
       errors: {
         loadData: "Error loading data. Please try again.",
@@ -8348,7 +8416,9 @@ export const translations = {
         info: "Info",
         strategy: "Strategy", 
         budget: "Budget",
-        admin: "Admin"
+        admin: "Admin",
+        specs: 'Specs'
+
       },
       placement: {
         info: "Info",
@@ -8403,7 +8473,18 @@ export const translations = {
         bonification: "Bonus",
         currencyRate: "Exchange rate",
         billingId: "Billing number",
-        po: "PO"
+        po: "PO",
+        specName: 'Spec Name',
+        specFormat: 'Format',
+        specRatio: 'Ratio',
+        specFileType: 'File Type',
+        specMaxWeight: 'Max Weight',
+        specWeight: 'Weight',
+        specAnimation: 'Animation',
+        specTitle: 'Title',
+        specText: 'Text',
+        specSheetLink: 'Spec Sheet Link',
+        specNotes: 'Notes'
       },
       
       placement: {
@@ -8714,6 +8795,60 @@ export const translations = {
         label: "Label",
         levelTitle: "Level Title",
         value: "Value"
+      }
+    },
+    tactiqueFormSpecs: {
+      selection: {
+        title: 'Specification Selection',
+        description: 'Choose a partner then a technical specification to auto-fill the fields.',
+        partnerPlaceholder: 'Select a partner...',
+        partnerLabel: 'Partner',
+        partnerTooltip: 'Select the partner for which you want to load a technical specification.',
+        specLoadingPlaceholder: 'Loading specs...',
+        specSelectPlaceholder: 'Select a spec...',
+        specLabel: 'Specification',
+        specTooltip: 'Choose a pre-configured technical specification for this partner.',
+        noSpecs: 'No specifications found for this partner.',
+        specPrefix: 'Spec',
+        specSuffix: 'applied',
+        resetButton: 'Reset'
+      },
+      details: {
+        title: 'Specification Details',
+        description: 'You can manually modify all fields after selecting a spec.',
+        namePlaceholder: 'Specification name...',
+        nameLabel: 'Name',
+        nameTooltip: 'Descriptive name of the technical specification.',
+        formatPlaceholder: 'Ex: 300x250, 728x90...',
+        formatLabel: 'Format',
+        formatTooltip: 'Ad format dimensions.',
+        ratioPlaceholder: 'Ex: 16:9, 4:3...',
+        ratioLabel: 'Ratio',
+        ratioTooltip: 'Aspect ratio of the format.',
+        fileTypePlaceholder: 'Ex: JPG, PNG, GIF...',
+        fileTypeLabel: 'File Type',
+        fileTypeTooltip: 'Accepted file format.',
+        animationPlaceholder: 'Ex: Allowed, Not allowed...',
+        animationLabel: 'Animation',
+        animationTooltip: 'Indicates if animation is allowed.',
+        maxWeightPlaceholder: 'Ex: 150kb, 1MB...',
+        maxWeightLabel: 'Max Weight',
+        maxWeightTooltip: 'Maximum allowed file weight.',
+        weightPlaceholder: 'Ex: 40kb...',
+        weightLabel: 'Weight',
+        weightTooltip: 'Recommended file weight.',
+        titlePlaceholder: 'Title constraints...',
+        titleLabel: 'Title',
+        titleTooltip: 'Title constraints and recommendations.',
+        textPlaceholder: 'Text constraints...',
+        textLabel: 'Text',
+        textTooltip: 'Text constraints and recommendations.',
+        specSheetLinkPlaceholder: 'URL to spec sheet...',
+        specSheetLinkLabel: 'Spec Sheet Link',
+        specSheetLinkTooltip: 'Link to complete specification documentation.',
+        notesPlaceholder: 'Additional notes...',
+        notesLabel: 'Notes',
+        notesTooltip: 'Additional notes and comments.'
       }
     },
     

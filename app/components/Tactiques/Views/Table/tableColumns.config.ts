@@ -106,7 +106,7 @@ export const formatPercentage = (value: any): string => {
 /**
  * Types pour les sous-catégories
  */
-export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin';
+export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin' | 'specs';
 export type PlacementSubCategory = 'info' | 'taxonomie';
 export type CreatifSubCategory = 'info' | 'taxonomie' | 'specs';
 
@@ -399,6 +399,75 @@ const getTactiqueAdminColumns = (t: (key: string) => string): DynamicColumn[] =>
   }
 ];
 
+const getTactiqueSpecsColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'TC_Spec_Name',
+    label: t('columns.tactique.specName'),
+    type: 'text',
+    width: 200
+  },
+  {
+    key: 'TC_Spec_Format',
+    label: t('columns.tactique.specFormat'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'TC_Spec_Ratio',
+    label: t('columns.tactique.specRatio'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'TC_Spec_FileType',
+    label: t('columns.tactique.specFileType'),
+    type: 'text',
+    width: 130
+  },
+  {
+    key: 'TC_Spec_MaxWeight',
+    label: t('columns.tactique.specMaxWeight'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'TC_Spec_Weight',
+    label: t('columns.tactique.specWeight'),
+    type: 'text',
+    width: 100
+  },
+  {
+    key: 'TC_Spec_Animation',
+    label: t('columns.tactique.specAnimation'),
+    type: 'text',
+    width: 120
+  },
+  {
+    key: 'TC_Spec_Title',
+    label: t('columns.tactique.specTitle'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'TC_Spec_Text',
+    label: t('columns.tactique.specText'),
+    type: 'text',
+    width: 150
+  },
+  {
+    key: 'TC_Spec_SpecSheetLink',
+    label: t('columns.tactique.specSheetLink'),
+    type: 'text',
+    width: 200
+  },
+  {
+    key: 'TC_Spec_Notes',
+    label: t('columns.tactique.specNotes'),
+    type: 'text',
+    width: 200
+  }
+];
+
 const getPlacementInfoColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'PL_Label',
@@ -645,6 +714,11 @@ export const getTactiqueSubCategories = (t: (key: string) => string): TactiqueSu
     id: 'admin',
     label: t('tabs.tactique.admin'),
     columns: getTactiqueAdminColumns(t)
+  },
+  {
+    id: 'specs',
+    label: t('tabs.tactique.specs'),
+    columns: getTactiqueSpecsColumns(t)
   }
 ];
 

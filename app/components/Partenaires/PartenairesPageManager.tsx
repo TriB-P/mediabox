@@ -17,6 +17,7 @@ import PartnersTitle from './PartnersTitle';
 import PartenairesFilter from './PartenairesFilter';
 import PartenairesGrid from './PartenairesGrid';
 import DrawerContainer from './DrawerContainer';
+import { motion, Variants } from 'framer-motion';
 
 interface Partner {
   id: string;
@@ -44,6 +45,41 @@ const convertShortcodeToPartner = (shortcode: ShortcodeItem): Partner => ({
   SH_Type: shortcode.SH_Type,
   SH_Tags: shortcode.SH_Tags || []
 });
+
+const ease: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const containerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease },
+  },
+};
+
+const cardVariants: Variants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { 
+        opacity: 1, 
+        scale: 1,
+        transition: { duration: 0.4, ease },
+    },
+};
+
+const interactiveVariants: Variants = {
+  hover: { scale: 1.05, transition: { duration: 0.2, ease } },
+  tap: { scale: 0.95 },
+};
+
 
 /**
  * Composant principal qui gère la page des partenaires.
@@ -263,53 +299,75 @@ export default function PartenairesPageManager() {
   // Affichage d'erreur
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <motion.div 
+            className="max-w-7xl mx-auto"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+        >
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
               <div className="text-red-600">⚠️</div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Erreur de chargement</h3>
                 <p className="text-sm text-red-600 mt-1">{error}</p>
-                <button
+                <motion.button
                   onClick={() => window.location.reload()}
                   className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
+                  variants={interactiveVariants}
+                  whileHover="hover"
+                  whileTap="tap"
                 >
                   Actualiser la page
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+    <motion.div 
+      className="min-h-screen bg-gray-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease }}
+    >
+      <motion.div 
+        className="max-w-7xl mx-auto p-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {/* Titre avec compteur */}
-        <div className="mb-6">
+        <motion.div className="mb-6" variants={itemVariants}>
           <PartnersTitle 
             partners={partners}
             filteredPartners={filteredPartners}
           />
-        </div>
+        </motion.div>
 
         {/* Filtres */}
-        <PartenairesFilter
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          activeTypeFilters={activeTypeFilters}
-          onToggleType={handleToggleType}
-        />
+        <motion.div variants={itemVariants}>
+          <PartenairesFilter
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            activeTypeFilters={activeTypeFilters}
+            onToggleType={handleToggleType}
+          />
+        </motion.div>
 
         {/* Grille des partenaires */}
-        <PartenairesGrid
-          filteredPartners={filteredPartners}
-          isLoading={isLoading}
-          onPartnerClick={handlePartnerClick}
-        />
+        <motion.div variants={itemVariants}>
+          <PartenairesGrid
+            filteredPartners={filteredPartners}
+            isLoading={isLoading}
+            onPartnerClick={handlePartnerClick}
+          />
+        </motion.div>
 
         {/* Drawer pour les détails */}
         <DrawerContainer
@@ -318,7 +376,7 @@ export default function PartenairesPageManager() {
           onCloseDrawer={handleCloseDrawer}
           onUpdatePartner={handleUpdatePartner}
         />
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

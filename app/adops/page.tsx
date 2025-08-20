@@ -1,6 +1,7 @@
 // app/adops/page.tsx
 /**
  * CORRIGÉ : Lecture des métriques tactiques depuis cm360Tags
+ * CORRIGÉ : Erreurs TypeScript pour CM360TagData
  */
 'use client';
 
@@ -35,8 +36,21 @@ interface Creative {
   CR_Order?: number;
 }
 
+// CORRIGÉ : Interface pour les métriques avec indexation
+interface TactiqueMetrics {
+  TC_Media_Budget: any;
+  TC_BuyCurrency: any;
+  TC_CM360_Rate: any;
+  TC_CM360_Volume: any;
+  TC_Buy_Type: any;
+  TC_Label: any;
+  TC_Publisher: any;
+  [key: string]: any; // Index signature pour permettre l'accès dynamique
+}
+
 /**
- * NOUVELLE FONCTION : Charge les métriques tactiques depuis cm360Tags
+ * CORRIGÉE : Charge les métriques tactiques depuis cm360Tags
+ * Fix des erreurs TypeScript pour CM360TagData
  */
 const loadTactiqueMetrics = async (
   clientId: string,
@@ -85,18 +99,24 @@ const loadTactiqueMetrics = async (
     // Le tag le plus récent
     const latestMetrics = metricsArray[0];
     
-    // Créer l'historique CM360
+    // CORRIGÉ : Créer l'historique CM360 avec les propriétés requises
     const history: CM360TagHistory = {
+      itemId: 'tactics',
+      type: 'metrics',
       latestTag: {
-        id: `metrics-tactics-${latestMetrics.index}`,
+        type: 'metrics',
+        itemId: 'tactics',
+        tactiqueId: tactique.id,
         tableData: latestMetrics.tactiqueMetrics,
-        timestamp: latestMetrics.timestamp,
+        createdAt: latestMetrics.timestamp,
         version: latestMetrics.version || latestMetrics.index
       },
       tags: metricsArray.map(metrics => ({
-        id: `metrics-tactics-${metrics.index}`,
+        type: 'metrics',
+        itemId: 'tactics',
+        tactiqueId: tactique.id,
         tableData: metrics.tactiqueMetrics,
-        timestamp: metrics.timestamp,
+        createdAt: metrics.timestamp,
         version: metrics.version || metrics.index
       })),
       hasChanges: false, // Sera calculé après
@@ -104,7 +124,7 @@ const loadTactiqueMetrics = async (
     };
     
     // Comparer avec les données actuelles de la tactique
-    const currentMetrics = {
+    const currentMetrics: TactiqueMetrics = {
       TC_Media_Budget: tactique.TC_Media_Budget,
       TC_BuyCurrency: tactique.TC_BuyCurrency,
       TC_CM360_Rate: tactique.TC_CM360_Rate,
@@ -128,6 +148,7 @@ const loadTactiqueMetrics = async (
     console.log(`🔍 [LoadMetrics] Comparaison détaillée pour ${tactique.TC_Label}:`);
     
     fieldsToCompare.forEach(field => {
+      // CORRIGÉ : Utilisation de l'index signature
       const currentValue = currentMetrics[field];
       const savedValue = savedMetrics[field];
       
@@ -217,7 +238,6 @@ export default function AdOpsPage() {
 
   /**
    * CORRIGÉE : Charge les créatifs ET les tags CM360 pour les tactiques filtrées
-   * SUPPORT : Nouvelle structure cm360Tags
    */
   const loadCM360TagsForFilteredTactiques = async () => {
     if (!selectedClient || !selectedCampaign || !selectedVersion || !filteredTactiques.length) {
@@ -232,29 +252,16 @@ export default function AdOpsPage() {
     const allCreativesByTactique: { [tactiqueId: string]: { [placementId: string]: Creative[] } } = {};
 
     try {
-      console.log('🔄 [AdOpsPage] Chargement CM360 pour', filteredTactiques.length, 'tactiques filtrées');
-      
       // Charger les données pour chaque tactique filtrée en parallèle
-      const tactiquePromises = filteredTactiques.map(async (tactique) => {
+      const tactiquePromises = filteredTactiques
+        .filter(tactique => tactique && tactique.id) // Filtrer les tactiques invalides
+        .map(async (tactique) => {
+        
         const basePath = `clients/${clientId}/campaigns/${selectedCampaign.id}/versions/${selectedVersion.id}/onglets/${tactique.ongletId}/sections/${tactique.sectionId}/tactiques/${tactique.id}`;
         const updatedPlacements: any[] = [];
         const tactiqueCreatives: { [placementId: string]: Creative[] } = {};
         
-        // 1. NOUVEAU : Charger les métriques tactiques depuis cm360Tags
-        const tactiqueMetrics = await loadTactiqueMetrics(
-          clientId,
-          selectedCampaign.id,
-          selectedVersion.id,
-          tactique
-        );
-        
-        if (tactiqueMetrics) {
-          const hierarchicalKey = `tactique-${tactique.id}-metrics-tactics`;
-          allTagsByTactique.set(hierarchicalKey, tactiqueMetrics);
-          console.log(`✅ [AdOpsPage] Métriques chargées pour: ${tactique.TC_Label}`);
-        }
-        
-        // 2. Charger les placements et créatifs pour cette tactique
+        // 1. Charger les placements et créatifs pour cette tactique
         for (const placement of tactique.placementsWithTags) {
           try {
             const placementRef = doc(db, `${basePath}/placements/${placement.id}`);
@@ -286,7 +293,7 @@ export default function AdOpsPage() {
         
         allCreativesByTactique[tactique.id] = tactiqueCreatives;
         
-        // 3. Charger les tags CM360 pour les placements et créatifs (ancien système)
+        // 2. Charger les tags CM360 pour les placements, créatifs ET métriques
         const tags = await getCM360TagsForTactique(
           clientId,
           selectedCampaign.id,
@@ -298,35 +305,39 @@ export default function AdOpsPage() {
           tactiqueCreatives
         );
         
-        // 4. Détecter les changements et ajouter avec des clés hierarchiques
+        // 3. Détecter les changements et ajouter avec des clés hierarchiques
         tags.forEach((history, key) => {
           const hierarchicalKey = `tactique-${tactique.id}-${key}`;
           
           if (history.latestTag) {
             const [type, itemId] = key.split('-');
             
-            // Ignorer les métriques (déjà traitées ci-dessus)
-            if (type === 'metrics') {
-              return;
-            }
-            
-            // Pour les placements et créatifs
-            let currentData: any = null;
-            
-            if (type === 'placement') {
-              currentData = updatedPlacements.find(p => p.id === itemId);
-            } else if (type === 'creative') {
-              for (const creatives of Object.values(tactiqueCreatives)) {
-                const creative = creatives.find(c => c.id === itemId);
-                if (creative) {
-                  currentData = creative;
-                  break;
+            // Pour les placements et créatifs, détecter les changements
+            if (type === 'placement' || type === 'creative') {
+              let currentData: any = null;
+              
+              if (type === 'placement') {
+                currentData = updatedPlacements.find(p => p.id === itemId);
+              } else if (type === 'creative') {
+                for (const creatives of Object.values(tactiqueCreatives)) {
+                  const creative = creatives.find(c => c.id === itemId);
+                  if (creative) {
+                    currentData = creative;
+                    break;
+                  }
                 }
+              }
+              
+              if (currentData) {
+                const changes = detectChanges(currentData, history.latestTag, type as 'placement' | 'creative');
+                history.hasChanges = changes.hasChanges;
+                history.changedFields = changes.changedFields;
               }
             }
             
-            if (currentData) {
-              const changes = detectChanges(currentData, history.latestTag, type as 'placement' | 'creative');
+            // Pour les métriques, détecter les changements avec les données actuelles de la tactique
+            if (type === 'metrics') {
+              const changes = detectMetricsChanges(tactique, history);
               history.hasChanges = changes.hasChanges;
               history.changedFields = changes.changedFields;
             }
@@ -340,12 +351,6 @@ export default function AdOpsPage() {
       
       // Attendre que toutes les tactiques soient chargées
       await Promise.all(tactiquePromises);
-      
-      console.log('🔍 [AdOpsPage] Tous les tags CM360 chargés:', {
-        'allTagsByTactique.size': allTagsByTactique.size,
-        'keys examples': Array.from(allTagsByTactique.keys()).slice(0, 10),
-        'tactiques processed': Object.keys(allCreativesByTactique).length
-      });
       
       setCreativesData(allCreativesByTactique);
       setCm360Tags(allTagsByTactique);
@@ -363,7 +368,6 @@ export default function AdOpsPage() {
    * Callback : Recharge les tags CM360 depuis le tableau
    */
   const handleCM360TagsReload = async () => {
-    console.log('🔄 [AdOpsPage] Rechargement tags CM360 depuis tableau');
     await loadCM360TagsForFilteredTactiques();
   };
 

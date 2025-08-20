@@ -267,6 +267,21 @@ export interface Creatif {
   CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
   CR_Spec_Notes?: string;           // Notes additionnelles
 
+
+  TC_Spec_PartnerId?: string;       // ID du partenaire sélectionné
+  TC_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
+  TC_Spec_Name?: string;            // Nom de la spécification
+  TC_Spec_Format?: string;          // Format (ex: 300x250)
+  TC_Spec_Ratio?: string;           // Ratio (ex: 16:9)
+  TC_Spec_FileType?: string;        // Type de fichier (ex: JPG, PNG, GIF)
+  TC_Spec_MaxWeight?: string;       // Poids maximal
+  TC_Spec_Weight?: string;          // Poids maximal HTML5
+  TC_Spec_Animation?: string;       // Animation (Autorisée/Non autorisée)
+  TC_Spec_Title?: string;           // Contraintes titre
+  TC_Spec_Text?: string;            // Contraintes texte
+  TC_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
+  TC_Spec_Notes?: string;           // Notes additionnelles
+
   // Stockage des valeurs taxonomie et générations
   CR_Generated_Taxonomies?: GeneratedTaxonomies;
 
@@ -516,6 +531,20 @@ export interface CreatifFormData {
   CR_Spec_Text?: string;            // Contraintes texte
   CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
   CR_Spec_Notes?: string;           // Notes additionnelles
+
+  TC_Spec_PartnerId?: string;       // ID du partenaire sélectionné
+  TC_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
+  TC_Spec_Name?: string;            // Nom de la spécification
+  TC_Spec_Format?: string;          // Format (ex: 300x250)
+  TC_Spec_Ratio?: string;           // Ratio (ex: 16:9)
+  TC_Spec_FileType?: string;        // Type de fichier (ex: JPG, PNG, GIF)
+  TC_Spec_MaxWeight?: string;       // Poids maximal
+  TC_Spec_Weight?: string;          // Poids maximal HTML5
+  TC_Spec_Animation?: string;       // Animation (Autorisée/Non autorisée)
+  TC_Spec_Title?: string;           // Contraintes titre
+  TC_Spec_Text?: string;            // Contraintes texte
+  TC_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
+  TC_Spec_Notes?: string;           // Notes additionnelles
 
   // Stockage des valeurs taxonomie
   CR_Generated_Taxonomies?: GeneratedTaxonomies;

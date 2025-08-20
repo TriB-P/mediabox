@@ -32,6 +32,7 @@ import {
   getBucketAssignmentsWithCurrency,
   BucketBudgetAssignment 
 } from '../lib/bucketBudgetService';
+import { motion, Variants } from 'framer-motion';
 
 interface Bucket {
   id: string;
@@ -43,6 +44,49 @@ interface Bucket {
   color: string;
   publishers: string[];
 }
+
+const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: easeOut },
+  },
+};
+
+const containerVariants: Variants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.4, ease: easeOut },
+  },
+};
 
 /**
  * Composant principal de la page Stratégie.
@@ -447,9 +491,14 @@ export default function StrategiePage() {
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <div className="space-y-6">
+        <motion.div 
+          className="space-y-6"
+          variants={pageVariants}
+          initial="hidden"
+          animate="visible"
+        >
           
-          <div className="flex justify-between items-center">
+          <motion.div className="flex justify-between items-center" variants={itemVariants}>
             <h1 className="text-2xl font-bold text-gray-900">{t('strategy.title')}</h1>
             {selectedCampaign && selectedVersion && (
               <div className="text-right text-sm text-gray-500">
@@ -462,9 +511,9 @@ export default function StrategiePage() {
                 )}
               </div>
             )}
-          </div>
+          </motion.div>
           
-          <div className="flex justify-between items-center">
+          <motion.div className="flex justify-between items-center" variants={itemVariants}>
             <div className="flex-1 max-w-4xl">
               <CampaignVersionSelector
                 campaigns={campaigns}
@@ -480,7 +529,7 @@ export default function StrategiePage() {
             </div>
             
             <div className="ml-4">
-              <button
+              <motion.button
                 onClick={handleAddBucket}
                 disabled={!selectedCampaign || !selectedVersion || isLoading}
                 className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${
@@ -488,44 +537,49 @@ export default function StrategiePage() {
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 {t('strategy.newBucket')}
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
           
-          <div className="bg-white p-4 rounded-lg shadow mb-6 text-sm text-gray-600">
+          <motion.div className="bg-white p-4 rounded-lg shadow mb-6 text-sm text-gray-600" variants={itemVariants}>
             <p>
               {t('strategy.description')}
             </p>
-          </div>
+          </motion.div>
           
           {isLoading && (
-            <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
+            <motion.div className="bg-white p-8 rounded-lg shadow flex items-center justify-center" variants={itemVariants}>
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
                 <div className="text-sm text-gray-500">{t('common.loading')}</div>
               </div>
-            </div>
+            </motion.div>
           )}
           
           {hasError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <motion.div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" variants={itemVariants}>
               {hasError}
-              <button
+              <motion.button
                 onClick={() => setError(null)}
                 className="ml-2 text-red-500 hover:text-red-700"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
               >
                 ✕
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           )}
           
           {!isLoading && !hasError && (
             <>
               {selectedCampaign && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+                <motion.div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6" variants={itemVariants}>
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center">
                       <p className="text-sm text-blue-700 font-medium mr-2">{t('strategy.totalBudget')}</p>
@@ -543,67 +597,76 @@ export default function StrategiePage() {
                     </div>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-2.5">
-                    <div 
+                    <motion.div 
                       className={`h-2.5 rounded-full ${remainingBudget < 0 ? 'bg-red-500' : 'bg-blue-500'}`} 
-                      style={{ width: `${Math.min(100, ((totalBudget - remainingBudget) / totalBudget) * 100)}%` }}
-                    ></div>
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, ((totalBudget - remainingBudget) / totalBudget) * 100)}%` }}
+                      transition={{ duration: 0.5, ease: easeOut }}
+                    ></motion.div>
                   </div>
-                </div>
+                </motion.div>
               )}
               
               {!selectedCampaign && (
-                <div className="bg-white p-8 rounded-lg shadow text-center">
+                <motion.div className="bg-white p-8 rounded-lg shadow text-center" variants={itemVariants}>
                   <p className="text-gray-500">
                     {t('strategy.selectCampaignAndVersion')}
                   </p>
-                </div>
+                </motion.div>
               )}
               
               {selectedCampaign && !selectedVersion && (
-                <div className="bg-white p-8 rounded-lg shadow text-center">
+                <motion.div className="bg-white p-8 rounded-lg shadow text-center" variants={itemVariants}>
                   <p className="text-gray-500">
                     {t('strategy.selectVersion')}
                   </p>
-                </div>
+                </motion.div>
               )}
               
               {selectedCampaign && selectedVersion && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <motion.div 
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  variants={containerVariants}
+                >
                   {enrichedBuckets.map(bucket => (
-                    <BudgetBucket 
-                      key={bucket.id}
-                      bucket={bucket}
-                      totalBudget={totalBudget}
-                      onDelete={() => handleDeleteBucket(bucket.id)}
-                      onUpdate={handleUpdateBucket}
-                      onSliderChange={handleSliderChange}
-                      onAmountChange={handleAmountChange}
-                      onColorChange={handleColorChange}
-                      availableColors={availableColors}
-                      publisherLogos={publisherLogos}
-                      formatCurrency={formatCurrency}
-                    />
+                    <motion.div key={bucket.id} variants={cardVariants}>
+                      <BudgetBucket 
+                        bucket={bucket}
+                        totalBudget={totalBudget}
+                        onDelete={() => handleDeleteBucket(bucket.id)}
+                        onUpdate={handleUpdateBucket}
+                        onSliderChange={handleSliderChange}
+                        onAmountChange={handleAmountChange}
+                        onColorChange={handleColorChange}
+                        availableColors={availableColors}
+                        publisherLogos={publisherLogos}
+                        formatCurrency={formatCurrency}
+                      />
+                    </motion.div>
                   ))}
                   
                   {buckets.length === 0 && (
-                    <div className="col-span-full bg-gray-50 p-8 rounded-lg border border-gray-200 text-center">
+                    <motion.div className="col-span-full bg-gray-50 p-8 rounded-lg border border-gray-200 text-center" variants={itemVariants}>
                       <p className="text-gray-500">
                         {t('strategy.noBuckets')}
                       </p>
-                      <button
+                      <motion.button
                         onClick={handleAddBucket}
                         className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
                       >
                         <PlusIcon className="h-5 w-5 mr-2" />
                         {t('strategy.createBucket')}
-                      </button>
-                    </div>
+                      </motion.button>
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
               )}
             </>
           )}
-        </div>
+        </motion.div>
       </AuthenticatedLayout>
     </ProtectedRoute>
   );

@@ -63,6 +63,8 @@ import {
   ShortcodeItem
 } from '../../../lib/cacheService';
 import { getFeeNamesBatch, getFeeOptionNamesBatch } from '../../../lib/feeService';
+import TactiqueFormSpecs from './TactiqueFormSpecs';
+
 
 
 
@@ -245,7 +247,20 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_PO: tactique.TC_PO || '',
     TC_Placement: tactique.TC_Placement || '',
     TC_Format: tactique.TC_Format || '',
-    
+    TC_Spec_PartnerId: tactique.TC_Spec_PartnerId || '',
+    TC_Spec_SelectedSpecId: tactique.TC_Spec_SelectedSpecId || '',
+    TC_Spec_Name: tactique.TC_Spec_Name || '',
+    TC_Spec_Format: tactique.TC_Spec_Format || '',
+    TC_Spec_Ratio: tactique.TC_Spec_Ratio || '',
+    TC_Spec_FileType: tactique.TC_Spec_FileType || '',
+    TC_Spec_MaxWeight: tactique.TC_Spec_MaxWeight || '',
+    TC_Spec_Weight: tactique.TC_Spec_Weight || '',
+    TC_Spec_Animation: tactique.TC_Spec_Animation || '',
+    TC_Spec_Title: tactique.TC_Spec_Title || '',
+    TC_Spec_Text: tactique.TC_Spec_Text || '',
+    TC_Spec_SpecSheetLink: tactique.TC_Spec_SpecSheetLink || '',
+    TC_Spec_Notes: tactique.TC_Spec_Notes || '',
+        
     // CHAMPS TAGS
     TC_Buy_Type: tactique.TC_Buy_Type || '',
     TC_CM360_Volume: tactique.TC_CM360_Volume || 0,
@@ -525,6 +540,7 @@ export default function TactiqueDrawer({
     { id: 'budget', name: t('tactiqueDrawer.tabs.budget'), icon: CurrencyDollarIcon },
     { id: 'repartition', name: t('tactiqueDrawer.tabs.repartition'), icon: CalendarDaysIcon },
     { id: 'admin', name: t('tactiqueDrawer.tabs.admin'), icon: CogIcon },
+    { id: 'specs', name: t('tactiqueDrawer.tabs.specs'), icon: TagIcon },
     { id: 'tags', name: t('tactiqueDrawer.tabs.tags'), icon: TagIcon },
   ], [t]);
 
@@ -1190,6 +1206,17 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
             onInheritedPOChange={setUseInheritedPO}
             campaignAdminValues={campaignAdminValues}
             loading={loading}
+          />
+        );
+
+        case 'specs':
+        return (
+          <TactiqueFormSpecs
+            formData={formData as any}
+            onChange={handleChange}
+            onTooltipChange={setActiveTooltip}
+            publishersList={dynamicLists.TC_Publisher || []}
+            clientId={selectedClient?.clientId || ''}
           />
         );
 

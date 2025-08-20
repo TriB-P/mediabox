@@ -11,6 +11,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { motion, Variants } from 'framer-motion';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
@@ -36,6 +37,44 @@ import { useClient } from '../contexts/ClientContext';
 import { useTranslation } from '../contexts/LanguageContext';
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline' | 'taxonomy';
+
+const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  initial: { opacity: 0 },
+  animate: {
+    opacity: 1,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: easeOut },
+  },
+};
+
+const cardVariants: Variants = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: {
+        opacity: 1,
+        scale: 1,
+        transition: { duration: 0.4, ease: easeOut }
+    }
+};
+
+
+const buttonVariants: Variants = {
+  hover: { scale: 1.05, transition: { duration: 0.2, ease: easeOut } },
+  tap: { scale: 0.95 },
+};
 
 /**
  * Composant principal de la page des tactiques.
@@ -241,13 +280,21 @@ export default function TactiquesPage() {
   }, [selectedClient?.clientId, selectedCampaign?.id]);
 
   return (
-    <div className={getContainerClasses()}>
-      <div className="flex justify-between items-center">
+    <motion.div 
+      className={getContainerClasses()}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div variants={itemVariants} className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
           <h1 className="text-2xl font-bold text-gray-900">{t('tactiquesPage.header.title')}</h1>
           
           {selectedOnglet && (
-            <button
+            <motion.button
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
               onClick={refreshState.handleManualRefresh}
               disabled={refreshState.isRefreshing || loading}
               className={`
@@ -262,66 +309,71 @@ export default function TactiquesPage() {
               <ArrowPathIcon 
                 className={`h-4 w-4 ${(refreshState.isRefreshing || loading) ? 'animate-spin' : ''}`} 
               />
-            </button>
+            </motion.button>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      <CampaignVersionSelector
-        campaigns={campaigns}
-        versions={versions}
-        selectedCampaign={selectedCampaign}
-        selectedVersion={selectedVersion}
-        loading={loading}
-        error={error}
-        onCampaignChange={handleCampaignChange}
-        onVersionChange={handleVersionChange}
-        className="mb-6"
-      />
+      <motion.div variants={itemVariants}>
+        <CampaignVersionSelector
+          campaigns={campaigns}
+          versions={versions}
+          selectedCampaign={selectedCampaign}
+          selectedVersion={selectedVersion}
+          loading={loading}
+          error={error}
+          onCampaignChange={handleCampaignChange}
+          onVersionChange={handleVersionChange}
+          className="mb-6"
+        />
+      </motion.div>
 
       {selectionState.duplicationLoading && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+        <motion.div variants={cardVariants} className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
             <span className="text-sm text-green-700">{t('tactiquesPage.notifications.duplicationInProgress')}</span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {selectionState.deletionLoading && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+        <motion.div variants={cardVariants} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
             <span className="text-sm text-red-700">{t('tactiquesPage.notifications.deletionInProgress')}</span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {refreshState.clientFeesLoading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <motion.div variants={cardVariants} className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             <span className="text-sm text-blue-700">{t('tactiquesPage.notifications.loadingClientFees')}</span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {hasError && !loading && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+        <motion.div variants={cardVariants} className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <div className="flex items-center space-x-3">
             <div className="text-red-600">⚠️</div>
             <div>
               <h3 className="text-sm font-medium text-red-800">{t('tactiquesPage.error.loadingTitle')}</h3>
               <p className="text-sm text-red-600 mt-1">{error}</p>
-              <button
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
                 onClick={handleRefreshWithReset}
                 className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
               >
                 {t('tactiquesPage.error.retry')}
-              </button>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {loadingStates.shouldShowFullLoader && (
@@ -332,31 +384,36 @@ export default function TactiquesPage() {
       )}
 
       {selectedVersion && !loadingStates.shouldShowFullLoader && (
-        <div className={getContentClasses(viewMode)}>
+        <motion.div variants={itemVariants} className={getContentClasses(viewMode)}>
           <div className={getMainContentClasses(viewMode)}>
             
             {selectionState.selectedItems.size > 0 && viewMode === 'hierarchy' && (
-              <SelectedActionsPanel
-                selectedItems={selectionState.selectedItemsWithData}
-                onDuplicateSelected={selectionState.handleDuplicateSelected}
-                onDeleteSelected={selectionState.handleDeleteSelected}
-                onClearSelection={selectionState.handleClearSelection}
-                onRefresh={handleRefreshWithReset}
-                loading={loadingStates.isLoading}
-                hierarchyContext={enrichedData.hierarchyContextForMove}
-              />
+              <motion.div variants={cardVariants}>
+                <SelectedActionsPanel
+                  selectedItems={selectionState.selectedItemsWithData}
+                  onDuplicateSelected={selectionState.handleDuplicateSelected}
+                  onDeleteSelected={selectionState.handleDeleteSelected}
+                  onClearSelection={selectionState.handleClearSelection}
+                  onRefresh={handleRefreshWithReset}
+                  loading={loadingStates.isLoading}
+                  hierarchyContext={enrichedData.hierarchyContextForMove}
+                />
+              </motion.div>
             )}
             
             {(viewMode === 'hierarchy') && (
-              <div className="flex justify-between items-center mb-4">
+              <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
                 <div className="flex space-x-2">
-                  <button
+                  <motion.button
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
                     onClick={handleAddSection}
                     className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                   >
                     <PlusIcon className="h-5 w-5 mr-1.5" />
                     {t('tactiquesPage.actions.newSection')}
-                  </button>
+                  </motion.button>
                 </div>
 
                 {enrichedData.sectionsWithTactiques.length > 0 && (
@@ -370,11 +427,11 @@ export default function TactiquesPage() {
                     )}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {!hasError && (
-              <>
+              <motion.div variants={cardVariants}>
                 {viewMode === 'hierarchy' && (
                   <>
                     {enrichedData.sectionsWithTactiques.length > 0 ? (
@@ -403,21 +460,30 @@ export default function TactiquesPage() {
                         onDeleteSelected={selectionState.handleDeleteSelected}
                         onClearSelection={selectionState.handleClearSelection}
                         loading={loadingStates.isLoading}
-                        hierarchyContext={enrichedData.hierarchyContextForMove}
+                        hierarchyContext={{
+                          sections: sections,
+                          tactiques: tactiques, // { [sectionId]: Tactique[] }
+                          placements: placements, // { [tactiqueId]: Placement[] }
+                          creatifs: creatifs // { [placementId]: Creatif[] }
+                        }}
+                        
                       />
                     ) : (
-                      <div className="bg-white p-8 rounded-lg shadow text-center">
+                      <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
                         <p className="text-gray-500">
                           {t('tactiquesPage.emptyState.noSectionsFound')}
                         </p>
-                        <button
+                        <motion.button
+                          variants={buttonVariants}
+                          whileHover="hover"
+                          whileTap="tap"
                           onClick={handleAddSection}
                           className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
                         >
                           <PlusIcon className="h-5 w-5 mr-1.5" />
                           {t('tactiquesPage.actions.newSection')}
-                        </button>
-                      </div>
+                        </motion.button>
+                      </motion.div>
                     )}
                   </>
                 )}
@@ -466,43 +532,47 @@ export default function TactiquesPage() {
                     />
                   </div>
                 )}
-              </>
+              </motion.div>
             )}
           </div>
 
           {(viewMode === 'hierarchy') && (
-            <TactiquesBudgetPanel
-              selectedCampaign={selectedCampaign}
-              sections={sections}
-              tactiques={tactiques}
-              selectedOnglet={selectedOnglet}
-              onglets={onglets}
-              formatCurrency={formatCurrency}
-              clientFees={refreshState.clientFees}
-            />
+            <motion.div variants={cardVariants}>
+              <TactiquesBudgetPanel
+                selectedCampaign={selectedCampaign}
+                sections={sections}
+                tactiques={tactiques}
+                selectedOnglet={selectedOnglet}
+                onglets={onglets}
+                formatCurrency={formatCurrency}
+                clientFees={refreshState.clientFees}
+              />
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
-        <div className="bg-white p-8 rounded-lg shadow text-center">
+        <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500">
             {t('tactiquesPage.emptyState.selectCampaignAndVersion')}
           </p>
-        </div>
+        </motion.div>
       )}
 
       {selectedOnglet && selectedVersion && !loadingStates.shouldShowFullLoader && (
-        <TactiquesFooter
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          onglets={onglets}
-          selectedOnglet={selectedOnglet}
-          onSelectOnglet={handleOngletChange}
-          onAddOnglet={crudActions.handleAddOnglet} 
-          onRenameOnglet={crudActions.handleRenameOnglet} 
-          onDeleteOnglet={crudActions.handleDeleteOnglet} 
-        />
+        <motion.div variants={itemVariants}>
+          <TactiquesFooter
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            onglets={onglets}
+            selectedOnglet={selectedOnglet}
+            onSelectOnglet={handleOngletChange}
+            onAddOnglet={crudActions.handleAddOnglet} 
+            onRenameOnglet={crudActions.handleRenameOnglet} 
+            onDeleteOnglet={crudActions.handleDeleteOnglet} 
+          />
+        </motion.div>
       )}
 
       <SectionModal
@@ -512,6 +582,6 @@ export default function TactiquesPage() {
         section={modalState.sectionModal.section}
         mode={modalState.sectionModal.mode}
       />
-    </div>
+    </motion.div>
   );
 }

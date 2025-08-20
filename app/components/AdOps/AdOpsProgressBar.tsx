@@ -1,38 +1,84 @@
 // app/components/AdOps/AdOpsProgressBar.tsx
 /**
- * Composant AdOpsProgressBar
- * Barre de progression horizontale montrant le statut des tags CM360
- * pour tous les placements et créatifs des tactiques filtrées
+ * Composant AdOpsProgressBar unifié et optimisé
+ * CORRIGÉ : Types unifiés, logique simplifiée, performance améliorée
  */
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { CheckCircleIcon, ExclamationTriangleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { CM360TagHistory } from '../../lib/cm360Service';
 import { useTranslation } from '../../contexts/LanguageContext';
 
-interface AdOpsTactique {
-  id: string;
-  TC_Label?: string;
-  placementsWithTags: any[];
-}
+// Import des types unifiés
+import {
+  AdOpsProgressBarProps,
+  AdOpsProgressStats,
+  AdOpsProgressPercentages,
+  AdOpsTactique
+} from '../../types/adops';
 
-interface AdOpsProgressBarProps {
-  filteredTactiques: AdOpsTactique[];
-  cm360Tags?: Map<string, CM360TagHistory>;
-  creativesData?: { [tactiqueId: string]: { [placementId: string]: any[] } };
-  loading?: boolean;
-}
-
-interface ProgressStats {
-  created: number;    // Vert - Tags créés sans changements
-  toModify: number;   // Rouge - Tags avec changements
-  toCreate: number;   // Blanc - Pas de tags
-  total: number;
-}
+// ================================
+// COMPOSANTS UTILITAIRES
+// ================================
 
 /**
- * Composant principal de la barre de progression
+ * Indicateur de statut avec icône et couleur
+ */
+const StatusIndicator = React.memo(({ 
+  type, 
+  count, 
+  color,
+  icon: Icon,
+  title 
+}: {
+  type: string;
+  count: number;
+  color: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+}) => (
+  <div className="flex items-center gap-1 text-sm font-medium" style={{ color }}>
+    <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: color }}></div>
+    <span>{count}</span>
+    <Icon className="w-4 h-4" />
+  </div>
+));
+
+StatusIndicator.displayName = 'StatusIndicator';
+
+/**
+ * Segment de la barre de progression
+ */
+const ProgressSegment = React.memo(({ 
+  width, 
+  color, 
+  title,
+  isLast = false 
+}: {
+  width: number;
+  color: string;
+  title: string;
+  isLast?: boolean;
+}) => (
+  <div 
+    className={`h-full transition-all duration-300 ${isLast ? 'border-l border-gray-300' : ''}`}
+    style={{ 
+      width: `${width}%`, 
+      backgroundColor: color 
+    }}
+    title={title}
+  />
+));
+
+ProgressSegment.displayName = 'ProgressSegment';
+
+// ================================
+// COMPOSANT PRINCIPAL
+// ================================
+
+/**
+ * Barre de progression pour le statut CM360
  */
 export default function AdOpsProgressBar({
   filteredTactiques,
@@ -42,10 +88,8 @@ export default function AdOpsProgressBar({
 }: AdOpsProgressBarProps) {
   const { t } = useTranslation();
 
-  /**
-   * Filtre les tags CM360 pour une tactique spécifique
-   */
-  const getFilteredCM360Tags = (tactiqueId: string): Map<string, CM360TagHistory> => {
+  // Fonction pour filtrer les tags CM360 d'une tactique
+  const getFilteredCM360Tags = useCallback((tactiqueId: string): Map<string, CM360TagHistory> => {
     if (!cm360Tags) return new Map();
     
     const filtered = new Map<string, CM360TagHistory>();
@@ -59,17 +103,15 @@ export default function AdOpsProgressBar({
     });
     
     return filtered;
-  };
+  }, [cm360Tags]);
 
-  /**
-   * Calcule les statistiques de progression pour toutes les tactiques
-   */
-  const calculateProgressStats = (): ProgressStats => {
+  // Calcul des statistiques de progression mémorisé
+  const progressStats: AdOpsProgressStats = useMemo(() => {
     let created = 0;
     let toModify = 0;
     let toCreate = 0;
     
-    filteredTactiques.forEach(tactique => {
+    filteredTactiques.forEach((tactique: AdOpsTactique) => {
       const tactiquesCM360Tags = getFilteredCM360Tags(tactique.id);
       const tactiquesCreatives = creativesData?.[tactique.id] || {};
       
@@ -78,11 +120,11 @@ export default function AdOpsProgressBar({
         const placementHistory = tactiquesCM360Tags.get(`placement-${placement.id}`);
         
         if (!placementHistory?.latestTag) {
-          toCreate++; // Pas de tag
+          toCreate++;
         } else if (placementHistory.hasChanges) {
-          toModify++; // Tag avec changements
+          toModify++;
         } else {
-          created++; // Tag créé sans changements
+          created++;
         }
         
         // Analyser chaque créatif de ce placement
@@ -91,11 +133,11 @@ export default function AdOpsProgressBar({
           const creativeHistory = tactiquesCM360Tags.get(`creative-${creative.id}`);
           
           if (!creativeHistory?.latestTag) {
-            toCreate++; // Pas de tag
+            toCreate++;
           } else if (creativeHistory.hasChanges) {
-            toModify++; // Tag avec changements
+            toModify++;
           } else {
-            created++; // Tag créé sans changements
+            created++;
           }
         });
       });
@@ -103,21 +145,41 @@ export default function AdOpsProgressBar({
     
     const total = created + toModify + toCreate;
     return { created, toModify, toCreate, total };
-  };
+  }, [filteredTactiques, getFilteredCM360Tags, creativesData]);
 
-  /**
-   * Calcule les pourcentages pour la barre
-   */
-  const getPercentages = (stats: ProgressStats) => {
-    if (stats.total === 0) return { created: 0, toModify: 0, toCreate: 100 };
+  // Calcul des pourcentages mémorisé
+  const progressPercentages: AdOpsProgressPercentages = useMemo(() => {
+    if (progressStats.total === 0) {
+      return { created: 0, toModify: 0, toCreate: 100 };
+    }
     
     return {
-      created: Math.round((stats.created / stats.total) * 100),
-      toModify: Math.round((stats.toModify / stats.total) * 100),
-      toCreate: Math.round((stats.toCreate / stats.total) * 100)
+      created: Math.round((progressStats.created / progressStats.total) * 100),
+      toModify: Math.round((progressStats.toModify / progressStats.total) * 100),
+      toCreate: Math.round((progressStats.toCreate / progressStats.total) * 100)
     };
-  };
+  }, [progressStats]);
 
+  // Configuration des couleurs et icônes
+  const statusConfig = useMemo(() => ({
+    created: {
+      color: '#10b981', // green-500
+      icon: CheckCircleIcon,
+      label: t('adOpsProgressBar.tooltip.created')
+    },
+    toModify: {
+      color: '#ef4444', // red-500
+      icon: ExclamationTriangleIcon,
+      label: t('adOpsProgressBar.tooltip.toModify')
+    },
+    toCreate: {
+      color: '#ffffff', // white
+      icon: PlusCircleIcon,
+      label: t('adOpsProgressBar.tooltip.toCreate')
+    }
+  }), [t]);
+
+  // Rendu conditionnel pour le chargement
   if (loading) {
     return (
       <div className="bg-white p-4 rounded-lg shadow animate-pulse">
@@ -130,6 +192,7 @@ export default function AdOpsProgressBar({
     );
   }
 
+  // Rendu pour l'état vide
   if (filteredTactiques.length === 0) {
     return (
       <div className="bg-white p-4 rounded-lg shadow">
@@ -140,70 +203,76 @@ export default function AdOpsProgressBar({
     );
   }
 
-  const stats = calculateProgressStats();
-  const percentages = getPercentages(stats);
-
   return (
     <div className="bg-white p-4 rounded-lg shadow">
-
-
       <div className="flex items-center gap-4">
-        {/* Barre de progression */}
+        
+        {/* Barre de progression principale */}
         <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
           <div className="h-full flex">
-            {/* Segment vert - Créés */}
-            {stats.created > 0 && (
-              <div 
-                className="bg-green-500 h-full transition-all duration-300"
-                style={{ width: `${percentages.created}%` }}
-                title={`${stats.created} ${t('adOpsProgressBar.tooltip.created')} (${percentages.created}%)`}
-              ></div>
+            {/* Segment créés (vert) */}
+            {progressStats.created > 0 && (
+              <ProgressSegment
+                width={progressPercentages.created}
+                color={statusConfig.created.color}
+                title={`${progressStats.created} ${statusConfig.created.label} (${progressPercentages.created}%)`}
+              />
             )}
             
-            {/* Segment rouge - À modifier */}
-            {stats.toModify > 0 && (
-              <div 
-                className="bg-red-500 h-full transition-all duration-300"
-                style={{ width: `${percentages.toModify}%` }}
-                title={`${stats.toModify} ${t('adOpsProgressBar.tooltip.toModify')} (${percentages.toModify}%)`}
-              ></div>
+            {/* Segment à modifier (rouge) */}
+            {progressStats.toModify > 0 && (
+              <ProgressSegment
+                width={progressPercentages.toModify}
+                color={statusConfig.toModify.color}
+                title={`${progressStats.toModify} ${statusConfig.toModify.label} (${progressPercentages.toModify}%)`}
+              />
             )}
             
-            {/* Segment blanc - À créer */}
-            {stats.toCreate > 0 && (
-              <div 
-                className="bg-white border-l border-gray-300 h-full transition-all duration-300"
-                style={{ width: `${percentages.toCreate}%` }}
-                title={`${stats.toCreate} ${t('adOpsProgressBar.tooltip.toCreate')} (${percentages.toCreate}%)`}
-              ></div>
+            {/* Segment à créer (blanc) */}
+            {progressStats.toCreate > 0 && (
+              <ProgressSegment
+                width={progressPercentages.toCreate}
+                color={statusConfig.toCreate.color}
+                title={`${progressStats.toCreate} ${statusConfig.toCreate.label} (${progressPercentages.toCreate}%)`}
+                isLast={true}
+              />
             )}
           </div>
         </div>
 
-        {/* Légende avec chiffres */}
+        {/* Légende avec statistiques */}
         <div className="flex items-center gap-4 text-sm font-medium">
+          
           {/* Tags créés */}
-          <div className="flex items-center gap-1 text-green-700">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>{stats.created}</span>
-            <CheckCircleIcon className="w-4 h-4" />
-          </div>
+          <StatusIndicator
+            type="created"
+            count={progressStats.created}
+            color={statusConfig.created.color}
+            icon={statusConfig.created.icon}
+            title={statusConfig.created.label}
+          />
           
           {/* Tags à modifier */}
-          <div className="flex items-center gap-1 text-red-700">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span>{stats.toModify}</span>
-            <ExclamationTriangleIcon className="w-4 h-4" />
-          </div>
+          <StatusIndicator
+            type="toModify"
+            count={progressStats.toModify}
+            color={statusConfig.toModify.color}
+            icon={statusConfig.toModify.icon}
+            title={statusConfig.toModify.label}
+          />
           
           {/* Tags à créer */}
-          <div className="flex items-center gap-1 text-gray-700">
-            <div className="w-3 h-3 bg-white border-2 border-gray-400 rounded-full"></div>
-            <span>{stats.toCreate}</span>
-            <PlusCircleIcon className="w-4 h-4" />
-          </div>
+          <StatusIndicator
+            type="toCreate"
+            count={progressStats.toCreate}
+            color="#6b7280" // gray-500 pour le texte
+            icon={statusConfig.toCreate.icon}
+            title={statusConfig.toCreate.label}
+          />
         </div>
+        
       </div>
+
 
 
     </div>

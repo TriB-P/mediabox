@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { motion, Variants } from 'framer-motion';
 import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -19,6 +20,53 @@ import { BreakdownFormData } from '../types/breakdown';
 import { getCampaigns, createCampaign, updateCampaign } from '../lib/campaignService';
 import CampaignDrawer from '../components/Campaigns/CampaignDrawer';
 import CampaignTable from '../components/Campaigns/CampaignTable';
+
+const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+    },
+  },
+};
+
+const staggerContainerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+    },
+  },
+};
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+    },
+  },
+};
 
 /**
  * Composant principal de la page des campagnes.
@@ -145,7 +193,12 @@ export default function CampaignsPage() {
 
   if (!selectedClient) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <motion.div 
+        className="min-h-screen bg-gray-50 flex items-center justify-center"
+        initial="hidden"
+        animate="visible"
+        variants={pageVariants}
+      >
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {t('campaigns.noClientSelected')}
@@ -154,14 +207,22 @@ export default function CampaignsPage() {
             {t('campaigns.noClientMessage')}
           </p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-4 mb-6">
+    <motion.div 
+      className="min-h-screen bg-gray-50"
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div 
+        className="px-4 sm:px-6 lg:px-8 py-6"
+        variants={staggerContainerVariants}
+      >
+        <motion.div className="space-y-4 mb-6" variants={itemVariants}>
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
@@ -172,16 +233,22 @@ export default function CampaignsPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="bg-white rounded-lg shadow p-3 text-center w-40">
+            <motion.div className="flex items-center gap-4" variants={staggerContainerVariants}>
+              <motion.div 
+                className="bg-white rounded-lg shadow p-3 text-center w-40"
+                variants={cardVariants}
+              >
                 <div className="text-xl font-bold text-gray-900">
                   {campaigns.length}
                 </div>
                 <div className="text-xs text-gray-600">
                   {t('campaigns.totalCampaigns')}
                 </div>
-              </div>
-              <div className="bg-white rounded-lg shadow p-3 text-center w-40">
+              </motion.div>
+              <motion.div 
+                className="bg-white rounded-lg shadow p-3 text-center w-40"
+                variants={cardVariants}
+              >
                 <div className="text-xl font-bold text-indigo-600">
                   {new Intl.NumberFormat('fr-CA', {
                     style: 'currency',
@@ -193,8 +260,8 @@ export default function CampaignsPage() {
                 <div className="text-xs text-gray-600">
                   {t('campaigns.totalBudget')}
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           <div className="flex justify-between items-end">
@@ -215,18 +282,23 @@ export default function CampaignsPage() {
               </div>
             </div>
             
-            <button
+            <motion.button
               onClick={handleCreateCampaign}
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <PlusIcon className="h-5 w-5" />
               {t('campaigns.newCampaign')}
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <motion.div 
+            className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+            variants={itemVariants}
+          >
             <p className="text-sm">{error}</p>
             <button 
               onClick={loadCampaigns}
@@ -234,17 +306,19 @@ export default function CampaignsPage() {
             >
               {t('campaigns.retry')}
             </button>
-          </div>
+          </motion.div>
         )}
 
-        <CampaignTable
-          campaigns={filteredCampaigns}
-          clientId={selectedClient.clientId}
-          onEdit={handleEditCampaign}
-          onRefresh={loadCampaigns}
-          loading={loading}
-        />
-      </div>
+        <motion.div variants={itemVariants}>
+          <CampaignTable
+            campaigns={filteredCampaigns}
+            clientId={selectedClient.clientId}
+            onEdit={handleEditCampaign}
+            onRefresh={loadCampaigns}
+            loading={loading}
+          />
+        </motion.div>
+      </motion.div>
 
       <CampaignDrawer
         isOpen={isDrawerOpen}
@@ -252,6 +326,6 @@ export default function CampaignsPage() {
         campaign={editingCampaign}
         onSave={handleSaveCampaign}
       />
-    </div>
+    </motion.div>
   );
 }

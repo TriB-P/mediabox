@@ -1,8 +1,8 @@
 // app/components/Tactiques/Views/Hierarchy/DndKitHierarchyComponents.tsx
 
 /**
- * NOUVEAU : Composants utilisant @dnd-kit/sortable au lieu de react-beautiful-dnd
- * Plus moderne, stable et sans problèmes de synchronisation.
+ * ✅ MISE À JOUR : Composants avec zones de drop cross-parent
+ * Ajoute useDroppable pour accepter des éléments d'autres types
  */
 'use client';
 
@@ -12,6 +12,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
   ChevronDownIcon,
@@ -20,18 +21,14 @@ import {
   PlusIcon,
   Bars3Icon,
   KeyIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { getCachedAllShortcodes, ShortcodeItem } from '../../../../lib/cacheService';
 import { useTranslation } from '../../../../contexts/LanguageContext';
-
-import {
-  // ... existants
-  ChatBubbleLeftIcon, // NOUVEAU
-} from '@heroicons/react/24/outline';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
@@ -53,7 +50,7 @@ interface DndKitCreatifItemProps extends BaseItemProps {
 }
 
 /**
- * ✅ NOUVEAU : Composant créatif utilisant @dnd-kit/sortable
+ * ✅ Créatif : Sortable seulement (pas de drop zone - niveau le plus bas)
  */
 export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
   creatif,
@@ -242,7 +239,7 @@ interface DndKitPlacementItemProps extends BaseItemProps {
 }
 
 /**
- * ✅ NOUVEAU : Composant placement utilisant @dnd-kit/sortable
+ * ✅ NOUVEAU : Placement avec zone de drop pour créatifs
  */
 export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
   placement,
@@ -266,14 +263,37 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
   onOpenTaxonomyMenu
 }) => {
   const { t } = useTranslation();
+  
+  // ✅ Sortable pour réorganiser avec autres placements
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: `placement-${placement.id}` });
+
+  // ✅ NOUVEAU : Droppable pour accepter des créatifs
+  const {
+    setNodeRef: setDroppableRef,
+    isOver
+  } = useDroppable({
+    id: `placement-${placement.id}`,
+    data: {
+      type: 'placement',
+      accepts: ['creatif'], // ✅ Accepte les créatifs
+      placementId: placement.id,
+      tactiqueId,
+      sectionId
+    }
+  });
+
+  // ✅ Combiner les deux refs
+  const setNodeRef = (node: HTMLElement | null) => {
+    setSortableRef(node);
+    setDroppableRef(node);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -329,7 +349,9 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
       style={style}
       className={`border-b border-gray-200 last:border-b-0 ${
         isDragging ? 'bg-white shadow-lg rounded opacity-50' : ''
-      } ${placement.isSelected ? 'bg-indigo-50' : ''}`}
+      } ${placement.isSelected ? 'bg-indigo-50' : ''} ${
+        isOver ? 'bg-blue-50 ring-2 ring-blue-300' : '' // ✅ Style de survol pour drop
+      }`}
       onMouseEnter={() => onHoverPlacement({sectionId, tactiqueId, placementId: placement.id})}
       onMouseLeave={() => onHoverPlacement(null)}
     >
@@ -514,12 +536,11 @@ interface DndKitTactiqueItemProps extends BaseItemProps {
   onSelectPlacement: (placementId: string, isSelected: boolean) => void;
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
-  onSaveComment?: (sectionId: string, tactiqueId: string, comment: string) => Promise<void>; // AJOUTE CETTE LIGNE
-
+  onSaveComment?: (sectionId: string, tactiqueId: string, comment: string) => Promise<void>;
 }
 
 /**
- * ✅ NOUVEAU : Composant tactique utilisant @dnd-kit/sortable
+ * ✅ NOUVEAU : Tactique avec zone de drop pour placements
  */
 export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   tactique,
@@ -549,18 +570,39 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   onSelectPlacement,
   onSelectCreatif,
   onOpenTaxonomyMenu,
-  onSaveComment // AJOUTE CETTE LIGNE
-
+  onSaveComment
 }) => {
   const { t } = useTranslation();
+  
+  // ✅ Sortable pour réorganiser avec autres tactiques
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: `tactique-${tactique.id}` });
+
+  // ✅ NOUVEAU : Droppable pour accepter des placements
+  const {
+    setNodeRef: setDroppableRef,
+    isOver
+  } = useDroppable({
+    id: `tactique-${tactique.id}`,
+    data: {
+      type: 'tactique',
+      accepts: ['placement'], // ✅ Accepte les placements
+      tactiqueId: tactique.id,
+      sectionId
+    }
+  });
+
+  // ✅ Combiner les deux refs
+  const setNodeRef = (node: HTMLElement | null) => {
+    setSortableRef(node);
+    setDroppableRef(node);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -589,13 +631,11 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
       if (onSaveComment) {
         await onSaveComment(sectionId, tactique.id, commentText);
         setCommentModalOpen(false);
-        // ✅ L'état sera automatiquement synchronisé par useEffect
       } else {
         console.error('onSaveComment function not provided');
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du commentaire:', error);
-      // ✅ En cas d'erreur, remettre la valeur originale
       setCommentText(tactique.TC_Comment || '');
     }
   };
@@ -604,7 +644,6 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
     setCommentText(tactique.TC_Comment || '');
     setCommentModalOpen(false);
   };
-  
 
   useEffect(() => {
     const loadPartnerAndInventoryImages = async () => {
@@ -691,14 +730,15 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   // Créer les IDs des placements pour le SortableContext
   const placementIds = placements.map(placement => `placement-${placement.id}`);
 
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`border-b border-gray-100 last:border-b-0 pl-8 ${
         isDragging ? 'bg-white shadow-lg rounded opacity-50' : ''
-      } ${tactique.isSelected ? 'bg-indigo-50' : ''}`}
+      } ${tactique.isSelected ? 'bg-indigo-50' : ''} ${
+        isOver ? 'bg-green-50 ring-2 ring-green-300' : '' // ✅ Style de survol pour drop
+      }`}
       onMouseEnter={() => onHoverTactique({sectionId, tactiqueId: tactique.id})}
       onMouseLeave={() => onHoverTactique(null)}
     >
@@ -907,41 +947,38 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
       )}
 
       {/* Modal de commentaire */}
-{commentModalOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
-        {t('dndKit.tactiqueItem.commentModal.title')}
-      </h3>
-      <div className="mb-4">
-        
-        <textarea
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          rows={4}
-          placeholder={t('dndKit.tactiqueItem.commentModal.placeholder')}
-        />
-      </div>
-      <div className="flex justify-end space-x-3">
-        <button
-          onClick={handleCommentCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          onClick={handleCommentSave}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-        >
-          {t('common.save')}
-        </button>
-      </div>
+      {commentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              {t('dndKit.tactiqueItem.commentModal.title')}
+            </h3>
+            <div className="mb-4">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                rows={4}
+                placeholder={t('dndKit.tactiqueItem.commentModal.placeholder')}
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCommentCancel}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleCommentSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)}
-    </div>
-    
   );
-  
 };
