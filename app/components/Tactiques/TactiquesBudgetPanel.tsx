@@ -14,10 +14,12 @@
  * - Les frais tactiques sont maintenant multipliés par TC_Currency_Rate
  * - Ajout d'un indicateur de devise dans le header
  * - Cohérence du symbole de devise partout
+ * AMÉLIORÉ : Animations subtiles et transitions fluides
  */
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CurrencyDollarIcon,
   ChartPieIcon,
@@ -48,6 +50,62 @@ interface TactiquesBudgetPanelProps {
 type DisplayScope = 'currentTab' | 'allTabs';
 type PanelTab = 'totals' | 'indicators';
 
+const subtleEase: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+
+const panelVariants = {
+  initial: { opacity: 0, x: 20 },
+  animate: { 
+    opacity: 1, 
+    x: 0,
+    transition: { duration: 0.4, ease: subtleEase }
+  }
+};
+
+const sectionVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.3, ease: subtleEase }
+  },
+  exit: { 
+    opacity: 0, 
+    y: -5,
+    transition: { duration: 0.2, ease: subtleEase }
+  }
+};
+
+const expandVariants = {
+  initial: { height: 0, opacity: 0 },
+  animate: { 
+    height: "auto", 
+    opacity: 1,
+    transition: { duration: 0.3, ease: subtleEase }
+  },
+  exit: { 
+    height: 0, 
+    opacity: 0,
+    transition: { duration: 0.25, ease: subtleEase }
+  }
+};
+
+const buttonVariants = {
+  hover: { 
+    scale: 1.02, 
+    transition: { duration: 0.2, ease: subtleEase } 
+  },
+  tap: { scale: 0.98 }
+};
+
+const donutVariants = {
+  initial: { scale: 0.8, opacity: 0 },
+  animate: { 
+    scale: 1, 
+    opacity: 1,
+    transition: { duration: 0.4, ease: subtleEase, delay: 0.1 }
+  }
+};
+
 /**
  * Interface pour les frais personnalisés du client
  */
@@ -60,11 +118,7 @@ interface CustomClientFee {
 /**
  * Composant DonutChart.
  * Affiche un graphique en forme de beignet pour représenter des proportions.
- *
- * @param {object} props - Les propriétés du composant.
- * @param {Array<{ name: string; value: number; color: string }>} props.data - Les données à afficher dans le graphique, incluant le nom, la valeur et la couleur.
- * @param {number} [props.size=120] - La taille (largeur et hauteur) du graphique en pixels.
- * @returns {React.FC} Le composant DonutChart.
+ * AMÉLIORÉ : Avec animations d'apparition
  */
 interface DonutChartProps {
   data: Array<{ name: string; value: number; color: string }>;
@@ -77,12 +131,15 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
   
   if (total === 0) {
     return (
-      <div 
+      <motion.div
+        variants={donutVariants}
+        initial="initial"
+        animate="animate"
         className="flex items-center justify-center rounded-full bg-gray-100"
         style={{ width: size, height: size }}
       >
         <span className="text-xs text-gray-500">{t('donutChart.noData')}</span>
-      </div>
+      </motion.div>
     );
   }
 
@@ -107,7 +164,13 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
   });
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <motion.div
+      variants={donutVariants}
+      initial="initial"
+      animate="animate"
+      className="relative"
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="transform -rotate-90">
         <circle
           cx={size / 2}
@@ -119,7 +182,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
         />
         
         {pathData.map((item, index) => (
-          <circle
+          <motion.circle
             key={index}
             cx={size / 2}
             cy={size / 2}
@@ -130,39 +193,39 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, size = 120 }) => {
             strokeDasharray={item.strokeDasharray}
             strokeDashoffset={item.strokeDashoffset}
             strokeLinecap="round"
-            className="transition-all duration-300"
+            initial={{ strokeDasharray: `0 ${circumference}` }}
+            animate={{ strokeDasharray: item.strokeDasharray }}
+            transition={{ duration: 0.8, ease: subtleEase, delay: index * 0.1 }}
           />
         ))}
       </svg>
       
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-lg font-bold text-gray-900">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.4, ease: subtleEase, delay: 0.3 }}
+          className="text-lg font-bold text-gray-900"
+        >
           {data.length}
-        </div>
-        <div className="text-xs text-gray-500">
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, ease: subtleEase, delay: 0.4 }}
+          className="text-xs text-gray-500"
+        >
           {t('donutChart.sections')}
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
 /**
  * Composant BudgetTotalsView.
  * Affiche un aperçu détaillé des totaux budgétaires pour une campagne.
- * Permet de basculer entre les données de l'onglet actuel et celles de tous les onglets.
- *
- * @param {object} props - Les propriétés du composant.
- * @param {Campaign} props.selectedCampaign - La campagne actuellement sélectionnée.
- * @param {Section[]} props.sections - Les sections de l'onglet actuel.
- * @param {{ [sectionId: string]: Tactique[] }} props.tactiques - Les tactiques de l'onglet actuel, regroupées par ID de section.
- * @param {Onglet[]} props.onglets - La liste de tous les onglets de la campagne.
- * @param {(amount: number) => string} props.formatCurrency - Fonction utilitaire pour formater les montants en devises.
- * @param {ClientFee[]} props.clientFees - Les frais clients applicables.
- * @param {DisplayScope} props.displayScope - La portée d'affichage actuelle ('currentTab' ou 'allTabs').
- * @param {(scope: DisplayScope) => void} props.setDisplayScope - Fonction pour définir la portée d'affichage.
- * @param {ClientInfo | null} props.clientInfo - Informations du client pour les frais personnalisés.
- * @returns {React.FC} Le composant BudgetTotalsView.
+ * AMÉLIORÉ : Avec animations et transitions fluides
  */
 interface BudgetTotalsViewProps {
   selectedCampaign: Campaign;
@@ -201,15 +264,13 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId } = useSelection();
 
-  /**
-   * Calcule les frais personnalisés du client à partir des données de campagne et client
-   */
+  // ... (toute la logique métier reste identique)
+  
   const customClientFees = useMemo((): CustomClientFee[] => {
     if (!clientInfo || !selectedCampaign) return [];
 
     const fees: CustomClientFee[] = [];
     
-    // Traiter les 3 frais personnalisés possibles
     for (let i = 1; i <= 3; i++) {
       const labelKey = `CL_Custom_Fee_${i}` as keyof ClientInfo;
       const amountKey = `CA_Custom_Fee_${i}` as keyof Campaign;
@@ -217,7 +278,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
       const label = clientInfo[labelKey] as string;
       const amount = selectedCampaign[amountKey] as number;
       
-      // Afficher seulement si on a un label ET un montant > 0
       if (label && label.trim() !== '' && amount && amount > 0) {
         fees.push({
           label: label.trim(),
@@ -230,12 +290,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     return fees;
   }, [clientInfo, selectedCampaign]);
 
-  /**
-   * Charge les données de toutes les sections et tactiques de tous les onglets.
-   * Cette fonction est appelée lorsque l'utilisateur sélectionne l'option "Tous les onglets".
-   *
-   * @returns {Promise<void>} Une promesse qui se résout une fois les données chargées.
-   */
   const loadAllTabsData = useCallback(async () => {
     if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || onglets.length === 0) {
       return;
@@ -301,19 +355,14 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     }
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, onglets, t]);
 
-  /**
-   * Effet de bord qui déclenche le chargement des données de tous les onglets
-   * lorsque le mode d'affichage passe à 'allTabs' et que les données ne sont pas déjà chargées.
-   */
   useEffect(() => {
     if (displayScope === 'allTabs' && !allTabsData && !isLoadingAllTabs) {
       loadAllTabsData();
     }
   }, [displayScope, allTabsData, isLoadingAllTabs, loadAllTabsData]);
 
-  /**
-   * Retourne les sections filtrées en fonction de la portée d'affichage sélectionnée.
-   */
+  // ... (toute la logique de calcul reste identique)
+  
   const filteredSections = useMemo(() => {
     if (displayScope === 'currentTab') {
       return sections;
@@ -322,9 +371,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     }
   }, [sections, displayScope, allTabsData]);
 
-  /**
-   * Retourne les tactiques filtrées en fonction de la portée d'affichage sélectionnée.
-   */
   const filteredTactiques = useMemo(() => {
     if (displayScope === 'currentTab') {
       return tactiques;
@@ -333,9 +379,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     }
   }, [tactiques, displayScope, allTabsData]);
 
-  /**
-   * Retourne toutes les tactiques pertinentes pour la portée d'affichage sélectionnée.
-   */
   const allTactiquesInScope = useMemo(() => {
     const relevantTactiqueIds = new Set<string>();
     filteredSections.forEach(section => {
@@ -347,10 +390,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     return Object.values(filteredTactiques).flat().filter(t => relevantTactiqueIds.has(t.id));
   }, [filteredSections, filteredTactiques]);
 
-  /**
-   * Calcule les totaux budgétaires (budget média, bonification, frais tactiques, frais personnalisés, budget client).
-   * MISE À JOUR : Les frais tactiques sont maintenant convertis en devise de référence.
-   */
   const calculateTotals = useCallback(() => {
     let totalMediaBudgetInput = 0;
     let totalMediaBudgetWithBonification = 0;
@@ -359,14 +398,12 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     
     const rawFeeTotals: { [key: string]: number } = {};
 
-    // Calculs des tactiques (existant + conversion des frais)
     allTactiquesInScope.forEach(tactique => {
       totalMediaBudgetInput += tactique.TC_Media_Budget_RefCurrency || 0; 
       totalMediaBudgetWithBonification += (tactique as any).TC_Media_Budget_RefCurrency || 0;
       totalClientBudget += (tactique as any).TC_Client_Budget_RefCurrency || 0;
       totalBonification += (tactique as any).TC_Bonification || 0;
 
-      // NOUVEAU : Conversion des frais tactiques en devise de référence
       const currencyRate = (tactique as any).TC_Currency_Rate || 1;
       
       for (let i = 1; i <= 5; i++) {
@@ -377,17 +414,13 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     });
 
     const totalTactiqueFees = Object.values(rawFeeTotals).reduce((sum, current) => sum + current, 0);
-    
-    // Calcul des frais personnalisés du client (restent en devise de référence)
     const totalCustomClientFees = customClientFees.reduce((sum, fee) => sum + fee.amount, 0);
-    
-    // Ajout des frais personnalisés au budget client total
     const finalClientBudget = totalClientBudget + totalCustomClientFees;
 
     return {
       totalMediaBudgetInput,
       totalMediaBudgetWithBonification,
-      totalClientBudget: finalClientBudget, // Inclut maintenant les frais personnalisés
+      totalClientBudget: finalClientBudget,
       totalBonification,
       rawFeeTotals,
       totalTactiqueFees,
@@ -396,14 +429,8 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     };
   }, [allTactiquesInScope, customClientFees]);
 
-  /**
-   * Les totaux budgétaires calculés, mis en cache avec useMemo.
-   */
   const totals = useMemo(() => calculateTotals(), [calculateTotals]);
 
-  /**
-   * Calcule les budgets par section et leurs pourcentages.
-   */
   const sectionBudgets = useMemo(() => {
     const budgets: { name: string; amount: number; percentage: number; color: string; ongletName?: string }[] = [];
     let grandTotalForPercentages = 0;
@@ -425,9 +452,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
     return budgets.sort((a, b) => b.amount - a.amount);
   }, [filteredSections, selectedCampaign, filteredTactiques, totals.totalClientBudget, totals.totalMediaBudgetInput]);
 
-  /**
-   * Récupère le nom d'un frais tactique à partir de sa clé.
-   */
   const getFeeNameByKey = useCallback((feeKey: string) => {
     const match = feeKey.match(/TC_Fee_(\d+)_Value/);
     if (!match) return feeKey;
@@ -451,77 +475,103 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   const difference = selectedCampaign.CA_Budget - totals.totalClientBudget;
 
   return (
-    <div className="space-y-4">
+    <motion.div variants={sectionVariants} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {t('budgetPanel.displayBudgetFor')}
         </label>
         <div className="flex rounded-md shadow-sm">
-          <button
+          <motion.button
+            variants={buttonVariants}
+            whileHover="hover"
+            whileTap="tap"
             type="button"
             onClick={() => setDisplayScope('currentTab')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300 transition-colors
               ${displayScope === 'currentTab' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
           >
             {t('budgetPanel.currentTab')}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            variants={buttonVariants}
+            whileHover="hover"
+            whileTap="tap"
             type="button"
             onClick={() => setDisplayScope('allTabs')}
             disabled={isLoadingAllTabs}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border border-gray-300 border-l-0
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border border-gray-300 border-l-0 transition-colors
               ${displayScope === 'allTabs' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}
               ${isLoadingAllTabs ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoadingAllTabs ? t('common.loading') : t('budgetPanel.allTabs')}
-          </button>
+          </motion.button>
         </div>
         
-        {isLoadingAllTabs && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-            {t('budgetPanel.loadingAllTabsData')}
-          </div>
-        )}
-        
-        {allTabsError && (
-          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-            ❌ {allTabsError}
-            <button
-              onClick={loadAllTabsData}
-              className="ml-2 text-red-800 underline hover:no-underline"
+        <AnimatePresence>
+          {isLoadingAllTabs && (
+            <motion.div
+              variants={sectionVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700"
             >
-              {t('budgetPanel.retry')}
-            </button>
-          </div>
-        )}
+              {t('budgetPanel.loadingAllTabsData')}
+            </motion.div>
+          )}
+          
+          {allTabsError && (
+            <motion.div
+              variants={sectionVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700"
+            >
+              ❌ {allTabsError}
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={loadAllTabsData}
+                className="ml-2 text-red-800 underline hover:no-underline"
+              >
+                {t('budgetPanel.retry')}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="border border-gray-200 rounded-lg">
+      <motion.div variants={sectionVariants} className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
           <h4 className="text-sm font-semibold text-gray-800">
             {t('budgetPanel.totals')} {displayScope === 'allTabs' ? t('budgetPanel.allTabsParenthesis') : t('budgetPanel.currentTabParenthesis')}
           </h4>
         </div>
         
-          
         <div className="p-3 space-y-2">
-
-        <div className="flex justify-between items-center text-sm">
+          <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">{t('budgetTotals.mediaBudget')}:</span>
             <span className="font-medium">{formatCurrency(totals.totalMediaBudgetWithBonification)}</span>
           </div>
           
+          <AnimatePresence>
+            {totals.customClientFees.map((fee) => (
+              <motion.div
+                key={fee.key}
+                variants={sectionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="flex justify-between items-center text-sm"
+              >
+                <span className="text-gray-600">{fee.label}:</span>
+                <span className="font-medium text-purple-700">+{formatCurrency(fee.amount)}</span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
           
-          {/* Affichage des frais personnalisés du client */}
-          {totals.customClientFees.map((fee) => (
-            <div key={fee.key} className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">{fee.label}:</span>
-              <span className="font-medium text-purple-700">+{formatCurrency(fee.amount)}</span>
-            </div>
-          ))}
-          
-          
-  
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">{t('budgetTotals.tacticFees')}:</span>
             <span className="font-medium text-blue-700">+{formatCurrency(totals.totalTactiqueFees)}</span>
@@ -531,7 +581,6 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             <span>{formatCurrency(totals.totalClientBudget)}</span>
           </div>
           <div className="flex justify-between items-center text-sm pt-2" style={{ borderTop: '1px dashed #e5e7eb' }}>
-
             <span className="text-gray-600">{t('budgetTotals.campaignBudget')}:</span>
             <span className="font-medium">{formatCurrency(selectedCampaign.CA_Budget)}</span>
           </div>
@@ -542,65 +591,109 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="border border-gray-200 rounded-lg">
-        <button
+      <motion.div variants={sectionVariants} className="border border-gray-200 rounded-lg">
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
           className="flex justify-between items-center w-full p-3 bg-gray-50 border-b border-gray-200 focus:outline-none"
           onClick={() => setShowFeeDetails(!showFeeDetails)}
         >
           <h4 className="text-sm font-semibold text-gray-800">{t('feeDetails.title')}</h4>
-          {showFeeDetails ? (
-            <ChevronUpIcon className="h-4 w-4 text-gray-500" />
-          ) : (
+          <motion.div
+            animate={{ rotate: showFeeDetails ? 180 : 0 }}
+            transition={{ duration: 0.2, ease: subtleEase }}
+          >
             <ChevronDownIcon className="h-4 w-4 text-gray-500" />
-          )}
-        </button>
-        {showFeeDetails && (
-          <div className="p-3 space-y-2">
-            {/* Affichage détaillé des frais personnalisés */}
-            {totals.customClientFees.length > 0 && (
-              <>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {t('feeDetails.campaignFees')}
-                </div>
-                {totals.customClientFees.map((fee) => (
-                  <div key={fee.key} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">{fee.label}:</span>
-                    <span className="font-medium text-purple-700">{formatCurrency(fee.amount)}</span>
-                  </div>
-                ))}
+          </motion.div>
+        </motion.button>
+        <AnimatePresence>
+          {showFeeDetails && (
+            <motion.div
+              variants={expandVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="overflow-hidden"
+            >
+              <div className="p-3 space-y-2">
+                <AnimatePresence>
+                  {totals.customClientFees.length > 0 && (
+                    <>
+                      <motion.div
+                        variants={sectionVariants}
+                        className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"
+                      >
+                        {t('feeDetails.campaignFees')}
+                      </motion.div>
+                      {totals.customClientFees.map((fee) => (
+                        <motion.div
+                          key={fee.key}
+                          variants={sectionVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          className="flex justify-between items-center text-sm"
+                        >
+                          <span className="text-gray-600">{fee.label}:</span>
+                          <span className="font-medium text-purple-700">{formatCurrency(fee.amount)}</span>
+                        </motion.div>
+                      ))}
+                      
+                      {Object.entries(totals.rawFeeTotals).filter(([, amount]) => amount > 0).length > 0 && (
+                        <motion.div
+                          variants={sectionVariants}
+                          className="border-t border-gray-100 pt-2 mt-2"
+                        >
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                            {t('feeDetails.tacticFeesHeader')}
+                          </div>
+                        </motion.div>
+                      )}
+                    </>
+                  )}
+                </AnimatePresence>
                 
-                {Object.entries(totals.rawFeeTotals).filter(([, amount]) => amount > 0).length > 0 && (
-                  <div className="border-t border-gray-100 pt-2 mt-2">
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      {t('feeDetails.tacticFeesHeader')}
-                    </div>
-                  </div>
+                <AnimatePresence>
+                  {Object.entries(totals.rawFeeTotals)
+                      .filter(([, amount]) => amount > 0)
+                      .map(([feeKey, amount]) => (
+                      <motion.div
+                        key={feeKey}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        className="flex justify-between items-center text-sm"
+                      >
+                          <span className="text-gray-600">{getFeeNameByKey(feeKey)}:</span>
+                          <span className="font-medium text-blue-700">{formatCurrency(amount)}</span>
+                      </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                {totals.customClientFees.length === 0 && 
+                 (Object.keys(totals.rawFeeTotals).length === 0 || Object.values(totals.rawFeeTotals).every(amount => amount === 0)) && (
+                    <motion.p
+                      variants={sectionVariants}
+                      className="text-sm text-gray-500 italic"
+                    >
+                      {t('feeDetails.noFeesApplied')}
+                    </motion.p>
                 )}
-              </>
-            )}
-            
-            {/* Frais tactiques avec conversion en devise de référence */}
-            {Object.entries(totals.rawFeeTotals)
-                .filter(([, amount]) => amount > 0)
-                .map(([feeKey, amount]) => (
-                <div key={feeKey} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">{getFeeNameByKey(feeKey)}:</span>
-                    <span className="font-medium text-blue-700">{formatCurrency(amount)}</span>
-                </div>
-            ))}
-            
-            {totals.customClientFees.length === 0 && 
-             (Object.keys(totals.rawFeeTotals).length === 0 || Object.values(totals.rawFeeTotals).every(amount => amount === 0)) && (
-                <p className="text-sm text-gray-500 italic">{t('feeDetails.noFeesApplied')}</p>
-            )}
-          </div>
-        )}
-      </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      <div className="border border-gray-200 rounded-lg">
-        <button
+      <motion.div variants={sectionVariants} className="border border-gray-200 rounded-lg">
+        <motion.button
+          variants={buttonVariants}
+          whileHover="hover"
+          whileTap="tap"
           className="flex justify-between items-center w-full p-3 bg-gray-50 border-b border-gray-200 focus:outline-none"
           onClick={() => setShowSectionBreakdown(!showSectionBreakdown)}
         >
@@ -609,84 +702,107 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
           </h4>
           <div className="flex items-center gap-2">
             <ChartPieIcon className="h-4 w-4 text-gray-500" />
-            {showSectionBreakdown ? (
-              <ChevronUpIcon className="h-4 w-4 text-gray-500" />
-            ) : (
+            <motion.div
+              animate={{ rotate: showSectionBreakdown ? 180 : 0 }}
+              transition={{ duration: 0.2, ease: subtleEase }}
+            >
               <ChevronDownIcon className="h-4 w-4 text-gray-500" />
-            )}
+            </motion.div>
           </div>
-        </button>
-        {showSectionBreakdown && (
-          <div className="p-3">
-            {sectionBudgets.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex justify-center">
-                  <DonutChart 
-                    data={sectionBudgets.map(section => ({
-                      name: section.name,
-                      value: section.amount,
-                      color: section.color
-                    }))}
-                    size={100}
-                  />
-                </div>
-                
-                <div className="space-y-3">
-  {sectionBudgets.map(section => (
-    <div key={`${section.name}-${section.ongletName || 'current'}`} className="grid grid-cols-12 gap-2 items-center text-sm">
-      {/* Colonne 1-2: Indicateur de couleur */}
-      <div className="col-span-1 flex justify-start">
-        <span
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: section.color }}
-        ></span>
-      </div>
-      
-      {/* Colonne 3-6: Nom de la section */}
-      <div className="col-span-5">
-        <span className="text-gray-600">
-          {section.name}
-          {displayScope === 'allTabs' && section.ongletName && (
-            <span className="text-xs text-gray-400 ml-1">
-              ({section.ongletName})
-            </span>
-          )}
-          :
-        </span>
-      </div>
-      
-      {/* Colonne 7-9: Montant */}
-      <div className="col-span-3 text-right">
-        <span className="font-medium">
-          {formatCurrency(section.amount)}
-        </span>
-      </div>
-      
-      {/* Colonne 10-12: Pourcentage */}
-      <div className="col-span-3 text-right">
-        <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs">
-          {section.percentage.toFixed(1)}%
-        </span>
-      </div>
-    </div>
-  ))}
-</div>
+        </motion.button>
+        <AnimatePresence>
+          {showSectionBreakdown && (
+            <motion.div
+              variants={expandVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="overflow-hidden"
+            >
+              <div className="p-3">
+                {sectionBudgets.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-center">
+                      <DonutChart 
+                        data={sectionBudgets.map(section => ({
+                          name: section.name,
+                          value: section.amount,
+                          color: section.color
+                        }))}
+                        size={100}
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <AnimatePresence>
+                        {sectionBudgets.map((section, index) => (
+                          <motion.div
+                            key={`${section.name}-${section.ongletName || 'current'}`}
+                            variants={sectionVariants}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
+                            transition={{ delay: index * 0.05 }}
+                            className="grid grid-cols-12 gap-2 items-center text-sm"
+                          >
+                            <div className="col-span-1 flex justify-start">
+                              <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ duration: 0.3, ease: subtleEase, delay: index * 0.05 }}
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: section.color }}
+                              ></motion.span>
+                            </div>
+                            
+                            <div className="col-span-5">
+                              <span className="text-gray-600">
+                                {section.name}
+                                {displayScope === 'allTabs' && section.ongletName && (
+                                  <span className="text-xs text-gray-400 ml-1">
+                                    ({section.ongletName})
+                                  </span>
+                                )}
+                                :
+                              </span>
+                            </div>
+                            
+                            <div className="col-span-3 text-right">
+                              <span className="font-medium">
+                                {formatCurrency(section.amount)}
+                              </span>
+                            </div>
+                            
+                            <div className="col-span-3 text-right">
+                              <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs">
+                                {section.percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                ) : (
+                  <motion.p
+                    variants={sectionVariants}
+                    className="text-sm text-gray-500 italic"
+                  >
+                    {isLoadingAllTabs ? t('sectionBreakdown.loadingData') : t('sectionBreakdown.noSectionOrBudget')}
+                  </motion.p>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 italic">
-                {isLoadingAllTabs ? t('sectionBreakdown.loadingData') : t('sectionBreakdown.noSectionOrBudget')}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 };
 
 /**
  * Composant BudgetIndicatorsView.
- * Un composant de placeholder pour les futurs indicateurs de budget de campagne.
+ * AMÉLIORÉ : Avec animations d'état vide
  */
 interface BudgetIndicatorsViewProps {
   selectedCampaign: Campaign;
@@ -703,30 +819,52 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
-      <div className="border border-gray-200 rounded-lg">
+    <motion.div variants={sectionVariants} className="space-y-4">
+      <motion.div variants={sectionVariants} className="border border-gray-200 rounded-lg">
         <div className="p-3 bg-gray-50 border-b border-gray-200">
           <h4 className="text-sm font-semibold text-gray-800">{t('budgetIndicators.title')}</h4>
         </div>
         <div className="p-8 text-center">
-          <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('budgetIndicators.header')}</h3>
-          <p className="text-gray-500 mb-4">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, ease: subtleEase }}
+          >
+            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          </motion.div>
+          <motion.h3
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: subtleEase, delay: 0.1 }}
+            className="text-lg font-medium text-gray-900 mb-2"
+          >
+            {t('budgetIndicators.header')}
+          </motion.h3>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: subtleEase, delay: 0.2 }}
+            className="text-gray-500 mb-4"
+          >
             {t('budgetIndicators.description')}
-          </p>
-          <div className="text-sm text-gray-400">
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, ease: subtleEase, delay: 0.3 }}
+            className="text-sm text-gray-400"
+          >
             {t('budgetIndicators.underConstruction')}
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
 /**
  * Composant principal TactiquesBudgetPanel.
- * Affiche le panneau latéral du budget pour les tactiques d'une campagne sélectionnée.
- * Il gère la sélection de l'onglet (totaux ou indicateurs) et la portée d'affichage du budget.
+ * AMÉLIORÉ : Avec animations d'entrée et transitions fluides
  */
 const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   selectedCampaign,
@@ -741,31 +879,18 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
   const [activeTab, setActiveTab] = useState<PanelTab>('totals');
   const [displayScope, setDisplayScope] = useState<DisplayScope>('currentTab');
   
-  // État pour les informations client
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [loadingClientInfo, setLoadingClientInfo] = useState(false);
   const [clientInfoError, setClientInfoError] = useState<string | null>(null);
 
   const { selectedClient } = useClient();
 
-  /**
- * Charge les données de la campagne pour récupérer la devise (CA_Currency).
- */
-const { currency, loading: campaignLoading } = useCampaignData();
+  const { currency, loading: campaignLoading } = useCampaignData();
 
-/**
- * Fonction de formatage des montants avec la devise de la campagne.
- * Remplace la prop formatCurrency pour utiliser la bonne devise.
- * @param {number} amount - Le montant à formater.
- * @returns {string} Le montant formaté avec le bon symbole de devise.
- */
-const formatCurrencyWithCampaignCurrency = (amount: number): string => {
-  return formatCurrencyAmount(amount, currency);
-};
+  const formatCurrencyWithCampaignCurrency = (amount: number): string => {
+    return formatCurrencyAmount(amount, currency);
+  };
 
-  /**
-   * Charge les informations du client pour récupérer les labels des frais personnalisés
-   */
   const loadClientInfo = useCallback(async () => {
     if (!selectedClient?.clientId) return;
 
@@ -785,95 +910,144 @@ const formatCurrencyWithCampaignCurrency = (amount: number): string => {
     }
   }, [selectedClient?.clientId, t]);
 
-  /**
-   * Effet pour charger les informations client quand le client sélectionné change
-   */
   useEffect(() => {
     loadClientInfo();
   }, [loadClientInfo]);
 
   if (!selectedCampaign) {
     return (
-      <div className="w-80 bg-white border-l border-gray-200 p-4 text-center text-gray-500">
+      <motion.div
+        variants={panelVariants}
+        initial="initial"
+        animate="animate"
+        className="w-80 bg-white border-l border-gray-200 p-4 text-center text-gray-500"
+      >
         {t('budgetPanel.selectCampaign')}
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-lg overflow-hidden">
-      {/* NOUVEAU : Header avec indicateur de devise */}
-      <div className="p-4 border-b border-gray-200 bg-indigo-50">
+    <motion.div
+      variants={panelVariants}
+      initial="initial"
+      animate="animate"
+      className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-lg overflow-hidden"
+    >
+      {/* Header avec indicateur de devise */}
+      <motion.div variants={sectionVariants} className="p-4 border-b border-gray-200 bg-indigo-50">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-gray-900">{t('budgetPanel.header')}</h3>
-          {selectedCampaign.CA_Currency && (
-            <div className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md text-xs font-medium">
-              <CurrencyDollarIcon className="h-3 w-3" />
-              {selectedCampaign.CA_Currency}
-            </div>
-          )}
+          <AnimatePresence>
+            {selectedCampaign.CA_Currency && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md text-xs font-medium"
+              >
+                <CurrencyDollarIcon className="h-3 w-3" />
+                {selectedCampaign.CA_Currency}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         <div className="flex rounded-md shadow-sm">
-          <button
-            type="button"
-            onClick={() => setActiveTab('totals')}
-            className={`flex-1 px-3 py-2 text-sm font-medium rounded-l-md border border-gray-300 flex items-center justify-center
-              ${activeTab === 'totals' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-          >
-            <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-            {t('budgetPanel.totalsTab')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('indicators')}
-            className={`flex-1 px-3 py-2 text-sm font-medium rounded-r-md border border-gray-300 border-l-0 flex items-center justify-center
-              ${activeTab === 'indicators' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-          >
-            <ChartBarIcon className="h-4 w-4 mr-1" />
-            {t('budgetPanel.indicatorsTab')}
-          </button>
+          {[
+            { key: 'totals' as PanelTab, icon: CurrencyDollarIcon, label: t('budgetPanel.totalsTab') },
+            { key: 'indicators' as PanelTab, icon: ChartBarIcon, label: t('budgetPanel.indicatorsTab') }
+          ].map(({ key, icon: Icon, label }) => (
+            <motion.button
+              key={key}
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`
+                flex-1 px-3 py-2 text-sm font-medium border border-gray-300 
+                flex items-center justify-center transition-colors
+                ${key === 'totals' ? 'rounded-l-md' : 'rounded-r-md border-l-0'}
+                ${activeTab === key 
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                }
+              `}
+            >
+              <Icon className="h-4 w-4 mr-1" />
+              {label}
+            </motion.button>
+          ))}
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {/* Affichage d'erreur client info si nécessaire */}
-        {clientInfoError && (
-          <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
-            ⚠️ {clientInfoError}
-            <button
-              onClick={loadClientInfo}
-              className="ml-2 text-amber-800 underline hover:no-underline"
+        <AnimatePresence>
+          {clientInfoError && (
+            <motion.div
+              variants={sectionVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700"
             >
-              {t('budgetPanel.retry')}
-            </button>
-          </div>
-        )}
+              ⚠️ {clientInfoError}
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={loadClientInfo}
+                className="ml-2 text-amber-800 underline hover:no-underline"
+              >
+                {t('budgetPanel.retry')}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {activeTab === 'totals' && (
-          <BudgetTotalsView
-            selectedCampaign={selectedCampaign}
-            sections={sections}
-            tactiques={tactiques}
-            onglets={onglets}
-            formatCurrency={formatCurrencyWithCampaignCurrency}
-            clientFees={clientFees}
-            displayScope={displayScope}
-            setDisplayScope={setDisplayScope}
-            clientInfo={clientInfo}
-          />
-        )}
-        
-        {activeTab === 'indicators' && (
-          <BudgetIndicatorsView
-            selectedCampaign={selectedCampaign}
-            sections={sections}
-            tactiques={tactiques}
-            formatCurrency={formatCurrency}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {activeTab === 'totals' && (
+            <motion.div
+              key="totals"
+              variants={sectionVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <BudgetTotalsView
+                selectedCampaign={selectedCampaign}
+                sections={sections}
+                tactiques={tactiques}
+                onglets={onglets}
+                formatCurrency={formatCurrencyWithCampaignCurrency}
+                clientFees={clientFees}
+                displayScope={displayScope}
+                setDisplayScope={setDisplayScope}
+                clientInfo={clientInfo}
+              />
+            </motion.div>
+          )}
+          
+          {activeTab === 'indicators' && (
+            <motion.div
+              key="indicators"
+              variants={sectionVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <BudgetIndicatorsView
+                selectedCampaign={selectedCampaign}
+                sections={sections}
+                tactiques={tactiques}
+                formatCurrency={formatCurrency}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

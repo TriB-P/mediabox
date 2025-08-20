@@ -9,6 +9,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTranslation } from '../contexts/LanguageContext';
 import ProtectedRoute from '../components/Others/ProtectedRoute';
 import AuthenticatedLayout from '../components/Others/AuthenticatedLayout';
@@ -22,6 +23,48 @@ import ClientLists from '../components/Client/ClientLists';
 import ClientCustomCodes from '../components/Client/ClientCustomCodes';
 import ClientTemplates from '../components/Client/ClientTemplates';
 
+const ease: number[] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+    },
+  },
+};
+
+const cardVariants: Variants = {
+  initial: { opacity: 0, scale: 0.95 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    transition: {
+      duration: 0.3,
+    },
+  },
+};
 
 /**
  * Concatenates CSS class names, filtering out invalid values.
@@ -58,12 +101,24 @@ export default function ClientConfigPage(): JSX.Element {
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('clientConfig.header.title')}</h1>
+        <motion.div
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+        >
+          <motion.h1
+            variants={itemVariants}
+            className="text-2xl font-bold text-gray-900 mb-6"
+          >
+            {t('clientConfig.header.title')}
+          </motion.h1>
 
-          <div className="flex flex-wrap rounded-xl bg-gray-100 p-1 mb-6">
+          <motion.div
+            variants={itemVariants}
+            className="flex flex-wrap rounded-xl bg-gray-100 p-1 mb-6"
+          >
             {tabs.map((tab, index) => (
-              <button
+              <motion.button
                 key={tab.name}
                 onClick={() => setSelectedTab(index)}
                 className={classNames(
@@ -73,16 +128,28 @@ export default function ClientConfigPage(): JSX.Element {
                     ? 'bg-white shadow text-indigo-700'
                     : 'text-gray-600 hover:bg-white/[0.12] hover:text-gray-700'
                 )}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
               >
                 {tab.name}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
 
-          <div className="rounded-xl focus:outline-none">
-            {tabs[selectedTab].component()}
-          </div>
-        </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedTab}
+              variants={cardVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="rounded-xl focus:outline-none"
+            >
+              {tabs[selectedTab].component()}
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
       </AuthenticatedLayout>
     </ProtectedRoute>
   );

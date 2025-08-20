@@ -9,6 +9,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, Variants } from 'framer-motion';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { useTranslation } from '../contexts/LanguageContext';
 import { redirect } from 'next/navigation';
@@ -17,6 +18,46 @@ import UsersTab from '../components/Admin/UsersTab';
 import PermissionsTab from '../components/Admin/PermissionsTab';
 import { Users, Shield } from 'lucide-react';
 
+const ease = [0.25, 0.1, 0.25, 1] as const;
+
+const pageContainerVariants: Variants = {
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const blockVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease,
+    },
+  },
+};
+
+const contentVariants: Variants = {
+  initial: { opacity: 0, scale: 0.95 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease,
+    },
+  },
+};
+
+
+const buttonVariants: Variants = {
+  hover: { scale: 1.05 },
+  tap: { scale: 0.95 },
+};
 
 /**
  * Affiche la page d'administration avec des onglets pour gérer les utilisateurs et les permissions.
@@ -64,8 +105,16 @@ export default function AdminPage() {
     <div className="flex h-screen bg-gray-50">
       <Navigation />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="bg-white shadow-sm border-b border-gray-200">
+      <motion.div
+        className="flex-1 flex flex-col overflow-hidden"
+        variants={pageContainerVariants}
+        initial="initial"
+        animate="animate"
+      >
+        <motion.div 
+          className="bg-white shadow-sm border-b border-gray-200"
+          variants={blockVariants}
+        >
           <div className="px-6 py-4">
             <h1 className="text-2xl font-bold text-gray-900">{t('admin.title')}</h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -78,7 +127,7 @@ export default function AdminPage() {
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
-                  <button
+                  <motion.button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center space-x-2 py-3 px-1 border-b-2 font-medium text-sm ${
@@ -86,23 +135,29 @@ export default function AdminPage() {
                         ? 'border-indigo-500 text-indigo-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
                   >
                     <Icon className="h-5 w-5" />
                     <span>{tab.name}</span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </nav>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="flex-1 overflow-auto">
+        <motion.div 
+          className="flex-1 overflow-auto"
+          variants={contentVariants}
+        >
           <div className="p-6">
             {activeTab === 'users' && <UsersTab />}
             {activeTab === 'permissions' && <PermissionsTab />}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

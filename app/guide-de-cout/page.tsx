@@ -7,6 +7,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { CostGuide, CostGuideEntry } from '../types/costGuide';
 import {
   getCostGuides,
@@ -34,6 +35,61 @@ import CostGuideEntryTable from '../components/CostGuide/CostGuideEntryTable';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { useClient } from '../contexts/ClientContext';
 import { useTranslation } from '../contexts/LanguageContext';
+
+const ease = [0.25, 0.1, 0.25, 1] as const;
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease },
+  },
+};
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease },
+  },
+};
+
+const cardVariants: Variants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+        opacity: 1,
+        scale: 1,
+        transition: { duration: 0.4, ease },
+    },
+};
+
+const modalBackdropVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 },
+};
+
+const modalContentVariants: Variants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { 
+        opacity: 1, 
+        scale: 1,
+        transition: { duration: 0.3, ease }
+    },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2, ease } },
+};
 
 /**
  * Composant principal de la page des guides de coûts.
@@ -348,7 +404,12 @@ export default function CostGuidePage() {
    * @returns {JSX.Element} Le composant du message d'avertissement.
    */
   const renderNoClientGuide = () => (
-    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md">
+    <motion.div 
+        className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <div className="flex">
         <div className="flex-shrink-0">
           <ExclamationCircleIcon className="h-5 w-5 text-amber-400" aria-hidden="true" />
@@ -359,12 +420,17 @@ export default function CostGuidePage() {
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <motion.div 
+        className="space-y-6"
+        initial="hidden"
+        animate="visible"
+        variants={pageVariants}
+    >
+      <motion.div className="flex justify-between items-center" variants={itemVariants}>
         <div>
           {!selectedGuide ? (
             <>
@@ -383,56 +449,67 @@ export default function CostGuidePage() {
         
         {!selectedGuide ? (
           isAdmin && (
-            <button
+            <motion.button
               onClick={() => setIsCreateModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               {t('costGuidePage.newGuideButton')}
-            </button>
+            </motion.button>
           )
         ) : (
-          <button
+          <motion.button
             onClick={handleBackToList}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             {isAdmin ? t('costGuidePage.backToListButton.admin') : t('costGuidePage.backToListButton.client')}
-          </button>
+          </motion.button>
         )}
-      </div>
+      </motion.div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <motion.div 
+            className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+        >
           {error}
-        </div>
+        </motion.div>
       )}
 
       {!isAdmin && !loading && guides.length === 0 && !selectedGuide && renderNoClientGuide()}
 
       {!selectedGuide && isAdmin && (
-        <>
+        <motion.div initial="hidden" animate="visible" variants={containerVariants}>
           {loading && !guides.length && (
-            <div className="text-center py-8">
+            <motion.div className="text-center py-8" variants={itemVariants}>
               <p className="text-gray-500">{t('costGuidePage.loadingGuides')}</p>
-            </div>
+            </motion.div>
           )}
 
           {!loading && !guides.length && (
-            <div className="text-center py-8 bg-white rounded-lg shadow">
+            <motion.div className="text-center py-8 bg-white rounded-lg shadow" variants={cardVariants}>
               <p className="text-gray-500">
                 {t('costGuidePage.noGuidesFound')}
               </p>
-            </div>
+            </motion.div>
           )}
 
           {guides.length > 0 && (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <ul className="divide-y divide-gray-200">
+            <motion.div className="bg-white rounded-lg shadow overflow-hidden" variants={cardVariants}>
+              <motion.ul 
+                className="divide-y divide-gray-200"
+                variants={containerVariants}
+              >
                 {guides.map((guide) => (
-                  <li key={guide.id} className="px-6 py-4 hover:bg-gray-50">
+                  <motion.li key={guide.id} className="px-6 py-4 hover:bg-gray-50" variants={itemVariants}>
                     <div className="flex items-center justify-between">
-                      <div className="cursor-pointer" onClick={() => loadGuideDetails(guide.id)}>
+                      <div className="cursor-pointer flex-1" onClick={() => loadGuideDetails(guide.id)}>
                         <h3 className="text-lg font-medium text-gray-900">
                           {guide.name}
                         </h3>
@@ -444,33 +521,44 @@ export default function CostGuidePage() {
                         
                       </div>
                       <div className="flex items-center space-x-4">
-                        <button
+                        <motion.button
                           onClick={() => handleDeleteGuide(guide.id)}
                           className="text-gray-400 hover:text-red-600 p-1"
                           title={t('costGuidePage.deleteButton')}
                           disabled={!isAdmin}
+                          whileHover={{ scale: 1.1, color: '#ef4444' }}
+                          whileTap={{ scale: 0.95 }}
                         >
                           <TrashIcon className="h-5 w-5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                           onClick={() => loadGuideDetails(guide.id)}
                           className="inline-flex items-center px-3 py-1 border border-transparent rounded text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                         >
                           <span className="mr-1">{t('costGuidePage.viewButton')}</span>
                           <ArrowRightIcon className="h-4 w-4" />
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
-                  </li>
+                  </motion.li>
                 ))}
-              </ul>
-            </div>
+              </motion.ul>
+            </motion.div>
           )}
-        </>
+        </motion.div>
       )}
 
+      <AnimatePresence>
       {selectedGuide && (
-        <>
+        <motion.div
+            key="guide-details"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={containerVariants}
+        >
           {loadingDetail && (
             <div className="text-center py-8">
               <p className="text-gray-500">{t('costGuidePage.loadingCostGuide')}</p>
@@ -479,7 +567,7 @@ export default function CostGuidePage() {
 
           {!loadingDetail && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
+              <motion.div className="flex items-center justify-between bg-white rounded-lg shadow px-6 py-4" variants={cardVariants}>
                 {isEditing ? (
                   <div className="flex-1">
                     <input
@@ -509,93 +597,114 @@ export default function CostGuidePage() {
                 <div className="flex items-center space-x-2">
                   {isEditing ? (
                     <>
-                      <button
+                      <motion.button
                         onClick={handleUpdateGuide}
                         className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
                         {t('costGuidePage.saveButton')}
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
                         onClick={() => {
                           setIsEditing(false);
                           setEditedName(selectedGuide.name);
                           setEditedDescription(selectedGuide.description);
                         }}
                         className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
                         {t('costGuidePage.cancelButton')}
-                      </button>
+                      </motion.button>
                     </>
                   ) : (
                     <>
                       {isAdmin && (
                         <>
-                          <button
+                          <motion.button
                             onClick={() => setIsEditing(true)}
                             className="text-gray-400 hover:text-indigo-600 p-2"
                             title={t('costGuidePage.modifyButton')}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                           >
                             <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button
+                          </motion.button>
+                          <motion.button
                             onClick={() => handleDeleteGuide(selectedGuide.id)}
                             className="text-gray-400 hover:text-red-600 p-2"
                             title={t('costGuidePage.deleteButton')}
+                             whileHover={{ scale: 1.1, color: '#ef4444' }}
+                             whileTap={{ scale: 0.9 }}
                           >
                             <TrashIcon className="h-5 w-5" />
-                          </button>
+                          </motion.button>
                         </>
                       )}
                     </>
                   )}
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="flex justify-between items-center">
+              <motion.div className="flex justify-between items-center" variants={itemVariants}>
                 <div className="flex items-center space-x-2">
-                  <button
+                  <motion.button
                     onClick={() => setViewMode('list')}
                     className={`flex items-center px-3 py-1.5 rounded ${
                       viewMode === 'list'
                         ? 'bg-indigo-100 text-indigo-700'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <DocumentTextIcon className="h-5 w-5 mr-1" />
                     {t('costGuidePage.hierarchicalViewButton')}
-                  </button>
+                  </motion.button>
 
                   {hasCostGuidePermission && (
-                  <button
+                  <motion.button
                     onClick={() => setViewMode('table')}
                     className={`flex items-center px-3 py-1.5 rounded ${
                       viewMode === 'table'
                         ? 'bg-indigo-100 text-indigo-700'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <TableCellsIcon className="h-5 w-5 mr-1" />
                     {t('costGuidePage.quickEditButton')}
-                  </button>)}
+                  </motion.button>)}
                 </div>
                 
                 {hasCostGuidePermission && (
-                  <button
+                  <motion.button
                     onClick={() => {
                       setSelectedEntry(null);
                       setFormPreset({});
                       setShowEntryForm(true);
                     }}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <PlusIcon className="h-5 w-5 mr-1" />
                     {t('costGuidePage.newEntryButton')}
-                  </button>
+                  </motion.button>
                 )}
-              </div>
+              </motion.div>
 
+              <AnimatePresence>
               {showEntryForm && hasCostGuidePermission && (
-                <div className="bg-white rounded-lg shadow p-6">
+                <motion.div 
+                    className="bg-white rounded-lg shadow p-6"
+                    initial={{ opacity: 0, height: 0, y: -20 }}
+                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -20 }}
+                    transition={{ duration: 0.4, ease }}
+                >
                   <CostGuideEntryForm
                     guideId={selectedGuide.id}
                     entry={selectedEntry}
@@ -612,9 +721,11 @@ export default function CostGuidePage() {
                       refreshEntries();
                     }}
                   />
-                </div>
+                </motion.div>
               )}
-
+              </AnimatePresence>
+                
+              <motion.div variants={itemVariants}>
               {viewMode === 'list' ? (
                 <CostGuideEntryList
                   entries={entries}
@@ -638,18 +749,19 @@ export default function CostGuidePage() {
                   readOnly={!hasCostGuidePermission}
                 />
               )}
-
+              </motion.div>
+              
               {entries.length === 0 && !showEntryForm && (
-                <div className="text-center py-8 bg-white rounded-lg shadow">
+                <motion.div className="text-center py-8 bg-white rounded-lg shadow" variants={itemVariants}>
                   <p className="text-gray-500">
                     {t('costGuidePage.noEntriesInGuide')} 
                     {hasCostGuidePermission ? t('costGuidePage.addFirstEntry') : ""}
                   </p>
-                </div>
+                </motion.div>
               )}
               
               {!hasCostGuidePermission && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md mt-4">
+                <motion.div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md mt-4" variants={itemVariants}>
                   <div className="flex">
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
@@ -657,16 +769,26 @@ export default function CostGuidePage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           )}
-        </>
+        </motion.div>
       )}
-
+      </AnimatePresence>
+      <AnimatePresence>
       {isCreateModalOpen && isAdmin && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <motion.div 
+            className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"
+            variants={modalBackdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+        >
+          <motion.div 
+            className="bg-white rounded-lg p-6 max-w-md w-full"
+            variants={modalContentVariants}
+          >
             <h2 className="text-xl font-bold mb-4">{t('costGuidePage.newCostGuideModal.title')}</h2>
             <div className="space-y-4">
               <div>
@@ -703,7 +825,7 @@ export default function CostGuidePage() {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => {
                   setIsCreateModalOpen(false);
@@ -711,10 +833,12 @@ export default function CostGuidePage() {
                   setNewGuideDescription('');
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 {t('costGuidePage.newCostGuideModal.cancelButton')}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={handleCreateGuide}
                 disabled={!newGuideName.trim()}
@@ -723,13 +847,16 @@ export default function CostGuidePage() {
                     ? 'bg-indigo-600 hover:bg-indigo-700'
                     : 'bg-indigo-400 cursor-not-allowed'
                 }`}
+                whileHover={newGuideName.trim() ? { scale: 1.05 } : {}}
+                whileTap={newGuideName.trim() ? { scale: 0.95 } : {}}
               >
                 {t('costGuidePage.newCostGuideModal.createButton')}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 }

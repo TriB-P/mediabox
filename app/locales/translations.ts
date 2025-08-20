@@ -482,7 +482,9 @@ export const translations = {
       clearFilters:"Effacer les filtres",
       formatted: "Formaté :",
       tab:"Onglet",
-      in:"dans"
+      in:"dans",
+      nextTab:"Suivant",
+      previousTab:"Précédent"
 
     },
     errors: {
@@ -4913,6 +4915,8 @@ export const translations = {
       formatted: "Formatted:",
       tab:"Tabs",
       in:"in",
+      nextTab:"Next",
+      previousTab:"Back"
 
     },
     errors: {

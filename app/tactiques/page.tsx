@@ -7,11 +7,12 @@
  * et les composants d'interface utilisateur pour offrir une expérience complète de gestion des tactiques.
  * Il inclut des fonctionnalités de chargement, d'erreur, de rafraîchissement et de gestion des sélections.
  * MODIFIÉ : Ajout de la vue 'taxonomy' avec TactiquesAdvancedTaxonomyView
+ * AMÉLIORÉ : Animations subtiles et modernes sans effet de glitch
  */
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { motion, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
@@ -38,48 +39,96 @@ import { useTranslation } from '../contexts/LanguageContext';
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline' | 'taxonomy';
 
-const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+// Animations plus subtiles et fluides
+const subtleEase: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
 
 const pageVariants: Variants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
     transition: {
-      duration: 0.4,
-      ease: easeOut,
-      staggerChildren: 0.1,
+      duration: 0.6,
+      ease: subtleEase,
+      when: "beforeChildren",
+      staggerChildren: 0.08,
     },
   },
 };
 
-const itemVariants: Variants = {
-  initial: { opacity: 0, y: 20 },
+const headerVariants: Variants = {
+  initial: { opacity: 0, y: -8 },
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: easeOut },
+    transition: { duration: 0.5, ease: subtleEase },
+  },
+};
+
+const contentVariants: Variants = {
+  initial: { opacity: 0, y: 12 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: subtleEase, delay: 0.1 },
   },
 };
 
 const cardVariants: Variants = {
-    initial: { opacity: 0, scale: 0.95 },
-    animate: {
-        opacity: 1,
-        scale: 1,
-        transition: { duration: 0.4, ease: easeOut }
-    }
+  initial: { opacity: 0, y: 8, scale: 0.98 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.4, ease: subtleEase }
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    scale: 0.98,
+    transition: { duration: 0.3, ease: subtleEase }
+  }
 };
 
+const notificationVariants: Variants = {
+  initial: { opacity: 0, y: -10, scale: 0.95 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.3, ease: subtleEase }
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    scale: 0.95,
+    transition: { duration: 0.25, ease: subtleEase }
+  }
+};
 
 const buttonVariants: Variants = {
-  hover: { scale: 1.05, transition: { duration: 0.2, ease: easeOut } },
-  tap: { scale: 0.95 },
+  hover: { 
+    scale: 1.02, 
+    transition: { duration: 0.2, ease: subtleEase } 
+  },
+  tap: { scale: 0.98 },
+};
+
+const spinVariants: Variants = {
+  animate: {
+    rotate: 360,
+    transition: {
+      duration: 1,
+      repeat: Infinity,
+      ease: "linear"
+    }
+  }
 };
 
 /**
  * Composant principal de la page des tactiques.
  * Gère l'état global, les interactions utilisateur et l'affichage des différentes vues des tactiques.
  * MODIFIÉ : Ajout du support pour la vue 'taxonomy'
+ * AMÉLIORÉ : Animations subtiles sans effet de glitch
  *
  * @returns {JSX.Element} Le composant de la page des tactiques.
  */
@@ -108,11 +157,10 @@ export default function TactiquesPage() {
   } = useAppData();
 
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
-  
   const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
-
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
+  const [showContent, setShowContent] = useState(false);
 
   const crudActions = useTactiquesCrud({
     sections,
@@ -126,10 +174,6 @@ export default function TactiquesPage() {
 
   /**
    * Réinitialise complètement la vue hiérarchique en forçant un re-render.
-   * Cette fonction est utilisée pour s'assurer que les états internes des composants enfants
-   * sont réinitialisés après certaines opérations (ex: rafraîchissement des données).
-   *
-   * @returns {void}
    */
   const handleForceSelectionReset = useCallback(() => {
     console.log('🔄 Force reset complet de la vue hiérarchique');
@@ -173,13 +217,6 @@ export default function TactiquesPage() {
   const { formatCurrency, formatStatistics } = useTactiquesFormatting();
   const { getContainerClasses, getContentClasses, getMainContentClasses, getLoadingStates } = useTactiquesUIStates();
 
-  /**
-   * Gère la sauvegarde d'une section, que ce soit pour la création ou la modification.
-   * Appelle les actions CRUD appropriées et rafraîchit les données après l'opération.
-   *
-   * @param {any} sectionData - Les données de la section à sauvegarder.
-   * @returns {Promise<void>} Une promesse qui se résout une fois la sauvegarde effectuée.
-   */
   const handleSaveSection = useCallback(async (sectionData: any) => {
     try {
       if (modalState.sectionModal.mode === 'create') {
@@ -197,21 +234,10 @@ export default function TactiquesPage() {
     }
   }, [modalState.sectionModal.mode, modalState.sectionModal.section, crudActions, modalState.closeSectionModal, refresh]);
   
-  /**
-   * Ouvre la modale de création d'une nouvelle section.
-   *
-   * @returns {void}
-   */
   const handleAddSection = useCallback(() => {
     modalState.openSectionModal(null, 'create');
   }, [modalState.openSectionModal]);
   
-  /**
-   * Ouvre la modale de modification d'une section existante.
-   *
-   * @param {string} sectionId - L'identifiant de la section à modifier.
-   * @returns {void}
-   */
   const handleEditSection = useCallback((sectionId: string) => {
     const section = sections.find(s => s.id === sectionId);
     if (section) {
@@ -219,12 +245,6 @@ export default function TactiquesPage() {
     }
   }, [sections, modalState.openSectionModal]);
 
-  /**
-   * Gère le rafraîchissement complet des données avec une réinitialisation de la sélection.
-   * Nettoie d'abord la sélection, rafraîchit les données, puis force le reset de la vue hiérarchique.
-   *
-   * @returns {Promise<void>} Une promesse qui se résout une fois l'opération terminée.
-   */
   const handleRefreshWithReset = useCallback(async () => {
     console.log('🔄 Refresh avec réinitialisation complète');
     
@@ -279,6 +299,18 @@ export default function TactiquesPage() {
     loadBreakdowns();
   }, [selectedClient?.clientId, selectedCampaign?.id]);
 
+  // Effet pour gérer l'affichage du contenu avec un délai
+  useEffect(() => {
+    if (!loadingStates.shouldShowFullLoader && selectedVersion) {
+      const timer = setTimeout(() => {
+        setShowContent(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
+      setShowContent(false);
+    }
+  }, [loadingStates.shouldShowFullLoader, selectedVersion]);
+
   return (
     <motion.div 
       className={getContainerClasses()}
@@ -286,7 +318,8 @@ export default function TactiquesPage() {
       initial="initial"
       animate="animate"
     >
-      <motion.div variants={itemVariants} className="flex justify-between items-center">
+      {/* Header fixe sans animation sur les états temporaires */}
+      <motion.div variants={headerVariants} className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
           <h1 className="text-2xl font-bold text-gray-900">{t('tactiquesPage.header.title')}</h1>
           
@@ -306,15 +339,19 @@ export default function TactiquesPage() {
               `}
               title={t('tactiquesPage.header.refreshTooltip')}
             >
-              <ArrowPathIcon 
-                className={`h-4 w-4 ${(refreshState.isRefreshing || loading) ? 'animate-spin' : ''}`} 
-              />
+              <motion.div
+                variants={refreshState.isRefreshing || loading ? spinVariants : {}}
+                animate={refreshState.isRefreshing || loading ? "animate" : ""}
+              >
+                <ArrowPathIcon className="h-4 w-4" />
+              </motion.div>
             </motion.button>
           )}
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants}>
+      {/* Sélecteur de campagne */}
+      <motion.div variants={contentVariants}>
         <CampaignVersionSelector
           campaigns={campaigns}
           versions={versions}
@@ -328,253 +365,335 @@ export default function TactiquesPage() {
         />
       </motion.div>
 
-      {selectionState.duplicationLoading && (
-        <motion.div variants={cardVariants} className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-            <span className="text-sm text-green-700">{t('tactiquesPage.notifications.duplicationInProgress')}</span>
-          </div>
-        </motion.div>
-      )}
-
-      {selectionState.deletionLoading && (
-        <motion.div variants={cardVariants} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-            <span className="text-sm text-red-700">{t('tactiquesPage.notifications.deletionInProgress')}</span>
-          </div>
-        </motion.div>
-      )}
-
-      {refreshState.clientFeesLoading && (
-        <motion.div variants={cardVariants} className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-sm text-blue-700">{t('tactiquesPage.notifications.loadingClientFees')}</span>
-          </div>
-        </motion.div>
-      )}
-
-      {hasError && !loading && (
-        <motion.div variants={cardVariants} className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="text-red-600">⚠️</div>
-            <div>
-              <h3 className="text-sm font-medium text-red-800">{t('tactiquesPage.error.loadingTitle')}</h3>
-              <p className="text-sm text-red-600 mt-1">{error}</p>
-              <motion.button
-                variants={buttonVariants}
-                whileHover="hover"
-                whileTap="tap"
-                onClick={handleRefreshWithReset}
-                className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
-              >
-                {t('tactiquesPage.error.retry')}
-              </motion.button>
+      {/* Notifications temporaires avec AnimatePresence */}
+      <AnimatePresence mode="wait">
+        {selectionState.duplicationLoading && (
+          <motion.div
+            key="duplication"
+            variants={notificationVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4"
+          >
+            <div className="flex items-center space-x-3">
+              <motion.div 
+                variants={spinVariants}
+                animate="animate"
+                className="rounded-full h-4 w-4 border-b-2 border-green-600"
+              />
+              <span className="text-sm text-green-700">{t('tactiquesPage.notifications.duplicationInProgress')}</span>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
 
-      {loadingStates.shouldShowFullLoader && (
-        <LoadingSpinner 
-          message={stage || t('tactiquesPage.loader.loadingTactics')} 
-          minimumDuration={1500}
-        />
-      )}
+        {selectionState.deletionLoading && (
+          <motion.div
+            key="deletion"
+            variants={notificationVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4"
+          >
+            <div className="flex items-center space-x-3">
+              <motion.div 
+                variants={spinVariants}
+                animate="animate"
+                className="rounded-full h-4 w-4 border-b-2 border-red-600"
+              />
+              <span className="text-sm text-red-700">{t('tactiquesPage.notifications.deletionInProgress')}</span>
+            </div>
+          </motion.div>
+        )}
 
-      {selectedVersion && !loadingStates.shouldShowFullLoader && (
-        <motion.div variants={itemVariants} className={getContentClasses(viewMode)}>
-          <div className={getMainContentClasses(viewMode)}>
-            
-            {selectionState.selectedItems.size > 0 && viewMode === 'hierarchy' && (
+        {refreshState.clientFeesLoading && (
+          <motion.div
+            key="fees"
+            variants={notificationVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4"
+          >
+            <div className="flex items-center space-x-3">
+              <motion.div 
+                variants={spinVariants}
+                animate="animate"
+                className="rounded-full h-4 w-4 border-b-2 border-blue-600"
+              />
+              <span className="text-sm text-blue-700">{t('tactiquesPage.notifications.loadingClientFees')}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Erreurs persistantes */}
+      <AnimatePresence>
+        {hasError && !loading && (
+          <motion.div
+            variants={cardVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="text-red-600">⚠️</div>
+              <div>
+                <h3 className="text-sm font-medium text-red-800">{t('tactiquesPage.error.loadingTitle')}</h3>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+                <motion.button
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  onClick={handleRefreshWithReset}
+                  className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded transition-colors"
+                >
+                  {t('tactiquesPage.error.retry')}
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Loader principal */}
+      <AnimatePresence>
+        {loadingStates.shouldShowFullLoader && (
+          <LoadingSpinner 
+            message={stage || t('tactiquesPage.loader.loadingTactics')} 
+            minimumDuration={1500}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Contenu principal avec animation retardée */}
+      <AnimatePresence>
+        {showContent && (
+          <motion.div 
+            variants={contentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className={getContentClasses(viewMode)}
+          >
+            <div className={getMainContentClasses(viewMode)}>
+              
+              {/* Panel d'actions pour les éléments sélectionnés */}
+              <AnimatePresence>
+                {selectionState.selectedItems.size > 0 && viewMode === 'hierarchy' && (
+                  <motion.div
+                    variants={cardVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    <SelectedActionsPanel
+                      selectedItems={selectionState.selectedItemsWithData}
+                      onDuplicateSelected={selectionState.handleDuplicateSelected}
+                      onDeleteSelected={selectionState.handleDeleteSelected}
+                      onClearSelection={selectionState.handleClearSelection}
+                      onRefresh={handleRefreshWithReset}
+                      loading={loadingStates.isLoading}
+                      hierarchyContext={enrichedData.hierarchyContextForMove}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {/* Actions et statistiques pour la vue hiérarchique */}
+              {(viewMode === 'hierarchy') && (
+                <motion.div variants={cardVariants} className="flex justify-between items-center mb-4">
+                  <div className="flex space-x-2">
+                    <motion.button
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      onClick={handleAddSection}
+                      className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-1.5" />
+                      {t('tactiquesPage.actions.newSection')}
+                    </motion.button>
+                  </div>
+
+                  {enrichedData.sectionsWithTactiques.length > 0 && (
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <span>{statistics.placementsText}</span>
+                      <span>{statistics.creatifsText}</span>
+                      <AnimatePresence>
+                        {selectionState.selectedItems.size > 0 && (
+                          <motion.span
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="text-indigo-600 font-medium"
+                          >
+                            {selectionState.selectedItems.size} {t(selectionState.selectedItems.size > 1 ? 'tactiquesPage.selection.selectedPlural' : 'tactiquesPage.selection.selectedSingular')}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Contenu des vues */}
+              {!hasError && (
+                <motion.div variants={cardVariants}>
+                  {viewMode === 'hierarchy' && (
+                    <>
+                      {enrichedData.sectionsWithTactiques.length > 0 ? (
+                        <TactiquesHierarchyView
+                          key={hierarchyViewKey}
+                          sections={enrichedData.sectionsWithTactiques}
+                          placements={enrichedData.enrichedPlacements} 
+                          creatifs={enrichedData.enrichedCreatifs} 
+                          onSectionExpand={modalState.handleSectionExpand}
+                          onEditSection={handleEditSection}
+                          onDeleteSection={crudActions.handleDeleteSection}
+                          onCreateTactique={crudActions.handleCreateTactique}
+                          onUpdateTactique={crudActions.handleUpdateTactique}
+                          onDeleteTactique={crudActions.handleDeleteTactique}
+                          onCreatePlacement={crudActions.handleCreatePlacement}
+                          onUpdatePlacement={crudActions.handleUpdatePlacement}
+                          onDeletePlacement={crudActions.handleDeletePlacement}
+                          onCreateCreatif={crudActions.handleCreateCreatif}
+                          onUpdateCreatif={crudActions.handleUpdateCreatif}
+                          onDeleteCreatif={crudActions.handleDeleteCreatif}
+                          formatCurrency={formatCurrency}
+                          totalBudget={totalBudget}
+                          onRefresh={handleRefreshWithReset}
+                          onDragRefresh={refreshState.handleManualRefresh}
+                          onDuplicateSelected={selectionState.handleDuplicateSelected}
+                          onDeleteSelected={selectionState.handleDeleteSelected}
+                          onClearSelection={selectionState.handleClearSelection}
+                          loading={loadingStates.isLoading}
+                          hierarchyContext={{
+                            sections: sections,
+                            tactiques: tactiques,
+                            placements: placements,
+                            creatifs: creatifs
+                          }}
+                        />
+                      ) : (
+                        <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
+                          <p className="text-gray-500 mb-4">
+                            {t('tactiquesPage.emptyState.noSectionsFound')}
+                          </p>
+                          <motion.button
+                            variants={buttonVariants}
+                            whileHover="hover"
+                            whileTap="tap"
+                            onClick={handleAddSection}
+                            className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto transition-colors"
+                          >
+                            <PlusIcon className="h-5 w-5 mr-1.5" />
+                            {t('tactiquesPage.actions.newSection')}
+                          </motion.button>
+                        </motion.div>
+                      )}
+                    </>
+                  )}
+
+                  {viewMode === 'table' && (
+                    <div className="w-full">
+                      <TactiquesAdvancedTableView
+                        sections={sections}
+                        tactiques={tactiques}
+                        placements={placements}
+                        creatifs={creatifs}
+                        onUpdateTactique={crudActions.handleUpdateTactique}
+                        onUpdateSection={crudActions.handleUpdateSection}
+                        onUpdatePlacement={crudActions.handleUpdatePlacement}
+                        onUpdateCreatif={crudActions.handleUpdateCreatif}
+                        formatCurrency={formatCurrency}
+                      />
+                    </div>
+                  )}
+
+                  {viewMode === 'timeline' && selectedCampaign && (
+                    <TactiquesTimelineView
+                      tactiques={enrichedData.flatTactiques}
+                      sectionNames={enrichedData.sectionNames}
+                      campaignStartDate={selectedCampaign.CA_Start_Date}
+                      campaignEndDate={selectedCampaign.CA_End_Date}
+                      formatCurrency={formatCurrency}
+                      onEditTactique={(tactiqueId, sectionId) => {
+                        const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
+                        if (tactique) {
+                          console.log('Éditer tactique:', tactique);
+                        }
+                      }}
+                      breakdowns={breakdowns || []}
+                      onUpdateTactique={crudActions.handleUpdateTactique}
+                    />
+                  )}
+
+                  {viewMode === 'taxonomy' && (
+                    <div className="w-full">
+                      <TactiquesAdvancedTaxonomyView
+                        sections={sections}
+                        tactiques={tactiques}
+                        placements={placements}
+                        creatifs={creatifs}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </div>
+
+            {/* Panel budget pour la vue hiérarchique */}
+            {(viewMode === 'hierarchy') && (
               <motion.div variants={cardVariants}>
-                <SelectedActionsPanel
-                  selectedItems={selectionState.selectedItemsWithData}
-                  onDuplicateSelected={selectionState.handleDuplicateSelected}
-                  onDeleteSelected={selectionState.handleDeleteSelected}
-                  onClearSelection={selectionState.handleClearSelection}
-                  onRefresh={handleRefreshWithReset}
-                  loading={loadingStates.isLoading}
-                  hierarchyContext={enrichedData.hierarchyContextForMove}
+                <TactiquesBudgetPanel
+                  selectedCampaign={selectedCampaign}
+                  sections={sections}
+                  tactiques={tactiques}
+                  selectedOnglet={selectedOnglet}
+                  onglets={onglets}
+                  formatCurrency={formatCurrency}
+                  clientFees={refreshState.clientFees}
                 />
               </motion.div>
             )}
-            
-            {(viewMode === 'hierarchy') && (
-              <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
-                <div className="flex space-x-2">
-                  <motion.button
-                    variants={buttonVariants}
-                    whileHover="hover"
-                    whileTap="tap"
-                    onClick={handleAddSection}
-                    className="flex items-center px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-1.5" />
-                    {t('tactiquesPage.actions.newSection')}
-                  </motion.button>
-                </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {enrichedData.sectionsWithTactiques.length > 0 && (
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span>{statistics.placementsText}</span>
-                    <span>{statistics.creatifsText}</span>
-                    {selectionState.selectedItems.size > 0 && (
-                      <span className="text-indigo-600 font-medium">
-                        {selectionState.selectedItems.size} {t(selectionState.selectedItems.size > 1 ? 'tactiquesPage.selection.selectedPlural' : 'tactiquesPage.selection.selectedSingular')}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
+      {/* État vide */}
+      <AnimatePresence>
+        {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
+          <motion.div
+            variants={cardVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-white p-8 rounded-lg shadow text-center"
+          >
+            <p className="text-gray-500">
+              {t('tactiquesPage.emptyState.selectCampaignAndVersion')}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {!hasError && (
-              <motion.div variants={cardVariants}>
-                {viewMode === 'hierarchy' && (
-                  <>
-                    {enrichedData.sectionsWithTactiques.length > 0 ? (
-                      <TactiquesHierarchyView
-                        key={hierarchyViewKey}
-                        sections={enrichedData.sectionsWithTactiques}
-                        placements={enrichedData.enrichedPlacements} 
-                        creatifs={enrichedData.enrichedCreatifs} 
-                        onSectionExpand={modalState.handleSectionExpand}
-                        onEditSection={handleEditSection}
-                        onDeleteSection={crudActions.handleDeleteSection}
-                        onCreateTactique={crudActions.handleCreateTactique}
-                        onUpdateTactique={crudActions.handleUpdateTactique}
-                        onDeleteTactique={crudActions.handleDeleteTactique}
-                        onCreatePlacement={crudActions.handleCreatePlacement}
-                        onUpdatePlacement={crudActions.handleUpdatePlacement}
-                        onDeletePlacement={crudActions.handleDeletePlacement}
-                        onCreateCreatif={crudActions.handleCreateCreatif}
-                        onUpdateCreatif={crudActions.handleUpdateCreatif}
-                        onDeleteCreatif={crudActions.handleDeleteCreatif}
-                        formatCurrency={formatCurrency}
-                        totalBudget={totalBudget}
-                        onRefresh={handleRefreshWithReset}
-                        onDragRefresh={refreshState.handleManualRefresh}
-                        onDuplicateSelected={selectionState.handleDuplicateSelected}
-                        onDeleteSelected={selectionState.handleDeleteSelected}
-                        onClearSelection={selectionState.handleClearSelection}
-                        loading={loadingStates.isLoading}
-                        hierarchyContext={{
-                          sections: sections,
-                          tactiques: tactiques, // { [sectionId]: Tactique[] }
-                          placements: placements, // { [tactiqueId]: Placement[] }
-                          creatifs: creatifs // { [placementId]: Creatif[] }
-                        }}
-                        
-                      />
-                    ) : (
-                      <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
-                        <p className="text-gray-500">
-                          {t('tactiquesPage.emptyState.noSectionsFound')}
-                        </p>
-                        <motion.button
-                          variants={buttonVariants}
-                          whileHover="hover"
-                          whileTap="tap"
-                          onClick={handleAddSection}
-                          className="mt-4 flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 mx-auto"
-                        >
-                          <PlusIcon className="h-5 w-5 mr-1.5" />
-                          {t('tactiquesPage.actions.newSection')}
-                        </motion.button>
-                      </motion.div>
-                    )}
-                  </>
-                )}
+      {/* Footer des onglets */}
 
-                {viewMode === 'table' && (
-                  <div className="w-full">
-                    <TactiquesAdvancedTableView
-                      sections={sections}
-                      tactiques={tactiques}
-                      placements={placements}
-                      creatifs={creatifs}
-                      onUpdateTactique={crudActions.handleUpdateTactique}
-                      onUpdateSection={crudActions.handleUpdateSection}
-                      onUpdatePlacement={crudActions.handleUpdatePlacement}
-                      onUpdateCreatif={crudActions.handleUpdateCreatif}
-                      formatCurrency={formatCurrency}
-                    />
-                  </div>
-                )}
-
-                {viewMode === 'timeline' && selectedCampaign && (
-                  <TactiquesTimelineView
-                    tactiques={enrichedData.flatTactiques}
-                    sectionNames={enrichedData.sectionNames}
-                    campaignStartDate={selectedCampaign.CA_Start_Date}
-                    campaignEndDate={selectedCampaign.CA_End_Date}
-                    formatCurrency={formatCurrency}
-                    onEditTactique={(tactiqueId, sectionId) => {
-                      const tactique = enrichedData.flatTactiques.find(t => t.id === tactiqueId);
-                      if (tactique) {
-                        console.log('Éditer tactique:', tactique);
-                      }
-                    }}
-                    breakdowns={breakdowns || []}
-                    onUpdateTactique={crudActions.handleUpdateTactique}
-                  />
-                )}
-
-                {viewMode === 'taxonomy' && (
-                  <div className="w-full">
-                    <TactiquesAdvancedTaxonomyView
-                      sections={sections}
-                      tactiques={tactiques}
-                      placements={placements}
-                      creatifs={creatifs}
-                    />
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </div>
-
-          {(viewMode === 'hierarchy') && (
-            <motion.div variants={cardVariants}>
-              <TactiquesBudgetPanel
-                selectedCampaign={selectedCampaign}
-                sections={sections}
-                tactiques={tactiques}
-                selectedOnglet={selectedOnglet}
-                onglets={onglets}
-                formatCurrency={formatCurrency}
-                clientFees={refreshState.clientFees}
-              />
-            </motion.div>
-          )}
-        </motion.div>
-      )}
-
-      {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
-        <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
-          <p className="text-gray-500">
-            {t('tactiquesPage.emptyState.selectCampaignAndVersion')}
-          </p>
-        </motion.div>
-      )}
-
-      {selectedOnglet && selectedVersion && !loadingStates.shouldShowFullLoader && (
-        <motion.div variants={itemVariants}>
-          <TactiquesFooter
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            onglets={onglets}
-            selectedOnglet={selectedOnglet}
-            onSelectOnglet={handleOngletChange}
-            onAddOnglet={crudActions.handleAddOnglet} 
-            onRenameOnglet={crudActions.handleRenameOnglet} 
-            onDeleteOnglet={crudActions.handleDeleteOnglet} 
-          />
-        </motion.div>
-      )}
-
+            <TactiquesFooter
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              onglets={onglets}
+              selectedOnglet={selectedOnglet}
+              onSelectOnglet={handleOngletChange}
+              onAddOnglet={crudActions.handleAddOnglet} 
+              onRenameOnglet={crudActions.handleRenameOnglet} 
+              onDeleteOnglet={crudActions.handleDeleteOnglet} 
+            />
+          
+      {/* Modal de section */}
       <SectionModal
         isOpen={modalState.sectionModal.isOpen}
         onClose={modalState.closeSectionModal}

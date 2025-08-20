@@ -8,6 +8,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, Variants } from 'framer-motion';
 import { Section, Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useAdvancedTableData } from '../../../../hooks/useAdvancedTableData';
 import DynamicTableStructure from './DynamicTableStructure';
@@ -103,6 +104,37 @@ interface TactiquesAdvancedTableViewProps {
   onUpdateCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string, data: Partial<Creatif>) => Promise<void>;
   formatCurrency: (amount: number) => string;
 }
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1]
+    }
+  }
+};
+
+const buttonHoverTap = {
+  whileHover: { scale: 1.05 },
+  whileTap: { scale: 0.95 },
+  transition: { duration: 0.2 }
+};
 
 function getLocalizedDisplayName(item: ListItem, currentLanguage: string): string {
   if (currentLanguage === 'en') {
@@ -579,69 +611,84 @@ export default function TactiquesAdvancedTableView({
   };
 
   return (
-    <div className="space-y-3">
+    <motion.div 
+      className="space-y-3"
+      initial="hidden"
+      animate="visible"
+      variants={pageVariants}
+    >
       {hasUnsavedChanges && (
-        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+        <motion.div 
+          className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm"
+          variants={itemVariants}
+        >
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
               {t('table.changes.pending', { count: pendingChanges.size })}
             </span>
             
             <div className="flex items-center space-x-2">
-              <button
+              <motion.button
                 onClick={handleCancelAllChanges}
                 disabled={isSaving}
                 className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                {...buttonHoverTap}
               >
                 {t('table.actions.cancel')}
-              </button>
+              </motion.button>
               
-              <button
+              <motion.button
                 onClick={handleSaveAllChanges}
                 disabled={isSaving}
                 className="flex items-center px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                {...buttonHoverTap}
               >
                 {isSaving ? t('table.actions.saving') : t('table.actions.save')}
-              </button>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {(listsLoading || budgetDataLoading) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <motion.div 
+          className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+          variants={itemVariants}
+        >
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             <span className="text-sm text-blue-700">
               {t('table.loading.loadingData', { 
-                type: listsLoading && budgetDataLoading ? 'listsAndBudget' : 
+                type: listsLoading && budgetDataLoading ? 'lists and budget' : 
                       listsLoading ? 'lists' : 'budget'
               })}
             </span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* MODIFIÉ : DynamicTableStructure avec nouvelles props budget unifiées */}
-      <DynamicTableStructure
-        tableRows={tableRows}
-        selectedLevel={selectedLevel}
-        pendingChanges={pendingChanges}
-        editingCells={editingCells}
-        expandedSections={expandedSections}
-        onCellChange={updateCell}
-        onStartEdit={startEdit}
-        onEndEdit={endEdit}
-        onToggleSection={toggleSectionExpansion}
-        onLevelChange={handleLevelChange}
-        entityCounts={entityCounts}
-        buckets={buckets}
-        dynamicLists={dynamicLists}
-        clientFees={clientFees}
-        exchangeRates={exchangeRates}
-        campaignCurrency={campaignCurrency}
-        currentLanguage={currentLanguage}
-        />
-    </div>
+      <motion.div variants={itemVariants}>
+        <DynamicTableStructure
+          tableRows={tableRows}
+          selectedLevel={selectedLevel}
+          pendingChanges={pendingChanges}
+          editingCells={editingCells}
+          expandedSections={expandedSections}
+          onCellChange={updateCell}
+          onStartEdit={startEdit}
+          onEndEdit={endEdit}
+          onToggleSection={toggleSectionExpansion}
+          onLevelChange={handleLevelChange}
+          entityCounts={entityCounts}
+          buckets={buckets}
+          dynamicLists={dynamicLists}
+          clientFees={clientFees}
+          exchangeRates={exchangeRates}
+          campaignCurrency={campaignCurrency}
+          currentLanguage={currentLanguage}
+          />
+      </motion.div>
+    </motion.div>
   );
 }

@@ -5,12 +5,12 @@
  * 1. Labels hiérarchiques (sections > tactiques > placements > créatifs)
  * 2. Titre du niveau de taxonomie (NA_Name_Level_X_Title)
  * 3. Valeur de taxonomie avec copie 1-clic
- * 
- * Comprend 3 sélecteurs : Type taxonomie / Type de ligne / Niveau
+ * * Comprend 3 sélecteurs : Type taxonomie / Type de ligne / Niveau
  */
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { 
   DocumentDuplicateIcon, 
   CheckIcon,
@@ -49,6 +49,38 @@ interface TaxonomyRow {
   data: Section | Tactique | Placement | Creatif;
   sectionColor?: string; // Couleur de la section
 }
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+    },
+  },
+};
+
+const rowVariants: Variants = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1, transition: { duration: 0.3, ease: 'easeOut' as const } },
+    exit: { opacity: 0, transition: { duration: 0.2, ease: 'easeOut' as const } }
+};
 
 /**
  * Composant principal de la vue taxonomy
@@ -345,11 +377,18 @@ export default function TactiquesAdvancedTaxonomyView({
   };
 
   return (
-    <div className="space-y-4">
+    <motion.div 
+      className="space-y-4"
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* En-tête avec sélecteurs */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <motion.div 
+        className="bg-white border border-gray-200 rounded-lg p-4"
+        variants={itemVariants}
+      >
         <div className="flex items-center space-x-6">
-
 
           <div className="flex-1 grid grid-cols-4 gap-4">
             {/* Sélecteur Type de taxonomie */}
@@ -417,24 +456,29 @@ export default function TactiquesAdvancedTaxonomyView({
                 />
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 {searchTerm && (
-                  <button
+                  <motion.button
                     onClick={() => setSearchTerm('')}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <XMarkIcon className="h-4 w-4" />
-                  </button>
+                  </motion.button>
                 )}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tableau principal */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <motion.div 
+        className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+        variants={itemVariants}
+      >
         <div className="overflow-auto" style={{ maxHeight: '75vh', maxWidth: '100vw' }}>
           <table className="w-full divide-y divide-gray-200 table-fixed">
-            <thead className="bg-gray-50 sticky top-0">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '25%' }}>
                   {t('taxonomy.columns.label')}
@@ -464,83 +508,90 @@ export default function TactiquesAdvancedTaxonomyView({
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row) => {
-                  // Déterminer la couleur de fond selon le type
-                  let bgColor = '';
-                  let borderLeft = '';
-                  
-                  if (row.type === 'section') {
-                    bgColor = 'hover:bg-gray-50';
-                    borderLeft = `4px solid ${row.sectionColor || '#6366f1'}`;
-                  } else if (row.type === 'tactique') {
-                    bgColor = 'bg-gray-100 hover:bg-gray-200';
-                  } else {
-                    bgColor = 'hover:bg-gray-50';
-                  }
+                <AnimatePresence>
+                  {filteredRows.map((row) => {
+                    let bgColor = '';
+                    let borderLeft = '';
+                    
+                    if (row.type === 'section') {
+                      bgColor = 'hover:bg-gray-50';
+                      borderLeft = `4px solid ${row.sectionColor || '#6366f1'}`;
+                    } else if (row.type === 'tactique') {
+                      bgColor = 'bg-gray-100 hover:bg-gray-200';
+                    } else {
+                      bgColor = 'hover:bg-gray-50';
+                    }
 
-                  return (
-                    <tr 
-                      key={row.id} 
-                      className={bgColor}
-                      style={row.type === 'section' ? { borderLeft } : undefined}
-                    >
-                      {/* Colonne Label avec chevrons */}
-                      <td className="px-3 py-3" style={{ width: '25%' }}>
-                        <div 
-                          className="flex items-center"
-                          style={{ paddingLeft: `${row.level * 15}px` }}
-                        >
-                          {row.level > 0 && (
-                            <ChevronRightIcon className="h-3 w-3 text-gray-400 mr-1 flex-shrink-0" />
-                          )}
-                          
-                          <span className={`text-sm break-words ${
-                            row.type === 'section' ? 'font-semibold text-gray-900' : 
-                            row.type === 'tactique' ? 'font-medium text-gray-800' :
-                            'text-gray-700'
-                          }`}>
-                            {row.label}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Colonne Titre du niveau */}
-                      <td style={{ width: '25%' }}>
-                        <TitleCell row={row} />
-                      </td>
-
-                      {/* Colonne Valeur */}
-                      <td className="px-3 py-3" style={{ width: '50%' }}>
-                        {(row.type === 'placement' || row.type === 'creatif') && row.taxonomyValue ? (
-                          <div className="flex items-start justify-between group">
-                            <span className="text-sm text-gray-900 mr-2 font-mono break-words flex-1">
-                              {row.taxonomyValue}
+                    return (
+                      <motion.tr 
+                        key={row.id} 
+                        layout
+                        variants={rowVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        className={bgColor}
+                        style={row.type === 'section' ? { borderLeft } : undefined}
+                      >
+                        {/* Colonne Label avec chevrons */}
+                        <td className="px-3 py-3" style={{ width: '25%' }}>
+                          <div 
+                            className="flex items-center"
+                            style={{ paddingLeft: `${row.level * 15}px` }}
+                          >
+                            {row.level > 0 && (
+                              <ChevronRightIcon className="h-3 w-3 text-gray-400 mr-1 flex-shrink-0" />
+                            )}
+                            
+                            <span className={`text-sm break-words ${
+                              row.type === 'section' ? 'font-semibold text-gray-900' : 
+                              row.type === 'tactique' ? 'font-medium text-gray-800' :
+                              'text-gray-700'
+                            }`}>
+                              {row.label}
                             </span>
-                            <button
-                              onClick={() => handleCopyValue(row.id, row.taxonomyValue!)}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all flex-shrink-0 ml-2"
-                              title={t('taxonomy.copyValue')}
-                            >
-                              {copiedCells.has(row.id) ? (
-                                <CheckIcon className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <DocumentDuplicateIcon className="h-4 w-4" />
-                              )}
-                            </button>
                           </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+                        </td>
+
+                        {/* Colonne Titre du niveau */}
+                        <td style={{ width: '25%' }}>
+                          <TitleCell row={row} />
+                        </td>
+
+                        {/* Colonne Valeur */}
+                        <td className="px-3 py-3" style={{ width: '50%' }}>
+                          {(row.type === 'placement' || row.type === 'creatif') && row.taxonomyValue ? (
+                            <div className="flex items-start justify-between group">
+                              <span className="text-sm text-gray-900 mr-2 font-mono break-words flex-1">
+                                {row.taxonomyValue}
+                              </span>
+                              <motion.button
+                                onClick={() => handleCopyValue(row.id, row.taxonomyValue!)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all flex-shrink-0 ml-2"
+                                title={t('taxonomy.copyValue')}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                {copiedCells.has(row.id) ? (
+                                  <CheckIcon className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <DocumentDuplicateIcon className="h-4 w-4" />
+                                )}
+                              </motion.button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
               )}
             </tbody>
           </table>
         </div>
-      </div>
-
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

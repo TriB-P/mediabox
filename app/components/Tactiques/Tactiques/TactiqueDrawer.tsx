@@ -33,6 +33,7 @@ import {
   CogIcon,
   CalendarDaysIcon,
   TagIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { Tactique, TactiqueFormData } from '../../../types/tactiques';
 import { Breakdown } from '../../../types/breakdown';
@@ -540,7 +541,7 @@ export default function TactiqueDrawer({
     { id: 'budget', name: t('tactiqueDrawer.tabs.budget'), icon: CurrencyDollarIcon },
     { id: 'repartition', name: t('tactiqueDrawer.tabs.repartition'), icon: CalendarDaysIcon },
     { id: 'admin', name: t('tactiqueDrawer.tabs.admin'), icon: CogIcon },
-    { id: 'specs', name: t('tactiqueDrawer.tabs.specs'), icon: TagIcon },
+    { id: 'specs', name: t('tactiqueDrawer.tabs.specs'), icon: PhotoIcon },
     { id: 'tags', name: t('tactiqueDrawer.tabs.tags'), icon: TagIcon },
   ], [t]);
 

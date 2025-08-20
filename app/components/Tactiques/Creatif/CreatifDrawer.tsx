@@ -19,7 +19,7 @@ import CreatifFormTaxonomy from './CreatifFormTaxonomy';
 import CreatifFormSpecs from './CreatifFormSpecs';
 import CreatifFormTags from './CreatifFormTags';
 import { TooltipBanner } from '../Tactiques/TactiqueFormComponents';
-import { DocumentTextIcon, TagIcon, CogIcon, BookOpenIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, TagIcon, PhotoIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { Creatif, CreatifFormData, Tactique, Placement } from '../../../types/tactiques';
 import { useClient } from '../../../contexts/ClientContext';
 import { useCampaignSelection } from '../../../hooks/useCampaignSelection';
@@ -411,7 +411,7 @@ useEffect(() => {
   const tabs: FormTab[] = [
     { id: 'infos', name: t('creatifDrawer.tabs.info'), icon: DocumentTextIcon },
     { id: 'taxonomie', name: t('creatifDrawer.tabs.taxonomy'), icon: BookOpenIcon },
-    { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: CogIcon },
+    { id: 'specs', name: t('creatifDrawer.tabs.specs'), icon: PhotoIcon },
     { id: 'tags', name: 'Tags', icon: TagIcon }
   ];
 

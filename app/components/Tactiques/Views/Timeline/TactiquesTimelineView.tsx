@@ -12,6 +12,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { Tactique } from '../../../../types/tactiques';
 import { Breakdown } from '../../../../types/breakdown';
 import TactiquesTimelineTable from './TactiquesTimelineTable';
@@ -23,7 +24,7 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../../../contexts/LanguageContext';
 
@@ -43,6 +44,40 @@ interface TactiquesTimelineViewProps {
   ) => Promise<void>;
 }
 
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
+  },
+};
+
+const infoBoxVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+};
+
+const buttonHoverTap = {
+  hover: { scale: 1.05 },
+  tap: { scale: 0.95 },
+};
+
 /**
  * Composant principal de la vue timeline rénovée.
  * Gère la sélection des breakdowns et orchestre l'affichage du tableau.
@@ -55,7 +90,7 @@ export default function TactiquesTimelineView({
   formatCurrency,
   onEditTactique,
   breakdowns,
-  onUpdateTactique
+  onUpdateTactique,
 }: TactiquesTimelineViewProps) {
   const { t } = useTranslation();
   const [selectedBreakdownId, setSelectedBreakdownId] = useState<string>('');
@@ -101,7 +136,7 @@ export default function TactiquesTimelineView({
    */
   const tactiquesGroupedBySection = useMemo(() => {
     const grouped: { [sectionId: string]: Tactique[] } = {};
-    
+
     tactiques.forEach(tactique => {
       const sectionId = tactique.TC_SectionId;
       if (!grouped[sectionId]) {
@@ -123,12 +158,10 @@ export default function TactiquesTimelineView({
    */
   const handleBreakdownChange = (breakdownId: string) => {
     if (editMode) {
-      const confirmChange = confirm(
-        t('timelineView.notifications.confirmBreakdownChange')
-      );
+      const confirmChange = confirm(t('timelineView.notifications.confirmBreakdownChange'));
       if (!confirmChange) return;
     }
-    
+
     setEditMode(false);
     setSelectedBreakdownId(breakdownId);
   };
@@ -170,33 +203,43 @@ export default function TactiquesTimelineView({
   // Vérification de sécurité supplémentaire
   if (!breakdowns || !Array.isArray(breakdowns) || breakdowns.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
+      <motion.div
+        className="bg-white rounded-lg shadow p-6 text-center"
+        initial="hidden"
+        animate="visible"
+        variants={itemVariants}
+      >
         <p className="text-gray-500">
           {t('timelineView.errors.noBreakdownConfigured')}{' '}
           {t('timelineView.errors.configureInSettings')}
         </p>
-      </div>
+      </motion.div>
     );
   }
 
   if (tactiques.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
-        <p className="text-gray-500">
-          {t('timelineView.errors.noTacticsAvailable')}
-        </p>
-      </div>
+      <motion.div
+        className="bg-white rounded-lg shadow p-6 text-center"
+        initial="hidden"
+        animate="visible"
+        variants={itemVariants}
+      >
+        <p className="text-gray-500">{t('timelineView.errors.noTacticsAvailable')}</p>
+      </motion.div>
     );
   }
 
   return (
-    <div 
-  className="space-y-4 w-full max-w-full overflow-hidden"
-  style={{ width: '100%', maxWidth: '70vw' }}
->
-              
+    <motion.div
+      className="space-y-4 w-full max-w-full overflow-hidden"
+      style={{ width: '100%', maxWidth: '70vw' }}
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header avec contrôles */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <motion.div className="bg-white rounded-lg shadow p-4" variants={itemVariants}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Sélecteur de breakdown */}
@@ -204,21 +247,24 @@ export default function TactiquesTimelineView({
               <label className="text-sm font-medium text-gray-700">
                 {t('timelineView.header.distributionLabel')}
               </label>
-              <select
+              <motion.select
                 value={selectedBreakdownId}
-                onChange={(e) => handleBreakdownChange(e.target.value)}
+                onChange={e => handleBreakdownChange(e.target.value)}
                 disabled={editMode && loading}
                 className="pl-3 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                whileHover={{ scale: 1.05 }}
               >
-                {breakdowns && Array.isArray(breakdowns) && breakdowns.map((breakdown) => {
-                  const Icon = getBreakdownIcon(breakdown.type);
-                  return (
-                    <option key={breakdown.id} value={breakdown.id}>
-                      {breakdown.name} ({breakdown.type})
-                    </option>
-                  );
-                })}
-              </select>
+                {breakdowns &&
+                  Array.isArray(breakdowns) &&
+                  breakdowns.map(breakdown => {
+                    const Icon = getBreakdownIcon(breakdown.type);
+                    return (
+                      <option key={breakdown.id} value={breakdown.id}>
+                        {breakdown.name} ({breakdown.type})
+                      </option>
+                    );
+                  })}
+              </motion.select>
             </div>
 
             {/* Informations sur le breakdown sélectionné */}
@@ -226,7 +272,7 @@ export default function TactiquesTimelineView({
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <div className="flex items-center space-x-1">
                   {React.createElement(getBreakdownIcon(selectedBreakdown.type), {
-                    className: "h-4 w-4"
+                    className: 'h-4 w-4',
                   })}
                   <span>{selectedBreakdown.type}</span>
                   {/* NOUVEAU: Indication spéciale pour PEBs */}
@@ -243,7 +289,8 @@ export default function TactiquesTimelineView({
                 )}
                 {selectedBreakdown.type === 'Custom' && selectedBreakdown.customPeriods && (
                   <span>
-                    • {selectedBreakdown.customPeriods.length} {t('timelineView.header.periodsLabel')}
+                    • {selectedBreakdown.customPeriods.length}{' '}
+                    {t('timelineView.header.periodsLabel')}
                   </span>
                 )}
               </div>
@@ -253,40 +300,55 @@ export default function TactiquesTimelineView({
           <div className="flex items-center space-x-2">
             {/* CORRIGÉ: Bouton mode édition seulement si pas en mode édition */}
             {!editMode && (
-              <button
+              <motion.button
                 onClick={handleStartEdit}
                 className="flex items-center px-4 py-2 text-sm rounded-md font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                 disabled={loading}
+                variants={buttonHoverTap}
+                whileHover="hover"
+                whileTap="tap"
               >
                 <PencilIcon className="h-4 w-4 mr-1" />
                 {t('timelineView.buttons.editMode')}
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
 
         {/* Message d'information en mode édition */}
-        {editMode && (
-          <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-md p-3">
-            <div className="flex items-start space-x-2">
-              <div className="text-yellow-600 mt-0.5">
-                <CheckIcon className="h-4 w-4" />
+        <AnimatePresence>
+          {editMode && (
+            <motion.div
+              className="mt-3 bg-yellow-50 border border-yellow-200 rounded-md p-3"
+              variants={infoBoxVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <div className="flex items-start space-x-2">
+                <div className="text-yellow-600 mt-0.5">
+                  <CheckIcon className="h-4 w-4" />
+                </div>
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium">{t('timelineView.editModeInfo.title')}</p>
+                  <p className="mt-1">
+                    {t('timelineView.editModeInfo.instructions')}
+                    {selectedBreakdown?.isDefault &&
+                      t('timelineView.editModeInfo.defaultBreakdownTip')}
+                  </p>
+                </div>
               </div>
-              <div className="text-sm text-yellow-800">
-                <p className="font-medium">{t('timelineView.editModeInfo.title')}</p>
-                <p className="mt-1">
-                  {t('timelineView.editModeInfo.instructions')}
-                  {selectedBreakdown?.isDefault && t('timelineView.editModeInfo.defaultBreakdownTip')}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* Tableau des répartitions avec scroll horizontal contraint */}
       {selectedBreakdown ? (
-        <div className="bg-white rounded-lg shadow w-full overflow-hidden">
+        <motion.div
+          className="bg-white rounded-lg shadow w-full overflow-hidden"
+          variants={itemVariants}
+        >
           <TactiquesTimelineTable
             tactiques={Object.values(tactiquesGroupedBySection).flat()}
             sectionNames={sectionNames}
@@ -299,15 +361,15 @@ export default function TactiquesTimelineView({
             onSaveComplete={handleSaveComplete}
             onCancelEdit={handleCancelEdit}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <p className="text-gray-500">
-            {t('timelineView.errors.noBreakdownSelected')}
-          </p>
-        </div>
+        <motion.div
+          className="bg-white rounded-lg shadow p-6 text-center"
+          variants={itemVariants}
+        >
+          <p className="text-gray-500">{t('timelineView.errors.noBreakdownSelected')}</p>
+        </motion.div>
       )}
-
-    </div>
+    </motion.div>
   );
 }

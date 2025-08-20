@@ -6,7 +6,7 @@ import { useState, Fragment, useEffect } from 'react';
 // Importe le composant Tab de Headless UI pour gérer les onglets
 import { Tab } from '@headlessui/react';
 // Ajout de framer-motion pour les animations
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 // Importe le contexte de traduction
 import { useTranslation } from '../contexts/LanguageContext';
 
@@ -59,6 +59,46 @@ interface CategoryData {
   name_EN: string;
   icon: React.ElementType;
 }
+
+// --- Framer Motion Variants ---
+const ease: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: ease },
+  },
+};
+
+const containerVariants: Variants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: ease },
+  },
+};
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.3, ease: ease },
+  },
+};
 
 // --- Mappage des noms de catégories aux icônes ---
 const categoryIcons: { [key: string]: React.ElementType } = {
@@ -165,7 +205,7 @@ function CarouselEtapes({ etapes, language }: { etapes: FaqStep[]; language: str
                       exit={{ opacity: 0, x: direction < 0 ? 20 : -20 }}
                       transition={{
                         duration: 0.3,
-                        ease: "easeInOut"
+                        ease: "easeOut"
                       }}
                       className="text-sm text-gray-700 whitespace-pre-line leading-relaxed"
                     >
@@ -206,25 +246,29 @@ function CarouselEtapes({ etapes, language }: { etapes: FaqStep[]; language: str
           
           {/* Navigation fixe en bas */}
           <div className="flex items-center justify-center mt-6 space-x-6">
-            <button
+            <motion.button
               onClick={allerAPrecedente}
               className="p-2 text-gray-500 hover:text-indigo-600 transition-colors"
               title={language === 'en' ? 'Previous step' : 'Étape précédente'}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <ArrowLeftCircle className="h-8 w-8" />
-            </button>
+            </motion.button>
             
             <div className="text-sm font-medium text-gray-700">
               {language === 'en' ? 'Step' : 'Étape'} {etapeActuelle + 1} / {etapes.length}
             </div>
             
-            <button
+            <motion.button
               onClick={allerASuivante}
               className="p-2 text-gray-500 hover:text-indigo-600 transition-colors"
               title={language === 'en' ? 'Next step' : 'Étape suivante'}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <ArrowRightCircle className="h-8 w-8" />
-            </button>
+            </motion.button>
           </div>
         </>
       ) : (
@@ -258,10 +302,12 @@ function FaqItem({
   const question = getLocalizedContent(item, 'question', language);
 
   return (
-    <div className="border-b border-gray-200" id={item.id}>
-      <button
+    <motion.div className="border-b border-gray-200" id={item.id} variants={cardVariants}>
+      <motion.button
         onClick={onToggle}
         className="w-full flex justify-between items-start py-4 text-left group"
+        whileHover={{ scale: 1.01, originX: 0 }}
+        whileTap={{ scale: 0.99, originX: 0 }}
       >
         <div className="flex items-start">
           <span className="mr-3 text-lg font-semibold text-indigo-600">
@@ -278,14 +324,14 @@ function FaqItem({
             }`}
           />
         </div>
-      </button>
+      </motion.button>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
             className="overflow-hidden"
           >
             <div className="pb-4 pl-10 pr-6 text-gray-600">
@@ -296,7 +342,7 @@ function FaqItem({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -558,19 +604,27 @@ export default function AidePage() {
   }
 
   return (
-    <div className="p-6 space-y-12 pb-24">
-      <div className="relative text-center">
-        <h1 className="text-4xl font-bold text-gray-900 inline-block">
+    <motion.div
+      className="p-6 space-y-12 pb-24"
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div
+        className="relative text-center"
+        variants={containerVariants}
+      >
+        <motion.h1 variants={itemVariants} className="text-4xl font-bold text-gray-900 inline-block">
           {language === 'en' ? 'How can we help you?' : 'Comment pouvons-nous vous aider ?'}
-        </h1>
-        <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
+        </motion.h1>
+        <motion.p variants={itemVariants} className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
           {language === 'en' 
             ? 'Ask a question or browse categories to find answers.'
             : 'Posez une question ou parcourez les catégories pour trouver des réponses.'
           }
-        </p>
+        </motion.p>
 
-        <div className="mt-8 max-w-2xl mx-auto">
+        <motion.div variants={itemVariants} className="mt-8 max-w-2xl mx-auto">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
@@ -584,20 +638,22 @@ export default function AidePage() {
             />
             {searchTerm && (
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <button
+                <motion.button
                   onClick={() => setSearchTerm('')}
                   className="p-1 text-gray-400 hover:text-gray-600 rounded-full focus:outline-none"
                   aria-label={language === 'en' ? 'Clear search' : 'Effacer la recherche'}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <X className="h-5 w-5" />
-                </button>
+                </motion.button>
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      <div className="w-full">
+      <motion.div className="w-full" variants={itemVariants}>
         <Tab.Group>
           <Tab.List className="flex space-x-1 rounded-xl bg-[#EBF5FF] p-1 overflow-x-auto">
             {categories.map((category) => {
@@ -606,6 +662,9 @@ export default function AidePage() {
               return (
                 <Tab
                   key={category.name_FR}
+                  as={motion.button}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={({ selected }) =>
                     `w-full rounded-lg py-2.5 text-sm font-medium leading-5 flex items-center justify-center gap-2
                     ring-white/60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
@@ -627,7 +686,11 @@ export default function AidePage() {
             {categorizedFaqsForDisplay.map((category) => (
               <Tab.Panel
                 key={category.id}
+                as={motion.div}
                 className="rounded-xl bg-white p-3 ring-white/60 ring-offset-2 focus:outline-none focus:ring-2"
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
               >
                 <div className="space-y-2">
                   {category.faqs.length > 0 ? (
@@ -643,22 +706,29 @@ export default function AidePage() {
                       />
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <motion.div variants={itemVariants} className="text-center py-8 text-gray-500">
                       {language === 'en' 
                         ? 'No questions match your search in this category.'
                         : 'Aucune question ne correspond à votre recherche dans cette catégorie.'
                       }
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </Tab.Panel>
             ))}
           </Tab.Panels>
         </Tab.Group>
-      </div>
+      </motion.div>
 
+      <AnimatePresence>
       {searchTerm.trim() !== '' && (
-        <div className="max-w-4xl mx-auto mt-12 border-t pt-8">
+        <motion.div
+          className="max-w-4xl mx-auto mt-12 border-t pt-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3, ease: ease }}
+        >
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             {language === 'en' 
               ? `All results for "${searchTerm}"`
@@ -666,13 +736,19 @@ export default function AidePage() {
             }
           </h2>
           {unifiedSearchResults.length > 0 ? (
-            <div className="space-y-4">
+            <motion.div
+              className="space-y-4"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {unifiedSearchResults.map((item, index) => {
                 const CategoryIcon = item.categoryIcon;
                 return (
-                  <div
+                  <motion.div
                     key={item.id}
                     className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                    variants={cardVariants}
                   >
                     <div
                       className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full text-sm font-semibold
@@ -689,10 +765,10 @@ export default function AidePage() {
                       searchTerm={searchTerm}
                       language={language}
                     />
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           ) : (
             <div className="text-center py-16">
               <p className="text-lg text-gray-600 font-semibold">
@@ -709,10 +785,16 @@ export default function AidePage() {
               </p>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-indigo-50 border-t border-indigo-200 p-4 shadow-lg text-center z-50 flex items-center justify-center">
+      <motion.div 
+        className="fixed bottom-0 left-0 right-0 bg-indigo-50 border-t border-indigo-200 p-4 shadow-lg text-center z-50 flex items-center justify-center"
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        transition={{ ease: "easeOut", duration: 0.5, delay: 0.8 }}
+      >
         <p className="text-indigo-700 text-base font-medium flex items-center space-x-2">
           <span className="italic">pssttt!</span>
           <Mail className="h-5 w-5 flex-shrink-0" />
@@ -723,25 +805,45 @@ export default function AidePage() {
             }
             <span className="inline-flex items-center font-bold">
               mediabox@pluscompany.com
-              <button
+              <motion.button
                 onClick={copyEmailToClipboard}
                 className="ml-2 p-1 rounded-full hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 title={copied ? 
                   (language === 'en' ? 'Copied!' : 'Copié !') : 
                   (language === 'en' ? 'Copy email' : "Copier l'e-mail")
                 }
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                {copied ? (
-                  <Check className="h-5 w-5 text-green-600" />
-                ) : (
-                  <Clipboard className="h-5 w-5 text-indigo-600" />
-                )}
-              </button>
+                <AnimatePresence mode="wait">
+                  {copied ? (
+                    <motion.div
+                      key="check"
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.5, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Check className="h-5 w-5 text-green-600" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="clipboard"
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.5, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Clipboard className="h-5 w-5 text-indigo-600" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             </span>
             😄
           </span>
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

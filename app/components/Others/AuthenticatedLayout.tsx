@@ -7,6 +7,7 @@
  * Le contenu de chaque page est injecté via la prop `children`.
  * 
  * VERSION OPTIMISÉE : Meilleure utilisation de l'espace sur les grands écrans
+ * NOUVEAU : Ajout d'une image de thème saisonnier dans le header
  */
 
 'use client';
@@ -15,6 +16,7 @@ import Navigation from './Navigation';
 import LanguageToggle from './LanguageToggle';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { useThemeImage } from '../../hooks/useThemeImage';
 import { useState, useRef, useEffect } from 'react';
 
 /**
@@ -31,6 +33,9 @@ export default function AuthenticatedLayout({
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Hook pour récupérer l'image de thème dynamique
+  const { imageUrl: themeImageUrl, loading: themeLoading, error: themeError } = useThemeImage(user?.email);
 
   /**
    * Effet pour gérer la fermeture du menu utilisateur lorsqu'un clic est détecté
@@ -53,8 +58,40 @@ export default function AuthenticatedLayout({
     <div className="flex h-screen bg-gray-50">
       <Navigation />
       <main className="flex-1 overflow-auto">
-        <div className="flex items-center justify-end px-6 py-2 border-b border-gray-200 bg-white">
-          <div className="flex items-center space-x-4">
+        <div className="relative flex items-center justify-end px-6 py-2 border-b border-gray-200 bg-white">
+          {/* Image de thème en arrière-plan - seulement si une image est disponible */}
+          {themeImageUrl && !themeLoading && (
+            <>
+              <div 
+                className="absolute left-0 top-0 bottom-0"
+                style={{
+                  right: '0px',
+                  backgroundImage: `url(${themeImageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'left center',
+                  backgroundRepeat: 'no-repeat'
+                }}
+              ></div>
+              
+              {/* Dégradé de l'image vers le blanc - ajustements pour équilibre parfait */}
+              <div 
+                className="absolute left-0 top-0 bottom-0 right-0"
+                style={{
+                  background: 'linear-gradient(to right, transparent 0%, transparent 40%, rgba(255,255,255,0.8) 55%, white 70%)'
+                }}
+              ></div>
+            </>
+          )}
+          
+          {/* Debug info en développement (optionnel) */}
+          {process.env.NODE_ENV === 'development' && themeError && (
+            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+              Erreur thème: {themeError}
+            </div>
+          )}
+          
+          {/* Menu utilisateur et contrôles - relatif pour être au-dessus */}
+          <div className="relative flex items-center space-x-4">
             {/* Menu utilisateur */}
             <div className="relative" ref={menuRef}>
               {user && (

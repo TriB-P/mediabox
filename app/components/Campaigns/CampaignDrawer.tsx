@@ -312,12 +312,10 @@ export default function CampaignDrawer({
       const newDynamicLists: { [key: string]: ShortcodeItem[] } = {};
 
       for (const field of dynamicListFields) {
-        console.log(`[CACHE] Vérification existence de ${field}`);
         const hasListResult = hasCachedList(field, selectedClient.clientId);
         newVisibleFields[field] = hasListResult;
 
         if (hasListResult) {
-          console.log(`[CACHE] Chargement de ${field}`);
           const cachedList = getListForClient(field, selectedClient.clientId);
           
           if (cachedList && cachedList.length > 0) {

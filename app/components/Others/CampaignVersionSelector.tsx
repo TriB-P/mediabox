@@ -6,8 +6,7 @@
  * - `CampaignVersionSelector` : Le composant principal qui affiche deux listes déroulantes.
  * - `CompactCampaignVersionSelector` : Une variante plus petite du composant principal.
  * - `useCampaignVersionSelector` : Un hook personnalisé pour gérer facilement l'état de sélection.
- * 
- * MODIFIÉ : Support des shortcodes pour CA_Quarter et CA_Year (comme CA_Division).
+ * * MODIFIÉ : Support des shortcodes pour CA_Quarter et CA_Year (comme CA_Division).
  */
 'use client';
 
@@ -16,6 +15,7 @@ import { ChevronDownIcon, CheckIcon, StarIcon } from '@heroicons/react/24/outlin
 import { Campaign } from '../../types/campaign';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { useClient } from '../../contexts/ClientContext';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 // Import des fonctions de cache
 import {
@@ -49,6 +49,52 @@ interface CampaignVersionSelectorProps {
   showVersionBadges?: boolean;
   compact?: boolean;
 }
+
+const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
+const containerVariants: Variants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+    },
+  },
+};
+
+const dropdownMenuVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.99, y: -5 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      duration: 0.2,
+      ease: "easeOut",
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.99,
+    y: -5,
+    transition: {
+      duration: 0.15,
+      ease: "easeIn",
+    },
+  },
+};
 
 /**
  * Affiche deux listes déroulantes pour sélectionner une campagne puis une version.
@@ -303,13 +349,19 @@ export default function CampaignVersionSelector({
   }
   
   return (
-    <div className={`${baseClasses} ${className}`}>
-      <div className={`${dropdownClasses} relative`} ref={campaignDropdownRef}>
-        <button
+    <motion.div 
+        className={`${baseClasses} ${className}`}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+    >
+      <motion.div className={`${dropdownClasses} relative`} ref={campaignDropdownRef} variants={itemVariants}>
+        <motion.button
           type="button"
           className={buttonClasses}
           onClick={handleCampaignDropdownToggle}
           disabled={disabled || campaigns.length === 0}
+
         >
           <span className="truncate">
             {selectedCampaign 
@@ -322,74 +374,82 @@ export default function CampaignVersionSelector({
           <ChevronDownIcon className={`w-5 h-5 ml-2 -mr-1 transition-transform ${
             showCampaignDropdown ? 'rotate-180' : ''
           }`} />
-        </button>
+        </motion.button>
 
-        {showCampaignDropdown && campaigns.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-80 overflow-hidden">
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
-              <div className="relative">
-                <input
-                  ref={campaignSearchRef}
-                  type="text"
-                  placeholder={t('campaignSelector.searchCampaign')}
-                  value={campaignSearchTerm}
-                  onChange={(e) => setCampaignSearchTerm(e.target.value)}
-                  onKeyDown={handleCampaignSearchKeyDown}
-                  className="w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+        <AnimatePresence>
+          {showCampaignDropdown && campaigns.length > 0 && (
+            <motion.div 
+              className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-80 overflow-hidden flex flex-col"
+              variants={dropdownMenuVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <div className="p-3 border-b border-gray-200 bg-gray-50">
+                <div className="relative">
+                  <input
+                    ref={campaignSearchRef}
+                    type="text"
+                    placeholder={t('campaignSelector.searchCampaign')}
+                    value={campaignSearchTerm}
+                    onChange={(e) => setCampaignSearchTerm(e.target.value)}
+                    onKeyDown={handleCampaignSearchKeyDown}
+                    className="w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
                 </div>
+                {campaignSearchTerm && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    {filteredCampaigns.length} résultat{filteredCampaigns.length !== 1 ? 's' : ''} trouvé{filteredCampaigns.length !== 1 ? 's' : ''}
+                  </div>
+                )}
               </div>
-              {campaignSearchTerm && (
-                <div className="mt-2 text-xs text-gray-500">
-                  {filteredCampaigns.length} résultat{filteredCampaigns.length !== 1 ? 's' : ''} trouvé{filteredCampaigns.length !== 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
 
-            <div className="max-h-64 overflow-y-auto">
-              {filteredCampaigns.length > 0 ? (
-                <ul className="py-1">
-                  {filteredCampaigns.map((campaign: Campaign) => (
-                    <li key={campaign.id}>
-                      <button
-                        className={`
-                          w-full text-left px-4 py-2 text-sm hover:bg-gray-100 
-                          flex items-center justify-between transition-colors
-                          ${selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''}
-                        `}
-                        onClick={() => handleCampaignSelect(campaign)}
-                      >
-                        <div className="truncate">
-                          <div className="font-medium">{campaign.CA_Name}</div>
-                          {!compact && (
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {getYearName(campaign.CA_Year)} • {getQuarterName(campaign.CA_Quarter)}
-                            </div>
+              <div className="flex-1 overflow-y-auto">
+                {filteredCampaigns.length > 0 ? (
+                  <ul className="py-1">
+                    {filteredCampaigns.map((campaign: Campaign) => (
+                      <li key={campaign.id}>
+                        <button
+                          className={`
+                            w-full text-left px-4 py-2 text-sm hover:bg-gray-100 
+                            flex items-center justify-between transition-colors
+                            ${selectedCampaign?.id === campaign.id ? 'bg-gray-50 font-medium' : ''}
+                          `}
+                          onClick={() => handleCampaignSelect(campaign)}
+                        >
+                          <div className="truncate">
+                            <div className="font-medium">{campaign.CA_Name}</div>
+                            {!compact && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {getYearName(campaign.CA_Year)} • {getQuarterName(campaign.CA_Quarter)}
+                              </div>
+                            )}
+                          </div>
+                          {selectedCampaign?.id === campaign.id && (
+                            <CheckIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
                           )}
-                        </div>
-                        {selectedCampaign?.id === campaign.id && (
-                          <CheckIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="px-4 py-6 text-center text-sm text-gray-500">
-                  {t('campaignSelector.noCampaignFound')} "{campaignSearchTerm}"
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="px-4 py-6 text-center text-sm text-gray-500">
+                    {t('campaignSelector.noCampaignFound')} "{campaignSearchTerm}"
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      <div className={`${dropdownClasses} relative`} ref={versionDropdownRef}>
-        <button
+      <motion.div className={`${dropdownClasses} relative`} ref={versionDropdownRef} variants={itemVariants}>
+        <motion.button
           type="button"
           className={buttonClasses}
           onClick={() => !disabled && setShowVersionDropdown(!showVersionDropdown)}
@@ -408,40 +468,48 @@ export default function CampaignVersionSelector({
           <ChevronDownIcon className={`w-5 h-5 ml-2 -mr-1 transition-transform ${
             showVersionDropdown ? 'rotate-180' : ''
           }`} />
-        </button>
+        </motion.button>
 
-        {showVersionDropdown && versions.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto">
-            <ul className="py-1">
-              {versions.map((version: Version) => (
-                <li key={version.id}>
-                  <button
-                    className={`
-                      w-full text-left px-4 py-2 text-sm hover:bg-gray-100 
-                      flex items-center justify-between
-                      ${selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''}
-                    `}
-                    onClick={() => handleVersionSelect(version)}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="truncate">{version.name}</span>
-                      {showVersionBadges && version.isOfficial && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <StarIcon className="w-3 h-3 mr-1" />
-                          Officielle
-                        </span>
+        <AnimatePresence>
+          {showVersionDropdown && versions.length > 0 && (
+            <motion.div 
+              className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-56 overflow-auto"
+              variants={dropdownMenuVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <ul className="py-1">
+                {versions.map((version: Version) => (
+                  <li key={version.id}>
+                    <button
+                      className={`
+                        w-full text-left px-4 py-2 text-sm hover:bg-gray-100 
+                        flex items-center justify-between transition-colors
+                        ${selectedVersion?.id === version.id ? 'bg-gray-50 font-medium' : ''}
+                      `}
+                      onClick={() => handleVersionSelect(version)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="truncate">{version.name}</span>
+                        {showVersionBadges && version.isOfficial && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <StarIcon className="w-3 h-3 mr-1" />
+                            Officielle
+                          </span>
+                        )}
+                      </div>
+                      {selectedVersion?.id === version.id && (
+                        <CheckIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
                       )}
-                    </div>
-                    {selectedVersion?.id === version.id && (
-                      <CheckIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 }

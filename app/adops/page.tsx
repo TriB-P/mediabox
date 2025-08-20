@@ -18,6 +18,7 @@ import { useCampaignSelection } from '../hooks/useCampaignSelection';
 import { useAdOpsData } from '../hooks/useAdOpsData';
 import { getCM360TagsForTactique, detectChanges, detectMetricsChanges } from '../lib/cm360Service';
 import type { CM360TagHistory } from '../lib/cm360Service';
+import { motion, Variants } from 'framer-motion';
 
 // Import des composants AdOps
 import AdOpsDropdowns from '../components/AdOps/AdOpsDropdowns';
@@ -443,18 +444,50 @@ export default function AdOpsPage() {
   const isLoading = campaignLoading;
   const hasError = campaignError;
 
+  const containerVariants: Variants = {
+    initial: {},
+    animate: {
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants: Variants = {
+    initial: { opacity: 0, y: 20 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const },
+    },
+  };
+
+  const cardVariants: Variants = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const },
+    },
+  };
+
   return (
     <ProtectedRoute>
       <AuthenticatedLayout>
-        <div className="space-y-4">
+        <motion.div 
+          className="space-y-4"
+          initial="initial"
+          animate="animate"
+          variants={containerVariants}
+        >
           
           {/* En-tête avec titre */}
-          <div className="flex justify-between items-center">
+          <motion.div className="flex justify-between items-center" variants={itemVariants}>
             <h1 className="text-2xl font-bold text-gray-900">{t('adOpsPage.header.title')}</h1>
-          </div>
+          </motion.div>
           
           {/* Sélecteur de campagne et version avec bouton de rafraîchissement */}
-          <div className="flex items-center gap-4">
+          <motion.div className="flex items-center gap-4" variants={itemVariants}>
             <div className="flex-1">
               <CampaignVersionSelector
                 campaigns={campaigns}
@@ -471,7 +504,7 @@ export default function AdOpsPage() {
             
             {/* Bouton de rafraîchissement */}
             {selectedCampaign && selectedVersion && (
-              <button
+              <motion.button
                 onClick={handleManualRefresh}
                 disabled={isRefreshing || campaignLoading || adOpsLoading || cm360Loading}
                 className={`
@@ -480,63 +513,85 @@ export default function AdOpsPage() {
                   transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap
                 `}
                 title={t('adOpsPage.header.refreshTooltip')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
               >
                 <ArrowPathIcon 
                   className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
                 />
                 <span>{isRefreshing ? t('adOpsPage.header.refreshing') : t('adOpsPage.header.refresh')}</span>
-              </button>
+              </motion.button>
             )}
-          </div>
+          </motion.div>
           
           {/* Barre de progression CM360 */}
-          <AdOpsProgressBar 
-            filteredTactiques={filteredTactiques}
-            cm360Tags={cm360Tags}
-            creativesData={creativesData}
-            loading={campaignLoading || cm360Loading || isRefreshing}
-          />
+          <motion.div variants={itemVariants}>
+            <AdOpsProgressBar 
+              filteredTactiques={filteredTactiques}
+              cm360Tags={cm360Tags}
+              creativesData={creativesData}
+              loading={campaignLoading || cm360Loading || isRefreshing}
+            />
+          </motion.div>
           
           {/* États de chargement et d'erreur */}
           {isLoading && (
-            <div className="bg-white p-8 rounded-lg shadow flex items-center justify-center">
+            <motion.div 
+              className="bg-white p-8 rounded-lg shadow flex items-center justify-center"
+              variants={itemVariants}
+            >
               <div className="flex items-center space-x-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
                 <div className="text-sm text-gray-500">{t('common.loading')}</div>
               </div>
-            </div>
+            </motion.div>
           )}
           
           {hasError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <motion.div 
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
+              variants={itemVariants}
+            >
               {hasError}
-            </div>
+            </motion.div>
           )}
           
           {/* Contenu principal - LAYOUT SIMPLIFIÉ */}
           {!isLoading && !hasError && (
             <>
               {!selectedCampaign && (
-                <div className="bg-white p-8 rounded-lg shadow text-center">
+                <motion.div 
+                  className="bg-white p-8 rounded-lg shadow text-center"
+                  variants={itemVariants}
+                >
                   <p className="text-gray-500">
                     {t('adOpsPage.placeholder.selectCampaignAndVersion')}
                   </p>
-                </div>
+                </motion.div>
               )}
               
               {selectedCampaign && !selectedVersion && (
-                <div className="bg-white p-8 rounded-lg shadow text-center">
+                <motion.div 
+                  className="bg-white p-8 rounded-lg shadow text-center"
+                  variants={itemVariants}
+                >
                   <p className="text-gray-500">
                     {t('adOpsPage.placeholder.selectVersion')}
                   </p>
-                </div>
+                </motion.div>
               )}
               
               {selectedCampaign && selectedVersion && (
-                <div className="space-y-6">
+                <motion.div 
+                  className="space-y-6"
+                  initial="initial"
+                  animate="animate"
+                  variants={containerVariants}
+                >
                   
                   {/* Dropdowns en cascade dans un conteneur blanc */}
-                  <div className="bg-white rounded-lg shadow">
+                  <motion.div className="bg-white rounded-lg shadow" variants={cardVariants}>
                     <AdOpsDropdowns 
                       publishers={publishers}
                       tactiqueOptions={tactiqueOptions}
@@ -551,10 +606,10 @@ export default function AdOpsPage() {
                       selectAllTactiques={selectAllTactiques}
                       deselectAllTactiques={deselectAllTactiques}
                     />
-                  </div>
+                  </motion.div>
                   
                   {/* Tableau pleine largeur avec niveau tactiques */}
-                  <div className="bg-white rounded-lg shadow">
+                  <motion.div className="bg-white rounded-lg shadow" variants={cardVariants}>
                     <AdOpsTacticTable 
                       selectedTactiques={filteredTactiques}
                       selectedCampaign={selectedCampaign}
@@ -564,13 +619,13 @@ export default function AdOpsPage() {
                       onCM360TagsReload={handleCM360TagsReload}
                       onDataReload={handleDataReload}
                     />
-                  </div>
+                  </motion.div>
                   
-                </div>
+                </motion.div>
               )}
             </>
           )}
-        </div>
+        </motion.div>
       </AuthenticatedLayout>
     </ProtectedRoute>
   );
