@@ -1,8 +1,9 @@
-// app/components/Tactiques/Placement/PlacementDrawer.tsx - VERSION SIMPLIFIÉE AVEC STRINGS
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - FIX POUR PL_ORDER
 
 /**
  * PlacementDrawer simplifié avec toutes les dates en string.
  * SIMPLIFICATION : Plus de conversion, tout en string maintenant
+ * FIX : Ne plus définir PL_Order pour les nouvelles créations (auto-incrémentation)
  */
 'use client';
 
@@ -114,12 +115,13 @@ export default function PlacementDrawer({
   }, [addDaysToDateString]);
 
   // 🔥 ÉTAT DU FORMULAIRE SIMPLIFIÉ : Tout en string
+  // ✅ FIX : PL_Order seulement défini pour les éditions
   const [formData, setFormData] = useState<PlacementFormData>(() => {
     const emptyPlacementFields = createEmptyPlacementFieldsObject();
     
     const initialData: PlacementFormData = {
       PL_Label: '',
-      PL_Order: 0,
+      // ✅ SUPPRIMÉ : PL_Order n'est plus défini ici (sera auto-calculé)
       PL_TactiqueId: tactiqueId,
       PL_Start_Date: '', // String
       PL_End_Date: '',   // String
@@ -134,7 +136,7 @@ export default function PlacementDrawer({
       PL_Creative_Rotation_Type: '',
       PL_Floodlight: '',
       ...emptyPlacementFields,
-    };
+    } as PlacementFormData; // Cast nécessaire car PL_Order est optionnel maintenant
     
     return initialData;
   });
@@ -142,6 +144,7 @@ export default function PlacementDrawer({
  
   /**
    * 🔥 EFFET SIMPLIFIÉ : Initialisation du formulaire selon le mode (création/édition)
+   * ✅ FIX : PL_Order seulement défini pour les éditions
    */
   useEffect(() => {
     
@@ -149,6 +152,7 @@ export default function PlacementDrawer({
     
     if (placement) {
       // 🔥 MODE ÉDITION : Convertir les dates (Date ou string) vers string
+      // ✅ GARDE PL_Order pour les éditions
       
       const placementFieldsFromPlacement = extractPlacementFieldsFromData(placement);
       const placementStartDate = dateToString(placement.PL_Start_Date);
@@ -159,7 +163,7 @@ export default function PlacementDrawer({
       
       setFormData({
         PL_Label: placement.PL_Label || '',
-        PL_Order: placement.PL_Order || 0,
+        PL_Order: placement.PL_Order || 0, // ✅ GARDE pour les éditions
         PL_TactiqueId: placement.PL_TactiqueId,
         PL_Start_Date: placementStartDate,
         PL_End_Date: placementEndDate,
@@ -179,13 +183,14 @@ export default function PlacementDrawer({
       });
     } else {
       // 🔥 MODE CRÉATION : Utiliser les dates héritées
+      // ✅ SUPPRIMÉ : PL_Order n'est plus défini (sera auto-calculé)
       
       const { startDate, endDate } = getInheritedDates();
       const { tagStartDate, tagEndDate } = getDefaultTagDates(startDate, endDate);
       
       setFormData({
         PL_Label: '',
-        PL_Order: 0,
+        // ✅ SUPPRIMÉ : PL_Order n'est plus défini pour les créations
         PL_TactiqueId: tactiqueId,
         PL_Start_Date: startDate,
         PL_End_Date: endDate,
@@ -200,7 +205,7 @@ export default function PlacementDrawer({
         PL_Creative_Rotation_Type: '',
         PL_Floodlight: '',
         ...emptyPlacementFields,
-      });
+      } as PlacementFormData); // Cast nécessaire car PL_Order est optionnel maintenant
     }
   }, [placement, tactiqueId, getInheritedDates, getDefaultTagDates, dateToString]);
 
@@ -246,10 +251,17 @@ export default function PlacementDrawer({
 
   /**
    * 🔥 FONCTION HANDLESUBMIT SIMPLIFIÉE : Plus de conversion nécessaire
+   * ✅ DEBUG AJOUTÉ : Pour vérifier les données envoyées
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // ✅ DEBUG : Vérifier les données envoyées
+    console.log('📤 Données envoyées au service:', {
+      isEdit: !!placement,
+      PL_Order: formData.PL_Order,
+      formData
+    });
     
     try {
       // Plus besoin de conversion, tout est déjà en string

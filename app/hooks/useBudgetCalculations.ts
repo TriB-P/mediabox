@@ -232,7 +232,7 @@ function calculateFeesCorrectly(
           effectiveVolume = unitVolume;
         }
         
-        calculatedAmount = finalValue * effectiveVolume;
+        calculatedAmount = finalValue * effectiveVolume /1000;
         break;
         
         case 'Unités':

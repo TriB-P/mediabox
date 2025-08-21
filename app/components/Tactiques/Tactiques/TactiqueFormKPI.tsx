@@ -8,13 +8,13 @@
  * média et une liste dynamique de composants KPIItem.
  * Ce fichier est purement présentationnel ("dumb component") ; il reçoit toutes les données
  * et les fonctions de gestion d'état via ses props depuis un composant parent.
- * VERSION MODIFIÉE : Les valeurs numériques des KPIs sont initialement vides au lieu de 0
+ * VERSION MODIFIÉE : Support multilingue avec adaptation selon la langue de l'utilisateur
  */
 
 'use client';
 
 import React, { memo, useCallback } from 'react';
-import { useTranslation } from '../../../contexts/LanguageContext';
+import { useTranslation, Language } from '../../../contexts/LanguageContext';
 import { 
   SmartSelect, 
   SelectionButtons,
@@ -25,16 +25,23 @@ import SearchableSelect from '../SearchableSelect';
 interface ListItem {
   id: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
 }
 
 /**
- * MODIFIÉ : Interface KPIData avec valeurs numériques optionnelles
- * Les champs TC_Kpi_CostPer et TC_Kpi_Volume peuvent être undefined pour rester vides initialement
+ * Fonction utilitaire pour obtenir le nom d'affichage selon la langue courante
+ */
+const getDisplayName = (item: ListItem, language: Language): string => {
+  return language === 'en' ? item.SH_Display_Name_EN : item.SH_Display_Name_FR;
+};
+
+/**
+ * Interface KPIData avec valeurs numériques optionnelles
  */
 interface KPIData {
   TC_Kpi: string;
-  TC_Kpi_CostPer?: number; // MODIFIÉ : Optionnel pour permettre valeurs vides
-  TC_Kpi_Volume?: number;  // MODIFIÉ : Optionnel pour permettre valeurs vides
+  TC_Kpi_CostPer?: number;
+  TC_Kpi_Volume?: number;
 }
 
 interface TactiqueFormKPIProps {
@@ -44,17 +51,16 @@ interface TactiqueFormKPIProps {
   kpis: KPIData[];
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onTooltipChange: (tooltip: string | null) => void;
-  onKpiChange: (index: number, field: keyof KPIData, value: string | number | undefined) => void; // MODIFIÉ : Accepter undefined
+  onKpiChange: (index: number, field: keyof KPIData, value: string | number | undefined) => void;
   onAddKpi: () => void;
   onRemoveKpi: (index: number) => void;
-  dynamicLists: { [key: string]: ListItem[] };
+  dynamicLists: any;
   loading?: boolean;
 }
 
 /**
  * Affiche un formulaire pour un seul KPI.
  * Ce composant est mémoïsé pour optimiser les performances lors de la mise à jour de la liste de KPIs.
- * MODIFIÉ : Gestion des valeurs vides pour les champs numériques
  */
 const KPIItem = memo<{
   kpi: KPIData;
@@ -74,33 +80,29 @@ const KPIItem = memo<{
   onTooltipChange 
 }) => {
   
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
   /**
    * Gère le changement de la sélection du type de KPI.
-   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'événement de changement.
    */
   const handleKpiTypeChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     onKpiChange(index, 'TC_Kpi', e.target.value);
   }, [index, onKpiChange]);
 
   /**
-   * MODIFIÉ : Gère le changement de la valeur du champ "Coût par" avec support des valeurs vides.
-   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   * Gère le changement de la valeur du champ "Coût par" avec support des valeurs vides.
    */
   const handleCostPerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Si le champ est vide, passer undefined, sinon parser la valeur
     const numericValue = value === '' ? undefined : parseFloat(value);
     onKpiChange(index, 'TC_Kpi_CostPer', numericValue);
   }, [index, onKpiChange]);
 
   /**
-   * MODIFIÉ : Gère le changement de la valeur du champ "Volume" avec support des valeurs vides.
-   * @param {React.ChangeEvent<HTMLInputElement>} e - L'événement de changement.
+   * Gère le changement de la valeur du champ "Volume" avec support des valeurs vides.
    */
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Si le champ est vide, passer undefined, sinon parser la valeur
     const numericValue = value === '' ? undefined : parseFloat(value);
     onKpiChange(index, 'TC_Kpi_Volume', numericValue);
   }, [index, onKpiChange]);
@@ -143,7 +145,7 @@ const KPIItem = memo<{
               <SelectionButtons
                 options={kpiOptions.map(item => ({ 
                   id: item.id, 
-                  label: item.SH_Display_Name_FR 
+                  label: getDisplayName(item, language)
                 }))}
                 value={kpi.TC_Kpi}
                 onChange={handleKpiTypeChange as (e: React.ChangeEvent<HTMLInputElement>) => void}
@@ -158,7 +160,7 @@ const KPIItem = memo<{
                 onChange={handleKpiTypeChange}
                 options={kpiOptions.map(item => ({ 
                   id: item.id, 
-                  label: item.SH_Display_Name_FR 
+                  label: getDisplayName(item, language)
                 }))}
                 placeholder={t('kpi.form.selectPlaceholder')}
                 label=""
@@ -181,7 +183,7 @@ const KPIItem = memo<{
             </div>
             <input
               type="number"
-              value={kpi.TC_Kpi_CostPer ?? ''} // MODIFIÉ : Utiliser ?? '' pour afficher vide si undefined
+              value={kpi.TC_Kpi_CostPer ?? ''}
               onChange={handleCostPerChange}
               min="0"
               step="0.01"
@@ -201,7 +203,7 @@ const KPIItem = memo<{
           </div>
           <input
             type="number"
-            value={kpi.TC_Kpi_Volume ?? ''} // MODIFIÉ : Utiliser ?? '' pour afficher vide si undefined
+            value={kpi.TC_Kpi_Volume ?? ''}
             onChange={handleVolumeChange}
             min="0"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -218,7 +220,6 @@ KPIItem.displayName = 'KPIItem';
 /**
  * Composant principal pour la section des KPIs et objectifs du formulaire de tactique.
  * Il gère l'affichage de l'objectif média et la liste des KPIs.
- * INCHANGÉ : La logique principale reste la même
  */
 const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   formData,
@@ -231,7 +232,7 @@ const TactiqueFormKPI = memo<TactiqueFormKPIProps>(({
   dynamicLists,
   loading = false
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const kpiOptions = dynamicLists.TC_Kpi || [];
   const isDisabled = loading;
   

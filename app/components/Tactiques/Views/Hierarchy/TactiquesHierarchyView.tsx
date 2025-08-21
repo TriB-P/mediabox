@@ -1,9 +1,9 @@
 // app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx
 
 /**
- * ✅ MISE À JOUR : Intégration du drag & drop cross-parent
- * Remplace useSimpleDragDrop par useAdvancedDragDrop
- * Permet maintenant de glisser vers d'autres parents !
+ * ✅ MISE À JOUR : Intégration de la persistance des états d'expansion
+ * Remplace les useState locaux par useExpandedStates pour maintenir
+ * les états collapse/expand lors des refresh de données
  */
 'use client';
 
@@ -37,7 +37,8 @@ import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
 import SelectedActionsPanel from '../../SelectedActionsPanel';
 import { DndKitTactiqueItem } from './DndKitHierarchyComponents';
-import { useAdvancedDragDrop } from '../../../../hooks/useAdvancedDragDrop'; // ✅ CHANGÉ !
+import { useAdvancedDragDrop } from '../../../../hooks/useAdvancedDragDrop';
+import { useExpandedStates } from '../../../../hooks/useExpandedStates'; // ✅ NOUVEAU !
 import { useClient } from '../../../../contexts/ClientContext';
 import { useSelection } from '../../../../contexts/SelectionContext';
 import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
@@ -133,24 +134,29 @@ export default function TactiquesHierarchyView({
 
   const selectionMessages = useSelectionMessages(validationResult);
 
-  // ✅ CHANGÉ : Utilise le nouveau hook avancé avec hierarchyContext
+  // ✅ NOUVEAU : Hook de persistance des états d'expansion
+  const expandedStates = useExpandedStates({
+    sections,
+    tactiques: hierarchyContext?.tactiques || {},
+    placements,
+    creatifs
+  });
+
+  // ✅ CHANGÉ : Utilise le hook avancé avec hierarchyContext
   const { isDragLoading, sensors, handleDragEnd } = useAdvancedDragDrop({
     sections,
     placements,
     creatifs,
     onRefresh,
     onDragSuccess: onDragRefresh,
-    hierarchyContext // ✅ NOUVEAU : Passe le contexte hiérarchique
+    hierarchyContext
   });
 
-  // États pour le hover, expansion, etc. (TOUTES tes fonctionnalités existantes)
+  // États pour le hover, drawers, etc. (inchangés)
   const [hoveredSection, setHoveredSection] = useState<string | null>(null);
   const [hoveredTactique, setHoveredTactique] = useState<{sectionId: string, tactiqueId: string} | null>(null);
   const [hoveredPlacement, setHoveredPlacement] = useState<{sectionId: string, tactiqueId: string, placementId: string} | null>(null);
   const [hoveredCreatif, setHoveredCreatif] = useState<{sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null>(null);
-
-  const [expandedTactiques, setExpandedTactiques] = useState<{[tactiqueId: string]: boolean}>({});
-  const [expandedPlacements, setExpandedPlacements] = useState<{[placementId: string]: boolean}>({});
 
   const [tactiqueDrawer, setTactiqueDrawer] = useState<{
     isOpen: boolean;
@@ -216,7 +222,7 @@ export default function TactiquesHierarchyView({
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Fonctions utilitaires (TOUTES tes fonctions existantes - inchangées)
+  // Fonctions utilitaires (inchangées)
   const calculatePercentage = (amount: number) => {
     if (totalBudget <= 0) return 0;
     return Math.round((amount / totalBudget) * 100);
@@ -279,22 +285,11 @@ export default function TactiquesHierarchyView({
     }
   };
 
-  // Gestionnaires d'expansion (TOUTES tes fonctions existantes - inchangées)
-  const handleTactiqueExpand = (tactiqueId: string) => {
-    setExpandedTactiques(prev => ({
-      ...prev,
-      [tactiqueId]: !prev[tactiqueId]
-    }));
-  };
+  // ✅ CHANGÉ : Utilise les gestionnaires du hook de persistance
+  // const handleTactiqueExpand = (tactiqueId: string) => { ... } // SUPPRIMÉ
+  // const handlePlacementExpand = (placementId: string) => { ... } // SUPPRIMÉ
 
-  const handlePlacementExpand = (placementId: string) => {
-    setExpandedPlacements(prev => ({
-      ...prev,
-      [placementId]: !prev[placementId]
-    }));
-  };
-
-  // Gestionnaires de sélection (TOUTES tes fonctions existantes - inchangées)
+  // Gestionnaires de sélection (inchangés)
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
     selectionLogic.toggleSelection(sectionId, isSelected);
   };
@@ -311,7 +306,7 @@ export default function TactiquesHierarchyView({
     selectionLogic.toggleSelection(creatifId, isSelected);
   };
 
-  // ... (toutes les autres fonctions existantes restent identiques)
+  // Toutes les autres fonctions existantes restent identiques...
   const handleEditTactique = (sectionId: string, tactique: Tactique) => {
     setTactiqueDrawer({
       isOpen: true,
@@ -379,7 +374,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // Gestionnaires de sauvegarde (TOUTES tes fonctions existantes - inchangées)
+  // Gestionnaires de sauvegarde (inchangés)
   const handleSaveTactique = async (tactiqueData: any) => {
     if (!onUpdateTactique) return;
   
@@ -547,7 +542,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // Gestionnaires des menus contextuels (TOUTES tes fonctions existantes - inchangées)
+  // Gestionnaires des menus contextuels (inchangés)
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif,
     itemType: 'placement' | 'creatif',
@@ -609,7 +604,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // Calcul des éléments sélectionnés (TOUTES tes fonctions existantes - inchangées)
+  // Calcul des éléments sélectionnés (inchangé)
   const selectedItems = useMemo(() => {
     const selection = selectionLogic.getSelectedItems();
     const result: Array<{
@@ -681,7 +676,7 @@ export default function TactiquesHierarchyView({
     onClearSelection?.();
   };
 
-  // Fonctions utilitaires pour trouver les éléments (TOUTES tes fonctions existantes - inchangées)
+  // Fonctions utilitaires pour trouver les éléments (inchangées)
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
     for (const section of sections) {
       const tactique = section.tactiques.find(t => t.id === tactiqueId);
@@ -713,7 +708,7 @@ export default function TactiquesHierarchyView({
 
   return (
     <>
-      {/* ✅ INCHANGÉ : Indicateur de loading pendant le drag and drop */}
+      {/* Indicateur de loading pendant le drag and drop */}
       {isDragLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 shadow-lg">
@@ -725,7 +720,7 @@ export default function TactiquesHierarchyView({
         </div>
       )}
 
-      {/* ✅ INCHANGÉ : Panel d'actions pour les éléments sélectionnés */}
+      {/* Panel d'actions pour les éléments sélectionnés */}
       {selectedItems.length > 0 && (
         <SelectedActionsPanel
           selectedItems={selectedItems}
@@ -739,7 +734,7 @@ export default function TactiquesHierarchyView({
         />
       )}
 
-      {/* ✅ INCHANGÉ : DndContext - même logique, mais maintenant avec cross-parent ! */}
+      {/* DndContext */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -748,7 +743,7 @@ export default function TactiquesHierarchyView({
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="divide-y divide-gray-200">
             
-            {/* ✅ INCHANGÉ : Sections avec tactiques - même UI, nouvelles capacités ! */}
+            {/* Sections avec tactiques */}
             {sections.map((section, sectionIndex) => (
               <div
                 key={`section-${section.id}`}
@@ -867,7 +862,7 @@ export default function TactiquesHierarchyView({
                   </div>
                 </div>
 
-                {/* ✅ INCHANGÉ : Rendu des tactiques - maintenant compatible cross-parent ! */}
+                {/* ✅ CHANGÉ : Utilise expandedStates au lieu des useState locaux */}
                 {section.isExpanded && (
                   <div className="bg-white">
                     {section.tactiques.length === 0 ? (
@@ -904,8 +899,8 @@ export default function TactiquesHierarchyView({
                                   }))
                                 ])
                               )}
-                              expandedTactiques={expandedTactiques}
-                              expandedPlacements={expandedPlacements}
+                              expandedTactiques={expandedStates.expandedTactiques} // ✅ CHANGÉ
+                              expandedPlacements={expandedStates.expandedPlacements} // ✅ CHANGÉ
                               hoveredTactique={hoveredTactique}
                               hoveredPlacement={hoveredPlacement}
                               hoveredCreatif={hoveredCreatif}
@@ -913,8 +908,8 @@ export default function TactiquesHierarchyView({
                               onHoverTactique={setHoveredTactique}
                               onHoverPlacement={setHoveredPlacement}
                               onHoverCreatif={setHoveredCreatif}
-                              onExpandTactique={handleTactiqueExpand}
-                              onExpandPlacement={handlePlacementExpand}
+                              onExpandTactique={expandedStates.handleTactiqueExpand} // ✅ CHANGÉ
+                              onExpandPlacement={expandedStates.handlePlacementExpand} // ✅ CHANGÉ
                               onEdit={handleEditTactique}
                               onCreatePlacement={handleCreatePlacementLocal}
                               onEditPlacement={handleEditPlacement}
@@ -940,7 +935,7 @@ export default function TactiquesHierarchyView({
         </div>
       </DndContext>
 
-      {/* ✅ INCHANGÉ : TOUS tes drawers existants */}
+      {/* TOUS les drawers existants (inchangés) */}
       <TactiqueDrawer
         isOpen={tactiqueDrawer.isOpen}
         onClose={() => setTactiqueDrawer(prev => ({ ...prev, isOpen: false }))}
@@ -969,7 +964,7 @@ export default function TactiquesHierarchyView({
         onSave={handleSaveCreatif}
       />
 
-      {/* ✅ INCHANGÉ : Menu contextuel pour les taxonomies */}
+      {/* Menu contextuel pour les taxonomies */}
       {selectedClient && taxonomyMenuState.isOpen && (
         <TaxonomyContextMenu
           isOpen={taxonomyMenuState.isOpen}

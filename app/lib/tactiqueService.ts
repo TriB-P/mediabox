@@ -22,6 +22,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Section, Tactique, Onglet } from '../types/tactiques';
+import { getNextOrder, type OrderContext } from './orderManagementService';
+
 
 interface Fee {
   id: string;
@@ -192,6 +194,8 @@ export async function addSection(
       ongletId,
       'sections'
     );
+
+
     console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: addSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
     const docRef = await addDoc(sectionsRef, {
       ...sectionData,
@@ -281,9 +285,29 @@ export async function addTactique(
       sectionId,
       'tactiques'
     );
+
+    // ✅ NOUVEAU : Calcul automatique de TC_Order
+      const orderContext: OrderContext = {
+        clientId,
+        campaignId,
+        versionId,
+        ongletId,
+        sectionId
+      };
+
+      let calculatedOrder = 0;
+      try {
+        calculatedOrder = await getNextOrder('tactique', orderContext);
+        console.log(`🔢 TC_Order calculé automatiquement: ${calculatedOrder}`);
+      } catch (error) {
+        console.error('❌ Erreur calcul TC_Order:', error);
+        console.log('🔢 TC_Order fallback: 0');
+      }
+
     console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: addTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
     const docRef = await addDoc(tactiquesRef, {
       ...tactiqueData,
+      TC_Order: calculatedOrder, 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });

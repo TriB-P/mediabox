@@ -59,7 +59,8 @@ export function enrichColumnsWithData(
           case 'TC_LOB':
           case 'TC_Media_Type':
           case 'TC_Publisher':
-          case 'TC_Prog_Buying_Method':
+          case 'TC_Prog_Buying_Method_1':
+          case 'TC_Prog_Buying_Method_2':
           case 'TC_Custom_Dim_1':
           case 'TC_Custom_Dim_2':
           case 'TC_Custom_Dim_3':

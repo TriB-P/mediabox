@@ -8,10 +8,11 @@
  * Il inclut des fonctionnalités de chargement, d'erreur, de rafraîchissement et de gestion des sélections.
  * MODIFIÉ : Ajout de la vue 'taxonomy' avec TactiquesAdvancedTaxonomyView
  * AMÉLIORÉ : Animations subtiles et modernes sans effet de glitch
+ * OPTIMISÉ : Cache et déduplication des appels à getBreakdowns
  */
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useAppData } from '../hooks/useAppData';
 import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
@@ -32,6 +33,7 @@ import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
 import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 import { getBreakdowns } from '../lib/breakdownService';
+import { ensureDefaultBreakdownForCampaign } from '../lib/campaignService'; // ✅ NOUVEAU
 import { Breakdown } from '../types/breakdown';
 
 import { useClient } from '../contexts/ClientContext';
@@ -125,10 +127,21 @@ const spinVariants: Variants = {
 };
 
 /**
+ * ✅ INTERFACE pour le cache des breakdowns
+ */
+interface BreakdownsCache {
+  clientId: string;
+  campaignId: string;
+  data: Breakdown[];
+  timestamp: number;
+}
+
+/**
  * Composant principal de la page des tactiques.
  * Gère l'état global, les interactions utilisateur et l'affichage des différentes vues des tactiques.
  * MODIFIÉ : Ajout du support pour la vue 'taxonomy'
  * AMÉLIORÉ : Animations subtiles sans effet de glitch
+ * OPTIMISÉ : Cache des breakdowns pour éviter les appels répétés
  *
  * @returns {JSX.Element} Le composant de la page des tactiques.
  */
@@ -158,9 +171,15 @@ export default function TactiquesPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
-  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
+  
+  // ✅ OPTIMISATION : Cache des breakdowns avec référence stable
+  const [breakdownsCache, setBreakdownsCache] = useState<BreakdownsCache | null>(null);
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  
+  // ✅ OPTIMISATION : Références stables pour éviter les re-renders
+  const lastCampaignRef = useRef<string | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const crudActions = useTactiquesCrud({
     sections,
@@ -217,6 +236,86 @@ export default function TactiquesPage() {
   const { formatCurrency, formatStatistics } = useTactiquesFormatting();
   const { getContainerClasses, getContentClasses, getMainContentClasses, getLoadingStates } = useTactiquesUIStates();
 
+  /**
+   * ✅ OPTIMISATION : Fonction pour charger les breakdowns avec cache et déduplication
+   */
+  const loadBreakdowns = useCallback(async (
+    clientId: string, 
+    campaignId: string, 
+    forceReload = false
+  ) => {
+    // Vérifier le cache
+    const cacheKey = `${clientId}_${campaignId}`;
+    const now = Date.now();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+    if (!forceReload && 
+        breakdownsCache && 
+        breakdownsCache.clientId === clientId && 
+        breakdownsCache.campaignId === campaignId &&
+        (now - breakdownsCache.timestamp) < CACHE_DURATION) {
+      console.log(`[CACHE] ✅ Breakdowns trouvés dans le cache pour ${cacheKey}`);
+      return breakdownsCache.data;
+    }
+
+    // Éviter les appels multiples simultanés
+    if (breakdownsLoading) {
+      console.log(`[CACHE] ⚠️ Chargement déjà en cours pour ${cacheKey}`);
+      return breakdownsCache?.data || [];
+    }
+
+    try {
+      setBreakdownsLoading(true);
+      console.log(`[CACHE] 📥 Chargement breakdowns depuis Firebase pour ${cacheKey}`);
+      console.log(`FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBreakdowns - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns`);
+      
+      const breakdownsData = await getBreakdowns(clientId, campaignId);
+      
+      // Mettre en cache
+      const newCache: BreakdownsCache = {
+        clientId,
+        campaignId,
+        data: breakdownsData,
+        timestamp: now
+      };
+      setBreakdownsCache(newCache);
+      
+      console.log(`[CACHE] ✅ Breakdowns mis en cache pour ${cacheKey} (${breakdownsData.length} éléments)`);
+      return breakdownsData;
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des breakdowns:', error);
+      return [];
+    } finally {
+      setBreakdownsLoading(false);
+    }
+  }, [breakdownsCache, breakdownsLoading]);
+
+  /**
+   * ✅ OPTIMISATION : Gestionnaire de changement de campagne avec vérification des breakdowns
+   */
+  const handleCampaignChangeWithBreakdowns = useCallback(async (campaign: any) => {
+    if (!selectedClient?.clientId) return;
+    
+    // Changer la campagne d'abord
+    handleCampaignChange(campaign);
+    
+    // Puis s'assurer que le breakdown par défaut existe
+    if (campaign && lastCampaignRef.current !== campaign.id) {
+      lastCampaignRef.current = campaign.id;
+      
+      try {
+        console.log(`✅ Vérification breakdown par défaut pour campagne ${campaign.id}`);
+        await ensureDefaultBreakdownForCampaign(selectedClient.clientId, campaign);
+        
+        // Charger les breakdowns après vérification
+        await loadBreakdowns(selectedClient.clientId, campaign.id, true);
+      } catch (error) {
+        console.error('Erreur lors de la vérification des breakdowns:', error);
+      }
+    }
+  }, [selectedClient?.clientId, handleCampaignChange, loadBreakdowns]);
+
   const handleSaveSection = useCallback(async (sectionData: any) => {
     try {
       if (modalState.sectionModal.mode === 'create') {
@@ -250,12 +349,17 @@ export default function TactiquesPage() {
     
     selectionState.handleClearSelection();
     
+    // ✅ OPTIMISATION : Invalider le cache des breakdowns lors du refresh
+    if (selectedClient?.clientId && selectedCampaign?.id) {
+      await loadBreakdowns(selectedClient.clientId, selectedCampaign.id, true);
+    }
+    
     await refresh();
     
     setTimeout(() => {
       handleForceSelectionReset();
     }, 200);
-  }, [selectionState.handleClearSelection, refresh, handleForceSelectionReset]);
+  }, [selectionState.handleClearSelection, refresh, handleForceSelectionReset, selectedClient?.clientId, selectedCampaign?.id, loadBreakdowns]);
 
   const totalBudget = useMemo(() => {
     return selectedCampaign?.CA_Budget || 0;
@@ -275,29 +379,36 @@ export default function TactiquesPage() {
 
   const hasError = !!error;
 
-  // Effet pour charger les breakdowns quand la campagne change
-  useEffect(() => {
-    const loadBreakdowns = async () => {
-      if (!selectedClient?.clientId || !selectedCampaign?.id) {
-        setBreakdowns([]);
-        return;
-      }
+  /**
+   * ✅ OPTIMISATION : Récupération des breakdowns depuis le cache
+   */
+  const breakdowns = useMemo(() => {
+    return breakdownsCache?.data || [];
+  }, [breakdownsCache]);
 
-      try {
-        setBreakdownsLoading(true);
-        console.log(`FIREBASE: LECTURE - Fichier: page.tsx - Fonction: loadBreakdowns - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaign.id}/breakdowns`);
-        const breakdownsData = await getBreakdowns(selectedClient.clientId, selectedCampaign.id);
-        setBreakdowns(breakdownsData);
-      } catch (error) {
-        console.error('Erreur lors du chargement des breakdowns:', error);
-        setBreakdowns([]);
-      } finally {
-        setBreakdownsLoading(false);
+  // ✅ OPTIMISATION : Effet pour charger les breakdowns seulement quand nécessaire
+  useEffect(() => {
+    if (!selectedClient?.clientId || !selectedCampaign?.id) {
+      setBreakdownsCache(null);
+      return;
+    }
+
+    // Débounce pour éviter les appels répétés
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
+
+    loadingTimeoutRef.current = setTimeout(() => {
+      loadBreakdowns(selectedClient.clientId!, selectedCampaign.id);
+    }, 200);
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
       }
     };
-
-    loadBreakdowns();
-  }, [selectedClient?.clientId, selectedCampaign?.id]);
+  }, [selectedClient?.clientId, selectedCampaign?.id, loadBreakdowns]);
 
   // Effet pour gérer l'affichage du contenu avec un délai
   useEffect(() => {
@@ -310,6 +421,15 @@ export default function TactiquesPage() {
       setShowContent(false);
     }
   }, [loadingStates.shouldShowFullLoader, selectedVersion]);
+
+  // ✅ NETTOYAGE : Cleanup des timeouts
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <motion.div 
@@ -359,7 +479,7 @@ export default function TactiquesPage() {
           selectedVersion={selectedVersion}
           loading={loading}
           error={error}
-          onCampaignChange={handleCampaignChange}
+          onCampaignChange={handleCampaignChangeWithBreakdowns} // ✅ MODIFIÉ
           onVersionChange={handleVersionChange}
           className="mb-6"
         />
@@ -423,6 +543,27 @@ export default function TactiquesPage() {
                 className="rounded-full h-4 w-4 border-b-2 border-blue-600"
               />
               <span className="text-sm text-blue-700">{t('tactiquesPage.notifications.loadingClientFees')}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ✅ NOUVEAU : Notification de chargement des breakdowns */}
+        {breakdownsLoading && (
+          <motion.div
+            key="breakdowns"
+            variants={notificationVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4"
+          >
+            <div className="flex items-center space-x-3">
+              <motion.div 
+                variants={spinVariants}
+                animate="animate"
+                className="rounded-full h-4 w-4 border-b-2 border-indigo-600"
+              />
+              <span className="text-sm text-indigo-700">{t('tactiquesPage.notifications.loadingBreakdowns', { fallback: 'Chargement des répartitions temporelles...' })}</span>
             </div>
           </motion.div>
         )}
@@ -626,7 +767,7 @@ export default function TactiquesPage() {
                           console.log('Éditer tactique:', tactique);
                         }
                       }}
-                      breakdowns={breakdowns || []}
+                      breakdowns={breakdowns}
                       onUpdateTactique={crudActions.handleUpdateTactique}
                     />
                   )}
@@ -681,17 +822,16 @@ export default function TactiquesPage() {
       </AnimatePresence>
 
       {/* Footer des onglets */}
-
-            <TactiquesFooter
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              onglets={onglets}
-              selectedOnglet={selectedOnglet}
-              onSelectOnglet={handleOngletChange}
-              onAddOnglet={crudActions.handleAddOnglet} 
-              onRenameOnglet={crudActions.handleRenameOnglet} 
-              onDeleteOnglet={crudActions.handleDeleteOnglet} 
-            />
+      <TactiquesFooter
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        onglets={onglets}
+        selectedOnglet={selectedOnglet}
+        onSelectOnglet={handleOngletChange}
+        onAddOnglet={crudActions.handleAddOnglet} 
+        onRenameOnglet={crudActions.handleRenameOnglet} 
+        onDeleteOnglet={crudActions.handleDeleteOnglet} 
+      />
           
       {/* Modal de section */}
       <SectionModal

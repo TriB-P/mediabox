@@ -32,6 +32,11 @@ import { useTranslation } from '../../../../contexts/LanguageContext';
 
 interface BaseItemProps {
   formatCurrency: (amount: number) => string;
+  onCopyId?: (id: string, type: string, context?: {
+    sectionId?: string;
+    tactiqueId?: string;
+    placementId?: string;
+  }) => void;
 }
 
 interface DndKitCreatifItemProps extends BaseItemProps {
@@ -41,7 +46,11 @@ interface DndKitCreatifItemProps extends BaseItemProps {
   tactiqueId: string;
   placementId: string;
   copiedId?: string | null;
-  onCopyId?: (id: string, type: string) => void;
+  onCopyId?: (id: string, type: string, context?: {
+    sectionId?: string;
+    tactiqueId?: string;
+    placementId?: string;
+  }) => void;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
   onHover: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onEdit: (placementId: string, creatif: Creatif) => void;
@@ -160,7 +169,11 @@ export const DndKitCreatifItem: React.FC<DndKitCreatifItemProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onCopyId) onCopyId(creatif.id, t('dndKit.creatifItem.type'));
+                  if (onCopyId) onCopyId(creatif.id, t('dndKit.creatifItem.type'), {
+                    sectionId,
+                    tactiqueId,
+                    placementId
+                  })
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors"
                 title={copiedId === creatif.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}
@@ -226,7 +239,11 @@ interface DndKitPlacementItemProps extends BaseItemProps {
   expandedPlacements: {[placementId: string]: boolean};
   hoveredPlacement: {sectionId: string, tactiqueId: string, placementId: string} | null;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
-  onCopyId?: (id: string, type: string) => void;
+  onCopyId?: (id: string, type: string, context?: {
+    sectionId?: string;
+    tactiqueId?: string;
+    placementId?: string;
+  }) => void;
   onHoverPlacement: (hover: {sectionId: string, tactiqueId: string, placementId: string} | null) => void;
   onHoverCreatif: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
   onExpand: (placementId: string) => void;
@@ -415,7 +432,10 @@ export const DndKitPlacementItem: React.FC<DndKitPlacementItemProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onCopyId) onCopyId(placement.id, t('dndKit.placementItem.type'));
+                    if (onCopyId) onCopyId(placement.id, t('dndKit.placementItem.type'), {
+                      sectionId,
+                      tactiqueId
+                    })
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
                   title={copiedId === placement.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}
@@ -521,7 +541,11 @@ interface DndKitTactiqueItemProps extends BaseItemProps {
   hoveredPlacement: {sectionId: string, tactiqueId: string, placementId: string} | null;
   hoveredCreatif: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null;
   copiedId?: string | null;
-  onCopyId?: (id: string, type: string) => void;
+  onCopyId?: (id: string, type: string, context?: {
+    sectionId?: string;
+    tactiqueId?: string;
+    placementId?: string;
+  }) => void;
   onHoverTactique: (hover: {sectionId: string, tactiqueId: string} | null) => void;
   onHoverPlacement: (hover: {sectionId: string, tactiqueId: string, placementId: string} | null) => void;
   onHoverCreatif: (hover: {sectionId: string, tactiqueId: string, placementId: string, creatifId: string} | null) => void;
@@ -875,7 +899,9 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onCopyId) onCopyId(tactique.id, t('dndKit.tactiqueItem.type'));
+                    if (onCopyId)onCopyId(tactique.id, t('dndKit.tactiqueItem.type'), {
+                      sectionId
+                    })
                   }}
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
                   title={copiedId === tactique.id ? t('dndKit.common.idCopied') : t('dndKit.common.copyId')}

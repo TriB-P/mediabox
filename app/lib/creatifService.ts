@@ -53,6 +53,7 @@ interface ResolutionContext {
     };
 }
 import { processTaxonomyDelimiters } from './taxonomyParser';
+import { getNextOrder, type OrderContext } from './orderManagementService';
 
 
 /**
@@ -265,7 +266,8 @@ async function prepareDataForFirestore(
     campaignData: any,
     tactiqueData: any,
     placementData: any,
-    isUpdate: boolean = false
+    isUpdate: boolean = false,
+    contextForOrder?: OrderContext  
 ): Promise<any> {
 
     const caches = { shortcodes: new Map(), customCodes: new Map() };
@@ -344,9 +346,22 @@ async function prepareDataForFirestore(
         creatifData.CR_End_Date || ''
     );
 
+    let calculatedOrder = 0;
+        if (!isUpdate && contextForOrder) {
+        try {
+            calculatedOrder = await getNextOrder('creatif', contextForOrder);
+            console.log(`🔢 CR_Order calculé automatiquement: ${calculatedOrder}`);
+        } catch (error) {
+            console.error('❌ Erreur calcul CR_Order:', error);
+            console.log('🔢 CR_Order fallback: 0');
+        }
+        }
+
+        
+
     const firestoreData = {
         CR_Label: creatifData.CR_Label || '',
-        CR_Order: creatifData.CR_Order || 0,
+        CR_Order: isUpdate ? (creatifData.CR_Order ?? calculatedOrder) : calculatedOrder,
         CR_PlacementId: creatifData.CR_PlacementId,
         CR_Start_Date: creatifData.CR_Start_Date || '',
         CR_End_Date: creatifData.CR_End_Date || '',
@@ -407,8 +422,18 @@ export async function createCreatif(
         'placements', placementId, 'creatifs'
     );
 
+    const orderContext: OrderContext = {
+        clientId,
+        campaignId,
+        versionId,
+        ongletId,
+        sectionId,
+        tactiqueId,
+        placementId
+      };
+
     const firestoreData = await prepareDataForFirestore(
-        creatifData, clientId, campaignData, tactiqueData, placementData, false
+        creatifData, clientId, campaignData, tactiqueData, placementData, false, orderContext
     );
 
     console.log("FIREBASE: ÉCRITURE - Fichier: creatifService.ts - Fonction: createCreatif - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");

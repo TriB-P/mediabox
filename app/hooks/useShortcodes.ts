@@ -66,7 +66,7 @@ interface UseShortcodesReturn {
 const AVAILABLE_DIMENSIONS = [
   'CA_Custom_Dim_1', 'CA_Custom_Dim_2', 'CA_Custom_Dim_3', 
   'CA_Division', 'CA_Quarter', 'CA_Year', 
-  'TC_Prog_Buying_Method', 'TC_Custom_Dim_1', 'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 
+  'TC_Prog_Buying_Method_1', 'TC_Prog_Buying_Method_2', 'TC_Custom_Dim_1', 'TC_Custom_Dim_2', 'TC_Custom_Dim_3', 
   'TC_Kpi', 'TC_LOB', 'TC_Market', 'TC_Media_Objective', 'TC_Media_Type', 
   'TC_Unit_Type', 'TC_Inventory', 'TC_Publisher',
   'PL_Audience_Behaviour', 'PL_Audience_Demographics', 'PL_Audience_Engagement', 

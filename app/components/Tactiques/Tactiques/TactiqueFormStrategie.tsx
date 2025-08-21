@@ -44,7 +44,8 @@ interface VisibleFields {
   TC_LOB?: boolean;
   TC_Media_Type?: boolean;
   TC_Publisher?: boolean;
-  TC_Prog_Buying_Method?: boolean;
+  TC_Prog_Buying_Method_1?: boolean;
+  TC_Prog_Buying_Method_2?: boolean;
   TC_Custom_Dim_1?: boolean;
   TC_Custom_Dim_2?: boolean;
   TC_Custom_Dim_3?: boolean;
@@ -67,7 +68,8 @@ interface TactiqueFormStrategieProps {
     TC_Market?: string;
     TC_Language_Open?: string;
     TC_Format_Open?: string;
-    TC_Prog_Buying_Method?: string;
+    TC_Prog_Buying_Method_1?: string;
+    TC_Prog_Buying_Method_2?: string;
     TC_Custom_Dim_1?: string;
     TC_Custom_Dim_2?: string;
     TC_Custom_Dim_3?: string;
@@ -268,13 +270,13 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
         
-        {(dynamicLists.TC_Prog_Buying_Method && dynamicLists.TC_Prog_Buying_Method.length > 0 && (formData.TC_Media_Type === 'SH_R3Z3VC6B' || formData.TC_Media_Type === 'SEA')) && (
+        {(dynamicLists.TC_Prog_Buying_Method_1 && dynamicLists.TC_Prog_Buying_Method_1.length > 0 && (formData.TC_Media_Type === 'SH_R3Z3VC6B' || formData.TC_Media_Type === 'SEA')) && (
           <SmartSelect
-            id="TC_Prog_Buying_Method"
-            name="TC_Prog_Buying_Method"
-            value={formData.TC_Prog_Buying_Method || ''}
+            id="TC_Prog_Buying_Method_1"
+            name="TC_Prog_Buying_Method_1"
+            value={formData.TC_Prog_Buying_Method_1 || ''}
             onChange={onChange}
-            items={dynamicLists.TC_Prog_Buying_Method || []}
+            items={dynamicLists.TC_Prog_Buying_Method_1 || []}
             placeholder={t('tactiqueFormStrategie.buyingMethod.placeholder')}
             label={createLabelWithHelp(
               t('tactiqueFormStrategie.buyingMethod.label'),
@@ -283,6 +285,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             )}
           />
         )}
+
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h5 className="text-sm font-medium text-blue-800 mb-2">
@@ -342,6 +345,23 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
             label={createLabelWithHelp(
               t('tactiqueFormStrategie.inventory.label'),
               t('tactiqueFormStrategie.inventory.helpText'),
+              onTooltipChange
+            )}
+          />
+        )}
+
+
+{(dynamicLists.TC_Prog_Buying_Method_2 && dynamicLists.TC_Prog_Buying_Method_2.length > 0 && formData.TC_Media_Type === 'SH_R3Z3VC6B') && (
+          <SmartSelect
+            id="TC_Prog_Buying_Method_2"
+            name="TC_Prog_Buying_Method_2"
+            value={formData.TC_Prog_Buying_Method_2 || ''}
+            onChange={onChange}
+            items={dynamicLists.TC_Prog_Buying_Method_2 || []}
+            placeholder={t('tactiqueFormStrategie.buyingMethod_2.placeholder')}
+            label={createLabelWithHelp(
+              t('tactiqueFormStrategie.buyingMethod_2.label'),
+              t('tactiqueFormStrategie.buyingMethod_2.helpText'),
               onTooltipChange
             )}
           />

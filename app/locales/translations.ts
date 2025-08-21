@@ -2453,7 +2453,12 @@ export const translations = {
       buyingMethod: {
         placeholder: "Sélectionner une méthode d'achat...",
         label: "Méthode d'achat - Programmatique/SEM",
-        helpText: "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Laissez vide si non applicable"
+        helpText: "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Doit être rempli"
+      },
+      buyingMethod_2: {
+        placeholder: "Sélectionner un type d'inventaire...",
+        label: "Type d'inventaire programmatique",
+        helpText: "Choisissez le type d'inventaire programmatique utilisé. Laissez vide si non applicable"
       },
       infoBox: {
         title: "💡 Partenaire vs Inventaire",
@@ -2465,7 +2470,7 @@ export const translations = {
         partnerBullet5: "• Chaque tactique doit obligatoirement avoir un partenaire",
         inventoryTitle: "Inventaire :",
         inventoryBullet1: "• C'est comme un sous-partenaire ou un média qu'on va activer à travers le partenaire",
-        inventoryBullet2: "• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera \"Radio-Canada\"",
+        inventoryBullet2: "• Si vous achetez un deal avec Radio-Canada à travers DV360, l'inventaire sera \"Radio-Canada\", même chose avec YouTube",
         inventoryBullet3: "• Lors d'un achat avec Billups, vous pouvez indiquer quel partenaire OOH sera utilisé (ex : Astral)",
         inventoryBullet4: "• Si l'inventaire n'est pas applicable, laissez-le vide"
       },
@@ -2978,7 +2983,7 @@ export const translations = {
         selectOption: "Sélectionner une option...",
         bufferInfo: " (Buffer: +{buffer}%)",
         useDifferentUnitVolume: "Utiliser un autre volume d'unité pour calculer ce frais",
-        defaultVolumeInfo: "Par défaut, ce frais utilise le volume d'unité de la tactique ({unitVolume}). Cochez pour saisir un volume différent.",
+        defaultVolumeInfo: "Par défaut, ce frais utilise le volume d'unité de la tactique {{unitVolume}}. Cochez pour saisir un volume différent.",
         customUnitVolume: "Volume d'unité personnalisé",
         enterUnitVolume: "Saisir le volume d'unité",
         volumeCalculationHintPrefix: "Ce volume sera utilisé pour calculer le frais :",
@@ -6885,7 +6890,12 @@ export const translations = {
       buyingMethod: {
         placeholder: "Select a buying method...",
         label: "Buying Method - Programmatic/SEM",
-        helpText: "Indicate which kind of programmatic or SEM purchase will be used. Leave empty if not applicable"
+        helpText: "Indicate which kind of programmatic or SEM purchase will be used. Must be filled"
+      },
+      buyingMethod_2: {
+        placeholder: "Select an inventory type...",
+        label: "Programmatic Inventory Type",
+        helpText: "Select the type of programmatic inventory used. Leave blank if not applicable."
       },
       infoBox: {
         title: "💡 Partner vs. Inventory",
@@ -6897,7 +6907,7 @@ export const translations = {
         partnerBullet5: "• Each tactic must have a partner",
         inventoryTitle: "Inventory:",
         inventoryBullet1: "• It's like a sub-partner or a medium that will be activated through the partner",
-        inventoryBullet2: "• If you buy a deal with Radio-Canada through DV360, the inventory will be \"Radio-Canada\"",
+        inventoryBullet2: "• If you buy a deal with Radio-Canada through DV360, the inventory will be \"Radio-Canada\", same thing with YouTube",
         inventoryBullet3: "• When buying with Billups, you can indicate which OOH partner will be used (e.g., Astral)",
         inventoryBullet4: "• If inventory is not applicable, leave it empty"
       },
@@ -7410,7 +7420,7 @@ export const translations = {
         selectOption: "Select an option...",
         bufferInfo: " (Buffer: +{buffer}%)",
         useDifferentUnitVolume: "Use a different unit volume to calculate this fee",
-        defaultVolumeInfo: "By default, this fee uses the tactic's unit volume ({unitVolume}). Check to enter a different volume.",
+        defaultVolumeInfo: "By default, this fee uses the tactic's unit volume {{unitVolume}}. Check to enter a different volume.",
         customUnitVolume: "Custom unit volume",
         enterUnitVolume: "Enter unit volume",
         volumeCalculationHintPrefix: "This volume will be used to calculate the fee:",

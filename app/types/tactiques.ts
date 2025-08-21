@@ -47,7 +47,9 @@ export interface Tactique {
   TC_Format_Open?: string; // Description du format
 
   // Champs Stratégie - Champs personnalisés
-  TC_Prog_Buying_Method?: string; // Méthode d'achat
+  TC_Prog_Buying_Method_1?: string; // Méthode d'achat
+  TC_Prog_Buying_Method_2?: string; // Méthode d'achat
+
   TC_Custom_Dim_1?: string; // Dimension personnalisée 1
   TC_Custom_Dim_2?: string; // Dimension personnalisée 2
   TC_Custom_Dim_3?: string; // Dimension personnalisée 3
@@ -225,7 +227,7 @@ export interface Placement {
 export interface Creatif {
   id: string;
   CR_Label: string;
-  CR_Order: number;
+  CR_Order?: number;
   CR_PlacementId: string;
 
   // Taxonomies créatifs (niveaux 5-6)
@@ -344,7 +346,8 @@ export interface TactiqueFormData {
   TC_Market?: string;
   TC_Language_Open?: string;
   TC_Format_Open?: string;
-  TC_Prog_Buying_Method?: string;
+  TC_Prog_Buying_Method_1?: string;
+  TC_Prog_Buying_Method_2?: string;
   TC_Custom_Dim_1?: string;
   TC_Custom_Dim_2?: string;
   TC_Custom_Dim_3?: string;
@@ -490,7 +493,7 @@ export interface PlacementFormData {
 
 export interface CreatifFormData {
   CR_Label: string;
-  CR_Order: number;
+  CR_Order?: number;
   CR_PlacementId: string;
 
   // Sélection des taxonomies (niveaux 5-6)

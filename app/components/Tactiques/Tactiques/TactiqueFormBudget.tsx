@@ -29,6 +29,8 @@ import { Currency } from '../../../types/currency';
 interface ListItem {
   id: string;
   SH_Display_Name_FR: string;
+  SH_Display_Name_EN: string;
+
 }
 
 interface TactiqueFormBudgetProps {
@@ -95,7 +97,8 @@ const CurrencyVersionSelector = memo<{
   error,
   onTooltipChange 
 }) => {
-  const { t } = useTranslation();
+  const { t, language} = useTranslation();
+
 
   const formatRateDisplay = useCallback((rate: Currency) => {
     return `${rate.CU_Year} (Taux: ${rate.CU_Rate.toFixed(4)})`;
@@ -220,7 +223,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   onTooltipChange,
   loading = false
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   
   const unitTypeOptions = dynamicLists.TC_Unit_Type || [];
 
@@ -233,6 +236,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   // Mettre à jour la référence quand la fonction change
   useEffect(() => {
     onCalculatedChangeRef.current = onCalculatedChange;
+    
   }, [onCalculatedChange]);
 
   // ÉTATS pour la gestion des taux de change par versions
@@ -388,6 +392,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
    * 🔥 CORRECTION : Séparer la surveillance des devises de la logique de calcul principal
    */
   useEffect(() => {
+    
     const tacticCurrency = budgetData.TC_BuyCurrency;
     
     if (tacticCurrency && campaignCurrency && needsCurrencyConversion(tacticCurrency, campaignCurrency)) {
@@ -412,6 +417,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
    */
   useEffect(() => {
     const dataForParent = getDataForFirestore();
+    
     stableOnCalculatedChange(dataForParent);
   }, [getDataForFirestore, stableOnCalculatedChange]);
   
@@ -656,6 +662,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return needsCurrencyConversion(tacticCurrency, campaignCurrency);
   }, [budgetData.TC_BuyCurrency, campaignCurrency, needsCurrencyConversion]);
 
+
   return (
     <div className="p-8 space-y-8">
       <div className="border-b border-gray-200 pb-4">
@@ -732,7 +739,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
           totalFees={calculatedTotalFees}
           unitTypeOptions={unitTypeOptions.map(item => ({ 
             id: item.id, 
-            label: item.SH_Display_Name_FR 
+            label: language === "en" ? item.SH_Display_Name_EN : item.SH_Display_Name_FR
           }))}
           clientId={clientId}
           onChange={handleFormChange}

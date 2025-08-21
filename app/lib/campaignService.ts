@@ -5,6 +5,7 @@
  * Il inclut également la logique pour dupliquer des campagnes entières,
  * créer des versions originales de campagnes et gérer les breakdowns par défaut associés.
  * C'est le point central pour interagir avec la collection 'campaigns' de Firebase.
+ * CORRIGÉ: Suppression des appels répétés à ensureDefaultBreakdownExists dans getCampaigns
  */
 import {
   collection,
@@ -77,8 +78,8 @@ async function createOriginalVersion(
 }
 
 /**
- * Récupère toutes les campagnes pour un client donné, triées par date de début.
- * Assure également qu'un breakdown par défaut existe pour chaque campagne si les dates sont présentes.
+ * CORRIGÉ: Récupère toutes les campagnes pour un client donné, triées par date de début.
+ * SUPPRESSION des appels automatiques à ensureDefaultBreakdownExists qui causaient des appels répétés.
  * @param CA_Client L'identifiant du client.
  * @returns Une promesse qui résout en un tableau d'objets Campaign.
  */
@@ -94,20 +95,46 @@ export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
       ...doc.data(),
     } as Campaign));
 
-    campaigns.forEach(async (campaign) => {
-      if (campaign.CA_Start_Date && campaign.CA_End_Date) {
-        try {
-          await ensureDefaultBreakdownExists(CA_Client, campaign.id, campaign.CA_Start_Date, campaign.CA_End_Date);
-        } catch (error) {
-          console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
-        }
-      }
-    });
+    // ❌ SUPPRIMÉ: Ces appels causaient des lectures répétées des breakdowns
+    // campaigns.forEach(async (campaign) => {
+    //   if (campaign.CA_Start_Date && campaign.CA_End_Date) {
+    //     try {
+    //       await ensureDefaultBreakdownExists(CA_Client, campaign.id, campaign.CA_Start_Date, campaign.CA_End_Date);
+    //     } catch (error) {
+    //       console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
+    //     }
+    //   }
+    // });
 
     return campaigns;
   } catch (error) {
     console.error('Erreur lors de la récupération des campagnes:', error);
     throw error;
+  }
+}
+
+/**
+ * ✅ NOUVELLE FONCTION: Vérification des breakdowns par défaut à la demande.
+ * À appeler seulement quand une campagne est sélectionnée, pas à chaque getCampaigns.
+ * @param CA_Client L'identifiant du client.
+ * @param campaign L'objet campagne.
+ */
+export async function ensureDefaultBreakdownForCampaign(
+  CA_Client: string,
+  campaign: Campaign
+): Promise<void> {
+  if (campaign.CA_Start_Date && campaign.CA_End_Date) {
+    try {
+      console.log(`✅ Vérification breakdown par défaut pour campagne ${campaign.id}`);
+      await ensureDefaultBreakdownExists(
+        CA_Client, 
+        campaign.id, 
+        campaign.CA_Start_Date, 
+        campaign.CA_End_Date
+      );
+    } catch (error) {
+      console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
+    }
   }
 }
 

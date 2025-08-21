@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { createLabelWithHelp } from './TactiqueFormComponents';
 import { useTranslation } from '../../../contexts/LanguageContext';
 
@@ -156,6 +156,10 @@ const FeeItem = memo<{
   disabled = false
 }) => {
   const { t } = useTranslation();
+  
+  // État local pour gérer l'affichage du champ custom value pendant l'édition
+  const [customValueInput, setCustomValueInput] = useState<string>('');
+  const [isEditingCustomValue, setIsEditingCustomValue] = useState(false);
 
   const selectedOption = fee.options.find(opt => opt.id === appliedFee.selectedOptionId);
 
@@ -169,9 +173,34 @@ const FeeItem = memo<{
 
   const handleCustomValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const displayValue = e.target.value;
+    setCustomValueInput(displayValue);
+    
+    // Si le champ est vide, on ne met pas à jour la valeur (on garde undefined)
+    if (displayValue.trim() === '') {
+      return;
+    }
+    
     const storageValue = parseValueFromDisplay(displayValue, fee.FE_Calculation_Type);
     onCustomValueChange(fee.id, storageValue);
   }, [fee.id, fee.FE_Calculation_Type, onCustomValueChange]);
+
+  const handleCustomValueFocus = useCallback(() => {
+    setIsEditingCustomValue(true);
+    // Si customValue est undefined, on commence avec un champ vide
+    if (appliedFee.customValue === undefined) {
+      setCustomValueInput('');
+    } else {
+      setCustomValueInput(formatValueForDisplay(appliedFee.customValue, fee.FE_Calculation_Type));
+    }
+  }, [appliedFee.customValue, fee.FE_Calculation_Type]);
+
+  const handleCustomValueBlur = useCallback(() => {
+    setIsEditingCustomValue(false);
+    // Si le champ est vide au blur, on remet undefined
+    if (customValueInput.trim() === '') {
+      onCustomValueChange(fee.id, undefined as any); // Reset to default value
+    }
+  }, [customValueInput, fee.id, onCustomValueChange]);
 
   const handleCustomUnitsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const units = parseInt(e.target.value) || 0;
@@ -202,11 +231,21 @@ const FeeItem = memo<{
     }).format(value) + ' ' + currency;
   }, [tacticCurrency]);
 
+  // Logique d'affichage pour le champ custom value
   const displayValue = useMemo(() => {
+    if (isEditingCustomValue) {
+      return customValueInput;
+    }
+    
     if (!selectedOption) return '';
-    const baseValue = appliedFee.customValue !== undefined ? appliedFee.customValue : selectedOption.FO_Value;
-    return formatValueForDisplay(baseValue, fee.FE_Calculation_Type);
-  }, [selectedOption, appliedFee.customValue, fee.FE_Calculation_Type]);
+    
+    // Si pas de valeur personnalisée, on affiche une chaîne vide pour permettre la saisie
+    if (appliedFee.customValue === undefined) {
+      return '';
+    }
+    
+    return formatValueForDisplay(appliedFee.customValue, fee.FE_Calculation_Type);
+  }, [isEditingCustomValue, customValueInput, selectedOption, appliedFee.customValue, fee.FE_Calculation_Type]);
 
   const finalDisplayValue = useMemo(() => {
     return formatValueForDisplay(finalValue, fee.FE_Calculation_Type);
@@ -218,6 +257,15 @@ const FeeItem = memo<{
     }
     return unitVolume;
   }, [fee.FE_Calculation_Type, appliedFee.useCustomVolume, appliedFee.customVolume, unitVolume]);
+
+  // Placeholder plus explicite selon le type
+  const getPlaceholder = useCallback(() => {
+    if (appliedFee.customValue === undefined && selectedOption) {
+      const defaultDisplayValue = formatValueForDisplay(selectedOption.FO_Value, fee.FE_Calculation_Type);
+      return `${t('budgetFees.feeItem.defaultValue')}: ${defaultDisplayValue}${fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ''}`;
+    }
+    return fee.FE_Calculation_Type === 'Pourcentage budget' ? '15.00' : '0.00';
+  }, [appliedFee.customValue, selectedOption, fee.FE_Calculation_Type, t]);
 
   return (
     <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
@@ -240,7 +288,7 @@ const FeeItem = memo<{
               {fee.FE_Name}
             </label>
             <div className="text-sm text-gray-500 mt-1">
-              {getFeeTypeDescription(fee.FE_Calculation_Type, t)} • {fee.FE_Calculation_Mode} • {t('budgetFees.feeItem.order')} #{fee.FE_Order}
+              {getFeeTypeDescription(fee.FE_Calculation_Type, t)} 
             </div>
           </div>
         </div>
@@ -345,17 +393,24 @@ const FeeItem = memo<{
                     {t('budgetFees.feeItem.customValue')}
                     {fee.FE_Calculation_Type === 'Pourcentage budget' && ' (%)'}
                     {fee.FE_Calculation_Type !== 'Pourcentage budget' && ` (${tacticCurrency || 'CAD'})`}
+                    {appliedFee.customValue === undefined && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        {t('budgetFees.feeItem.optional')}
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
                     <input
                       type="number"
                       value={displayValue}
                       onChange={handleCustomValueChange}
+                      onFocus={handleCustomValueFocus}
+                      onBlur={handleCustomValueBlur}
                       min="0"
                       step={fee.FE_Calculation_Type === 'Pourcentage budget' ? '0.01' : '0.01'}
                       disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100"
-                      placeholder={fee.FE_Calculation_Type === 'Pourcentage budget' ? '15.00' : '0.00'}
+                      placeholder={getPlaceholder()}
                     />
                     {fee.FE_Calculation_Type === 'Pourcentage budget' && (
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -366,6 +421,12 @@ const FeeItem = memo<{
                   {selectedOption.FO_Buffer > 0 && (
                     <div className="mt-1 text-xs text-blue-600">
                       {t('budgetFees.feeItem.finalValueWithBuffer', { buffer: selectedOption.FO_Buffer })}: {finalDisplayValue}
+                      {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ` ${tacticCurrency || 'CAD'}`}
+                    </div>
+                  )}
+                  {appliedFee.customValue === undefined && selectedOption && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {t('budgetFees.feeItem.usingDefaultValue')}: {formatValueForDisplay(selectedOption.FO_Value, fee.FE_Calculation_Type)}
                       {fee.FE_Calculation_Type === 'Pourcentage budget' ? '%' : ` ${tacticCurrency || 'CAD'}`}
                     </div>
                   )}
@@ -525,7 +586,7 @@ const BudgetFeesSection = memo<BudgetFeesSectionProps>(({
     ));
   }, [setAppliedFees]);
 
-  const handleCustomValueChange = useCallback((feeId: string, value: number) => {
+  const handleCustomValueChange = useCallback((feeId: string, value: number | undefined) => {
     setAppliedFees(prev => prev.map(appliedFee =>
       appliedFee.feeId === feeId
         ? { ...appliedFee, customValue: value }

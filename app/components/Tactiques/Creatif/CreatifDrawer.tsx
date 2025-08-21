@@ -168,7 +168,6 @@ export default function CreatifDrawer({
     const emptyCreatifFields = createEmptyCreatifFieldsObject();
     return {
       CR_Label: '',
-      CR_Order: 0,
       CR_PlacementId: placementId,
       CR_Start_Date: '',
       CR_End_Date: '',
@@ -309,7 +308,6 @@ export default function CreatifDrawer({
       
       setFormData({
         CR_Label: '',
-        CR_Order: 0,
         CR_PlacementId: placementId,
         CR_Start_Date: startDate,
         CR_End_Date: endDate,
@@ -357,7 +355,6 @@ useEffect(() => {
       
       setFormData({
         CR_Label: '',
-        CR_Order: 0,
         CR_PlacementId: placementId,
         CR_Start_Date: startDate,
         CR_End_Date: endDate,

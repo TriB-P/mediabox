@@ -253,7 +253,14 @@ const getTactiqueStrategieColumns = (t: (key: string) => string): DynamicColumn[
     options: []
   },
   {
-    key: 'TC_Prog_Buying_Method',
+    key: 'TC_Prog_Buying_Method_1',
+    label: t('columns.tactique.buyingMethod'),
+    type: 'select',
+    width: 150,
+    options: []
+  },
+  {
+    key: 'TC_Prog_Buying_Method_2',
     label: t('columns.tactique.buyingMethod'),
     type: 'select',
     width: 150,

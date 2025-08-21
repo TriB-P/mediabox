@@ -6,6 +6,7 @@
  * ainsi que la logique complexe de résolution et de génération des taxonomies
  * pour s'assurer que les données sont correctement formatées avant d'être sauvegardées.
  * MISE À JOUR : Ajout des nouveaux champs Tags (PL_Tag_Start_Date, PL_Tag_End_Date, PL_Tag_Type, etc.)
+ * NOUVEAU : Utilise orderManagementService pour l'auto-incrémentation de PL_Order
  */
 import {
   collection,
@@ -33,6 +34,7 @@ import {
 } from '../config/taxonomyFields';
 
 import { processTaxonomyDelimiters } from './taxonomyParser';
+import { getNextOrder, type OrderContext } from './orderManagementService';
 
 
 interface ResolutionContext {
@@ -176,11 +178,13 @@ async function generateLevelString(structure: string, context: ResolutionContext
  * Prépare les données d'un placement pour l'enregistrement dans Firestore.
  * Cela inclut la résolution des taxonomies et la fusion des données nécessaires.
  * MISE À JOUR : Inclut maintenant les nouveaux champs Tags.
+ * NOUVEAU : Utilise orderManagementService pour calculer automatiquement PL_Order.
  * @param placementData Les données du formulaire de placement.
  * @param clientId L'identifiant du client.
  * @param campaignData Les données de la campagne associée.
  * @param tactiqueData Les données de la tactique associée.
  * @param isUpdate Indique si l'opération est une mise à jour (true) ou une création (false).
+ * @param contextForOrder Contexte nécessaire pour le calcul de l'ordre (requis pour les créations).
  * @returns Un objet contenant les données prêtes pour Firestore.
  */
 async function prepareDataForFirestore(
@@ -188,7 +192,8 @@ async function prepareDataForFirestore(
   clientId: string,
   campaignData: any,
   tactiqueData: any,
-  isUpdate: boolean = false
+  isUpdate: boolean = false,
+  contextForOrder?: OrderContext
 ): Promise<any> {
   
   const caches = { shortcodes: new Map(), customCodes: new Map() };
@@ -240,10 +245,22 @@ async function prepareDataForFirestore(
     PL_Creative_Rotation_Type: placementData.PL_Creative_Rotation_Type || '',
     PL_Floodlight: placementData.PL_Floodlight || '',
   };
+
+  // ✅ NOUVEAU : Calcul automatique de PL_Order pour les créations
+  let calculatedOrder = 0;
+  if (!isUpdate && contextForOrder) {
+    try {
+      calculatedOrder = await getNextOrder('placement', contextForOrder);
+      console.log(`🔢 PL_Order calculé automatiquement: ${calculatedOrder}`);
+    } catch (error) {
+      console.error('❌ Erreur calcul PL_Order:', error);
+      console.log('🔢 PL_Order fallback: 0');
+    }
+  }
   
   const firestoreData = {
       PL_Label: placementData.PL_Label || '',
-      PL_Order: placementData.PL_Order || 0,
+      PL_Order: isUpdate ? (placementData.PL_Order || 0) : calculatedOrder, // ✅ CHANGÉ : Auto-incrémentation pour créations
       PL_TactiqueId: placementData.PL_TactiqueId,
       PL_Start_Date: placementData.PL_Start_Date || '',
       PL_End_Date: placementData.PL_End_Date || '',
@@ -269,6 +286,7 @@ async function prepareDataForFirestore(
 
 /**
  * Crée un nouveau placement dans la base de données.
+ * NOUVEAU : Calcule automatiquement PL_Order avec orderManagementService.
  * @param clientId L'identifiant du client.
  * @param campaignId L'identifiant de la campagne.
  * @param versionId L'identifiant de la version.
@@ -286,7 +304,18 @@ placementData: PlacementFormData, campaignData?: any, tactiqueData?: any
 ): Promise<string> {
 
 const placementsCollection = collection(db, 'clients', clientId, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
-const firestoreData = await prepareDataForFirestore(placementData, clientId, campaignData, tactiqueData, false);
+
+// ✅ NOUVEAU : Construire le contexte pour le calcul automatique de l'ordre
+const orderContext: OrderContext = {
+  clientId,
+  campaignId,
+  versionId,
+  ongletId,
+  sectionId,
+  tactiqueId
+};
+
+const firestoreData = await prepareDataForFirestore(placementData, clientId, campaignData, tactiqueData, false, orderContext);
 console.log("FIREBASE: ÉCRITURE - Fichier: placementService.ts - Fonction: createPlacement - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
 const docRef = await addDoc(placementsCollection, firestoreData);
 
