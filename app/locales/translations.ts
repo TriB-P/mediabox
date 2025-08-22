@@ -57,9 +57,7 @@ export const translations = {
       deletingError: "Erreur lors de la suppression",
       noData: "Aucune campagne trouvée",
       noResults: "Aucun résultat pour votre recherche",
-      
-      
-      
+      year:"Année:",
       
       status: {
         active: "Actif",
@@ -185,6 +183,12 @@ export const translations = {
           periodNameLabel: "Nom de la période *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
           saving: "Sauvegarde..."
+        },
+        types: {
+          weekly: "Hebdomadaire",
+          monthly: "Mensuel",
+          pebs: "PEBs",
+          custom: "Personnalisé"
         }
       },
       formBudget: {
@@ -2586,12 +2590,12 @@ export const translations = {
     tactiqueFormTags: {
       fields: {
         buyType: {
-          label: "Type d'achat *",
+          label: "Type d'achat",
           tooltip: "Sélectionnez le type d'achat pour cette tactique",
           selectPlaceholder: "Sélectionner un type"
         },
         cm360Volume: {
-          label: "Volume CM360 *",
+          label: "Volume CM360",
           tooltip: "Entrez le volume prévu pour cette tactique (nombre entier)",
           tooltipLinked: "Ce volume est automatiquement synchronisé avec le volume d'unités calculé dans l'onglet Budget",
           placeholderLinked: "Synchronisé avec le volume d'unités",
@@ -2607,7 +2611,8 @@ export const translations = {
         }
       },
       validation: {
-        volumePositive: "Le volume doit être supérieur à 0"
+        volumePositive: "Le volume doit être supérieur à 0",
+        volumeRequiredWhenBuyType : "Le volume est obligatoire si vous remplissez le type d'achat"
       }
     },
     tactiqueFormComponents: {
@@ -2981,25 +2986,25 @@ export const translations = {
         feeOption: "Option du frais",
         autoSelected: "Sélectionnée automatiquement",
         selectOption: "Sélectionner une option...",
-        bufferInfo: " (Buffer: +{buffer}%)",
+        bufferInfo: " (Buffer: +{{buffer}}%)",
         useDifferentUnitVolume: "Utiliser un autre volume d'unité pour calculer ce frais",
         defaultVolumeInfo: "Par défaut, ce frais utilise le volume d'unité de la tactique {{unitVolume}}. Cochez pour saisir un volume différent.",
         customUnitVolume: "Volume d'unité personnalisé",
         enterUnitVolume: "Saisir le volume d'unité",
         volumeCalculationHintPrefix: "Ce volume sera utilisé pour calculer le frais :",
         customValue: "Valeur personnalisée",
-        finalValueWithBuffer: "Valeur finale avec buffer (+{buffer}%)",
+        finalValueWithBuffer: "Valeur finale avec buffer (+{{buffer}}%)",
         fixedValue: "Valeur fixe",
         nonEditableValue: "Valeur non modifiable",
-        bufferIncluded: " (buffer +{buffer}% inclus)",
+        bufferIncluded: " (buffer +{{buffer}}% inclus)",
         numberOfUnits: "Nombre d'unités",
         finalCalculationMultiplier: "Multiplieur pour le calcul final",
         units: "unités",
       },
       feeSummary: {
         calculationBase: "Base de calcul",
-        mediaBudgetInCurrency: "(budget média en {currency})",
-        mediaBudgetPlusPreviousFeesInCurrency: "(budget média + frais précédents en {currency})",
+        mediaBudgetInCurrency: "(budget média en {{currency}})",
+        mediaBudgetPlusPreviousFeesInCurrency: "(budget média + frais précédents en {{currency}})",
         customVolume: "(volume personnalisé)",
         fixedAmountOf: "Montant fixe de",
         bufferApplied: "Buffer appliqué",
@@ -4351,7 +4356,8 @@ export const translations = {
       notifications: {
         duplicationInProgress: "Duplication en cours...",
         deletionInProgress: "Suppression en cours...",
-        loadingClientFees: "Chargement des frais du client..."
+        loadingClientFees: "Chargement des frais du client...",
+        loadingBreakdowns: "Chargement des répartitions..."
       },
       error: {
         loadingTitle: "Erreur de chargement",
@@ -4653,6 +4659,7 @@ export const translations = {
       deletingError: "Error deleting",
       noData: "No campaigns found",
       noResults: "No results for your search",
+      year : "Year :",
       status: {
         active: "Active",
         inactive: "Inactive",
@@ -4777,6 +4784,12 @@ export const translations = {
           periodNameLabel: "Period Name *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
           saving: "Saving..."
+        },
+        types: {
+          weekly: "Weekly",
+          monthly: "Monthly",
+          pebs: "GRPs",
+          custom: "Custom"
         }
       },
       formBudget: {
@@ -7023,12 +7036,12 @@ export const translations = {
     tactiqueFormTags: {
       fields: {
         buyType: {
-          label: "Buy Type *",
+          label: "Buy Type",
           tooltip: "Select the buy type for this tactic",
           selectPlaceholder: "Select a type"
         },
         cm360Volume: {
-          label: "CM360 Volume *",
+          label: "CM360 Volume",
           tooltip: "Enter the planned volume for this tactic (integer)",
           tooltipLinked: "This volume is automatically synchronized with the unit volume calculated in the Budget tab.",
           placeholderLinked: "Synchronized with unit volume",
@@ -7044,7 +7057,9 @@ export const translations = {
         }
       },
       validation: {
-        volumePositive: "Volume must be greater than 0"
+        volumePositive: "Volume must be greater than 0",
+        volumeRequiredWhenBuyType : "The volume is required if you filled the buy type"
+
       }
     },
     tactiqueFormComponents: {
@@ -7418,25 +7433,25 @@ export const translations = {
         feeOption: "Fee option",
         autoSelected: "Automatically selected",
         selectOption: "Select an option...",
-        bufferInfo: " (Buffer: +{buffer}%)",
+        bufferInfo: " (Buffer: +{{buffer}}%)",
         useDifferentUnitVolume: "Use a different unit volume to calculate this fee",
         defaultVolumeInfo: "By default, this fee uses the tactic's unit volume {{unitVolume}}. Check to enter a different volume.",
         customUnitVolume: "Custom unit volume",
         enterUnitVolume: "Enter unit volume",
         volumeCalculationHintPrefix: "This volume will be used to calculate the fee:",
         customValue: "Custom value",
-        finalValueWithBuffer: "Final value with buffer (+{buffer}%)",
+        finalValueWithBuffer: "Final value with buffer (+{{buffer}}%)",
         fixedValue: "Fixed value",
         nonEditableValue: "Non-editable value",
-        bufferIncluded: " (buffer +{buffer}% included)",
+        bufferIncluded: " (buffer +{{buffer}}% included)",
         numberOfUnits: "Number of units",
         finalCalculationMultiplier: "Multiplier for final calculation",
         units: "units",
       },
       feeSummary: {
         calculationBase: "Calculation base",
-        mediaBudgetInCurrency: "(media budget in {currency})",
-        mediaBudgetPlusPreviousFeesInCurrency: "(media budget + previous fees in {currency})",
+        mediaBudgetInCurrency: "(media budget in {{currency}})",
+        mediaBudgetPlusPreviousFeesInCurrency: "(media budget + previous fees in {{currency}})",
         customVolume: "(custom volume)",
         fixedAmountOf: "Fixed amount of",
         bufferApplied: "Buffer applied",
@@ -8624,7 +8639,9 @@ export const translations = {
       notifications: {
         duplicationInProgress: "Duplication in progress...",
         deletionInProgress: "Deletion in progress...",
-        loadingClientFees: "Loading client fees..."
+        loadingClientFees: "Loading client fees...",
+        loadingBreakdowns : "Loading breakdowns..."
+
       },
       error: {
         loadingTitle: "Loading error",

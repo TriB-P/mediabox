@@ -451,12 +451,12 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       console.log(`[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes en ${exportLanguage}...`);
 
       // 4. Convertir les shortcodes dans les données de campagne avec la langue spécifiée
-      const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId, exportLanguage);
+      const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId, breakdownLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCampaignData) throw new Error(t('useCombinedDocExport.error.campaignShortcodeConversion'));
 
       // 5. Convertir les shortcodes dans les données de hiérarchie avec la langue spécifiée
-      const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId, exportLanguage);
+      const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId, breakdownLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCleanedData) throw new Error(t('useCombinedDocExport.error.hierarchyShortcodeConversion'));
 

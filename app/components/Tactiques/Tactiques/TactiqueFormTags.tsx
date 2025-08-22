@@ -4,6 +4,7 @@
  * Composant pour l'onglet Tags du formulaire de tactique
  * Contient les champs spécifiques aux tags : Buy Type, CM360 Volume et Rate calculé
  * VERSION NOUVELLE : Ajout de la liaison automatique CM360 Volume → Unit Volume
+ * CORRECTIONS : Gestion des valeurs vides et validation conditionnelle
  */
 
 import React, { useEffect } from 'react';
@@ -127,7 +128,22 @@ export default function TactiqueFormTags({
   // Détermine si le champ volume est en mode lecture seule
   const isVolumeReadonly = (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume || false;
   const unitVolume = (formData as any).TC_Unit_Volume || 0;
-  const cm360Volume = (formData as any).TC_CM360_Volume || 0;
+  const cm360Volume = (formData as any).TC_CM360_Volume;
+  
+  // Gestion des valeurs pour éviter l'affichage de "0" par défaut
+  const getVolumeDisplayValue = () => {
+    if (isVolumeReadonly) {
+      return unitVolume > 0 ? unitVolume.toString() : '';
+    }
+    // Pour le champ manuel, afficher une chaîne vide si pas de valeur ou valeur = 0
+    return (cm360Volume && cm360Volume > 0) ? cm360Volume.toString() : '';
+  };
+
+  // Validation conditionnelle
+  const buyType = (formData as any).TC_Buy_Type;
+  const isVolumeRequired = buyType && buyType.trim() !== '';
+  const volumeValue = isVolumeReadonly ? unitVolume : cm360Volume;
+  const hasVolumeValidationError = isVolumeRequired && (!volumeValue || volumeValue <= 0);
 
   return (
     <div className="space-y-6 p-6">
@@ -150,7 +166,6 @@ export default function TactiqueFormTags({
             onBlur={() => onTooltipChange(null)}
             disabled={loading}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
-            required
           >
             <option value="">{t('tactiqueFormTags.fields.buyType.selectPlaceholder')}</option>
             <option value="CPM">CPM</option>
@@ -163,9 +178,10 @@ export default function TactiqueFormTags({
           <div className="flex items-center justify-between mb-2">
             <label 
               htmlFor="TC_CM360_Volume" 
-              className="block text-sm font-medium text-gray-700"
+              className={`block text-sm font-medium ${hasVolumeValidationError ? 'text-red-700' : 'text-gray-700'}`}
             >
               {t('tactiqueFormTags.fields.cm360Volume.label')}
+              {isVolumeRequired && <span className="text-red-500 ml-1">*</span>}
             </label>
             
             {/* Case à cocher pour la liaison */}
@@ -195,7 +211,7 @@ export default function TactiqueFormTags({
               type="number"
               id="TC_CM360_Volume"
               name="TC_CM360_Volume"
-              value={isVolumeReadonly ? unitVolume : cm360Volume}
+              value={getVolumeDisplayValue()}
               onChange={handleVolumeChange}
               onFocus={() => onTooltipChange(
                 isVolumeReadonly 
@@ -208,12 +224,13 @@ export default function TactiqueFormTags({
               min="1"
               step="1"
               className={`mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
-                isVolumeReadonly
-                  ? 'border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-300 disabled:bg-gray-50 disabled:text-gray-500'
+                hasVolumeValidationError
+                  ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
+                  : isVolumeReadonly
+                    ? 'border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed'
+                    : 'border-gray-300 disabled:bg-gray-50 disabled:text-gray-500'
               }`}
               placeholder={isVolumeReadonly ? t('tactiqueFormTags.fields.cm360Volume.placeholderLinked') : "Ex: 1000000"}
-              required
             />
             
             {/* Indicateur visuel quand lié */}
@@ -224,18 +241,19 @@ export default function TactiqueFormTags({
             )}
           </div>
 
-          {/* Messages d'aide */}
+          {/* Messages d'aide et d'erreur */}
           {isVolumeReadonly && (
             <p className="mt-1 text-xs text-indigo-600">
               {t('tactiqueFormTags.fields.cm360Volume.linkedMessage')}
             </p>
           )}
           
-          {!isVolumeReadonly && cm360Volume && cm360Volume <= 0 && (
+          {hasVolumeValidationError && (
             <p className="mt-1 text-sm text-red-600">
-              {t('tactiqueFormTags.validation.volumePositive')}
+              {t('tactiqueFormTags.validation.volumeRequiredWhenBuyType')}
             </p>
           )}
+
         </div>
 
       </div>

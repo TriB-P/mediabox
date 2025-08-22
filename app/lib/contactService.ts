@@ -51,8 +51,6 @@ export async function getPartnerContacts(partnerId: string): Promise<Contact[]> 
   try {
     const contactsCollection = collection(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'contacts'
@@ -107,8 +105,6 @@ export async function addContact(partnerId: string, contactData: ContactFormData
   try {
     const contactsCollection = collection(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'contacts'
@@ -142,8 +138,6 @@ export async function updateContact(partnerId: string, contactId: string, contac
   try {
     const contactRef = doc(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'contacts',
@@ -172,8 +166,6 @@ export async function deleteContact(partnerId: string, contactId: string): Promi
   try {
     const contactRef = doc(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'contacts',

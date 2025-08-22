@@ -196,7 +196,7 @@ export default function CampaignTable({
           {/* Filtre par Année */}
           <div className="flex items-center gap-2">
             <label htmlFor="year-filter" className="text-sm font-medium text-gray-700">
-              Année:
+            {t('campaigns.year')}
             </label>
             <select
               id="year-filter"

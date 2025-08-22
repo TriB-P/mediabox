@@ -3,6 +3,7 @@
  * - Limite à 5 breakdowns par campagne
  * - Support des nouvelles structures de données avec IDs uniques
  * - Gestion améliorée des types automatiques vs custom
+ * - Traduction des types d'affichage (garde les valeurs FR en backend)
  */
 
 'use client';
@@ -81,6 +82,35 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   const [isCreating, setIsCreating] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Fonction pour obtenir le label traduit d'un type de breakdown
+   * Garde les valeurs en français pour le backend
+   */
+  const getBreakdownTypeLabel = (type: BreakdownType): string => {
+    switch (type) {
+      case 'Hebdomadaire':
+        return t('campaigns.formBreakdown.types.weekly');
+      case 'Mensuel':
+        return t('campaigns.formBreakdown.types.monthly');
+      case 'PEBs':
+        return t('campaigns.formBreakdown.types.pebs');
+      case 'Custom':
+        return t('campaigns.formBreakdown.types.custom');
+      default:
+        return type;
+    }
+  };
+
+  /**
+   * Fonction pour obtenir la liste des types avec leurs labels traduits
+   */
+  const getTranslatedBreakdownTypes = () => {
+    return BREAKDOWN_TYPES.map(type => ({
+      ...type,
+      label: getBreakdownTypeLabel(type.value)
+    }));
+  };
 
   /**
    * Effet pour charger les répartitions existantes si un `campaignId` est fourni,
@@ -342,9 +372,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     const baseStartDate = campaignStartDate || editingBreakdown.startDate;
     const baseEndDate = campaignEndDate || editingBreakdown.endDate;
 
-    // DEBUGGING: Voir exactement ce qui est reçu
-   
-
     // Appliquer l'ajustement conditionnel selon le type
     switch (newType) {
       case 'Hebdomadaire':
@@ -369,7 +396,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       default:
         adjustedStartDate = baseStartDate;
     }
-
 
     updatedBreakdown.type = newType;
     updatedBreakdown.startDate = adjustedStartDate;
@@ -557,7 +583,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                           )}
                         </h4>
                         <p className="text-sm text-gray-500">
-                          {breakdown.type}
+                          {getBreakdownTypeLabel(breakdown.type)}
                           {breakdown.type !== 'Custom' && (
                             <> • {breakdown.startDate} → {breakdown.endDate}</>
                           )}
@@ -687,7 +713,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   </label>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {BREAKDOWN_TYPES.map((type) => {
+                  {getTranslatedBreakdownTypes().map((type) => {
                     const TypeIcon = getTypeIcon(type.value);
                     return (
                       <button

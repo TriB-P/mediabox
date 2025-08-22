@@ -131,10 +131,14 @@ export default function TactiquesTimelineTable({
 
   // AMÉLIORÉ: Génération des périodes avec nouvelles traductions
   const periods = useMemo(() => {
+    // CORRIGÉ: Split explicite des strings de traduction en arrays
     const periodTranslations: PeriodTranslations = {
-      shortMonths: t('timeline.utils.months.short', { returnObjects: true } as any) as unknown as string[],
-      mediumMonths: t('timeline.utils.months.medium', { returnObjects: true } as any) as unknown as string[]
+      shortMonths: t('timeline.utils.months.short').split(',').map(m => m.trim()),
+      mediumMonths: t('timeline.utils.months.medium').split(',').map(m => m.trim())
     };
+  
+    // Debug pour vérifier que les traductions sont correctes
+    console.log('Period translations:', periodTranslations);
   
     return generatePeriodsForBreakdown(
       selectedBreakdown,

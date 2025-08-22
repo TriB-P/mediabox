@@ -437,6 +437,62 @@ export const documentMappingConfig = {
         column: 'TC_MPA',
         type: 'text' as FieldType,
       },
+      {
+        field: 'TC_Spec_Name',
+        column: 'TC_CR_Spec_Name',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Format',
+        column: 'TC_CR_Spec_Format',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Ratio',
+        column: 'TC_CR_Spec_Ratio',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_FileType',
+        column: 'TC_CR_Spec_FileType',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_MaxWeight',
+        column: 'TC_CR_Spec_MaxWeight',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Weight',
+        column: 'TC_CR_Spec_Weight',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Animation',
+        column: 'TC_CR_Spec_Animation',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Title',
+        column: 'TC_CR_Spec_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Text',
+        column: 'TC_CR_Spec_Text',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_SpecSheetLink',
+        column: 'TC_CR_Spec_SpecSheetLink',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'TC_Spec_Notes',
+        column: 'TC_CR_Spec_Notes',
+        type: 'text' as FieldType,
+      },
+
     ]
   } as SectionMapping,
 
@@ -467,20 +523,61 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
-        field: 'CR_Tag_5',
-        column: 'Taxo_Niveau_5',
+        field: 'CR_Spec_Name',
+        column: 'TC_CR_Spec_Name',
         type: 'text' as FieldType,
       },
       {
-        field: 'CR_Order',
-        column: 'Order',
-        type: 'number' as FieldType,
-      },
-      {
-        field: 'CR_Tag_6',
-        column: 'Volume unité',
+        field: 'CR_Spec_Format',
+        column: 'TC_CR_Spec_Format',
         type: 'text' as FieldType,
       },
+      {
+        field: 'CR_Spec_Ratio',
+        column: 'TC_CR_Spec_Ratio',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_FileType',
+        column: 'TC_CR_Spec_FileType',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_MaxWeight',
+        column: 'TC_CR_Spec_MaxWeight',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_Weight',
+        column: 'TC_CR_Spec_Weight',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_Animation',
+        column: 'TC_CR_Spec_Animation',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_Title',
+        column: 'TC_CR_Spec_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_Text',
+        column: 'TC_CR_Spec_Text',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_SpecSheetLink',
+        column: 'TC_CR_Spec_SpecSheetLink',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Spec_Notes',
+        column: 'TC_CR_Spec_Notes',
+        type: 'text' as FieldType,
+      },
+
     ]
   } as SectionMapping
 };

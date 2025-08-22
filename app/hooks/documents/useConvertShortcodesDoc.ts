@@ -81,8 +81,13 @@ export function useConvertShortcodesDoc(): UseConvertShortcodesDocReturn {
     language: 'FR' | 'EN'
   ): string => {
     if (language === 'EN' && shortcode.SH_Display_Name_EN) {
+      console.log("TEST", language)
+
       return shortcode.SH_Display_Name_EN;
     }
+    console.log("TEST", language)
+
+    
     
     // Fallback vers français si pas de version anglaise ou si langue est FR
     return shortcode.SH_Display_Name_FR;

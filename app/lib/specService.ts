@@ -55,8 +55,6 @@ export async function getPartnerSpecs(partnerId: string): Promise<Spec[]> {
   try {
     const specsCollection = collection(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'specs'
@@ -87,8 +85,6 @@ export async function addSpec(partnerId: string, specData: SpecFormData): Promis
   try {
     const specsCollection = collection(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'specs'
@@ -122,8 +118,6 @@ export async function updateSpec(partnerId: string, specId: string, specData: Sp
   try {
     const specRef = doc(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'specs',
@@ -153,8 +147,6 @@ export async function deleteSpec(partnerId: string, specId: string): Promise<voi
   try {
     const specRef = doc(
       db,
-      'lists',
-      'CA_Publisher',
       'shortcodes',
       partnerId,
       'specs',

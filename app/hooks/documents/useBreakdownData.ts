@@ -218,7 +218,7 @@ export function useBreakdownData(): UseBreakdownDataReturn {
         };
       } else {
         // Pour les types automatiques, utiliser la date stockée
-        const storedDate = periodData.date || '';
+        const storedDate = (periodData.date || '').trim();
         let startDate: Date | null = null;
 
         if (storedDate) {

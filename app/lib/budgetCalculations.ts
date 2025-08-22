@@ -215,7 +215,7 @@ const calculateFees = (
 
       case 'Volume d\'unité':
         const volumeToUse = fee.useCustomVolume && fee.customVolume ? fee.customVolume : unitVolume;
-        calculatedAmount = volumeToUse * fee.value;
+        calculatedAmount = volumeToUse * fee.value / 1000;
         units = volumeToUse;
         break;
 
