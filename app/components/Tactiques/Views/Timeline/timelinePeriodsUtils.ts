@@ -1,6 +1,7 @@
 // app/components/Tactiques/Views/Timeline/timelinePeriodsUtils.ts
 /**
- * NETTOYÉ ET HARMONISÉ: Utilitaires pour générer les périodes d'affichage avec:
+ * CORRIGÉ: Harmonisation du parsing des dates pour éviter les décalages entre breakdown et timeline
+ * - Utilisation de la même fonction parseDate que breakdownPeriodUtils.ts
  * - Support uniquement des IDs déterministes (même logique que breakdownPeriodUtils.ts)
  * - Utilisation des champs date/name selon le type
  * - Lecture cohérente avec la structure de données Firebase
@@ -36,6 +37,21 @@ export interface TimelinePeriod {
 export interface PeriodTranslations {
   shortMonths: string[]; // e.g., ['JAN', 'FEV', ...]
   mediumMonths: string[]; // e.g., ['Jan', 'Fév', ...]
+}
+
+/**
+ * CORRIGÉ: Fonction pour parser une date string de manière sûre (IDENTIQUE à breakdownPeriodUtils.ts)
+ */
+function parseDate(dateString: string): Date {
+  // Si la date est au format YYYY-MM-DD, la parser manuellement pour éviter les problèmes UTC
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  
+  // Fallback vers Date constructor standard
+  return new Date(dateString);
 }
 
 /**
@@ -77,7 +93,7 @@ function generateDeterministicPeriodId(
 }
 
 /**
- * HARMONISÉ: Génère les périodes pour un breakdown mensuel avec IDs déterministes
+ * CORRIGÉ: Génère les périodes pour un breakdown mensuel avec parsing des dates harmonisé
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown,
@@ -89,23 +105,33 @@ export function generateMonthlyPeriods(
 
   let startDate: Date, endDate: Date;
 
+  console.log(`🔍 Timeline - Génération des périodes mensuelles pour breakdown ${breakdown.name}`);
+  console.log(`📅 Breakdown dates: ${breakdown.startDate} → ${breakdown.endDate}`);
+  console.log(`🎯 Tactique dates: ${tactiqueStartDate} → ${tactiqueEndDate}`);
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    console.log(`✅ Utilisation des dates de tactique (breakdown par défaut)`);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    console.log(`✅ Utilisation des dates de breakdown`);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
+
+  console.log(`📍 Dates calculées: ${startDate.toISOString().split('T')[0]} → ${endDate.toISOString().split('T')[0]}`);
 
   // Commence au 1er du mois de la date de début
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  console.log(`🎬 Premier mois: ${current.toISOString().split('T')[0]} (${current.getMonth() + 1}/${current.getFullYear()})`);
+
   let order = 0;
 
   while (current <= endDate) {
     const monthLabel = translations.shortMonths[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
     
-    // HARMONISÉ: Utiliser la même logique de génération d'ID déterministe
+    // CORRIGÉ: Utiliser la même logique de génération d'ID déterministe
     const periodStartDate = new Date(current.getFullYear(), current.getMonth(), 1);
     const periodId = generateDeterministicPeriodId(
       breakdown.id, 
@@ -115,6 +141,8 @@ export function generateMonthlyPeriods(
     
     // Date de début calculée
     const periodDate = periodStartDate.toISOString().split('T')[0];
+    
+    console.log(`📅 Timeline - Génération période: ${monthLabel} ${yearSuffix} (${periodDate}) - ID: ${periodId}`);
     
     periods.push({
       id: periodId,
@@ -135,11 +163,13 @@ export function generateMonthlyPeriods(
     periods[periods.length - 1].isLast = true;
   }
 
+  console.log(`✅ Timeline - ${periods.length} périodes générées:`, periods.map(p => `${p.label} (${p.id})`));
+
   return periods;
 }
 
 /**
- * HARMONISÉ: Génère les périodes pour un breakdown hebdomadaire avec IDs déterministes
+ * CORRIGÉ: Génère les périodes pour un breakdown hebdomadaire avec parsing des dates harmonisé
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown,
@@ -151,12 +181,14 @@ export function generateWeeklyPeriods(
 
   let startDate: Date, endDate: Date;
 
+  console.log(`🔍 Timeline - Génération des périodes hebdomadaires pour breakdown ${breakdown.name}`);
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
 
   // Ajuster au lundi le plus proche pour TOUS les breakdowns hebdomadaires
@@ -173,7 +205,7 @@ export function generateWeeklyPeriods(
     const day = current.getDate().toString().padStart(2, '0');
     const month = translations.mediumMonths[current.getMonth()];
     
-    // HARMONISÉ: Utiliser la même logique de génération d'ID déterministe
+    // CORRIGÉ: Utiliser la même logique de génération d'ID déterministe
     const periodStartDate = new Date(current);
     const periodId = generateDeterministicPeriodId(
       breakdown.id, 
@@ -206,7 +238,7 @@ export function generateWeeklyPeriods(
 }
 
 /**
- * HARMONISÉ: Génère les périodes pour un breakdown PEBs avec IDs déterministes
+ * CORRIGÉ: Génère les périodes pour un breakdown PEBs avec parsing des dates harmonisé
  */
 export function generatePEBsPeriods(
   breakdown: Breakdown,
@@ -219,11 +251,11 @@ export function generatePEBsPeriods(
   let startDate: Date, endDate: Date;
 
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
 
   // Ajuster au lundi le plus proche pour TOUS les breakdowns PEBs
@@ -240,7 +272,7 @@ export function generatePEBsPeriods(
     const day = current.getDate().toString().padStart(2, '0');
     const month = translations.mediumMonths[current.getMonth()];
     
-    // HARMONISÉ: Utiliser la même logique de génération d'ID déterministe
+    // CORRIGÉ: Utiliser la même logique de génération d'ID déterministe
     const periodStartDate = new Date(current);
     const periodId = generateDeterministicPeriodId(
       breakdown.id, 
@@ -391,7 +423,7 @@ export function areAllValuesNumeric(
 }
 
 /**
- * NETTOYÉ: Distribue équitablement un montant sur les périodes actives avec IDs déterministes
+ * CORRIGÉ: Distribue équitablement un montant sur les périodes actives avec parsing des dates harmonisé
  */
 export function distributeAmountEqually(
   totalAmount: number,
@@ -523,18 +555,6 @@ export function distributeAmountEqually(
 }
 
 /**
- * Fonction helper pour parser les dates de manière sécurisée
- */
-function parseDate(dateString: string): Date {
-  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    const [, year, month, day] = match;
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  }
-  return new Date(dateString);
-}
-
-/**
  * NETTOYÉ: Génère un label d'affichage approprié pour une période selon son type
  */
 export function generatePeriodDisplayLabel(
@@ -548,7 +568,7 @@ export function generatePeriodDisplayLabel(
 
   // Pour les types automatiques, utiliser la date si disponible
   if (period.date) {
-    const date = new Date(period.date);
+    const date = parseDate(period.date); // CORRIGÉ: Utiliser parseDate harmonisée
     
     if (breakdownType === 'Mensuel') {
       const month = translations.shortMonths[date.getMonth()];
