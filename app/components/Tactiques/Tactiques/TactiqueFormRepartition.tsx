@@ -1,11 +1,10 @@
 // app/components/Tactiques/Tactiques/TactiqueFormRepartition.tsx
 /**
- * FIXED: Strict numeric validation to hide percentages/totals on non-numeric values
- * FIXED: Value reset issue in the tactic drawer
- * NEW: Standardized period IDs compatible with the timeline
- * NEW: Support for PEBs type with 3 inputs (cost/unit, volume, calculated total)
- * NEW: Date validation with campaign limits
- * REFACTORED: Simplified code with custom hooks and external modal
+ * AMÉLIORÉ: Support des nouvelles structures de données avec:
+ * - IDs uniques pour les périodes
+ * - Champs date/name selon le type de breakdown
+ * - Validation numérique stricte conservée
+ * - Support PEBs avec 3 inputs amélioré
  */
 
 'use client';
@@ -45,8 +44,7 @@ interface TactiqueFormRepartitionProps {
 }
 
 /**
- * NEW: Helper function to validate that a value is strictly numeric
- * Unlike parseFloat(), this function rejects partially numeric strings
+ * Helper function pour valider qu'une valeur est strictement numérique
  */
 const isStrictlyNumeric = (value: string): boolean => {
   if (!value || value.trim() === '') return false;
@@ -54,14 +52,11 @@ const isStrictlyNumeric = (value: string): boolean => {
   const trimmedValue = value.trim();
   const numericValue = Number(trimmedValue);
   
-  // Number() returns NaN for partially numeric strings like "5 mai"
-  // and for empty strings, Number("") returns 0, so we also check the length
   return !isNaN(numericValue) && isFinite(numericValue) && trimmedValue !== '';
 };
 
 /**
- * NEW: Extracts the numeric value from a strictly numeric string
- * Returns 0 if the value is not strictly numeric
+ * Extrait la valeur numérique d'une chaîne strictement numérique
  */
 const getStrictNumericValue = (value: string): number => {
   return isStrictlyNumeric(value) ? Number(value.trim()) : 0;
@@ -132,12 +127,10 @@ export default function TactiqueFormRepartition({
     const tacticStart = formData.TC_Start_Date || '';
     const tacticEnd = formData.TC_End_Date || '';
     
-    // Pour TC_Start_Date : min = CA_Start_Date, max = min(TC_End_Date, CA_End_Date)
     let startDateMin = campaignStartDate || '';
     let startDateMax = '';
     
     if (tacticEnd && campaignEndDate) {
-      // Prendre la date la plus proche (la plus tôt)
       startDateMax = tacticEnd <= campaignEndDate ? tacticEnd : campaignEndDate;
     } else if (tacticEnd) {
       startDateMax = tacticEnd;
@@ -145,12 +138,10 @@ export default function TactiqueFormRepartition({
       startDateMax = campaignEndDate;
     }
     
-    // Pour TC_End_Date : min = max(TC_Start_Date, CA_Start_Date), max = CA_End_Date
     let endDateMin = '';
     let endDateMax = campaignEndDate || '';
     
     if (tacticStart && campaignStartDate) {
-      // Prendre la date la plus lointaine (la plus tard)
       endDateMin = tacticStart >= campaignStartDate ? tacticStart : campaignStartDate;
     } else if (tacticStart) {
       endDateMin = tacticStart;
@@ -266,7 +257,7 @@ export default function TactiqueFormRepartition({
     }
   };
 
-  // MODIFIED: Function to check if there is at least one STRICTLY valid numeric value
+  // MODIFIÉ: Function pour vérifier s'il y a au moins une valeur numérique valide
   const hasAtLeastOneNumericValue = (
     tactique: any,
     breakdownId: string,
@@ -278,6 +269,10 @@ export default function TactiqueFormRepartition({
     }
 
     const breakdown = tactique.breakdowns[breakdownId];
+    if (!breakdown.periods) {
+      return false;
+    }
+
     const periods = Object.values(breakdown.periods) as any[];
     
     const relevantPeriods = periods.filter(period => 
@@ -293,16 +288,44 @@ export default function TactiqueFormRepartition({
         const unitCost = period.unitCost?.trim() || '';
         const volume = period.value?.trim() || '';
         
-        // MODIFIED: Strict validation for PEBs
         return isStrictlyNumeric(unitCost) && isStrictlyNumeric(volume);
       });
     }
 
-    // MODIFIED: Strict validation for other types
     return relevantPeriods.some(period => {
       const value = period.value?.trim() || '';
       return isStrictlyNumeric(value);
     });
+  };
+
+  /**
+   * NOUVEAU: Génère un label d'affichage pour une période selon son type et ses données
+   */
+  const generatePeriodLabel = (period: BreakdownPeriod, breakdown: Breakdown): string => {
+    if (breakdown.type === 'Custom') {
+      return period.label; // Le label est déjà défini depuis le nom de la période custom
+    }
+
+    // Pour les types automatiques, utiliser la date de début si disponible
+    if (period.startDate) {
+      const date = period.startDate;
+      
+      if (breakdown.type === 'Mensuel') {
+        const monthNames = t('breakdownPeriod.months.short').split(',');
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear().toString().slice(-2);
+        return `${month} ${year}`;
+      } else {
+        // Hebdomadaire, PEBs
+        const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = monthNames[date.getMonth()];
+        return `${day} ${month}`;
+      }
+    }
+
+    // Fallback au label existant
+    return period.label;
   };
 
   const periodsByBreakdown = periods.reduce((acc, period) => {
@@ -375,7 +398,6 @@ export default function TactiqueFormRepartition({
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
-              {/* Message d'aide pour les limites */}
               {(campaignStartDate || campaignEndDate) && (
                 <p className="mt-1 text-xs text-slate-500">
                   {t('repartition.startDate.limitHelp', {
@@ -406,7 +428,6 @@ export default function TactiqueFormRepartition({
                 disabled={loading}
                 className="w-full px-4 py-3 border-0 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:shadow-md transition-all"
               />
-              {/* Message d'aide pour les limites */}
               {(campaignStartDate || campaignEndDate) && (
                 <p className="mt-1 text-xs text-slate-500">
                   {t('repartition.endDate.limitHelp', {
@@ -534,7 +555,7 @@ export default function TactiqueFormRepartition({
                           
                           const valueForPercentage = isPEBs ? currentTotal : currentValue;
                           
-                          // MODIFIED: Strict validation for percentage display
+                          // Strict validation for percentage display
                           const isValueStrictlyNumeric = isPEBs 
                             ? isStrictlyNumeric(currentTotal)
                             : isStrictlyNumeric(currentValue);
@@ -546,6 +567,9 @@ export default function TactiqueFormRepartition({
                             : 0;
 
                           const isActive = getPeriodActiveStatus(period.id, period.breakdownId);
+
+                          // NOUVEAU: Utiliser le label généré selon le type
+                          const periodLabel = generatePeriodLabel(period, breakdown);
 
                           return (
                             <div key={period.id} className={`rounded-lg transition-all duration-200 relative ${
@@ -576,7 +600,7 @@ export default function TactiqueFormRepartition({
                                 <label className={`text-sm font-medium ${
                                   isDefaultBreakdown && !isActive ? 'text-slate-400' : 'text-slate-700'
                                 }`}>
-                                  {period.label}
+                                  {periodLabel}
                                 </label>
 
                                 {isDefaultBreakdown && (
@@ -594,7 +618,6 @@ export default function TactiqueFormRepartition({
                                 {isPEBs ? (
                                   // PEBs interface with 3 stacked inputs
                                   <div className="space-y-2">
-                                    {/* Cost per unit */}
                                     <input
                                       type="text"
                                       value={currentUnitCost}
@@ -608,7 +631,6 @@ export default function TactiqueFormRepartition({
                                       }`}
                                     />
                                     
-                                    {/* Volume */}
                                     <input
                                       type="text"
                                       value={currentValue}
@@ -622,7 +644,6 @@ export default function TactiqueFormRepartition({
                                       }`}
                                     />
                                     
-                                    {/* Calculated total (grayed out) */}
                                     <input
                                       type="text"
                                       value={currentTotal}
@@ -647,7 +668,7 @@ export default function TactiqueFormRepartition({
                                   />
                                 )}
 
-                                {/* MODIFIED: Conditional display of percentages based on strict validation */}
+                                {/* Conditional display of percentages based on strict validation */}
                                 {showCalculationsForBreakdown && 
                                  isValueStrictlyNumeric && 
                                  isActive && 

@@ -1,27 +1,24 @@
 // app/types/breakdown.ts
 /**
- * Ce fichier définit les types de données et les interfaces utilisés pour gérer les "breakdowns"
- * dans l'application. Un breakdown représente une manière de découper une période de temps
- * (par exemple, mensuellement, hebdomadairement, avec des périodes personnalisées ou PEBs).
- * Il inclut également des utilitaires pour la validation des périodes personnalisées.
- * NOUVEAU: Support du type PEBs (Périodes d'Estimation par Blocs)
- * NOUVEAU: Support des dates de début pour toutes les périodes
+ * Types améliorés pour les breakdowns avec:
+ * - Support des champs date et name pour les périodes
+ * - Distinction entre types automatiques et custom
+ * - Nouvelles interfaces pour la structure de données
  */
 export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
 
 /**
- * Structure pour une période personnalisée utilisée dans un breakdown de type 'Custom'.
- * NOUVEAU: Support du champ startDate pour toutes les périodes
+ * MODIFIÉ: Structure améliorée pour une période personnalisée
  */
 export interface CustomPeriod {
   id: string;
-  name: string; // Ex: "Q1", "Phase 1", "Sprint 1"
+  name: string; // Ex: "Q1", "Phase 1", "Sprint 1" - utilisé seulement pour Custom
   order: number;
-  startDate?: Date; // NOUVEAU: Date de début de la période (calculée automatiquement pour non-Custom)
+  date?: string; // NOUVEAU: Date de début (YYYY-MM-DD) - utilisé pour types automatiques
 }
 
 /**
- * Interface principale pour un breakdown, définissant ses propriétés.
+ * Interface principale pour un breakdown
  */
 export interface Breakdown {
   id: string;
@@ -34,12 +31,12 @@ export interface Breakdown {
   createdAt: string; // Format ISO string
   updatedAt: string; // Format ISO string
 
-  // Nouveau : périodes personnalisées pour le type Custom
+  // Périodes personnalisées pour le type Custom
   customPeriods?: CustomPeriod[]; // Utilisé uniquement si type === 'Custom'
 }
 
 /**
- * Interface pour les données de formulaire lors de la création ou de la mise à jour d'un breakdown.
+ * Interface pour les données de formulaire lors de la création ou de la mise à jour d'un breakdown
  */
 export interface BreakdownFormData {
   name: string;
@@ -47,25 +44,24 @@ export interface BreakdownFormData {
   startDate: string;
   endDate: string;
 
-  // Nouveau : périodes personnalisées pour le type Custom
+  // Périodes personnalisées pour le type Custom
   customPeriods?: Omit<CustomPeriod, 'id'>[]; // Sans l'ID lors de la création
 
-  // Nouveau : flag pour identifier le breakdown par défaut lors de la création
+  // Flag pour identifier le breakdown par défaut lors de la création
   isDefault?: boolean;
 }
 
 /**
- * Interface pour les données de formulaire lors de l'édition d'une période personnalisée.
- * NOUVEAU: Support du champ startDate
+ * MODIFIÉ: Interface pour les données de formulaire lors de l'édition d'une période personnalisée
  */
 export interface CustomPeriodFormData {
   name: string;
   order: number;
-  startDate?: Date; // NOUVEAU: Date de début (pour maintenir la cohérence)
+  date?: string; // NOUVEAU: Date de début pour maintenir la cohérence
 }
 
 /**
- * Propriétés attendues par le composant BreakdownDrawer.
+ * Propriétés attendues par le composant BreakdownDrawer
  */
 export interface BreakdownDrawerProps {
   isOpen: boolean;
@@ -77,7 +73,7 @@ export interface BreakdownDrawerProps {
 }
 
 /**
- * Résultat de la validation des dates.
+ * Résultat de la validation des dates
  */
 export interface DateValidationResult {
   isValid: boolean;
@@ -85,7 +81,7 @@ export interface DateValidationResult {
 }
 
 /**
- * Résultat de la validation spécifique pour les périodes personnalisées.
+ * Résultat de la validation spécifique pour les périodes personnalisées
  */
 export interface CustomPeriodValidationResult {
   isValid: boolean;
@@ -94,6 +90,49 @@ export interface CustomPeriodValidationResult {
   }; // Index de la période -> message d'erreur
   globalError?: string; // Erreur générale (ex: chevauchement)
 }
+
+// ============================================================================
+// NOUVELLES INTERFACES POUR LA STRUCTURE DE DONNÉES AMÉLIORÉE
+// ============================================================================
+
+/**
+ * NOUVEAU: Structure complète d'une période de breakdown sur une tactique
+ */
+export interface EnhancedTactiqueBreakdownPeriod {
+  value: string;        // Volume d'unité pour PEBs, valeur unique pour autres types
+  isToggled: boolean;
+  order: number;
+  unitCost?: string;    // Coût par unité (PEBs uniquement)
+  total?: string;       // Total calculé (PEBs uniquement)
+  date?: string;        // NOUVEAU: Date de début de la période (YYYY-MM-DD) pour types automatiques
+  name?: string;        // NOUVEAU: Nom de la période (custom uniquement)
+}
+
+/**
+ * NOUVEAU: Structure complète des breakdowns sur une tactique
+ */
+export interface EnhancedTactiqueBreakdownData {
+  [breakdownId: string]: {
+    periods: {
+      [periodId: string]: EnhancedTactiqueBreakdownPeriod;
+    };
+  };
+}
+
+/**
+ * NOUVEAU: Métadonnées pour une période générée
+ */
+export interface GeneratedPeriodMeta {
+  id: string;           // ID unique généré
+  date?: string;        // Date de début pour types automatiques
+  name?: string;        // Nom pour type custom
+  order: number;        // Ordre de la période
+  label?: string;       // Label à afficher (calculé côté client)
+}
+
+// ============================================================================
+// CONSTANTES AMÉLIORÉES
+// ============================================================================
 
 // Constantes pour les types de breakdown
 export const BREAKDOWN_TYPES: { value: BreakdownType; label: string }[] = [
@@ -106,10 +145,15 @@ export const BREAKDOWN_TYPES: { value: BreakdownType; label: string }[] = [
 // Nom du breakdown par défaut
 export const DEFAULT_BREAKDOWN_NAME = 'Calendrier';
 
+// NOUVEAU: Limite de breakdowns par campagne
+export const MAX_BREAKDOWNS_PER_CAMPAIGN = 5;
+
+// ============================================================================
+// FONCTIONS UTILITAIRES AMÉLIORÉES
+// ============================================================================
+
 /**
- * Crée un objet CustomPeriodFormData vide avec un ordre donné.
- * @param order L'ordre initial de la période.
- * @returns Un objet CustomPeriodFormData vide.
+ * Crée un objet CustomPeriodFormData vide avec un ordre donné
  */
 export const createEmptyCustomPeriod = (order: number = 0): CustomPeriodFormData => ({
   name: '',
@@ -117,10 +161,7 @@ export const createEmptyCustomPeriod = (order: number = 0): CustomPeriodFormData
 });
 
 /**
- * Valide un tableau de périodes personnalisées.
- * Vérifie si les noms sont présents et uniques.
- * @param periods Le tableau de périodes personnalisées à valider.
- * @returns Un objet CustomPeriodValidationResult indiquant la validité et les erreurs.
+ * Valide un tableau de périodes personnalisées
  */
 export const validateCustomPeriods = (
   periods: CustomPeriodFormData[],
@@ -152,4 +193,54 @@ export const validateCustomPeriods = (
   }
 
   return result;
+};
+
+/**
+ * NOUVEAU: Détermine si un type de breakdown utilise des dates automatiques
+ */
+export const isAutomaticDateType = (type: BreakdownType): boolean => {
+  return ['Hebdomadaire', 'Mensuel', 'PEBs'].includes(type);
+};
+
+/**
+ * NOUVEAU: Détermine si un type de breakdown utilise des noms personnalisés
+ */
+export const isCustomNameType = (type: BreakdownType): boolean => {
+  return type === 'Custom';
+};
+
+/**
+ * NOUVEAU: Génère un label d'affichage pour une période selon son type
+ */
+export const generatePeriodLabel = (
+  period: GeneratedPeriodMeta,
+  breakdownType: BreakdownType,
+  monthNames?: string[]
+): string => {
+  if (breakdownType === 'Custom') {
+    return period.name || `Période ${period.order + 1}`;
+  }
+
+  if (!period.date) {
+    return `Période ${period.order + 1}`;
+  }
+
+  const date = new Date(period.date);
+  
+  if (breakdownType === 'Mensuel') {
+    const defaultMonths = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
+                          'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const months = monthNames || defaultMonths;
+    const month = months[date.getMonth()];
+    const year = date.getFullYear().toString().slice(-2);
+    return `${month} ${year}`;
+  } else {
+    // Hebdomadaire, PEBs
+    const defaultMonths = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
+                          'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const months = monthNames || defaultMonths;
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = months[date.getMonth()];
+    return `${day} ${month}`;
+  }
 };

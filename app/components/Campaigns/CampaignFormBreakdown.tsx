@@ -1,9 +1,8 @@
 /**
- * @file Ce fichier contient le composant React `CampaignFormBreakdown`, qui gère la section "Répartition temporelle"
- * du formulaire de création ou d'édition d'une campagne. Il permet aux utilisateurs de définir comment la campagne est
- * divisée dans le temps (hebdomadairement, mensuellement, en périodes personnalisées ou PEBs).
- * Le composant interagit avec Firebase pour sauvegarder et charger ces répartitions (breakdowns).
- * NOUVEAU: Support du type PEBs (Périodes d'Estimation par Blocs)
+ * @file Composant amélioré `CampaignFormBreakdown` avec:
+ * - Limite à 5 breakdowns par campagne
+ * - Support des nouvelles structures de données avec IDs uniques
+ * - Gestion améliorée des types automatiques vs custom
  */
 
 'use client';
@@ -32,7 +31,8 @@ import {
   BREAKDOWN_TYPES,
   DEFAULT_BREAKDOWN_NAME,
   createEmptyCustomPeriod,
-  validateCustomPeriods
+  validateCustomPeriods,
+  MAX_BREAKDOWNS_PER_CAMPAIGN
 } from '../../types/breakdown';
 import {
   getBreakdowns,
@@ -63,8 +63,7 @@ interface BreakdownEditData extends BreakdownFormData {
 
 /**
  * Composant principal pour gérer les répartitions temporelles d'une campagne.
- * @param {CampaignFormBreakdownProps} props - Les propriétés du composant.
- * @returns {React.ReactElement} Le JSX du composant de formulaire de répartition.
+ * AMÉLIORÉ: Avec limite à 5 breakdowns et nouvelle structure de données
  */
 const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   clientId,
@@ -165,7 +164,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     try {
       setLocalLoading(true);
       setError(null);
-      console.log(`FIREBASE: LECTURE - Fichier: CampaignFormBreakdown.tsx - Fonction: loadBreakdowns - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns`);
+      console.log(`FIREBASE: LECTURE - Fichier: CampaignFormBreakdown.tsx - Fonction: loadBreakdowns`);
       const data = await getBreakdowns(clientId, campaignId);
       setBreakdowns(data);
     } catch (err) {
@@ -178,6 +177,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Prépare l'état pour la création d'une nouvelle répartition en ouvrant le formulaire modal.
+   * CORRIGÉ: Utilise les dates de campagne originales et applique l'ajustement selon le type par défaut
    */
   const handleCreateBreakdown = () => {
     if (!campaignStartDate || !campaignEndDate) {
@@ -185,15 +185,23 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       return;
     }
 
-    if (breakdowns.length >= 3) {
-      setError(t('campaigns.formBreakdown.maxBreakdownsError'));
+    if (breakdowns.length >= MAX_BREAKDOWNS_PER_CAMPAIGN) {
+      setError(t('campaigns.formBreakdown.maxBreakdownsError', { max: MAX_BREAKDOWNS_PER_CAMPAIGN }));
       return;
+    }
+
+    // CORRIGÉ: Appliquer l'ajustement selon le type par défaut (Hebdomadaire)
+    const defaultType: BreakdownType = 'Hebdomadaire';
+    let adjustedStartDate = campaignStartDate;
+    
+    if (defaultType === 'Hebdomadaire') {
+      adjustedStartDate = getClosestMonday(campaignStartDate);
     }
 
     const newBreakdown: BreakdownEditData = {
       name: '',
-      type: 'Hebdomadaire',
-      startDate: getClosestMonday(campaignStartDate),
+      type: defaultType,
+      startDate: adjustedStartDate,
       endDate: campaignEndDate,
     };
 
@@ -203,7 +211,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Prépare l'état pour la modification d'une répartition existante en ouvrant le formulaire modal.
-   * @param {Breakdown} breakdown - La répartition à modifier.
    */
   const handleEditBreakdown = (breakdown: Breakdown) => {
     if (breakdown.isDefault) {
@@ -232,8 +239,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   };
 
   /**
-   * Sauvegarde les modifications d'une répartition. Si la campagne existe, l'opération se fait sur Firebase.
-   * Sinon, les données sont gérées localement pour une future création.
+   * Sauvegarde les modifications d'une répartition.
    */
   const handleSaveBreakdown = async () => {
     if (!editingBreakdown) return;
@@ -244,10 +250,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
       if (campaignId) {
         if (isCreating) {
-          console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleSaveBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns`);
+          console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleSaveBreakdown`);
           await createBreakdown(clientId, campaignId, editingBreakdown);
         } else if (editingBreakdown.id) {
-          console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleSaveBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${editingBreakdown.id}`);
+          console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleSaveBreakdown`);
           await updateBreakdown(clientId, campaignId, editingBreakdown.id, editingBreakdown);
         }
         await loadBreakdowns();
@@ -294,7 +300,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Supprime une répartition temporelle de Firebase.
-   * @param {string} breakdownId - L'ID de la répartition à supprimer.
    */
   const handleDeleteBreakdown = async (breakdownId: string) => {
     if (!campaignId) return;
@@ -312,7 +317,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     try {
       setLocalLoading(true);
       setError(null);
-      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleDeleteBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${breakdownId}`);
+      console.log(`FIREBASE: ÉCRITURE - Fichier: CampaignFormBreakdown.tsx - Fonction: handleDeleteBreakdown`);
       await deleteBreakdown(clientId, campaignId, breakdownId);
       await loadBreakdowns();
     } catch (err: any) {
@@ -325,28 +330,50 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Gère le changement de type de répartition dans le formulaire d'édition.
-   * Ajuste automatiquement la date de début et la structure des données.
-   * NOUVEAU: PEBs utilise la même logique que Hebdomadaire (getClosestMonday)
-   * @param {BreakdownType} newType - Le nouveau type de répartition sélectionné.
+   * CORRIGÉ: Utilise TOUJOURS les dates de campagne comme base pour éviter les ajustements en cascade
    */
   const handleTypeChange = (newType: BreakdownType) => {
     if (!editingBreakdown) return;
 
-    let adjustedStartDate = editingBreakdown.startDate;
+    let adjustedStartDate: string;
     let updatedBreakdown = { ...editingBreakdown };
 
-    if (newType === 'Hebdomadaire' || newType === 'PEBs') {
-      adjustedStartDate = getClosestMonday(editingBreakdown.startDate);
-      updatedBreakdown.customPeriods = undefined;
-    } else if (newType === 'Mensuel') {
-      adjustedStartDate = getFirstOfMonth(editingBreakdown.startDate);
-      updatedBreakdown.customPeriods = undefined;
-    } else if (newType === 'Custom') {
-      updatedBreakdown.customPeriods = [createEmptyCustomPeriod()];
+    // CLEF: Toujours utiliser les dates de campagne originales comme base
+    const baseStartDate = campaignStartDate || editingBreakdown.startDate;
+    const baseEndDate = campaignEndDate || editingBreakdown.endDate;
+
+    // DEBUGGING: Voir exactement ce qui est reçu
+   
+
+    // Appliquer l'ajustement conditionnel selon le type
+    switch (newType) {
+      case 'Hebdomadaire':
+      case 'PEBs':
+        // Lundi le plus proche (avant ou égal)
+        adjustedStartDate = getClosestMonday(baseStartDate);
+        updatedBreakdown.customPeriods = undefined;
+        break;
+        
+      case 'Mensuel':
+        // 1er du mois où la campagne commence
+        adjustedStartDate = getFirstOfMonth(baseStartDate);
+        updatedBreakdown.customPeriods = undefined;
+        break;
+        
+      case 'Custom':
+        // Pas d'ajustement pour Custom
+        adjustedStartDate = baseStartDate;
+        updatedBreakdown.customPeriods = [createEmptyCustomPeriod()];
+        break;
+        
+      default:
+        adjustedStartDate = baseStartDate;
     }
+
 
     updatedBreakdown.type = newType;
     updatedBreakdown.startDate = adjustedStartDate;
+    updatedBreakdown.endDate = baseEndDate;
 
     setEditingBreakdown(updatedBreakdown);
   };
@@ -368,7 +395,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Supprime une période d'une répartition de type "Custom" en cours d'édition.
-   * @param {number} index - L'index de la période à supprimer.
    */
   const handleRemoveCustomPeriod = (index: number) => {
     if (!editingBreakdown || editingBreakdown.type !== 'Custom') return;
@@ -388,9 +414,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Met à jour le champ d'une période personnalisée.
-   * @param {number} index - L'index de la période à mettre à jour.
-   * @param {keyof CustomPeriodFormData} field - Le champ à modifier ('name' ou 'order').
-   * @param {string | number} value - La nouvelle valeur.
    */
   const handleUpdateCustomPeriod = (index: number, field: keyof CustomPeriodFormData, value: string | number) => {
     if (!editingBreakdown || editingBreakdown.type !== 'Custom') return;
@@ -409,9 +432,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Valide une date en temps réel selon le type de répartition et retourne un message d'erreur s'il y a lieu.
-   * @param {string} date - La date à valider.
-   * @param {boolean} isStartDate - Indique s'il s'agit de la date de début.
-   * @returns {string | null} Le message d'erreur ou null si valide.
    */
   const getDateValidationError = (date: string, isStartDate: boolean): string | null => {
     if (!editingBreakdown) return null;
@@ -426,7 +446,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Valide l'ensemble des périodes personnalisées pour une répartition de type "Custom".
-   * @returns {{ isValid: boolean, errors: Record<number, string>, globalError?: string }} Un objet contenant le statut de validation et les erreurs.
    */
   const getCustomPeriodsValidation = () => {
     if (!editingBreakdown || editingBreakdown.type !== 'Custom' || !editingBreakdown.customPeriods) {
@@ -438,7 +457,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Vérifie si le formulaire d'édition est valide et prêt à être sauvegardé.
-   * @returns {boolean} `true` si le formulaire est valide, sinon `false`.
    */
   const isFormValid = (): boolean => {
     if (!editingBreakdown) return false;
@@ -465,9 +483,6 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Retourne le composant icône approprié pour un type de répartition donné.
-   * NOUVEAU: Support de l'icône CalculatorIcon pour PEBs
-   * @param {BreakdownType} type - Le type de répartition.
-   * @returns {React.ElementType} Le composant icône.
    */
   const getTypeIcon = (type: BreakdownType) => {
     switch (type) {
@@ -547,7 +562,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                             <> • {breakdown.startDate} → {breakdown.endDate}</>
                           )}
                           {breakdown.type === 'Custom' && breakdown.customPeriods && (
-                            <> • {breakdown.customPeriods.length }{t('campaigns.formBreakdown.periodsCount')}</>
+                            <> • {breakdown.customPeriods.length} {t('campaigns.formBreakdown.periodsCount')}</>
                           )}
                           {breakdown.isDefault && (
                             <> • {t('campaigns.formBreakdown.updatedAutomatically')}</>
@@ -556,7 +571,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         {breakdown.type === 'Custom' && breakdown.customPeriods && (
                           <div className="mt-2 space-y-1">
                             {breakdown.customPeriods.map((period, index) => (
-                              <div key={period.id} className="text-xs text-gray-600">
+                              <div key={period.id || index} className="text-xs text-gray-600">
                                 • <strong>{period.name}</strong>
                               </div>
                             ))}
@@ -599,7 +614,8 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
             })}
           </div>)}
 
-        {(campaignStartDate && campaignEndDate) && breakdowns.length < 3 && (
+        {/* MODIFIÉ: Nouvelle limite affichée */}
+        {(campaignStartDate && campaignEndDate) && breakdowns.length < MAX_BREAKDOWNS_PER_CAMPAIGN && (
           <button
             type="button"
             onClick={handleCreateBreakdown}
@@ -611,7 +627,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
               {t('campaigns.formBreakdown.addBreakdown')}
             </span>
             <span className="block text-xs">
-              ({breakdowns.length}/3)
+              ({breakdowns.length}/{MAX_BREAKDOWNS_PER_CAMPAIGN})
             </span>
           </button>
         )}
@@ -626,6 +642,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         )}
       </FormSection>
 
+      {/* Modal d'édition - inchangé mais bénéficie des nouvelles validations */}
       {editingBreakdown && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -785,7 +802,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         <div key={index} className={`border rounded-lg p-4 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-gray-700">
-                              {t('campaigns.formBreakdown.modal.period')} { index + 1 }
+                              {t('campaigns.formBreakdown.modal.period')} {index + 1}
                             </span>
                             {(editingBreakdown.customPeriods || []).length > 1 && (
                               <button

@@ -1,11 +1,10 @@
 // app/hooks/documents/useBreakdownData.ts
 /**
- * Ce hook gère l'extraction et l'aplatissement des données de breakdown
- * depuis les tactiques d'une campagne Firebase. Il transforme la structure
- * complexe des breakdowns stockés sur chaque tactique en un tableau 2D
- * simple où chaque ligne représente une période d'un breakdown.
- * NOUVEAU: Support de la colonne "Date" avec les dates de début des périodes
- * MODIFIÉ: Tri par breakdown name puis par date chronologique
+ * AMÉLIORÉ: Hook pour l'extraction et l'aplatissement des données de breakdown avec:
+ * - Support des IDs uniques pour les périodes
+ * - Distinction entre champs date (automatiques) et name (custom)
+ * - Structure de données cohérente avec les améliorations
+ * - Tri amélioré par date chronologique pour tous les types
  */
 'use client';
 
@@ -26,8 +25,8 @@ interface BreakdownDataRow {
   breakdownId: string;
   breakdownName: string;
   breakdownType: string;
-  periodId: string;
-  periodName: string;
+  periodId: string;           // NOUVEAU: ID unique
+  periodName: string;         // Nom d'affichage (calculé ou custom)
   value: string;
   unitCost: string;    
   total: string;       
@@ -35,13 +34,13 @@ interface BreakdownDataRow {
   order: number;
   breakdownOrder: number;
   periodOrder: number;
-  startDate: Date | null;
+  startDate: Date | null;     // NOUVEAU: Date de début calculée selon le type
+  customName: string;         // NOUVEAU: Nom custom pour type Custom uniquement
+  storedDate: string;         // NOUVEAU: Date stockée pour types automatiques
 }
 
 /**
  * Hook pour extraire et aplatir les données de breakdown des tactiques.
- * @returns {UseBreakdownDataReturn} Un objet contenant la fonction extractBreakdownData,
- * les états de chargement et d'erreur, et les données aplaties.
  */
 export function useBreakdownData(): UseBreakdownDataReturn {
   const { user } = useAuth();
@@ -51,10 +50,6 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
   /**
    * Récupère toutes les tactiques de la campagne avec leurs données de breakdown.
-   * @param {string} clientId L'ID du client.
-   * @param {string} campaignId L'ID de la campagne.
-   * @param {string} versionId L'ID de la version.
-   * @returns {Promise<any[]>} Un tableau de toutes les tactiques avec leurs breakdowns.
    */
   const fetchAllTactiques = useCallback(async (
     clientId: string, 
@@ -65,17 +60,17 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
     try {
       // 1. Récupérer tous les onglets
-      console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets");
+      console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: onglets");
       const onglets = await getOnglets(clientId, campaignId, versionId);
 
       // 2. Pour chaque onglet, récupérer toutes les sections
       for (const onglet of onglets) {
-        console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${onglet.id}/sections");
+        console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: sections");
         const sections = await getSections(clientId, campaignId, versionId, onglet.id);
 
         // 3. Pour chaque section, récupérer toutes les tactiques
         for (const section of sections) {
-          console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${onglet.id}/sections/${section.id}/tactiques");
+          console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchAllTactiques - Path: tactiques");
           const tactiques = await getTactiques(clientId, campaignId, versionId, onglet.id, section.id);
           
           allTactiques.push(...tactiques);
@@ -92,16 +87,13 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
   /**
    * Récupère les informations des breakdowns de la campagne pour enrichir les données.
-   * @param {string} clientId L'ID du client.
-   * @param {string} campaignId L'ID de la campagne.
-   * @returns {Promise<{[key: string]: any}>} Un objet mappant les IDs de breakdown à leurs informations.
    */
   const fetchBreakdownsInfo = useCallback(async (
     clientId: string, 
     campaignId: string
   ): Promise<{[key: string]: any}> => {
     try {
-      console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchBreakdownsInfo - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns");
+      console.log("FIREBASE: LECTURE - Fichier: useBreakdownData.ts - Fonction: fetchBreakdownsInfo - Path: breakdowns");
       const breakdowns = await getBreakdowns(clientId, campaignId);
       
       const breakdownsMap: {[key: string]: any} = {};
@@ -118,55 +110,77 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
-   * Calcule la date de début d'une période selon le type de breakdown et l'ID de période.
-   * @param {string} periodId L'ID de la période
-   * @param {any} breakdownInfo Les informations du breakdown
-   * @returns {Date | null} La date de début ou null si ne peut pas être calculée
+   * AMÉLIORÉ: Calcule la date de début et le nom d'affichage d'une période selon le breakdown
    */
-  const calculatePeriodStartDate = useCallback((
+  const calculatePeriodMetadata = useCallback((
     periodId: string,
+    periodData: any,
     breakdownInfo: any
-  ): Date | null => {
-    if (!breakdownInfo) return null;
-
-    try {
-      if (breakdownInfo.type === 'Custom' && breakdownInfo.customPeriods) {
-        // Pour les breakdowns Custom, chercher la date stockée dans customPeriods
-        const customPeriod = breakdownInfo.customPeriods.find((p: any) => p.id === periodId);
-        if (customPeriod && customPeriod.startDate) {
-          return new Date(customPeriod.startDate);
-        }
-        return null; // Pas de date pour les Custom sans date stockée
-      } else if (breakdownInfo.type === 'Mensuel') {
-        // Pour les breakdowns mensuels, extraire année/mois de l'ID
-        const match = periodId.match(/^(\d{4})_(\d{2})$/);
-        if (match) {
-          const year = parseInt(match[1]);
-          const month = parseInt(match[2]);
-          return new Date(year, month - 1, 1); // 1er du mois
-        }
-      } else if (breakdownInfo.type === 'Hebdomadaire' || breakdownInfo.type === 'PEBs') {
-        // Pour les breakdowns hebdomadaires/PEBs, extraire la date de l'ID
-        const match = periodId.match(/^week_(\d{4})_(\d{2})_(\d{2})$/);
-        if (match) {
-          const year = parseInt(match[1]);
-          const month = parseInt(match[2]);
-          const day = parseInt(match[3]);
-          return new Date(year, month - 1, day);
-        }
-      }
-    } catch (error) {
-      console.warn('Erreur lors du calcul de la date de début pour la période:', periodId, error);
+  ): { startDate: Date | null; displayName: string; customName: string; storedDate: string } => {
+    if (!breakdownInfo) {
+      return { 
+        startDate: null, 
+        displayName: periodId, 
+        customName: '',
+        storedDate: ''
+      };
     }
 
-    return null;
+    try {
+      if (breakdownInfo.type === 'Custom') {
+        // NOUVEAU: Pour Custom, utiliser le nom stocké
+        const customName = periodData.name || '';
+        return {
+          startDate: null, // Pas de date automatique pour Custom
+          displayName: customName || periodId,
+          customName: customName,
+          storedDate: ''
+        };
+      } else {
+        // NOUVEAU: Pour les types automatiques, utiliser la date stockée
+        const storedDate = periodData.date || '';
+        let startDate: Date | null = null;
+        let displayName = periodId;
+
+        if (storedDate) {
+          startDate = new Date(storedDate);
+          
+          // Générer le nom d'affichage selon le type
+          if (breakdownInfo.type === 'Mensuel') {
+            const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
+                              'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+            const month = monthNames[startDate.getMonth()];
+            const year = startDate.getFullYear().toString().slice(-2);
+            displayName = `${month} ${year}`;
+          } else if (breakdownInfo.type === 'Hebdomadaire' || breakdownInfo.type === 'PEBs') {
+            const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
+                              'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+            const day = startDate.getDate().toString().padStart(2, '0');
+            const month = monthNames[startDate.getMonth()];
+            displayName = `${day} ${month}`;
+          }
+        }
+
+        return {
+          startDate,
+          displayName,
+          customName: '',
+          storedDate
+        };
+      }
+    } catch (error) {
+      console.warn('Erreur lors du calcul des métadonnées de période:', periodId, error);
+      return { 
+        startDate: null, 
+        displayName: periodId, 
+        customName: '',
+        storedDate: ''
+      };
+    }
   }, []);
 
   /**
-   * Applatit les données de breakdown des tactiques en un tableau 2D.
-   * @param {any[]} tactiques Un tableau de tactiques avec leurs données de breakdown.
-   * @param {{[key: string]: any}} breakdownsInfo Les informations des breakdowns de la campagne.
-   * @returns {BreakdownDataRow[]} Un tableau de lignes de données aplaties.
+   * AMÉLIORÉ: Applatit les données de breakdown avec nouvelle structure
    */
   const flattenBreakdownData = useCallback((
     tactiques: any[], 
@@ -193,47 +207,31 @@ export function useBreakdownData(): UseBreakdownDataReturn {
           return;
         }
 
-        // Parcourir chaque période du breakdown et ajouter l'ordre des périodes
+        // NOUVEAU: Parcourir chaque période avec ID unique
         Object.entries(breakdownData.periods).forEach(([periodId, periodData]: [string, any]) => {
+          // NOUVEAU: Calculer les métadonnées de la période
+          const { startDate, displayName, customName, storedDate } = calculatePeriodMetadata(
+            periodId, 
+            periodData, 
+            breakdownInfo
+          );
+
           // Utiliser l'ordre stocké sur Firebase ou calculer un ordre de fallback
           let periodOrder = periodData.order || 0;
           
-          // Si pas d'ordre stocké, utiliser la logique de fallback pour compatibilité
-          if (periodOrder === 0) {
-            if (breakdownInfo?.type === 'Custom' && breakdownInfo?.customPeriods) {
-              // Pour les breakdowns personnalisés, utiliser l'ordre des customPeriods
-              const customPeriod = breakdownInfo.customPeriods.find((p: any) => p.id === periodId);
-              periodOrder = customPeriod ? customPeriod.order : 0;
-            } else if (breakdownInfo?.type === 'Mensuel') {
-              // Pour les breakdowns mensuels, extraire l'année/mois de l'ID pour trier chronologiquement
-              const match = periodId.match(/^(\d{4})_(\d{2})$/);
-              if (match) {
-                const year = parseInt(match[1]);
-                const month = parseInt(match[2]);
-                periodOrder = year * 100 + month; // Format YYYYMM pour tri chronologique
-              }
-            } else if (breakdownInfo?.type === 'Hebdomadaire') {
-              // Pour les breakdowns hebdomadaires, extraire la date de début de semaine
-              const match = periodId.match(/^week_(\d{4})_(\d{2})_(\d{2})$/);
-              if (match) {
-                const year = parseInt(match[1]);
-                const month = parseInt(match[2]);
-                const day = parseInt(match[3]);
-                periodOrder = year * 10000 + month * 100 + day; // Format YYYYMMDD pour tri chronologique
-              }
-            }
+          // NOUVEAU: Pour les types automatiques, utiliser la date pour l'ordre
+          if (startDate && periodOrder === 0) {
+            // Convertir la date en nombre pour tri chronologique
+            periodOrder = startDate.getTime();
           }
-
-          // Calculer la date de début de la période
-          const startDate = calculatePeriodStartDate(periodId, breakdownInfo);
 
           flattenedData.push({
             tactiqueId: tactique.id,
             breakdownId: breakdownId,
             breakdownName: breakdownName,
             breakdownType: breakdownType,
-            periodId: periodId,
-            periodName: periodData.name || periodId,
+            periodId: periodId, // NOUVEAU: ID unique
+            periodName: displayName, // NOUVEAU: Nom d'affichage calculé
             value: periodData.value || '',
             unitCost: periodData.unitCost || '',
             total: periodData.total || '',
@@ -241,13 +239,15 @@ export function useBreakdownData(): UseBreakdownDataReturn {
             order: periodData.order || 0,
             breakdownOrder: breakdownOrder,
             periodOrder: periodOrder,
-            startDate: startDate
+            startDate: startDate, // NOUVEAU: Date calculée
+            customName: customName, // NOUVEAU: Nom custom
+            storedDate: storedDate // NOUVEAU: Date stockée
           });
         });
       });
     });
 
-    // MODIFIÉ: Nouveau tri par date chronologique puis par order
+    // AMÉLIORÉ: Tri par date chronologique puis par ordre
     flattenedData.sort((a, b) => {
       // 1. Tri primaire : date chronologique (null à la fin)
       if (a.startDate && b.startDate) {
@@ -264,31 +264,34 @@ export function useBreakdownData(): UseBreakdownDataReturn {
         return 1;
       }
       
-      // 2. Tri secondaire : order (pour les dates identiques ou null)
-      const aPeriodOrder = a.order > 0 ? a.order : a.periodOrder;
-      const bPeriodOrder = b.order > 0 ? b.order : b.periodOrder;
-      return aPeriodOrder - bPeriodOrder;
+      // 2. Tri secondaire : breakdown puis order
+      const breakdownComparison = a.breakdownOrder - b.breakdownOrder;
+      if (breakdownComparison !== 0) {
+        return breakdownComparison;
+      }
+      
+      return a.order - b.order;
     });
 
     return flattenedData;
-  }, [calculatePeriodStartDate]);
+  }, [calculatePeriodMetadata]);
 
   /**
-   * Transforme les données aplaties en un tableau 2D avec en-têtes.
-   * Inclut la colonne "Date" dans l'output
-   * @param {BreakdownDataRow[]} flattenedData Les données aplaties.
-   * @returns {string[][]} Un tableau 2D prêt pour l'affichage ou l'export.
+   * AMÉLIORÉ: Transforme les données aplaties en tableau 2D avec nouvelles colonnes
    */
   const transformToTable = useCallback((flattenedData: BreakdownDataRow[]): string[][] => {
     const table: string[][] = [];
     
-    // 1. Créer les en-têtes avec la colonne Date
+    // 1. NOUVEAU: En-têtes avec colonnes améliorées
     const headers = [
       'Tactique ID',
       'Breakdown Name', 
       'Type',
-      'Period Name',
-      'Date',
+      'Period ID',        // NOUVEAU: ID unique
+      'Period Name',      // NOUVEAU: Nom d'affichage
+      'Date',            // Date de début (automatiques) ou vide (custom)
+      'Custom Name',     // NOUVEAU: Nom custom (Custom uniquement) ou vide
+      'Stored Date',     // NOUVEAU: Date stockée en Firebase
       'Order',
       'Value',
       'Unit Cost',   
@@ -297,7 +300,7 @@ export function useBreakdownData(): UseBreakdownDataReturn {
     ];
     table.push(headers);
 
-    // 2. Ajouter chaque ligne de données (déjà triées dans flattenBreakdownData)
+    // 2. Ajouter chaque ligne de données
     flattenedData.forEach(row => {
       // Formater la date en string ISO ou vide si null
       const dateString = row.startDate ? row.startDate.toISOString().split('T')[0] : '';
@@ -306,8 +309,11 @@ export function useBreakdownData(): UseBreakdownDataReturn {
         row.tactiqueId,
         row.breakdownName,
         row.breakdownType,
-        row.periodName,
-        dateString,
+        row.periodId,               // NOUVEAU: ID unique
+        row.periodName,             // NOUVEAU: Nom d'affichage
+        dateString,                 // Date de début calculée
+        row.customName,             // NOUVEAU: Nom custom
+        row.storedDate,             // NOUVEAU: Date stockée
         row.order.toString(),
         row.value,
         row.unitCost,       
@@ -320,14 +326,7 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
-   * Fonction principale pour extraire et aplatir les données de breakdown.
-   * Elle orchestre la récupération des tactiques, des informations de breakdown,
-   * et leur transformation en tableau 2D.
-   * @param {string} clientId L'ID du client.
-   * @param {string} campaignId L'ID de la campagne.
-   * @param {string} versionId L'ID de la version.
-   * @returns {Promise<string[][] | null>} Une promesse qui se résout avec le tableau de données, ou null en cas d'erreur.
-   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si une erreur survient.
+   * AMÉLIORÉ: Fonction principale pour extraire et aplatir les données de breakdown
    */
   const extractBreakdownData = useCallback(async (
     clientId: string, 
@@ -355,14 +354,14 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       // 4. Transformer en tableau 2D
       const table = transformToTable(flattenedData);
 
-      // 5. Sauvegarder le résultat (pour le hook local)
+      // 5. Sauvegarder le résultat
       setData(table);
-      return table; // Retourne les données extraites
+      return table;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'extraction des breakdowns';
       console.error('❌ Erreur:', errorMessage);
       setError(errorMessage);
-      return null; // Retourne null en cas d'erreur
+      return null;
     } finally {
       setLoading(false);
     }

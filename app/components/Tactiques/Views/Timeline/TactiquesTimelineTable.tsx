@@ -1,11 +1,10 @@
 // app/components/Tactiques/Views/Timeline/TactiquesTimelineTable.tsx
 /**
- * Tableau d'édition des répartitions temporelles des tactiques.
- * CORRIGÉ: Bugs de sauvegarde Firebase et cases à cocher
- * NOUVEAU: Scroll horizontal et position fixe des checkboxes
- * FINAL: Corrections UI et TypeScript
- * NOUVEAU: Support du type PEBs avec 3 cellules superposées (unitCost, volume, total calculé)
- * CORRIGÉ: Affichage vertical PEBs en mode édition + totaux par colonne
+ * AMÉLIORÉ: Tableau d'édition des répartitions temporelles avec:
+ * - Support des IDs uniques pour les périodes
+ * - Gestion des champs date/name selon le type
+ * - Interface PEBs améliorée avec support des nouvelles structures
+ * - Fonctionnalités copier-coller conservées et améliorées
  */
 
 'use client';
@@ -16,7 +15,8 @@ import { Breakdown } from '../../../../types/breakdown';
 import {
   TimelinePeriod,
   generatePeriodsForBreakdown,
-  PeriodTranslations
+  PeriodTranslations,
+  generatePeriodDisplayLabel
 } from './timelinePeriodsUtils';
 import {
   getTactiqueBreakdownValue,
@@ -61,6 +61,8 @@ interface EditableCell {
   isToggled?: boolean;
   unitCost?: string;
   total?: string;
+  date?: string;        // NOUVEAU: Date pour types automatiques
+  name?: string;        // NOUVEAU: Nom pour type custom
 }
 
 interface SelectedCell {
@@ -127,9 +129,8 @@ export default function TactiquesTimelineTable({
   const tableRef = useRef<HTMLTableElement>(null);
   const isPEBs = selectedBreakdown.type === 'PEBs';
 
-  // Génération des périodes pour le breakdown sélectionné
+  // AMÉLIORÉ: Génération des périodes avec nouvelles traductions
   const periods = useMemo(() => {
-    // Create the translations object from your i18n resources.
     const periodTranslations: PeriodTranslations = {
       shortMonths: t('timeline.utils.months.short', { returnObjects: true } as any) as unknown as string[],
       mediumMonths: t('timeline.utils.months.medium', { returnObjects: true } as any) as unknown as string[]
@@ -155,7 +156,6 @@ export default function TactiquesTimelineTable({
       grouped[sectionId].push(tactique);
     });
 
-    // Trier les tactiques dans chaque section par ordre
     Object.keys(grouped).forEach(sectionId => {
       grouped[sectionId].sort((a, b) => (a.TC_Order || 0) - (b.TC_Order || 0));
     });
@@ -174,17 +174,13 @@ export default function TactiquesTimelineTable({
     return flat;
   }, [tactiquesGroupedBySection]);
 
-
-
-
   /**
-   * Valide qu'une chaîne est un nombre valide (pas juste parseFloat)
+   * Valide qu'une chaîne est un nombre valide
    */
   const isValidNumber = (str: string): boolean => {
     if (!str || typeof str !== 'string') return false;
     const trimmed = str.trim();
     if (trimmed === '') return false;
-    // Vérifie que c'est un nombre valide et pas quelque chose comme "4 avr"
     return /^-?\d*\.?\d+$/.test(trimmed) && !isNaN(parseFloat(trimmed));
   };
 
@@ -200,13 +196,12 @@ export default function TactiquesTimelineTable({
     let numericUnitCostCount = 0;
 
     periods.forEach(period => {
-      // Pour le breakdown par défaut, ne considérer que les périodes actives
       const isActive = selectedBreakdown.isDefault ? 
         getPeriodToggleForTactique(tactique, selectedBreakdown.id, period.id) : 
         true;
 
       if (!isActive && selectedBreakdown.isDefault) {
-        return; // Ignorer les périodes désactivées
+        return;
       }
 
       const volume = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
@@ -236,6 +231,10 @@ export default function TactiquesTimelineTable({
       hasNumericValues: numericVolumeCount > 0 || numericTotalCount > 0
     };
   };
+
+  /**
+   * AMÉLIORÉ: Obtient la valeur d'une période avec support des IDs uniques
+   */
   const getPeriodValueForTactique = (
     tactique: Tactique, 
     breakdownId: string, 
@@ -254,7 +253,7 @@ export default function TactiquesTimelineTable({
       return editedCell.value;
     }
     
-    // Lire depuis les données sauvegardées
+    // AMÉLIORÉ: Lire depuis les données sauvegardées avec IDs uniques
     if (field === 'unitCost') {
       return getTactiqueBreakdownUnitCost(tactique, breakdownId, periodId);
     }
@@ -279,14 +278,12 @@ export default function TactiquesTimelineTable({
       let numericTotalCount = 0;
 
       flatTactiques.forEach(tactique => {
-        // Valeur principale (volume pour PEBs)
         const value = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
         if (isValidNumber(value)) {
           valueSum += parseFloat(value);
           numericValueCount++;
         }
 
-        // Unit cost pour PEBs
         if (isPEBs) {
           const unitCost = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'unitCost');
           if (isValidNumber(unitCost)) {
@@ -370,7 +367,7 @@ export default function TactiquesTimelineTable({
   }, [selectedCells, flatTactiques, editMode, copiedValue]);
 
   /**
-   * Obtient le statut d'activation d'une période pour une tactique en considérant les modifications en cours.
+   * AMÉLIORÉ: Obtient le statut d'activation d'une période avec IDs uniques
    */
   const getPeriodToggleForTactique = (tactique: Tactique, breakdownId: string, periodId: string): boolean => {
     const editedCell = editableCells.find(
@@ -387,7 +384,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Gère la sélection d'une cellule avec support des plages rectangulaires.
+   * Gère la sélection d'une cellule avec support des plages rectangulaires
    */
   const handleCellClick = (rowIndex: number, breakdownId: string, periodId: string, event?: React.MouseEvent) => {
     if (!editMode) return;
@@ -425,7 +422,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Gère le double-clic pour éditer une cellule.
+   * AMÉLIORÉ: Gère le double-clic pour éditer une cellule avec IDs uniques
    */
   const handleCellDoubleClick = (
     tactique: Tactique, 
@@ -447,26 +444,35 @@ export default function TactiquesTimelineTable({
       const currentTotal = getPeriodValueForTactique(tactique, breakdownId, periodId, 'total');
       const currentToggle = getPeriodToggleForTactique(tactique, breakdownId, periodId);
       
-      setEditableCells(prev => [
-        ...prev,
-        { 
-          tactiqueId: tactique.id, 
-          breakdownId, 
-          periodId, 
-          value: currentValue,
-          unitCost: currentUnitCost,
-          total: currentTotal,
-          isToggled: currentToggle
-        }
-      ]);
+      // NOUVEAU: Récupérer les métadonnées de période selon le type
+      const period = periods.find(p => p.id === periodId);
+      const cellData: EditableCell = { 
+        tactiqueId: tactique.id, 
+        breakdownId, 
+        periodId, 
+        value: currentValue,
+        unitCost: currentUnitCost,
+        total: currentTotal,
+        isToggled: currentToggle
+      };
 
+      // NOUVEAU: Ajouter date ou name selon le type
+      if (period) {
+        if (selectedBreakdown.type === 'Custom') {
+          cellData.name = period.periodName || '';
+        } else {
+          cellData.date = period.date || '';
+        }
+      }
+      
+      setEditableCells(prev => [...prev, cellData]);
       setSelectedCells([{ rowIndex, breakdownId, periodId }]);
       setSelectionStart({ rowIndex, breakdownId, periodId });
     }
   };
 
   /**
-   * Met à jour la valeur d'une cellule en cours d'édition avec support PEBs.
+   * AMÉLIORÉ: Met à jour la valeur d'une cellule en cours d'édition avec support PEBs
    */
   const handleCellChange = (
     index: number, 
@@ -492,7 +498,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Gère le changement d'état d'activation d'une période.
+   * AMÉLIORÉ: Gère le changement d'état d'activation d'une période avec IDs uniques
    */
   const handleToggleChange = (
     tactique: Tactique, 
@@ -525,23 +531,32 @@ export default function TactiquesTimelineTable({
       const currentUnitCost = getPeriodValueForTactique(tactique, breakdownId, periodId, 'unitCost');
       const currentTotal = getPeriodValueForTactique(tactique, breakdownId, periodId, 'total');
       
-      setEditableCells(prev => [
-        ...prev,
-        { 
-          tactiqueId: tactique.id, 
-          breakdownId, 
-          periodId, 
-          value: isToggled ? currentValue : '',
-          unitCost: isToggled ? currentUnitCost : '',
-          total: isToggled ? currentTotal : '',
-          isToggled 
+      // NOUVEAU: Récupérer les métadonnées selon le type
+      const period = periods.find(p => p.id === periodId);
+      const cellData: EditableCell = { 
+        tactiqueId: tactique.id, 
+        breakdownId, 
+        periodId, 
+        value: isToggled ? currentValue : '',
+        unitCost: isToggled ? currentUnitCost : '',
+        total: isToggled ? currentTotal : '',
+        isToggled 
+      };
+
+      if (period) {
+        if (selectedBreakdown.type === 'Custom') {
+          cellData.name = period.periodName || '';
+        } else {
+          cellData.date = period.date || '';
         }
-      ]);
+      }
+      
+      setEditableCells(prev => [...prev, cellData]);
     }
   };
 
   /**
-   * Colle les valeurs copiées dans les cellules sélectionnées avec support PEBs.
+   * Colle les valeurs copiées dans les cellules sélectionnées avec support PEBs
    */
   const handlePaste = () => {
     if (copiedValue === null || selectedCells.length === 0) return;
@@ -566,6 +581,8 @@ export default function TactiquesTimelineTable({
       } else {
         const currentToggle = getPeriodToggleForTactique(tactique, cell.breakdownId, cell.periodId);
         
+        // NOUVEAU: Récupérer les métadonnées selon le type
+        const period = periods.find(p => p.id === cell.periodId);
         const newCell: EditableCell = {
           tactiqueId: tactique.id,
           breakdownId: cell.breakdownId,
@@ -573,6 +590,14 @@ export default function TactiquesTimelineTable({
           value: copiedValue.value,
           isToggled: currentToggle
         };
+        
+        if (period) {
+          if (selectedBreakdown.type === 'Custom') {
+            newCell.name = period.periodName || '';
+          } else {
+            newCell.date = period.date || '';
+          }
+        }
         
         if (isPEBs && copiedValue.unitCost) {
           newCell.unitCost = copiedValue.unitCost;
@@ -587,7 +612,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Sauvegarde toutes les modifications avec gestion d'erreur améliorée.
+   * AMÉLIORÉ: Sauvegarde toutes les modifications avec gestion des nouvelles structures
    */
   const handleSaveChanges = async () => {
     if (editableCells.length === 0) return;
@@ -613,6 +638,13 @@ export default function TactiquesTimelineTable({
         if (isPEBs) {
           updateData.unitCost = cell.unitCost;
           updateData.total = cell.total;
+        }
+        
+        // NOUVEAU: Ajouter date ou name selon le type
+        if (selectedBreakdown.type === 'Custom') {
+          updateData.name = cell.name;
+        } else {
+          updateData.date = cell.date;
         }
         
         updatesByTactique[cell.tactiqueId].push(updateData);
@@ -660,7 +692,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Annule toutes les modifications.
+   * Annule toutes les modifications
    */
   const handleCancelChanges = () => {
     setEditableCells([]);
@@ -671,7 +703,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Vérifie si une cellule est sélectionnée.
+   * Vérifie si une cellule est sélectionnée
    */
   const isCellSelected = (rowIndex: number, breakdownId: string, periodId: string): boolean => {
     return selectedCells.some(cell => 
@@ -682,7 +714,7 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Vérifie si une cellule est en cours d'édition.
+   * Vérifie si une cellule est en cours d'édition
    */
   const isCellEditing = (tactiqueId: string, breakdownId: string, periodId: string): boolean => {
     return editableCells.some(cell => 
@@ -747,16 +779,28 @@ export default function TactiquesTimelineTable({
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] sticky left-0 bg-gray-50 z-20">
               {t('timeline.table.header.sectionTactic')}
             </th>
-              {periods.map((period) => (
-                <th
-                  key={period.id}
-                  className={`px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                    isPEBs ? 'min-w-[120px]' : 'min-w-[120px]'
-                  }`}
-                >
-                  {period.label}
-                </th>
-              ))}
+              {periods.map((period) => {
+                // NOUVEAU: Utiliser le label généré selon le type
+                const periodLabel = generatePeriodDisplayLabel(
+                  period, 
+                  selectedBreakdown.type, 
+                  {
+                    shortMonths: t('timeline.utils.months.short', { returnObjects: true } as any) as unknown as string[],
+                    mediumMonths: t('timeline.utils.months.medium', { returnObjects: true } as any) as unknown as string[]
+                  }
+                );
+
+                return (
+                  <th
+                    key={period.id}
+                    className={`px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      isPEBs ? 'min-w-[120px]' : 'min-w-[120px]'
+                    }`}
+                  >
+                    {periodLabel}
+                  </th>
+                );
+              })}
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] ">
                 {t('timeline.table.header.totalBudget')}
               </th>

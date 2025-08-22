@@ -1,15 +1,10 @@
 // app/lib/breakdownService.ts
 
 /**
- * Ce fichier gère toutes les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer)
- * pour les breakdowns d'une campagne dans Firebase Firestore.
- * Il inclut également des fonctions utilitaires pour la validation des dates
- * et la gestion des breakdowns par défaut.
- * 
- * NOUVEAU: Gestion des données de breakdown stockées directement sur les tactiques
- * sous forme d'objet structuré au lieu de champs plats.
- * CORRIGÉ: Lecture correcte des statuts d'activation
- * NOUVEAU: Support du type PEBs avec coût par unité, volume et total calculé
+ * Service amélioré pour la gestion des breakdowns avec:
+ * - Limite à 5 breakdowns par campagne
+ * - IDs uniques pour les périodes avec champ date pour types automatiques
+ * - Champ name pour les types custom seulement
  */
 import {
   collection,
@@ -20,7 +15,6 @@ import {
   deleteDoc,
   query,
   orderBy,
-  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
@@ -35,33 +29,24 @@ import {
 } from '../types/breakdown';
 
 // ============================================================================
-// INTERFACES POUR LA NOUVELLE STRUCTURE DE DONNÉES
+// INTERFACES AMÉLIORÉES
 // ============================================================================
 
 /**
- * Structure d'une période de breakdown sur une tactique
- * NOUVEAU: Support des champs unitCost et total pour les PEBs
+ * NOUVEAU: Structure améliorée d'une période de breakdown
  */
 export interface TactiqueBreakdownPeriod {
   value: string;        // Volume d'unité pour PEBs, valeur unique pour autres types
   isToggled: boolean;
   order: number;
-  unitCost?: string;    // NOUVEAU: Coût par unité (PEBs uniquement)
-  total?: string;       // NOUVEAU: Total calculé (PEBs uniquement)
-}
-
-/**
- * Structure des breakdowns sur une tactique
- */
-export interface TactiqueBreakdownData {
-  [breakdownId: string]: {
-    [periodId: string]: TactiqueBreakdownPeriod;
-  };
+  unitCost?: string;    // Coût par unité (PEBs uniquement)
+  total?: string;       // Total calculé (PEBs uniquement)
+  date?: string;        // NOUVEAU: Date de début de la période (YYYY-MM-DD) pour types automatiques
+  name?: string;        // NOUVEAU: Nom de la période (custom uniquement)
 }
 
 /**
  * Données de breakdown à sauvegarder pour une tactique
- * NOUVEAU: Support des champs PEBs
  */
 export interface BreakdownUpdateData {
   breakdownId: string;
@@ -69,18 +54,141 @@ export interface BreakdownUpdateData {
   value: string;
   isToggled?: boolean;
   order?: number;
-  unitCost?: string;    // NOUVEAU: Pour PEBs
-  total?: string;       // NOUVEAU: Pour PEBs (calculé automatiquement)
+  unitCost?: string;
+  total?: string;
+  date?: string;        // NOUVEAU: Date de début
+  name?: string;        // NOUVEAU: Nom pour custom
 }
 
 // ============================================================================
-// FONCTIONS DE VALIDATION EXISTANTES (étendues pour PEBs)
+// CONSTANTES AMÉLIORÉES
+// ============================================================================
+
+export const MAX_BREAKDOWNS_PER_CAMPAIGN = 5; // MODIFIÉ: Augmenté de 3 à 5
+
+// ============================================================================
+// FONCTIONS UTILITAIRES POUR LES IDS ET DATES
 // ============================================================================
 
 /**
- * Valide une date selon le type de breakdown.
- * NOUVEAU: PEBs utilise la même validation que Hebdomadaire
+ * NOUVEAU: Génère un ID unique pour une période
  */
+function generateUniquePeriodId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 20; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * NOUVEAU: Calcule la date de début d'une période selon le type
+ */
+function calculatePeriodStartDate(
+  periodDate: Date,
+  breakdownType: BreakdownType
+): string {
+  switch (breakdownType) {
+    case 'Hebdomadaire':
+    case 'PEBs':
+      // Trouver le lundi de la semaine
+      const dayOfWeek = periodDate.getDay();
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(periodDate);
+      monday.setDate(periodDate.getDate() - daysToSubtract);
+      return monday.toISOString().split('T')[0];
+    
+    case 'Mensuel':
+      // 1er du mois
+      const firstOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+      return firstOfMonth.toISOString().split('T')[0];
+    
+    default:
+      return periodDate.toISOString().split('T')[0];
+  }
+}
+
+/**
+ * NOUVEAU: Génère les périodes avec la nouvelle structure
+ */
+function generatePeriodsForBreakdown(
+  breakdown: Breakdown,
+  tactiqueStartDate?: string,
+  tactiqueEndDate?: string
+): { id: string; date?: string; name?: string; order: number }[] {
+  const periods: { id: string; date?: string; name?: string; order: number }[] = [];
+
+  if (breakdown.type === 'Custom') {
+    // Pour Custom: utiliser name, pas de date
+    if (breakdown.customPeriods) {
+      breakdown.customPeriods
+        .sort((a, b) => a.order - b.order)
+        .forEach((period, index) => {
+          periods.push({
+            id: generateUniquePeriodId(),
+            name: period.name,
+            order: index
+          });
+        });
+    }
+    return periods;
+  }
+
+  // Pour les autres types: générer avec des dates
+  let startDate: Date, endDate: Date;
+
+  if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
+    startDate = new Date(tactiqueStartDate);
+    endDate = new Date(tactiqueEndDate);
+  } else {
+    startDate = new Date(breakdown.startDate);
+    endDate = new Date(breakdown.endDate);
+  }
+
+  let current = new Date(startDate);
+  let order = 0;
+
+  if (breakdown.type === 'Mensuel') {
+    // Générer par mois
+    current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    
+    while (current <= endDate) {
+      periods.push({
+        id: generateUniquePeriodId(),
+        date: calculatePeriodStartDate(current, breakdown.type),
+        order: order++
+      });
+      
+      current.setMonth(current.getMonth() + 1);
+    }
+  } else {
+    // Générer par semaine (Hebdomadaire, PEBs)
+    // Ajuster au lundi
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 1) {
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      current.setDate(current.getDate() - daysToSubtract);
+    }
+    
+    while (current <= endDate) {
+      periods.push({
+        id: generateUniquePeriodId(),
+        date: calculatePeriodStartDate(current, breakdown.type),
+        order: order++
+      });
+      
+      current.setDate(current.getDate() + 7);
+    }
+  }
+
+  return periods;
+}
+
+// ============================================================================
+// FONCTIONS DE VALIDATION (inchangées)
+// ============================================================================
+
 export function validateBreakdownDate(
   date: string,
   type: BreakdownType,
@@ -103,7 +211,7 @@ export function validateBreakdownDate(
   const dayOfWeek = dateObj.getDay();
   switch (type) {
     case 'Hebdomadaire':
-    case 'PEBs': // NOUVEAU: PEBs utilise la même validation que Hebdomadaire
+    case 'PEBs':
       if (isStartDate) {
         if (dayOfWeek !== 1) {
           return {
@@ -130,9 +238,6 @@ export function validateBreakdownDate(
   return { isValid: true };
 }
 
-/**
- * Trouve le lundi le plus proche d'une date donnée.
- */
 export function getClosestMonday(date: string): string {
   const dateObj = new Date(date + 'T00:00:00');
   const dayOfWeek = dateObj.getDay();
@@ -151,29 +256,34 @@ export function getClosestMonday(date: string): string {
   return mondayString;
 }
 
-/**
- * Trouve le 1er du mois d'une date donnée.
- */
 export function getFirstOfMonth(date: string): string {
+  
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    
+    const firstOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const yearStr = firstOfMonth.getFullYear().toString();
+    const monthStr = (firstOfMonth.getMonth() + 1).toString().padStart(2, '0');
+    const dayStr = firstOfMonth.getDate().toString().padStart(2, '0');
+    const result = `${yearStr}-${monthStr}-${dayStr}`;
+    return result;
+  }
+  
+  // Fallback vers la méthode originale si le format n'est pas reconnu
   const dateObj = new Date(date);
-  return new Date(dateObj.getFullYear(), dateObj.getMonth(), 1)
-    .toISOString().split('T')[0];
+  
+  const firstOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+  
+  const yearStr = firstOfMonth.getFullYear().toString();
+  const monthStr = (firstOfMonth.getMonth() + 1).toString().padStart(2, '0');
+  const dayStr = firstOfMonth.getDate().toString().padStart(2, '0');
+  
+  const result = `${yearStr}-${monthStr}-${dayStr}`;
+  return result;
 }
-
-function generateCustomPeriodId(): string {
-  return `period_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-function processCustomPeriods(periods: CustomPeriodFormData[]): CustomPeriod[] {
-  return periods.map((period, index) => ({
-    id: generateCustomPeriodId(),
-    name: period.name,
-    order: index
-  }));
-}
-
 // ============================================================================
-// FONCTIONS CRUD POUR LES BREAKDOWNS (étendues pour PEBs)
+// FONCTIONS CRUD AMÉLIORÉES
 // ============================================================================
 
 export async function getBreakdowns(
@@ -190,7 +300,7 @@ export async function getBreakdowns(
       'breakdowns'
     );
     const q = query(breakdownsRef, orderBy('order', 'asc'));
-    console.log("FIREBASE: LECTURE - Fichier: breakdownService.ts - Fonction: getBreakdowns - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns");
+    console.log("FIREBASE: LECTURE - Fichier: breakdownService.ts - Fonction: getBreakdowns");
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -209,7 +319,14 @@ export async function createBreakdown(
   isDefault: boolean = false
 ): Promise<string> {
   try {
+    // MODIFIÉ: Vérifier la limite de 5 breakdowns
+    const existingBreakdowns = await getBreakdowns(clientId, campaignId);
+    if (existingBreakdowns.length >= MAX_BREAKDOWNS_PER_CAMPAIGN && !isDefault) {
+      throw new Error(`Maximum ${MAX_BREAKDOWNS_PER_CAMPAIGN} breakdowns autorisés par campagne`);
+    }
+
     const shouldBeDefault = isDefault || breakdownData.isDefault || false;
+    
     if (breakdownData.type === 'Custom') {
       if (!breakdownData.customPeriods || breakdownData.customPeriods.length === 0) {
         throw new Error('Au moins une période doit être définie pour un breakdown personnalisé');
@@ -233,11 +350,11 @@ export async function createBreakdown(
         throw new Error('La date de fin doit être postérieure à la date de début');
       }
     }
-    const existingBreakdowns = await getBreakdowns(clientId, campaignId);
+
     if (shouldBeDefault) {
       const existingDefault = existingBreakdowns.find(b => b.isDefault);
       if (existingDefault) {
-        console.log("FIREBASE: ÉCRITURE - Fichier: breakdownService.ts - Fonction: createBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${existingDefault.id}");
+        console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown - Mise à jour breakdown par défaut");
         await updateDoc(doc(db, 'clients', clientId, 'campaigns', campaignId, 'breakdowns', existingDefault.id), {
           startDate: breakdownData.startDate,
           endDate: breakdownData.endDate,
@@ -246,6 +363,7 @@ export async function createBreakdown(
         return existingDefault.id;
       }
     }
+
     const nextOrder = existingBreakdowns.length;
     const breakdownsRef = collection(
       db,
@@ -256,6 +374,8 @@ export async function createBreakdown(
       'breakdowns'
     );
     const now = new Date().toISOString();
+    
+    // MODIFIÉ: Nouvelle structure avec periods
     const newBreakdown: any = {
       name: breakdownData.name,
       type: breakdownData.type,
@@ -266,10 +386,17 @@ export async function createBreakdown(
       createdAt: now,
       updatedAt: now,
     };
+
+    // NOUVEAU: Générer les périodes avec la nouvelle structure
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
-      newBreakdown.customPeriods = processCustomPeriods(breakdownData.customPeriods);
+      newBreakdown.customPeriods = breakdownData.customPeriods.map((period, index) => ({
+        id: generateUniquePeriodId(),
+        name: period.name,
+        order: index
+      }));
     }
-    console.log("FIREBASE: ÉCRITURE - Fichier: breakdownService.ts - Fonction: createBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns");
+
+    console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown");
     const docRef = await addDoc(breakdownsRef, newBreakdown);
     return docRef.id;
   } catch (error) {
@@ -288,8 +415,9 @@ export async function updateBreakdown(
     const existingBreakdowns = await getBreakdowns(clientId, campaignId);
     const targetBreakdown = existingBreakdowns.find(b => b.id === breakdownId);
     if (targetBreakdown?.isDefault) {
-      throw new Error('Le breakdown par défaut ne peut pas être modifié manuellement. Utilisez updateDefaultBreakdownDates pour mettre à jour ses dates.');
+      throw new Error('Le breakdown par défaut ne peut pas être modifié manuellement.');
     }
+
     if (breakdownData.type === 'Custom') {
       if (!breakdownData.customPeriods || breakdownData.customPeriods.length === 0) {
         throw new Error('Au moins une période doit être définie pour un breakdown personnalisé');
@@ -313,6 +441,7 @@ export async function updateBreakdown(
         throw new Error('La date de fin doit être postérieure à la date de début');
       }
     }
+
     const breakdownRef = doc(
       db,
       'clients',
@@ -322,6 +451,7 @@ export async function updateBreakdown(
       'breakdowns',
       breakdownId
     );
+    
     const updatedBreakdown: any = {
       name: breakdownData.name,
       type: breakdownData.type,
@@ -329,12 +459,18 @@ export async function updateBreakdown(
       endDate: breakdownData.endDate,
       updatedAt: new Date().toISOString(),
     };
+
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
-      updatedBreakdown.customPeriods = processCustomPeriods(breakdownData.customPeriods);
+      updatedBreakdown.customPeriods = breakdownData.customPeriods.map((period, index) => ({
+        id: generateUniquePeriodId(),
+        name: period.name,
+        order: index
+      }));
     } else {
       updatedBreakdown.customPeriods = null;
     }
-    console.log("FIREBASE: ÉCRITURE - Fichier: breakdownService.ts - Fonction: updateBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${breakdownId}");
+
+    console.log("FIREBASE: ÉCRITURE - Fonction: updateBreakdown");
     await updateDoc(breakdownRef, updatedBreakdown);
   } catch (error) {
     console.error('Erreur lors de la mise à jour du breakdown:', error);
@@ -342,6 +478,244 @@ export async function updateBreakdown(
   }
 }
 
+// ============================================================================
+// FONCTIONS DE LECTURE AMÉLIORÉES
+// ============================================================================
+
+/**
+ * MODIFIÉ: Lecture améliorée des données de période
+ */
+export function getTactiqueBreakdownPeriod(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): TactiqueBreakdownPeriod | undefined {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return undefined;
+  }
+  
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    return undefined;
+  }
+  
+  const period = breakdown.periods[periodId];
+  if (!period) {
+    return undefined;
+  }
+  
+  return {
+    value: period.value || '',
+    isToggled: period.isToggled !== undefined ? period.isToggled : true,
+    order: period.order || 0,
+    unitCost: period.unitCost || '',
+    total: period.total || '',
+    date: period.date || '',        // NOUVEAU
+    name: period.name || ''         // NOUVEAU
+  };
+}
+
+/**
+ * NOUVEAU: Fonction pour obtenir la date d'une période
+ */
+export function getTactiqueBreakdownPeriodDate(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.date || '';
+}
+
+/**
+ * NOUVEAU: Fonction pour obtenir le nom d'une période (custom uniquement)
+ */
+export function getTactiqueBreakdownPeriodName(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.name || '';
+}
+
+// ============================================================================
+// FONCTIONS DE CALCUL (inchangées mais avec nouvelles interfaces)
+// ============================================================================
+
+export function getTactiqueBreakdownValue(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.value || '';
+}
+
+export function getTactiqueBreakdownUnitCost(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.unitCost || '';
+}
+
+export function getTactiqueBreakdownTotal(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): string {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.total || '';
+}
+
+export function calculatePEBsTotal(unitCost: string, volume: string): string {
+  const unitCostNum = parseFloat(unitCost.trim());
+  const volumeNum = parseFloat(volume.trim());
+  
+  if (isNaN(unitCostNum) || isNaN(volumeNum)) {
+    return '';
+  }
+  
+  const total = unitCostNum * volumeNum;
+  return total.toFixed(2);
+}
+
+export function getTactiqueBreakdownToggleStatus(
+  tactique: any,
+  breakdownId: string,
+  periodId: string
+): boolean {
+  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
+  return period?.isToggled !== undefined ? period.isToggled : true;
+}
+
+/**
+ * MODIFIÉ: Mise à jour améliorée des données de breakdown
+ */
+export function updateTactiqueBreakdownData(
+  currentTactiqueData: any,
+  updates: BreakdownUpdateData[]
+): any {
+  const updatedTactique = { ...currentTactiqueData };
+  
+  if (!updatedTactique.breakdowns) {
+    updatedTactique.breakdowns = {};
+  }
+
+  updates.forEach(update => {
+    const { breakdownId, periodId, value, isToggled, order, unitCost, total, date, name } = update;
+    
+    if (!updatedTactique.breakdowns[breakdownId]) {
+      updatedTactique.breakdowns[breakdownId] = {
+        periods: {}
+      };
+    }
+    
+    if (!updatedTactique.breakdowns[breakdownId].periods) {
+      updatedTactique.breakdowns[breakdownId].periods = {};
+    }
+    
+    if (!updatedTactique.breakdowns[breakdownId].periods[periodId]) {
+      updatedTactique.breakdowns[breakdownId].periods[periodId] = {
+        value: '',
+        isToggled: true,
+        order: 0
+      };
+    }
+    
+    const period = updatedTactique.breakdowns[breakdownId].periods[periodId];
+    period.value = value;
+    if (isToggled !== undefined) period.isToggled = isToggled;
+    if (order !== undefined) period.order = order;
+    if (unitCost !== undefined) period.unitCost = unitCost;
+    if (total !== undefined) period.total = total;
+    if (date !== undefined) period.date = date;        // NOUVEAU
+    if (name !== undefined) period.name = name;        // NOUVEAU
+  });
+
+  return updatedTactique;
+}
+
+export function calculateTactiqueBreakdownTotal(
+  tactique: any,
+  breakdownId: string,
+  onlyToggled: boolean = true,
+  breakdownType?: string
+): number {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return 0;
+  }
+
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    return 0;
+  }
+
+  let total = 0;
+
+  Object.values(breakdown.periods).forEach((period: any) => {
+    if (!onlyToggled || period.isToggled) {
+      const valueToSum = breakdownType === 'PEBs' ? period.total : period.value;
+      const numValue = parseFloat(valueToSum || '0');
+      if (!isNaN(numValue)) {
+        total += numValue;
+      }
+    }
+  });
+
+  return total;
+}
+
+export function areAllTactiqueBreakdownValuesNumeric(
+  tactique: any,
+  breakdownId: string,
+  onlyToggled: boolean = true,
+  breakdownType?: string
+): boolean {
+  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
+    return false;
+  }
+
+  const breakdown = tactique.breakdowns[breakdownId];
+  if (!breakdown.periods) {
+    return false;
+  }
+
+  const periods = Object.values(breakdown.periods) as TactiqueBreakdownPeriod[];
+  
+  const relevantPeriods = periods.filter(period => 
+    !onlyToggled || period.isToggled
+  );
+
+  if (relevantPeriods.length === 0) {
+    return false;
+  }
+
+  return relevantPeriods.every(period => {
+    if (breakdownType === 'PEBs') {
+      const unitCostValue = period.unitCost?.trim();
+      const volumeValue = period.value?.trim();
+      
+      if (!unitCostValue || !volumeValue) return false;
+      
+      const unitCostNum = parseFloat(unitCostValue);
+      const volumeNum = parseFloat(volumeValue);
+      
+      return !isNaN(unitCostNum) && isFinite(unitCostNum) && 
+             !isNaN(volumeNum) && isFinite(volumeNum);
+    } else {
+      const value = period.value?.trim();
+      if (!value) return false;
+      
+      const numValue = parseFloat(value);
+      return !isNaN(numValue) && isFinite(numValue);
+    }
+  });
+}
+
+// Fonctions de suppression et autres restent inchangées...
 export async function deleteBreakdown(
   clientId: string,
   campaignId: string,
@@ -365,7 +739,7 @@ export async function deleteBreakdown(
       'breakdowns',
       breakdownId
     );
-    console.log("FIREBASE: ÉCRITURE - Fichier: breakdownService.ts - Fonction: deleteBreakdown - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${breakdownId}");
+    console.log("FIREBASE: ÉCRITURE - Fonction: deleteBreakdown");
     await deleteDoc(breakdownRef);
   } catch (error) {
     console.error('Erreur lors de la suppression du breakdown:', error);
@@ -395,7 +769,7 @@ export async function updateDefaultBreakdownDates(
       'breakdowns',
       defaultBreakdown.id
     );
-    console.log("FIREBASE: ÉCRITURE - Fichier: breakdownService.ts - Fonction: updateDefaultBreakdownDates - Path: clients/${clientId}/campaigns/${campaignId}/breakdowns/${defaultBreakdown.id}");
+    console.log("FIREBASE: ÉCRITURE - Fonction: updateDefaultBreakdownDates");
     await updateDoc(breakdownRef, {
       startDate: adjustedStartDate,
       endDate: newEndDate,
@@ -462,344 +836,4 @@ export async function ensureDefaultBreakdownExists(
     console.error('Erreur lors de la vérification du breakdown par défaut:', error);
     throw error;
   }
-}
-
-// ============================================================================
-// NOUVELLES FONCTIONS POUR LA GESTION DES BREAKDOWNS SUR LES TACTIQUES
-// ============================================================================
-
-/**
- * Lit les données de breakdown d'une tactique selon la nouvelle structure.
- * NOUVELLE STRUCTURE: breakdown.periods[periodId] = { name, value, isToggled, order, unitCost?, total? }
- * NOUVEAU: Support des IDs avec préfixe breakdown
- * NOUVEAU: Support des champs PEBs (unitCost, total)
- * @param tactique - L'objet tactique contenant les données de breakdown
- * @param breakdownId - L'ID du breakdown à lire
- * @param periodId - L'ID de la période à lire (avec ou sans préfixe breakdown)
- * @returns Les données de la période ou undefined si non trouvée
- */
-export function getTactiqueBreakdownPeriod(
-  tactique: any,
-  breakdownId: string,
-  periodId: string
-): TactiqueBreakdownPeriod | undefined {
-  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
-    return undefined;
-  }
-  
-  const breakdown = tactique.breakdowns[breakdownId];
-  if (!breakdown.periods) {
-    return undefined;
-  }
-  
-  // NOUVEAU: Essayer d'abord avec l'ID direct, puis en retirant le préfixe breakdown
-  let period = breakdown.periods[periodId];
-  if (!period && periodId.startsWith(`${breakdownId}_`)) {
-    // Essayer sans le préfixe breakdown
-    const originalPeriodId = periodId.replace(`${breakdownId}_`, '');
-    period = breakdown.periods[originalPeriodId];
-  }
-  
-  if (!period) {
-    return undefined;
-  }
-  
-  return {
-    value: period.value || '',
-    isToggled: period.isToggled !== undefined ? period.isToggled : true,
-    order: period.order || 0,
-    unitCost: period.unitCost || '', // NOUVEAU: Support PEBs
-    total: period.total || ''         // NOUVEAU: Support PEBs
-  };
-}
-
-/**
- * Lit la valeur d'une période de breakdown depuis une tactique.
- * MODIFIÉ: Utilise la nouvelle structure periods
- * NOUVEAU: Support des IDs avec préfixe breakdown
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période (avec ou sans préfixe breakdown)
- * @returns La valeur de la période ou chaîne vide si non trouvée
- */
-export function getTactiqueBreakdownValue(
-  tactique: any,
-  breakdownId: string,
-  periodId: string
-): string {
-  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
-  return period?.value || '';
-}
-
-/**
- * NOUVEAU: Lit le coût par unité d'une période PEBs depuis une tactique.
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période
- * @returns Le coût par unité ou chaîne vide si non trouvé
- */
-export function getTactiqueBreakdownUnitCost(
-  tactique: any,
-  breakdownId: string,
-  periodId: string
-): string {
-  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
-  return period?.unitCost || '';
-}
-
-/**
- * NOUVEAU: Lit le total calculé d'une période PEBs depuis une tactique.
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période
- * @returns Le total calculé ou chaîne vide si non trouvé
- */
-export function getTactiqueBreakdownTotal(
-  tactique: any,
-  breakdownId: string,
-  periodId: string
-): string {
-  const period = getTactiqueBreakdownPeriod(tactique, breakdownId, periodId);
-  return period?.total || '';
-}
-
-/**
- * NOUVEAU: Calcule automatiquement le total pour une période PEBs.
- * @param unitCost - Coût par unité
- * @param volume - Volume d'unités
- * @returns Le total calculé ou chaîne vide si calcul impossible
- */
-export function calculatePEBsTotal(unitCost: string, volume: string): string {
-  const unitCostNum = parseFloat(unitCost.trim());
-  const volumeNum = parseFloat(volume.trim());
-  
-  if (isNaN(unitCostNum) || isNaN(volumeNum)) {
-    return '';
-  }
-  
-  const total = unitCostNum * volumeNum;
-  return total.toFixed(2);
-}
-
-/**
- * Lit le statut d'activation d'une période de breakdown depuis une tactique.
- * CORRIGÉ: Gestion améliorée des valeurs par défaut et debugging
- * NOUVEAU: Support des IDs avec préfixe breakdown
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param periodId - L'ID de la période (avec ou sans préfixe breakdown)
- * @returns Le statut d'activation ou true par défaut
- */
-export function getTactiqueBreakdownToggleStatus(
-  tactique: any,
-  breakdownId: string,
-  periodId: string
-): boolean {
-  // CORRIGÉ: Ajout de debugging pour comprendre le problème
-  console.log(`Lecture statut pour tactique ${tactique.id}, breakdown ${breakdownId}, period ${periodId}`);
-  
-  if (!tactique.breakdowns) {
-    console.log('Pas de breakdowns sur la tactique');
-    return true; // Par défaut à true pour les nouvelles tactiques
-  }
-  
-  if (!tactique.breakdowns[breakdownId]) {
-    console.log(`Breakdown ${breakdownId} non trouvé`);
-    return true; // Par défaut à true pour un nouveau breakdown
-  }
-  
-  const breakdown = tactique.breakdowns[breakdownId];
-  if (!breakdown.periods) {
-    console.log('Pas de periods dans le breakdown');
-    return true; // Par défaut à true pour les nouvelles périodes
-  }
-  
-  // NOUVEAU: Essayer d'abord avec l'ID direct, puis en retirant le préfixe breakdown
-  let period = breakdown.periods[periodId];
-  if (!period && periodId.startsWith(`${breakdownId}_`)) {
-    // Essayer sans le préfixe breakdown
-    const originalPeriodId = periodId.replace(`${breakdownId}_`, '');
-    period = breakdown.periods[originalPeriodId];
-    console.log(`Essai avec ID original: ${originalPeriodId}`);
-  }
-  
-  if (!period) {
-    console.log(`Period ${periodId} non trouvée`);
-    return true; // Par défaut à true pour une nouvelle période
-  }
-  
-  const status = period.isToggled !== undefined ? period.isToggled : true;
-  console.log(`Statut trouvé: ${status}`);
-  
-  return status;
-}
-
-/**
- * Met à jour les données de breakdown d'une tactique avec la nouvelle structure.
- * MODIFIÉ: Utilise la structure breakdown.periods[periodId] = { name, value, isToggled, order, unitCost?, total? }
- * NOUVEAU: Support des champs PEBs
- * @param currentTactiqueData - Les données actuelles de la tactique
- * @param updates - Tableau des mises à jour à appliquer
- * @returns Les données de tactique mises à jour
- */
-export function updateTactiqueBreakdownData(
-  currentTactiqueData: any,
-  updates: BreakdownUpdateData[]
-): any {
-  const updatedTactique = { ...currentTactiqueData };
-  
-  // Initialiser l'objet breakdowns s'il n'existe pas
-  if (!updatedTactique.breakdowns) {
-    updatedTactique.breakdowns = {};
-  }
-
-  // Appliquer chaque mise à jour
-  updates.forEach(update => {
-    const { breakdownId, periodId, value, isToggled, order, unitCost, total } = update;
-    
-    // Initialiser le breakdown s'il n'existe pas
-    if (!updatedTactique.breakdowns[breakdownId]) {
-      updatedTactique.breakdowns[breakdownId] = {
-        periods: {}
-      };
-    }
-    
-    // Initialiser l'objet periods s'il n'existe pas
-    if (!updatedTactique.breakdowns[breakdownId].periods) {
-      updatedTactique.breakdowns[breakdownId].periods = {};
-    }
-    
-    // Initialiser la période s'il n'existe pas
-    if (!updatedTactique.breakdowns[breakdownId].periods[periodId]) {
-      updatedTactique.breakdowns[breakdownId].periods[periodId] = {
-        name: '', // Sera mis à jour par le tableau
-        value: '',
-        isToggled: true,
-        order: 0
-      };
-    }
-    
-    // Appliquer les mises à jour
-    const period = updatedTactique.breakdowns[breakdownId].periods[periodId];
-    period.value = value;
-    if (isToggled !== undefined) {
-      period.isToggled = isToggled;
-    }
-    if (order !== undefined) {
-      period.order = order;
-    }
-    
-    // NOUVEAU: Support des champs PEBs
-    if (unitCost !== undefined) {
-      period.unitCost = unitCost;
-    }
-    if (total !== undefined) {
-      period.total = total;
-    }
-    
-    // CORRIGÉ: Log des modifications pour debug
-    console.log(`Mise à jour période ${periodId}: value=${value}, isToggled=${isToggled}, unitCost=${unitCost}, total=${total}`);
-  });
-
-  return updatedTactique;
-}
-
-/**
- * Calcule le total des valeurs pour un breakdown spécifique d'une tactique.
- * MODIFIÉ: Utilise la structure breakdown.periods
- * NOUVEAU: Support des PEBs (utilise le champ total au lieu de value)
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param onlyToggled - Si true, ne compte que les périodes activées
- * @param breakdownType - Type de breakdown pour déterminer quel champ utiliser
- * @returns Le total des valeurs numériques
- */
-export function calculateTactiqueBreakdownTotal(
-  tactique: any,
-  breakdownId: string,
-  onlyToggled: boolean = true,
-  breakdownType?: string
-): number {
-  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
-    return 0;
-  }
-
-  const breakdown = tactique.breakdowns[breakdownId];
-  if (!breakdown.periods) {
-    return 0;
-  }
-
-  let total = 0;
-
-  Object.values(breakdown.periods).forEach((period: any) => {
-    if (!onlyToggled || period.isToggled) {
-      // NOUVEAU: Pour PEBs, utiliser le champ total, sinon utiliser value
-      const valueToSum = breakdownType === 'PEBs' ? period.total : period.value;
-      const numValue = parseFloat(valueToSum || '0');
-      if (!isNaN(numValue)) {
-        total += numValue;
-      }
-    }
-  });
-
-  return total;
-}
-
-/**
- * Vérifie si toutes les valeurs d'un breakdown sont numériques.
- * MODIFIÉ: Utilise la structure breakdown.periods
- * NOUVEAU: Support des PEBs (vérifie unitCost, value et total)
- * @param tactique - L'objet tactique
- * @param breakdownId - L'ID du breakdown
- * @param onlyToggled - Si true, ne vérifie que les périodes activées
- * @param breakdownType - Type de breakdown pour déterminer quels champs vérifier
- * @returns True si toutes les valeurs sont numériques
- */
-export function areAllTactiqueBreakdownValuesNumeric(
-  tactique: any,
-  breakdownId: string,
-  onlyToggled: boolean = true,
-  breakdownType?: string
-): boolean {
-  if (!tactique.breakdowns || !tactique.breakdowns[breakdownId]) {
-    return false;
-  }
-
-  const breakdown = tactique.breakdowns[breakdownId];
-  if (!breakdown.periods) {
-    return false;
-  }
-
-  const periods = Object.values(breakdown.periods) as TactiqueBreakdownPeriod[];
-  
-  const relevantPeriods = periods.filter(period => 
-    !onlyToggled || period.isToggled
-  );
-
-  if (relevantPeriods.length === 0) {
-    return false;
-  }
-
-  return relevantPeriods.every(period => {
-    if (breakdownType === 'PEBs') {
-      // NOUVEAU: Pour PEBs, vérifier unitCost et value (volume)
-      const unitCostValue = period.unitCost?.trim();
-      const volumeValue = period.value?.trim();
-      
-      if (!unitCostValue || !volumeValue) return false;
-      
-      const unitCostNum = parseFloat(unitCostValue);
-      const volumeNum = parseFloat(volumeValue);
-      
-      return !isNaN(unitCostNum) && isFinite(unitCostNum) && 
-             !isNaN(volumeNum) && isFinite(volumeNum);
-    } else {
-      // Pour les autres types, vérifier seulement value
-      const value = period.value?.trim();
-      if (!value) return false;
-      
-      const numValue = parseFloat(value);
-      return !isNaN(numValue) && isFinite(numValue);
-    }
-  });
 }

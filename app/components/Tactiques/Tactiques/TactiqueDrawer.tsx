@@ -484,10 +484,11 @@ export default function TactiqueDrawer({
       tab: 'strategie' 
     },
     { 
-      field: 'TC_Publisher', 
-      label: t('tactiqueDrawer.fieldLabels.TC_Publisher'), 
-      tab: 'strategie' 
+      field: 'TC_Label', 
+      label: t('tactiqueDrawer.fieldLabels.TC_Media_Type'), 
+      tab: 'info' 
     },
+
 
     // Pour ajouter d'autres champs requis, décommentez et ajustez :
     // { field: 'TC_LOB', label: t('tactiqueDrawer.fieldLabels.TC_LOB'), tab: 'strategie' },

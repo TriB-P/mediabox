@@ -3020,7 +3020,7 @@ export const translations = {
     },
     breakdownPeriod: {
       months: {
-        short: "JAN,FEB,MAR,AVR,MAI,JUN,JUL,AOU,SEP,OCT,NOV,DEC",
+        short: "JAN,FÉV,MAR,AVR,MAI,JUN,JUL,AOU,SEP,OCT,NOV,DEC",
         shortTitleCase: "Jan,Fév,Mar,Avr,Mai,Jun,Jul,Aoû,Sep,Oct,Nov,Déc"
       }
     },
@@ -3154,8 +3154,8 @@ export const translations = {
       },
       utils: {
         months: {
-          short: ['JAN', 'FEV', 'MAR', 'AVR', 'MAI', 'JUN', 'JUL', 'AOU', 'SEP', 'OCT', 'NOV', 'DEC'],
-          medium: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+          short: "JAN,FÉV,MAR,AVR,MAI,JUN,JUL,AOU,SEP,OCT,NOV,DEC",
+          medium: "Jan,Fév,Mar,Avr,Mai,Juin,Juil,Aoû,Sep,Oct,Nov,Déc"
         }
       }
     },
@@ -7459,7 +7459,7 @@ export const translations = {
       months: {
         short: "JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC",
         shortTitleCase: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
-      }
+      },
     },
     dndKit: {
       common: {
@@ -7585,8 +7585,8 @@ export const translations = {
       },
       utils: {
         months: {
-          short: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
-          medium: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          short: "JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC",
+          medium: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
         }
       },
       alerts: {

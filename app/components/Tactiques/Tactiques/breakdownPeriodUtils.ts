@@ -1,21 +1,70 @@
 // app/components/Tactiques/Tactiques/breakdownPeriodUtils.ts
 /**
- * Utilitaires pour la génération de périodes de breakdown.
- * Contient toutes les fonctions de génération des périodes selon les types
- * de breakdown (Mensuel, Hebdomadaire, PEBs, Custom).
- * NOUVEAU: Calcul et inclusion des dates de début pour toutes les périodes
+ * CORRIGÉ: Gestion des dates améliorée pour éviter les problèmes de fuseau horaire
+ * et s'assurer que les bonnes périodes sont générées selon les dates de breakdown/tactique
  */
 
-import { Breakdown } from '../../../types/breakdown';
+import { Breakdown, GeneratedPeriodMeta, generatePeriodLabel } from '../../../types/breakdown';
 import { BreakdownPeriod } from '../../../hooks/useTactiqueBreakdown';
 
-// The 't' function should be passed from a component that uses the useTranslation hook.
 type TFunction = (key: string) => string;
 
+/**
+ * NOUVEAU: Fonction pour parser une date string de manière sûre (évite les problèmes de fuseau horaire)
+ */
+function parseDate(dateString: string): Date {
+  // Si la date est au format YYYY-MM-DD, la parser manuellement pour éviter les problèmes UTC
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  
+  // Fallback vers Date constructor standard
+  return new Date(dateString);
+}
 
 /**
- * Génère les périodes pour un breakdown mensuel
- * NOUVEAU: Calcule et inclut la date de début pour chaque période
+ * NOUVEAU: Génère un ID unique pour une période (identique au service)
+ */
+function generateUniquePeriodId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 20; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * NOUVEAU: Calcule la date de début d'une période selon le type
+ */
+function calculatePeriodStartDate(
+  periodDate: Date,
+  breakdownType: string
+): string {
+  switch (breakdownType) {
+    case 'Hebdomadaire':
+    case 'PEBs':
+      // Trouver le lundi de la semaine
+      const dayOfWeek = periodDate.getDay();
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(periodDate);
+      monday.setDate(periodDate.getDate() - daysToSubtract);
+      return monday.toISOString().split('T')[0];
+    
+    case 'Mensuel':
+      // 1er du mois
+      const firstOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+      return firstOfMonth.toISOString().split('T')[0];
+    
+    default:
+      return periodDate.toISOString().split('T')[0];
+  }
+}
+
+/**
+ * CORRIGÉ: Génère les périodes pour un breakdown mensuel avec gestion des dates améliorée
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown, 
@@ -27,27 +76,39 @@ export function generateMonthlyPeriods(
 
   let startDate: Date, endDate: Date;
 
+  console.log(`🔍 Génération des périodes mensuelles pour breakdown ${breakdown.name}`);
+  console.log(`📅 Breakdown dates: ${breakdown.startDate} → ${breakdown.endDate}`);
+  console.log(`🎯 Tactique dates: ${tactiqueStartDate} → ${tactiqueEndDate}`);
+  console.log(`🏷️ Is default: ${breakdown.isDefault}`);
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    console.log(`✅ Utilisation des dates de tactique (breakdown par défaut)`);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    console.log(`✅ Utilisation des dates de breakdown`);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
 
+  console.log(`📍 Dates calculées: ${startDate.toISOString().split('T')[0]} → ${endDate.toISOString().split('T')[0]}`);
+
+  // Commence au 1er du mois de la date de début
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  console.log(`🎬 Premier mois: ${current.toISOString().split('T')[0]} (${current.getMonth() + 1}/${current.getFullYear()})`);
 
   while (current <= endDate) {
     const monthNames = t('breakdownPeriod.months.short').split(',');
-
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
 
-    // ID standardisé avec préfixe breakdown pour éviter les collisions
-    const periodId = `${breakdown.id}_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}`;
-
-    // NOUVEAU: Calculer la date de début (1er du mois)
+    // ID unique
+    const periodId = generateUniquePeriodId();
+    
+    // Date de début calculée
     const periodStartDate = new Date(current.getFullYear(), current.getMonth(), 1);
+
+    console.log(`📅 Génération période: ${monthLabel} ${yearSuffix} (${periodStartDate.toISOString().split('T')[0]})`);
 
     periods.push({
       id: periodId,
@@ -55,7 +116,7 @@ export function generateMonthlyPeriods(
       value: '',
       breakdownId: breakdown.id,
       breakdownName: breakdown.name,
-      startDate: periodStartDate // NOUVEAU: Date de début incluse
+      startDate: periodStartDate
     });
 
     current.setMonth(current.getMonth() + 1);
@@ -66,12 +127,13 @@ export function generateMonthlyPeriods(
     periods[periods.length - 1].isLast = true;
   }
 
+  console.log(`✅ ${periods.length} périodes générées:`, periods.map(p => p.label));
+
   return periods;
 }
 
 /**
- * Génère les périodes pour un breakdown hebdomadaire
- * NOUVEAU: Calcule et inclut la date de début pour chaque période
+ * CORRIGÉ: Génère les périodes pour un breakdown hebdomadaire avec gestion des dates améliorée
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown, 
@@ -83,17 +145,19 @@ export function generateWeeklyPeriods(
 
   let startDate: Date, endDate: Date;
 
+  console.log(`🔍 Génération des périodes hebdomadaires pour breakdown ${breakdown.name}`);
+
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
 
-  // Toujours ajuster au lundi pour TOUS les breakdowns hebdomadaires
+  // Ajuster au lundi pour TOUS les breakdowns hebdomadaires
   const dayOfWeek = startDate.getDay();
-  if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
+  if (dayOfWeek !== 1) {
     const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     startDate.setDate(startDate.getDate() - daysToSubtract);
   }
@@ -105,10 +169,7 @@ export function generateWeeklyPeriods(
     const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
-    // ID standardisé avec préfixe breakdown pour éviter les collisions
-    const periodId = `${breakdown.id}_week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
-
-    // NOUVEAU: Calculer la date de début (lundi de la semaine)
+    const periodId = generateUniquePeriodId();
     const periodStartDate = new Date(current);
 
     periods.push({
@@ -117,7 +178,7 @@ export function generateWeeklyPeriods(
       value: '',
       breakdownId: breakdown.id,
       breakdownName: breakdown.name,
-      startDate: periodStartDate // NOUVEAU: Date de début incluse
+      startDate: periodStartDate
     });
 
     current.setDate(current.getDate() + 7);
@@ -132,8 +193,7 @@ export function generateWeeklyPeriods(
 }
 
 /**
- * Génère les périodes pour un breakdown PEBs (identique aux périodes hebdomadaires)
- * NOUVEAU: Calcule et inclut la date de début pour chaque période
+ * CORRIGÉ: Génère les périodes pour un breakdown PEBs avec gestion des dates améliorée
  */
 export function generatePEBsPeriods(
   breakdown: Breakdown, 
@@ -146,16 +206,16 @@ export function generatePEBsPeriods(
   let startDate: Date, endDate: Date;
 
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-    startDate = new Date(tactiqueStartDate);
-    endDate = new Date(tactiqueEndDate);
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
   }
 
   // Ajuster au lundi pour TOUS les breakdowns PEBs
   const dayOfWeek = startDate.getDay();
-  if (dayOfWeek !== 1) { // Si ce n'est pas un lundi
+  if (dayOfWeek !== 1) {
     const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     startDate.setDate(startDate.getDate() - daysToSubtract);
   }
@@ -167,10 +227,7 @@ export function generatePEBsPeriods(
     const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
-    // ID standardisé identique aux périodes hebdomadaires
-    const periodId = `week_${current.getFullYear()}_${String(current.getMonth() + 1).padStart(2, '0')}_${String(current.getDate()).padStart(2, '0')}`;
-
-    // NOUVEAU: Calculer la date de début (lundi de la semaine)
+    const periodId = generateUniquePeriodId();
     const periodStartDate = new Date(current);
 
     periods.push({
@@ -179,7 +236,7 @@ export function generatePEBsPeriods(
       value: '',
       breakdownId: breakdown.id,
       breakdownName: breakdown.name,
-      startDate: periodStartDate // NOUVEAU: Date de début incluse
+      startDate: periodStartDate
     });
 
     current.setDate(current.getDate() + 7);
@@ -194,9 +251,7 @@ export function generatePEBsPeriods(
 }
 
 /**
- * Génère les périodes pour un breakdown personnalisé
- * NOUVEAU: Les breakdowns Custom n'ont pas de date de début calculable automatiquement
- * mais peuvent en avoir une stockée manuellement
+ * CORRIGÉ: Génère les périodes pour un breakdown personnalisé
  */
 export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
@@ -205,13 +260,15 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
     breakdown.customPeriods
       .sort((a, b) => a.order - b.order)
       .forEach((period) => {
+        const periodId = period.id || generateUniquePeriodId();
+        
         periods.push({
-          id: `${breakdown.id}_${period.id}`,
+          id: periodId,
           label: period.name,
           value: '',
           breakdownId: breakdown.id,
           breakdownName: breakdown.name,
-          startDate: period.startDate || undefined // NOUVEAU: Utiliser la date stockée ou undefined
+          startDate: period.date ? parseDate(period.date) : undefined
         });
       });
   }
@@ -220,8 +277,7 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
 }
 
 /**
- * Génère toutes les périodes pour tous les breakdowns
- * NOUVEAU: Toutes les périodes générées incluent maintenant leur date de début
+ * CORRIGÉ: Génère toutes les périodes pour tous les breakdowns
  */
 export function generateAllPeriods(
   breakdowns: Breakdown[], 
@@ -231,8 +287,13 @@ export function generateAllPeriods(
 ): BreakdownPeriod[] {
   const allPeriods: BreakdownPeriod[] = [];
 
+  console.log(`🚀 Génération de toutes les périodes pour ${breakdowns.length} breakdowns`);
+  console.log(`🎯 Dates de tactique: ${tactiqueStartDate} → ${tactiqueEndDate}`);
+
   breakdowns.forEach(breakdown => {
     let periods: BreakdownPeriod[] = [];
+
+    console.log(`\n📊 Processing breakdown: ${breakdown.name} (${breakdown.type})`);
 
     switch (breakdown.type) {
       case 'Mensuel':
@@ -249,52 +310,28 @@ export function generateAllPeriods(
         break;
     }
 
+    console.log(`✅ ${periods.length} périodes générées pour ${breakdown.name}`);
     allPeriods.push(...periods);
   });
 
+  console.log(`🎉 Total: ${allPeriods.length} périodes générées`);
   return allPeriods;
 }
 
 /**
- * Extrait la date de début d'une période depuis son ID
- * MODIFIÉ: Maintenant utilise prioritairement la date stockée dans la période
+ * CORRIGÉ: Extrait la date de début d'une période depuis sa structure
  */
 export function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
-  // NOUVEAU: Utiliser en priorité la date stockée dans la période
   if (period.startDate) {
     return period.startDate;
   }
 
-  // Fallback: calcul basé sur l'ID (pour compatibilité)
-  try {
-    // Retirer le préfixe breakdown de l'ID
-    const cleanId = period.id.replace(`${period.breakdownId}_`, '');
-    
-    if (cleanId.includes('week_')) {
-      // Format: week_2025_04_21
-      const match = cleanId.match(/week_(\d{4})_(\d{2})_(\d{2})/);
-      if (match) {
-        const [, year, month, day] = match;
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-    } else if (cleanId.match(/^\d{4}_\d{2}$/)) {
-      // Format: 2025_04 (mensuel)
-      const match = cleanId.match(/^(\d{4})_(\d{2})$/);
-      if (match) {
-        const [, year, month] = match;
-        return new Date(parseInt(year), parseInt(month) - 1, 1);
-      }
-    }
-  } catch (error) {
-    console.warn('Impossible d\'extraire la date de la période:', period.id);
-  }
-  
+  console.warn('Impossible d\'extraire la date de la période:', period.id);
   return null;
 }
 
 /**
- * Calcule les périodes concernées par des dates de distribution
- * MODIFIÉ: Utilise la nouvelle fonction extractPeriodStartDate qui priorise les dates stockées
+ * CORRIGÉ: Calcule les périodes concernées par des dates de distribution
  */
 export function getPeriodsForDistribution(
   periods: BreakdownPeriod[],
@@ -305,25 +342,124 @@ export function getPeriodsForDistribution(
   if (!startDate || !endDate) return [];
 
   const breakdownPeriods = periods.filter(p => p.breakdownId === breakdownId);
-  const distributionStart = new Date(startDate);
-  const distributionEnd = new Date(endDate);
+  const distributionStart = parseDate(startDate);
+  const distributionEnd = parseDate(endDate);
 
   return breakdownPeriods.filter(period => {
     const periodStartDate = extractPeriodStartDate(period);
-    if (!periodStartDate) return true; // Garder si on ne peut pas déterminer
+    if (!periodStartDate) return true;
 
-    // Calculer la fin de période
+    // Calculer la fin de période selon le type de breakdown
+    const breakdown = breakdownPeriods.find(p => p.id === period.id);
+    if (!breakdown) return true;
+
     const periodEnd = new Date(periodStartDate);
-    if (period.id.includes('week_')) {
-      // Pour les semaines, ajouter 6 jours
+    
+    if (breakdown.breakdownName.includes('Hebdo') || breakdown.breakdownName.includes('PEB')) {
       periodEnd.setDate(periodEnd.getDate() + 6);
-    } else if (period.id.match(/^\w+_\d{4}_\d{2}$/)) {
-      // Pour les mois, aller au dernier jour du mois
+    } else if (breakdown.breakdownName.includes('Mensuel')) {
       periodEnd.setMonth(periodEnd.getMonth() + 1);
       periodEnd.setDate(0);
+    } else {
+      return true;
     }
 
-    // Intersecte si : début période <= fin distribution ET fin période >= début distribution
     return periodStartDate <= distributionEnd && periodEnd >= distributionStart;
   });
+}
+
+// ============================================================================
+// NOUVELLES FONCTIONS POUR LA GESTION DE LA STRUCTURE FIREBASE
+// ============================================================================
+
+/**
+ * NOUVEAU: Crée les métadonnées d'une période selon le breakdown et les paramètres
+ */
+export function createPeriodMetadata(
+  breakdown: Breakdown,
+  periodDate?: Date,
+  customName?: string,
+  order: number = 0
+): GeneratedPeriodMeta {
+  const periodId = generateUniquePeriodId();
+  
+  if (breakdown.type === 'Custom') {
+    return {
+      id: periodId,
+      name: customName || `Période ${order + 1}`,
+      order
+    };
+  } else {
+    if (!periodDate) {
+      throw new Error('Date requise pour les breakdowns automatiques');
+    }
+    
+    return {
+      id: periodId,
+      date: calculatePeriodStartDate(periodDate, breakdown.type),
+      order
+    };
+  }
+}
+
+/**
+ * NOUVEAU: Génère toutes les métadonnées de périodes pour un breakdown donné
+ */
+export function generatePeriodMetadataForBreakdown(
+  breakdown: Breakdown,
+  tactiqueStartDate?: string,
+  tactiqueEndDate?: string
+): GeneratedPeriodMeta[] {
+  const metadata: GeneratedPeriodMeta[] = [];
+
+  if (breakdown.type === 'Custom') {
+    if (breakdown.customPeriods) {
+      breakdown.customPeriods
+        .sort((a, b) => a.order - b.order)
+        .forEach((period, index) => {
+          metadata.push({
+            id: period.id || generateUniquePeriodId(),
+            name: period.name,
+            order: index
+          });
+        });
+    }
+    return metadata;
+  }
+
+  let startDate: Date, endDate: Date;
+
+  if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
+    startDate = parseDate(tactiqueStartDate);
+    endDate = parseDate(tactiqueEndDate);
+  } else {
+    startDate = parseDate(breakdown.startDate);
+    endDate = parseDate(breakdown.endDate);
+  }
+
+  let current = new Date(startDate);
+  let order = 0;
+
+  if (breakdown.type === 'Mensuel') {
+    current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    
+    while (current <= endDate) {
+      metadata.push(createPeriodMetadata(breakdown, current, undefined, order++));
+      current.setMonth(current.getMonth() + 1);
+    }
+  } else {
+    // Ajuster au lundi pour Hebdomadaire/PEBs
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 1) {
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      current.setDate(current.getDate() - daysToSubtract);
+    }
+    
+    while (current <= endDate) {
+      metadata.push(createPeriodMetadata(breakdown, current, undefined, order++));
+      current.setDate(current.getDate() + 7);
+    }
+  }
+
+  return metadata;
 }
