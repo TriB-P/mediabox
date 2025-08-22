@@ -1,13 +1,14 @@
 // app/hooks/useTactiqueBreakdown.ts
 /**
  * CORRIGÉ: Hooks personnalisés pour la gestion des breakdowns avec:
- * - Support des IDs déterministes pour éviter la perte de données
+ * - Suppression des boucles infinies (dépendances stabilisées)
+ * - Support uniquement des IDs déterministes
  * - Gestion des champs date/name selon le type
  * - Structure de données cohérente avec les améliorations
  * - Support des nouvelles fonctionnalités PEBs
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Breakdown } from '../types/breakdown';
 import { getCostGuideEntries } from '../lib/costGuideService';
 import { getClientInfo } from '../lib/clientService';
@@ -38,7 +39,7 @@ export interface DistributionModalState {
 }
 
 /**
- * CORRIGÉ: Hook pour gérer l'état local des données de breakdown avec IDs déterministes
+ * CORRIGÉ: Hook pour gérer l'état local des données de breakdown sans boucles infinies
  */
 export function useBreakdownLocalData(
   periods: BreakdownPeriod[],
@@ -47,9 +48,13 @@ export function useBreakdownLocalData(
   onChange: (e: any) => void
 ) {
   const [localBreakdownData, setLocalBreakdownData] = useState<any>({});
+  
+  // ✅ CORRIGÉ : Ref pour éviter les re-créations
+  const isInitializedRef = useRef(false);
+  const lastSyncRef = useRef<string>('');
 
   /**
-   * Fonction pour parser une date string de manière sûre
+   * Fonction pour parser une date string de manière sûre - MÉMORISÉE
    */
   const parseDate = useCallback((dateString: string): Date => {
     const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -61,13 +66,171 @@ export function useBreakdownLocalData(
   }, []);
 
   /**
-   * AMÉLIORÉ: Crée l'objet breakdowns structuré avec nouvelle logique de filtrage
+   * ✅ CORRIGÉ : Dates de tactique mémorisées pour éviter les recalculs
+   */
+  const tactiqueeDates = useMemo(() => {
+    const tactiqueStartDate = formData.TC_Start_Date ? parseDate(formData.TC_Start_Date) : null;
+    const tactiqueEndDate = formData.TC_End_Date ? parseDate(formData.TC_End_Date) : null;
+    return { tactiqueStartDate, tactiqueEndDate };
+  }, [formData.TC_Start_Date, formData.TC_End_Date, parseDate]);
+
+  /**
+   * ✅ CORRIGÉ : Fonction pour filtrer les périodes - STABLE
+   */
+  const filterPeriodsForBreakdown = useCallback((
+    breakdownPeriods: BreakdownPeriod[],
+    breakdown: Breakdown,
+    tactiqueStartDate: Date | null,
+    tactiqueEndDate: Date | null
+  ): BreakdownPeriod[] => {
+    let filteredPeriods = breakdownPeriods;
+    
+    console.log(`📊 Breakdown ${breakdown.name} (${breakdown.type}) - ${breakdownPeriods.length} périodes générées`);
+    
+    // Pour les breakdowns par défaut, filtrer selon les dates de la tactique
+    if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
+      console.log(`🔍 Filtrage des périodes pour breakdown par défaut selon dates tactique`);
+      
+      filteredPeriods = breakdownPeriods.filter(period => {
+        if (period.startDate) {
+          const periodStartDate = period.startDate;
+          const periodEndDate = new Date(periodStartDate);
+          
+          if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+            periodEndDate.setDate(periodEndDate.getDate() + 6);
+          } else if (breakdown.type === 'Mensuel') {
+            periodEndDate.setMonth(periodEndDate.getMonth() + 1);
+            periodEndDate.setDate(0);
+          }
+          
+          const isValid = periodStartDate <= tactiqueEndDate && periodEndDate >= tactiqueStartDate;
+          return isValid;
+        }
+        return true;
+      });
+    }
+    // Pour les autres breakdowns, filtrer selon leurs propres dates
+    else if (!breakdown.isDefault && breakdown.startDate && breakdown.endDate) {
+      const breakdownStartDate = parseDate(breakdown.startDate);
+      const breakdownEndDate = parseDate(breakdown.endDate);
+      
+      filteredPeriods = breakdownPeriods.filter(period => {
+        if (period.startDate) {
+          const periodStartDate = period.startDate;
+          const periodEndDate = new Date(periodStartDate);
+          
+          if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+            periodEndDate.setDate(periodEndDate.getDate() + 6);
+          } else if (breakdown.type === 'Mensuel') {
+            periodEndDate.setMonth(periodEndDate.getMonth() + 1);
+            periodEndDate.setDate(0);
+          }
+          
+          return periodStartDate <= breakdownEndDate && periodEndDate >= breakdownStartDate;
+        }
+        return true;
+      });
+    }
+
+    // Trier les périodes
+    return [...filteredPeriods].sort((a, b) => {
+      if (breakdown.type === 'Custom') {
+        if (breakdown.customPeriods) {
+          const aCustomPeriod = breakdown.customPeriods.find(p => p.id === a.id || p.name === a.periodName);
+          const bCustomPeriod = breakdown.customPeriods.find(p => p.id === b.id || p.name === b.periodName);
+          const aOrder = aCustomPeriod ? aCustomPeriod.order : 0;
+          const bOrder = bCustomPeriod ? bCustomPeriod.order : 0;
+          return aOrder - bOrder;
+        }
+        return 0;
+      } else {
+        if (a.startDate && b.startDate) {
+          return a.startDate.getTime() - b.startDate.getTime();
+        }
+        return 0;
+      }
+    });
+  }, [parseDate]);
+
+  /**
+   * ✅ CORRIGÉ : Génération des dates formatées - STABLE
+   */
+  const formattedDates = useMemo(() => {
+    return getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
+  }, [formData.TC_Start_Date, formData.TC_End_Date]);
+
+  /**
+   * ✅ CORRIGÉ : Initialisation sans dépendance circulaire
+   */
+  const initializeLocalBreakdownData = useCallback(() => {
+    // ✅ Éviter la ré-initialisation si déjà fait avec les mêmes périodes
+    const periodsKey = periods.map(p => p.id).sort().join('|');
+    if (isInitializedRef.current && lastSyncRef.current === periodsKey) {
+      return;
+    }
+
+    console.log(`🔄 Initialisation des données locales pour ${periods.length} périodes`);
+    
+    const initialData: any = {};
+    const existingBreakdowns = formData.breakdowns || {};
+    
+    periods.forEach(period => {
+      const breakdown = existingBreakdowns[period.breakdownId];
+      let foundExistingData = false;
+      
+      if (breakdown?.periods?.[period.id]) {
+        const existingPeriod = breakdown.periods[period.id];
+        console.log(`✅ Données trouvées pour période ${period.label} avec ID ${period.id}`);
+        initialData[period.id] = {
+          value: existingPeriod.value || '',
+          isToggled: existingPeriod.isToggled !== undefined ? existingPeriod.isToggled : true,
+          unitCost: existingPeriod.unitCost || '',
+          total: existingPeriod.total || ''
+        };
+        foundExistingData = true;
+      }
+      
+      if (!foundExistingData) {
+        console.log(`➕ Nouvelle période initialisée: ${period.label} (${period.id})`);
+        
+        const breakdown_def = breakdowns.find(b => b.id === period.breakdownId);
+        let initialValue = '';
+        
+        if (breakdown_def?.isDefault) {
+          if (period.isFirst && formattedDates.startDateFormatted) {
+            initialValue = formattedDates.startDateFormatted;
+          } else if (period.isLast && formattedDates.endDateFormatted) {
+            initialValue = formattedDates.endDateFormatted;
+          }
+        }
+        
+        initialData[period.id] = {
+          value: initialValue,
+          isToggled: true,
+          unitCost: '',
+          total: ''
+        };
+      }
+    });
+    
+    setLocalBreakdownData(initialData);
+    isInitializedRef.current = true;
+    lastSyncRef.current = periodsKey;
+  }, [
+    periods, 
+    formData.breakdowns, 
+    breakdowns, 
+    formattedDates.startDateFormatted, 
+    formattedDates.endDateFormatted
+    // ✅ CORRIGÉ : Suppression de localBreakdownData des dépendances
+  ]);
+
+  /**
+   * ✅ CORRIGÉ : Création d'objet breakdowns - OPTIMISÉE
    */
   const createBreakdownsObject = useCallback(() => {
     const breakdownsObj: any = {};
-    
-    const tactiqueStartDate = formData.TC_Start_Date ? parseDate(formData.TC_Start_Date) : null;
-    const tactiqueEndDate = formData.TC_End_Date ? parseDate(formData.TC_End_Date) : null;
+    const { tactiqueStartDate, tactiqueEndDate } = tactiqueeDates;
 
     console.log(`🎯 Création objet breakdowns - Dates tactique: ${formData.TC_Start_Date} → ${formData.TC_End_Date}`);
     
@@ -90,102 +253,14 @@ export function useBreakdownLocalData(
         periods: {}
       };
 
-      // Filtrer les périodes selon les dates de la tactique (pour breakdown par défaut)
-      let filteredPeriods = breakdownPeriods;
-      
-      console.log(`📊 Breakdown ${breakdown.name} (${breakdown.type}) - ${breakdownPeriods.length} périodes générées`);
-      
-      // Pour les breakdowns par défaut, filtrer selon les dates de la tactique
-      if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
-        console.log(`🔍 Filtrage des périodes pour breakdown par défaut selon dates tactique`);
-        console.log(`📅 Dates tactique: ${tactiqueStartDate.toISOString().split('T')[0]} → ${tactiqueEndDate.toISOString().split('T')[0]}`);
-        
-        filteredPeriods = breakdownPeriods.filter(period => {
-          if (period.startDate) {
-            const periodStartDate = period.startDate;
-            
-            // Calculer la date de fin de la période selon le type de breakdown
-            const periodEndDate = new Date(periodStartDate);
-            
-            if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
-              periodEndDate.setDate(periodEndDate.getDate() + 6);
-            } else if (breakdown.type === 'Mensuel') {
-              periodEndDate.setMonth(periodEndDate.getMonth() + 1);
-              periodEndDate.setDate(0);
-            }
-            
-            // La période est valide si elle intersecte avec les dates de la tactique
-            const isValid = periodStartDate <= tactiqueEndDate && periodEndDate >= tactiqueStartDate;
-            
-            console.log(`📅 Période ${period.label} (${period.id}): ${periodStartDate.toISOString().split('T')[0]} → ${periodEndDate.toISOString().split('T')[0]} = ${isValid ? '✅ GARDÉE' : '❌ SUPPRIMÉE'}`);
-            
-            return isValid;
-          }
-          
-          console.log(`⚠️ Période ${period.label} (${period.id}) sans date de début - gardée par défaut`);
-          return true; // Garder si pas de date (pour compatibilité)
-        });
-        
-        console.log(`✅ ${filteredPeriods.length}/${breakdownPeriods.length} périodes gardées après filtrage`);
-      }
-      // Pour les autres breakdowns, filtrer selon leurs propres dates
-      else if (!breakdown.isDefault && breakdown.startDate && breakdown.endDate) {
-        console.log(`🔍 Filtrage des périodes pour breakdown non-default selon ses propres dates`);
-        console.log(`📅 Dates breakdown: ${breakdown.startDate} → ${breakdown.endDate}`);
-        
-        const breakdownStartDate = parseDate(breakdown.startDate);
-        const breakdownEndDate = parseDate(breakdown.endDate);
-        
-        filteredPeriods = breakdownPeriods.filter(period => {
-          if (period.startDate) {
-            const periodStartDate = period.startDate;
-            const periodEndDate = new Date(periodStartDate);
-            
-            if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
-              periodEndDate.setDate(periodEndDate.getDate() + 6);
-            } else if (breakdown.type === 'Mensuel') {
-              periodEndDate.setMonth(periodEndDate.getMonth() + 1);
-              periodEndDate.setDate(0);
-            }
-            
-            const isValid = periodStartDate <= breakdownEndDate && periodEndDate >= breakdownStartDate;
-            
-            console.log(`📅 Période ${period.label} (${period.id}): ${periodStartDate.toISOString().split('T')[0]} → ${periodEndDate.toISOString().split('T')[0]} = ${isValid ? '✅ GARDÉE' : '❌ SUPPRIMÉE'}`);
-            
-            return isValid;
-          }
-          
-          return true;
-        });
-        
-        console.log(`✅ ${filteredPeriods.length}/${breakdownPeriods.length} périodes gardées après filtrage`);
-      } else {
-        console.log(`➡️ Aucun filtrage appliqué pour ce breakdown`);
-      }
+      const filteredPeriods = filterPeriodsForBreakdown(
+        breakdownPeriods, 
+        breakdown, 
+        tactiqueStartDate, 
+        tactiqueEndDate
+      );
 
-      // Trier les périodes filtrées par date ou ordre selon le type
-      const sortedPeriods = [...filteredPeriods].sort((a, b) => {
-        if (breakdown.type === 'Custom') {
-          // Pour Custom, utiliser l'ordre défini dans customPeriods
-          if (breakdown.customPeriods) {
-            const aCustomPeriod = breakdown.customPeriods.find(p => p.id === a.id || p.name === a.periodName);
-            const bCustomPeriod = breakdown.customPeriods.find(p => p.id === b.id || p.name === b.periodName);
-            const aOrder = aCustomPeriod ? aCustomPeriod.order : 0;
-            const bOrder = bCustomPeriod ? bCustomPeriod.order : 0;
-            return aOrder - bOrder;
-          }
-          return 0;
-        } else {
-          // Pour les types automatiques, trier par date
-          if (a.startDate && b.startDate) {
-            return a.startDate.getTime() - b.startDate.getTime();
-          }
-          return 0;
-        }
-      });
-
-      // CORRIGÉ: Sauvegarder avec l'ID déterministe comme clé
-      sortedPeriods.forEach((period, index) => {
+      filteredPeriods.forEach((period, index) => {
         const periodData = localBreakdownData[period.id] || { 
           value: '', 
           isToggled: true, 
@@ -193,9 +268,6 @@ export function useBreakdownLocalData(
           total: ''
         };
         
-        console.log(`💾 Sauvegarde période ${period.label} avec ID: ${period.id}`);
-        
-        // Structure améliorée avec date/name selon le type
         const periodInfo: any = {
           value: periodData.value,
           isToggled: periodData.isToggled,
@@ -204,11 +276,9 @@ export function useBreakdownLocalData(
           total: periodData.total || ''
         };
 
-        // Ajouter date ou name selon le type
         if (breakdown.type === 'Custom') {
           periodInfo.name = period.periodName || period.label;
         } else {
-          // Types automatiques : utiliser la date de début
           if (period.startDate) {
             periodInfo.date = period.startDate.toISOString().split('T')[0];
           }
@@ -219,169 +289,79 @@ export function useBreakdownLocalData(
     });
     
     return breakdownsObj;
-  }, [periods, localBreakdownData, breakdowns, formData.TC_Start_Date, formData.TC_End_Date, parseDate]);
+  }, [
+    periods, 
+    breakdowns, 
+    tactiqueeDates, 
+    formData.TC_Start_Date, 
+    formData.TC_End_Date, 
+    filterPeriodsForBreakdown,
+    localBreakdownData
+  ]);
 
-  /**
-   * CORRIGÉ: Initialise l'état local avec support des IDs déterministes
-   */
-  const initializeLocalBreakdownData = useCallback(() => {
-    const initialData: any = {};
-    
-    console.log(`🔄 Initialisation des données locales pour ${periods.length} périodes`);
-    
-    periods.forEach(period => {
-      const existingBreakdowns = formData.breakdowns || {};
-      const breakdown = existingBreakdowns[period.breakdownId];
-      
-      let foundExistingData = false;
-      
-      if (breakdown && breakdown.periods) {
-        // NOUVEAU: Chercher d'abord avec l'ID déterministe exact
-        const existingPeriod = breakdown.periods[period.id];
-        
-        if (existingPeriod) {
-          console.log(`✅ Données trouvées pour période ${period.label} avec ID ${period.id}`);
-          initialData[period.id] = {
-            value: existingPeriod.value || '',
-            isToggled: existingPeriod.isToggled !== undefined ? existingPeriod.isToggled : true,
-            unitCost: existingPeriod.unitCost || '',
-            total: existingPeriod.total || ''
-          };
-          foundExistingData = true;
-        } else {
-          // FALLBACK: Si pas trouvé avec l'ID exact, chercher par date/nom pour migration
-          console.log(`🔍 Tentative de migration pour période ${period.label} (${period.id})`);
-          
-          const periodsInBreakdown = Object.entries(breakdown.periods) as [string, any][];
-          
-          if (period.startDate) {
-            // Pour les types automatiques: chercher par date
-            const targetDate = period.startDate.toISOString().split('T')[0];
-            const matchingEntry = periodsInBreakdown.find(([, periodData]) => 
-              periodData && typeof periodData === 'object' && periodData.date === targetDate
-            );
-            
-            if (matchingEntry) {
-              const [oldId, periodData] = matchingEntry;
-              console.log(`🔄 Migration trouvée: ${oldId} → ${period.id} (date: ${targetDate})`);
-              initialData[period.id] = {
-                value: (periodData.value as string) || '',
-                isToggled: periodData.isToggled !== undefined ? (periodData.isToggled as boolean) : true,
-                unitCost: (periodData.unitCost as string) || '',
-                total: (periodData.total as string) || ''
-              };
-              foundExistingData = true;
-            }
-          } else if (period.periodName) {
-            // Pour les types Custom: chercher par nom
-            const matchingEntry = periodsInBreakdown.find(([, periodData]) => 
-              periodData && typeof periodData === 'object' && periodData.name === period.periodName
-            );
-            
-            if (matchingEntry) {
-              const [oldId, periodData] = matchingEntry;
-              console.log(`🔄 Migration trouvée: ${oldId} → ${period.id} (nom: ${period.periodName})`);
-              initialData[period.id] = {
-                value: (periodData.value as string) || '',
-                isToggled: periodData.isToggled !== undefined ? (periodData.isToggled as boolean) : true,
-                unitCost: (periodData.unitCost as string) || '',
-                total: (periodData.total as string) || ''
-              };
-              foundExistingData = true;
-            }
-          }
-        }
-      }
-      
-      if (!foundExistingData) {
-        console.log(`➕ Nouvelle période initialisée: ${period.label} (${period.id})`);
-        
-        const breakdown_def = breakdowns.find(b => b.id === period.breakdownId);
-        let initialValue = '';
-        
-        if (breakdown_def?.isDefault && !localBreakdownData[period.id]?.value) {
-          const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
-          if (period.isFirst && startDateFormatted) {
-            initialValue = startDateFormatted;
-          } else if (period.isLast && endDateFormatted) {
-            initialValue = endDateFormatted;
-          }
-        }
-        
-        initialData[period.id] = {
-          value: initialValue,
-          isToggled: true,
-          unitCost: '',
-          total: ''
-        };
-      }
-    });
-    
-    const hasChanged = periods.some(period => {
-      const existing = localBreakdownData[period.id];
-      const newData = initialData[period.id];
-      return !existing || existing.value !== newData.value || existing.isToggled !== newData.isToggled ||
-             existing.unitCost !== newData.unitCost || existing.total !== newData.total;
-    });
-    
-    if (hasChanged) {
-      console.log(`💾 Mise à jour de l'état local avec ${Object.keys(initialData).length} périodes`);
-      setLocalBreakdownData(initialData);
-    }
-  }, [periods, formData.breakdowns, formData.TC_Start_Date, formData.TC_End_Date, breakdowns, localBreakdownData]);
-
-  // Effect pour initialiser l'état local quand les périodes changent
+  // ✅ CORRIGÉ : Effect pour initialiser - STABLE
   useEffect(() => {
     if (periods.length > 0) {
       initializeLocalBreakdownData();
     }
-  }, [periods, initializeLocalBreakdownData]);
+  }, [initializeLocalBreakdownData]);
 
-  // Effect pour gérer les changements de dates sur le breakdown par défaut
+  // ✅ CORRIGÉ : Effect pour dates par défaut - OPTIMISÉ
   useEffect(() => {
-    if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
-      const defaultBreakdown = breakdowns.find(b => b.isDefault);
-      if (defaultBreakdown && (formData.TC_Start_Date || formData.TC_End_Date)) {
-        const { startDateFormatted, endDateFormatted } = getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
-        
-        const defaultPeriods = periods.filter(p => p.breakdownId === defaultBreakdown.id);
-        const updatedData = { ...localBreakdownData };
-        let hasUpdates = false;
-        
-        defaultPeriods.forEach(period => {
-          let newValue = '';
-          
-          if (period.isFirst && startDateFormatted) {
-            newValue = startDateFormatted;
-          } else if (period.isLast && endDateFormatted) {
-            newValue = endDateFormatted;
-          }
-          
-          if (updatedData[period.id] && updatedData[period.id].value !== newValue) {
-            updatedData[period.id] = { 
-              ...updatedData[period.id],
-              value: newValue
-            };
-            hasUpdates = true;
-          }
-        });
-        
-        if (hasUpdates) {
-          setLocalBreakdownData(updatedData);
-        }
+    if (periods.length === 0 || Object.keys(localBreakdownData).length === 0) return;
+
+    const defaultBreakdown = breakdowns.find(b => b.isDefault);
+    if (!defaultBreakdown || (!formData.TC_Start_Date && !formData.TC_End_Date)) return;
+
+    const defaultPeriods = periods.filter(p => p.breakdownId === defaultBreakdown.id);
+    if (defaultPeriods.length === 0) return;
+
+    let hasUpdates = false;
+    const updatedData = { ...localBreakdownData };
+    
+    defaultPeriods.forEach(period => {
+      let newValue = '';
+      
+      if (period.isFirst && formattedDates.startDateFormatted) {
+        newValue = formattedDates.startDateFormatted;
+      } else if (period.isLast && formattedDates.endDateFormatted) {
+        newValue = formattedDates.endDateFormatted;
       }
+      
+      if (updatedData[period.id] && updatedData[period.id].value !== newValue) {
+        updatedData[period.id] = { 
+          ...updatedData[period.id],
+          value: newValue
+        };
+        hasUpdates = true;
+      }
+    });
+    
+    if (hasUpdates) {
+      setLocalBreakdownData(updatedData);
     }
-  }, [formData.TC_Start_Date, formData.TC_End_Date, periods, breakdowns, localBreakdownData]);
+  }, [
+    formattedDates.startDateFormatted, 
+    formattedDates.endDateFormatted, 
+    periods, 
+    breakdowns, 
+    localBreakdownData
+  ]);
 
-  // Synchronise l'objet breakdowns avec le formulaire parent
+  // ✅ CORRIGÉ : Synchronisation optimisée avec throttling
   useEffect(() => {
-    if (periods.length > 0 && Object.keys(localBreakdownData).length > 0) {
+    if (periods.length === 0 || Object.keys(localBreakdownData).length === 0) return;
+
+    // ✅ Throttling pour éviter trop de mises à jour
+    const timeoutId = setTimeout(() => {
       const breakdownsObj = createBreakdownsObject();
-      
       const currentBreakdowns = formData.breakdowns || {};
-      const hasReallyChanged = JSON.stringify(currentBreakdowns) !== JSON.stringify(breakdownsObj);
       
-      if (hasReallyChanged) {
+      // ✅ Comparaison plus intelligente
+      const currentHash = JSON.stringify(currentBreakdowns);
+      const newHash = JSON.stringify(breakdownsObj);
+      
+      if (currentHash !== newHash) {
         console.log(`🔄 Synchronisation avec formulaire parent`);
         const syntheticEvent = {
           target: {
@@ -392,8 +372,10 @@ export function useBreakdownLocalData(
         } as any;
         onChange(syntheticEvent);
       }
-    }
-  }, [localBreakdownData, periods, createBreakdownsObject, formData.breakdowns, onChange]);
+    }, 100); // ✅ Debounce de 100ms
+
+    return () => clearTimeout(timeoutId);
+  }, [localBreakdownData, createBreakdownsObject, formData.breakdowns, onChange]);
 
   return {
     localBreakdownData,
@@ -448,7 +430,7 @@ export function useCostGuide(clientId?: string) {
 }
 
 /**
- * AMÉLIORÉ: Hook pour gérer les handlers des périodes avec IDs déterministes
+ * STABLE : Hook pour gérer les handlers des périodes
  */
 export function usePeriodHandlers(
   periods: BreakdownPeriod[],
@@ -456,9 +438,6 @@ export function usePeriodHandlers(
   localBreakdownData: any,
   setLocalBreakdownData: (data: any) => void
 ) {
-  /**
-   * AMÉLIORÉ: Gère le changement de valeur d'une période avec support PEBs et IDs déterministes
-   */
   const handlePeriodValueChange = useCallback((
     periodId: string, 
     value: string, 
@@ -482,7 +461,6 @@ export function usePeriodHandlers(
       [field]: value
     };
 
-    // Pour PEBs, recalculer automatiquement le total
     if (breakdown?.type === 'PEBs') {
       const unitCost = field === 'unitCost' ? value : currentData.unitCost;
       const volume = field === 'value' ? value : currentData.value;
@@ -498,9 +476,6 @@ export function usePeriodHandlers(
     }));
   }, [periods, breakdowns, localBreakdownData, setLocalBreakdownData]);
 
-  /**
-   * AMÉLIORÉ: Gère le changement d'état d'activation d'une période avec IDs déterministes
-   */
   const handlePeriodActiveChange = useCallback((periodId: string, isActive: boolean) => {
     const period = periods.find(p => p.id === periodId);
     if (!period) {
@@ -523,27 +498,15 @@ export function usePeriodHandlers(
     }));
   }, [periods, localBreakdownData, setLocalBreakdownData]);
 
-  /**
-   * AMÉLIORÉ: Obtient la valeur d'une période depuis l'état local avec IDs déterministes
-   */
   const getPeriodValue = useCallback((
     periodId: string, 
     breakdownId: string, 
     field: 'value' | 'unitCost' | 'total' = 'value'
   ): string => {
     const data = localBreakdownData[periodId];
-    const value = data?.[field] || '';
-    
-    if (!data) {
-      console.log(`⚠️ Pas de données pour période ${periodId}`);
-    }
-    
-    return value;
+    return data?.[field] || '';
   }, [localBreakdownData]);
 
-  /**
-   * AMÉLIORÉ: Obtient le statut d'activation d'une période depuis l'état local avec IDs déterministes
-   */
   const getPeriodActiveStatus = useCallback((periodId: string, breakdownId: string): boolean => {
     const data = localBreakdownData[periodId];
     return data?.isToggled !== undefined ? data.isToggled : true;
