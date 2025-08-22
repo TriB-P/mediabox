@@ -2,9 +2,9 @@
 
 /**
  * Service amélioré pour la gestion des breakdowns avec:
+ * - IDs déterministes pour les périodes (évite la perte de données utilisateur)
  * - Limite à 5 breakdowns par campagne
- * - IDs uniques pour les périodes avec champ date pour types automatiques
- * - Champ name pour les types custom seulement
+ * - Cohérence entre frontend et backend
  */
 import {
   collection,
@@ -67,19 +67,46 @@ export interface BreakdownUpdateData {
 export const MAX_BREAKDOWNS_PER_CAMPAIGN = 5; // MODIFIÉ: Augmenté de 3 à 5
 
 // ============================================================================
-// FONCTIONS UTILITAIRES POUR LES IDS ET DATES
+// FONCTIONS UTILITAIRES POUR LES IDS DÉTERMINISTES
 // ============================================================================
 
 /**
- * NOUVEAU: Génère un ID unique pour une période
+ * CORRIGÉ: Génère un ID déterministe pour une période basé sur ses propriétés stables
+ * Cette fonction doit être identique à celle du frontend pour garantir la cohérence
  */
-function generateUniquePeriodId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 20; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+function generateDeterministicPeriodId(
+  breakdownId: string,
+  breakdownType: BreakdownType,
+  periodDate?: Date,
+  periodName?: string,
+  order?: number
+): string {
+  let baseString = `${breakdownId}_`;
+  
+  if (breakdownType === 'Custom') {
+    // Pour Custom: utiliser le nom et l'ordre
+    baseString += `custom_${periodName}_${order}`;
+  } else {
+    // Pour les types automatiques: utiliser la date
+    if (periodDate) {
+      const dateStr = periodDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      baseString += `${breakdownType.toLowerCase()}_${dateStr}`;
+    } else {
+      // Fallback si pas de date
+      baseString += `${breakdownType.toLowerCase()}_${order}`;
+    }
   }
-  return result;
+  
+  // Convertir en hash simple pour avoir un ID plus court mais stable
+  let hash = 0;
+  for (let i = 0; i < baseString.length; i++) {
+    const char = baseString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir en 32bit integer
+  }
+  
+  // Retourner un ID positif de 8 caractères
+  return Math.abs(hash).toString(36).padStart(8, '0');
 }
 
 /**
@@ -110,23 +137,33 @@ function calculatePeriodStartDate(
 }
 
 /**
- * NOUVEAU: Génère les périodes avec la nouvelle structure
+ * CORRIGÉ: Génère les périodes avec IDs déterministes pour stockage en base
  */
 function generatePeriodsForBreakdown(
-  breakdown: Breakdown,
+  breakdown: Partial<Breakdown>,
+  breakdownId: string,
+  breakdownData: BreakdownFormData,
   tactiqueStartDate?: string,
   tactiqueEndDate?: string
 ): { id: string; date?: string; name?: string; order: number }[] {
   const periods: { id: string; date?: string; name?: string; order: number }[] = [];
 
-  if (breakdown.type === 'Custom') {
-    // Pour Custom: utiliser name, pas de date
-    if (breakdown.customPeriods) {
-      breakdown.customPeriods
+  if (breakdownData.type === 'Custom') {
+    // Pour Custom: utiliser les noms et générer des IDs déterministes
+    if (breakdownData.customPeriods) {
+      breakdownData.customPeriods
         .sort((a, b) => a.order - b.order)
         .forEach((period, index) => {
+          const periodId = generateDeterministicPeriodId(
+            breakdownId,
+            breakdownData.type,
+            undefined,
+            period.name,
+            index
+          );
+          
           periods.push({
-            id: generateUniquePeriodId(),
+            id: periodId,
             name: period.name,
             order: index
           });
@@ -135,28 +172,35 @@ function generatePeriodsForBreakdown(
     return periods;
   }
 
-  // Pour les autres types: générer avec des dates
+  // Pour les autres types: générer avec des dates et IDs déterministes
   let startDate: Date, endDate: Date;
 
   if (breakdown.isDefault && tactiqueStartDate && tactiqueEndDate) {
     startDate = new Date(tactiqueStartDate);
     endDate = new Date(tactiqueEndDate);
   } else {
-    startDate = new Date(breakdown.startDate);
-    endDate = new Date(breakdown.endDate);
+    startDate = new Date(breakdownData.startDate);
+    endDate = new Date(breakdownData.endDate);
   }
 
   let current = new Date(startDate);
   let order = 0;
 
-  if (breakdown.type === 'Mensuel') {
+  if (breakdownData.type === 'Mensuel') {
     // Générer par mois
     current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     
     while (current <= endDate) {
+      const periodStartDate = new Date(current);
+      const periodId = generateDeterministicPeriodId(
+        breakdownId,
+        breakdownData.type,
+        periodStartDate
+      );
+      
       periods.push({
-        id: generateUniquePeriodId(),
-        date: calculatePeriodStartDate(current, breakdown.type),
+        id: periodId,
+        date: calculatePeriodStartDate(periodStartDate, breakdownData.type),
         order: order++
       });
       
@@ -172,9 +216,16 @@ function generatePeriodsForBreakdown(
     }
     
     while (current <= endDate) {
+      const periodStartDate = new Date(current);
+      const periodId = generateDeterministicPeriodId(
+        breakdownId,
+        breakdownData.type,
+        periodStartDate
+      );
+      
       periods.push({
-        id: generateUniquePeriodId(),
-        date: calculatePeriodStartDate(current, breakdown.type),
+        id: periodId,
+        date: calculatePeriodStartDate(periodStartDate, breakdownData.type),
         order: order++
       });
       
@@ -282,6 +333,7 @@ export function getFirstOfMonth(date: string): string {
   const result = `${yearStr}-${monthStr}-${dayStr}`;
   return result;
 }
+
 // ============================================================================
 // FONCTIONS CRUD AMÉLIORÉES
 // ============================================================================
@@ -375,7 +427,19 @@ export async function createBreakdown(
     );
     const now = new Date().toISOString();
     
-    // MODIFIÉ: Nouvelle structure avec periods
+    console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown");
+    const docRef = await addDoc(breakdownsRef, {
+      name: breakdownData.name,
+      type: breakdownData.type,
+      startDate: breakdownData.startDate,
+      endDate: breakdownData.endDate,
+      isDefault: shouldBeDefault,
+      order: nextOrder,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // CORRIGÉ: Générer les périodes avec IDs déterministes après avoir l'ID du breakdown
     const newBreakdown: any = {
       name: breakdownData.name,
       type: breakdownData.type,
@@ -387,17 +451,31 @@ export async function createBreakdown(
       updatedAt: now,
     };
 
-    // NOUVEAU: Générer les périodes avec la nouvelle structure
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
+      // CORRIGÉ: Utiliser des IDs déterministes basés sur l'ID du breakdown
       newBreakdown.customPeriods = breakdownData.customPeriods.map((period, index) => ({
-        id: generateUniquePeriodId(),
+        id: generateDeterministicPeriodId(
+          docRef.id,
+          breakdownData.type,
+          undefined,
+          period.name,
+          index
+        ),
         name: period.name,
         order: index
       }));
+
+      // Mettre à jour le document avec les customPeriods
+      await updateDoc(docRef, {
+        customPeriods: newBreakdown.customPeriods
+      });
     }
 
-    console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown");
-    const docRef = await addDoc(breakdownsRef, newBreakdown);
+    console.log(`✅ Breakdown créé avec IDs déterministes:`, docRef.id);
+    if (newBreakdown.customPeriods) {
+      console.log(`🆔 Périodes générées:`, newBreakdown.customPeriods.map((p: any) => `${p.name}: ${p.id}`));
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Erreur lors de la création du breakdown:', error);
@@ -461,8 +539,15 @@ export async function updateBreakdown(
     };
 
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
+      // CORRIGÉ: Utiliser des IDs déterministes pour la mise à jour
       updatedBreakdown.customPeriods = breakdownData.customPeriods.map((period, index) => ({
-        id: generateUniquePeriodId(),
+        id: generateDeterministicPeriodId(
+          breakdownId,
+          breakdownData.type,
+          undefined,
+          period.name,
+          index
+        ),
         name: period.name,
         order: index
       }));
@@ -479,12 +564,9 @@ export async function updateBreakdown(
 }
 
 // ============================================================================
-// FONCTIONS DE LECTURE AMÉLIORÉES
+// FONCTIONS DE LECTURE AMÉLIORÉES (inchangées)
 // ============================================================================
 
-/**
- * MODIFIÉ: Lecture améliorée des données de période
- */
 export function getTactiqueBreakdownPeriod(
   tactique: any,
   breakdownId: string,
@@ -510,14 +592,11 @@ export function getTactiqueBreakdownPeriod(
     order: period.order || 0,
     unitCost: period.unitCost || '',
     total: period.total || '',
-    date: period.date || '',        // NOUVEAU
-    name: period.name || ''         // NOUVEAU
+    date: period.date || '',
+    name: period.name || ''
   };
 }
 
-/**
- * NOUVEAU: Fonction pour obtenir la date d'une période
- */
 export function getTactiqueBreakdownPeriodDate(
   tactique: any,
   breakdownId: string,
@@ -527,9 +606,6 @@ export function getTactiqueBreakdownPeriodDate(
   return period?.date || '';
 }
 
-/**
- * NOUVEAU: Fonction pour obtenir le nom d'une période (custom uniquement)
- */
 export function getTactiqueBreakdownPeriodName(
   tactique: any,
   breakdownId: string,
@@ -540,7 +616,7 @@ export function getTactiqueBreakdownPeriodName(
 }
 
 // ============================================================================
-// FONCTIONS DE CALCUL (inchangées mais avec nouvelles interfaces)
+// FONCTIONS DE CALCUL (inchangées)
 // ============================================================================
 
 export function getTactiqueBreakdownValue(
@@ -591,9 +667,6 @@ export function getTactiqueBreakdownToggleStatus(
   return period?.isToggled !== undefined ? period.isToggled : true;
 }
 
-/**
- * MODIFIÉ: Mise à jour améliorée des données de breakdown
- */
 export function updateTactiqueBreakdownData(
   currentTactiqueData: any,
   updates: BreakdownUpdateData[]
@@ -631,8 +704,8 @@ export function updateTactiqueBreakdownData(
     if (order !== undefined) period.order = order;
     if (unitCost !== undefined) period.unitCost = unitCost;
     if (total !== undefined) period.total = total;
-    if (date !== undefined) period.date = date;        // NOUVEAU
-    if (name !== undefined) period.name = name;        // NOUVEAU
+    if (date !== undefined) period.date = date;
+    if (name !== undefined) period.name = name;
   });
 
   return updatedTactique;

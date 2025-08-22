@@ -1,7 +1,7 @@
 // app/components/Tactiques/Tactiques/breakdownPeriodUtils.ts
 /**
- * CORRIGÉ: Gestion des dates améliorée pour éviter les problèmes de fuseau horaire
- * et s'assurer que les bonnes périodes sont générées selon les dates de breakdown/tactique
+ * CORRIGÉ: Génération d'IDs déterministes pour éviter la perte de données utilisateur
+ * Les IDs sont maintenant basés sur des propriétés stables des périodes
  */
 
 import { Breakdown, GeneratedPeriodMeta, generatePeriodLabel } from '../../../types/breakdown';
@@ -25,15 +25,41 @@ function parseDate(dateString: string): Date {
 }
 
 /**
- * NOUVEAU: Génère un ID unique pour une période (identique au service)
+ * CORRIGÉ: Génère un ID déterministe pour une période basé sur ses propriétés stables
  */
-function generateUniquePeriodId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 20; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+function generateDeterministicPeriodId(
+  breakdownId: string,
+  breakdownType: string,
+  periodDate?: Date,
+  periodName?: string,
+  order?: number
+): string {
+  let baseString = `${breakdownId}_`;
+  
+  if (breakdownType === 'Custom') {
+    // Pour Custom: utiliser le nom et l'ordre
+    baseString += `custom_${periodName}_${order}`;
+  } else {
+    // Pour les types automatiques: utiliser la date
+    if (periodDate) {
+      const dateStr = periodDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      baseString += `${breakdownType.toLowerCase()}_${dateStr}`;
+    } else {
+      // Fallback si pas de date
+      baseString += `${breakdownType.toLowerCase()}_${order}`;
+    }
   }
-  return result;
+  
+  // Convertir en hash simple pour avoir un ID plus court mais stable
+  let hash = 0;
+  for (let i = 0; i < baseString.length; i++) {
+    const char = baseString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir en 32bit integer
+  }
+  
+  // Retourner un ID positif de 8 caractères
+  return Math.abs(hash).toString(36).padStart(8, '0');
 }
 
 /**
@@ -64,7 +90,7 @@ function calculatePeriodStartDate(
 }
 
 /**
- * CORRIGÉ: Génère les périodes pour un breakdown mensuel avec gestion des dates améliorée
+ * CORRIGÉ: Génère les périodes pour un breakdown mensuel avec IDs déterministes
  */
 export function generateMonthlyPeriods(
   breakdown: Breakdown, 
@@ -97,18 +123,23 @@ export function generateMonthlyPeriods(
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
   console.log(`🎬 Premier mois: ${current.toISOString().split('T')[0]} (${current.getMonth() + 1}/${current.getFullYear()})`);
 
+  let order = 0;
   while (current <= endDate) {
     const monthNames = t('breakdownPeriod.months.short').split(',');
     const monthLabel = monthNames[current.getMonth()];
     const yearSuffix = current.getFullYear().toString().slice(-2);
 
-    // ID unique
-    const periodId = generateUniquePeriodId();
-    
     // Date de début calculée
     const periodStartDate = new Date(current.getFullYear(), current.getMonth(), 1);
+    
+    // CORRIGÉ: ID déterministe basé sur la date
+    const periodId = generateDeterministicPeriodId(
+      breakdown.id, 
+      breakdown.type, 
+      periodStartDate
+    );
 
-    console.log(`📅 Génération période: ${monthLabel} ${yearSuffix} (${periodStartDate.toISOString().split('T')[0]})`);
+    console.log(`📅 Génération période: ${monthLabel} ${yearSuffix} (${periodStartDate.toISOString().split('T')[0]}) - ID: ${periodId}`);
 
     periods.push({
       id: periodId,
@@ -120,6 +151,7 @@ export function generateMonthlyPeriods(
     });
 
     current.setMonth(current.getMonth() + 1);
+    order++;
   }
 
   if (periods.length > 0) {
@@ -127,13 +159,13 @@ export function generateMonthlyPeriods(
     periods[periods.length - 1].isLast = true;
   }
 
-  console.log(`✅ ${periods.length} périodes générées:`, periods.map(p => p.label));
+  console.log(`✅ ${periods.length} périodes générées:`, periods.map(p => `${p.label} (${p.id})`));
 
   return periods;
 }
 
 /**
- * CORRIGÉ: Génère les périodes pour un breakdown hebdomadaire avec gestion des dates améliorée
+ * CORRIGÉ: Génère les périodes pour un breakdown hebdomadaire avec IDs déterministes
  */
 export function generateWeeklyPeriods(
   breakdown: Breakdown, 
@@ -163,14 +195,21 @@ export function generateWeeklyPeriods(
   }
 
   const current = new Date(startDate);
+  let order = 0;
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
     const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
-    const periodId = generateUniquePeriodId();
     const periodStartDate = new Date(current);
+    
+    // CORRIGÉ: ID déterministe basé sur la date
+    const periodId = generateDeterministicPeriodId(
+      breakdown.id, 
+      breakdown.type, 
+      periodStartDate
+    );
 
     periods.push({
       id: periodId,
@@ -182,6 +221,7 @@ export function generateWeeklyPeriods(
     });
 
     current.setDate(current.getDate() + 7);
+    order++;
   }
 
   if (periods.length > 0) {
@@ -193,7 +233,7 @@ export function generateWeeklyPeriods(
 }
 
 /**
- * CORRIGÉ: Génère les périodes pour un breakdown PEBs avec gestion des dates améliorée
+ * CORRIGÉ: Génère les périodes pour un breakdown PEBs avec IDs déterministes
  */
 export function generatePEBsPeriods(
   breakdown: Breakdown, 
@@ -221,14 +261,21 @@ export function generatePEBsPeriods(
   }
 
   const current = new Date(startDate);
+  let order = 0;
 
   while (current <= endDate) {
     const day = current.getDate().toString().padStart(2, '0');
     const monthNames = t('breakdownPeriod.months.shortTitleCase').split(',');
     const month = monthNames[current.getMonth()];
 
-    const periodId = generateUniquePeriodId();
     const periodStartDate = new Date(current);
+    
+    // CORRIGÉ: ID déterministe basé sur la date
+    const periodId = generateDeterministicPeriodId(
+      breakdown.id, 
+      breakdown.type, 
+      periodStartDate
+    );
 
     periods.push({
       id: periodId,
@@ -240,6 +287,7 @@ export function generatePEBsPeriods(
     });
 
     current.setDate(current.getDate() + 7);
+    order++;
   }
 
   if (periods.length > 0) {
@@ -251,7 +299,7 @@ export function generatePEBsPeriods(
 }
 
 /**
- * CORRIGÉ: Génère les périodes pour un breakdown personnalisé
+ * CORRIGÉ: Génère les périodes pour un breakdown personnalisé avec IDs déterministes
  */
 export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
   const periods: BreakdownPeriod[] = [];
@@ -260,7 +308,14 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
     breakdown.customPeriods
       .sort((a, b) => a.order - b.order)
       .forEach((period) => {
-        const periodId = period.id || generateUniquePeriodId();
+        // CORRIGÉ: Utiliser l'ID du breakdown pour Custom ou générer un ID déterministe
+        const periodId = period.id || generateDeterministicPeriodId(
+          breakdown.id,
+          breakdown.type,
+          undefined,
+          period.name,
+          period.order
+        );
         
         periods.push({
           id: periodId,
@@ -268,7 +323,8 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
           value: '',
           breakdownId: breakdown.id,
           breakdownName: breakdown.name,
-          startDate: period.date ? parseDate(period.date) : undefined
+          startDate: period.date ? parseDate(period.date) : undefined,
+          periodName: period.name
         });
       });
   }
@@ -277,7 +333,7 @@ export function generateCustomPeriods(breakdown: Breakdown): BreakdownPeriod[] {
 }
 
 /**
- * CORRIGÉ: Génère toutes les périodes pour tous les breakdowns
+ * CORRIGÉ: Génère toutes les périodes pour tous les breakdowns avec IDs déterministes
  */
 export function generateAllPeriods(
   breakdowns: Breakdown[], 
@@ -311,6 +367,7 @@ export function generateAllPeriods(
     }
 
     console.log(`✅ ${periods.length} périodes générées pour ${breakdown.name}`);
+    console.log(`🆔 IDs générés:`, periods.map(p => `${p.label}: ${p.id}`));
     allPeriods.push(...periods);
   });
 
@@ -330,18 +387,15 @@ export function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
   return null;
 }
 
-// Dans breakdownPeriodUtils.ts
-
 /**
  * CORRIGÉ: Calcule les périodes concernées par des dates de distribution
- * Ajout du paramètre breakdown pour avoir accès au type correct
  */
 export function getPeriodsForDistribution(
   periods: BreakdownPeriod[],
   breakdownId: string, 
   startDate: string, 
   endDate: string,
-  breakdown?: Breakdown  // NOUVEAU: paramètre breakdown pour connaître le type
+  breakdown?: Breakdown
 ): BreakdownPeriod[] {
   if (!startDate || !endDate) return [];
 
@@ -359,22 +413,18 @@ export function getPeriodsForDistribution(
       return true;
     }
 
-    // CORRIGÉ: Utiliser le breakdown passé en paramètre pour déterminer le type
     let periodEnd = new Date(periodStartDate);
     
     if (breakdown) {
-      // Calculer la fin de période selon le type réel du breakdown
       if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
-        periodEnd.setDate(periodEnd.getDate() + 6); // Fin de semaine (dimanche)
+        periodEnd.setDate(periodEnd.getDate() + 6);
       } else if (breakdown.type === 'Mensuel') {
         periodEnd.setMonth(periodEnd.getMonth() + 1);
-        periodEnd.setDate(0); // Dernier jour du mois
+        periodEnd.setDate(0);
       } else if (breakdown.type === 'Custom') {
-        // Pour les custom, on considère que la période dure 1 jour si pas d'autre info
         periodEnd = new Date(periodStartDate);
       }
     } else {
-      // Fallback: essayer de déterminer le type par le nom (ancien comportement)
       if (period.breakdownName.includes('Hebdo') || period.breakdownName.includes('PEB')) {
         periodEnd.setDate(periodEnd.getDate() + 6);
       } else if (period.breakdownName.includes('Mensuel')) {
@@ -386,7 +436,6 @@ export function getPeriodsForDistribution(
       }
     }
 
-    // Vérifier si la période chevauche avec la plage de distribution
     const isInRange = periodStartDate <= distributionEnd && periodEnd >= distributionStart;
     
     console.log(`📅 Période ${period.label}: ${periodStartDate.toISOString().split('T')[0]} → ${periodEnd.toISOString().split('T')[0]} | Range: ${isInRange}`);
@@ -400,7 +449,7 @@ export function getPeriodsForDistribution(
 // ============================================================================
 
 /**
- * NOUVEAU: Crée les métadonnées d'une période selon le breakdown et les paramètres
+ * CORRIGÉ: Crée les métadonnées d'une période avec ID déterministe
  */
 export function createPeriodMetadata(
   breakdown: Breakdown,
@@ -408,7 +457,9 @@ export function createPeriodMetadata(
   customName?: string,
   order: number = 0
 ): GeneratedPeriodMeta {
-  const periodId = generateUniquePeriodId();
+  const periodId = breakdown.type === 'Custom' 
+    ? generateDeterministicPeriodId(breakdown.id, breakdown.type, undefined, customName, order)
+    : generateDeterministicPeriodId(breakdown.id, breakdown.type, periodDate);
   
   if (breakdown.type === 'Custom') {
     return {
@@ -430,7 +481,7 @@ export function createPeriodMetadata(
 }
 
 /**
- * NOUVEAU: Génère toutes les métadonnées de périodes pour un breakdown donné
+ * CORRIGÉ: Génère toutes les métadonnées de périodes avec IDs déterministes
  */
 export function generatePeriodMetadataForBreakdown(
   breakdown: Breakdown,
@@ -444,8 +495,16 @@ export function generatePeriodMetadataForBreakdown(
       breakdown.customPeriods
         .sort((a, b) => a.order - b.order)
         .forEach((period, index) => {
+          const periodId = period.id || generateDeterministicPeriodId(
+            breakdown.id,
+            breakdown.type,
+            undefined,
+            period.name,
+            index
+          );
+          
           metadata.push({
-            id: period.id || generateUniquePeriodId(),
+            id: periodId,
             name: period.name,
             order: index
           });
