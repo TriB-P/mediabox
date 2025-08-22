@@ -35,7 +35,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     TE_Name: '',
     TE_URL: '',
     TE_Duplicate: false,
-    TE_Language: 'Français'
+    TE_Language: 'FR'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,7 +59,7 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
         TE_Name: '',
         TE_URL: '',
         TE_Duplicate: false,
-        TE_Language: 'Français'
+        TE_Language: 'FR'
       });
     }
     setErrors({});

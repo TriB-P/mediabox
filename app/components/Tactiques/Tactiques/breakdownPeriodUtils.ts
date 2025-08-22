@@ -330,14 +330,18 @@ export function extractPeriodStartDate(period: BreakdownPeriod): Date | null {
   return null;
 }
 
+// Dans breakdownPeriodUtils.ts
+
 /**
  * CORRIGÉ: Calcule les périodes concernées par des dates de distribution
+ * Ajout du paramètre breakdown pour avoir accès au type correct
  */
 export function getPeriodsForDistribution(
   periods: BreakdownPeriod[],
   breakdownId: string, 
   startDate: string, 
-  endDate: string
+  endDate: string,
+  breakdown?: Breakdown  // NOUVEAU: paramètre breakdown pour connaître le type
 ): BreakdownPeriod[] {
   if (!startDate || !endDate) return [];
 
@@ -345,26 +349,49 @@ export function getPeriodsForDistribution(
   const distributionStart = parseDate(startDate);
   const distributionEnd = parseDate(endDate);
 
+  console.log(`🔍 Distribution: ${startDate} → ${endDate}`);
+  console.log(`📊 ${breakdownPeriods.length} périodes à filtrer pour breakdown ${breakdownId}`);
+
   return breakdownPeriods.filter(period => {
     const periodStartDate = extractPeriodStartDate(period);
-    if (!periodStartDate) return true;
-
-    // Calculer la fin de période selon le type de breakdown
-    const breakdown = breakdownPeriods.find(p => p.id === period.id);
-    if (!breakdown) return true;
-
-    const periodEnd = new Date(periodStartDate);
-    
-    if (breakdown.breakdownName.includes('Hebdo') || breakdown.breakdownName.includes('PEB')) {
-      periodEnd.setDate(periodEnd.getDate() + 6);
-    } else if (breakdown.breakdownName.includes('Mensuel')) {
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-      periodEnd.setDate(0);
-    } else {
+    if (!periodStartDate) {
+      console.log(`⚠️ Pas de date de début pour période ${period.id}, inclusion par défaut`);
       return true;
     }
 
-    return periodStartDate <= distributionEnd && periodEnd >= distributionStart;
+    // CORRIGÉ: Utiliser le breakdown passé en paramètre pour déterminer le type
+    let periodEnd = new Date(periodStartDate);
+    
+    if (breakdown) {
+      // Calculer la fin de période selon le type réel du breakdown
+      if (breakdown.type === 'Hebdomadaire' || breakdown.type === 'PEBs') {
+        periodEnd.setDate(periodEnd.getDate() + 6); // Fin de semaine (dimanche)
+      } else if (breakdown.type === 'Mensuel') {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        periodEnd.setDate(0); // Dernier jour du mois
+      } else if (breakdown.type === 'Custom') {
+        // Pour les custom, on considère que la période dure 1 jour si pas d'autre info
+        periodEnd = new Date(periodStartDate);
+      }
+    } else {
+      // Fallback: essayer de déterminer le type par le nom (ancien comportement)
+      if (period.breakdownName.includes('Hebdo') || period.breakdownName.includes('PEB')) {
+        periodEnd.setDate(periodEnd.getDate() + 6);
+      } else if (period.breakdownName.includes('Mensuel')) {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        periodEnd.setDate(0);
+      } else {
+        console.log(`⚠️ Type de breakdown inconnu pour ${period.breakdownName}, inclusion par défaut`);
+        return true;
+      }
+    }
+
+    // Vérifier si la période chevauche avec la plage de distribution
+    const isInRange = periodStartDate <= distributionEnd && periodEnd >= distributionStart;
+    
+    console.log(`📅 Période ${period.label}: ${periodStartDate.toISOString().split('T')[0]} → ${periodEnd.toISOString().split('T')[0]} | Range: ${isInRange}`);
+    
+    return isInRange;
   });
 }
 

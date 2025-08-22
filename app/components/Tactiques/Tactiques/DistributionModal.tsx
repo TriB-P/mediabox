@@ -92,104 +92,129 @@ export default function DistributionModal({
     });
   };
 
-  /**
-   * Calcule la valeur par période pour l'affichage
-   * MODIFIÉ: Prend en compte l'exclusion des périodes décochées
-   */
-  const getDistributionPreview = (): { periodsCount: number; valuePerPeriod: number } => {
-    if (!modalState.breakdownId || !modalState.totalAmount || 
-        !modalState.startDate || !modalState.endDate) {
-      return { periodsCount: 0, valuePerPeriod: 0 };
+// Dans DistributionModal.tsx - Corrections des appels à getPeriodsForDistribution
+
+/**
+ * Calcule la valeur par période pour l'affichage
+ * MODIFIÉ: Passage du breakdown en paramètre
+ */
+const getDistributionPreview = (): { periodsCount: number; valuePerPeriod: number } => {
+  if (!modalState.breakdownId || !modalState.totalAmount || 
+      !modalState.startDate || !modalState.endDate || !breakdown) {
+    return { periodsCount: 0, valuePerPeriod: 0 };
+  }
+
+  const totalAmount = parseFloat(modalState.totalAmount);
+  if (isNaN(totalAmount)) return { periodsCount: 0, valuePerPeriod: 0 };
+
+  // CORRIGÉ: Passer le breakdown en paramètre
+  const concernedPeriods = getPeriodsForDistribution(
+    periods,
+    modalState.breakdownId,
+    modalState.startDate,
+    modalState.endDate,
+    breakdown  // NOUVEAU: paramètre breakdown
+  );
+
+  // NOUVEAU: Récupérer les dates des périodes décochées
+  const uncheckedDates = getUncheckedDefaultPeriodStartDates();
+
+  // Filtrer selon les périodes actives pour le breakdown par défaut
+  const activePeriods = concernedPeriods.filter(period => {
+    if (!breakdown?.isDefault) {
+      // NOUVEAU: Pour les breakdowns non-par défaut, exclure selon les périodes décochées
+      return !shouldExcludePeriod(period, uncheckedDates);
     }
+    return getPeriodActiveStatus(period.id, period.breakdownId);
+  });
 
-    const totalAmount = parseFloat(modalState.totalAmount);
-    if (isNaN(totalAmount)) return { periodsCount: 0, valuePerPeriod: 0 };
+  const periodsCount = activePeriods.length;
+  const valuePerPeriod = periodsCount > 0 ? totalAmount / periodsCount : 0;
 
-    const concernedPeriods = getPeriodsForDistribution(
-      periods,
-      modalState.breakdownId,
-      modalState.startDate,
-      modalState.endDate
-    );
+  console.log(`🎯 Distribution preview: ${periodsCount} périodes actives, ${valuePerPeriod.toFixed(2)} par période`);
 
-    // NOUVEAU: Récupérer les dates des périodes décochées
-    const uncheckedDates = getUncheckedDefaultPeriodStartDates();
+  return { periodsCount, valuePerPeriod };
+};
 
-    // Filtrer selon les périodes actives pour le breakdown par défaut
-    const activePeriods = concernedPeriods.filter(period => {
-      if (!breakdown?.isDefault) {
-        // NOUVEAU: Pour les breakdowns non-par défaut, exclure selon les périodes décochées
-        return !shouldExcludePeriod(period, uncheckedDates);
-      }
-      return getPeriodActiveStatus(period.id, period.breakdownId);
-    });
+/**
+ * Confirme et applique la distribution
+ * MODIFIÉ: Passage du breakdown en paramètre
+ */
+const handleConfirmDistribution = (e: React.MouseEvent) => {
+  e.stopPropagation(); // Empêcher la propagation
 
-    const periodsCount = activePeriods.length;
-    const valuePerPeriod = periodsCount > 0 ? totalAmount / periodsCount : 0;
+  if (!modalState.breakdownId || !modalState.totalAmount || 
+      !modalState.startDate || !modalState.endDate || !breakdown) return;
 
-    return { periodsCount, valuePerPeriod };
-  };
+  const totalAmount = parseFloat(modalState.totalAmount);
+  if (isNaN(totalAmount)) return;
 
-  /**
-   * Confirme et applique la distribution
-   * MODIFIÉ: Ajoute l'exclusion des périodes décochées pour PEBs et Weekly
-   */
-  const handleConfirmDistribution = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Empêcher la propagation
+  console.log(`🚀 Début distribution: ${totalAmount} sur période ${modalState.startDate} → ${modalState.endDate}`);
 
-    if (!modalState.breakdownId || !modalState.totalAmount || 
-        !modalState.startDate || !modalState.endDate || !breakdown) return;
+  // CORRIGÉ: Passer le breakdown en paramètre
+  const concernedPeriods = getPeriodsForDistribution(
+    periods,
+    modalState.breakdownId,
+    modalState.startDate,
+    modalState.endDate,
+    breakdown  // NOUVEAU: paramètre breakdown
+  );
 
-    const totalAmount = parseFloat(modalState.totalAmount);
-    if (isNaN(totalAmount)) return;
+  console.log(`📊 ${concernedPeriods.length} périodes concernées par les dates`);
 
-    // Utiliser les périodes calculées selon les dates personnalisées
-    const concernedPeriods = getPeriodsForDistribution(
-      periods,
-      modalState.breakdownId,
-      modalState.startDate,
-      modalState.endDate
-    );
+  const isDefaultBreakdown = breakdown.isDefault;
+  const isPEBs = breakdown.type === 'PEBs';
 
-    const isDefaultBreakdown = breakdown.isDefault;
-    const isPEBs = breakdown.type === 'PEBs';
+  // NOUVEAU: Récupérer les dates des périodes décochées du breakdown par défaut
+  const uncheckedDates = getUncheckedDefaultPeriodStartDates();
 
-    // NOUVEAU: Récupérer les dates des périodes décochées du breakdown par défaut
-    const uncheckedDates = getUncheckedDefaultPeriodStartDates();
+  // Filtrer les périodes actives avec la nouvelle logique
+  const activePeriodsList = concernedPeriods.filter(period => {
+    if (isDefaultBreakdown) {
+      // Pour les breakdowns par défaut, utiliser le statut d'activation habituel
+      const isActive = getPeriodActiveStatus(period.id, breakdown.id) !== false;
+      console.log(`📅 Période ${period.label} (défaut): ${isActive ? 'active' : 'inactive'}`);
+      return isActive;
+    } else {
+      // NOUVEAU: Pour les autres breakdowns (PEBs, Weekly), exclure les périodes décochées
+      const shouldExclude = shouldExcludePeriod(period, uncheckedDates);
+      console.log(`📅 Période ${period.label} (non-défaut): ${shouldExclude ? 'exclue' : 'incluse'}`);
+      return !shouldExclude;
+    }
+  });
 
-    // Filtrer les périodes actives avec la nouvelle logique
-    const activePeriodsList = concernedPeriods.filter(period => {
-      if (isDefaultBreakdown) {
-        // Pour les breakdowns par défaut, utiliser le statut d'activation habituel
-        return getPeriodActiveStatus(period.id, breakdown.id) !== false;
+  console.log(`✅ ${activePeriodsList.length} périodes actives finales`);
+
+  if (activePeriodsList.length === 0) {
+    console.log(`❌ Aucune période active, abandon de la distribution`);
+    return;
+  }
+
+  const amountPerPeriod = totalAmount / activePeriodsList.length;
+  console.log(`💰 Montant par période: ${amountPerPeriod.toFixed(2)}`);
+
+  // Distribution selon le type et le champ choisi
+  activePeriodsList.forEach(period => {
+    if (isPEBs) {
+      if (modalState.pebsField === 'unitCost') {
+        // Distribuer sur le coût/unité, garder le volume existant
+        console.log(`🎯 Distribution PEBs unitCost sur ${period.label}: ${amountPerPeriod.toFixed(2)}`);
+        handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'unitCost');
       } else {
-        // NOUVEAU: Pour les autres breakdowns (PEBs, Weekly), exclure les périodes décochées
-        return !shouldExcludePeriod(period, uncheckedDates);
-      }
-    });
-
-    if (activePeriodsList.length === 0) return;
-
-    const amountPerPeriod = totalAmount / activePeriodsList.length;
-
-    // Distribution selon le type et le champ choisi
-    activePeriodsList.forEach(period => {
-      if (isPEBs) {
-        if (modalState.pebsField === 'unitCost') {
-          // Distribuer sur le coût/unité, garder le volume existant
-          handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'unitCost');
-        } else {
-          // Distribuer sur le volume, garder le coût/unité existant
-          handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'value');
-        }
-      } else {
-        // Pour les autres types, distribuer sur value
+        // Distribuer sur le volume, garder le coût/unité existant
+        console.log(`🎯 Distribution PEBs volume sur ${period.label}: ${amountPerPeriod.toFixed(2)}`);
         handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'value');
       }
-    });
+    } else {
+      // Pour les autres types, distribuer sur value
+      console.log(`🎯 Distribution standard sur ${period.label}: ${amountPerPeriod.toFixed(2)}`);
+      handlePeriodValueChange(period.id, amountPerPeriod.toFixed(2), 'value');
+    }
+  });
 
-    onClose();
-  };
+  console.log(`🎉 Distribution terminée avec succès`);
+  onClose();
+};
 
   /**
    * Handler pour le bouton Annuler avec stopPropagation

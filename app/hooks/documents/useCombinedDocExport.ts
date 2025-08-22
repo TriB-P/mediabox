@@ -1,4 +1,3 @@
-// app/hooks/documents/useCombinedDocExport.ts
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -19,6 +18,7 @@ interface UseCombinedDocExportReturn {
 
 /**
  * Hook personnalisé pour extraire diverses données d'une campagne et les exporter vers Google Sheets.
+ * MODIFIÉ : Passage de la langue du template au hook de breakdown pour traduction des noms
  * CORRIGÉ : Gestion optimale des nombres selon la locale pour éviter les formats textuels.
  * - Templates EN : nombres avec points affichés comme nombres
  * - Templates FR : nombres avec virgules affichés comme nombres
@@ -74,61 +74,55 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * NOUVELLE FONCTION : Nettoie et convertit les données en nombres purs.
-   * Cette fonction s'assure que tous les nombres sont envoyés comme type 'number' 
-   * et non comme chaînes de caractères, évitant ainsi le format textuel avec apostrophe.
+   * MODIFIÉ : Exclut spécifiquement la colonne 'Value_text' de l'onglet 'MB_Splits'.
    */
-  const convertToCleanNumbers = useCallback((data: any[][]): (string | number)[][] => {
-    return data.map(row => 
-      row.map(cell => {
+  const convertToCleanNumbers = useCallback((data: any[][], sheetName: string): (string | number)[][] => {
+    let valueTextIndex = -1;
+    // Si nous sommes sur l'onglet MB_Splits et qu'il y a des données, trouver l'index de la colonne 'Value_text'
+    if (sheetName === 'MB_Splits' && data.length > 0) {
+      const headerRow = data[0];
+      valueTextIndex = headerRow.findIndex(header => header === 'Value_text');
+    }
+
+    return data.map((row, rowIndex) => 
+      row.map((cell, colIndex) => {
+        // Condition d'exclusion : si c'est la colonne 'Value_text' dans 'MB_Splits' (et pas l'en-tête)
+        if (valueTextIndex !== -1 && colIndex === valueTextIndex && rowIndex > 0) {
+          // Retourner la valeur comme chaîne de caractères pour éviter la conversion
+          return cell === null || cell === undefined ? cell : String(cell);
+        }
+
+        // --- Logique de conversion originale ---
         if (cell === null || cell === undefined || cell === '') {
           return cell;
         }
         
-        // Si c'est un objet avec une propriété value
         if (typeof cell === 'object' && cell !== null && 'value' in cell) {
           const value = cell.value;
-          
           if (typeof value === 'string') {
             const cleanValue = value.trim();
-            // Nettoyer les caractères non numériques en gardant points, virgules et signes
-            const normalizedValue = cleanValue
-              .replace(/[^\d.,\-+]/g, '') // Garder chiffres, points, virgules, signes
-              .replace(/,/g, '.'); // Normaliser virgules en points pour JavaScript
-            
+            const normalizedValue = cleanValue.replace(/[^\d.,\-+]/g, '').replace(/,/g, '.');
             const numericValue = Number(normalizedValue);
             if (!isNaN(numericValue) && isFinite(numericValue)) {
-              return numericValue; // Retourner comme NUMBER pur
+              return numericValue;
             }
           }
-          
           return typeof value === 'number' ? value : String(value);
         }
         
-        // Si c'est déjà un nombre, le garder tel quel
         if (typeof cell === 'number') {
           return cell;
         }
         
-        // Si c'est une chaîne, essayer de la convertir
         if (typeof cell === 'string') {
           const cleanValue = cell.trim();
-          
-          // Ne pas convertir les chaînes vides, les IDs ou les textes longs
-          if (cleanValue === '' || 
-              cleanValue.includes('-') && cleanValue.length > 10 || 
-              cleanValue.length > 15 ||
-              /[a-zA-Z]/.test(cleanValue)) {
+          if (cleanValue === '' || (cleanValue.includes('-') && cleanValue.length > 10) || cleanValue.length > 15 || /[a-zA-Z]/.test(cleanValue)) {
             return cell;
           }
-          
-          // Nettoyer et normaliser les nombres
-          const normalizedValue = cleanValue
-            .replace(/[^\d.,\-+]/g, '')
-            .replace(/,/g, '.');
-          
+          const normalizedValue = cleanValue.replace(/[^\d.,\-+]/g, '').replace(/,/g, '.');
           const numericValue = Number(normalizedValue);
           if (!isNaN(numericValue) && isFinite(numericValue)) {
-            return numericValue; // Retourner comme NUMBER pur
+            return numericValue;
           }
         }
         
@@ -196,8 +190,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * FONCTION CORRIGÉE : Écrit un tableau de données 2D dans un Google Sheet.
-   * Utilise exclusivement USER_ENTERED pour que Google Sheets interprète automatiquement
-   * les nombres selon la locale du document (. pour EN, , pour FR) tout en gardant le type number.
+   * MODIFIÉ : Passe le nom de l'onglet à convertToCleanNumbers.
    */
   const writeToGoogleSheet = useCallback(async (
     sheetId: string,
@@ -210,17 +203,13 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       throw new Error(t('useCombinedDocExport.error.accessTokenWriteFailed'));
     }
 
-    // Nettoyer les données pour obtenir des nombres purs
-    const cleanValues = convertToCleanNumbers(values);
+    // Nettoyer les données en passant le nom de l'onglet pour les exclusions
+    const cleanValues = convertToCleanNumbers(values, sheetName);
     
     console.log(`[SHEETS API] Écriture de ${cleanValues.length} lignes dans ${sheetName}!${range}`);
     console.log(`[SHEETS API] Échantillon de données:`, cleanValues.slice(0, 2));
 
     try {
-      // UTILISER EXCLUSIVEMENT USER_ENTERED
-      // Cette méthode permet à Google Sheets d'interpréter automatiquement :
-      // - Les nombres comme des nombres (pas de texte avec apostrophe)
-      // - L'affichage selon la locale du document (. ou , automatiquement)
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheetName}!${range}?valueInputOption=USER_ENTERED`,
         {
@@ -331,6 +320,27 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   }, []);
 
   /**
+   * NOUVEAU: Détermine la langue du template selon sa configuration TE_Language
+   */
+  const getTemplateLanguage = useCallback((template: any, exportLanguage: 'FR' | 'EN'): 'FR' | 'EN' => {
+    if (!template?.TE_Language) {
+      console.log('[EXPORT] Template sans TE_Language, utilisation de la langue d\'export:', exportLanguage);
+      return exportLanguage;
+    }
+
+    const templateLang = template.TE_Language;
+    
+    if (templateLang === 'FR' || templateLang === 'EN') {
+      console.log('[EXPORT] Langue du template détectée:', templateLang);
+      return templateLang;
+    }
+    
+    // Pour 'Auto' ou toute autre valeur, utiliser la langue d'export
+    console.log('[EXPORT] Template en mode Auto, utilisation de la langue d\'export:', exportLanguage);
+    return exportLanguage;
+  }, []);
+
+  /**
    * Gère la synchronisation des onglets si le template l'exige.
    */
   const handleTabsRefresh = useCallback(async (
@@ -374,7 +384,8 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   }, [duplicateAndManageTabs, t]);
 
   /**
-   * FONCTION PRINCIPALE CORRIGÉE pour extraire et exporter les données combinées vers Google Sheets.
+   * FONCTION PRINCIPALE MODIFIÉE pour extraire et exporter les données combinées vers Google Sheets.
+   * NOUVEAU: Passage de la langue du template au hook de breakdown pour traduction des noms.
    * Les nombres seront automatiquement affichés avec la bonne locale (. pour EN, , pour FR)
    * mais stockés comme des vrais nombres (pas du texte).
    */
@@ -404,7 +415,11 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       // 0.1. Récupérer les informations du template
       const template = await findTemplateFromDocument(clientId, campaignId, versionId, sheetUrl);
 
-      // 0.2. Synchroniser les onglets si nécessaire (AVANT de vider les feuilles)
+      // 0.2. NOUVEAU: Déterminer la langue à utiliser pour les breakdowns
+      const breakdownLanguage = getTemplateLanguage(template, exportLanguage);
+      console.log(`[EXPORT] Langue pour breakdown: ${breakdownLanguage} (Template: ${template?.TE_Language || 'N/A'}, Export: ${exportLanguage})`);
+
+      // 0.3. Synchroniser les onglets si nécessaire (AVANT de vider les feuilles)
       if (template) {
         const tabsResult = await handleTabsRefresh(template, sheetId, clientId, campaignId, versionId);
         if (!tabsResult.success) {
@@ -412,7 +427,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         }
       }
 
-      // 0.3. Vider les feuilles cibles après synchronisation des onglets
+      // 0.4. Vider les feuilles cibles après synchronisation des onglets
       await clearSheetRange(sheetId, 'MB_Data', 'A:EZ');
       await clearSheetRange(sheetId, 'MB_Splits', 'A:EZ');
 
@@ -420,8 +435,8 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       const campaignDataResult = await extractCampaignData(clientId, campaignId);
       if (campaignError) throw new Error(campaignError);
 
-      // 2. Extraire les données de breakdown
-      const breakdownDataResult = await extractBreakdownData(clientId, campaignId, versionId);
+      // 2. MODIFIÉ: Extraire les données de breakdown avec la langue du template
+      const breakdownDataResult = await extractBreakdownData(clientId, campaignId, versionId, breakdownLanguage);
       if (breakdownError) throw new Error(breakdownError);
 
       // 3. Extraire les données de hiérarchie nettoyées
@@ -448,19 +463,10 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
       console.log(`[COMBINED EXPORT] Conversion des shortcodes terminée en ${exportLanguage}, écriture vers Google Sheets...`);
 
       // 6. Écrire les données converties dans Google Sheets
-      // IMPORTANT : Les nombres seront automatiquement affichés selon la locale du document
-      // - Document EN : affichage avec points (1234.56) 
-      // - Document FR : affichage avec virgules (1234,56)
-      // - Dans tous les cas : stockés comme nombres (pas de texte avec apostrophe)
       const writePromises = [];
 
-      // Données de campagne converties dans MB_Data, cellule A1
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', convertedCampaignData));
-
-      // Données nettoyées converties dans MB_Data, cellule A4
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', convertedCleanedData));
-
-      // Données de breakdown dans MB_Splits, cellule A1
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Splits', 'A1', breakdownDataResult));
 
       const results = await Promise.all(writePromises);
@@ -472,7 +478,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
       const templateLang = template?.TE_Language || 'Auto';
       console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès`);
-      console.log(`[COMBINED EXPORT] Template: ${templateLang}, Shortcodes: ${exportLanguage}, Nombres: format automatique selon locale du document`);
+      console.log(`[COMBINED EXPORT] Template: ${templateLang}, Shortcodes: ${exportLanguage}, Breakdown: ${breakdownLanguage}, Nombres: format automatique selon locale du document`);
       return true;
 
     } catch (err) {
@@ -497,7 +503,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     extractCampaignData, campaignError,
     convertShortcodes, convertError,
     extractSheetId, writeToGoogleSheet, clearSheetRange,
-    findTemplateFromDocument, handleTabsRefresh
+    findTemplateFromDocument, getTemplateLanguage, handleTabsRefresh
   ]);
 
   const overallLoading = loading || cleanLoading || breakdownLoading || campaignLoading || convertLoading || tabsLoading;

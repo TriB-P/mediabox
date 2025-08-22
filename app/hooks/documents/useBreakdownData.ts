@@ -1,10 +1,13 @@
 // app/hooks/documents/useBreakdownData.ts
 /**
- * AMÉLIORÉ: Hook pour l'extraction et l'aplatissement des données de breakdown avec:
+ * MODIFIÉ: Hook pour l'extraction et l'aplatissement des données de breakdown avec:
  * - Support des IDs uniques pour les périodes
  * - Distinction entre champs date (automatiques) et name (custom)
  * - Structure de données cohérente avec les améliorations
  * - Tri amélioré par date chronologique pour tous les types
+ * - Support de la langue pour traduction des noms de breakdown
+ * - Suppression de Period ID
+ * - Séparation de Value en Value_text et Value_number avec forçage de format
  */
 'use client';
 
@@ -14,7 +17,7 @@ import { getOnglets, getSections, getTactiques } from '../../lib/tactiqueService
 import { getBreakdowns } from '../../lib/breakdownService';
 
 interface UseBreakdownDataReturn {
-  extractBreakdownData: (clientId: string, campaignId: string, versionId: string) => Promise<string[][] | null>;
+  extractBreakdownData: (clientId: string, campaignId: string, versionId: string, language?: 'FR' | 'EN') => Promise<string[][] | null>;
   loading: boolean;
   error: string | null;
   data: string[][] | null;
@@ -25,18 +28,17 @@ interface BreakdownDataRow {
   breakdownId: string;
   breakdownName: string;
   breakdownType: string;
-  periodId: string;           // NOUVEAU: ID unique
-  periodName: string;         // Nom d'affichage (calculé ou custom)
-  value: string;
+  valueText: string;          // NOUVEAU: Valeur forcée en texte
+  valueNumber: number | null; // NOUVEAU: Valeur forcée en nombre
   unitCost: string;    
   total: string;       
   isToggled: boolean;
   order: number;
   breakdownOrder: number;
   periodOrder: number;
-  startDate: Date | null;     // NOUVEAU: Date de début calculée selon le type
-  customName: string;         // NOUVEAU: Nom custom pour type Custom uniquement
-  storedDate: string;         // NOUVEAU: Date stockée pour types automatiques
+  startDate: Date | null;     // Date de début calculée selon le type (pour tri seulement)
+  customName: string;         // Nom custom pour type Custom uniquement
+  storedDate: string;         // Date stockée pour types automatiques
 }
 
 /**
@@ -110,17 +112,96 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
-   * AMÉLIORÉ: Calcule la date de début et le nom d'affichage d'une période selon le breakdown
+   * NOUVEAU: Traduit le nom du breakdown selon la langue spécifiée
+   */
+  const translateBreakdownName = useCallback((
+    breakdownName: string,
+    language: 'FR' | 'EN' = 'FR'
+  ): string => {
+    if (language === 'EN' && breakdownName === 'Calendrier') {
+      return 'Calendar';
+    }
+    return breakdownName;
+  }, []);
+
+  /**
+   * MODIFIÉ: Force une valeur vers le format texte et numérique.
+   * Si la valeur est un nombre entier, elle n'aura pas de décimales.
+   * @param {any} value - La valeur à forcer
+   * @returns {{text: string, number: number | null}} Valeurs forcées
+   */
+  const forceValueFormats = useCallback((value: any): { text: string; number: number | null } => {
+    // Si la valeur est null, undefined ou une chaîne vide, on retourne des valeurs vides
+    if (value === null || value === undefined || value === '') {
+      return { text: '', number: null };
+    }
+  
+    let numericValue: number | null = null;
+    let textValue: string = '';
+
+    // Si la valeur est déjà un nombre valide
+    if (typeof value === 'number' && isFinite(value)) {
+      numericValue = value;
+    } else if (typeof value === 'string') {
+      const trimmedValue = value.trim();
+  
+      if (trimmedValue === '') {
+        return { text: '', number: null };
+      }
+      
+      const parsedValue = Number(trimmedValue);
+      if (!isNaN(parsedValue) && isFinite(parsedValue)) {
+        numericValue = parsedValue;
+      } else {
+        // La chaîne n'est pas un nombre, on la retourne telle quelle
+        return {
+          text: String(value),
+          number: null,
+        };
+      }
+    } else {
+      // Si le type n'est ni nombre ni string, on le retourne tel quel
+      return {
+        text: String(value),
+        number: null,
+      };
+    }
+    
+    // Si on a une valeur numérique valide
+    if (numericValue !== null) {
+      // Vérifie si le nombre est un entier
+      if (numericValue % 1 === 0) {
+        // C'est un entier, pas de décimales
+        textValue = `'${numericValue}`;
+      } else {
+        // Le nombre a des décimales, on le formate en 2 décimales
+        textValue = `'${numericValue.toFixed(2)}`;
+      }
+
+      return {
+        text: textValue,
+        number: numericValue,
+      };
+    }
+
+    // Cas de secours, ne devrait pas être atteint
+    return {
+      text: String(value),
+      number: null,
+    };
+  }, []);
+
+  /**
+   * Calcule la date de début d'une période selon le breakdown (pour tri uniquement)
    */
   const calculatePeriodMetadata = useCallback((
     periodId: string,
     periodData: any,
     breakdownInfo: any
-  ): { startDate: Date | null; displayName: string; customName: string; storedDate: string } => {
+  ): { startDate: Date | null; customName: string; storedDate: string } => {
     if (!breakdownInfo) {
       return { 
         startDate: null, 
-        displayName: periodId, 
         customName: '',
         storedDate: ''
       };
@@ -128,42 +209,24 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
     try {
       if (breakdownInfo.type === 'Custom') {
-        // NOUVEAU: Pour Custom, utiliser le nom stocké
+        // Pour Custom, utiliser le nom stocké
         const customName = periodData.name || '';
         return {
           startDate: null, // Pas de date automatique pour Custom
-          displayName: customName || periodId,
           customName: customName,
           storedDate: ''
         };
       } else {
-        // NOUVEAU: Pour les types automatiques, utiliser la date stockée
+        // Pour les types automatiques, utiliser la date stockée
         const storedDate = periodData.date || '';
         let startDate: Date | null = null;
-        let displayName = periodId;
 
         if (storedDate) {
           startDate = new Date(storedDate);
-          
-          // Générer le nom d'affichage selon le type
-          if (breakdownInfo.type === 'Mensuel') {
-            const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
-                              'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-            const month = monthNames[startDate.getMonth()];
-            const year = startDate.getFullYear().toString().slice(-2);
-            displayName = `${month} ${year}`;
-          } else if (breakdownInfo.type === 'Hebdomadaire' || breakdownInfo.type === 'PEBs') {
-            const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 
-                              'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-            const day = startDate.getDate().toString().padStart(2, '0');
-            const month = monthNames[startDate.getMonth()];
-            displayName = `${day} ${month}`;
-          }
         }
 
         return {
           startDate,
-          displayName,
           customName: '',
           storedDate
         };
@@ -172,7 +235,6 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       console.warn('Erreur lors du calcul des métadonnées de période:', periodId, error);
       return { 
         startDate: null, 
-        displayName: periodId, 
         customName: '',
         storedDate: ''
       };
@@ -180,11 +242,12 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
-   * AMÉLIORÉ: Applatit les données de breakdown avec nouvelle structure
+   * MODIFIÉ: Applatit les données de breakdown avec traduction et colonnes simplifiées
    */
   const flattenBreakdownData = useCallback((
     tactiques: any[], 
-    breakdownsInfo: {[key: string]: any}
+    breakdownsInfo: {[key: string]: any},
+    language: 'FR' | 'EN' = 'FR'
   ): BreakdownDataRow[] => {
     const flattenedData: BreakdownDataRow[] = [];
 
@@ -198,7 +261,9 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       Object.entries(tactique.breakdowns).forEach(([breakdownId, breakdownData]: [string, any]) => {
         // Récupérer les infos du breakdown depuis la campagne
         const breakdownInfo = breakdownsInfo[breakdownId];
-        const breakdownName = breakdownInfo?.name || 'Breakdown inconnu';
+        const originalBreakdownName = breakdownInfo?.name || 'Breakdown inconnu';
+        // NOUVEAU: Appliquer la traduction
+        const breakdownName = translateBreakdownName(originalBreakdownName, language);
         const breakdownType = breakdownInfo?.type || 'Type inconnu';
         const breakdownOrder = breakdownInfo?.order || 0;
 
@@ -207,19 +272,22 @@ export function useBreakdownData(): UseBreakdownDataReturn {
           return;
         }
 
-        // NOUVEAU: Parcourir chaque période avec ID unique
+        // Parcourir chaque période avec ID unique
         Object.entries(breakdownData.periods).forEach(([periodId, periodData]: [string, any]) => {
-          // NOUVEAU: Calculer les métadonnées de la période
-          const { startDate, displayName, customName, storedDate } = calculatePeriodMetadata(
+          // Calculer les métadonnées de la période
+          const { startDate, customName, storedDate } = calculatePeriodMetadata(
             periodId, 
             periodData, 
             breakdownInfo
           );
 
+          // NOUVEAU: Forcer les formats de valeur
+          const { text: valueText, number: valueNumber } = forceValueFormats(periodData.value);
+
           // Utiliser l'ordre stocké sur Firebase ou calculer un ordre de fallback
           let periodOrder = periodData.order || 0;
           
-          // NOUVEAU: Pour les types automatiques, utiliser la date pour l'ordre
+          // Pour les types automatiques, utiliser la date pour l'ordre
           if (startDate && periodOrder === 0) {
             // Convertir la date en nombre pour tri chronologique
             periodOrder = startDate.getTime();
@@ -228,26 +296,25 @@ export function useBreakdownData(): UseBreakdownDataReturn {
           flattenedData.push({
             tactiqueId: tactique.id,
             breakdownId: breakdownId,
-            breakdownName: breakdownName,
+            breakdownName: breakdownName, // Nom traduit
             breakdownType: breakdownType,
-            periodId: periodId, // NOUVEAU: ID unique
-            periodName: displayName, // NOUVEAU: Nom d'affichage calculé
-            value: periodData.value || '',
+            valueText: valueText,         // NOUVEAU: Valeur en texte
+            valueNumber: valueNumber,     // NOUVEAU: Valeur en nombre
             unitCost: periodData.unitCost || '',
             total: periodData.total || '',
             isToggled: periodData.isToggled !== undefined ? periodData.isToggled : true,
             order: periodData.order || 0,
             breakdownOrder: breakdownOrder,
             periodOrder: periodOrder,
-            startDate: startDate, // NOUVEAU: Date calculée
-            customName: customName, // NOUVEAU: Nom custom
-            storedDate: storedDate // NOUVEAU: Date stockée
+            startDate: startDate, // Utilisé uniquement pour le tri
+            customName: customName,
+            storedDate: storedDate
           });
         });
       });
     });
 
-    // AMÉLIORÉ: Tri par date chronologique puis par ordre
+    // Tri par date chronologique puis par ordre
     flattenedData.sort((a, b) => {
       // 1. Tri primaire : date chronologique (null à la fin)
       if (a.startDate && b.startDate) {
@@ -274,26 +341,24 @@ export function useBreakdownData(): UseBreakdownDataReturn {
     });
 
     return flattenedData;
-  }, [calculatePeriodMetadata]);
+  }, [calculatePeriodMetadata, translateBreakdownName, forceValueFormats]);
 
   /**
-   * AMÉLIORÉ: Transforme les données aplaties en tableau 2D avec nouvelles colonnes
+   * MODIFIÉ: Transforme les données aplaties en tableau 2D avec nouvelles colonnes
    */
   const transformToTable = useCallback((flattenedData: BreakdownDataRow[]): string[][] => {
     const table: string[][] = [];
     
-    // 1. NOUVEAU: En-têtes avec colonnes améliorées
+    // 1. MODIFIÉ: En-têtes avec nouvelles colonnes (suppression Period ID, ajout Value_text/Value_number)
     const headers = [
       'Tactique ID',
       'Breakdown Name', 
       'Type',
-      'Period ID',        // NOUVEAU: ID unique
-      'Period Name',      // NOUVEAU: Nom d'affichage
-      'Date',            // Date de début (automatiques) ou vide (custom)
-      'Custom Name',     // NOUVEAU: Nom custom (Custom uniquement) ou vide
-      'Stored Date',     // NOUVEAU: Date stockée en Firebase
+      'Value_text',       // NOUVEAU: Valeur forcée en texte
+      'Value_number',     // NOUVEAU: Valeur forcée en nombre
+      'Custom Name',      // Nom custom (Custom uniquement) ou vide
+      'Stored Date',      // Date stockée en Firebase
       'Order',
-      'Value',
       'Unit Cost',   
       'Total',        
       'isToggled'
@@ -302,20 +367,15 @@ export function useBreakdownData(): UseBreakdownDataReturn {
 
     // 2. Ajouter chaque ligne de données
     flattenedData.forEach(row => {
-      // Formater la date en string ISO ou vide si null
-      const dateString = row.startDate ? row.startDate.toISOString().split('T')[0] : '';
-
       table.push([
         row.tactiqueId,
         row.breakdownName,
         row.breakdownType,
-        row.periodId,               // NOUVEAU: ID unique
-        row.periodName,             // NOUVEAU: Nom d'affichage
-        dateString,                 // Date de début calculée
-        row.customName,             // NOUVEAU: Nom custom
-        row.storedDate,             // NOUVEAU: Date stockée
+        row.valueText,              // Valeur forcée en texte
+        row.valueNumber !== null ? row.valueNumber.toString() : '', // Valeur en nombre convertie en string (ou vide si null)
+        row.customName,             // Nom custom
+        row.storedDate,             // Date stockée
         row.order.toString(),
-        row.value,
         row.unitCost,       
         row.total,   
         row.isToggled.toString()
@@ -326,12 +386,13 @@ export function useBreakdownData(): UseBreakdownDataReturn {
   }, []);
 
   /**
-   * AMÉLIORÉ: Fonction principale pour extraire et aplatir les données de breakdown
+   * MODIFIÉ: Fonction principale pour extraire et aplatir les données de breakdown avec support de la langue
    */
   const extractBreakdownData = useCallback(async (
     clientId: string, 
     campaignId: string, 
-    versionId: string
+    versionId: string,
+    language: 'FR' | 'EN' = 'FR'
   ): Promise<string[][] | null> => {
     if (!user) {
       throw new Error('Utilisateur non authentifié');
@@ -342,14 +403,16 @@ export function useBreakdownData(): UseBreakdownDataReturn {
       setError(null);
       setData(null);
 
+      console.log(`[BREAKDOWN] Extraction avec langue: ${language} - Nouvelles colonnes: Value_text, Value_number`);
+
       // 1. Récupérer toutes les tactiques avec leurs breakdowns
       const tactiques = await fetchAllTactiques(clientId, campaignId, versionId);
 
       // 2. Récupérer les informations des breakdowns de la campagne
       const breakdownsInfo = await fetchBreakdownsInfo(clientId, campaignId);
 
-      // 3. Aplatir les données de breakdown
-      const flattenedData = flattenBreakdownData(tactiques, breakdownsInfo);
+      // 3. Aplatir les données de breakdown avec traduction
+      const flattenedData = flattenBreakdownData(tactiques, breakdownsInfo, language);
 
       // 4. Transformer en tableau 2D
       const table = transformToTable(flattenedData);

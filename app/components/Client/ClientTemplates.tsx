@@ -3,6 +3,7 @@
  * Son rôle est d'afficher et de gérer la liste des gabarits (templates) associés à un client sélectionné.
  * Il permet de visualiser, ajouter, modifier et supprimer des gabarits en interagissant avec la base de données Firebase.
  * Le composant gère également les permissions des utilisateurs pour s'assurer que seuls les utilisateurs autorisés peuvent effectuer des modifications.
+ * MODIFIÉ: Affichage direct des codes FR/EN
  */
 'use client';
 
@@ -215,7 +216,9 @@ export default function ClientTemplates() {
                       {template.TE_URL}
                     </a>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{template.TE_Language}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {template.TE_Language}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {template.TE_Duplicate ? t('clientTemplates.table.body.yes') : t('clientTemplates.table.body.no')}
                   </td>
