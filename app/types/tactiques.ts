@@ -1,11 +1,32 @@
 // app/types/tactiques.ts
 
-// ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
+// ==================== IMPORTS DES TYPES DE CONFIGURATION ET VALIDATION ====================
 
 import type { TaxonomyFormat, FieldSource } from '../config/taxonomyFields';
 export type { TaxonomyFormat, FieldSource };
 
-// ==================== INTERFACE SECTION CORRIGÉE ====================
+// NOUVEAUX IMPORTS pour la validation des dates
+import type { 
+  DateRange, 
+  DateHierarchy, 
+  TagDates, 
+  DateLimits, 
+  ValidationError, 
+  ValidationResult, 
+  EntityLevel 
+} from '../lib/dateValidationService';
+
+export type { 
+  DateRange, 
+  DateHierarchy, 
+  TagDates, 
+  DateLimits, 
+  ValidationError, 
+  ValidationResult, 
+  EntityLevel 
+};
+
+// ==================== INTERFACE SECTION ====================
 
 export interface Section {
   id: string;
@@ -13,11 +34,11 @@ export interface Section {
   SECTION_Order: number;
   SECTION_Color?: string;
   SECTION_Budget?: number; // Calculé à partir de la somme des budgets des tactiques
-  isExpanded?: boolean; // 🔥 AJOUTÉ : État d'expansion pour l'UI
-  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
+  isExpanded?: boolean; // État d'expansion pour l'UI
+  isSelected?: boolean; // État de sélection pour l'UI
 }
 
-// ==================== TYPES EXISTANTS (INCHANGÉS) ====================
+// ==================== INTERFACE TACTIQUE ====================
 
 export interface Tactique {
   id: string;
@@ -78,22 +99,21 @@ export interface Tactique {
   TC_Kpi_CostPer_5?: number; // Coût par 5
   TC_Kpi_Volume_5?: number; // Volume 5
 
-  // 🔥 NOUVEAUX CHAMPS TAGS
+  // CHAMPS TAGS
   TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
   TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
   TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
   TC_CM360_Volume_Linked_To_Unit_Volume?: boolean; // Lie automatiquement TC_CM360_Volume à TC_Unit_Volume
 
-
   // Champs Admin
   TC_Billing_ID?: string; // Numéro de facturation
   TC_PO?: string; // PO
 
-  // Champs legacy (à conserver pour compatibilité)
+  // ✅ HARMONISÉ : Dates en string (cohérent avec le reste)
   TC_Placement?: string; // Placement média
   TC_Format?: string; // Format utilisé
-  TC_Start_Date?: string; // Date de début
-  TC_End_Date?: string; // Date de fin
+  TC_Start_Date?: string; // Date de début ✅ HARMONISÉ
+  TC_End_Date?: string; // Date de fin ✅ HARMONISÉ
 
   // Nouveaux champs Budget
   TC_Currency?: string;           // Devise d'achat (CAD, USD, EUR...)
@@ -111,7 +131,7 @@ export interface Tactique {
   TC_Media_Budget_RefCurrency: number;   // Budget média converti dans la devise de référence de la campagne
   TC_Currency_Rate?: number;              // Taux de change utilisé pour la conversion (devise tactique → devise campagne)
 
-  // 🔥 NOUVEAUX CHAMPS FRAIS ÉTENDUS (15 nouveaux champs)
+  // NOUVEAUX CHAMPS FRAIS ÉTENDUS (15 nouveaux champs)
   // Frais 1
   TC_Fee_1_RefCurrency?: number;  // TC_Fee_1_Value * TC_Currency_Rate
   TC_Fee_1_Option?: string;       // Nom de l'option de frais sélectionnée
@@ -137,14 +157,13 @@ export interface Tactique {
   TC_Fee_5_Option?: string;       // Nom de l'option de frais sélectionnée
   TC_Fee_5_Name?: string;         // Nom du frais
 
-  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
+  isSelected?: boolean; // État de sélection pour l'UI
 }
 
 // ==================== TYPES TAXONOMIE ====================
 
 export type TaxonomyVariableFormat = TaxonomyFormat;
 export type TaxonomyVariableSource = FieldSource;
-
 
 export interface GeneratedTaxonomies {
   tags?: string;
@@ -168,7 +187,7 @@ export interface ParsedTaxonomyStructure {
   errors: string[];
 }
 
-// ==================== PLACEMENT AVEC CHAMPS DE PLACEMENT + TAGS ====================
+// ==================== PLACEMENT HARMONISÉ - DATES EN STRING ====================
 
 export interface Placement {
   id: string;
@@ -180,8 +199,9 @@ export interface Placement {
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
 
-  PL_Start_Date?:Date;
-  PL_End_Date?:Date;
+  // ✅ HARMONISÉ : Dates principales en string (était Date avant)
+  PL_Start_Date?: string;
+  PL_End_Date?: string;
 
   // Champs de placement
   PL_Audience_Behaviour?: string;
@@ -204,7 +224,7 @@ export interface Placement {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
-  // 🔥 NOUVEAUX CHAMPS TAGS
+  // ✅ HARMONISÉ : Champs Tags en string (était déjà string)
   PL_Tag_Start_Date?: string;         // Date de début tag
   PL_Tag_End_Date?: string;           // Date de fin tag  
   PL_Tag_Type?: string;               // Type de tag (Video-Hosted, Video-Tracked, Display-Hosted, Display-Tracked, Audio-Hosted, Audio-Tracked)
@@ -219,10 +239,10 @@ export interface Placement {
 
   createdAt?: string;
   updatedAt?: string;
-  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
+  isSelected?: boolean; // État de sélection pour l'UI
 }
 
-// ==================== CRÉATIF ENRICHI AVEC TOUS LES CHAMPS + SPECS + SPRINT_DATES ====================
+// ==================== CRÉATIF HARMONISÉ - TOUTES DATES EN STRING ====================
 
 export interface Creatif {
   id: string;
@@ -235,9 +255,12 @@ export interface Creatif {
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
 
-  // 10 champs spécifiques aux créatifs
+  // ✅ HARMONISÉ : Dates principales en string (était déjà string)
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
+  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
+
+  // 10 champs spécifiques aux créatifs
   CR_Rotation_Weight?: string;      // Poids de rotation
   CR_CTA?: string;                  // Call-to-Action
   CR_Format_Details?: string;       // Détails du format
@@ -247,14 +270,11 @@ export interface Creatif {
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
 
-  // 🔥 NOUVEAU CHAMP CALCULÉ - AJOUTÉ
-  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
-
-  // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
+  // ✅ HARMONISÉ : Champs Tags en string (était déjà string)
   CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)
   CR_Tag_End_Date?: string;         // Date de fin tag créatif (héritée de PL_Tag_End_Date)
 
-  // NOUVEAUX CHAMPS SPECS - AJOUTÉS
+  // CHAMPS SPECS
   CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
   CR_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
   CR_Spec_Name?: string;            // Nom de la spécification
@@ -269,7 +289,7 @@ export interface Creatif {
   CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
   CR_Spec_Notes?: string;           // Notes additionnelles
 
-
+  // CHAMPS SPECS TACTIQUE (héritage)
   TC_Spec_PartnerId?: string;       // ID du partenaire sélectionné
   TC_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
   TC_Spec_Name?: string;            // Nom de la spécification
@@ -289,8 +309,10 @@ export interface Creatif {
 
   createdAt?: string;
   updatedAt?: string;
-  isSelected?: boolean; // 🔥 NOUVEAU: État de sélection pour l'UI
+  isSelected?: boolean; // État de sélection pour l'UI
 }
+
+// ==================== AUTRES INTERFACES ====================
 
 export interface Onglet {
   id: string;
@@ -308,23 +330,19 @@ export interface Version {
 
 // ==================== STRUCTURES HIÉRARCHIQUES POUR L'AFFICHAGE ====================
 
-// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
 export interface PlacementWithCreatifs extends Placement {
   creatifs: Creatif[];
 }
 
-// 🔥 CORRECTION : Ajout de la définition complète des propriétés imbriquées
 export interface TactiqueWithPlacements extends Tactique {
   placements: PlacementWithCreatifs[];
 }
 
-// 🔥 CORRECTION : Utilisation de TactiqueWithPlacements pour le tableau imbriqué
 export interface SectionWithTactiques extends Section {
   tactiques: TactiqueWithPlacements[];
-  // isExpanded héritée de Section - plus besoin de la redéfinir
 }
 
-// ==================== TYPES DE FORMULAIRES ====================
+// ==================== TYPES DE FORMULAIRES HARMONISÉS ====================
 
 export interface TactiqueFormData {
   TC_Label: string;
@@ -373,17 +391,18 @@ export interface TactiqueFormData {
   TC_PO?: string;
   TC_Placement?: string;
   TC_Format?: string;
+  
+  // ✅ HARMONISÉ : Dates en string dans les formulaires
   TC_Start_Date?: string;
   TC_End_Date?: string;
 
-  // 🔥 NOUVEAUX CHAMPS TAGS DANS LE FORMULAIRE
+  // CHAMPS TAGS DANS LE FORMULAIRE
   TC_Buy_Type?: 'CPM' | 'CPC'; // Type d'achat (CPM ou CPC)
   TC_CM360_Volume?: number; // Volume CM360 (nombre entier)
   TC_CM360_Rate?: number; // Taux CM360 calculé (non éditable)
   TC_CM360_Volume_Linked_To_Unit_Volume?: boolean; // Lie automatiquement TC_CM360_Volume à TC_Unit_Volume
 
-
-  // 🔥 CORRECTION BUDGET : Ajout des champs budgétaires manquants
+  // CHAMPS BUDGÉTAIRES
   TC_Media_Budget?: number; // Budget média calculé
   TC_Client_Budget?: number; // Budget client calculé
   TC_Media_Budget_RefCurrency?: number; // Budget média calculé
@@ -418,7 +437,7 @@ export interface TactiqueFormData {
   TC_Fee_5_Volume?: number;
   TC_Fee_5_Value?: number;
 
-  // 🔥 NOUVEAUX CHAMPS FRAIS ÉTENDUS DANS LE FORMULAIRE (15 nouveaux champs)
+  // NOUVEAUX CHAMPS FRAIS ÉTENDUS DANS LE FORMULAIRE (15 nouveaux champs)
   // Frais 1
   TC_Fee_1_RefCurrency?: number;  // TC_Fee_1_Value * TC_Currency_Rate
   TC_Fee_1_Option_Name?: string;       // Nom de l'option de frais sélectionnée
@@ -445,12 +464,13 @@ export interface TactiqueFormData {
   TC_Fee_5_Name?: string;         // Nom du frais
 }
 
+// ✅ PLACEMENT FORM DATA - DÉJÀ HARMONISÉ (dates en string)
 export interface PlacementFormData {
   PL_Label: string;
-  PL_Order: number;
+  PL_Order?: number; // ✅ MODIFIÉ : Optionnel pour permettre auto-incrémentation
   PL_TactiqueId: string;
 
-  // NOUVEAUX CHAMPS DE DATES
+  // DATES EN STRING - COHÉRENT
   PL_Start_Date?: string;
   PL_End_Date?: string;
 
@@ -479,7 +499,7 @@ export interface PlacementFormData {
   PL_Language?: string;
   PL_Placement_Location?: string;
 
-  // 🔥 NOUVEAUX CHAMPS TAGS DANS LE FORMULAIRE
+  // CHAMPS TAGS DANS LE FORMULAIRE - EN STRING
   PL_Tag_Start_Date?: string;         // Date de début tag
   PL_Tag_End_Date?: string;           // Date de fin tag  
   PL_Tag_Type?: string;               // Type de tag
@@ -489,8 +509,7 @@ export interface PlacementFormData {
   PL_Floodlight?: string;             // Configuration Floodlight (affiché si rotation type = Floodlight)
 }
 
-// ==================== FORMULAIRE CRÉATIF COMPLET + SPECS + TAGS + SPRINT_DATES ====================
-
+// ✅ CRÉATIF FORM DATA - DÉJÀ HARMONISÉ (dates en string)
 export interface CreatifFormData {
   CR_Label: string;
   CR_Order?: number;
@@ -501,9 +520,12 @@ export interface CreatifFormData {
   CR_Taxonomy_Platform?: string;
   CR_Taxonomy_MediaOcean?: string;
 
-  // 10 champs spécifiques aux créatifs
+  // DATES EN STRING - COHÉRENT
   CR_Start_Date?: string;           // Date de début créatif
   CR_End_Date?: string;             // Date de fin créatif
+  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
+
+  // 10 champs spécifiques aux créatifs
   CR_Rotation_Weight?: string;      // Poids de rotation
   CR_CTA?: string;                  // Call-to-Action
   CR_Format_Details?: string;       // Détails du format
@@ -513,14 +535,11 @@ export interface CreatifFormData {
   CR_URL?: string;                  // URL du créatif
   CR_Version?: string;              // Version du créatif
 
-  // 🔥 NOUVEAU CHAMP CALCULÉ - AJOUTÉ
-  CR_Sprint_Dates?: string;         // Dates de sprint calculées (format: MMMdd-MMMdd)
-
-  // 🔥 NOUVEAUX CHAMPS TAGS - AJOUTÉS
+  // CHAMPS TAGS - EN STRING
   CR_Tag_Start_Date?: string;       // Date de début tag créatif (héritée de PL_Tag_Start_Date)
   CR_Tag_End_Date?: string;         // Date de fin tag créatif (héritée de PL_Tag_End_Date)
 
-  // NOUVEAUX CHAMPS SPECS - AJOUTÉS
+  // CHAMPS SPECS
   CR_Spec_PartnerId?: string;       // ID du partenaire sélectionné
   CR_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
   CR_Spec_Name?: string;            // Nom de la spécification
@@ -535,6 +554,7 @@ export interface CreatifFormData {
   CR_Spec_SpecSheetLink?: string;   // Lien vers feuille de specs
   CR_Spec_Notes?: string;           // Notes additionnelles
 
+  // CHAMPS SPECS TACTIQUE (héritage)
   TC_Spec_PartnerId?: string;       // ID du partenaire sélectionné
   TC_Spec_SelectedSpecId?: string;  // ID de la spec sélectionnée
   TC_Spec_Name?: string;            // Nom de la spécification
@@ -562,7 +582,6 @@ export interface TaxonomyContext {
   clientId: string;
 }
 
-
 export interface TaxonomyFieldConfig {
   variable: string;
   source: FieldSource;
@@ -579,4 +598,35 @@ export interface HighlightState {
   activeField?: string;
   activeVariable?: string;
   mode: 'field' | 'preview' | 'none';
+}
+
+// ==================== NOUVEAUX TYPES POUR LA VALIDATION DES DATES ====================
+
+/**
+ * Interface pour les données de validation d'une entité
+ */
+export interface EntityDateValidationData {
+  level: EntityLevel;
+  startDate?: string;
+  endDate?: string;
+  tagStartDate?: string;
+  tagEndDate?: string;
+}
+
+/**
+ * Interface pour les données de contexte hiérarchique complet
+ */
+export interface FullHierarchyContext {
+  campaign?: DateRange;
+  tactique?: DateRange;
+  placement?: DateRange & TagDates;
+  creatif?: DateRange & TagDates;
+}
+
+/**
+ * Type pour les résultats de validation avec contexte
+ */
+export interface HierarchicalValidationResult extends ValidationResult {
+  hierarchy: DateHierarchy;
+  parentTagDates?: TagDates;
 }
