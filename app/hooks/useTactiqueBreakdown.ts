@@ -1,11 +1,9 @@
 // app/hooks/useTactiqueBreakdown.ts
 /**
- * CORRIGÉ: Hooks personnalisés pour la gestion des breakdowns avec:
- * - Suppression des boucles infinies (dépendances stabilisées)
- * - Support uniquement des IDs déterministes
- * - Gestion des champs date/name selon le type
- * - Structure de données cohérente avec les améliorations
- * - Support des nouvelles fonctionnalités PEBs
+ * CORRIGÉ SIMPLE: Hooks personnalisés pour la gestion des breakdowns
+ * - Correction de la boucle infinie qui efface les valeurs tapées
+ * - localBreakdownData retiré des dépendances problématiques
+ * - createBreakdownsObject prend maintenant localBreakdownData en paramètre
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -39,7 +37,7 @@ export interface DistributionModalState {
 }
 
 /**
- * CORRIGÉ: Hook pour gérer l'état local des données de breakdown sans boucles infinies
+ * Hook pour gérer l'état local des données de breakdown - BOUCLE CORRIGÉE
  */
 export function useBreakdownLocalData(
   periods: BreakdownPeriod[],
@@ -49,12 +47,12 @@ export function useBreakdownLocalData(
 ) {
   const [localBreakdownData, setLocalBreakdownData] = useState<any>({});
   
-  // ✅ CORRIGÉ : Ref pour éviter les re-créations
+  // Refs pour éviter les re-créations
   const isInitializedRef = useRef(false);
   const lastSyncRef = useRef<string>('');
 
   /**
-   * Fonction pour parser une date string de manière sûre - MÉMORISÉE
+   * Fonction pour parser une date string de manière sûre
    */
   const parseDate = useCallback((dateString: string): Date => {
     const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -66,7 +64,7 @@ export function useBreakdownLocalData(
   }, []);
 
   /**
-   * ✅ CORRIGÉ : Dates de tactique mémorisées pour éviter les recalculs
+   * Dates de tactique mémorisées
    */
   const tactiqueeDates = useMemo(() => {
     const tactiqueStartDate = formData.TC_Start_Date ? parseDate(formData.TC_Start_Date) : null;
@@ -75,7 +73,7 @@ export function useBreakdownLocalData(
   }, [formData.TC_Start_Date, formData.TC_End_Date, parseDate]);
 
   /**
-   * ✅ CORRIGÉ : Fonction pour filtrer les périodes - STABLE
+   * Fonction pour filtrer les périodes
    */
   const filterPeriodsForBreakdown = useCallback((
     breakdownPeriods: BreakdownPeriod[],
@@ -153,17 +151,16 @@ export function useBreakdownLocalData(
   }, [parseDate]);
 
   /**
-   * ✅ CORRIGÉ : Génération des dates formatées - STABLE
+   * Génération des dates formatées
    */
   const formattedDates = useMemo(() => {
     return getFormattedDates(formData.TC_Start_Date, formData.TC_End_Date);
   }, [formData.TC_Start_Date, formData.TC_End_Date]);
 
   /**
-   * ✅ CORRIGÉ : Initialisation sans dépendance circulaire
+   * CORRIGÉ: Initialisation sans localBreakdownData dans les dépendances
    */
   const initializeLocalBreakdownData = useCallback(() => {
-    // ✅ Éviter la ré-initialisation si déjà fait avec les mêmes périodes
     const periodsKey = periods.map(p => p.id).sort().join('|');
     if (isInitializedRef.current && lastSyncRef.current === periodsKey) {
       return;
@@ -222,13 +219,13 @@ export function useBreakdownLocalData(
     breakdowns, 
     formattedDates.startDateFormatted, 
     formattedDates.endDateFormatted
-    // ✅ CORRIGÉ : Suppression de localBreakdownData des dépendances
+    // ✅ CORRIGÉ: localBreakdownData RETIRÉ des dépendances
   ]);
 
   /**
-   * ✅ CORRIGÉ : Création d'objet breakdowns - OPTIMISÉE
+   * CORRIGÉ: Création d'objet breakdowns - prend localBreakdownData en paramètre
    */
-  const createBreakdownsObject = useCallback(() => {
+  const createBreakdownsObject = useCallback((currentLocalData: any) => {
     const breakdownsObj: any = {};
     const { tactiqueStartDate, tactiqueEndDate } = tactiqueeDates;
 
@@ -261,7 +258,7 @@ export function useBreakdownLocalData(
       );
 
       filteredPeriods.forEach((period, index) => {
-        const periodData = localBreakdownData[period.id] || { 
+        const periodData = currentLocalData[period.id] || { 
           value: '', 
           isToggled: true, 
           unitCost: '',
@@ -295,18 +292,18 @@ export function useBreakdownLocalData(
     tactiqueeDates, 
     formData.TC_Start_Date, 
     formData.TC_End_Date, 
-    filterPeriodsForBreakdown,
-    localBreakdownData
+    filterPeriodsForBreakdown
+    // ✅ CORRIGÉ: localBreakdownData RETIRÉ des dépendances
   ]);
 
-  // ✅ CORRIGÉ : Effect pour initialiser - STABLE
+  // Effect pour initialiser
   useEffect(() => {
     if (periods.length > 0) {
       initializeLocalBreakdownData();
     }
   }, [initializeLocalBreakdownData]);
 
-  // ✅ CORRIGÉ : Effect pour dates par défaut - OPTIMISÉ
+  // CORRIGÉ: Effect pour dates par défaut sans localBreakdownData dans les dépendances
   useEffect(() => {
     if (periods.length === 0 || Object.keys(localBreakdownData).length === 0) return;
 
@@ -344,20 +341,18 @@ export function useBreakdownLocalData(
     formattedDates.startDateFormatted, 
     formattedDates.endDateFormatted, 
     periods, 
-    breakdowns, 
-    localBreakdownData
+    breakdowns
+    // ✅ CORRIGÉ: localBreakdownData RETIRÉ des dépendances
   ]);
 
-  // ✅ CORRIGÉ : Synchronisation optimisée avec throttling
+  // CORRIGÉ: Synchronisation optimisée - passe localBreakdownData comme paramètre
   useEffect(() => {
     if (periods.length === 0 || Object.keys(localBreakdownData).length === 0) return;
 
-    // ✅ Throttling pour éviter trop de mises à jour
     const timeoutId = setTimeout(() => {
-      const breakdownsObj = createBreakdownsObject();
+      const breakdownsObj = createBreakdownsObject(localBreakdownData);
       const currentBreakdowns = formData.breakdowns || {};
       
-      // ✅ Comparaison plus intelligente
       const currentHash = JSON.stringify(currentBreakdowns);
       const newHash = JSON.stringify(breakdownsObj);
       
@@ -372,7 +367,7 @@ export function useBreakdownLocalData(
         } as any;
         onChange(syntheticEvent);
       }
-    }, 100); // ✅ Debounce de 100ms
+    }, 100);
 
     return () => clearTimeout(timeoutId);
   }, [localBreakdownData, createBreakdownsObject, formData.breakdowns, onChange]);
@@ -384,7 +379,7 @@ export function useBreakdownLocalData(
 }
 
 /**
- * Hook pour gérer l'état du cost guide - INCHANGÉ
+ * Hook pour gérer l'état du cost guide
  */
 export function useCostGuide(clientId?: string) {
   const [costGuideEntries, setCostGuideEntries] = useState<CostGuideEntry[]>([]);
@@ -430,7 +425,7 @@ export function useCostGuide(clientId?: string) {
 }
 
 /**
- * STABLE : Hook pour gérer les handlers des périodes
+ * Hook pour gérer les handlers des périodes
  */
 export function usePeriodHandlers(
   periods: BreakdownPeriod[],
@@ -520,7 +515,7 @@ export function usePeriodHandlers(
   };
 }
 
-// INCHANGÉ: Fonction utilitaire pour formater les dates
+// Fonction utilitaire pour formater les dates
 function getFormattedDates(tactiqueStartDate?: string, tactiqueEndDate?: string): { startDateFormatted: string; endDateFormatted: string } {
   if (!tactiqueStartDate || !tactiqueEndDate) {
     return { startDateFormatted: '', endDateFormatted: '' };

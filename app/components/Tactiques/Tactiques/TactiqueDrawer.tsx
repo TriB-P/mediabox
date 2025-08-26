@@ -522,7 +522,7 @@ export default function TactiqueDrawer({
     },
     { 
       field: 'TC_Label', 
-      label: t('tactiqueDrawer.fieldLabels.TC_Media_Type'), 
+      label: t('tactiqueDrawer.fieldLabels.TC_Label'), 
       tab: 'info' 
     },
 

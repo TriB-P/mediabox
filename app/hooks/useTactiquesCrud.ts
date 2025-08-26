@@ -52,26 +52,40 @@ interface UseTactiquesCrudProps {
 
 // ==================== FONCTIONS UTILITAIRES POUR LES DATES ====================
 
-/**
- * Convertit une Date en string au format YYYY-MM-DD
- */
-const dateToString = (date: Date | null | undefined): string => {
-  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return ''; // ou une valeur par défaut
+
+const dateToString = (date: Date | string | null | undefined): string => {
+  if (!date) {
+    return '';
   }
-  return date.toISOString().split('T')[0];
+  
+  // Si c'est déjà une string, la retourner
+  if (typeof date === 'string') {
+    return date;
+  }
+  
+  // Si c'est un objet Date valide, le convertir
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    return date.toISOString().split('T')[0];
+  }
+  
+  return '';
 };
-/**
- * Convertit Placement vers PlacementFormData (dates Date → string)
- */
+
+
 const convertPlacementToFormData = (placement: Partial<Placement>): Partial<PlacementFormData> => {
+
   const { PL_Start_Date, PL_End_Date, ...rest } = placement;
   
-  return {
+  const result = {
     ...rest,
-    PL_Start_Date: PL_Start_Date ? dateToString(PL_Start_Date) : undefined,
-    PL_End_Date: PL_End_Date ? dateToString(PL_End_Date) : undefined,
+    // ✅ FIX : Inclure les dates converties en string
+    PL_Start_Date: dateToString(PL_Start_Date),
+    PL_End_Date: dateToString(PL_End_Date),
   };
+  
+
+  
+  return result;
 };
 
 export function useTactiquesCrud({

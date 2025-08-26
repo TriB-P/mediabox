@@ -507,7 +507,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
       {/* MODIFIÉ : Section des dimensions personnalisées avec logique corrigée */}
       {hasAnyCustomDimension && (
         <FormSection
-          title="{t('tactiqueFormStrategie.customFields.title')}"
+          title={t('tactiqueFormStrategie.customFields.title')}
           description={t('tactiqueFormStrategie.customFields.description')}
         >
           {renderCustomDimension(1, customDimensions, dynamicLists, formData, onChange, onTooltipChange, t)}

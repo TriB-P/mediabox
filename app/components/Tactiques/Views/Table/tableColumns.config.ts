@@ -248,20 +248,20 @@ const getTactiqueStrategieColumns = (t: (key: string) => string): DynamicColumn[
   {
     key: 'TC_Language_Open',
     label: t('columns.tactique.language'),
-    type: 'select',
+    type: 'text',
     width: 120,
     options: []
   },
   {
     key: 'TC_Prog_Buying_Method_1',
-    label: t('columns.tactique.buyingMethod'),
+    label: t('columns.tactique.buyingMethod_1'),
     type: 'select',
     width: 150,
     options: []
   },
   {
     key: 'TC_Prog_Buying_Method_2',
-    label: t('columns.tactique.buyingMethod'),
+    label: t('columns.tactique.buyingMethod_2'),
     type: 'select',
     width: 150,
     options: []

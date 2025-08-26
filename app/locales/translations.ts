@@ -2335,7 +2335,8 @@ export const translations = {
         TC_Media_Type: "Type média",
         TC_Publisher: "Partenaire",
         TC_LOB: "Ligne d'affaires",
-        TC_Budget: "Budget"
+        TC_Budget: "Budget",
+        TC_Label: "Étiquette",
       },
       validation: {
         fieldIsRequired: "Le champ \"{{label}}\" est obligatoire.",
@@ -4205,7 +4206,8 @@ export const translations = {
         frequency: "Fréquence",
         market: "Marché",
         language: "Langue",
-        buyingMethod: "Méthode d'achat",
+        buyingMethod_1: "Méthode d'achat",
+        buyingMethod_2: "Type d'achat",
         customDim1: "Dimension personnalisée 1",
         customDim2: "Dimension personnalisée 2", 
         customDim3: "Dimension personnalisée 3",
@@ -6785,7 +6787,8 @@ export const translations = {
         TC_Media_Type: "Media Type",
         TC_Publisher: "Partner",
         TC_LOB: "Line of Business",
-        TC_Budget: "Budget"
+        TC_Budget: "Budget",
+        TC_Label:"Label"
       },
       validation: {
         fieldIsRequired: "The field \"{{label}}\" is required.",
@@ -8492,7 +8495,8 @@ export const translations = {
         frequency: "Frequency",
         market: "Market",
         language: "Language",
-        buyingMethod: "Buying method",
+        buyingMethod_1: "Buying method",
+        buyingMethod_2: "Buying type",
         customDim1: "Custom dimension 1",
         customDim2: "Custom dimension 2", 
         customDim3: "Custom dimension 3",

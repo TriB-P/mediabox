@@ -165,8 +165,8 @@ export default function PlacementDrawer({
         PL_Label: placement.PL_Label || '',
         PL_Order: placement.PL_Order || 0, // ✅ GARDE pour les éditions
         PL_TactiqueId: placement.PL_TactiqueId,
-        PL_Start_Date: placementStartDate,
-        PL_End_Date: placementEndDate,
+        PL_Start_Date: dateToString(placement.PL_Start_Date) || placementStartDate,
+        PL_End_Date: dateToString(placement.PL_End_Date) || placementEndDate,
         PL_Taxonomy_Tags: placement.PL_Taxonomy_Tags || '',
         PL_Taxonomy_Platform: placement.PL_Taxonomy_Platform || '',
         PL_Taxonomy_MediaOcean: placement.PL_Taxonomy_MediaOcean || '',
@@ -249,41 +249,37 @@ export default function PlacementDrawer({
     setActiveTooltip(tooltip);
   }, []);
 
-  /**
-   * 🔥 FONCTION HANDLESUBMIT SIMPLIFIÉE : Plus de conversion nécessaire
-   * ✅ DEBUG AJOUTÉ : Pour vérifier les données envoyées
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // ✅ DEBUG : Vérifier les données envoyées
-    console.log('📤 Données envoyées au service:', {
-      isEdit: !!placement,
-      PL_Order: formData.PL_Order,
-      formData
-    });
-    
-    try {
-      // Plus besoin de conversion, tout est déjà en string
-      await onSave(formData);
-      onClose();
+// app/components/Tactiques/Placement/PlacementDrawer.tsx - AJOUT LOGS DEBUG
 
-      // Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
-      if (placement && placement.id && selectedClient && selectedCampaign) {
-        updateTaxonomiesAsync('placement', {
-          id: placement.id,
-          name: formData.PL_Label,
-          clientId: selectedClient.clientId,
-          campaignId: selectedCampaign.id
-        }).catch(error => {
-          console.error('Erreur mise à jour taxonomies placement:', error);
-        });
-      }
+/**
+ * 🔥 FONCTION HANDLESUBMIT AVEC DEBUG : Pour vérifier les données envoyées
+ * ✅ DEBUG AJOUTÉ : Pour vérifier les données dans formData avant envoi
+ */
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
 
-    } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde du placement:', error);
+  try {
+    // Plus besoin de conversion, tout est déjà en string
+    await onSave(formData);
+    onClose();
+
+    // Lancer la mise à jour des taxonomies EN ARRIÈRE-PLAN
+    if (placement && placement.id && selectedClient && selectedCampaign) {
+      updateTaxonomiesAsync('placement', {
+        id: placement.id,
+        name: formData.PL_Label,
+        clientId: selectedClient.clientId,
+        campaignId: selectedCampaign.id
+      }).catch(error => {
+        console.error('Erreur mise à jour taxonomies placement:', error);
+      });
     }
-  };
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde du placement:', error);
+  }
+};
 
   const renderTabContent = () => {
     switch (activeTab) {

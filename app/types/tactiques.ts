@@ -1,4 +1,4 @@
-// app/types/tactiques.ts
+// app/types/tactiques.ts - FIX POUR LES TYPES DE DATES
 
 // ==================== IMPORTS DES TYPES DE CONFIGURATION ====================
 
@@ -181,8 +181,9 @@ export interface Placement {
   PL_Taxonomy_Platform?: string;
   PL_Taxonomy_MediaOcean?: string;
 
-  PL_Start_Date?:Date;
-  PL_End_Date?:Date;
+  // ✅ FIX : Changé de Date vers string pour unifier avec PlacementFormData
+  PL_Start_Date?: string;
+  PL_End_Date?: string;
 
   // Champs de placement
   PL_Audience_Behaviour?: string;
@@ -449,10 +450,10 @@ export interface TactiqueFormData {
 
 export interface PlacementFormData {
   PL_Label: string;
-  PL_Order: number;
+  PL_Order?: number;  // ✅ FIX : Rendu optionnel pour les créations (auto-incrémentation)
   PL_TactiqueId: string;
 
-  // NOUVEAUX CHAMPS DE DATES
+  // NOUVEAUX CHAMPS DE DATES - maintenant cohérents avec l'interface Placement (string)
   PL_Start_Date?: string;
   PL_End_Date?: string;
 

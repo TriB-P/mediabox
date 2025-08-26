@@ -237,8 +237,6 @@ async function prepareDataForFirestore(
 
   // 🔥 NOUVEAUX CHAMPS TAGS - Ajout explicite pour garantir la sauvegarde
   const tagsFields = {
-    PL_Tag_Start_Date: placementData.PL_Tag_Start_Date || '',
-    PL_Tag_End_Date: placementData.PL_Tag_End_Date || '',
     PL_Tag_Type: placementData.PL_Tag_Type || '',
     PL_Third_Party_Measurement: placementData.PL_Third_Party_Measurement ?? false,
     PL_VPAID: placementData.PL_VPAID ?? true,
@@ -262,8 +260,6 @@ async function prepareDataForFirestore(
       PL_Label: placementData.PL_Label || '',
       PL_Order: isUpdate ? (placementData.PL_Order || 0) : calculatedOrder, // ✅ CHANGÉ : Auto-incrémentation pour créations
       PL_TactiqueId: placementData.PL_TactiqueId,
-      PL_Start_Date: placementData.PL_Start_Date || '',
-      PL_End_Date: placementData.PL_End_Date || '',
       PL_Taxonomy_Tags: placementData.PL_Taxonomy_Tags || '',
       PL_Taxonomy_Platform: placementData.PL_Taxonomy_Platform || '',
       PL_Taxonomy_MediaOcean: placementData.PL_Taxonomy_MediaOcean || '',

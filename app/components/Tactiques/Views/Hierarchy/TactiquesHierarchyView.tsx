@@ -228,24 +228,143 @@ export default function TactiquesHierarchyView({
     return Math.round((amount / totalBudget) * 100);
   };
 
-  const handleCopyId = async (id: string, type: string) => {
+  const handleCopyId = async (
+    id: string, 
+    type: string, 
+    context?: {
+      sectionId?: string;
+      tactiqueId?: string;
+      placementId?: string;
+    }
+  ) => {
+    if (!selectedClient || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+      console.error('Contexte client/campagne manquant pour générer le chemin');
+      return;
+    }
+  
+    // Base du chemin Firebase
+    const basePath = `/clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}`;
+    
+    let fullPath = '';
+  
+    // Construire le chemin complet selon le type
+    switch (type.toLowerCase()) {
+      case 'section':
+        fullPath = `${basePath}/sections/${id}`;
+        break;
+        
+      case 'tactique':
+      case 'tactic': // ✅ Support pour la traduction anglaise
+        if (context?.sectionId) {
+          fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${id}`;
+        } else {
+          // Fallback : chercher la section parent dans les données
+          const parentSection = sections.find(section => 
+            section.tactiques.some(tactique => tactique.id === id)
+          );
+          if (parentSection) {
+            fullPath = `${basePath}/sections/${parentSection.id}/tactiques/${id}`;
+          } else {
+            fullPath = `${basePath}/tactiques/${id} ${t('tactiquesHierarchyView.copyId.parentSectionNotFound')}`;
+          }
+        }
+        break;
+        
+      case 'placement':
+        if (context?.sectionId && context?.tactiqueId) {
+          fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${context.tactiqueId}/placements/${id}`;
+        } else {
+          // Fallback : chercher les parents dans les données
+          let foundSectionId = '';
+          let foundTactiqueId = '';
+          
+          for (const section of sections) {
+            for (const tactique of section.tactiques) {
+              const tactiquePlacements = tactique.placements || [];
+              if (tactiquePlacements.some(placement => placement.id === id)) {
+                foundSectionId = section.id;
+                foundTactiqueId = tactique.id;
+                break;
+              }
+            }
+            if (foundTactiqueId) break;
+          }
+          
+          if (foundSectionId && foundTactiqueId) {
+            fullPath = `${basePath}/sections/${foundSectionId}/tactiques/${foundTactiqueId}/placements/${id}`;
+          } else {
+            fullPath = `${basePath}/placements/${id} ${t('tactiquesHierarchyView.copyId.parentHierarchyNotFound')}`;
+          }
+        }
+        break;
+        
+      case 'creatif':
+      case 'creative': // ✅ Support pour la traduction anglaise
+        if (context?.sectionId && context?.tactiqueId && context?.placementId) {
+          fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${context.tactiqueId}/placements/${context.placementId}/creatifs/${id}`;
+        } else {
+          // Fallback : chercher tous les parents dans les données
+          let foundSectionId = '';
+          let foundTactiqueId = '';
+          let foundPlacementId = '';
+          
+          for (const section of sections) {
+            for (const tactique of section.tactiques) {
+              const tactiquePlacements = tactique.placements || [];
+              for (const placement of tactiquePlacements) {
+                const placementCreatifs = creatifs[placement.id] || [];
+                if (placementCreatifs.some(creatif => creatif.id === id)) {
+                  foundSectionId = section.id;
+                  foundTactiqueId = tactique.id;
+                  foundPlacementId = placement.id;
+                  break;
+                }
+              }
+              if (foundPlacementId) break;
+            }
+            if (foundPlacementId) break;
+          }
+          
+          if (foundSectionId && foundTactiqueId && foundPlacementId) {
+            fullPath = `${basePath}/sections/${foundSectionId}/tactiques/${foundTactiqueId}/placements/${foundPlacementId}/creatifs/${id}`;
+          } else {
+            fullPath = `${basePath}/creatifs/${id} ${t('tactiquesHierarchyView.copyId.parentHierarchyNotFound')}`;
+          }
+        }
+        break;
+        
+      default:
+        // Type non reconnu, copier juste l'ID comme avant
+        fullPath = id;
+        console.warn(`Type non reconnu pour la copie d'ID: ${type}`);
+    }
+  
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(fullPath);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
+      
+      // Log pour debugging
+      console.log(`Chemin Firebase copié: ${fullPath}`);
+      
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
+      
+      // Fallback pour navigateurs sans support clipboard API
       const textArea = document.createElement('textarea');
-      textArea.value = id;
+      textArea.value = fullPath;
       document.body.appendChild(textArea);
       textArea.select();
+      
       try {
         document.execCommand('copy');
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
+        console.log(`Chemin Firebase copié (fallback): ${fullPath}`);
       } catch (err) {
         console.error('Erreur lors de la copie fallback:', err);
       }
+      
       document.body.removeChild(textArea);
     }
   };
