@@ -250,6 +250,16 @@ export interface EnhancedCampaignError extends CampaignValidationError {
 // ==================== CONSTANTES UTILES ====================
 
 /**
+ * Constantes pour la validation des campagnes
+ */
+export const CAMPAIGN_VALIDATION_CONSTANTS = {
+  MIN_DURATION_DAYS: 1,
+  MAX_DURATION_DAYS: 365,
+  DEFAULT_TAG_PADDING_DAYS: 30,
+  SPRINT_DATE_FORMAT: /^[A-Za-z]{3}\d{2}-[A-Za-z]{3}\d{2}$/
+} as const;
+
+/**
  * Messages par défaut pour les erreurs de campagne
  */
 export const CAMPAIGN_ERROR_MESSAGES = {

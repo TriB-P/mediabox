@@ -123,7 +123,40 @@ interface CustomDimensionsState {
   };
 }
 
-
+const getMediaTags = (
+  inventoryId: string | undefined, 
+  publisherId: string | undefined, 
+  inventoryList: ListItem[], 
+  publishersList: ListItem[]
+): string => {
+  // Priorité 1 : TC_Inventory
+  if (inventoryId && inventoryList) {
+    const inventory = inventoryList.find(i => i.id === inventoryId);
+    if (inventory?.SH_Tags) {
+      // 🔧 CORRECTION : Gérer les deux cas (array et string)
+      if (Array.isArray(inventory.SH_Tags) && inventory.SH_Tags.length > 0) {
+        return inventory.SH_Tags.join(', ');
+      } else if (typeof inventory.SH_Tags === 'string' && inventory.SH_Tags !== '') {
+        return inventory.SH_Tags;
+      }
+    }
+  }
+  
+  // Fallback : TC_Publisher
+  if (publisherId && publishersList) {
+    const publisher = publishersList.find(p => p.id === publisherId);
+    if (publisher?.SH_Tags) {
+      // 🔧 CORRECTION : Gérer les deux cas (array et string)  
+      if (Array.isArray(publisher.SH_Tags) && publisher.SH_Tags.length > 0) {
+        return publisher.SH_Tags.join(', ');
+      } else if (typeof publisher.SH_Tags === 'string' && publisher.SH_Tags !== '') {
+        return publisher.SH_Tags;
+      }
+    }
+  }
+  
+  return '';
+};
 const validateRequiredFields = (
  formData: TactiqueFormData, 
  requiredFields: any[], 
@@ -229,6 +262,7 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_LOB: tactique.TC_LOB || '',
     TC_Media_Type: tactique.TC_Media_Type || '',
     TC_Publisher: tactique.TC_Publisher || '',
+    TC_Tags: tactique.TC_Tags || '', // 🆕 Ajout du champ TC_Tags
     TC_Prog_Buying_Method_1: tactique.TC_Prog_Buying_Method_1 || '',
     TC_Prog_Buying_Method_2: tactique.TC_Prog_Buying_Method_2 || '',
     TC_Custom_Dim_1: tactique.TC_Custom_Dim_1 || '',
@@ -362,6 +396,8 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
   
   return {
     ...formData,
+
+    TC_Tags: formDataAny.TC_Tags || '',
     
     // Budgets arrondis à 2 décimales
     TC_Budget: round2(formDataAny.TC_Client_Budget || formData.TC_Budget),
@@ -454,6 +490,7 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_BuyCurrency: 'CAD',
   TC_Unit_Type:'SH_48HPEEYW',
   TC_CM360_Volume_Linked_To_Unit_Volume: false,
+  TC_Tags: '', // 🆕 Ajout du champ TC_Tags avec valeur par défaut
 
 });
 
@@ -718,6 +755,45 @@ export default function TactiqueDrawer({
     (formData as any).TC_Unit_Volume, 
     (formData as any).TC_CM360_Volume_Linked_To_Unit_Volume
   ]);
+
+// 🆕 Ajouter ce useEffect après les useEffect existants
+/**
+ * 🆕 useEffect pour mettre à jour automatiquement TC_Tags 
+ * Priorité : TC_Inventory > TC_Publisher (fallback)
+ */
+useEffect(() => {
+  const inventoryId = formData.TC_Inventory;
+  const publisherId = formData.TC_Publisher;
+  const inventoryList = dynamicLists.TC_Inventory || [];
+  const publishersList = dynamicLists.TC_Publisher || [];
+  
+  // Récupérer les tags avec priorité à l'inventaire
+  const newTags = getMediaTags(inventoryId, publisherId, inventoryList, publishersList);
+  
+  // Mettre à jour TC_Tags seulement si la valeur est différente
+  if (newTags !== (formData as any).TC_Tags) {
+    if (newTags) {
+      // Déterminer la source des tags pour le log
+      const source = inventoryId && inventoryList.find(i => i.id === inventoryId)?.SH_Tags 
+        ? `inventory: ${inventoryId}` 
+        : `publisher: ${publisherId}`;
+      console.log(`🏷️ Mise à jour automatique TC_Tags: "${newTags}" depuis ${source}`);
+    } else {
+      console.log(`🏷️ Nettoyage TC_Tags (aucun tag trouvé)`);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      TC_Tags: newTags
+    }));
+    setIsDirty(true);
+  }
+}, [
+  formData.TC_Inventory, 
+  formData.TC_Publisher, 
+  dynamicLists.TC_Inventory, 
+  dynamicLists.TC_Publisher
+]);
 
   /**
    * Charge toutes les données avec logique correcte pour les dimensions personnalisées

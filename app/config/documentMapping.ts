@@ -383,6 +383,11 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
+        field: 'TC_Tags',
+        column: 'TC_Tags',
+        type: 'text' as FieldType,
+      },
+      {
         field: 'TC_Start_Date',
         column: 'TC_Start_Date',
         type: 'date' as FieldType,

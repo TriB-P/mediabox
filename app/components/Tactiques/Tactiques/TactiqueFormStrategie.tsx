@@ -59,6 +59,7 @@ interface TactiqueFormStrategieProps {
     TC_LOB?: string;
     TC_Media_Type?: string;
     TC_Publisher?: string;
+    TC_Tags?: string; // 🆕 Ajout du champ TC_Tags
     TC_Inventory?: string;
     TC_Product_Open?: string;
     TC_Targeting_Open?: string;
@@ -350,6 +351,24 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
 
+        {/* 🆕 NOUVEAU : Affichage du champ TC_Tags */}
+        {formData.TC_Tags && (
+          <FormInput
+            id="TC_Tags"
+            name="TC_Tags"
+            value={formData.TC_Tags || ''}
+            onChange={() => {}} // Lecture seule - pas de onChange
+            type="text"
+            placeholder=""
+            label={createLabelWithHelp(
+              t('tactiqueFormStrategie.tags.label'),
+              t('tactiqueFormStrategie.tags.helpText'),
+              onTooltipChange
+            )}
+            className="bg-gray-50 text-gray-600" // Style pour indiquer que c'est lecture seule
+          />
+        )}
+
 
 {(dynamicLists.TC_Prog_Buying_Method_2 && dynamicLists.TC_Prog_Buying_Method_2.length > 0 && formData.TC_Media_Type === 'SH_R3Z3VC6B') && (
           <SmartSelect
@@ -488,7 +507,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
       {/* MODIFIÉ : Section des dimensions personnalisées avec logique corrigée */}
       {hasAnyCustomDimension && (
         <FormSection
-          title={t('tactiqueFormStrategie.customFields.title')}
+          title="{t('tactiqueFormStrategie.customFields.title')}"
           description={t('tactiqueFormStrategie.customFields.description')}
         >
           {renderCustomDimension(1, customDimensions, dynamicLists, formData, onChange, onTooltipChange, t)}

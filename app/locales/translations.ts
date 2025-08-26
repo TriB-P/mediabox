@@ -2483,6 +2483,10 @@ export const translations = {
         label: "Partenaire",
         helpText: "IMPORTANT : C'est l'entité administrative qui envera la facture."
       },
+      tags: {
+        label: "Tags du partenaire",
+        helpText: "Tags automatiquement récupérés depuis l'inventaire sélectionné (priorité) ou le partenaire."
+      },
       inventory: {
         placeholder: "Sélectionner un inventaire...",
         label: "Inventaire",
@@ -6928,6 +6932,10 @@ export const translations = {
         placeholder: "Select a partner...",
         label: "Partner",
         helpText: "IMPORTANT: This is the administrative entity that will send the invoice."
+      },
+      tags: {
+        label: "Publisher Tags",
+        helpText: "Tags automatically retrieved from the selected inventory (priority) or partner."
       },
       inventory: {
         placeholder: "Select an inventory...",
