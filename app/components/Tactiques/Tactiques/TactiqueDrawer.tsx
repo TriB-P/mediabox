@@ -410,7 +410,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
     // Paramètres budgétaires arrondis
     TC_BudgetInput: round2(formDataAny.TC_BudgetInput),
     TC_Unit_Price: round2(formDataAny.TC_Unit_Price),
-    TC_Unit_Volume: round2(formDataAny.TC_Unit_Volume),
+    TC_Unit_Volume: (formDataAny.TC_Unit_Price > 0) ? round2(formDataAny.TC_Unit_Volume) : 0,
     TC_Media_Value: round2(formDataAny.TC_Media_Value),
     TC_Bonification: round2(formDataAny.TC_Bonification),
     TC_Currency_Rate: round2(formDataAny.TC_Currency_Rate) || 1,

@@ -164,17 +164,23 @@ export default function ReactiveBudgetCell({
           maximumFractionDigits: 2
         }).format(numValue);
         
-      case 'number':
-        const numberValue = Number(value);
-        if (isNaN(numberValue)) return String(value);
-        
-        // Formatage spécial pour le volume (sans décimales)
-        if (fieldKey === 'TC_Unit_Volume') {
-          return new Intl.NumberFormat('fr-CA', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(numberValue);
-        }
+        case 'number':
+          const numberValue = Number(value);
+          if (isNaN(numberValue)) return String(value);
+          
+          // Formatage spécial pour le volume (sans décimales)
+          if (fieldKey === 'TC_Unit_Volume') {
+            // 🆕 LOGIQUE DRAWER : Afficher vide si pas de coût ou volume = 0
+            const costPerUnit = rowData.TC_Unit_Price || rowData.TC_Cost_Per_Unit || 0;
+            if (costPerUnit <= 0 || numberValue === 0) {
+              return ''; // Retourner vide au lieu de "0"
+            }
+            
+            return new Intl.NumberFormat('fr-CA', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            }).format(numberValue);
+          }
         
         return new Intl.NumberFormat('fr-CA', {
           minimumFractionDigits: 2,

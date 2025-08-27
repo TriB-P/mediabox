@@ -94,7 +94,12 @@ const calculateUnitVolume = (
   unitType?: string,
   unitTypeDisplayName?: string
 ): number => {
-  if (effectiveBudget <= 0 || costPerUnit <= 0) {
+  // 🆕 LOGIQUE DRAWER : Pas de coût valide = pas de volume
+  if (costPerUnit <= 0) {
+    return 0;
+  }
+  
+  if (effectiveBudget <= 0) {
     return 0;
   }
 

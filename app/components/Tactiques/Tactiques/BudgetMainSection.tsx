@@ -419,12 +419,12 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </div>
           <input
             type="number"
-            value={unitVolume || ''}
+            value={costPerUnit > 0 ? (unitVolume || '') : ''}
             disabled
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 font-medium"
             placeholder={t('budgetMainSection.form.calculatedAutomatically')}
           />
-          {unitVolume > 0 && (
+          {costPerUnit > 0 && unitVolume > 0 && (
             <div className="mt-1 text-xs text-gray-500">
               {t('common.formatted')} {dynamicLabels.formatVolumeDisplay(unitVolume)} {unitType ? unitTypeOptions.find(opt => opt.id === unitType)?.label?.toLowerCase() || t('budgetMainSection.form.units') : t('budgetMainSection.form.units')}
             </div>
