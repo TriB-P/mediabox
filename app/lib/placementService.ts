@@ -7,6 +7,7 @@
  * pour s'assurer que les données sont correctement formatées avant d'être sauvegardées.
  * MISE À JOUR : Ajout des nouveaux champs Tags (PL_Tag_Start_Date, PL_Tag_End_Date, PL_Tag_Type, etc.)
  * NOUVEAU : Utilise orderManagementService pour l'auto-incrémentation de PL_Order
+ * NOUVEAU : Ajout des titres de taxonomie (PL_Tag_X_Title, PL_Plateforme_X_Title, PL_MO_X_Title)
  */
 import {
   collection,
@@ -175,10 +176,32 @@ async function generateLevelString(structure: string, context: ResolutionContext
 }
 
 /**
+ * 🆕 NOUVELLE FONCTION : Récupère les titres d'une taxonomie pour les 4 premiers niveaux
+ * @param taxonomyId L'identifiant de la taxonomie
+ * @param clientId L'identifiant du client
+ * @returns Un tableau des 4 titres de niveaux
+ */
+async function getTaxonomyTitles(taxonomyId: string | undefined, clientId: string): Promise<string[]> {
+  if (!taxonomyId) return ['', '', '', ''];
+  
+  console.log("FIREBASE: LECTURE - Fichier: placementService.ts - Fonction: getTaxonomyTitles - Path: clients/${clientId}/taxonomies/${taxonomyId}");
+  const taxonomy = await getTaxonomyById(clientId, taxonomyId);
+  if (!taxonomy) return ['', '', '', ''];
+  
+  return [
+    taxonomy.NA_Name_Level_1_Title || '',
+    taxonomy.NA_Name_Level_2_Title || '',
+    taxonomy.NA_Name_Level_3_Title || '',
+    taxonomy.NA_Name_Level_4_Title || ''
+  ];
+}
+
+/**
  * Prépare les données d'un placement pour l'enregistrement dans Firestore.
  * Cela inclut la résolution des taxonomies et la fusion des données nécessaires.
  * MISE À JOUR : Inclut maintenant les nouveaux champs Tags.
  * NOUVEAU : Utilise orderManagementService pour calculer automatiquement PL_Order.
+ * NOUVEAU : Ajoute les titres de taxonomie (PL_Tag_X_Title, PL_Plateforme_X_Title, PL_MO_X_Title).
  * @param placementData Les données du formulaire de placement.
  * @param clientId L'identifiant du client.
  * @param campaignData Les données de la campagne associée.
@@ -214,16 +237,27 @@ async function prepareDataForFirestore(
       return Promise.all(levels.map(level => generateLevelString(level, context)));
   };
 
-  const [tagChains, platformChains, moChains] = await Promise.all([
+  // 🆕 Récupérer les titres de taxonomie en parallèle
+  const [tagChains, platformChains, moChains, tagTitles, platformTitles, moTitles] = await Promise.all([
     processTaxonomyType(placementData.PL_Taxonomy_Tags),
     processTaxonomyType(placementData.PL_Taxonomy_Platform),
-    processTaxonomyType(placementData.PL_Taxonomy_MediaOcean)
+    processTaxonomyType(placementData.PL_Taxonomy_MediaOcean),
+    getTaxonomyTitles(placementData.PL_Taxonomy_Tags, clientId),
+    getTaxonomyTitles(placementData.PL_Taxonomy_Platform, clientId),
+    getTaxonomyTitles(placementData.PL_Taxonomy_MediaOcean, clientId)
   ]);
   
   const taxonomyChains = {
     PL_Tag_1: tagChains[0], PL_Tag_2: tagChains[1], PL_Tag_3: tagChains[2], PL_Tag_4: tagChains[3],
     PL_Plateforme_1: platformChains[0], PL_Plateforme_2: platformChains[1], PL_Plateforme_3: platformChains[2], PL_Plateforme_4: platformChains[3],
     PL_MO_1: moChains[0], PL_MO_2: moChains[1], PL_MO_3: moChains[2], PL_MO_4: moChains[3],
+  };
+
+  // 🆕 Ajouter les titres de taxonomie
+  const taxonomyTitles = {
+    PL_Tag_1_Title: tagTitles[0], PL_Tag_2_Title: tagTitles[1], PL_Tag_3_Title: tagTitles[2], PL_Tag_4_Title: tagTitles[3],
+    PL_Plateforme_1_Title: platformTitles[0], PL_Plateforme_2_Title: platformTitles[1], PL_Plateforme_3_Title: platformTitles[2], PL_Plateforme_4_Title: platformTitles[3],
+    PL_MO_1_Title: moTitles[0], PL_MO_2_Title: moTitles[1], PL_MO_3_Title: moTitles[2], PL_MO_4_Title: moTitles[3],
   };
 
   // Extraire tous les champs manuels de placement (incluant les variables taxonomie)
@@ -266,6 +300,7 @@ async function prepareDataForFirestore(
 
       ...placementFields,  // ✅ INCLUT maintenant directement PL_Product, PL_Channel, etc.
       ...taxonomyChains,
+      ...taxonomyTitles,   // 🆕 NOUVEAUX : Titres de taxonomie
       ...tagsFields,       // 🔥 NOUVEAUX CHAMPS TAGS
       updatedAt: new Date().toISOString(),
       ...(!isUpdate && { createdAt: new Date().toISOString() })

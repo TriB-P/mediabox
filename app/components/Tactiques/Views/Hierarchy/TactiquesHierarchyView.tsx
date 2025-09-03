@@ -1,9 +1,9 @@
 // app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx
 
 /**
- * ✅ MISE À JOUR : Intégration de la persistance des états d'expansion
- * Remplace les useState locaux par useExpandedStates pour maintenir
- * les états collapse/expand lors des refresh de données
+ * ✅ MISE À JOUR : Intégration du composant DndKitSectionItem
+ * Permet maintenant le drag & drop de tactiques vers d'autres sections
+ * TOUTES les fonctionnalités existantes sont maintenues
  */
 'use client';
 
@@ -17,14 +17,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ArrowUpIcon,
-  PencilIcon,
-  PlusIcon,
-  KeyIcon
-} from '@heroicons/react/24/outline';
-import {
   Section,
   SectionWithTactiques,
   Tactique,
@@ -37,8 +29,9 @@ import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
 import SelectedActionsPanel from '../../SelectedActionsPanel';
 import { DndKitTactiqueItem } from './DndKitHierarchyComponents';
+import { DndKitSectionItem } from './DndKitSectionItem'; // ✅ NOUVEAU !
 import { useAdvancedDragDrop } from '../../../../hooks/useAdvancedDragDrop';
-import { useExpandedStates } from '../../../../hooks/useExpandedStates'; // ✅ NOUVEAU !
+import { useExpandedStates } from '../../../../hooks/useExpandedStates';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useSelection } from '../../../../contexts/SelectionContext';
 import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
@@ -134,7 +127,7 @@ export default function TactiquesHierarchyView({
 
   const selectionMessages = useSelectionMessages(validationResult);
 
-  // ✅ NOUVEAU : Hook de persistance des états d'expansion
+  // ✅ Utilise le hook de persistance des états d'expansion
   const expandedStates = useExpandedStates({
     sections,
     tactiques: hierarchyContext?.tactiques || {},
@@ -142,7 +135,7 @@ export default function TactiquesHierarchyView({
     creatifs
   });
 
-  // ✅ CHANGÉ : Utilise le hook avancé avec hierarchyContext
+  // ✅ Utilise le hook avancé avec hierarchyContext
   const { isDragLoading, sensors, handleDragEnd } = useAdvancedDragDrop({
     sections,
     placements,
@@ -152,7 +145,7 @@ export default function TactiquesHierarchyView({
     hierarchyContext
   });
 
-  // États pour le hover, drawers, etc. (inchangés)
+  // États pour le hover, drawers, etc. (TOUS inchangés)
   const [hoveredSection, setHoveredSection] = useState<string | null>(null);
   const [hoveredTactique, setHoveredTactique] = useState<{sectionId: string, tactiqueId: string} | null>(null);
   const [hoveredPlacement, setHoveredPlacement] = useState<{sectionId: string, tactiqueId: string, placementId: string} | null>(null);
@@ -222,12 +215,7 @@ export default function TactiquesHierarchyView({
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Fonctions utilitaires (inchangées)
-  const calculatePercentage = (amount: number) => {
-    if (totalBudget <= 0) return 0;
-    return Math.round((amount / totalBudget) * 100);
-  };
-
+  // Fonctions utilitaires (TOUTES inchangées)
   const handleCopyId = async (
     id: string, 
     type: string, 
@@ -404,11 +392,7 @@ export default function TactiquesHierarchyView({
     }
   };
 
-  // ✅ CHANGÉ : Utilise les gestionnaires du hook de persistance
-  // const handleTactiqueExpand = (tactiqueId: string) => { ... } // SUPPRIMÉ
-  // const handlePlacementExpand = (placementId: string) => { ... } // SUPPRIMÉ
-
-  // Gestionnaires de sélection (inchangés)
+  // Gestionnaires de sélection (TOUS inchangés)
   const handleSectionSelect = (sectionId: string, isSelected: boolean) => {
     selectionLogic.toggleSelection(sectionId, isSelected);
   };
@@ -425,7 +409,7 @@ export default function TactiquesHierarchyView({
     selectionLogic.toggleSelection(creatifId, isSelected);
   };
 
-  // Toutes les autres fonctions existantes restent identiques...
+  // Toutes les fonctions de gestion des drawers (TOUTES inchangées)
   const handleEditTactique = (sectionId: string, tactique: Tactique) => {
     setTactiqueDrawer({
       isOpen: true,
@@ -493,7 +477,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // Gestionnaires de sauvegarde (inchangés)
+  // Gestionnaires de sauvegarde (TOUS inchangés)
   const handleSaveTactique = async (tactiqueData: any) => {
     if (!onUpdateTactique) return;
   
@@ -661,7 +645,7 @@ export default function TactiquesHierarchyView({
     });
   };
 
-  // Gestionnaires des menus contextuels (inchangés)
+  // Gestionnaires des menus contextuels (TOUS inchangés)
   const handleOpenTaxonomyMenu = (
     item: Placement | Creatif,
     itemType: 'placement' | 'creatif',
@@ -795,7 +779,7 @@ export default function TactiquesHierarchyView({
     onClearSelection?.();
   };
 
-  // Fonctions utilitaires pour trouver les éléments (inchangées)
+  // Fonctions utilitaires pour trouver les éléments (TOUTES inchangées)
   const findTactiqueById = (tactiqueId: string): Tactique | undefined => {
     for (const section of sections) {
       const tactique = section.tactiques.find(t => t.id === tactiqueId);
@@ -853,136 +837,40 @@ export default function TactiquesHierarchyView({
         />
       )}
 
-      {/* DndContext */}
+      {/* ✅ NOUVEAU : DndContext englobant avec SortableContext pour sections */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y divide-gray-200">
-            
-            {/* Sections avec tactiques */}
-            {sections.map((section, sectionIndex) => (
-              <div
-                key={`section-${section.id}`}
-                onMouseEnter={() => setHoveredSection(section.id)}
-                onMouseLeave={() => setHoveredSection(null)}
-              >
-                {/* Section header */}
-                <div
-                  className="relative"
-                  onMouseEnter={() => setHoveredSection(section.id)}
-                  onMouseLeave={() => setHoveredSection(null)}
+        {/* ✅ SortableContext pour les sections (pour le tri manuel existant) */}
+        <SortableContext 
+          items={sections.map(s => `section-${s.id}`)} 
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="divide-y divide-gray-200">
+              
+              {/* ✅ CHANGÉ : Utilise DndKitSectionItem au lieu du code inline */}
+              {sections.map((section, sectionIndex) => (
+                <DndKitSectionItem
+                  key={`section-${section.id}`}
+                  section={section}
+                  sectionIndex={sectionIndex}
+                  hoveredSection={hoveredSection}
+                  copiedId={copiedId}
+                  totalBudget={totalBudget}
+                  formatCurrency={formatCurrencyWithCampaignCurrency}
+                  onSectionExpand={onSectionExpand}
+                  onEditSection={onEditSection}
+                  onCreateTactique={handleCreateTactiqueLocal}
+                  onCopyId={handleCopyId}
+                  onMoveSectionUp={handleMoveSectionUp}
+                  onSectionSelect={handleSectionSelect}
+                  onHoverSection={setHoveredSection}
+                  isSelected={selectionLogic.isSelected(section.id)}
                 >
-                  <div
-                    className={`flex justify-between items-center px-4 py-3 bg-white hover:bg-gray-50 transition-colors ${
-                      section.isExpanded ? 'bg-gray-50' : ''
-                    } ${selectionLogic.isSelected(section.id) ? 'bg-indigo-50' : ''}`}
-                    style={{ borderLeft: `4px solid ${section.SECTION_Color || '#6366f1'}` }}
-                  >
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2"
-                        checked={selectionLogic.isSelected(section.id)}
-                        onChange={(e) => handleSectionSelect(section.id, e.target.checked)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMoveSectionUp(section.id, sectionIndex);
-                        }}
-                        disabled={sectionIndex === 0}
-                        className={`pr-2 p-2 rounded transition-colors ${
-                          sectionIndex === 0 
-                            ? 'cursor-not-allowed text-gray-300' 
-                            : 'cursor-pointer text-gray-400 hover:text-gray-600 hover:bg-gray-200'
-                        }`}
-                        title={sectionIndex === 0 ? t('tactiquesHierarchyView.section.alreadyFirst') : t('tactiquesHierarchyView.section.moveUp')}
-                      >
-                        <ArrowUpIcon className="h-4 w-4" />
-                      </button>
-
-                      <div 
-                        className="section-expand-area flex items-center cursor-pointer"
-                        onClick={() => onSectionExpand(section.id)}
-                      >
-                        {section.isExpanded ? (
-                          <ChevronDownIcon className="h-5 w-5 text-gray-500 mr-2" />
-                        ) : (
-                          <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2" />
-                        )}
-
-                        <h3 className="font-medium text-gray-900">{section.SECTION_Name}</h3>
-
-                        {section.tactiques.length > 0 && (
-                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                            {section.tactiques.length}
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCreateTactiqueLocal(section.id);
-                        }}
-                        className={`ml-2 p-1 rounded hover:bg-gray-200 transition-colors ${
-                          hoveredSection === section.id ? 'text-indigo-600' : 'text-indigo-400'
-                        }`}
-                        title={t('tactiquesHierarchyView.section.addTactique')}
-                      >
-                        <PlusIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <div className="relative min-w-[48px] h-6">
-                        {hoveredSection === section.id && (
-                          <div className="absolute right-0 top-0 flex items-center space-x-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyId(section.id, 'section');
-                              }}
-                              className="p-1 rounded hover:bg-gray-200 transition-colors"
-                              title={copiedId === section.id ? t('tactiquesHierarchyView.common.idCopied') : t('tactiquesHierarchyView.common.copyId')}
-                            >
-                              <KeyIcon className={`h-3 w-3 ${copiedId === section.id ? 'text-green-500' : 'text-gray-300'}`} />
-                            </button>
-                            {onEditSection && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEditSection(section.id);
-                                }}
-                                className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                title={t('tactiquesHierarchyView.section.edit')}
-                              >
-                                <PencilIcon className="h-4 w-4 text-gray-500" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                        {formatCurrencyWithCampaignCurrency(section.SECTION_Budget || 0)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {calculatePercentage(section.SECTION_Budget || 0)}% {t('tactiquesHierarchyView.section.ofBudget')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ✅ CHANGÉ : Utilise expandedStates au lieu des useState locaux */}
-                {section.isExpanded && (
+                  {/* Contenu des tactiques (passé en children) - TOUT inchangé */}
                   <div className="bg-white">
                     {section.tactiques.length === 0 ? (
                       <div className="pl-12 py-3 text-sm text-gray-500 italic">
@@ -1018,8 +906,8 @@ export default function TactiquesHierarchyView({
                                   }))
                                 ])
                               )}
-                              expandedTactiques={expandedStates.expandedTactiques} // ✅ CHANGÉ
-                              expandedPlacements={expandedStates.expandedPlacements} // ✅ CHANGÉ
+                              expandedTactiques={expandedStates.expandedTactiques}
+                              expandedPlacements={expandedStates.expandedPlacements}
                               hoveredTactique={hoveredTactique}
                               hoveredPlacement={hoveredPlacement}
                               hoveredCreatif={hoveredCreatif}
@@ -1027,8 +915,8 @@ export default function TactiquesHierarchyView({
                               onHoverTactique={setHoveredTactique}
                               onHoverPlacement={setHoveredPlacement}
                               onHoverCreatif={setHoveredCreatif}
-                              onExpandTactique={expandedStates.handleTactiqueExpand} // ✅ CHANGÉ
-                              onExpandPlacement={expandedStates.handlePlacementExpand} // ✅ CHANGÉ
+                              onExpandTactique={expandedStates.handleTactiqueExpand}
+                              onExpandPlacement={expandedStates.handlePlacementExpand}
                               onEdit={handleEditTactique}
                               onCreatePlacement={handleCreatePlacementLocal}
                               onEditPlacement={handleEditPlacement}
@@ -1047,14 +935,14 @@ export default function TactiquesHierarchyView({
                       </SortableContext>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+                </DndKitSectionItem>
+              ))}
+            </div>
           </div>
-        </div>
+        </SortableContext>
       </DndContext>
 
-      {/* TOUS les drawers existants (inchangés) */}
+      {/* TOUS les drawers existants (TOUS inchangés) */}
       <TactiqueDrawer
         isOpen={tactiqueDrawer.isOpen}
         onClose={() => setTactiqueDrawer(prev => ({ ...prev, isOpen: false }))}

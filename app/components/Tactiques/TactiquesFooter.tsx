@@ -7,6 +7,7 @@
  * Il inclut également des boutons pour changer le mode d'affichage des tactiques (hiérarchie, tableau, timeline, taxonomy).
  * MODIFIÉ : Ajout du mode 'taxonomy' avec icône de tag
  * AMÉLIORÉ : Animations staggerées - onglets slide from bottom, boutons pop
+ * CORRIGÉ : Retrait du onDoubleClick pour améliorer la réactivité du clic simple
  */
 
 'use client';
@@ -145,6 +146,7 @@ const viewModeActiveVariants: Variants = {
 /**
  * Composant de pied de page pour la gestion des onglets et des modes de vue des tactiques.
  * AMÉLIORÉ : Avec animations staggerées - slide from bottom pour onglets, pop pour boutons
+ * CORRIGÉ : Réactivité améliorée du clic simple sur les onglets
  */
 export default function TactiquesFooter({
   viewMode,
@@ -267,7 +269,7 @@ export default function TactiquesFooter({
                     exit="exit"
                     layout
                     className={`
-                      flex items-center px-4 py-2 border-r border-gray-200 cursor-pointer 
+                      flex items-center px-4 py-2 border-r border-gray-200
                       whitespace-nowrap relative group transition-all duration-200
                       ${selectedOnglet?.id === onglet.id 
                         ? 'bg-indigo-100 text-indigo-700' 
@@ -275,11 +277,7 @@ export default function TactiquesFooter({
                       }
                     `}
                   >
-                    <div 
-                      className="flex items-center"
-                      onClick={() => onSelectOnglet(onglet)}
-                      onDoubleClick={(e) => handleStartEdit(onglet, e)}
-                    >
+                    <div className="flex items-center">
                       <AnimatePresence mode="wait">
                         {editingOnglet === onglet.id ? (
                           <motion.input
@@ -295,17 +293,22 @@ export default function TactiquesFooter({
                             onKeyDown={handleKeyDown}
                             className="bg-white border border-gray-300 px-1 py-0 text-sm rounded w-32 transition-all"
                             onClick={(e) => e.stopPropagation()}
+                            onFocus={(e) => e.stopPropagation()}
                           />
                         ) : (
-                          <motion.span
-                            key="text"
+                          <motion.button
+                            key="button"
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
-                            className="text-sm font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectOnglet(onglet);
+                            }}
+                            className="text-sm font-medium hover:underline focus:outline-none focus:underline"
                           >
                             {onglet.ONGLET_Name}
-                          </motion.span>
+                          </motion.button>
                         )}
                       </AnimatePresence>
                     </div>
@@ -322,7 +325,10 @@ export default function TactiquesFooter({
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded-full transition-all duration-200"
-                            onClick={() => handleDeleteOnglet(onglet.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteOnglet(onglet.id);
+                            }}
                             title={t('tacticsFooter.tabs.deleteTitle')}
                           >
                             <XMarkIcon className="h-4 w-4" />

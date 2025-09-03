@@ -496,7 +496,23 @@ export const documentMappingConfig = {
         field: 'TC_Spec_Notes',
         column: 'TC_CR_Spec_Notes',
         type: 'text' as FieldType,
+      },       
+      {
+        field: 'TC_CM360_Rate',
+        column: 'TC_CM360_Rate',
+        type: 'number' as FieldType,
       },
+      {
+        field: 'TC_CM360_Volume',
+        column: 'TC_CM360_Volume',
+        type: 'number' as FieldType,
+      },
+      {
+        field: 'TC_Buy_Type',
+        column: 'TC_Buy_Type',
+        type: 'text' as FieldType,
+      },  
+      
 
     ]
   } as SectionMapping,
@@ -515,6 +531,82 @@ export const documentMappingConfig = {
         column: 'Order',
         type: 'number' as FieldType,
       },
+      {
+        field: 'PL_Plateforme_1_Title',
+        column: 'PL_Plateforme_1_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_1',
+        column: 'PL_Plateforme_1',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_2_Title',
+        column: 'PL_Plateforme_2_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_2',
+        column: 'PL_Plateforme_2',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_3_Title',
+        column: 'PL_Plateforme_3_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_3',
+        column: 'PL_Plateforme_3',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_4_Title',
+        column: 'PL_Plateforme_4_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Plateforme_4',
+        column: 'PL_Plateforme_4',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_Type',
+        column: 'PL_Tag_Type',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_VPAID',
+        column: 'PL_VPAID',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Third_Party_Measurement',
+        column: 'PL_Third_Party_Measurement',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Floodlight',
+        column: 'PL_Floodlight',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_Start_Date',
+        column: 'PL_CR_Tag_Start_Date',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_End_Date',
+        column: 'PL_CR_Tag_End_Date',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Creative_Rotation_Type',
+        column: 'PL_CR_Rotation',
+        type: 'text' as FieldType,
+      }
+      
     ]
   } as SectionMapping,
 
@@ -582,6 +674,41 @@ export const documentMappingConfig = {
         column: 'TC_CR_Spec_Notes',
         type: 'text' as FieldType,
       },
+      {
+        field: 'CR_Plateforme_5_Title',
+        column: 'CR_Plateforme_5_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Plateforme_5',
+        column: 'CR_Plateforme_5',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Plateforme_6_Title',
+        column: 'CR_Plateforme_6_Title',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Plateforme_6',
+        column: 'CR_Plateforme_6',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Tag_Start_Date',
+        column: 'PL_CR_Tag_Start_Date',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Tag_End_Date',
+        column: 'PL_CR_Tag_End_Date',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Rotation_Weight',
+        column: 'PL_CR_Rotation',
+        type: 'text' as FieldType,
+      }
 
     ]
   } as SectionMapping

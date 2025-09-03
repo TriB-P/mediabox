@@ -2485,7 +2485,7 @@ export const translations = {
         helpText: "IMPORTANT : C'est l'entité administrative qui envera la facture."
       },
       tags: {
-        label: "Tags du partenaire",
+        label: "Caractéristiques du partenaire",
         helpText: "Tags automatiquement récupérés depuis l'inventaire sélectionné (priorité) ou le partenaire."
       },
       inventory: {
@@ -4326,7 +4326,7 @@ export const translations = {
         cta: "Appel à l'action",
         formatDetails: "Détails du format",
         offer: "Offre",
-        platformName: "Nom de la plateforme",
+        platformName: "Nom du créatif",
         primaryProduct: "Produit principal",
         url: "URL",
         version: "Version",
@@ -6937,7 +6937,7 @@ export const translations = {
         helpText: "IMPORTANT: This is the administrative entity that will send the invoice."
       },
       tags: {
-        label: "Publisher Tags",
+        label: "Publisher Caracteristic",
         helpText: "Tags automatically retrieved from the selected inventory (priority) or partner."
       },
       inventory: {
@@ -8449,7 +8449,71 @@ export const translations = {
       // Selection
       select: {
         placeholder: "-- Select --"
-      }
+      },
+      columns: {
+        structure: "Structure",
+        label: "Label",
+        bucket: "Bucket",
+        mpa: "MPA",
+        startDate: "Start date",
+        endDate: "End date",
+        placementName: "Placement name",
+        creativeName: "Creative name",
+        taxonomyTags: "Taxonomy for tags",
+        taxonomyPlatform: "Taxonomy for platform", 
+        taxonomyMediaOcean: "Taxonomy for MediaOcean",
+        product: "Product",
+        location: "Location",
+        demographics: "Demographics",
+        device: "Device",
+        targeting: "Targeting",
+        specName: "Spec name",
+        format: "Format",
+        ratio: "Ratio",
+        fileType: "File type",
+        maxWeight: "Max weight",
+        weight: "Weight",
+        animation: "Animation",
+        title: "Title",
+        text: "Text",
+        specSheetLink: "Spec sheet link",
+        notes: "Notes",
+        sectionName: "Section name",
+        lob: "Line of business",
+        mediaType: "Media type",
+        partner: "Partner",
+        inventory: "Inventory", 
+        marketDescription: "Market description",
+        audienceDescription: "Audience description",
+        productDescription: "Product description",
+        formatDescription: "Format description",
+        locationDescription: "Location description",
+        frequency: "Frequency",
+        market: "Market",
+        language: "Language",
+        buyingMethod: "Buying method",
+        customDim1: "Custom dimension 1",
+        customDim2: "Custom dimension 2", 
+        customDim3: "Custom dimension 3",
+        suggestedCreatives: "Suggested creatives",
+        assetDeliveryDate: "Creative delivery date",
+        inputMode: "Input mode",
+        inputBudget: "Input budget",
+        currency: "Currency",
+        buyCurrency: "Buying currency",
+        unitType: "Unit type",
+        costPerUnit: "Cost per unit",
+        volume: "Volume",
+        unitVolume: "Unit volume",
+        realValue: "Real value",
+        bonus: "Bonus",
+        exchangeRate: "Exchange rate",
+        totalMedia: "Total media",
+        totalClient: "Total client",
+        billingNumber: "Billing number",
+        po: "PO"
+      },
+      
     },
     tabs: {
       tactique: {
@@ -8565,6 +8629,7 @@ export const translations = {
         specSheetLink: "Spec sheet link",
         specNotes: "Notes"
       }
+      
     },
     options: {
       currency: {
@@ -8615,7 +8680,7 @@ export const translations = {
         cta: "Call to Action",
         formatDetails: "Format Details",
         offer: "Offer",
-        platformName: "Platform Name",
+        platformName: "Creative name",
         primaryProduct: "Primary Product",
         url: "URL",
         version: "Version",
@@ -8832,7 +8897,7 @@ export const translations = {
       lineTypes: {
         all: "All (full hierarchy)",
         placements: "Placements only",
-        creatives: "Creatives only"
+        creatifs: "Creatives only"
       },
       columns: {
         label: "Label",

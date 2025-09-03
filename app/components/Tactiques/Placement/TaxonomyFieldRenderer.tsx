@@ -6,7 +6,7 @@ import React, { useState, useMemo } from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import { FormInput, SmartSelect } from '../Tactiques/TactiqueFormComponents';
 import { getSourceColor, formatRequiresShortcode, getVariableConfig } from '../../../config/taxonomyFields';
-import { ClientConfig } from '../../../config/TaxonomyFieldLabels';
+import { ClientConfig, getFieldLabel } from '../../../config/TaxonomyFieldLabels';
 import type { ParsedTaxonomyVariable, HighlightState } from '../../../types/tactiques';
 import type { TaxonomyFormat } from '../../../config/taxonomyFields';
 
@@ -121,30 +121,8 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
         if (isOpenFormat || hasCustomList) {
           visible.push(variable);
         } else {
-          // Obtenir le label pour l'affichage du message
-          let fieldLabel = fieldKey;
-          
-          // Vérifier d'abord les dimensions personnalisées
-          if (fieldKey === 'PL_Custom_Dim_1' && clientConfig?.Custom_Dim_PL_1) {
-            fieldLabel = clientConfig.Custom_Dim_PL_1;
-          } else if (fieldKey === 'PL_Custom_Dim_2' && clientConfig?.Custom_Dim_PL_2) {
-            fieldLabel = clientConfig.Custom_Dim_PL_2;
-          } else if (fieldKey === 'PL_Custom_Dim_3' && clientConfig?.Custom_Dim_PL_3) {
-            fieldLabel = clientConfig.Custom_Dim_PL_3;
-          } else if (fieldKey === 'CR_Custom_Dim_1' && clientConfig?.Custom_Dim_CR_1) {
-            fieldLabel = clientConfig.Custom_Dim_CR_1;
-          } else if (fieldKey === 'CR_Custom_Dim_2' && clientConfig?.Custom_Dim_CR_2) {
-            fieldLabel = clientConfig.Custom_Dim_CR_2;
-          } else if (fieldKey === 'CR_Custom_Dim_3' && clientConfig?.Custom_Dim_CR_3) {
-            fieldLabel = clientConfig.Custom_Dim_CR_3;
-          } else {
-            // Utiliser cleanFieldName pour nettoyer le nom technique
-            fieldLabel = fieldKey
-              .replace(/^(PL_|CR_)/, '') // Enlever les préfixes PL_ ou CR_
-              .replace(/_/g, ' ')        // Remplacer les underscores par des espaces
-              .replace(/\b\w/g, l => l.toUpperCase()); // Mettre en majuscule la première lettre de chaque mot
-          }
-          
+          // Obtenir le label en utilisant la fonction centralisée
+          const fieldLabel = getFieldLabel(fieldKey, t, clientConfig);
           hidden.push(fieldLabel);
         }
         return;
@@ -160,47 +138,6 @@ const TaxonomyFieldRenderer: React.FC<TaxonomyFieldRendererProps> = ({
   // ==================== FONCTIONS UTILITAIRES ====================
 
   /**
-   * Obtient le label à afficher pour un champ donné en utilisant la config client
-   * CORRIGÉ : Utilise cleanFieldName en fallback si la traduction échoue
-   */
-  const getFieldLabelWithConfig = (variable: ParsedTaxonomyVariable): string => {
-    const fieldKey = variable.variable;
-    
-    // Pour les dimensions personnalisées, vérifier d'abord la config client
-    if (fieldKey === 'PL_Custom_Dim_1' && clientConfig?.Custom_Dim_PL_1) {
-      return clientConfig.Custom_Dim_PL_1;
-    }
-    if (fieldKey === 'PL_Custom_Dim_2' && clientConfig?.Custom_Dim_PL_2) {
-      return clientConfig.Custom_Dim_PL_2;
-    }
-    if (fieldKey === 'PL_Custom_Dim_3' && clientConfig?.Custom_Dim_PL_3) {
-      return clientConfig.Custom_Dim_PL_3;
-    }
-    if (fieldKey === 'CR_Custom_Dim_1' && clientConfig?.Custom_Dim_CR_1) {
-      return clientConfig.Custom_Dim_CR_1;
-    }
-    if (fieldKey === 'CR_Custom_Dim_2' && clientConfig?.Custom_Dim_CR_2) {
-      return clientConfig.Custom_Dim_CR_2;
-    }
-    if (fieldKey === 'CR_Custom_Dim_3' && clientConfig?.Custom_Dim_CR_3) {
-      return clientConfig.Custom_Dim_CR_3;
-    }
-    
-    // Utiliser cleanFieldName pour tous les autres champs
-    return cleanFieldName(fieldKey);
-  };
-
-  /**
-   * Nettoie un nom de champ technique pour le rendre plus lisible
-   */
-  const cleanFieldName = (fieldName: string): string => {
-    return fieldName
-      .replace(/^(PL_|CR_)/, '') // Enlever les préfixes PL_ ou CR_
-      .replace(/_/g, ' ')        // Remplacer les underscores par des espaces
-      .replace(/\b\w/g, l => l.toUpperCase()); // Mettre en majuscule la première lettre de chaque mot
-  };
-
-/**
    * Gère le changement de valeur avec validation en temps réel
    */
 const handleInputChange = (variable: ParsedTaxonomyVariable, inputValue: string) => {
@@ -351,7 +288,7 @@ const handleInputChange = (variable: ParsedTaxonomyVariable, inputValue: string)
   const renderVariableCard = (variable: ParsedTaxonomyVariable) => {
     const fieldKey = variable.variable;
     const sourceColor = getSourceColor(variable.source);
-    const fieldLabel = getFieldLabelWithConfig(variable);
+    const fieldLabel = getFieldLabel(fieldKey, t, clientConfig);
     const hasValidationError = validationErrors[fieldKey];
     
     return (

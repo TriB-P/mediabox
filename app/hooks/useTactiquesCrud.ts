@@ -53,6 +53,11 @@ interface UseTactiquesCrudProps {
 // ==================== FONCTIONS UTILITAIRES POUR LES DATES ====================
 
 
+// app/hooks/useTactiquesCrud.ts - FIX convertPlacementToFormData
+
+/**
+ * Convertit une Date en string au format YYYY-MM-DD
+ */
 const dateToString = (date: Date | string | null | undefined): string => {
   if (!date) {
     return '';
@@ -71,9 +76,16 @@ const dateToString = (date: Date | string | null | undefined): string => {
   return '';
 };
 
-
+/**
+ * ✅ FIX : Convertit Placement vers PlacementFormData en incluant les dates
+ */
 const convertPlacementToFormData = (placement: Partial<Placement>): Partial<PlacementFormData> => {
-
+  console.log('🔍 DEBUG convertPlacementToFormData - Données reçues:', {
+    PL_Start_Date: placement.PL_Start_Date,
+    PL_End_Date: placement.PL_End_Date,
+    PL_Label: placement.PL_Label
+  });
+  
   const { PL_Start_Date, PL_End_Date, ...rest } = placement;
   
   const result = {
@@ -83,10 +95,17 @@ const convertPlacementToFormData = (placement: Partial<Placement>): Partial<Plac
     PL_End_Date: dateToString(PL_End_Date),
   };
   
-
+  console.log('🔍 DEBUG convertPlacementToFormData - Données converties:', {
+    PL_Start_Date: result.PL_Start_Date,
+    PL_End_Date: result.PL_End_Date,
+    PL_Label: result.PL_Label
+  });
   
   return result;
 };
+  
+
+
 
 export function useTactiquesCrud({
   sections,

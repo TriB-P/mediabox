@@ -139,58 +139,85 @@ export default function ReactiveBudgetCell({
     }
   }, [cellKey, value, onEndEdit]);
 
-  /**
+/**
    * Formate la valeur pour l'affichage
+   * CORRIGÉ : Gestion correcte des valeurs 0 et suppression du "$" pour TC_Unit_Volume
    */
-  const formattedValue = useMemo(() => {
-    if (value === null || value === undefined || value === '') return '';
-
-    switch (column.type) {
-      case 'select':
-        const selectedOption = column.options?.find(option => option.id === value);
-        return selectedOption ? selectedOption.label : String(value);
-        
-      case 'currency':
-      case 'readonly': // Pour les champs calculés
-        const numValue = Number(value);
-        if (isNaN(numValue)) return String(value);
-        
-        // Formater en devise
-        const currency = rowData.TC_BuyCurrency || campaignCurrency;
-        return new Intl.NumberFormat('fr-CA', {
-          style: 'currency',
-          currency: currency,
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        }).format(numValue);
-        
-        case 'number':
-          const numberValue = Number(value);
-          if (isNaN(numberValue)) return String(value);
-          
-          // Formatage spécial pour le volume (sans décimales)
-          if (fieldKey === 'TC_Unit_Volume') {
-            // 🆕 LOGIQUE DRAWER : Afficher vide si pas de coût ou volume = 0
-            const costPerUnit = rowData.TC_Unit_Price || rowData.TC_Cost_Per_Unit || 0;
-            if (costPerUnit <= 0 || numberValue === 0) {
-              return ''; // Retourner vide au lieu de "0"
-            }
-            
-            return new Intl.NumberFormat('fr-CA', {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(numberValue);
-          }
-        
-        return new Intl.NumberFormat('fr-CA', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 6
-        }).format(numberValue);
-        
-      default:
-        return String(value);
+const formattedValue = useMemo(() => {
+  // ✅ CORRECTION : Traitement explicite des valeurs 0 et null/undefined
+  if (value === null || value === undefined) return '';
+  if (value === 0) {
+    // ✅ CORRECTION : TC_Unit_Volume ne doit jamais avoir de "$"
+    if (fieldKey === 'TC_Unit_Volume') {
+      return '0';
     }
-  }, [value, column.type, column.options, rowData.TC_BuyCurrency, campaignCurrency, fieldKey]);
+    // Pour les champs calculés, afficher "0" au lieu de "-"
+    if (isCalculated) {
+      switch (column.type) {
+        case 'currency':
+        case 'readonly':
+          const currency = rowData.TC_BuyCurrency || campaignCurrency;
+          return new Intl.NumberFormat('fr-CA', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(0);
+        case 'number':
+          return '0';
+        default:
+          return '0';
+      }
+    }
+    // Pour les champs éditables, permettre l'affichage de 0
+    return value.toString();
+  }
+  if (value === '') return '';
+
+  // ✅ CORRECTION : TC_Unit_Volume traité spécialement AVANT les autres types
+  if (fieldKey === 'TC_Unit_Volume') {
+    const numberValue = Number(value);
+    if (isNaN(numberValue)) return String(value);
+    
+    // Formatage spécial pour le volume (sans décimales et SANS DEVISE)
+    return new Intl.NumberFormat('fr-CA', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(numberValue);
+  }
+
+  switch (column.type) {
+    case 'select':
+      const selectedOption = column.options?.find(option => option.id === value);
+      return selectedOption ? selectedOption.label : String(value);
+      
+    case 'currency':
+    case 'readonly': // Pour les champs calculés
+      const numValue = Number(value);
+      if (isNaN(numValue)) return String(value);
+      
+      // Formater en devise
+      const currency = rowData.TC_BuyCurrency || campaignCurrency;
+      return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(numValue);
+      
+    case 'number':
+      const numberValue = Number(value);
+      if (isNaN(numberValue)) return String(value);
+      
+      return new Intl.NumberFormat('fr-CA', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6
+      }).format(numberValue);
+      
+    default:
+      return String(value);
+  }
+}, [value, column.type, column.options, rowData.TC_BuyCurrency, campaignCurrency, fieldKey, isCalculated]);
 
   /**
    * Rend le champ d'édition approprié

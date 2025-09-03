@@ -70,48 +70,6 @@ interface UseTactiquesOperationsReturn {
   handleDeleteCreatif: (sectionId: string, tactiqueId: string, placementId: string, creatifId: string) => void; 
 }
 
-// ==================== FONCTIONS UTILITAIRES POUR LES DATES ====================
-
-/**
- * Convertit une Date en string au format YYYY-MM-DD
- */
-const dateToString = (date: Date): string => {
-  return date.toISOString().split('T')[0];
-};
-
-/**
- * Convertit un string YYYY-MM-DD en Date
- */
-const stringToDate = (dateString: string): Date => {
-  return new Date(dateString + 'T00:00:00.000Z');
-};
-
-/**
- * Convertit PlacementFormData vers Placement (dates string → Date)
- */
-const convertFormDataToPlacement = (formData: PlacementFormData & { id: string }): Placement => {
-  const { PL_Start_Date, PL_End_Date, ...rest } = formData;
-  
-  return {
-    ...rest,
-    PL_Start_Date: PL_Start_Date ? stringToDate(PL_Start_Date) : undefined,
-    PL_End_Date: PL_End_Date ? stringToDate(PL_End_Date) : undefined,
-  };
-};
-
-/**
- * Convertit Placement vers PlacementFormData (dates Date → string)
- */
-const convertPlacementToFormData = (placement: Partial<Placement>): Partial<PlacementFormData> => {
-  const { PL_Start_Date, PL_End_Date, ...rest } = placement;
-  
-  return {
-    ...rest,
-    PL_Start_Date: PL_Start_Date ? dateToString(PL_Start_Date) : undefined,
-    PL_End_Date: PL_End_Date ? dateToString(PL_End_Date) : undefined,
-  };
-};
-
 /**
  * Hook principal pour gérer les opérations sur les tactiques, placements et créatifs.
  *
@@ -300,6 +258,7 @@ export const useTactiquesOperations = ({
   /**
    * Gère la création d'un nouveau placement.
    * MISE À JOUR : Utilise getNextOrder() pour déterminer l'ordre au lieu de 0
+   * Les dates sont maintenant gérées directement comme des strings.
    *
    * @param {string} tactiqueId - L'ID de la tactique parente.
    * @returns {Promise<Placement>} Le placement nouvellement créé.
@@ -343,14 +302,15 @@ export const useTactiquesOperations = ({
           currentTactique
         );
         
-        // Convertir les données du formulaire vers le type Placement avec les bonnes dates
-        return convertFormDataToPlacement({ id: placementId, ...newPlacementData });
+        // ✅ CHANGÉ : Plus de conversion nécessaire, les types sont cohérents
+        return { id: placementId, ...newPlacementData } as Placement;
       }
     );
   }, [allTactiques, buildOrderContext, executeOperation, campaignData, t]);
 
   /**
    * Gère la mise à jour d'un placement existant.
+   * Les dates sont maintenant gérées directement comme des strings.
    *
    * @param {string} placementId - L'ID du placement à mettre à jour.
    * @param {Partial<Placement>} data - Les données partielles du placement à mettre à jour.
@@ -389,9 +349,7 @@ export const useTactiquesOperations = ({
       () => {
         console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesOperations.ts - Fonction: handleUpdatePlacement - Path: clients/${context.clientId}/campaigns/${context.campaignId}/versions/${context.versionId}/onglets/${context.ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
         
-        // Convertir les dates Date → string pour l'appel au service
-        const formData = convertPlacementToFormData(data);
-        
+        // ✅ CHANGÉ : Plus de conversion de dates nécessaire, transmission directe
         return updatePlacement(
           context.clientId,
           context.campaignId,
@@ -400,7 +358,7 @@ export const useTactiquesOperations = ({
           sectionId,
           tactiqueId,
           placementId,
-          formData,
+          data as Partial<PlacementFormData>,
           campaignData,
           currentTactique
         );

@@ -13,6 +13,7 @@
  * 
  * MISE À JOUR : Ajout des nouveaux champs Tags (CR_Tag_Start_Date, CR_Tag_End_Date, CR_Rotation_Weight)
  * NOUVEAU : Calcul automatique du champ CR_Sprint_Dates (format MMMdd-MMMdd)
+ * NOUVEAU : Ajout des titres de taxonomie niveaux 5-6 (CR_Tag_5_Title, CR_Plateforme_5_Title, CR_MO_5_Title, etc.)
  */
 import {
     collection,
@@ -247,11 +248,31 @@ async function generateLevelString(structure: string, context: ResolutionContext
   }
 
 /**
+ * 🆕 NOUVELLE FONCTION : Récupère les titres d'une taxonomie pour les niveaux 5 et 6 (créatifs)
+ * @param taxonomyId L'identifiant de la taxonomie
+ * @param clientId L'identifiant du client
+ * @returns Un tableau des 2 titres des niveaux 5 et 6
+ */
+async function getTaxonomyTitlesForCreative(taxonomyId: string | undefined, clientId: string): Promise<string[]> {
+    if (!taxonomyId) return ['', ''];
+    
+    console.log("FIREBASE: LECTURE - Fichier: creatifService.ts - Fonction: getTaxonomyTitlesForCreative - Path: clients/${clientId}/taxonomies/${taxonomyId}");
+    const taxonomy = await getTaxonomyById(clientId, taxonomyId);
+    if (!taxonomy) return ['', ''];
+    
+    return [
+        taxonomy.NA_Name_Level_5_Title || '',
+        taxonomy.NA_Name_Level_6_Title || ''
+    ];
+}
+
+/**
  * Prépare les données du créatif pour le stockage dans Firestore.
  * Cela inclut la résolution des variables de taxonomie pour générer
  * les chaînes de niveau 5 et 6 pour les tags, plateformes et Media Ocean,
  * ainsi que la gestion des nouveaux champs specs et tags.
  * MISE À JOUR : Inclut maintenant les nouveaux champs Tags et le calcul de CR_Sprint_Dates.
+ * NOUVEAU : Ajoute les titres de taxonomie niveaux 5-6 (CR_Tag_5_Title, CR_Plateforme_5_Title, CR_MO_5_Title, etc.).
  * @param creatifData Les données du formulaire du créatif.
  * @param clientId L'ID du client.
  * @param campaignData Les données de la campagne associée.
@@ -291,10 +312,14 @@ async function prepareDataForFirestore(
         return Promise.all(levels.map(level => generateLevelString(level, context)));
     };
 
-    const [tagChains, platformChains, moChains] = await Promise.all([
+    // 🆕 Récupérer les titres de taxonomie en parallèle avec les chaînes
+    const [tagChains, platformChains, moChains, tagTitles, platformTitles, moTitles] = await Promise.all([
         processTaxonomyType(creatifData.CR_Taxonomy_Tags),
         processTaxonomyType(creatifData.CR_Taxonomy_Platform),
-        processTaxonomyType(creatifData.CR_Taxonomy_MediaOcean)
+        processTaxonomyType(creatifData.CR_Taxonomy_MediaOcean),
+        getTaxonomyTitlesForCreative(creatifData.CR_Taxonomy_Tags, clientId),
+        getTaxonomyTitlesForCreative(creatifData.CR_Taxonomy_Platform, clientId),
+        getTaxonomyTitlesForCreative(creatifData.CR_Taxonomy_MediaOcean, clientId)
     ]);
 
     // Creative taxonomy chains (levels 5-6)
@@ -305,6 +330,16 @@ async function prepareDataForFirestore(
         CR_Plateforme_6: platformChains[1],
         CR_MO_5: moChains[0],
         CR_MO_6: moChains[1],
+    };
+
+    // 🆕 Ajouter les titres de taxonomie niveaux 5-6
+    const taxonomyTitles = {
+        CR_Tag_5_Title: tagTitles[0], 
+        CR_Tag_6_Title: tagTitles[1],
+        CR_Plateforme_5_Title: platformTitles[0], 
+        CR_Plateforme_6_Title: platformTitles[1],
+        CR_MO_5_Title: moTitles[0], 
+        CR_MO_6_Title: moTitles[1],
     };
 
     // Extraire tous les champs spécifiques aux créatifs (incluant les variables taxonomie)
@@ -377,6 +412,7 @@ async function prepareDataForFirestore(
         },
         ...creatifFields,    // ✅ INCLUT maintenant directement CR_CTA, CR_Offer, etc.
         ...taxonomyChains,
+        ...taxonomyTitles,   // 🆕 NOUVEAUX : Titres de taxonomie niveaux 5-6
         ...specFields,
         ...tagsFields,       // 🔥 NOUVEAUX CHAMPS TAGS
         updatedAt: new Date().toISOString(),
