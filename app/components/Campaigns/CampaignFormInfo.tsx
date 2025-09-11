@@ -150,7 +150,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
               required={!isDisabled}
               label={createLabelWithHelp(
                 t('campaigns.formInfo.identifierLabel'), 
-                t('campaigns.formInfo.identifierHelp') + ' (Lettres, chiffres et - seulement)', 
+                t('campaigns.formInfo.identifierHelp'), 
                 onTooltipChange
               )}
             />

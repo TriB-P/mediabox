@@ -556,9 +556,11 @@ export async function moveTactiqueToSection(
   }
 }
 
+// app/lib/tactiqueService.ts - deleteSection() corrigée
+
 /**
- * Supprime une section et toutes les tactiques qu'elle contient.
- * Utilise un batch pour des suppressions atomiques.
+ * Supprime une section et toutes les tactiques, placements et créatifs qu'elle contient.
+ * CORRIGÉ: Nettoie maintenant toute la hiérarchie : tactiques/placements/creatifs
  * @param clientId L'ID du client.
  * @param campaignId L'ID de la campagne.
  * @param versionId L'ID de la version.
@@ -574,6 +576,9 @@ export async function deleteSection(
   sectionId: string
 ): Promise<void> {
   try {
+    console.log(`🗑️ Début suppression section ${sectionId} et toute sa hiérarchie`);
+
+    // Récupérer toutes les tactiques de cette section
     const tactiquesRef = collection(
       db,
       'clients',
@@ -590,11 +595,74 @@ export async function deleteSection(
     );
     console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
     const tactiquesSnapshot = await getDocs(tactiquesRef);
-    const batch = writeBatch(db);
-    tactiquesSnapshot.docs.forEach(doc => {
-      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: " + doc.ref.path);
-      batch.delete(doc.ref);
-    });
+    
+    for (const tactiqueDoc of tactiquesSnapshot.docs) {
+      const tactiqueId = tactiqueDoc.id;
+      console.log(`🗑️ Suppression tactique ${tactiqueId}`);
+      
+      // Récupérer tous les placements de cette tactique
+      const placementsRef = collection(
+        db,
+        'clients',
+        clientId,
+        'campaigns',
+        campaignId,
+        'versions',
+        versionId,
+        'onglets',
+        ongletId,
+        'sections',
+        sectionId,
+        'tactiques',
+        tactiqueId,
+        'placements'
+      );
+      console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
+      const placementsSnapshot = await getDocs(placementsRef);
+      
+      for (const placementDoc of placementsSnapshot.docs) {
+        const placementId = placementDoc.id;
+        console.log(`🗑️ Suppression placement ${placementId}`);
+        
+        // Récupérer tous les créatifs de ce placement
+        const creatifsRef = collection(
+          db,
+          'clients',
+          clientId,
+          'campaigns',
+          campaignId,
+          'versions',
+          versionId,
+          'onglets',
+          ongletId,
+          'sections',
+          sectionId,
+          'tactiques',
+          tactiqueId,
+          'placements',
+          placementId,
+          'creatifs'
+        );
+        console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
+        const creatifsSnapshot = await getDocs(creatifsRef);
+        
+        // Supprimer tous les créatifs
+        for (const creatifDoc of creatifsSnapshot.docs) {
+          console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifDoc.id}");
+          await deleteDoc(creatifDoc.ref);
+        }
+        
+        // Supprimer le placement
+        console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+        await deleteDoc(placementDoc.ref);
+      }
+      
+      // Supprimer la tactique
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
+      await deleteDoc(tactiqueDoc.ref);
+    }
+    
+    // Supprimer la section elle-même
     const sectionRef = doc(
       db,
       'clients',
@@ -609,16 +677,22 @@ export async function deleteSection(
       sectionId
     );
     console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteSection - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}");
-    batch.delete(sectionRef);
-    await batch.commit();
+    await deleteDoc(sectionRef);
+    
+    console.log(`✅ Suppression complète de la section ${sectionId} terminée`);
+    
   } catch (error) {
     console.error('Erreur lors de la suppression de la section:', error);
     throw error;
   }
 }
 
+// app/lib/tactiqueService.ts - deleteTactique() corrigée
+
 /**
- * Supprime une tactique spécifique et réordonne les tactiques restantes dans sa section.
+ * Supprime une tactique spécifique et tous les placements et créatifs qu'elle contient.
+ * Réordonne également les tactiques restantes dans sa section.
+ * CORRIGÉ: Nettoie maintenant toute la hiérarchie : placements/creatifs
  * @param clientId L'ID du client.
  * @param campaignId L'ID de la campagne.
  * @param versionId L'ID de la version.
@@ -636,6 +710,66 @@ export async function deleteTactique(
   tactiqueId: string
 ): Promise<void> {
   try {
+    console.log(`🗑️ Début suppression tactique ${tactiqueId} et toute sa hiérarchie`);
+
+    // Récupérer tous les placements de cette tactique
+    const placementsRef = collection(
+      db,
+      'clients',
+      clientId,
+      'campaigns',
+      campaignId,
+      'versions',
+      versionId,
+      'onglets',
+      ongletId,
+      'sections',
+      sectionId,
+      'tactiques',
+      tactiqueId,
+      'placements'
+    );
+    console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
+    const placementsSnapshot = await getDocs(placementsRef);
+    
+    for (const placementDoc of placementsSnapshot.docs) {
+      const placementId = placementDoc.id;
+      console.log(`🗑️ Suppression placement ${placementId}`);
+      
+      // Récupérer tous les créatifs de ce placement
+      const creatifsRef = collection(
+        db,
+        'clients',
+        clientId,
+        'campaigns',
+        campaignId,
+        'versions',
+        versionId,
+        'onglets',
+        ongletId,
+        'sections',
+        sectionId,
+        'tactiques',
+        tactiqueId,
+        'placements',
+        placementId,
+        'creatifs'
+      );
+      console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
+      const creatifsSnapshot = await getDocs(creatifsRef);
+      
+      // Supprimer tous les créatifs
+      for (const creatifDoc of creatifsSnapshot.docs) {
+        console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifDoc.id}");
+        await deleteDoc(creatifDoc.ref);
+      }
+      
+      // Supprimer le placement
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+      await deleteDoc(placementDoc.ref);
+    }
+    
+    // Supprimer la tactique elle-même
     const tactiqueRef = doc(
       db,
       'clients',
@@ -653,6 +787,9 @@ export async function deleteTactique(
     );
     console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteTactique - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
     await deleteDoc(tactiqueRef);
+    
+    // Réorganiser les tactiques restantes dans la section
+    console.log(`🔄 Réorganisation des tactiques restantes dans la section ${sectionId}`);
     const tactiques = await getTactiques(
       clientId,
       campaignId,
@@ -660,6 +797,7 @@ export async function deleteTactique(
       ongletId,
       sectionId
     );
+    
     const reorderedTactiques = tactiques
       .filter(t => t.id !== tactiqueId)
       .sort((a, b) => a.TC_Order - b.TC_Order)
@@ -667,6 +805,7 @@ export async function deleteTactique(
         id: t.id,
         order: index
       }));
+    
     if (reorderedTactiques.length > 0) {
       await reorderTactiques(
         clientId,
@@ -677,6 +816,9 @@ export async function deleteTactique(
         reorderedTactiques
       );
     }
+    
+    console.log(`✅ Suppression complète de la tactique ${tactiqueId} terminée`);
+    
   } catch (error) {
     console.error('Erreur lors de la suppression de la tactique:', error);
     throw error;
@@ -760,9 +902,11 @@ export async function updateOnglet(
   }
 }
 
+// app/lib/tactiqueService.ts - deleteOnglet() corrigée
+
 /**
- * Supprime un onglet et toutes les sections et tactiques qu'il contient.
- * Utilise un batch pour des suppressions atomiques.
+ * Supprime un onglet et toutes les sections, tactiques, placements et créatifs qu'il contient.
+ * CORRIGÉ: Nettoie maintenant toute la hiérarchie : sections/tactiques/placements/creatifs
  * @param clientId L'ID du client.
  * @param campaignId L'ID de la campagne.
  * @param versionId L'ID de la version.
@@ -776,6 +920,9 @@ export async function deleteOnglet(
   ongletId: string
 ): Promise<void> {
   try {
+    console.log(`🗑️ Début suppression onglet ${ongletId} et toute sa hiérarchie`);
+
+    // Récupérer toutes les sections de cet onglet
     const sectionsRef = collection(
       db,
       'clients',
@@ -790,9 +937,12 @@ export async function deleteOnglet(
     );
     console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
     const sectionsSnapshot = await getDocs(sectionsRef);
-    const batch = writeBatch(db);
+    
     for (const sectionDoc of sectionsSnapshot.docs) {
       const sectionId = sectionDoc.id;
+      console.log(`🗑️ Suppression section ${sectionId}`);
+      
+      // Récupérer toutes les tactiques de cette section
       const tactiquesRef = collection(
         db,
         'clients',
@@ -809,13 +959,79 @@ export async function deleteOnglet(
       );
       console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
       const tactiquesSnapshot = await getDocs(tactiquesRef);
-      tactiquesSnapshot.docs.forEach(tactiqueDoc => {
-        console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: " + tactiqueDoc.ref.path);
-        batch.delete(tactiqueDoc.ref);
-      });
-      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: " + sectionDoc.ref.path);
-      batch.delete(sectionDoc.ref);
+      
+      for (const tactiqueDoc of tactiquesSnapshot.docs) {
+        const tactiqueId = tactiqueDoc.id;
+        console.log(`🗑️ Suppression tactique ${tactiqueId}`);
+        
+        // Récupérer tous les placements de cette tactique
+        const placementsRef = collection(
+          db,
+          'clients',
+          clientId,
+          'campaigns',
+          campaignId,
+          'versions',
+          versionId,
+          'onglets',
+          ongletId,
+          'sections',
+          sectionId,
+          'tactiques',
+          tactiqueId,
+          'placements'
+        );
+        console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
+        const placementsSnapshot = await getDocs(placementsRef);
+        
+        for (const placementDoc of placementsSnapshot.docs) {
+          const placementId = placementDoc.id;
+          console.log(`🗑️ Suppression placement ${placementId}`);
+          
+          // Récupérer tous les créatifs de ce placement
+          const creatifsRef = collection(
+            db,
+            'clients',
+            clientId,
+            'campaigns',
+            campaignId,
+            'versions',
+            versionId,
+            'onglets',
+            ongletId,
+            'sections',
+            sectionId,
+            'tactiques',
+            tactiqueId,
+            'placements',
+            placementId,
+            'creatifs'
+          );
+          console.log("FIREBASE: LECTURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
+          const creatifsSnapshot = await getDocs(creatifsRef);
+          
+          // Supprimer tous les créatifs
+          for (const creatifDoc of creatifsSnapshot.docs) {
+            console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifDoc.id}");
+            await deleteDoc(creatifDoc.ref);
+          }
+          
+          // Supprimer le placement
+          console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+          await deleteDoc(placementDoc.ref);
+        }
+        
+        // Supprimer la tactique
+        console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
+        await deleteDoc(tactiqueDoc.ref);
+      }
+      
+      // Supprimer la section
+      console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}");
+      await deleteDoc(sectionDoc.ref);
     }
+    
+    // Supprimer l'onglet lui-même
     const ongletRef = doc(
       db,
       'clients',
@@ -828,8 +1044,10 @@ export async function deleteOnglet(
       ongletId
     );
     console.log("FIREBASE: ÉCRITURE - Fichier: tactiqueService.ts - Fonction: deleteOnglet - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}");
-    batch.delete(ongletRef);
-    await batch.commit();
+    await deleteDoc(ongletRef);
+    
+    console.log(`✅ Suppression complète de l'onglet ${ongletId} terminée`);
+    
   } catch (error) {
     console.error('❌ Erreur lors de la suppression de l\'onglet:', error);
     throw error;

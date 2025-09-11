@@ -4,6 +4,7 @@
  * Ce fichier contient des fonctions pour gérer les invitations des utilisateurs
  * dans l'application. Il permet de créer, lire, mettre à jour et supprimer des invitations,
  * ainsi que de gérer le statut des utilisateurs (actifs ou invités) en interagissant avec Firebase Firestore.
+ * VERSION OPTIMISÉE pour éviter les requêtes multiples dans getAllUsersWithStatus.
  */
 import {
   collection,
@@ -19,10 +20,46 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Invitation, InvitationFormData, UserWithStatus } from '../types/invitations';
-import { getAllUsers } from './userService';
 
 // Export du type pour les autres fichiers
 export type { UserWithStatus } from '../types/invitations';
+
+// Interface pour utilisateur avec données complètes
+interface UserWithFullData {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  role?: string;
+  lastLogin?: string;
+}
+
+/**
+ * VERSION OPTIMISÉE - Récupère tous les utilisateurs avec leurs données complètes en une seule requête.
+ * @returns {Promise<UserWithFullData[]>} Un tableau de tous les utilisateurs avec données complètes.
+ */
+async function getAllUsersWithFullData(): Promise<UserWithFullData[]> {
+  try {
+    const usersCollection = collection(db, 'users');
+    console.log("FIREBASE: LECTURE - Fichier: invitationService.ts - Fonction: getAllUsersWithFullData - Path: users");
+    const snapshot = await getDocs(usersCollection);
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        email: data.email || '',
+        displayName: data.displayName || data.email || 'Utilisateur inconnu',
+        photoURL: data.photoURL,
+        role: data.role || 'user',
+        lastLogin: data.lastLogin?.toDate?.()?.toISOString() || data.lastLogin,
+      } as UserWithFullData;
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des utilisateurs avec données complètes:', error);
+    return [];
+  }
+}
 
 /**
  * Crée une nouvelle invitation pour un utilisateur.
@@ -35,7 +72,7 @@ export async function createInvitation(
   invitedBy: string
 ): Promise<string> {
   try {
-    const existingUsers = await getAllUsers();
+    const existingUsers = await getAllUsersWithFullData();
     const existingUser = existingUsers.find(user => user.email === invitationData.email);
 
     if (existingUser) {
@@ -226,22 +263,22 @@ export async function deleteInvitation(invitationId: string): Promise<void> {
 }
 
 /**
- * Récupère tous les utilisateurs avec leur statut (actif, invité, expiré).
+ * VERSION OPTIMISÉE - Récupère tous les utilisateurs avec leur statut (actif, invité, expiré).
+ * PERFORMANCE: Supprime la boucle de 86 requêtes individuelles, réduit à 2 requêtes total.
  * @returns Un tableau d'objets UserWithStatus.
  */
 export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
   try {
-    const activeUsers = await getAllUsers();
+    // ÉTAPE 1: Récupérer tous les utilisateurs actifs avec leurs données complètes (1 requête)
+    const activeUsers = await getAllUsersWithFullData();
 
+    // ÉTAPE 2: Récupérer toutes les invitations (1 requête)
     const invitations = await getAllInvitations();
 
     const usersWithStatus: UserWithStatus[] = [];
 
+    // ÉTAPE 3: Traiter les utilisateurs actifs (SANS boucle de requêtes individuelles !)
     for (const user of activeUsers) {
-      console.log("FIREBASE: LECTURE - Fichier: invitationService.ts - Fonction: getAllUsersWithStatus - Path: users/${user.id}");
-      const userDoc = await getDoc(doc(db, 'users', user.id));
-      const userData = userDoc.exists() ? userDoc.data() : {};
-
       const userInvitation = invitations.find(
         inv => inv.email === user.email && inv.status === 'accepted'
       );
@@ -251,16 +288,17 @@ export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: userData.role || 'user',
+        role: user.role || 'user', // Données déjà disponibles !
         status: 'active',
         acceptedAt: userInvitation?.acceptedAt,
         invitedAt: userInvitation?.invitedAt,
         invitedBy: userInvitation?.invitedBy,
         note: userInvitation?.note,
-        lastLogin: userData.lastLogin?.toDate?.()?.toISOString() || userData.lastLogin,
+        lastLogin: user.lastLogin, // Données déjà disponibles !
       });
     }
 
+    // ÉTAPE 4: Traiter les invitations en attente ou expirées
     for (const invitation of invitations) {
       if (invitation.status === 'pending' || invitation.status === 'expired') {
         const existingUser = usersWithStatus.find(u => u.email === invitation.email);

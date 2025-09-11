@@ -2457,8 +2457,8 @@ export const translations = {
       },
       buyingMethod: {
         placeholder: "Sélectionner une méthode d'achat...",
-        label: "Méthode d'achat - Programmatique/SEM",
-        helpText: "Indiquez quel genre d'achat programmatique ou SEM sera utilisé. Doit être rempli"
+        label: "Méthode d'achat programmatique",
+        helpText: "Indiquez quel genre d'achat programmatique sera utilisé. Doit être rempli"
       },
       buyingMethod_2: {
         placeholder: "Sélectionner un type d'inventaire...",
@@ -6909,8 +6909,8 @@ export const translations = {
       },
       buyingMethod: {
         placeholder: "Select a buying method...",
-        label: "Buying Method - Programmatic/SEM",
-        helpText: "Indicate which kind of programmatic or SEM purchase will be used. Must be filled"
+        label: "Buying Method - Programmatic",
+        helpText: "Indicate which kind of programmatic purchase will be used. Must be filled"
       },
       buyingMethod_2: {
         placeholder: "Select an inventory type...",
@@ -8510,7 +8510,7 @@ export const translations = {
         exchangeRate: "Exchange rate",
         totalMedia: "Total media",
         totalClient: "Total client",
-        billingNumber: "Billing number",
+        billingNumber: "Billing ID",
         po: "PO"
       },
       
@@ -8577,7 +8577,7 @@ export const translations = {
         mediaValue: "Real value",
         bonification: "Bonus",
         currencyRate: "Exchange rate",
-        billingId: "Billing number",
+        billingId: "Billing ID",
         po: "PO",
         specName: 'Spec Name',
         specFormat: 'Format',

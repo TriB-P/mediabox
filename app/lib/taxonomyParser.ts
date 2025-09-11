@@ -1,3 +1,4 @@
+// app/lib/taxonomyParser.ts
 import {
   TAXONOMY_VARIABLE_CONFIG,
   TAXONOMY_FORMATS,
@@ -45,13 +46,17 @@ interface TaxonomyProcessingResult {
 
 // ==================== CONSTANTES ====================
 
-const TAXONOMY_VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
+// Regex pour PARSER la structure et identifier toutes les variables ([var] et [[var]])
+const PARSING_REGEX = /\[{1,2}([^[\]:]+):([^\]]+)\]{1,2}/g;
+
+// Regex pour GÉNÉRER la chaîne finale, capable de distinguer [var] de [[var]]
+const GENERATION_REGEX = /\[(\[)?([^[\]:]+):([^\]]+)\]\]?/g;
 
 // ==================== FONCTIONS DE PARSING ====================
 
 /**
  * Parse une structure de taxonomie et extrait toutes les variables
- * * @param structure - Structure de taxonomie (ex: "[TC_Publisher:code]|[TC_Objective:display_fr]")
+ * @param structure - Structure de taxonomie (ex: "[[TC_Publisher:code]]|[TC_Objective:display_fr]")
  * @param level - Niveau de la taxonomie (1-6)
  * @returns Résultat du parsing avec variables identifiées
  */
@@ -72,12 +77,12 @@ export function parseTaxonomyStructure(
     return result;
   }
 
-  TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
+  PARSING_REGEX.lastIndex = 0;
   
   let match;
   const foundVariables = new Set<string>();
 
-  while ((match = TAXONOMY_VARIABLE_REGEX.exec(structure)) !== null) {
+  while ((match = PARSING_REGEX.exec(structure)) !== null) {
     const [fullMatch, variableName, format] = match;
     
     const variableKey = `${variableName}:${format}`;
@@ -321,8 +326,16 @@ export function processTaxonomies(
   return result;
 }
 
-// ==================== FONCTION POUR GÉNÉRATION DIRECTE ====================
+// ==================== FONCTION POUR GÉNÉRATION DIRECTE (VERSION GEMINI) ====================
 
+/**
+ * 🔥 VERSION FINALE ET ROBUSTE - approche Gemini
+ * Génère la chaîne de taxonomie finale en gérant correctement tous les cas 
+ * de crochets en un seul passage.
+ * @param structure La chaîne de structure brute.
+ * @param valueResolver Une fonction pour résoudre la valeur d'une variable.
+ * @returns La chaîne de taxonomie finale générée.
+ */
 export function generateFinalTaxonomyString(
   structure: string,
   valueResolver: (variableName: string, format: TaxonomyFormat) => string
@@ -331,8 +344,27 @@ export function generateFinalTaxonomyString(
     return '';
   }
 
-  return structure.replace(TAXONOMY_VARIABLE_REGEX, (fullMatch, variableName, format) => {
-    return valueResolver(variableName, format as TaxonomyFormat);
+  return structure.replace(GENERATION_REGEX, (
+    fullMatch,
+    isDoubleBracket, // Sera '[' si c'est un double bracket, sinon undefined
+    variableName,
+    format
+  ) => {
+    // Mesure de sécurité pour ignorer les correspondances partielles/invalides
+    if (fullMatch.endsWith(']]') && !isDoubleBracket) {
+        return fullMatch;
+    }
+      
+    const resolvedValue = valueResolver(variableName, format as TaxonomyFormat);
+
+    // Cas 1: C'est un double bracket ([[...]])
+    if (isDoubleBracket) {
+      return `[${resolvedValue}]`;
+    } 
+    // Cas 2: C'est un simple bracket ([...])
+    else {
+      return resolvedValue;
+    }
   });
 }
 
@@ -373,7 +405,7 @@ function generatePlaceholder(variable: ParsedTaxonomyVariable): string {
 // ==================== FONCTIONS CENTRALISÉES POUR DÉLIMITEURS SPÉCIAUX (CORRIGÉES) ====================
 
 /**
- * 🔥 CORRIGÉ : Fonction de remplacement asynchrone sécurisée.
+ * 🔥 CORRIGÉ : Fonction de remplacement asynchrone sécurisée avec support des doubles crochets.
  * Traite les délimiteurs en plusieurs passes jusqu'à stabilisation pour éviter les boucles infinies.
  */
 export async function processTaxonomyDelimiters(
@@ -421,10 +453,15 @@ export async function processTaxonomyDelimiters(
       });
     }
     
-    // 5. Variables individuelles restantes
-    tempStructure = await asyncReplace(tempStructure, /\[([^:]+):([^\]]+)\]/g, (match, name, format) =>
-      Promise.resolve(variableResolver(name, format))
-    );
+    // 5. Variables restantes avec la nouvelle approche Gemini
+    tempStructure = await asyncReplace(tempStructure, GENERATION_REGEX, async (match, isDoubleBracket, name, format) => {
+      if (match.endsWith(']]') && !isDoubleBracket) {
+        return Promise.resolve(match);
+      }
+      
+      const resolved = await Promise.resolve(variableResolver(name, format));
+      return Promise.resolve(isDoubleBracket ? `[${resolved}]` : resolved);
+    });
 
     currentStructure = tempStructure;
   }
@@ -433,7 +470,7 @@ export async function processTaxonomyDelimiters(
 }
 
 /**
- * 🔥 CORRIGÉ : Version synchrone sécurisée.
+ * 🔥 CORRIGÉ : Version synchrone sécurisée avec support des doubles crochets.
  * Utilise la même logique de stabilisation pour éviter les boucles infinies.
  */
 export function processTaxonomyDelimitersSync(
@@ -474,10 +511,15 @@ export function processTaxonomyDelimitersSync(
         });
     }
 
-    // 5. Variables individuelles restantes
-    tempStructure = tempStructure.replace(/\[([^:]+):([^\]]+)\]/g, (match, name, format) =>
-      variableResolver(name, format)
-    );
+    // 5. Variables restantes avec la nouvelle approche Gemini
+    tempStructure = tempStructure.replace(GENERATION_REGEX, (match, isDoubleBracket, name, format) => {
+      if (match.endsWith(']]') && !isDoubleBracket) {
+        return match;
+      }
+      
+      const resolved = variableResolver(name, format);
+      return isDoubleBracket ? `[${resolved}]` : resolved;
+    });
 
     currentStructure = tempStructure;
   }
@@ -491,14 +533,23 @@ async function processConditionalGroup(
   groupContent: string,
   variableResolver: (variableName: string, format: string) => Promise<string> | string
 ): Promise<string> {
-  const variableMatches = Array.from(groupContent.matchAll(/\[([^:]+):([^\]]+)\]/g));
+  const variableMatches = Array.from(groupContent.matchAll(GENERATION_REGEX));
   
   if (variableMatches.length === 0) {
     return processContentWithVariableTransform(groupContent, variableResolver, v => v);
   }
 
   const resolvedValues = await Promise.all(
-    variableMatches.map(match => Promise.resolve(variableResolver(match[1], match[2])))
+    variableMatches.map(async match => {
+      const [fullMatch, isDoubleBracket, variableName, format] = match;
+      
+      if (fullMatch.endsWith(']]') && !isDoubleBracket) {
+        return fullMatch;
+      }
+      
+      const resolved = await Promise.resolve(variableResolver(variableName, format));
+      return isDoubleBracket ? `[${resolved}]` : resolved;
+    })
   );
   
   const nonEmptyValues = resolvedValues.filter(v => v && !v.startsWith('['));
@@ -515,14 +566,23 @@ function processConditionalGroupSync(
   groupContent: string,
   variableResolver: (variableName: string, format: string) => string
 ): string {
-  const variableMatches = Array.from(groupContent.matchAll(/\[([^:]+):([^\]]+)\]/g));
+  const variableMatches = Array.from(groupContent.matchAll(GENERATION_REGEX));
   
   if (variableMatches.length === 0) {
     return processContentWithVariableTransformSync(groupContent, variableResolver, v => v);
   }
 
   const nonEmptyValues = variableMatches
-    .map(match => variableResolver(match[1], match[2]))
+    .map(match => {
+      const [fullMatch, isDoubleBracket, variableName, format] = match;
+      
+      if (fullMatch.endsWith(']]') && !isDoubleBracket) {
+        return fullMatch;
+      }
+      
+      const resolved = variableResolver(variableName, format);
+      return isDoubleBracket ? `[${resolved}]` : resolved;
+    })
     .filter(v => v && !v.startsWith('['));
 
   if (nonEmptyValues.length <= 1) {
@@ -552,16 +612,21 @@ async function processContentWithVariableTransform(
   variableResolver: (variableName: string, format: string) => Promise<string> | string,
   transform: (value: string) => string
 ): Promise<string> {
-  const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-
-  const matches = Array.from(content.matchAll(VARIABLE_REGEX));
+  const matches = Array.from(content.matchAll(GENERATION_REGEX));
   const promises = matches.map(async (match) => {
-    const resolvedValue = await Promise.resolve(variableResolver(match[1], match[2]));
-    return resolvedValue && !resolvedValue.startsWith('[') ? transform(resolvedValue) : resolvedValue;
+    const [fullMatch, isDoubleBracket, variableName, format] = match;
+    
+    if (fullMatch.endsWith(']]') && !isDoubleBracket) {
+      return fullMatch;
+    }
+    
+    const resolvedValue = await Promise.resolve(variableResolver(variableName, format));
+    const finalValue = isDoubleBracket ? `[${resolvedValue}]` : resolvedValue;
+    return finalValue && !finalValue.startsWith('[') ? transform(finalValue) : finalValue;
   });
 
   const replacements = await Promise.all(promises);
-  return content.replace(VARIABLE_REGEX, () => replacements.shift() || '');
+  return content.replace(GENERATION_REGEX, () => replacements.shift() || '');
 }
 
 /**
@@ -572,11 +637,14 @@ function processContentWithVariableTransformSync(
   variableResolver: (variableName: string, format: string) => string,
   transform: (value: string) => string
 ): string {
-  const VARIABLE_REGEX = /\[([^:]+):([^\]]+)\]/g;
-  
-  return content.replace(VARIABLE_REGEX, (fullMatch, variableName, format) => {
+  return content.replace(GENERATION_REGEX, (fullMatch, isDoubleBracket, variableName, format) => {
+    if (fullMatch.endsWith(']]') && !isDoubleBracket) {
+      return fullMatch;
+    }
+    
     const resolvedValue = variableResolver(variableName, format);
-    return resolvedValue && !resolvedValue.startsWith('[') ? transform(resolvedValue) : resolvedValue;
+    const finalValue = isDoubleBracket ? `[${resolvedValue}]` : resolvedValue;
+    return finalValue && !finalValue.startsWith('[') ? transform(finalValue) : finalValue;
   });
 }
 

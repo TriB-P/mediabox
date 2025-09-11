@@ -87,7 +87,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'PL_Audience_Other': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code','open'] },
   'PL_Creative_Grouping': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code','open'] },
   'PL_Device': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'PL_Market_Details': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Market_Details': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'PL_Product': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'PL_Segment_Open': { source: 'placement',  allowedFormats: ['open'] },
   'PL_Tactic_Category': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
@@ -96,7 +96,7 @@ export const TAXONOMY_VARIABLE_CONFIG: Record<string, VariableConfig> = {
   'PL_Custom_Dim_2': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'PL_Custom_Dim_3': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'PL_Channel': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
-  'PL_Format': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
+  'PL_Format': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code', 'open'] },
   'PL_Language': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
   'PL_Placement_Location': { source: 'placement',  allowedFormats: ['code', 'display_fr', 'display_en', 'utm', 'custom_utm', 'custom_code'] },
 

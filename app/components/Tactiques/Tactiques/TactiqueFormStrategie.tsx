@@ -271,7 +271,7 @@ const TactiqueFormStrategie = memo<TactiqueFormStrategieProps>(({
           />
         )}
         
-        {(dynamicLists.TC_Prog_Buying_Method_1 && dynamicLists.TC_Prog_Buying_Method_1.length > 0 && (formData.TC_Media_Type === 'SH_R3Z3VC6B' || formData.TC_Media_Type === 'SEA')) && (
+        {(dynamicLists.TC_Prog_Buying_Method_1 && dynamicLists.TC_Prog_Buying_Method_1.length > 0 && formData.TC_Media_Type === 'SH_R3Z3VC6B') && (
           <SmartSelect
             id="TC_Prog_Buying_Method_1"
             name="TC_Prog_Buying_Method_1"

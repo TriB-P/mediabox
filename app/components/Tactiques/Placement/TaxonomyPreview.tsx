@@ -13,6 +13,14 @@ import { TAXONOMY_VARIABLE_REGEX } from '../../../config/taxonomyFields';
 import { StarIcon } from 'lucide-react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 
+// ==================== CONSTANTES ====================
+
+// 🔥 NOUVEAU : Regex pour les double brackets
+const TAXONOMY_DOUBLE_BRACKET_REGEX = /\[\[([^:]+):([^\]]+)\]\]/g;
+
+// 🔥 NOUVEAU : Regex combinée pour détecter tous les types de variables
+const ALL_VARIABLES_REGEX = /(\[\[([^:]+):([^\]]+)\]\]|\[([^:]+):([^\]]+)\])/g;
+
 // ==================== TYPES ====================
 
 interface TaxonomyPreviewProps {
@@ -50,6 +58,7 @@ export default function TaxonomyPreview({
 }: TaxonomyPreviewProps) {
 
   const { t } = useTranslation();
+  
   // ==================== FONCTIONS UTILITAIRES ====================
   
   const getVariableSource = (variableName: string): 'campaign' | 'tactique' | 'placement' | 'créatif' => {
@@ -62,62 +71,119 @@ export default function TaxonomyPreview({
     return Boolean(formattedValue && !formattedValue.startsWith('['));
   };
 
+  // 🔥 MODIFIÉ : Support des double brackets dans la détection
   const isVariableInSection = useCallback((taxonomy: Taxonomy | undefined, variableName: string): boolean => {
     if (!taxonomy || !variableName) {
       return false;
     }
     
-    // 🔥 NOUVEAU : Construire la structure selon les niveaux à afficher
+    // Construire la structure selon les niveaux à afficher
     const levelNames = levelsToShow.map(level => 
       taxonomy[`NA_Name_Level_${level}` as keyof Taxonomy] as string
     ).filter(Boolean);
     
     const fullStructure = levelNames.join('|');
 
-    const variableRegex = new RegExp(`\\[${variableName}:`);
-    return variableRegex.test(fullStructure);
+    // 🔥 NOUVEAU : Chercher les single ET double brackets
+    const singleBracketRegex = new RegExp(`\\[${variableName}:`);
+    const doubleBracketRegex = new RegExp(`\\[\\[${variableName}:`);
+    
+    return singleBracketRegex.test(fullStructure) || doubleBracketRegex.test(fullStructure);
   }, [levelsToShow]);
 
-// Remplacer le useMemo par un useState + useEffect
-const [previewCache, setPreviewCache] = useState<{
-  tags: string;
-  platform: string;
-  mediaocean: string;
-}>({ tags: '', platform: '', mediaocean: '' });
+  // Remplacer le useMemo par un useState + useEffect
+  const [previewCache, setPreviewCache] = useState<{
+    tags: string;
+    platform: string;
+    mediaocean: string;
+  }>({ tags: '', platform: '', mediaocean: '' });
 
-// Nouveau useEffect pour gérer l'async
-useEffect(() => {
-  const updatePreviews = async () => {
-    const [tags, platform, mediaocean] = await Promise.all([
-      selectedTaxonomyData.tags ? getFormattedPreview('tags') : '',
-      selectedTaxonomyData.platform ? getFormattedPreview('platform') : '',
-      selectedTaxonomyData.mediaocean ? getFormattedPreview('mediaocean') : '',
-    ]);
+  // Nouveau useEffect pour gérer l'async
+  useEffect(() => {
+    const updatePreviews = async () => {
+      const [tags, platform, mediaocean] = await Promise.all([
+        selectedTaxonomyData.tags ? getFormattedPreview('tags') : '',
+        selectedTaxonomyData.platform ? getFormattedPreview('platform') : '',
+        selectedTaxonomyData.mediaocean ? getFormattedPreview('mediaocean') : '',
+      ]);
+      
+      setPreviewCache({ tags, platform, mediaocean });
+    };
     
-    setPreviewCache({ tags, platform, mediaocean });
+    updatePreviews();
+  }, [getFormattedPreview, selectedTaxonomyData, highlightState]);
+
+  const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
+    return previewCache[taxonomyType];
+  }, [previewCache]);
+
+  // 🔥 MODIFIÉ : Fonction pour parser toutes les variables (single et double brackets)
+  const parseAllVariables = (levelStructure: string) => {
+    const variables: Array<{
+      fullMatch: string;
+      variableName: string;
+      format: string;
+      index: number;
+      length: number;
+      isDoubleBracket: boolean;
+    }> = [];
+
+    // Parser les double brackets d'abord
+    TAXONOMY_DOUBLE_BRACKET_REGEX.lastIndex = 0;
+    let match;
+    while ((match = TAXONOMY_DOUBLE_BRACKET_REGEX.exec(levelStructure)) !== null) {
+      variables.push({
+        fullMatch: match[0],
+        variableName: match[1],
+        format: match[2],
+        index: match.index,
+        length: match[0].length,
+        isDoubleBracket: true
+      });
+    }
+
+    // Parser les single brackets (en évitant ceux qui sont dans les double brackets)
+    TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
+    while ((match = TAXONOMY_VARIABLE_REGEX.exec(levelStructure)) !== null) {
+      const matchIndex = match.index;
+      
+      // Vérifier si ce single bracket fait partie d'un double bracket
+      const isPartOfDouble = variables.some(variable => 
+        variable.isDoubleBracket && 
+        matchIndex >= variable.index && 
+        matchIndex < variable.index + variable.length
+      );
+
+      if (!isPartOfDouble) {
+        variables.push({
+          fullMatch: match[0],
+          variableName: match[1],
+          format: match[2],
+          index: matchIndex,
+          length: match[0].length,
+          isDoubleBracket: false
+        });
+      }
+    }
+
+    // Trier par index pour traitement séquentiel
+    return variables.sort((a, b) => a.index - b.index);
   };
-  
-  updatePreviews();
-}, [getFormattedPreview, selectedTaxonomyData, highlightState]);
 
-const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'mediaocean') => {
-  return previewCache[taxonomyType];
-}, [previewCache]);
-
-
+  // 🔥 MODIFIÉ : Support des double et single brackets
   const renderLevelWithVariables = (levelStructure: string) => {
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     
-    TAXONOMY_VARIABLE_REGEX.lastIndex = 0;
+    const variables = parseAllVariables(levelStructure);
     
-    let match;
-    while ((match = TAXONOMY_VARIABLE_REGEX.exec(levelStructure)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(levelStructure.substring(lastIndex, match.index));
+    variables.forEach((variable, idx) => {
+      // Ajouter le texte avant la variable
+      if (variable.index > lastIndex) {
+        parts.push(levelStructure.substring(lastIndex, variable.index));
       }
       
-      const [fullMatch, variableName, format] = match;
+      const { variableName, format, fullMatch, isDoubleBracket } = variable;
       
       const formattedValue = getFormattedValue(variableName, format);
       const source = getVariableSource(variableName);
@@ -130,21 +196,28 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
         ? 'font-bold ring-2 ring-yellow-400 ring-opacity-75 transform scale-105 transition-all duration-200 shadow-lg z-10 relative' 
         : 'transition-all duration-200';
 
-      const content = hasValue ? formattedValue : fullMatch;
+      // 🔥 NOUVEAU : Appliquer les brackets selon le type de variable
+      let content: string;
+      if (hasValue) {
+        content = isDoubleBracket ? `[${formattedValue}]` : formattedValue;
+      } else {
+        content = fullMatch; // Garder la variable non résolue telle quelle
+      }
 
       parts.push(
         <span 
-          key={match.index}
+          key={`${variable.index}-${idx}`}
           className={`inline-flex items-center px-2 py-1 mx-0.5 my-0.5 text-xs rounded-md ${sourceColor.bg} ${sourceColor.text} ${highlightClasses} ${!hasValue ? 'border-2 border-red-400' : ''}`}
-          title={`${t('taxonomyPreview.variableTooltip.variable')}: ${variableName} | ${t('taxonomyPreview.variableTooltip.format')}: ${format} | ${t('taxonomyPreview.variableTooltip.source')}: ${source}`}
+          title={`${t('taxonomyPreview.variableTooltip.variable')}: ${variableName} | ${t('taxonomyPreview.variableTooltip.format')}: ${format} | ${t('taxonomyPreview.variableTooltip.source')}: ${source} | ${t('taxonomyPreview.variableTooltip.type')}: ${isDoubleBracket ? 'Double brackets' : 'Single brackets'}`}
         >
           {content}
         </span>
       );
       
-      lastIndex = match.index + fullMatch.length;
-    }
+      lastIndex = variable.index + variable.length;
+    });
 
+    // Ajouter le texte restant
     if (lastIndex < levelStructure.length) {
       parts.push(levelStructure.substring(lastIndex));
     }
@@ -210,7 +283,6 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
           <div className="flex items-center space-x-2">
             <span className="font-medium">{label}</span>
             {showStar && <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />}
-
           </div>
           <span>{expandedPreviews[type] ? '−' : '+'}</span>
         </button>
@@ -257,6 +329,10 @@ const getMemoizedPreview = useCallback((taxonomyType: 'tags' | 'platform' | 'med
           </div>
           <div className="text-xs text-gray-600 pt-1">
             {t('taxonomyPreview.helpText.hover')}
+            {/* 🔥 NOUVEAU : Ajouter info sur les double brackets */}
+            <br />
+            <span className="font-medium">Double brackets [[var]]</span> → <span className="font-mono">[valeur]</span> | 
+            <span className="font-medium"> Single brackets [var]</span> → <span className="font-mono">valeur</span>
           </div>
         </div>
       </div>

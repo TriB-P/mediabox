@@ -283,8 +283,10 @@ export async function updateCampaign(
   }
 }
 
+
 /**
- * Supprime une campagne ainsi que toutes ses sous-collections (versions et breakdowns) de Firebase.
+ * Supprime une campagne ainsi que toutes ses sous-collections complètes de Firebase.
+ * CORRIGÉ: Nettoie maintenant toute la hiérarchie : versions/onglets/sections/tactiques/placements/creatifs + breakdowns
  * @param CA_Client L'identifiant du client.
  * @param campaignId L'identifiant de la campagne à supprimer.
  * @returns Une promesse qui résout une fois la suppression terminée.
@@ -294,19 +296,106 @@ export async function deleteCampaign(
   campaignId: string
 ): Promise<void> {
   try {
-    const subcollections = ['versions', 'breakdowns'];
-    for (const subcollection of subcollections) {
-      console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/${subcollection}");
-      const subRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, subcollection);
-      const snapshot = await getDocs(subRef);
-      for (const doc of snapshot.docs) {
-        console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: ${doc.ref.path}");
-        await deleteDoc(doc.ref);
+    console.log(`🗑️ Début suppression campagne ${campaignId} et toute sa hiérarchie`);
+
+    // 1. Supprimer toutes les versions avec leur hiérarchie complète
+    console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions");
+    const versionsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions');
+    const versionsSnapshot = await getDocs(versionsRef);
+    
+    for (const versionDoc of versionsSnapshot.docs) {
+      const versionId = versionDoc.id;
+      console.log(`🗑️ Suppression version ${versionId}`);
+      
+      // Supprimer tous les onglets de cette version
+      console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets");
+      const ongletsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions', versionId, 'onglets');
+      const ongletsSnapshot = await getDocs(ongletsRef);
+      
+      for (const ongletDoc of ongletsSnapshot.docs) {
+        const ongletId = ongletDoc.id;
+        console.log(`🗑️ Suppression onglet ${ongletId}`);
+        
+        // Supprimer toutes les sections de cet onglet
+        console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections");
+        const sectionsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections');
+        const sectionsSnapshot = await getDocs(sectionsRef);
+        
+        for (const sectionDoc of sectionsSnapshot.docs) {
+          const sectionId = sectionDoc.id;
+          console.log(`🗑️ Suppression section ${sectionId}`);
+          
+          // Supprimer toutes les tactiques de cette section
+          console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques");
+          const tactiquesRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques');
+          const tactiquesSnapshot = await getDocs(tactiquesRef);
+          
+          for (const tactiqueDoc of tactiquesSnapshot.docs) {
+            const tactiqueId = tactiqueDoc.id;
+            console.log(`🗑️ Suppression tactique ${tactiqueId}`);
+            
+            // Supprimer tous les placements de cette tactique
+            console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements");
+            const placementsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements');
+            const placementsSnapshot = await getDocs(placementsRef);
+            
+            for (const placementDoc of placementsSnapshot.docs) {
+              const placementId = placementDoc.id;
+              console.log(`🗑️ Suppression placement ${placementId}`);
+              
+              // Supprimer tous les créatifs de ce placement
+              console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs");
+              const creatifsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'versions', versionId, 'onglets', ongletId, 'sections', sectionId, 'tactiques', tactiqueId, 'placements', placementId, 'creatifs');
+              const creatifsSnapshot = await getDocs(creatifsRef);
+              
+              // Supprimer tous les créatifs
+              for (const creatifDoc of creatifsSnapshot.docs) {
+                console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}/creatifs/${creatifDoc.id}");
+                await deleteDoc(creatifDoc.ref);
+              }
+              
+              // Supprimer le placement
+              console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}/placements/${placementId}");
+              await deleteDoc(placementDoc.ref);
+            }
+            
+            // Supprimer la tactique
+            console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}/tactiques/${tactiqueId}");
+            await deleteDoc(tactiqueDoc.ref);
+          }
+          
+          // Supprimer la section
+          console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}/sections/${sectionId}");
+          await deleteDoc(sectionDoc.ref);
+        }
+        
+        // Supprimer l'onglet
+        console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}/onglets/${ongletId}");
+        await deleteDoc(ongletDoc.ref);
       }
+      
+      // Supprimer la version
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/versions/${versionId}");
+      await deleteDoc(versionDoc.ref);
     }
+    
+    // 2. Supprimer les breakdowns (collection parallèle aux versions)
+    console.log("FIREBASE: LECTURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/breakdowns");
+    const breakdownsRef = collection(db, 'clients', CA_Client, 'campaigns', campaignId, 'breakdowns');
+    const breakdownsSnapshot = await getDocs(breakdownsRef);
+    
+    for (const breakdownDoc of breakdownsSnapshot.docs) {
+      console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}/breakdowns/${breakdownDoc.id}");
+      await deleteDoc(breakdownDoc.ref);
+    }
+    
+    // 3. Supprimer la campagne elle-même
     console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: deleteCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}");
     const campaignRef = doc(db, 'clients', CA_Client, 'campaigns', campaignId);
     await deleteDoc(campaignRef);
+    
+    console.log(`✅ Suppression complète de la campagne ${campaignId} terminée`);
+    
   } catch (error) {
     console.error('Erreur lors de la suppression de la campagne:', error);
     throw error;

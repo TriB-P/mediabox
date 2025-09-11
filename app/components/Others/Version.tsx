@@ -59,13 +59,11 @@ export default function Version() {
     upcoming: {
       features: {
         fr: [
-          'Connexion native avec les plateformes sociales et programmatiques',
           'Intégration de type DocuSign pour les MPA',
           'Fonctionnalités IA pour accélérer la création de tactiques',
           'Indicateurs de campagnes',
         ],
         en: [
-            'Native connection with social and programmatic platforms',
             'DocuSign-type integration for MSAs',
             'AI functionalities to accelerate tactics creation',
             'Campaign indicators',
