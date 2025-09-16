@@ -1,15 +1,18 @@
+// app/components/Client/TemplateForm.tsx
+
 /**
  * Ce fichier définit le composant React `TemplateForm`.
  * Il s'agit d'un formulaire modal utilisé pour créer un nouveau gabarit (template) ou pour en modifier un existant.
  * Le formulaire gère les champs de saisie, la validation des données et la soumission.
  * Il ne communique pas directement avec Firebase mais délègue la sauvegarde à un composant parent via la prop `onSave`.
+ * MODIFIÉ: Ajout du champ TE_Type pour sélectionner le type de template
  */
 'use client';
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Template, TemplateFormData, LANGUAGES } from '../../types/template';
+import { Template, TemplateFormData, LANGUAGES, TEMPLATE_TYPES, TemplateType } from '../../types/template';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 interface TemplateFormProps {
@@ -35,7 +38,8 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
     TE_Name: '',
     TE_URL: '',
     TE_Duplicate: false,
-    TE_Language: 'FR'
+    TE_Language: 'FR',
+    TE_Type: 'Other' // NOUVEAU: Valeur par défaut pour le type de template
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -52,14 +56,16 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
         TE_Name: template.TE_Name,
         TE_URL: template.TE_URL,
         TE_Duplicate: template.TE_Duplicate,
-        TE_Language: template.TE_Language
+        TE_Language: template.TE_Language,
+        TE_Type: template.TE_Type || 'Other' // NOUVEAU: Support des templates existants sans ce champ
       });
     } else {
       setFormData({
         TE_Name: '',
         TE_URL: '',
         TE_Duplicate: false,
-        TE_Language: 'FR'
+        TE_Language: 'FR',
+        TE_Type: 'Other' // NOUVEAU: Valeur par défaut
       });
     }
     setErrors({});
@@ -90,6 +96,11 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
 
     if (!formData.TE_Language) {
       newErrors.TE_Language = t('templateForm.errors.languageRequired');
+    }
+
+    // NOUVEAU: Validation du type de template
+    if (!formData.TE_Type) {
+      newErrors.TE_Type = t('templateForm.errors.typeRequired');
     }
 
     setErrors(newErrors);
@@ -220,6 +231,31 @@ export default function TemplateForm({ isOpen, onClose, onSave, template }: Temp
                       />
                       {errors.TE_URL && (
                         <p className="mt-1 text-sm text-red-500">{errors.TE_URL}</p>
+                      )}
+                    </div>
+
+                    {/* NOUVEAU: Champ pour le type de template */}
+                    <div>
+                      <label htmlFor="TE_Type" className="block text-sm font-medium text-gray-700">
+                        {t('templateForm.fields.type.label')} *
+                      </label>
+                      <select
+                        id="TE_Type"
+                        name="TE_Type"
+                        value={formData.TE_Type}
+                        onChange={handleChange}
+                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                          errors.TE_Type ? 'border-red-500' : ''
+                        }`}
+                      >
+                        {TEMPLATE_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {t(`templateForm.fields.type.options.${type.toLowerCase().replace(' ', '_')}`)}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.TE_Type && (
+                        <p className="mt-1 text-sm text-red-500">{errors.TE_Type}</p>
                       )}
                     </div>
 

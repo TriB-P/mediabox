@@ -6,6 +6,7 @@
  * et supprimer des documents associés à des campagnes et versions spécifiques.
  * Les documents sont organisés dans la hiérarchie :
  * /clients/{clientID}/campaigns/{campaignID}/versions/{versionID}/documents
+ * MODIFIÉ: Support du templateType dans la création de documents dissociés
  */
 
 import {
@@ -52,7 +53,8 @@ import {
         template: {
           id: formData.templateId,
           name: '', // Sera mis à jour par le hook de création
-          originalUrl: '' // Sera mis à jour par le hook de création
+          originalUrl: '', // Sera mis à jour par le hook de création
+          templateType: 'Other' // Valeur par défaut, sera mis à jour par le hook de création
         },
         campaign: {
           id: formData.campaignId,
@@ -244,6 +246,7 @@ import {
   
   /**
    * Met à jour les métadonnées complètes d'un document (template, campagne, version).
+   * Cette fonction supporte automatiquement le nouveau champ templateType via l'interface Document mise à jour.
    * @param clientId L'ID du client.
    * @param campaignId L'ID de la campagne.
    * @param versionId L'ID de la version.
@@ -571,6 +574,7 @@ import {
 
   /**
    * Crée un nouveau document dissocié dans Firebase avec toutes ses métadonnées.
+   * MODIFIÉ: Support automatique du templateType via l'objet template passé en paramètre.
    * @param clientId L'ID du client.
    * @param campaignId L'ID de la campagne.
    * @param versionId L'ID de la version.
@@ -586,7 +590,7 @@ import {
       name: string;
       url: string;
       originalDocumentId: string;
-      template: Document['template'];
+      template: Document['template']; // Cet objet contient maintenant automatiquement templateType
       campaign: Document['campaign'];
       version: Document['version'];
     },
@@ -605,7 +609,7 @@ import {
         status: DocumentStatus.COMPLETED, // Les documents dissociés sont immédiatement prêts
         isUnlinked: true,
         originalDocumentId: documentData.originalDocumentId,
-        template: documentData.template,
+        template: documentData.template, // Inclut automatiquement templateType
         campaign: documentData.campaign,
         version: documentData.version,
         createdBy: {

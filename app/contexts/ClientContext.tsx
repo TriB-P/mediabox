@@ -8,6 +8,7 @@
  * VERSION MISE À JOUR : Inclut maintenant la redirection automatique 
  * vers /no-access si l'utilisateur n'a accès à aucun client.
  * CORRECTION : Permet l'affichage de la page /no-access même quand hasAccess = false.
+ * PATCH : Corrige la race condition entre router.push et usePathname.
  */
 'use client';
 
@@ -37,6 +38,7 @@ const CLIENT_STORAGE_KEY = 'mediabox-selected-client';
  * la sélection et la persistance du client choisi.
  * NOUVEAU : Redirige automatiquement vers /no-access si aucun client disponible.
  * CORRECTION : Permet l'affichage de la page /no-access même sans accès client.
+ * PATCH : Corrige la race condition entre router.push et usePathname.
  * @param {React.ReactNode} children - Les composants enfants qui auront accès au contexte.
  * @returns {JSX.Element} Le fournisseur de contexte client.
  */
@@ -48,12 +50,22 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [selectedClient, setSelectedClient] = useState<ClientPermission | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(true); // Par défaut true pour éviter la redirection prématurée
+  // PATCH: Nouvel état pour gérer la race condition
+  const [isRedirectingToNoAccess, setIsRedirectingToNoAccess] = useState(false);
 
   // Hook pour la gestion du chargement du cache
   const cacheLoading = useCacheLoading();
 
   // Vérifier si on est sur la page no-access
   const isOnNoAccessPage = pathname === '/no-access';
+
+  // PATCH: Reset de isRedirectingToNoAccess quand on arrive effectivement sur no-access
+  useEffect(() => {
+    if (isOnNoAccessPage && isRedirectingToNoAccess) {
+      setIsRedirectingToNoAccess(false);
+      console.log('[DEBUG] Arrivé sur /no-access, reset de isRedirectingToNoAccess');
+    }
+  }, [isOnNoAccessPage, isRedirectingToNoAccess]);
 
   /**
    * Génère une clé de stockage unique basée sur l'e-mail de l'utilisateur.
@@ -116,6 +128,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       setAvailableClients([]);
       setSelectedClient(null);
       setHasAccess(true); // Réinitialiser à true quand pas d'utilisateur
+      setIsRedirectingToNoAccess(false); // PATCH: Reset aussi cet état
       setLoading(false);
     }
   }, [user]);
@@ -123,6 +136,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   /**
    * Charge les clients associés à l'utilisateur actuel depuis la base de données.
    * NOUVEAU : Gère la redirection automatique vers /no-access si aucun client disponible.
+   * PATCH : Corrige la race condition avec isRedirectingToNoAccess.
    * @returns {Promise<void>}
    */
   const loadUserClients = async () => {
@@ -146,12 +160,30 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
       if (clients.length === 0) {
         console.log('Aucun client disponible pour l\'utilisateur, redirection vers /no-access');
         setHasAccess(false);
-        // Fermer l'écran de chargement avant la redirection
+        
+        // PATCH: Vérifier si on est déjà sur /no-access (cas du refresh)
+        const currentPath = pathname;
+        const isAlreadyOnNoAccess = currentPath === '/no-access';
+        
+        if (isAlreadyOnNoAccess) {
+          console.log('[DEBUG] Déjà sur /no-access, pas de redirection nécessaire');
+          setIsRedirectingToNoAccess(false);
+        } else {
+          // Activer l'état de redirection avant router.push
+          setIsRedirectingToNoAccess(true);
+          console.log('[DEBUG] setIsRedirectingToNoAccess(true) - avant router.push');
+          
+          // Rediriger
+          router.push('/no-access');
+        }
+        
+        // Fermer l'écran de chargement
         cacheLoading.completeLoading();
-        router.push('/no-access');
         return; // Arrêter ici pour éviter le traitement supplémentaire
       } else {
         setHasAccess(true);
+        // PATCH: S'assurer que isRedirectingToNoAccess est false si on a accès
+        setIsRedirectingToNoAccess(false);
       }
 
       // 5. Mise à jour intelligente du cache (seulement si l'utilisateur a accès)
@@ -188,11 +220,27 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Erreur lors du chargement des clients:', error);
       cacheLoading.errorLoading('Erreur lors du chargement des données');
+      
       // En cas d'erreur, on considère que l'utilisateur n'a pas accès
       setHasAccess(false);
-      // Fermer l'écran de chargement avant la redirection
+      
+      // PATCH: Vérifier si on est déjà sur /no-access (cas du refresh avec erreur)
+      const currentPath = pathname;
+      const isAlreadyOnNoAccess = currentPath === '/no-access';
+      
+      if (isAlreadyOnNoAccess) {
+        console.log('[DEBUG] Erreur mais déjà sur /no-access, pas de redirection nécessaire');
+        setIsRedirectingToNoAccess(false);
+      } else {
+        // Activer l'état de redirection avant router.push (en cas d'erreur)
+        setIsRedirectingToNoAccess(true);
+        console.log('[DEBUG] setIsRedirectingToNoAccess(true) - erreur, avant router.push');
+        
+        router.push('/no-access');
+      }
+      
+      // Fermer l'écran de chargement
       cacheLoading.completeLoading();
-      router.push('/no-access');
     } finally {
       setLoading(false);
     }
@@ -217,6 +265,14 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
     hasAccess, // Nouveau champ exposé
   };
 
+  // PATCH: Condition d'affichage corrigée pour inclure isRedirectingToNoAccess
+  const shouldShowContent = hasAccess || isOnNoAccessPage || isRedirectingToNoAccess;
+  
+  // Debug logs pour diagnostiquer
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEBUG ClientContext] hasAccess:', hasAccess, 'isOnNoAccessPage:', isOnNoAccessPage, 'isRedirectingToNoAccess:', isRedirectingToNoAccess, 'shouldShowContent:', shouldShowContent);
+  }
+
   return (
     <ClientContext.Provider value={value}>
       {/* Écran de chargement du cache - s'affiche seulement si l'utilisateur a accès */}
@@ -230,9 +286,8 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
         />
       )}
       
-      {/* CORRECTION : Contenu normal de l'application */}
-      {/* Afficher si l'utilisateur a accès OU s'il est sur la page no-access */}
-      {(hasAccess || isOnNoAccessPage) && children}
+      {/* PATCH: Contenu normal de l'application avec condition corrigée */}
+      {shouldShowContent && children}
     </ClientContext.Provider>
   );
 }

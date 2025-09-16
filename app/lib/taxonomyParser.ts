@@ -407,6 +407,7 @@ function generatePlaceholder(variable: ParsedTaxonomyVariable): string {
 /**
  * 🔥 CORRIGÉ : Fonction de remplacement asynchrone sécurisée avec support des doubles crochets.
  * Traite les délimiteurs en plusieurs passes jusqu'à stabilisation pour éviter les boucles infinies.
+ * ORDRE MODIFIÉ : ▶content◀ traité AVANT <content>
  */
 export async function processTaxonomyDelimiters(
   structure: string,
@@ -428,14 +429,14 @@ export async function processTaxonomyDelimiters(
     previousStructure = currentStructure;
     let tempStructure = previousStructure;
 
-    // 1. Groupes conditionnels <content>
-    tempStructure = await asyncReplace(tempStructure, /<([^>]+)>/g, (match, content) =>
-      processConditionalGroup(content, variableResolver)
-    );
-
-    // 2. Règles ▶content◀ (minuscules)
+    // 1. Règles ▶content◀ (minuscules) - TRAITÉ EN PREMIER
     tempStructure = await asyncReplace(tempStructure, /▶([^◀]+)◀/g, (match, content) =>
       processContentWithVariableTransform(content, variableResolver, (v) => v.toLowerCase())
+    );
+
+    // 2. Groupes conditionnels <content> - TRAITÉ APRÈS
+    tempStructure = await asyncReplace(tempStructure, /<([^>]+)>/g, (match, content) =>
+      processConditionalGroup(content, variableResolver)
     );
 
     // 3. Règles 〔content〕 (nettoyage)
@@ -472,6 +473,7 @@ export async function processTaxonomyDelimiters(
 /**
  * 🔥 CORRIGÉ : Version synchrone sécurisée avec support des doubles crochets.
  * Utilise la même logique de stabilisation pour éviter les boucles infinies.
+ * ORDRE MODIFIÉ : ▶content◀ traité AVANT <content>
  */
 export function processTaxonomyDelimitersSync(
   structure: string,
@@ -486,14 +488,14 @@ export function processTaxonomyDelimitersSync(
     previousStructure = currentStructure;
     let tempStructure = previousStructure;
 
-    // 1. Groupes conditionnels <content>
-    tempStructure = tempStructure.replace(/<([^>]+)>/g, (match, content) =>
-      processConditionalGroupSync(content, variableResolver)
-    );
-
-    // 2. Règles ▶content◀ (minuscules)
+    // 1. Règles ▶content◀ (minuscules) - TRAITÉ EN PREMIER
     tempStructure = tempStructure.replace(/▶([^◀]+)◀/g, (match, content) =>
       processContentWithVariableTransformSync(content, variableResolver, (v) => v.toLowerCase())
+    );
+
+    // 2. Groupes conditionnels <content> - TRAITÉ APRÈS
+    tempStructure = tempStructure.replace(/<([^>]+)>/g, (match, content) =>
+      processConditionalGroupSync(content, variableResolver)
     );
 
     // 3. Règles 〔content〕 (nettoyage)
@@ -526,6 +528,7 @@ export function processTaxonomyDelimitersSync(
 
   return currentStructure;
 }
+
 
 // ==================== FONCTIONS HELPER POUR DÉLIMITEURS ====================
 

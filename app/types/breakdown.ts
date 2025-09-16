@@ -3,9 +3,14 @@
  * Types améliorés pour les breakdowns avec:
  * - Support des champs date et name pour les périodes
  * - Distinction entre types automatiques et custom
- * - Nouvelles interfaces pour la structure de données
+ * - Support du sous-type pour les breakdowns mensuels
  */
 export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
+
+/**
+ * NOUVEAU: Type pour le sous-type des breakdowns mensuels
+ */
+export type BreakdownSubType = 'Planned' | 'Actual' | 'Billed' | 'Other';
 
 /**
  * MODIFIÉ: Structure améliorée pour une période personnalisée
@@ -18,12 +23,13 @@ export interface CustomPeriod {
 }
 
 /**
- * Interface principale pour un breakdown
+ * MODIFIÉ: Interface principale pour un breakdown avec support du sous-type
  */
 export interface Breakdown {
   id: string;
   name: string;
   type: BreakdownType;
+  subType?: BreakdownSubType; // NOUVEAU: Sous-type pour les breakdowns mensuels
   startDate: string; // Format: YYYY-MM-DD
   endDate: string; // Format: YYYY-MM-DD
   isDefault: boolean; // True pour le breakdown "Calendrier" non supprimable
@@ -36,11 +42,12 @@ export interface Breakdown {
 }
 
 /**
- * Interface pour les données de formulaire lors de la création ou de la mise à jour d'un breakdown
+ * MODIFIÉ: Interface pour les données de formulaire avec support du sous-type
  */
 export interface BreakdownFormData {
   name: string;
   type: BreakdownType;
+  subType?: BreakdownSubType; // NOUVEAU: Sous-type pour les breakdowns mensuels
   startDate: string;
   endDate: string;
 
@@ -142,6 +149,17 @@ export const BREAKDOWN_TYPES: { value: BreakdownType; label: string }[] = [
   { value: 'Custom', label: 'Personnalisé' },
 ];
 
+// NOUVEAU: Constantes pour les sous-types de breakdown mensuels
+export const BREAKDOWN_SUB_TYPES: { value: BreakdownSubType; label: string }[] = [
+  { value: 'Planned', label: 'Planned' }, // Sera traduit dans l'interface
+  { value: 'Actual', label: 'Actual' },
+  { value: 'Billed', label: 'Billed' },
+  { value: 'Other', label: 'Other' },
+];
+
+// NOUVEAU: Sous-type par défaut pour les breakdowns mensuels
+export const DEFAULT_BREAKDOWN_SUB_TYPE: BreakdownSubType = 'Planned';
+
 // Nom du breakdown par défaut
 export const DEFAULT_BREAKDOWN_NAME = 'Calendrier';
 
@@ -210,6 +228,13 @@ export const isCustomNameType = (type: BreakdownType): boolean => {
 };
 
 /**
+ * NOUVEAU: Détermine si un type de breakdown supporte les sous-types
+ */
+export const supportsSubType = (type: BreakdownType): boolean => {
+  return type === 'Mensuel';
+};
+
+/**
  * NOUVEAU: Génère un label d'affichage pour une période selon son type
  */
 export const generatePeriodLabel = (
@@ -242,5 +267,41 @@ export const generatePeriodLabel = (
     const day = date.getDate().toString().padStart(2, '0');
     const month = months[date.getMonth()];
     return `${day} ${month}`;
+  }
+};
+
+/**
+ * NOUVEAU: Obtient le label traduit d'un sous-type de breakdown
+ * Cette fonction sera utilisée pour l'affichage dans l'interface
+ */
+export const getBreakdownSubTypeLabel = (subType: BreakdownSubType, t?: (key: string) => string): string => {
+  if (!t) {
+    // Fallback sans traduction
+    switch (subType) {
+      case 'Planned':
+        return 'Planifié';
+      case 'Actual':
+        return 'Actuel';
+      case 'Billed':
+        return 'Facturé';
+      case 'Other':
+        return 'Autre';
+      default:
+        return subType;
+    }
+  }
+
+  // Avec système de traduction
+  switch (subType) {
+    case 'Planned':
+      return t('campaigns.formBreakdown.subTypes.planned');
+    case 'Actual':
+      return t('campaigns.formBreakdown.subTypes.actual');
+    case 'Billed':
+      return t('campaigns.formBreakdown.subTypes.billed');
+    case 'Other':
+      return t('campaigns.formBreakdown.subTypes.other');
+    default:
+      return subType;
   }
 };

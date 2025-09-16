@@ -4,7 +4,10 @@
  * Ce fichier définit les interfaces TypeScript pour le système de documents.
  * Il couvre les entités principales : Document, les données de formulaire,
  * les statuts de création, et les métadonnées associées.
+ * MODIFIÉ: Ajout du champ templateType dans l'objet template
  */
+
+import { TemplateType } from './template';
 
 /**
  * Énumération des statuts possibles d'un document.
@@ -47,6 +50,8 @@ export interface Document {
     name: string;
     /** URL du template original */
     originalUrl: string;
+    /** Type du template source */
+    templateType: TemplateType; // NOUVEAU: Type de template
   };
   
   /** Informations sur la campagne et version utilisées */

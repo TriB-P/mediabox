@@ -11,6 +11,7 @@
  * * IMPORTANT: Les shortcodes sont convertis selon la langue du template (TE_Language)
  * et non selon la langue d'exportation du client.
  * * AMÉLIORÉ: Propagation des erreurs détaillées (notamment pop-ups bloquées)
+ * * MODIFIÉ: Support du templateType dans les métadonnées du document
  */
 'use client';
 
@@ -330,7 +331,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       
       const documentId = await createDocument(context, duplicationResult.duplicatedUrl);
 
-      // 4. MISE À JOUR DES MÉTADONNÉES
+      // 4. MISE À JOUR DES MÉTADONNÉES (MODIFIÉ: Ajout du templateType)
       await updateDocumentMetadata(
         clientId,
         formData.campaignId,
@@ -340,7 +341,8 @@ export function useCreateDocument(): UseCreateDocumentReturn {
           template: {
             id: template.id,
             name: template.TE_Name,
-            originalUrl: template.TE_URL
+            originalUrl: template.TE_URL,
+            templateType: template.TE_Type || 'Other' // NOUVEAU: Inclure le type de template
           },
           campaign: {
             id: campaign.id,
@@ -429,7 +431,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         );
       }
 
-      // 8. CONSTRUIRE LE DOCUMENT FINAL
+      // 8. CONSTRUIRE LE DOCUMENT FINAL (MODIFIÉ: Ajout du templateType)
       const finalDocument = {
         id: documentId,
         name: formData.name,
@@ -438,7 +440,8 @@ export function useCreateDocument(): UseCreateDocumentReturn {
         template: {
           id: template.id,
           name: template.TE_Name,
-          originalUrl: template.TE_URL
+          originalUrl: template.TE_URL,
+          templateType: template.TE_Type || 'Other' // NOUVEAU: Inclure le type de template
         },
         campaign: {
           id: campaign.id,

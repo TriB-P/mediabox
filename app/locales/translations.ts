@@ -182,13 +182,20 @@ export const translations = {
           period: "Période ",
           periodNameLabel: "Nom de la période *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
-          saving: "Sauvegarde..."
+          saving: "Sauvegarde...",
+          subTypeLabel: "Type de répartition mensuelle",
         },
         types: {
           weekly: "Hebdomadaire",
           monthly: "Mensuel",
           pebs: "PEBs",
           custom: "Personnalisé"
+        },
+        subTypes:{
+          planned: "Planifié",
+          actual: "Réel",
+          billed: "Facturé",
+          other: "Autre"
         }
       },
       formBudget: {
@@ -1243,7 +1250,8 @@ export const translations = {
           url: "URL",
           language: "Langue",
           duplication: "Duplication d'onglets",
-          actions: "Actions"
+          actions: "Actions",
+          type: "Type"
         },
         body: {
           yes: "Oui",
@@ -1300,13 +1308,24 @@ export const translations = {
         },
         language: {
           label: "Langue"
+        },
+        type:{
+          label:" Type de gabarit",
+          options:{
+            media_plan: "Plan Média",
+            mpa: "MPA",
+            name_sheet: "Name Sheet",
+            spec_sheet: "Spec Sheet",
+            other: "Autre"
+          }
         }
       },
       errors: {
         nameRequired: "Le nom du gabarit est requis",
         urlRequired: "L'URL du gabarit est requise",
         urlInvalid: "L'URL doit être valide",
-        languageRequired: "La langue est requise"
+        languageRequired: "La langue est requise",
+        typeRequired: "Le type de gabarit est requis"
       },
       buttons: {
         cancel: "Annuler",
@@ -4299,7 +4318,7 @@ export const translations = {
         audienceOther: "Autre audience",
         creativeGrouping: "Groupement de créatifs",
         device: "Appareil",
-        channel: "Chaîne",
+        channel: "Canal",
         format: "Format",
         language: "Langue",
         marketDetails: "Détails du marché",
@@ -4789,13 +4808,20 @@ export const translations = {
           period: "Period ",
           periodNameLabel: "Period Name *",
           periodNamePlaceholder: "Ex: Q1, Phase 1, Sprint 1...",
-          saving: "Saving..."
+          saving: "Saving...",
+          subTypeLabel: "Type of monthly breakdown"
         },
         types: {
           weekly: "Weekly",
           monthly: "Monthly",
           pebs: "GRPs",
           custom: "Custom"
+        },
+        subTypes: {
+          planned: "Planned",
+          actual: "Actual",
+          billed: "Billed",
+          other: "Other"
         }
       },
       formBudget: {
@@ -5694,7 +5720,8 @@ export const translations = {
           url: "URL",
           language: "Language",
           duplication: "Tab Duplication",
-          actions: "Actions"
+          actions: "Actions",
+          type: "Type"
         },
         body: {
           yes: "Yes",
@@ -5751,13 +5778,24 @@ export const translations = {
         },
         language: {
           label: "Language"
+        },
+        type:{
+          label:" Type de gabarit",
+          options:{
+            media_plan: "Plan Média",
+            mpa: "MPA",
+            name_sheet: "Name Sheet",
+            spec_sheet: "Spec Sheet",
+            other: "Autre"
+          }
         }
       },
       errors: {
         nameRequired: "The template name is required",
         urlRequired: "The template URL is required",
         urlInvalid: "The URL must be valid",
-        languageRequired: "The language is required"
+        languageRequired: "The language is required",
+        typeRequired: "The type is required",
       },
       buttons: {
         cancel: "Cancel",

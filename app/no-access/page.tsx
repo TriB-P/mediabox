@@ -99,7 +99,7 @@ export default function NoAccessPage() {
           {/* Message en anglais */}
           <div className="bg-white rounded-lg p-6 mb-4 shadow-sm border border-gray-200">
             <p className="text-lg text-gray-700 mb-4">
-              You currently have no access to any project in MediaBox.
+              You currently have no access to any client in MediaBox.
             </p>
             <p className="text-sm text-gray-600">
               Contact the MediaBox team to request access:
@@ -109,7 +109,7 @@ export default function NoAccessPage() {
           {/* Message en français */}
           <div className="bg-white rounded-lg p-6 mb-8 shadow-sm border border-gray-200">
             <p className="text-lg text-gray-700 mb-4">
-              Vous n'avez actuellement accès à aucun projet dans MediaBox.
+              Vous n'avez actuellement accès à aucun client dans MediaBox.
             </p>
             <p className="text-sm text-gray-600">
               Contactez l'équipe MediaBox pour faire une demande d'accès :
@@ -141,7 +141,7 @@ export default function NoAccessPage() {
       <div className="bg-white border-t border-gray-200 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500">
-            © 2024 MediaBox - Plus Company
+            MediaBox - Plus Company
           </p>
         </div>
       </div>

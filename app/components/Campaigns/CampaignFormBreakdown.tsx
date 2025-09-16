@@ -3,6 +3,7 @@
  * - Limite à 5 breakdowns par campagne
  * - Support des nouvelles structures de données avec IDs uniques
  * - Gestion améliorée des types automatiques vs custom
+ * - Support du sous-type pour les breakdowns mensuels
  * - Traduction des types d'affichage (garde les valeurs FR en backend)
  */
 
@@ -17,7 +18,8 @@ import {
   Cog6ToothIcon,
   CalculatorIcon,
   XMarkIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import {
   HelpIcon,
@@ -28,11 +30,16 @@ import {
   Breakdown,
   BreakdownFormData,
   BreakdownType,
+  BreakdownSubType,
   CustomPeriodFormData,
   BREAKDOWN_TYPES,
+  BREAKDOWN_SUB_TYPES,
   DEFAULT_BREAKDOWN_NAME,
+  DEFAULT_BREAKDOWN_SUB_TYPE,
   createEmptyCustomPeriod,
   validateCustomPeriods,
+  supportsSubType,
+  getBreakdownSubTypeLabel,
   MAX_BREAKDOWNS_PER_CAMPAIGN
 } from '../../types/breakdown';
 import {
@@ -64,7 +71,7 @@ interface BreakdownEditData extends BreakdownFormData {
 
 /**
  * Composant principal pour gérer les répartitions temporelles d'une campagne.
- * AMÉLIORÉ: Avec limite à 5 breakdowns et nouvelle structure de données
+ * AMÉLIORÉ: Avec limite à 5 breakdowns, nouvelle structure de données et sous-type mensuel
  */
 const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   clientId,
@@ -103,12 +110,29 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   };
 
   /**
+   * NOUVEAU: Fonction pour obtenir le label traduit d'un sous-type de breakdown
+   */
+  const getTranslatedBreakdownSubTypeLabel = (subType: BreakdownSubType): string => {
+    return getBreakdownSubTypeLabel(subType, t);
+  };
+
+  /**
    * Fonction pour obtenir la liste des types avec leurs labels traduits
    */
   const getTranslatedBreakdownTypes = () => {
     return BREAKDOWN_TYPES.map(type => ({
       ...type,
       label: getBreakdownTypeLabel(type.value)
+    }));
+  };
+
+  /**
+   * NOUVEAU: Fonction pour obtenir la liste des sous-types avec leurs labels traduits
+   */
+  const getTranslatedBreakdownSubTypes = () => {
+    return BREAKDOWN_SUB_TYPES.map(subType => ({
+      ...subType,
+      label: getTranslatedBreakdownSubTypeLabel(subType.value)
     }));
   };
 
@@ -173,6 +197,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         allBreakdowns.push({
           name: defaultBreakdown.name,
           type: defaultBreakdown.type,
+          subType: defaultBreakdown.subType, // NOUVEAU: Inclure le sous-type
           startDate: defaultBreakdown.startDate,
           endDate: defaultBreakdown.endDate,
           isDefault: true
@@ -207,7 +232,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Prépare l'état pour la création d'une nouvelle répartition en ouvrant le formulaire modal.
-   * CORRIGÉ: Utilise les dates de campagne originales et applique l'ajustement selon le type par défaut
+   * MODIFIÉ: Gestion du sous-type par défaut pour les types mensuels
    */
   const handleCreateBreakdown = () => {
     if (!campaignStartDate || !campaignEndDate) {
@@ -233,6 +258,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       type: defaultType,
       startDate: adjustedStartDate,
       endDate: campaignEndDate,
+      // NOUVEAU: Pas de sous-type par défaut pour Hebdomadaire
     };
 
     setEditingBreakdown(newBreakdown);
@@ -252,6 +278,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       id: breakdown.id,
       name: breakdown.name,
       type: breakdown.type,
+      subType: breakdown.subType, // NOUVEAU: Inclure le sous-type
       startDate: breakdown.startDate,
       endDate: breakdown.endDate,
       isDefault: breakdown.isDefault,
@@ -291,6 +318,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         const newBreakdownData: BreakdownFormData = {
           name: editingBreakdown.name,
           type: editingBreakdown.type,
+          subType: editingBreakdown.subType, // NOUVEAU: Inclure le sous-type
           startDate: editingBreakdown.startDate,
           endDate: editingBreakdown.endDate,
           customPeriods: editingBreakdown.customPeriods
@@ -302,6 +330,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
           id: `temp_${Date.now()}`,
           name: editingBreakdown.name,
           type: editingBreakdown.type,
+          subType: editingBreakdown.subType, // NOUVEAU: Inclure le sous-type
           startDate: editingBreakdown.startDate,
           endDate: editingBreakdown.endDate,
           isDefault: false,
@@ -360,7 +389,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
 
   /**
    * Gère le changement de type de répartition dans le formulaire d'édition.
-   * CORRIGÉ: Utilise TOUJOURS les dates de campagne comme base pour éviter les ajustements en cascade
+   * MODIFIÉ: Gestion du sous-type selon le type sélectionné
    */
   const handleTypeChange = (newType: BreakdownType) => {
     if (!editingBreakdown) return;
@@ -379,22 +408,27 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         // Lundi le plus proche (avant ou égal)
         adjustedStartDate = getClosestMonday(baseStartDate);
         updatedBreakdown.customPeriods = undefined;
+        updatedBreakdown.subType = undefined; // NOUVEAU: Supprimer le sous-type
         break;
         
       case 'Mensuel':
         // 1er du mois où la campagne commence
         adjustedStartDate = getFirstOfMonth(baseStartDate);
         updatedBreakdown.customPeriods = undefined;
+        // NOUVEAU: Définir le sous-type par défaut pour mensuel
+        updatedBreakdown.subType = updatedBreakdown.subType || DEFAULT_BREAKDOWN_SUB_TYPE;
         break;
         
       case 'Custom':
         // Pas d'ajustement pour Custom
         adjustedStartDate = baseStartDate;
         updatedBreakdown.customPeriods = [createEmptyCustomPeriod()];
+        updatedBreakdown.subType = undefined; // NOUVEAU: Supprimer le sous-type
         break;
         
       default:
         adjustedStartDate = baseStartDate;
+        updatedBreakdown.subType = undefined;
     }
 
     updatedBreakdown.type = newType;
@@ -402,6 +436,18 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
     updatedBreakdown.endDate = baseEndDate;
 
     setEditingBreakdown(updatedBreakdown);
+  };
+
+  /**
+   * NOUVEAU: Gère le changement de sous-type de répartition
+   */
+  const handleSubTypeChange = (newSubType: BreakdownSubType) => {
+    if (!editingBreakdown || !supportsSubType(editingBreakdown.type)) return;
+
+    setEditingBreakdown({
+      ...editingBreakdown,
+      subType: newSubType
+    });
   };
 
   /**
@@ -584,6 +630,10 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                         </h4>
                         <p className="text-sm text-gray-500">
                           {getBreakdownTypeLabel(breakdown.type)}
+                          {/* NOUVEAU: Affichage du sous-type */}
+                          {breakdown.subType && (
+                            <> • {getTranslatedBreakdownSubTypeLabel(breakdown.subType)}</>
+                          )}
                           {breakdown.type !== 'Custom' && (
                             <> • {breakdown.startDate} → {breakdown.endDate}</>
                           )}
@@ -668,7 +718,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
         )}
       </FormSection>
 
-      {/* Modal d'édition - inchangé mais bénéficie des nouvelles validations */}
+      {/* Modal d'édition - MODIFIÉ avec support du sous-type */}
       {editingBreakdown && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -733,6 +783,35 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
                   })}
                 </div>
               </div>
+
+              {/* NOUVEAU: Champ sous-type conditionnel pour les types mensuels */}
+              {supportsSubType(editingBreakdown.type) && (
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <HelpIcon
+                      tooltip={t('campaigns.formBreakdown.modal.subTypeHelp')}
+                      onTooltipChange={onTooltipChange}
+                    />
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t('campaigns.formBreakdown.modal.subTypeLabel')}
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={editingBreakdown.subType || DEFAULT_BREAKDOWN_SUB_TYPE}
+                      onChange={(e) => handleSubTypeChange(e.target.value as BreakdownSubType)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white pr-10"
+                    >
+                      {getTranslatedBreakdownSubTypes().map((subType) => (
+                        <option key={subType.value} value={subType.value}>
+                          {subType.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+              )}
 
               {editingBreakdown.type !== 'Custom' && (
                 <>

@@ -4,6 +4,7 @@
  * Service amélioré pour la gestion des breakdowns avec:
  * - IDs déterministes pour les périodes (évite la perte de données utilisateur)
  * - Limite à 5 breakdowns par campagne
+ * - Support du sous-type pour les breakdowns mensuels
  * - Cohérence entre frontend et backend
  */
 import {
@@ -21,11 +22,14 @@ import {
   Breakdown,
   BreakdownFormData,
   BreakdownType,
+  BreakdownSubType,
   DateValidationResult,
   CustomPeriod,
   CustomPeriodFormData,
   validateCustomPeriods,
-  DEFAULT_BREAKDOWN_NAME
+  DEFAULT_BREAKDOWN_NAME,
+  DEFAULT_BREAKDOWN_SUB_TYPE,
+  supportsSubType
 } from '../types/breakdown';
 
 // ============================================================================
@@ -335,7 +339,7 @@ export function getFirstOfMonth(date: string): string {
 }
 
 // ============================================================================
-// FONCTIONS CRUD AMÉLIORÉES
+// FONCTIONS CRUD AMÉLIORÉES AVEC SUPPORT DU SOUS-TYPE
 // ============================================================================
 
 export async function getBreakdowns(
@@ -407,11 +411,18 @@ export async function createBreakdown(
       const existingDefault = existingBreakdowns.find(b => b.isDefault);
       if (existingDefault) {
         console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown - Mise à jour breakdown par défaut");
-        await updateDoc(doc(db, 'clients', clientId, 'campaigns', campaignId, 'breakdowns', existingDefault.id), {
+        const updateData: any = {
           startDate: breakdownData.startDate,
           endDate: breakdownData.endDate,
           updatedAt: new Date().toISOString(),
-        });
+        };
+        
+        // NOUVEAU: Gérer le sous-type pour le breakdown par défaut si c'est mensuel
+        if (supportsSubType(breakdownData.type) && breakdownData.subType) {
+          updateData.subType = breakdownData.subType;
+        }
+        
+        await updateDoc(doc(db, 'clients', clientId, 'campaigns', campaignId, 'breakdowns', existingDefault.id), updateData);
         return existingDefault.id;
       }
     }
@@ -427,20 +438,8 @@ export async function createBreakdown(
     );
     const now = new Date().toISOString();
     
-    console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown");
-    const docRef = await addDoc(breakdownsRef, {
-      name: breakdownData.name,
-      type: breakdownData.type,
-      startDate: breakdownData.startDate,
-      endDate: breakdownData.endDate,
-      isDefault: shouldBeDefault,
-      order: nextOrder,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // CORRIGÉ: Générer les périodes avec IDs déterministes après avoir l'ID du breakdown
-    const newBreakdown: any = {
+    // MODIFIÉ: Préparer les données avec le sous-type
+    const breakdownDoc: any = {
       name: breakdownData.name,
       type: breakdownData.type,
       startDate: breakdownData.startDate,
@@ -450,6 +449,17 @@ export async function createBreakdown(
       createdAt: now,
       updatedAt: now,
     };
+
+    // NOUVEAU: Ajouter le sous-type si le type le supporte
+    if (supportsSubType(breakdownData.type)) {
+      breakdownDoc.subType = breakdownData.subType || DEFAULT_BREAKDOWN_SUB_TYPE;
+    }
+    
+    console.log("FIREBASE: ÉCRITURE - Fonction: createBreakdown");
+    const docRef = await addDoc(breakdownsRef, breakdownDoc);
+
+    // CORRIGÉ: Générer les périodes avec IDs déterministes après avoir l'ID du breakdown
+    const newBreakdown: any = { ...breakdownDoc };
 
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
       // CORRIGÉ: Utiliser des IDs déterministes basés sur l'ID du breakdown
@@ -472,6 +482,9 @@ export async function createBreakdown(
     }
 
     console.log(`✅ Breakdown créé avec IDs déterministes:`, docRef.id);
+    if (newBreakdown.subType) {
+      console.log(`📋 Sous-type: ${newBreakdown.subType}`);
+    }
     if (newBreakdown.customPeriods) {
       console.log(`🆔 Périodes générées:`, newBreakdown.customPeriods.map((p: any) => `${p.name}: ${p.id}`));
     }
@@ -530,6 +543,7 @@ export async function updateBreakdown(
       breakdownId
     );
     
+    // MODIFIÉ: Préparer les données avec le sous-type
     const updatedBreakdown: any = {
       name: breakdownData.name,
       type: breakdownData.type,
@@ -537,6 +551,14 @@ export async function updateBreakdown(
       endDate: breakdownData.endDate,
       updatedAt: new Date().toISOString(),
     };
+
+    // NOUVEAU: Gérer le sous-type
+    if (supportsSubType(breakdownData.type)) {
+      updatedBreakdown.subType = breakdownData.subType || DEFAULT_BREAKDOWN_SUB_TYPE;
+    } else {
+      // Supprimer le sous-type si le nouveau type ne le supporte plus
+      updatedBreakdown.subType = null;
+    }
 
     if (breakdownData.type === 'Custom' && breakdownData.customPeriods) {
       // CORRIGÉ: Utiliser des IDs déterministes pour la mise à jour
@@ -556,6 +578,9 @@ export async function updateBreakdown(
     }
 
     console.log("FIREBASE: ÉCRITURE - Fonction: updateBreakdown");
+    if (updatedBreakdown.subType) {
+      console.log(`📋 Sous-type mis à jour: ${updatedBreakdown.subType}`);
+    }
     await updateDoc(breakdownRef, updatedBreakdown);
   } catch (error) {
     console.error('Erreur lors de la mise à jour du breakdown:', error);
@@ -788,7 +813,10 @@ export function areAllTactiqueBreakdownValuesNumeric(
   });
 }
 
-// Fonctions de suppression et autres restent inchangées...
+// ============================================================================
+// FONCTIONS DE SUPPRESSION ET AUTRES (avec support du sous-type)
+// ============================================================================
+
 export async function deleteBreakdown(
   clientId: string,
   campaignId: string,
@@ -842,12 +870,16 @@ export async function updateDefaultBreakdownDates(
       'breakdowns',
       defaultBreakdown.id
     );
-    console.log("FIREBASE: ÉCRITURE - Fonction: updateDefaultBreakdownDates");
-    await updateDoc(breakdownRef, {
+    
+    // MODIFIÉ: Conserver le sous-type existant s'il y en a un
+    const updateData: any = {
       startDate: adjustedStartDate,
       endDate: newEndDate,
       updatedAt: new Date().toISOString(),
-    });
+    };
+    
+    console.log("FIREBASE: ÉCRITURE - Fonction: updateDefaultBreakdownDates");
+    await updateDoc(breakdownRef, updateData);
   } catch (error) {
     console.error('Erreur lors de la mise à jour des dates du breakdown par défaut:', error);
     throw error;
@@ -884,6 +916,7 @@ export async function createDefaultBreakdown(
       startDate: adjustedStartDate,
       endDate: campaignEndDate,
     };
+    // Note: Le breakdown par défaut est "Hebdomadaire", donc pas de sous-type
     const breakdownId = await createBreakdown(clientId, campaignId, defaultBreakdownData, true);
     return breakdownId;
   } catch (error) {

@@ -1,9 +1,11 @@
+// app/components/Client/ClientTemplates.tsx
+
 /**
  * Ce fichier définit le composant React `ClientTemplates`.
  * Son rôle est d'afficher et de gérer la liste des gabarits (templates) associés à un client sélectionné.
  * Il permet de visualiser, ajouter, modifier et supprimer des gabarits en interagissant avec la base de données Firebase.
  * Le composant gère également les permissions des utilisateurs pour s'assurer que seuls les utilisateurs autorisés peuvent effectuer des modifications.
- * MODIFIÉ: Affichage direct des codes FR/EN
+ * MODIFIÉ: Affichage direct des codes FR/EN et support du champ TE_Type
  */
 'use client';
 
@@ -107,7 +109,8 @@ export default function ClientTemplates() {
           TE_Name: templateData.TE_Name,
           TE_URL: templateData.TE_URL,
           TE_Duplicate: templateData.TE_Duplicate,
-          TE_Language: templateData.TE_Language
+          TE_Language: templateData.TE_Language,
+          TE_Type: templateData.TE_Type // NOUVEAU: Inclure le type de template
         });
       } else {
         console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientTemplates.tsx - Fonction: handleSaveTemplate - Path: clients/${selectedClient.clientId}/templates`);
@@ -115,7 +118,8 @@ export default function ClientTemplates() {
           TE_Name: templateData.TE_Name,
           TE_URL: templateData.TE_URL,
           TE_Duplicate: templateData.TE_Duplicate,
-          TE_Language: templateData.TE_Language
+          TE_Language: templateData.TE_Language,
+          TE_Type: templateData.TE_Type // NOUVEAU: Inclure le type de template
         });
       }
       
@@ -201,6 +205,7 @@ export default function ClientTemplates() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.name')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.type')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.url')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.language')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('clientTemplates.table.header.duplication')}</th>
@@ -211,6 +216,9 @@ export default function ClientTemplates() {
               {templates.map((template) => (
                 <tr key={template.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{template.TE_Name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {template.TE_Type || 'Other'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <a href={template.TE_URL} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-900 truncate max-w-xs inline-block">
                       {template.TE_URL}
