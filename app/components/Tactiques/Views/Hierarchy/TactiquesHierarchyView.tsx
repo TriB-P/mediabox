@@ -27,6 +27,7 @@ import TactiqueDrawer from '../../Tactiques/TactiqueDrawer';
 import PlacementDrawer from '../../Placement/PlacementDrawer';
 import CreatifDrawer from '../../Creatif/CreatifDrawer';
 import TaxonomyContextMenu from './TaxonomyContextMenu';
+import HistoryModal from './HistoryModal';
 import SelectedActionsPanel from '../../SelectedActionsPanel';
 import { DndKitTactiqueItem } from './DndKitHierarchyComponents';
 import { DndKitSectionItem } from './DndKitSectionItem'; // ✅ NOUVEAU !
@@ -214,6 +215,15 @@ export default function TactiquesHierarchyView({
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // État pour le modal d'historique
+const [historyModal, setHistoryModal] = useState<{
+  isOpen: boolean;
+  tactique: Tactique | null;
+}>({
+  isOpen: false,
+  tactique: null
+});
 
   // Fonctions utilitaires (TOUTES inchangées)
   const handleCopyId = async (
@@ -432,6 +442,13 @@ export default function TactiquesHierarchyView({
       console.error('Erreur lors de la sauvegarde du commentaire:', error);
     }
   };
+
+  const handleViewHistory = (sectionId: string, tactique: Tactique) => {
+  setHistoryModal({
+    isOpen: true,
+    tactique
+  });
+};
 
   const handleEditPlacement = (tactiqueId: string, placement: Placement) => {
     let sectionId = '';
@@ -929,6 +946,7 @@ export default function TactiquesHierarchyView({
                               onOpenTaxonomyMenu={handleOpenTaxonomyMenu}
                               onCopyId={handleCopyId}
                               onSaveComment={handleSaveComment}
+                              onViewHistory={handleViewHistory}
                             />
                           );
                         })}
@@ -989,6 +1007,13 @@ export default function TactiquesHierarchyView({
           placementId={taxonomyMenuState.placementId || undefined}
         />
       )}
+
+      {/* Modal d'historique des tactiques */}
+      <HistoryModal
+        isOpen={historyModal.isOpen}
+        onClose={() => setHistoryModal(prev => ({ ...prev, isOpen: false }))}
+        tactique={historyModal.tactique}
+      />
     </>
   );
 }

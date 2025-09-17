@@ -4623,7 +4623,10 @@ export const translations = {
         notesTooltip: 'Notes et commentaires supplémentaires.'
       }
     },
-    
+    historyModal: {
+      title: "Historique des modifications (Pour équipe opération)",
+      noHistory : "Aucun historique de modification disponible.",
+    }
 
 
 
@@ -8997,6 +9000,10 @@ export const translations = {
         notesTooltip: 'Additional notes and comments.'
       }
     },
+    historyModal: {
+      title: "Edit History (For operation team)",
+      noHistory : "No history available",
+    }
     
   }
 };

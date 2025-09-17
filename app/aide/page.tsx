@@ -605,11 +605,31 @@ export default function AidePage() {
 
   return (
     <motion.div
-      className="p-6 space-y-12 pb-24"
+  className="relative p-6 space-y-12 pb-24"  // Ajout de "relative"
       variants={pageVariants}
       initial="hidden"
       animate="visible"
     >
+<motion.a
+  href="https://calendar.app.google/mzRDjAGzFzutBNZG9"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="absolute top-2 right-0 inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-full transition-colors shadow-lg z-10"
+  variants={itemVariants}
+  initial="hidden"
+  animate="visible"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+  <CalendarCheck className="h-5 w-5" />
+  <span>
+    {language === 'en' 
+      ? 'Book a MediaBox training'
+      : 'Réserver une formation MediaBox'
+    }
+  </span>
+</motion.a>
+
       <motion.div
         className="relative text-center"
         variants={containerVariants}
@@ -795,6 +815,8 @@ export default function AidePage() {
         animate={{ y: 0 }}
         transition={{ ease: "easeOut", duration: 0.5, delay: 0.8 }}
       >
+
+        
         <p className="text-indigo-700 text-base font-medium flex items-center space-x-2">
           <span className="italic">pssttt!</span>
           <Mail className="h-5 w-5 flex-shrink-0" />

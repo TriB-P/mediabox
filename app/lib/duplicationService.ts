@@ -341,6 +341,8 @@ async function duplicateTactique(
       TC_Label: generateDuplicateName(tactiqueData.TC_Label),
       TC_Order: newOrder,
       TC_SectionId: targetSectionId,
+      TC_History: null, 
+
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

@@ -13,7 +13,7 @@
  */
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from '../../../contexts/LanguageContext';
 import FormDrawer from '../FormDrawer';
 import FormTabs, { FormTab } from '../FormTabs';
@@ -65,6 +65,8 @@ import {
 } from '../../../lib/cacheService';
 import { getFeeNamesBatch, getFeeOptionNamesBatch } from '../../../lib/feeService';
 import TactiqueFormSpecs from './TactiqueFormSpecs';
+import { useTactiqueHistory } from '../../../hooks/useTactiqueHistory';
+import { useAuth } from '../../../contexts/AuthContext';
 
 
 
@@ -510,6 +512,15 @@ export default function TactiqueDrawer({
   const { selectedCampaign, selectedVersion } = useCampaignSelection();
   const { status, updateTaxonomiesAsync, dismissNotification } = useAsyncTaxonomyUpdate();
 
+   // 🔥 NOUVEAU : Hook pour l'historique des changements
+  const { user } = useAuth();
+  const { generateHistoryLog } = useTactiqueHistory({ 
+    user: { email: user?.email || 'unknown@user.com' }
+  });
+  
+  // 🔥 NOUVEAU : Référence pour stocker les données originales
+  const originalTactiqueDataRef = useRef<TactiqueFormData | null>(null);
+
   /**
    * CONSTANTE FACILEMENT MODIFIABLE : Liste des champs obligatoires
    * Pour ajouter/retirer des champs requis, modifiez simplement cette liste
@@ -677,6 +688,12 @@ export default function TactiqueDrawer({
       // Mode édition - charger les données existantes
       const mappedFormData = mapTactiqueToForm(tactique);
       setFormData(mappedFormData);
+      
+      // 🔥 NOUVEAU : Stocker les données originales pour comparaison
+      originalTactiqueDataRef.current = { 
+        ...mappedFormData,
+        TC_History: (tactique as any).TC_History || '' // Assurer que l'historique est inclus
+      };
 
       const existingKpis: KPIData[] = [];
       for (let i = 1; i <= 5; i++) {
@@ -703,13 +720,18 @@ export default function TactiqueDrawer({
         ...getDefaultFormData(),
         TC_SectionId: sectionId,
       });
+      
+      // 🔥 NOUVEAU : Pas de données originales en mode création
+      originalTactiqueDataRef.current = null;
+      
       setKpis([{ TC_Kpi: '', TC_Kpi_CostPer: 0, TC_Kpi_Volume: 0 }]);
       setUseInheritedBilling(true);
       setUseInheritedPO(true);
       setActiveTab('info');
       setIsDirty(false);
     }
-  }, [mode, tactique, sectionId]); 
+  }, [mode, tactique, sectionId]);
+
 
   useEffect(() => {
     if (isOpen && selectedClient && selectedCampaign && selectedVersion) {
@@ -1108,12 +1130,38 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
       (dataToSave as any).TC_PO = campaignAdminValues.CA_PO || '';
     }
 
-   
+// 🔥 NOUVEAU : Générer l'historique des changements AVANT la sauvegarde
+    let updatedHistory = '';
+    try {
+      // Récupérer l'historique existant de la tactique originale
+      const existingHistory = (originalTactiqueDataRef.current as any)?.TC_History || '';
+      
+      updatedHistory = generateHistoryLog(
+        originalTactiqueDataRef.current, 
+        dataToSave, 
+        existingHistory
+      );
+      
+      if (updatedHistory !== existingHistory) {
+        console.log('📝 Changements détectés, historique mis à jour');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la génération du log d\'historique:', error);
+      // En cas d'erreur, garder l'historique existant
+      updatedHistory = (originalTactiqueDataRef.current as any)?.TC_History || '';
+    }
 
     const mappedData = mapFormToTactique(dataToSave);
+    
+    // 🔥 NOUVEAU : Ajouter l'historique mis à jour aux données à sauvegarder
+    (mappedData as any).TC_History = updatedHistory;
+    
+  
 
     await onSave(mappedData);
 
+      
+  
     setIsDirty(false);
     onClose();
 

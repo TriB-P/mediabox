@@ -23,6 +23,8 @@ import {
   KeyIcon,
   ArrowRightIcon,
   ChatBubbleLeftIcon,
+  ClockIcon,
+
 } from '@heroicons/react/24/outline';
 import { Tactique, Placement, Creatif } from '../../../../types/tactiques';
 import { useClient } from '../../../../contexts/ClientContext';
@@ -561,6 +563,8 @@ interface DndKitTactiqueItemProps extends BaseItemProps {
   onSelectCreatif: (creatifId: string, isSelected: boolean) => void;
   onOpenTaxonomyMenu: (item: Placement | Creatif, itemType: 'placement' | 'creatif', taxonomyType: 'tags' | 'platform' | 'mediaocean', position: { x: number; y: number }) => void;
   onSaveComment?: (sectionId: string, tactiqueId: string, comment: string) => Promise<void>;
+  onViewHistory?: (sectionId: string, tactique: Tactique) => void;
+
 }
 
 /**
@@ -594,7 +598,9 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
   onSelectPlacement,
   onSelectCreatif,
   onOpenTaxonomyMenu,
-  onSaveComment
+  onSaveComment,
+  onViewHistory
+
 }) => {
   const { t } = useTranslation();
   
@@ -868,6 +874,19 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
             title={tactique.TC_Comment || t('dndKit.tactiqueItem.addComment')}
           >
             <ChatBubbleLeftIcon className={`h-4 w-4 ${tactique.TC_Comment ? 'fill-blue-100' : ''}`} />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewHistory?.(sectionId, tactique);
+            }}
+            className={`ml-1 p-1 rounded hover:bg-gray-200 transition-colors ${
+              tactique.TC_History ? 'text-gray-300' : 'text-gray-300'
+            }`}
+            title={tactique.TC_History ? t('dndKit.tactiqueItem.viewHistory') : t('dndKit.tactiqueItem.noHistory')}
+          >
+            <ClockIcon className={`h-4 w-4`} />
           </button>
 
           {placements.length > 0 && (

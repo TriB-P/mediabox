@@ -28,6 +28,8 @@ export interface Tactique {
   TC_SectionId: string; // Référence à la section parente
   TC_Comment?: string; 
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled'; // Statut de la tactique
+  TC_History?: string;
+
 
   // Champs Info
   TC_Bucket?: string; // Référence à l'enveloppe budgétaire
@@ -335,6 +337,7 @@ export interface TactiqueFormData {
   TC_SectionId: string;
   TC_Comment?: string; // Commentaire sur la tactique
   TC_Status?: 'Planned' | 'Active' | 'Completed' | 'Cancelled';
+  TC_History?: string;
   TC_Bucket?: string;
   TC_LOB?: string;
   TC_Media_Type?: string;
