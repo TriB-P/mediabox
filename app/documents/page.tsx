@@ -13,7 +13,7 @@ import { useClient } from '../contexts/ClientContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useCampaignSelection } from '../hooks/useCampaignSelection';
-import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync } from '../lib/documentService';
+import { getDocumentsByVersion, deleteDocumentWithDrive, updateDocumentDataSync, updateDocumentStatusOps } from '../lib/documentService';
 import { useCombinedDocExport } from '../hooks/documents/useCombinedDocExport';
 import { useUnlinkDoc } from '../hooks/documents/useUnlinkDoc';
 import { 
@@ -29,7 +29,7 @@ import {
   TrashIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
-import { Document, DocumentStatus, DocumentCreationResult } from '../types/document';
+import { Document, DocumentStatus, DocumentStatusOps, DocumentCreationResult } from '../types/document';
 
 const ease: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
 
@@ -103,6 +103,7 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [refreshingDocumentId, setRefreshingDocumentId] = useState<string | null>(null);
+  const [updatingStatusDocumentId, setUpdatingStatusDocumentId] = useState<string | null>(null);
 
   /**
    * Charge les documents d'une version sélectionnée.
@@ -238,6 +239,42 @@ export default function DocumentsPage() {
   }, [selectedClient, selectedCampaign, selectedVersion, unlinkDocument, loadDocuments, t]);
 
   /**
+   * Gère le changement de statut opérationnel d'un document.
+   * @param document Le document à mettre à jour.
+   * @param newStatus Le nouveau statut opérationnel.
+   */
+  const handleStatusChange = useCallback(async (document: Document, newStatus: DocumentStatusOps) => {
+    if (!selectedClient || !selectedCampaign || !selectedVersion) {
+      setError(t('documents.errors.missingContextStatus'));
+      return;
+    }
+
+    try {
+      setUpdatingStatusDocumentId(document.id);
+      setError(null);
+
+      await updateDocumentStatusOps(
+        selectedClient.clientId,
+        selectedCampaign.id,
+        selectedVersion.id,
+        document.id,
+        newStatus
+      );
+
+      // Recharger la liste des documents pour voir la mise à jour
+      await loadDocuments();
+      
+      console.log(`✅ Statut du document "${document.name}" mis à jour vers "${newStatus}"`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : t('documents.errors.statusUpdateUnknown');
+      console.error('❌ Erreur mise à jour statut document:', errorMessage);
+      setError(t('documents.errors.statusUpdateError', { message: errorMessage }));
+    } finally {
+      setUpdatingStatusDocumentId(null);
+    }
+  }, [selectedClient, selectedCampaign, selectedVersion, loadDocuments, t]);
+
+  /**
    * Formate une date en format lisible.
    * @param dateString La date en format ISO string.
    * @returns La date formatée.
@@ -292,6 +329,40 @@ export default function DocumentsPage() {
         return t('documents.status.unknown');
     }
   }, [t]);
+
+  /**
+   * Retourne le texte du statut opérationnel en français/anglais selon la langue.
+   * @param docStatus Le statut opérationnel du document.
+   * @returns Le texte du statut localisé.
+   */
+  const getDocStatusText = useCallback((docStatus: DocumentStatusOps): string => {
+    switch (docStatus) {
+      case DocumentStatusOps.DRAFT:
+        return getTranslation('documents.docStatus.draft', 'Brouillon', 'Draft');
+      case DocumentStatusOps.READY_FOR_OPS:
+        return getTranslation('documents.docStatus.readyForOps', 'Prêt pour équipe Ops', 'Ready for Ops team');
+      default:
+        return docStatus;
+    }
+  }, []);
+
+  /**
+   * Fonction helper pour les traductions avec fallback bilingue basé sur le contexte de langue
+   */
+  const getTranslation = (key: string, frText: string, enText: string): string => {
+    // Essayer d'abord le système de traduction
+    const translated = t(key);
+    if (translated !== key) {
+      return translated;
+    }
+    
+    // Fallback basé sur une traduction connue pour détecter la langue
+    // Tester avec une traduction qui diffère clairement entre FR et EN
+    const testKey = t('documents.newDocument');
+    const isFrench = testKey.toLowerCase().includes('nouveau') || testKey.toLowerCase().includes('créer');
+    
+    return isFrench ? frText : enText;
+  };
 
   /**
    * Gère la suppression d'un document avec confirmation.
@@ -607,6 +678,16 @@ export default function DocumentsPage() {
                                               {t('documents.unlinked')}
                                             </span>
                                           )}
+                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            document.docStatus === DocumentStatusOps.READY_FOR_OPS
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : 'bg-gray-100 text-gray-800'
+                                          }`}>
+                                            {getTranslation(`documents.docStatus.${document.docStatus.toLowerCase()}`, 
+                                              document.docStatus === DocumentStatusOps.DRAFT ? 'Brouillon' : 'Prêt pour équipe Ops',
+                                              document.docStatus
+                                            )}
+                                          </span>
                                         </div>
                                         
                                         <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
@@ -641,6 +722,25 @@ export default function DocumentsPage() {
                                       <div className="flex items-center space-x-2">
                                         {document.status === DocumentStatus.COMPLETED && (
                                           <>
+                                            {/* Dropdown de statut opérationnel */}
+                                            <select
+                                              value={document.docStatus}
+                                              onChange={(e) => handleStatusChange(document, e.target.value as DocumentStatusOps)}
+                                              disabled={updatingStatusDocumentId === document.id}
+                                              className={`text-sm border border-gray-300 rounded-md px-8 py-1 mr-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                                                updatingStatusDocumentId === document.id
+                                                  ? 'bg-gray-100 cursor-not-allowed'
+                                                  : 'bg-white hover:bg-gray-50'
+                                              }`}
+                                            >
+                                              <option value={DocumentStatusOps.DRAFT}>
+                                                {getTranslation('documents.docStatus.draft', 'Brouillon', 'Draft')}
+                                              </option>
+                                              <option value={DocumentStatusOps.READY_FOR_OPS}>
+                                                {getTranslation('documents.docStatus.readyForOps', 'Prêt pour équipe Ops', 'Ready for Ops team')}
+                                              </option>
+                                            </select>
+                                            
                                             <motion.a
                                               href={document.url}
                                               target="_blank"

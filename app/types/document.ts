@@ -5,17 +5,27 @@
  * Il couvre les entités principales : Document, les données de formulaire,
  * les statuts de création, et les métadonnées associées.
  * MODIFIÉ: Ajout du champ templateType dans l'objet template
+ * MODIFIÉ: Ajout du système de statut opérationnel docStatus
  */
 
 import { TemplateType } from './template';
 
 /**
- * Énumération des statuts possibles d'un document.
+ * Énumération des statuts possibles d'un document (technique).
  */
 export enum DocumentStatus {
   CREATING = 'creating',
   COMPLETED = 'completed', 
   ERROR = 'error'
+}
+
+/**
+ * Énumération des statuts opérationnels d'un document.
+ * Ces statuts sont utilisés par les équipes pour marquer l'état d'avancement.
+ */
+export enum DocumentStatusOps {
+  DRAFT = 'Draft',
+  READY_FOR_OPS = 'Ready for Ops team'
 }
 
 /**
@@ -33,8 +43,11 @@ export interface Document {
   /** URL du document dupliqué dans Google Drive */
   url: string;
   
-  /** Statut actuel du document */
+  /** Statut technique actuel du document */
   status: DocumentStatus;
+  
+  /** Statut opérationnel du document pour les équipes */
+  docStatus: DocumentStatusOps;
   
   /** Indique si le document est dissocié (copie statique sans formules) */
   isUnlinked?: boolean;
@@ -135,6 +148,9 @@ export interface DocumentSummary {
   
   /** Statut du document */
   status: DocumentStatus;
+  
+  /** Statut opérationnel du document */
+  docStatus: DocumentStatusOps;
   
   /** Nom du template utilisé */
   templateName: string;

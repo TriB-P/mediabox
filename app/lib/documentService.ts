@@ -7,6 +7,7 @@
  * Les documents sont organisés dans la hiérarchie :
  * /clients/{clientID}/campaigns/{campaignID}/versions/{versionID}/documents
  * MODIFIÉ: Support du templateType dans la création de documents dissociés
+ * MODIFIÉ: Support du système de statut opérationnel docStatus
  */
 
 import {
@@ -29,6 +30,7 @@ import {
     DocumentFormData, 
     DocumentSummary, 
     DocumentStatus,
+    DocumentStatusOps,
     DocumentCreationContext
   } from '../types/document';
   
@@ -50,6 +52,7 @@ import {
         name: formData.name,
         url: duplicatedUrl,
         status: DocumentStatus.CREATING,
+        docStatus: DocumentStatusOps.DRAFT, // Statut par défaut
         template: {
           id: formData.templateId,
           name: '', // Sera mis à jour par le hook de création
@@ -136,6 +139,8 @@ import {
         documents.push({
           id: doc.id,
           ...data,
+          // Valeur par défaut pour les anciens documents sans docStatus
+          docStatus: data.docStatus || DocumentStatusOps.DRAFT,
           createdAt,
           lastUpdated
         } as Document);
@@ -191,6 +196,8 @@ import {
       return {
         id: documentDoc.id,
         ...data,
+        // Valeur par défaut pour les anciens documents sans docStatus
+        docStatus: data.docStatus || DocumentStatusOps.DRAFT,
         createdAt,
         lastUpdated
       } as Document;
@@ -201,7 +208,7 @@ import {
   }
   
   /**
-   * Met à jour le statut d'un document.
+   * Met à jour le statut technique d'un document.
    * @param clientId L'ID du client.
    * @param campaignId L'ID de la campagne.
    * @param versionId L'ID de la version.
@@ -240,6 +247,42 @@ import {
       await updateDoc(documentRef, updateData);
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut du document:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour le statut opérationnel d'un document.
+   * @param clientId L'ID du client.
+   * @param campaignId L'ID de la campagne.
+   * @param versionId L'ID de la version.
+   * @param documentId L'ID du document.
+   * @param docStatus Le nouveau statut opérationnel.
+   * @returns Une promesse qui résout une fois la mise à jour terminée.
+   */
+  export async function updateDocumentStatusOps(
+    clientId: string,
+    campaignId: string,
+    versionId: string,
+    documentId: string,
+    docStatus: DocumentStatusOps
+  ): Promise<void> {
+    try {
+      const documentRef = doc(
+        db, 
+        'clients', clientId, 
+        'campaigns', campaignId, 
+        'versions', versionId, 
+        'documents', documentId
+      );
+
+      console.log(`FIREBASE: ÉCRITURE - Fichier: documentService.ts - Fonction: updateDocumentStatusOps - Path: clients/${clientId}/campaigns/${campaignId}/versions/${versionId}/documents/${documentId}`);
+      await updateDoc(documentRef, {
+        docStatus,
+        lastUpdated: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut opérationnel du document:', error);
       throw error;
     }
   }
@@ -575,6 +618,7 @@ import {
   /**
    * Crée un nouveau document dissocié dans Firebase avec toutes ses métadonnées.
    * MODIFIÉ: Support automatique du templateType via l'objet template passé en paramètre.
+   * MODIFIÉ: Support du statut opérationnel docStatus avec "Draft" par défaut.
    * @param clientId L'ID du client.
    * @param campaignId L'ID de la campagne.
    * @param versionId L'ID de la version.
@@ -607,6 +651,7 @@ import {
         name: documentData.name,
         url: documentData.url,
         status: DocumentStatus.COMPLETED, // Les documents dissociés sont immédiatement prêts
+        docStatus: DocumentStatusOps.DRAFT, // Statut opérationnel par défaut
         isUnlinked: true,
         originalDocumentId: documentData.originalDocumentId,
         template: documentData.template, // Inclut automatiquement templateType

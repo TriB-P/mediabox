@@ -37,7 +37,8 @@ import {
   DocumentCreationContext, 
   DocumentFormData,
   DocumentCreationOptions,
-  DocumentStatus 
+  DocumentStatus, 
+  DocumentStatusOps
 } from '../../types/document';
 import { useTranslation } from '../../contexts/LanguageContext';
 
@@ -435,6 +436,7 @@ export function useCreateDocument(): UseCreateDocumentReturn {
       const finalDocument = {
         id: documentId,
         name: formData.name,
+        docStatus: DocumentStatusOps.DRAFT,
         url: duplicationResult.duplicatedUrl,
         status: injectionResult.success ? DocumentStatus.COMPLETED : DocumentStatus.ERROR,
         template: {

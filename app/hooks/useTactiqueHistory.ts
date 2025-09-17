@@ -125,6 +125,9 @@ const convertShortcodeToDisplayName = (shortcodeId: string): string => {
 /**
  * AMÉLIORÉ : Formate une valeur pour l'affichage dans les logs avec support des shortcodes
  */
+/**
+ * AMÉLIORÉ : Formate une valeur pour l'affichage dans les logs avec support des shortcodes et arrondi automatique des nombres
+ */
 const formatValue = (
   value: any, 
   isShortcode: boolean = false, 
@@ -135,6 +138,12 @@ const formatValue = (
   }
   
   let stringValue = String(value);
+  
+  // NOUVEAU : Détecter automatiquement les valeurs numériques et les arrondir à 2 décimales
+  if (!isShortcode && Number.isFinite(Number(value))) {
+    const numValue = Number(value);
+    stringValue = numValue.toFixed(2);
+  }
   
   // NOUVEAU : Convertir les shortcodes en display names
   if (isShortcode && stringValue.startsWith('SH_')) {
