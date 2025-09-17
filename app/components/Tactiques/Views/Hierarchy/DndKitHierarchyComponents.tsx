@@ -884,7 +884,6 @@ export const DndKitTactiqueItem: React.FC<DndKitTactiqueItemProps> = ({
             className={`ml-1 p-1 rounded hover:bg-gray-200 transition-colors ${
               tactique.TC_History ? 'text-gray-300' : 'text-gray-300'
             }`}
-            title={tactique.TC_History ? t('dndKit.tactiqueItem.viewHistory') : t('dndKit.tactiqueItem.noHistory')}
           >
             <ClockIcon className={`h-4 w-4`} />
           </button>

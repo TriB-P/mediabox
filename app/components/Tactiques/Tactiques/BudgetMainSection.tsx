@@ -401,11 +401,10 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             </button>
           </div>
           
-          {costPerUnit > 0 && (
             <div className="mt-1 text-xs text-gray-500">
-              {t('common.formatted')} {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
+              {t('budgetMainSection.defaultUnitCost')}
             </div>
-          )}
+        
     
         </div>
 

@@ -127,6 +127,7 @@ interface DynamicTableStructureProps {
   exchangeRates: { [key: string]: number };
   campaignCurrency: string;
   currentLanguage?: string;
+  isLoading: boolean; // ← NOUVEAU : Ajout de la prop isLoading
 }
 
 type TableColumn = DynamicColumn | FeeColumnDefinition;
@@ -208,7 +209,7 @@ const TRIGGER_RECALC_FIELDS = [
 
 // NOUVEAU : Champs calculés automatiquement (readonly)
 const CALCULATED_FIELDS = [
-  'TC_Unit_Volume', 'TC_Media_Budget', 'TC_Client_Budget', 
+  'TC_Unit_Volume', 'TC_Media_Budget', 'TC_Client_Budget', 'TC_Client_Budget_RefCurrency',
   'TC_Bonification', 'TC_Total_Fees',
   'TC_Fee_1_Value', 'TC_Fee_2_Value', 'TC_Fee_3_Value', 'TC_Fee_4_Value', 'TC_Fee_5_Value'
 ];
@@ -237,7 +238,8 @@ export default function DynamicTableStructure({
   dynamicLists,
   clientFees,
   exchangeRates,
-  campaignCurrency
+  campaignCurrency,
+  isLoading
   
 }: DynamicTableStructureProps): React.ReactElement {
   
@@ -344,9 +346,9 @@ export default function DynamicTableStructure({
        const updatedData = result.data.updatedData;
        
        // Préparer les mises à jour pour les champs calculés
-       const calculatedUpdates: { [key: string]: any } = {};
+const calculatedUpdates: { [key: string]: any } = {};
        
-       // Toujours mettre à jour tous les champs calculés
+       // Champs calculés principaux
        calculatedUpdates.TC_Unit_Volume = updatedData.TC_Unit_Volume;
        calculatedUpdates.TC_Media_Budget = updatedData.TC_Media_Budget;
        calculatedUpdates.TC_Client_Budget = updatedData.TC_Client_Budget;
@@ -360,12 +362,29 @@ export default function DynamicTableStructure({
        calculatedUpdates.TC_Fee_3_Value = updatedData.TC_Fee_3_Value;
        calculatedUpdates.TC_Fee_4_Value = updatedData.TC_Fee_4_Value;
        calculatedUpdates.TC_Fee_5_Value = updatedData.TC_Fee_5_Value;
- 
+
+       // 🆕 CORRECTION : Inclure les RefCurrency calculés par budgetService
+       if (updatedData.TC_Media_Budget_RefCurrency !== undefined) {
+         calculatedUpdates.TC_Media_Budget_RefCurrency = updatedData.TC_Media_Budget_RefCurrency;
+       }
+       if (updatedData.TC_Client_Budget_RefCurrency !== undefined) {
+         calculatedUpdates.TC_Client_Budget_RefCurrency = updatedData.TC_Client_Budget_RefCurrency;
+       }
+       
+   const updatedDataAny = updatedData as any; // Casting pour accès dynamique
+       for (let i = 1; i <= 5; i++) {
+         const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
+         if (updatedDataAny[refCurrencyKey] !== undefined) {
+           calculatedUpdates[refCurrencyKey] = updatedDataAny[refCurrencyKey];
+         }
+       }
+
        // Calculer le total des frais
        const totalFees = updatedData.TC_Fee_1_Value + updatedData.TC_Fee_2_Value + 
                         updatedData.TC_Fee_3_Value + updatedData.TC_Fee_4_Value + 
                         updatedData.TC_Fee_5_Value;
        calculatedUpdates.TC_Total_Fees = totalFees;
+
  
        // Appliquer toutes les mises à jour calculées
        Object.entries(calculatedUpdates).forEach(([fieldKey, value]) => {
@@ -1306,8 +1325,8 @@ export default function DynamicTableStructure({
           ))}
         </div>
 
-        {/* Sous-onglets pour tactiques */}
-        {selectedLevel === 'tactique' && (
+ {/* Sous-onglets pour tactiques - MODIFIÉ : Conditionner sur isLoading */}
+        {selectedLevel === 'tactique' && !isLoading && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
             {getTactiqueSubCategories(t).map(subCategory => (
               <button
@@ -1325,8 +1344,8 @@ export default function DynamicTableStructure({
           </div>
         )}
 
-        {/* Sous-onglets pour placements */}
-        {selectedLevel === 'placement' && (
+        {/* Sous-onglets pour placements - MODIFIÉ : Conditionner sur isLoading */}
+        {selectedLevel === 'placement' && !isLoading && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
             {getPlacementSubCategories(t).map(subCategory => (
               <button
@@ -1348,8 +1367,8 @@ export default function DynamicTableStructure({
           </div>
         )}
 
-        {/* Sous-onglets pour créatifs */}
-        {selectedLevel === 'creatif' && (
+        {/* Sous-onglets pour créatifs - MODIFIÉ : Conditionner sur isLoading */}
+        {selectedLevel === 'creatif' && !isLoading && (
           <div className="flex space-x-1 bg-gray-100 p-1 rounded">
             {getCreatifSubCategories(t).map(subCategory => (
               <button
@@ -1368,6 +1387,13 @@ export default function DynamicTableStructure({
                 )}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* NOUVEAU : Indicateur de chargement pour les sous-onglets */}
+        {isLoading && selectedLevel !== 'section' && (
+          <div className="flex items-center justify-center space-x-2 bg-gray-100 p-2 rounded">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
           </div>
         )}
 

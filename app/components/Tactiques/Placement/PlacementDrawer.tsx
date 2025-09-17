@@ -257,10 +257,10 @@ export default function PlacementDrawer({
  */
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  
 
   try {
-    // Plus besoin de conversion, tout est déjà en string
+    // ✅ SUPPRIMÉ : La normalisation problématique
+    // Sauver directement formData comme les tactiques
     await onSave(formData);
     onClose();
 

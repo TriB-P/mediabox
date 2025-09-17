@@ -5,6 +5,7 @@
  * Contient toute la logique d'enrichissement, formatage et traitement des données
  * Version complète avec toutes les fonctions nécessaires
  * MODIFIÉ : Support des sous-catégories placement et créatifs, correction de l'affichage des taxonomies
+ * 🔧 CORRIGÉ : Ajout du traitement spécifique pour TC_Bucket dans enrichColumnsWithData
  */
 
 import React from 'react';
@@ -42,13 +43,14 @@ function getLocalizedDisplayName(item: ListItem, currentLanguage: string): strin
 }
 
 /**
- * Enrichit les colonnes avec les données dynamiques et filtre les colonnes vides
+ * 🔧 CORRIGÉ : Enrichit les colonnes avec les données dynamiques et filtre les colonnes vides
+ * Ajout du traitement spécifique pour TC_Bucket
  */
 export function enrichColumnsWithData(
   baseColumns: DynamicColumn[],
   buckets: CampaignBucket[],
   dynamicLists: { [key: string]: ListItem[] },
-  currentLanguage: string = 'fr' // ← Valeur par défaut
+  currentLanguage: string = 'fr'
 ): DynamicColumn[] {
   return baseColumns
     .map(column => {
@@ -56,6 +58,14 @@ export function enrichColumnsWithData(
 
       if (column.type === 'select') {
         switch (column.key) {
+          // 🔧 NOUVEAU : Traitement spécifique pour TC_Bucket
+          case 'TC_Bucket':
+            enrichedColumn.options = buckets.map(bucket => ({
+              id: bucket.id,
+              label: bucket.name
+            }));
+            break;
+            
           case 'TC_LOB':
           case 'TC_Media_Type':
           case 'TC_Publisher':
@@ -73,7 +83,7 @@ export function enrichColumnsWithData(
             const listData = dynamicLists[column.key] || [];
             enrichedColumn.options = listData.map(item => ({
               id: item.id,
-              label: getLocalizedDisplayName(item, currentLanguage) // ✅ Utilisation corrigée
+              label: getLocalizedDisplayName(item, currentLanguage)
             }));
             break;
         }

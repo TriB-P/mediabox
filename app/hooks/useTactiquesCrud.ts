@@ -409,66 +409,74 @@ export function useTactiquesCrud({
    * @returns {Promise<void>}
    * @throws {Error} Si le contexte nécessaire pour modifier un placement est manquant ou si la hiérarchie parente n'est pas trouvée.
    */
-  const handleUpdatePlacement = useCallback(async (
-    placementId: string, 
-    data: Partial<Placement>, // ✅ CHANGÉ : Partial<Placement> au lieu de Partial<PlacementFormData>
-    sectionId?: string, 
-    tactiqueId?: string
-  ) => {
-    if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
-      throw new Error(t('useTactiquesCrud.errors.missingContextUpdatePlacement'));
-    }
+  
 
-    let finalSectionId = sectionId || '';
-    let finalTactiqueId = tactiqueId || '';
+const handleUpdatePlacement = useCallback(async (
+  placementId: string, 
+  data: Partial<PlacementFormData>, // ✅ CHANGÉ : PlacementFormData au lieu de Placement
+  sectionId?: string, 
+  tactiqueId?: string
+) => {
+  if (!selectedClient?.clientId || !selectedCampaignId || !selectedVersionId || !selectedOngletId) {
+    throw new Error(t('useTactiquesCrud.errors.missingContextUpdatePlacement'));
+  }
 
-    // ✅ Si les IDs ne sont pas fournis, faire la recherche dans les données locales (fallback)
-    if (!finalSectionId || !finalTactiqueId) {
-      console.log('🔍 Recherche hiérarchie dans les données locales (fallback)...');
-      for (const section of sections) {
-        for (const tactique of (tactiques[section.id] || [])) {
-          if (placements[tactique.id]?.some(p => p.id === placementId)) {
-            finalSectionId = section.id;
-            finalTactiqueId = tactique.id;
-            break;
-          }
+  let finalSectionId = sectionId || '';
+  let finalTactiqueId = tactiqueId || '';
+
+  // Si les IDs ne sont pas fournis, faire la recherche dans les données locales (fallback)
+  if (!finalSectionId || !finalTactiqueId) {
+    console.log('🔍 Recherche hiérarchie dans les données locales (fallback)...');
+    for (const section of sections) {
+      for (const tactique of (tactiques[section.id] || [])) {
+        if (placements[tactique.id]?.some(p => p.id === placementId)) {
+          finalSectionId = section.id;
+          finalTactiqueId = tactique.id;
+          break;
         }
-        if (finalTactiqueId) break;
       }
+      if (finalTactiqueId) break;
     }
+  }
 
-    if (!finalSectionId || !finalTactiqueId) {
-      throw new Error(t('useTactiquesCrud.errors.parentHierarchyNotFoundForPlacement'));
-    }
+  if (!finalSectionId || !finalTactiqueId) {
+    throw new Error(t('useTactiquesCrud.errors.parentHierarchyNotFoundForPlacement'));
+  }
 
-    console.log(`✅ Hiérarchie trouvée: Section=${finalSectionId}, Tactique=${finalTactiqueId}`);
+  console.log(`✅ Hiérarchie trouvée: Section=${finalSectionId}, Tactique=${finalTactiqueId}`);
 
-    try {
-      const currentTactique = tactiques[finalSectionId]?.find(t => t.id === finalTactiqueId);
-      
-      // ✅ NOUVEAU : Convertir les données Placement vers PlacementFormData pour l'appel au service
-      const formData = convertPlacementToFormData(data);
-      
-      console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdatePlacement - Path: clients/${selectedClient.clientId}/campaigns/${selectedCampaignId}/versions/${selectedVersionId}/onglets/${selectedOngletId}/sections/${finalSectionId}/tactiques/${finalTactiqueId}/placements/${placementId}");
-      
-      await updatePlacement(
-        selectedClient.clientId,
-        selectedCampaignId,
-        selectedVersionId,
-        selectedOngletId,
-        finalSectionId,
-        finalTactiqueId,
-        placementId,
-        formData, // ✅ CHANGÉ : Utilise formData (dates string) au lieu de data (dates Date)
-        selectedCampaign,
-        currentTactique
-      );
-      await onRefresh();
-    } catch (error) {
-      console.error('❌ Erreur modification placement:', error);
-      throw error;
-    }
-  }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh, t]);
+  try {
+    const currentTactique = tactiques[finalSectionId]?.find(t => t.id === finalTactiqueId);
+    
+    // ✅ SUPPRIMÉ : La conversion problématique convertPlacementToFormData
+    // Les données sont déjà au bon format (PlacementFormData avec dates string)
+    
+    console.log("📅 DONNÉES AVANT SAUVEGARDE:", {
+      PL_Start_Date: data.PL_Start_Date,
+      PL_End_Date: data.PL_End_Date,
+      PL_Label: data.PL_Label
+    });
+    
+    console.log("FIREBASE: ÉCRITURE - Fichier: useTactiquesCrud.ts - Fonction: handleUpdatePlacement");
+    
+    await updatePlacement(
+      selectedClient.clientId,
+      selectedCampaignId,
+      selectedVersionId,
+      selectedOngletId,
+      finalSectionId,
+      finalTactiqueId,
+      placementId,
+      data, // ✅ CHANGÉ : Utilise data directement (pas de conversion)
+      selectedCampaign,
+      currentTactique
+    );
+    await onRefresh();
+  } catch (error) {
+    console.error('❌ Erreur modification placement:', error);
+    throw error;
+  }
+}, [selectedClient?.clientId, selectedCampaignId, selectedVersionId, selectedOngletId, sections, tactiques, placements, selectedCampaign, onRefresh, t]);
 
   /**
    * Gère la suppression d'un placement.

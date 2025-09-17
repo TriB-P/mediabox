@@ -1,8 +1,11 @@
+// app/lib/budgetService.ts
+
 /**
  * Ce fichier contient le service principal pour la gestion des budgets.
  * Il gère la création, le chargement et le calcul des données budgétaires,
  * en intégrant la logique de calcul des frais et la conversion des devises.
  * Il sert d'interface entre les données de l'application et le moteur de calcul du budget.
+ * CORRECTION : Ajout du calcul des RefCurrency pour les budgets (alignement avec le drawer)
  */
 import {
   calculateBudget,
@@ -43,6 +46,14 @@ export interface BudgetData {
   TC_Fee_5_Option: string;
   TC_Fee_5_Volume: number;
   TC_Fee_5_Value: number;
+  // 🆕 CORRECTION : Ajout des champs RefCurrency manquants
+  TC_Fee_1_RefCurrency?: number;
+  TC_Fee_2_RefCurrency?: number;
+  TC_Fee_3_RefCurrency?: number;
+  TC_Fee_4_RefCurrency?: number;
+  TC_Fee_5_RefCurrency?: number;
+  TC_Media_Budget_RefCurrency?: number;
+  TC_Client_Budget_RefCurrency?: number;
 }
 
 export interface ClientFee {
@@ -98,6 +109,37 @@ export class BudgetService {
   }
 
   /**
+   * 🆕 CORRECTION : Calcule les montants en devise de référence pour tous les frais ET les budgets.
+   * Cette fonction reprend la logique de useBudgetCalculations.ts
+   */
+  private calculateRefCurrencyAmounts(
+    budgetData: BudgetData, 
+    currencyRate: number
+  ): Partial<BudgetData> {
+    const updates: any = {};
+    
+    // Calcul des frais en devise de référence
+    for (let i = 1; i <= 5; i++) {
+      const valueKey = `TC_Fee_${i}_Value`;
+      const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
+      
+      const feeValue = (budgetData as any)[valueKey] || 0;
+      updates[refCurrencyKey] = feeValue * currencyRate;
+    }
+    
+    // 🆕 CORRECTION : Calcul des budgets en devise de référence
+    const clientBudget = budgetData.TC_Client_Budget || 0;
+    const mediaBudget = budgetData.TC_Media_Budget || 0;
+    
+    updates.TC_Client_Budget_RefCurrency = clientBudget * currencyRate;
+    updates.TC_Media_Budget_RefCurrency = mediaBudget * currencyRate;
+    
+    this.log('RefCurrency calculés', updates);
+    
+    return updates as Partial<BudgetData>;
+  }
+
+  /**
    * Crée un objet BudgetData avec des valeurs par défaut.
    * Cette fonction initialise toutes les propriétés nécessaires pour un nouveau budget.
    * @param clientFees - Un tableau des définitions de frais client, non utilisé directement pour la création de données par défaut, mais requis par l'interface.
@@ -134,6 +176,14 @@ export class BudgetService {
       TC_Fee_5_Option: '',
       TC_Fee_5_Volume: 0,
       TC_Fee_5_Value: 0,
+      // 🆕 CORRECTION : Initialisation des RefCurrency
+      TC_Fee_1_RefCurrency: 0,
+      TC_Fee_2_RefCurrency: 0,
+      TC_Fee_3_RefCurrency: 0,
+      TC_Fee_4_RefCurrency: 0,
+      TC_Fee_5_RefCurrency: 0,
+      TC_Media_Budget_RefCurrency: 0,
+      TC_Client_Budget_RefCurrency: 0,
     };
 
     return defaultData;
@@ -169,11 +219,18 @@ export class BudgetService {
         const optionKey = `TC_Fee_${i}_Option` as keyof BudgetData;
         const volumeKey = `TC_Fee_${i}_Volume` as keyof BudgetData;
         const valueKey = `TC_Fee_${i}_Value` as keyof BudgetData;
+        const refCurrencyKey = `TC_Fee_${i}_RefCurrency` as keyof BudgetData;
 
         (data as any)[optionKey] = firestoreData[optionKey] || '';
         (data as any)[volumeKey] = firestoreData[volumeKey] || 0;
         (data as any)[valueKey] = firestoreData[valueKey] || 0;
+        // 🆕 CORRECTION : Charger les RefCurrency existants
+        (data as any)[refCurrencyKey] = firestoreData[refCurrencyKey] || 0;
       }
+
+      // 🆕 CORRECTION : Charger les RefCurrency des budgets
+      data.TC_Media_Budget_RefCurrency = firestoreData.TC_Media_Budget_RefCurrency || 0;
+      data.TC_Client_Budget_RefCurrency = firestoreData.TC_Client_Budget_RefCurrency || 0;
     }
 
     this.log('Données chargées', data);
@@ -328,6 +385,7 @@ export class BudgetService {
   /**
    * Met à jour un objet BudgetData existant avec les résultats des calculs budgétaires.
    * Cela inclut le volume d'unité, la bonification, les budgets média et client, le taux de change et les montants des frais.
+   * 🆕 CORRECTION : Inclut maintenant le calcul des RefCurrency
    * @param data - L'objet BudgetData original à mettre à jour.
    * @param budgetResults - Les résultats des calculs budgétaires.
    * @param exchangeRate - Le taux de change effectif utilisé.
@@ -361,6 +419,12 @@ export class BudgetService {
         (updatedData[valueKey] as number) = feeDetail.calculatedAmount;
       }
     });
+
+    // 🆕 CORRECTION : Calculer tous les RefCurrency après les calculs principaux
+    const refCurrencyUpdates = this.calculateRefCurrencyAmounts(updatedData, exchangeRate);
+    
+    // Appliquer les RefCurrency calculés
+    Object.assign(updatedData, refCurrencyUpdates);
 
     return updatedData;
   }

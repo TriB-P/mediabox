@@ -24,6 +24,25 @@ export default function Version() {
   // Contenu du modal de version (à personnaliser selon vos besoins)
   const versionContent = {
     current: {
+      version: '2.0.1',
+      releaseDate: '2024-09-18',
+      features: {
+        fr: [
+            'Ajout d\'une fonctionnalité de log des versions automatiques pour aider les opérations',
+            'Réintroduction du statut des documents',
+            'Correction de bugs de conversions de devises dans la vue tableau',
+            'Ajout des totaux par section dans la vue répartition',
+        ],
+        en: [
+            'Added an automatic version logging feature to support operations',
+            'Reintroduced document status',
+            'Fixed currency conversion bugs in table view',
+            'Added section totals in distribution view',
+        ]
+      }
+    },
+    previous: [
+      {
       version: '2.0',
       releaseDate: '2024-09-15',
       features: {
@@ -45,8 +64,7 @@ export default function Version() {
         ]
       }
     },
-    previous: [
-      {
+    {
         version: '1.0',
         releaseDate: '2024-07-25',
         features: {
@@ -54,6 +72,8 @@ export default function Version() {
           en: ['MediaBox original version', 'AppSheet built']
         }
       },
+
+      
 
     ],
     upcoming: {
@@ -163,7 +183,7 @@ export default function Version() {
           className="w-full flex items-center justify-center px-3 py-2 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
         >
           <Info className="h-4 w-4 mr-2" />
-          Version 2.0
+          Version 2.0.1
         </button>
       </div>
 

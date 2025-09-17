@@ -668,7 +668,7 @@ export default function TactiquesAdvancedTableView({
         </motion.div>
       )}
 
-      {/* MODIFIÉ : DynamicTableStructure avec nouvelles props budget unifiées */}
+{/* MODIFIÉ : DynamicTableStructure avec nouvelles props budget unifiées */}
       <motion.div variants={itemVariants}>
         <DynamicTableStructure
           tableRows={tableRows}
@@ -688,6 +688,7 @@ export default function TactiquesAdvancedTableView({
           exchangeRates={exchangeRates}
           campaignCurrency={campaignCurrency}
           currentLanguage={currentLanguage}
+          isLoading={listsLoading || budgetDataLoading}
           />
       </motion.div>
     </motion.div>

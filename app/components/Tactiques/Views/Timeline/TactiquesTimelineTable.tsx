@@ -5,6 +5,7 @@
  * - Gestion des champs date/name selon le type
  * - Interface PEBs améliorée avec support des nouvelles structures
  * - Fonctionnalités copier-coller conservées et améliorées
+ * - NOUVEAU: Sous-totaux par section affichés dans les en-têtes de section
  */
 
 'use client';
@@ -96,6 +97,12 @@ interface RowTotals {
 interface CopiedData {
   value: string;
   unitCost?: string;
+}
+
+// NOUVEAU: Interface pour les sous-totaux par section
+interface SectionTotals {
+  value: number;
+  hasNumericValues: boolean;
 }
 
 /**
@@ -261,6 +268,83 @@ export default function TactiquesTimelineTable({
       return getTactiqueBreakdownTotal(tactique, breakdownId, periodId);
     }
     return getTactiqueBreakdownValue(tactique, breakdownId, periodId);
+  };
+
+  /**
+   * NOUVEAU: Calcule les sous-totaux par section (simple pour tous types y compris PEBs)
+   */
+  const sectionTotals = useMemo(() => {
+    const sectionTotals: { [sectionId: string]: { [periodId: string]: SectionTotals } } = {};
+
+    Object.keys(tactiquesGroupedBySection).forEach(sectionId => {
+      const sectionTactiques = tactiquesGroupedBySection[sectionId];
+      sectionTotals[sectionId] = {};
+
+      periods.forEach(period => {
+        let valueSum = 0;
+        let numericValueCount = 0;
+
+        sectionTactiques.forEach(tactique => {
+          if (isPEBs) {
+            // Pour PEBs, utiliser le total calculé
+            const total = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
+            if (isValidNumber(total)) {
+              valueSum += parseFloat(total);
+              numericValueCount++;
+            }
+          } else {
+            // Pour les autres types, utiliser la valeur directement
+            const value = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
+            if (isValidNumber(value)) {
+              valueSum += parseFloat(value);
+              numericValueCount++;
+            }
+          }
+        });
+
+        sectionTotals[sectionId][period.id] = {
+          value: valueSum,
+          hasNumericValues: numericValueCount > 0
+        };
+      });
+    });
+
+    return sectionTotals;
+  }, [tactiquesGroupedBySection, periods, selectedBreakdown.id, isPEBs, editableCells]);
+
+  /**
+   * NOUVEAU: Calcule le total par section pour la colonne de droite
+   */
+  const getSectionGrandTotal = (sectionId: string): number => {
+    const sectionTactiques = tactiquesGroupedBySection[sectionId];
+    let total = 0;
+
+    sectionTactiques.forEach(tactique => {
+      if (isPEBs) {
+        const rowTotals = calculateRowTotals(tactique);
+        if (rowTotals.hasNumericValues) {
+          total += rowTotals.total;
+        }
+      } else {
+        const tactiqueTotal = calculateTactiqueBreakdownTotal(
+          tactique, 
+          selectedBreakdown.id, 
+          selectedBreakdown.isDefault, 
+          selectedBreakdown.type
+        );
+        const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(
+          tactique, 
+          selectedBreakdown.id, 
+          selectedBreakdown.isDefault, 
+          selectedBreakdown.type
+        );
+        if (hasNumericValues) {
+          total += tactiqueTotal;
+        }
+      }
+    });
+
+    return total;
   };
 
   /**
@@ -819,15 +903,25 @@ export default function TactiquesTimelineTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {Object.keys(tactiquesGroupedBySection).map(sectionId => (
               <React.Fragment key={sectionId}>
-                {/* Ligne de section */}
-                  <tr className="bg-indigo-50">
+                {/* MODIFIÉ: Ligne de section avec sous-totaux */}
+                  <tr className="bg-indigo-50 border-t-2 border-indigo-200">
                     <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
                       {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
                     </td>
-                    {periods.map((period) => (
-                      <td key={period.id} className="px-4 py-2 bg-indigo-50"></td>
-                    ))}
-                    <td className="px-4 py-2 bg-indigo-50"></td>
+                    {periods.map((period) => {
+                      const sectionTotal = sectionTotals[sectionId]?.[period.id];
+                      return (
+                        <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-xs font-semibold text-indigo-800">
+                          {sectionTotal?.hasNumericValues ? formatCurrency(sectionTotal.value) : '—'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-2 bg-indigo-50 text-center text-xs font-semibold text-indigo-800">
+                      {(() => {
+                        const sectionGrandTotal = getSectionGrandTotal(sectionId);
+                        return sectionGrandTotal > 0 ? formatCurrency(sectionGrandTotal) : '—';
+                      })()}
+                    </td>
                     {isPEBs && (
                       <>
                         <td className="px-4 py-2 bg-indigo-50"></td>

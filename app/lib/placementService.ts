@@ -297,6 +297,8 @@ async function prepareDataForFirestore(
       PL_Taxonomy_Tags: placementData.PL_Taxonomy_Tags || '',
       PL_Taxonomy_Platform: placementData.PL_Taxonomy_Platform || '',
       PL_Taxonomy_MediaOcean: placementData.PL_Taxonomy_MediaOcean || '',
+         PL_Start_Date: placementData.PL_Start_Date || '',
+    PL_End_Date: placementData.PL_End_Date || '',
 
       ...placementFields,  // ✅ INCLUT maintenant directement PL_Product, PL_Channel, etc.
       ...taxonomyChains,

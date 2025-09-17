@@ -2900,7 +2900,8 @@ export const translations = {
         clientMode: "client",
         mediaMode: "média"
       },
-      loadingMessage: "⏳ Chargement en cours... Les calculs budgétaires seront disponibles une fois les données chargées."
+      loadingMessage: "⏳ Chargement en cours... Les calculs budgétaires seront disponibles une fois les données chargées.",
+      defaultUnitCost : "Valeur par défaut : 5"
     },
     budgetGeneralParams: {
       currencies: {
@@ -7375,7 +7376,9 @@ export const translations = {
         clientMode: "client",
         mediaMode: "media"
       },
-      loadingMessage: "⏳ Loading in progress... Budget calculations will be available once the data is loaded."
+      loadingMessage: "⏳ Loading in progress... Budget calculations will be available once the data is loaded.",
+      defaultUnitCost : "Default value : 5"
+
     },
     budgetGeneralParams: {
       currencies: {
