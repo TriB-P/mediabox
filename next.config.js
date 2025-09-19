@@ -42,6 +42,8 @@ const nextConfig = {
     return config;
 
   },
+
+  
 };
 
 

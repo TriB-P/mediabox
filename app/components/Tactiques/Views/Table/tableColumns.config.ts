@@ -5,6 +5,7 @@
  * Tous les labels et options sont maintenant traduits dynamiquement
  * SUPPRIME la rétrocompatibilité - la fonction t() est obligatoire
  */
+import { m } from 'framer-motion';
 import { DynamicColumn, TableLevel } from './TactiquesAdvancedTableView';
 
 /**
@@ -106,7 +107,7 @@ export const formatPercentage = (value: any): string => {
 /**
  * Types pour les sous-catégories
  */
-export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin' | 'specs';
+export type TactiqueSubCategory = 'info' | 'strategie' | 'budget' | 'admin' | 'specs' | 'kpi';
 export type PlacementSubCategory = 'info' | 'taxonomie';
 export type CreatifSubCategory = 'info' | 'taxonomie' | 'specs';
 
@@ -475,6 +476,39 @@ const getTactiqueSpecsColumns = (t: (key: string) => string): DynamicColumn[] =>
   }
 ];
 
+const getTactiqueKpiColumns = (t: (key: string) => string): DynamicColumn[] => [
+  {
+    key: 'TC_Media_Objective',
+    label: t('columns.tactique.mediaObjective'),
+    type: 'select',
+    width: 180,
+    options: []
+  },
+  {
+    key: 'TC_Kpi',
+    label: t('columns.tactique.kpi'),
+    type: 'select', 
+    width: 150,
+    options: []
+  },
+  {
+    key: 'TC_Kpi_CostPer',
+    label: t('columns.tactique.kpiCostPer'),
+    type: 'currency',
+    width: 130,
+    validation: validateBudget,
+    format: formatCurrency
+  },
+  {
+    key: 'TC_Kpi_Volume',
+    label: t('columns.tactique.kpiVolume'),
+    type: 'number',
+    width: 120,
+    validation: validateNumber,
+    format: formatNumber
+  }
+];
+
 const getPlacementInfoColumns = (t: (key: string) => string): DynamicColumn[] => [
   {
     key: 'PL_Label',
@@ -726,6 +760,11 @@ export const getTactiqueSubCategories = (t: (key: string) => string): TactiqueSu
     id: 'specs',
     label: t('tabs.tactique.specs'),
     columns: getTactiqueSpecsColumns(t)
+  },
+  {
+    id: 'kpi',
+    label: t('tabs.tactique.kpi'),
+    columns: getTactiqueKpiColumns(t)
   }
 ];
 

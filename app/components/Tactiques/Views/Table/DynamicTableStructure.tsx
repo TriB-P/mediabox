@@ -34,7 +34,6 @@ import {
   getRowStyles,
   getTypeStyles,
   getTypeLabel,
-  handleSort as handleSortFromHelper,
   formatDisplayValue
 } from './DynamicTableHelpers';
 import {
@@ -77,10 +76,7 @@ import {
 import { Fee } from '../../../../lib/tactiqueListService';
 import { useAsyncTaxonomyUpdate } from '../../../../hooks/useAsyncTaxonomyUpdate';
 
-interface SortConfig {
-  key: string;
-  direction: 'asc' | 'desc';
-}
+
 
 interface CampaignBucket {
   id: string;
@@ -251,7 +247,6 @@ export default function DynamicTableStructure({
 
 
   // États existants (taxonomie, sélection, etc.)
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hideChildrenLevels, setHideChildrenLevels] = useState(false);
   const [selectedTactiqueSubCategory, setSelectedTactiqueSubCategory] = useState<TactiqueSubCategory>('info');
@@ -734,9 +729,9 @@ const calculatedUpdates: { [key: string]: any } = {};
   /**
    * Lignes traitées avec filtrage et tri
    */
-  const processedRows = useMemo(() => {
-    return processTableRows(tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, (row) => getHierarchyLabel(row));
-  }, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, sortConfig, t]);
+const processedRows = useMemo(() => {
+  return processTableRows(tableRows, hideChildrenLevels, selectedLevel, searchTerm, null, (row) => getHierarchyLabel(row));
+}, [tableRows, hideChildrenLevels, selectedLevel, searchTerm, t]);
 
   /**
    * MODIFIÉ : Gestion des changements avec calculs budget unifiés
@@ -951,12 +946,7 @@ const calculatedUpdates: { [key: string]: any } = {};
     setSelectionStart(null);
   }, [onLevelChange]);
 
-  /**
-   * Gère le tri
-   */
-  const handleSort = useCallback((columnKey: string) => {
-    setSortConfig(prev => handleSortFromHelper(columnKey, prev));
-  }, []);
+
 
   /**
    * Efface la sélection
@@ -1451,14 +1441,7 @@ const calculatedUpdates: { [key: string]: any } = {};
             {processedRows.length} {t('table.footer.rows')}
           </span>
 
-          {sortConfig && (
-            <button
-              onClick={() => setSortConfig(null)}
-              className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
-            >
-              {t('table.toolbar.clearSort')}
-            </button>
-          )}
+         
         </div>
       </div>
 
@@ -1518,22 +1501,21 @@ const calculatedUpdates: { [key: string]: any } = {};
               <tr>
                 {columns.map(column => (
                  <th
-                 key={column.key}
-                 className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap ${
-                   column.key === '_hierarchy' ? 'sticky left-0 z-20 bg-gray-50' : ''
-                 }`}
-                 style={{ 
-                   width: column.width || 150, 
-                   minWidth: column.width || 150,
-                   ...(column.key === '_hierarchy' ? { 
-                     position: 'sticky', 
-                     left: 0, 
-                     zIndex: 20,
-                     boxShadow: '8px 0 15px -3px rgba(0, 0, 0, 0.25), 4px 0 6px -1px rgba(0, 0, 0, 0.15)'
-                   } : {})
-                 }}
-                 onClick={() => handleSort(column.key)}
-               >
+                  key={column.key}
+                  className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${
+                    column.key === '_hierarchy' ? 'sticky left-0 z-20 bg-gray-50' : ''
+                  }`}
+                  style={{ 
+                    width: column.width || 150, 
+                    minWidth: column.width || 150,
+                    ...(column.key === '_hierarchy' ? { 
+                      position: 'sticky', 
+                      left: 0, 
+                      zIndex: 20,
+                      boxShadow: '8px 0 15px -3px rgba(0, 0, 0, 0.25), 4px 0 6px -1px rgba(0, 0, 0, 0.15)'
+                    } : {})
+                  }}
+                >
                     <div className="flex items-center space-x-1">
                       <span>{column.label}</span>
                       {isFeeCompositeColumn(column) && (
@@ -1542,11 +1524,6 @@ const calculatedUpdates: { [key: string]: any } = {};
                         </span>
                       )}
 
-                      {sortConfig?.key === column.key && (
-                        <span className="text-indigo-600 font-bold">
-                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
                     </div>
                   </th>
                 ))}

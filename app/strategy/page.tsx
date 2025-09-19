@@ -1,3 +1,4 @@
+// app/strategy/page.tsx
 /**
  * Ce fichier définit la page "Stratégie" de l'application.
  * Elle permet de visualiser et de gérer les "enveloppes budgétaires" (buckets)
@@ -29,7 +30,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { 
-  getBucketAssignmentsWithCurrency,
+  getBucketAssignments,
   BucketBudgetAssignment 
 } from '../lib/bucketBudgetService';
 import { motion, Variants } from 'framer-motion';
@@ -255,11 +256,10 @@ export default function StrategiePage() {
     try {
       setLoadingAssignments(true);
       
-      const assignments = await getBucketAssignmentsWithCurrency(
+      const assignments = await getBucketAssignments(
         selectedClient.clientId,
         selectedCampaign.id,
-        selectedVersion.id,
-        campaignCurrency
+        selectedVersion.id
       );
       
       setBucketAssignments(assignments);

@@ -1,15 +1,9 @@
-// app/components/Campaigns/CampaignDrawer.tsx - OPTIMISÉ AVEC CACHE
+// app/components/Campaigns/CampaignDrawer.tsx - AVEC VALIDATION OBLIGATOIRE DES DATES
 
 /**
- * @file Ce fichier définit le composant CampaignDrawer optimisé avec le système de cache.
- * NOUVELLE VERSION : Utilise getListForClient() au lieu de getClientList() pour maximiser
- * l'utilisation du cache localStorage et éliminer les appels Firebase redondants.
- * 
- * Optimisations appliquées :
- * - Remplacement de getClientList() par getListForClient() du cache
- * - Logique uniforme de chargement des listes dynamiques  
- * - Élimination des appels Firebase pour divisions, quarters, years, custom dimensions
- * - Performance drastiquement améliorée lors de l'ouverture du drawer
+ * @file Ce fichier définit le composant CampaignDrawer avec validation obligatoire des champs critiques.
+ * NOUVELLE FONCTIONNALITÉ : Validation programmatique qui empêche la sauvegarde si les dates
+ * de début et de fin ne sont pas remplies, avec navigation automatique vers l'onglet concerné.
  */
 
 'use client';
@@ -39,11 +33,11 @@ import { useAsyncTaxonomyUpdate } from '../../hooks/useAsyncTaxonomyUpdate';
 import { useTranslation } from '../../contexts/LanguageContext';
 import TaxonomyUpdateBanner from '../Others/TaxonomyUpdateBanner';
 
-// OPTIMISÉ : Import du système de cache ET des types existants
+// Import du système de cache
 import { getListForClient } from '../../lib/cacheService';
 import { ShortcodeItem } from '../../lib/listService';
 
-// OPTIMISÉ : Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache
+// Fonction utilitaire pour vérifier l'existence d'une liste depuis le cache
 const hasCachedList = (fieldId: string, clientId: string): boolean => {
   try {
     const cachedList = getListForClient(fieldId, clientId);
@@ -73,16 +67,11 @@ interface ClientConfig {
   CL_Custom_Fee_3?: string;
 }
 
-/**
- * Affiche un panneau latéral (drawer) pour créer ou modifier une campagne.
- * VERSION OPTIMISÉE : Utilise le système de cache pour charger les listes dynamiques.
- * @param {CampaignDrawerProps} props - Les propriétés du composant.
- * @param {boolean} props.isOpen - Indique si le panneau est ouvert ou fermé.
- * @param {() => void} props.onClose - Fonction à appeler pour fermer le panneau.
- * @param {Campaign | null} [props.campaign] - Les données de la campagne à modifier. Si null, le formulaire est en mode création.
- * @param {(campaign: CampaignFormData, additionalBreakdowns?: BreakdownFormData[]) => void} props.onSave - Fonction à appeler lors de la sauvegarde de la campagne.
- * @returns {JSX.Element} Le composant du panneau latéral de la campagne.
- */
+// NOUVEAU : Interface pour les erreurs de validation
+interface ValidationErrors {
+  [fieldName: string]: string;
+}
+
 export default function CampaignDrawer({
   isOpen,
   onClose,
@@ -97,11 +86,15 @@ export default function CampaignDrawer({
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
-  // OPTIMISÉ : États pour les listes dynamiques
+  // NOUVEAU : État pour les erreurs de validation
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [showValidationError, setShowValidationError] = useState(false);
+
+  // États pour les listes dynamiques
   const [dynamicLists, setDynamicLists] = useState<{ [key: string]: ShortcodeItem[] }>({});
   const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({});
 
-  // OPTIMISÉ : Liste des champs dynamiques possibles pour les campagnes (mémorisée)
+  // Liste des champs dynamiques possibles pour les campagnes
   const dynamicListFields = useMemo(() => [
     'CA_Division',
     'CA_Quarter', 
@@ -111,23 +104,21 @@ export default function CampaignDrawer({
     'CA_Custom_Dim_3'
   ], []);
 
-  const REQUIRED_FIELDS = [
+  // NOUVEAU : Définition des champs obligatoires avec leurs onglets
+  const REQUIRED_FIELDS = useMemo(() => [
     { 
-      field: 'TC_Media_Type', 
-      label: 'Type de média', 
-      tab: 'strategie' 
+      field: 'CA_Start_Date', 
+      label: t('campaigns.formDates.startDateLabel'),
+      tab: 'dates',
+      tabLabel: t('campaigns.drawer.tabs.dates')
     },
     { 
-      field: 'TC_Publisher', 
-      label: 'Partenaire', 
-      tab: 'strategie' 
+      field: 'CA_End_Date', 
+      label: t('campaigns.formDates.endDateLabel'),
+      tab: 'dates',
+      tabLabel: t('campaigns.drawer.tabs.dates')
     }
-    
-  ];
-
-  interface ValidationErrors {
-    [fieldName: string]: string;
-  }
+  ], [t]);
 
   const [formData, setFormData] = useState<CampaignFormData>({
     CA_Name: '',
@@ -169,6 +160,41 @@ export default function CampaignDrawer({
     [t]
   );
 
+  // NOUVEAU : Fonction de validation des champs obligatoires
+  const validateRequiredFields = useCallback((): { isValid: boolean; errors: ValidationErrors; firstErrorTab: string | null } => {
+    const errors: ValidationErrors = {};
+    let firstErrorTab: string | null = null;
+
+    REQUIRED_FIELDS.forEach(({ field, label, tab }) => {
+      const value = formData[field as keyof CampaignFormData];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        errors[field] = `${label}`;
+        if (!firstErrorTab) {
+          firstErrorTab = tab;
+        }
+      }
+    });
+
+    // Validation supplémentaire : la date de fin doit être après la date de début
+    if (formData.CA_Start_Date && formData.CA_End_Date) {
+      const startDate = new Date(formData.CA_Start_Date);
+      const endDate = new Date(formData.CA_End_Date);
+      
+      if (endDate <= startDate) {
+        errors.CA_End_Date = t('campaigns.formDates.validationError');
+        if (!firstErrorTab) {
+          firstErrorTab = 'dates';
+        }
+      }
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+      firstErrorTab
+    };
+  }, [formData, REQUIRED_FIELDS, t]);
+
   useEffect(() => {
     if (campaign) {
       setFormData({
@@ -196,6 +222,9 @@ export default function CampaignDrawer({
       });
       setActiveTab('info');
       setAdditionalBreakdowns([]);
+      // NOUVEAU : Réinitialiser les erreurs de validation
+      setValidationErrors({});
+      setShowValidationError(false);
     } else {
       setFormData({
         CA_Name: '',
@@ -211,15 +240,20 @@ export default function CampaignDrawer({
       });
       setActiveTab('info');
       setAdditionalBreakdowns([]);
+      // NOUVEAU : Réinitialiser les erreurs de validation
+      setValidationErrors({});
+      setShowValidationError(false);
     }
   }, [campaign]);
-  
-  // NOUVEAU useEffect à ajouter après le useEffect existant
+
   useEffect(() => {
     // Réinitialiser l'onglet et le tooltip quand le drawer s'ouvre
     if (isOpen) {
       setActiveTab('info');
       setActiveTooltip(null);
+      // NOUVEAU : Réinitialiser les erreurs de validation
+      setValidationErrors({});
+      setShowValidationError(false);
       
       // Si pas de campagne (mode création), réinitialiser les données
       if (!campaign) {
@@ -282,9 +316,7 @@ export default function CampaignDrawer({
   }, [selectedClient, isOpen]);
 
   /**
-   * OPTIMISÉ : Charge toutes les données nécessaires depuis le cache au lieu de Firebase.
-   * Utilise getListForClient() pour chaque liste avec fallback automatique sur Firebase.
-   * Performance drastiquement améliorée par rapport à la version précédente.
+   * Charge toutes les données nécessaires depuis le cache au lieu de Firebase.
    */
   const loadAllData = useCallback(async () => {
     if (!selectedClient) return;
@@ -293,7 +325,7 @@ export default function CampaignDrawer({
     try {
       console.log(`[CACHE] 🚀 Début chargement optimisé CampaignDrawer`);
       
-      // 1. Charger la configuration client (toujours nécessaire via Firebase)
+      // 1. Charger la configuration client
       console.log(`FIREBASE: LECTURE - Fichier: CampaignDrawer.tsx - Fonction: loadAllData - Path: clients/${selectedClient.clientId}`);
       const clientInfo = await getClientInfo(selectedClient.clientId);
       if (clientInfo) {
@@ -307,7 +339,7 @@ export default function CampaignDrawer({
         });
       }
 
-      // 2. OPTIMISÉ : Vérifier et charger toutes les listes depuis le cache
+      // 2. Vérifier et charger toutes les listes depuis le cache
       const newVisibleFields: { [key: string]: boolean } = {};
       const newDynamicLists: { [key: string]: ShortcodeItem[] } = {};
 
@@ -319,7 +351,6 @@ export default function CampaignDrawer({
           const cachedList = getListForClient(field, selectedClient.clientId);
           
           if (cachedList && cachedList.length > 0) {
-            // Conversion directe pour maintenir la compatibilité
             newDynamicLists[field] = cachedList.map(item => ({
               id: item.id,
               SH_Code: item.SH_Code,
@@ -339,7 +370,7 @@ export default function CampaignDrawer({
       setVisibleFields(newVisibleFields);
       setDynamicLists(newDynamicLists);
 
-      // 3. OPTIMISÉ : Attribuer les listes aux états spécifiques pour compatibilité
+      // 3. Attribuer les listes aux états spécifiques pour compatibilité
       setLoadingDivisions(true);
       setDivisions(newDynamicLists['CA_Division'] || []);
       setLoadingDivisions(false);
@@ -379,26 +410,48 @@ export default function CampaignDrawer({
     }
   }, [selectedClient, dynamicListFields]);
 
-  /**
-   * Gère les changements de valeur des champs du formulaire et met à jour l'état `formData`.
-   * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'événement de changement.
-   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // NOUVEAU : Effacer l'erreur de validation pour ce champ quand l'utilisateur le modifie
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+
+      // Si c'était le dernier champ en erreur, cacher le message d'erreur globale
+      if (Object.keys(validationErrors).length === 1) {
+        setShowValidationError(false);
+      }
+    }
   };
 
-  
-
   /**
-   * Gère la soumission du formulaire. Appelle la fonction `onSave` passée en props,
-   * ferme le panneau, et déclenche une mise à jour des taxonomies en arrière-plan si nécessaire.
-   * @param {React.FormEvent} e - L'événement de soumission du formulaire.
+   * NOUVEAU : Gère la soumission du formulaire avec validation obligatoire des champs critiques.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // NOUVEAU : Validation avant sauvegarde
+    const validation = validateRequiredFields();
+    
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      setShowValidationError(true);
+      
+      // Naviguer automatiquement vers l'onglet contenant le premier champ en erreur
+      if (validation.firstErrorTab) {
+        setActiveTab(validation.firstErrorTab);
+      }
+      
+      return; // Empêcher la sauvegarde
+    }
+
     setLoading(true);
 
     try {
@@ -422,19 +475,10 @@ export default function CampaignDrawer({
     }
   };
 
-  /**
-   * Met à jour l'état des répartitions budgétaires supplémentaires (breakdowns)
-   * qui sont créées en même temps qu'une nouvelle campagne.
-   * @param {BreakdownFormData[]} breakdowns - Le tableau des nouvelles répartitions.
-   */
   const handleBreakdownsChange = (breakdowns: BreakdownFormData[]) => {
     setAdditionalBreakdowns(breakdowns);
   };
 
-  /**
-   * Affiche le contenu de l'onglet actif dans le formulaire.
-   * @returns {JSX.Element | null} Le composant de formulaire pour l'onglet actuellement sélectionné.
-   */
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
@@ -552,6 +596,24 @@ export default function CampaignDrawer({
                           </div>
                         </div>
                       </div>
+
+                      {/* NOUVEAU : Banner d'erreur de validation */}
+                      {showValidationError && Object.keys(validationErrors).length > 0 && (
+                        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+                          <div className="flex">
+                            <div className="ml-3">
+                              <div className="mt-2 text-sm text-red-700">
+                                <ul className="list-disc list-inside space-y-1">
+                                  {Object.entries(validationErrors).map(([field, error]) => (
+                                    <li key={field}>{error}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <form
                         onSubmit={handleSubmit}
                         className="h-full flex flex-col"

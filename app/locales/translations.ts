@@ -2371,7 +2371,8 @@ export const translations = {
         repartition: "Répartition",
         admin: "Admin",
         tags: "Tags",
-        specs: 'Specs'
+        specs: 'Specs',
+
       },
       errors: {
         loadData: "Erreur lors du chargement des données. Veuillez réessayer.",
@@ -4188,7 +4189,9 @@ export const translations = {
         strategy: "Stratégie", 
         budget: "Budget",
         admin: "Admin",
-        specs: 'Specs'
+        specs: 'Specs',
+        kpi: "KPI",
+
 
       },
       placement: {
@@ -4216,7 +4219,7 @@ export const translations = {
         endDate: "Date de fin",
         lob: "Ligne d'affaires",
         mediaType: "Type de média",
-        publisher: "Éditeur",
+        publisher: "Partenaire",
         inventory: "Inventaire", 
         marketOpen: "Description du marché",
         targetingOpen: "Description de l'audience",
@@ -4256,7 +4259,11 @@ export const translations = {
         specTitle: 'Titre',
         specText: 'Texte',
         specSheetLink: 'Lien spec sheet',
-        specNotes: 'Notes'
+        specNotes: 'Notes',
+        mediaObjective: "Objectif Média",
+        kpi: "KPI", 
+        kpiCostPer: "Coût par KPI",
+        kpiVolume: "Volume KPI"
       },
       
       placement: {
@@ -8565,7 +8572,8 @@ export const translations = {
         strategy: "Strategy", 
         budget: "Budget",
         admin: "Admin",
-        specs: 'Specs'
+        specs: 'Specs',
+        kpi: "KPI",
 
       },
       placement: {
@@ -8633,7 +8641,11 @@ export const translations = {
         specTitle: 'Title',
         specText: 'Text',
         specSheetLink: 'Spec Sheet Link',
-        specNotes: 'Notes'
+        specNotes: 'Notes',
+        mediaObjective: "Media Objective",
+        kpi: "KPI",
+        kpiCostPer: "Cost per KPI", 
+        kpiVolume: "KPI Volume"
       },
       
       placement: {

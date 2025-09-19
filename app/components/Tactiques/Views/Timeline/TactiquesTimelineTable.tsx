@@ -6,6 +6,8 @@
  * - Interface PEBs améliorée avec support des nouvelles structures
  * - Fonctionnalités copier-coller conservées et améliorées
  * - NOUVEAU: Sous-totaux par section affichés dans les en-têtes de section
+ * - NOUVEAU: Colonnes Media Budget et Difference au début (pour breakdowns Mensuel)
+ * - CORRIGÉ: Total Budget traite les valeurs vides ("-") comme des 0
  */
 
 'use client';
@@ -105,6 +107,13 @@ interface SectionTotals {
   hasNumericValues: boolean;
 }
 
+// NOUVEAU: Interface pour la comparaison avec le media budget
+interface MediaBudgetComparison {
+  mediaBudget: number;
+  timelineTotal: number;
+  difference: number;
+}
+
 /**
  * Composant tableau pour l'édition des répartitions temporelles.
  */
@@ -135,6 +144,7 @@ export default function TactiquesTimelineTable({
 
   const tableRef = useRef<HTMLTableElement>(null);
   const isPEBs = selectedBreakdown.type === 'PEBs';
+  const isMonthly = selectedBreakdown.type === 'Mensuel';
 
   // AMÉLIORÉ: Génération des périodes avec nouvelles traductions
   const periods = useMemo(() => {
@@ -182,17 +192,99 @@ export default function TactiquesTimelineTable({
   }, [tactiquesGroupedBySection]);
 
   /**
-   * Valide qu'une chaîne est un nombre valide
+   * NOUVEAU: Helper pour récupérer le media budget de manière sûre
+   */
+  const getMediaBudget = (tactique: Tactique): number => {
+    return tactique.TC_Media_Budget || 0;
+  };
+
+  /**
+   * NOUVEAU: Helper pour récupérer la devise d'achat de manière sûre
+   */
+  const getBuyCurrency = (tactique: Tactique): string => {
+    return (tactique as any).TC_BuyCurrency || tactique.TC_Currency || 'CAD';
+  };
+
+  /**
+   * NOUVEAU: Formate un nombre avec 2 décimales sans symbole de devise
+   */
+  const formatNumber = (amount: number): string => {
+    return amount.toLocaleString('fr-CA', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  /**
+   * NOUVEAU: Vérifie si toutes les tactiques ont la même devise (pour totaux globaux)
+   */
+  const hasGlobalSameCurrency = useMemo(() => {
+    if (flatTactiques.length === 0) return true;
+    
+    const firstCurrency = getBuyCurrency(flatTactiques[0]);
+    return flatTactiques.every(tactique => getBuyCurrency(tactique) === firstCurrency);
+  }, [flatTactiques]);
+
+  /**
+   * NOUVEAU: Vérifie si toutes les tactiques d'une section ont la même devise
+   */
+  const hasSameCurrencyInSection = (sectionId: string): boolean => {
+    const sectionTactiques = tactiquesGroupedBySection[sectionId];
+    if (sectionTactiques.length === 0) return true;
+    
+    const firstCurrency = getBuyCurrency(sectionTactiques[0]);
+    return sectionTactiques.every(tactique => getBuyCurrency(tactique) === firstCurrency);
+  };
+
+  /**
+   * CORRIGÉ: Valide qu'une chaîne est un nombre valide - traite les valeurs vides comme 0
    */
   const isValidNumber = (str: string): boolean => {
     if (!str || typeof str !== 'string') return false;
     const trimmed = str.trim();
-    if (trimmed === '') return false;
+    if (trimmed === '' || trimmed === '—' || trimmed === '-') return false;
     return /^-?\d*\.?\d+$/.test(trimmed) && !isNaN(parseFloat(trimmed));
   };
 
   /**
-   * Calcule les totaux par ligne pour une tactique (PEBs uniquement)
+   * CORRIGÉ: Convertit une valeur en nombre - traite les valeurs vides comme 0
+   */
+  const parseNumericValue = (str: string): number => {
+    if (!str || typeof str !== 'string') return 0;
+    const trimmed = str.trim();
+    if (trimmed === '' || trimmed === '—' || trimmed === '-') return 0;
+    const parsed = parseFloat(trimmed);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  /**
+   * NOUVEAU: Calcule la comparaison avec le media budget pour une tactique (Mensuel uniquement)
+   */
+  const calculateMediaBudgetComparison = (tactique: Tactique): MediaBudgetComparison => {
+    const mediaBudget = getMediaBudget(tactique);
+    
+    let timelineTotal = 0;
+    if (isPEBs) {
+      const rowTotals = calculateRowTotals(tactique);
+      timelineTotal = rowTotals.total;
+    } else {
+      timelineTotal = calculateTactiqueBreakdownTotal(
+        tactique, 
+        selectedBreakdown.id, 
+        selectedBreakdown.isDefault, 
+        selectedBreakdown.type
+      );
+    }
+    
+    return {
+      mediaBudget,
+      timelineTotal,
+      difference: timelineTotal - mediaBudget
+    };
+  };
+
+  /**
+   * CORRIGÉ: Calcule les totaux par ligne pour une tactique (PEBs uniquement) - traite les vides comme 0
    */
   const calculateRowTotals = (tactique: Tactique): RowTotals => {
     let volumeSum = 0;
@@ -215,18 +307,23 @@ export default function TactiquesTimelineTable({
       const total = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
       const unitCost = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'unitCost');
 
-      if (isValidNumber(volume)) {
-        volumeSum += parseFloat(volume);
+      // CORRIGÉ: Utiliser parseNumericValue qui traite les valeurs vides
+      const volumeNum = parseNumericValue(volume);
+      const totalNum = parseNumericValue(total);
+      const unitCostNum = parseNumericValue(unitCost);
+
+      if (volumeNum > 0 || isValidNumber(volume)) {
+        volumeSum += volumeNum;
         numericVolumeCount++;
       }
 
-      if (isValidNumber(total)) {
-        totalSum += parseFloat(total);
+      if (totalNum > 0 || isValidNumber(total)) {
+        totalSum += totalNum;
         numericTotalCount++;
       }
 
-      if (isValidNumber(unitCost)) {
-        unitCostSum += parseFloat(unitCost);
+      if (unitCostNum > 0 || isValidNumber(unitCost)) {
+        unitCostSum += unitCostNum;
         numericUnitCostCount++;
       }
     });
@@ -288,15 +385,17 @@ export default function TactiquesTimelineTable({
           if (isPEBs) {
             // Pour PEBs, utiliser le total calculé
             const total = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
-            if (isValidNumber(total)) {
-              valueSum += parseFloat(total);
+            const totalNum = parseNumericValue(total);
+            if (totalNum > 0 || isValidNumber(total)) {
+              valueSum += totalNum;
               numericValueCount++;
             }
           } else {
             // Pour les autres types, utiliser la valeur directement
             const value = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
-            if (isValidNumber(value)) {
-              valueSum += parseFloat(value);
+            const valueNum = parseNumericValue(value);
+            if (valueNum > 0 || isValidNumber(value)) {
+              valueSum += valueNum;
               numericValueCount++;
             }
           }
@@ -313,34 +412,26 @@ export default function TactiquesTimelineTable({
   }, [tactiquesGroupedBySection, periods, selectedBreakdown.id, isPEBs, editableCells]);
 
   /**
-   * NOUVEAU: Calcule le total par section pour la colonne de droite
+   * CORRIGÉ: Calcule le total des valeurs d'un breakdown en traitant les vides comme des 0
    */
-  const getSectionGrandTotal = (sectionId: string): number => {
-    const sectionTactiques = tactiquesGroupedBySection[sectionId];
+  const calculateTotalForTactique = (tactique: Tactique): number => {
     let total = 0;
+    
+    periods.forEach(period => {
+      const isActive = selectedBreakdown.isDefault ? 
+        getPeriodToggleForTactique(tactique, selectedBreakdown.id, period.id) : 
+        true;
 
-    sectionTactiques.forEach(tactique => {
+      if (!isActive && selectedBreakdown.isDefault) {
+        return; // Ignorer les périodes désactivées
+      }
+
       if (isPEBs) {
-        const rowTotals = calculateRowTotals(tactique);
-        if (rowTotals.hasNumericValues) {
-          total += rowTotals.total;
-        }
+        const totalValue = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
+        total += parseNumericValue(totalValue);
       } else {
-        const tactiqueTotal = calculateTactiqueBreakdownTotal(
-          tactique, 
-          selectedBreakdown.id, 
-          selectedBreakdown.isDefault, 
-          selectedBreakdown.type
-        );
-        const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(
-          tactique, 
-          selectedBreakdown.id, 
-          selectedBreakdown.isDefault, 
-          selectedBreakdown.type
-        );
-        if (hasNumericValues) {
-          total += tactiqueTotal;
-        }
+        const value = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
+        total += parseNumericValue(value);
       }
     });
 
@@ -348,7 +439,21 @@ export default function TactiquesTimelineTable({
   };
 
   /**
-   * Calcule les totaux par colonne
+   * NOUVEAU: Calcule le total par section pour la colonne de droite (version corrigée)
+   */
+  const getSectionGrandTotal = (sectionId: string): number => {
+    const sectionTactiques = tactiquesGroupedBySection[sectionId];
+    let total = 0;
+
+    sectionTactiques.forEach(tactique => {
+      total += calculateTotalForTactique(tactique);
+    });
+
+    return total;
+  };
+
+  /**
+   * CORRIGÉ: Calcule les totaux par colonne - traite les valeurs vides comme 0
    */
   const columnTotals = useMemo(() => {
     const totals: { [periodId: string]: ColumnTotals } = {};
@@ -363,21 +468,24 @@ export default function TactiquesTimelineTable({
 
       flatTactiques.forEach(tactique => {
         const value = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'value');
-        if (isValidNumber(value)) {
-          valueSum += parseFloat(value);
+        const valueNum = parseNumericValue(value);
+        if (valueNum > 0 || isValidNumber(value)) {
+          valueSum += valueNum;
           numericValueCount++;
         }
 
         if (isPEBs) {
           const unitCost = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'unitCost');
-          if (isValidNumber(unitCost)) {
-            unitCostSum += parseFloat(unitCost);
+          const unitCostNum = parseNumericValue(unitCost);
+          if (unitCostNum > 0 || isValidNumber(unitCost)) {
+            unitCostSum += unitCostNum;
             numericUnitCostCount++;
           }
 
           const total = getPeriodValueForTactique(tactique, selectedBreakdown.id, period.id, 'total');
-          if (isValidNumber(total)) {
-            totalSum += parseFloat(total);
+          const totalNum = parseNumericValue(total);
+          if (totalNum > 0 || isValidNumber(total)) {
+            totalSum += totalNum;
             numericTotalCount++;
           }
         }
@@ -860,9 +968,22 @@ export default function TactiquesTimelineTable({
           
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] sticky left-0 bg-gray-50 z-20">
-              {t('timeline.table.header.sectionTactic')}
-            </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] sticky left-0 bg-gray-50 z-20">
+                {t('timeline.table.header.sectionTactic')}
+              </th>
+              {isMonthly && (
+                <>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] sticky left-[200px] bg-gray-50 z-20">
+                    Media Budget
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] sticky left-[300px] bg-gray-50 z-20">
+                    Différence
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px] sticky left-[400px] bg-gray-50 z-20">
+                    Devise
+                  </th>
+                </>
+              )}
               {periods.map((period) => {
                 // NOUVEAU: Utiliser le label généré selon le type
                 const periodLabel = generatePeriodDisplayLabel(
@@ -885,7 +1006,7 @@ export default function TactiquesTimelineTable({
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] ">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                 {t('timeline.table.header.totalBudget')}
               </th>
               {isPEBs && (
@@ -904,48 +1025,78 @@ export default function TactiquesTimelineTable({
             {Object.keys(tactiquesGroupedBySection).map(sectionId => (
               <React.Fragment key={sectionId}>
                 {/* MODIFIÉ: Ligne de section avec sous-totaux */}
-                  <tr className="bg-indigo-50 border-t-2 border-indigo-200">
-                    <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
-                      {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
-                    </td>
-                    {periods.map((period) => {
-                      const sectionTotal = sectionTotals[sectionId]?.[period.id];
-                      return (
-                        <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-xs font-semibold text-indigo-800">
-                          {sectionTotal?.hasNumericValues ? formatCurrency(sectionTotal.value) : '—'}
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-2 bg-indigo-50 text-center text-xs font-semibold text-indigo-800">
-                      {(() => {
-                        const sectionGrandTotal = getSectionGrandTotal(sectionId);
-                        return sectionGrandTotal > 0 ? formatCurrency(sectionGrandTotal) : '—';
-                      })()}
-                    </td>
-                    {isPEBs && (
-                      <>
-                        <td className="px-4 py-2 bg-indigo-50"></td>
-                        <td className="px-4 py-2 bg-indigo-50"></td>
-                      </>
-                    )}
-                  </tr>
+                <tr className="bg-indigo-50 border-t-2 border-indigo-200">
+                  <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
+                    {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
+                  </td>
+                  {isMonthly && (
+                    <>
+                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[200px] z-10">
+                        {(() => {
+                          if (!hasSameCurrencyInSection(sectionId)) return '—';
+                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+                          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
+                            sum + getMediaBudget(tactique), 0
+                          );
+                          return sectionMediaBudget > 0 ? formatNumber(sectionMediaBudget) : '—';
+                        })()}
+                      </td>
+                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[300px] z-10">
+                        {(() => {
+                          if (!hasSameCurrencyInSection(sectionId)) return '—';
+                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+                          const sectionGrandTotal = getSectionGrandTotal(sectionId);
+                          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
+                            sum + getMediaBudget(tactique), 0
+                          );
+                          const difference = sectionGrandTotal - sectionMediaBudget;
+                          const isNonZero = Math.abs(difference) > 0.01;
+                          return (
+                            <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
+                              {difference !== 0 ? formatNumber(difference) : '—'}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[400px] z-10">
+                        {(() => {
+                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+                          if (sectionTactiques.length === 0) return '—';
                           
+                          const currencies = [...new Set(sectionTactiques.map(t => getBuyCurrency(t)))];
+                          return currencies.length === 1 ? currencies[0] : 'Multi';
+                        })()}
+                      </td>
+                    </>
+                  )}
+                  {periods.map((period) => {
+                    const sectionTotal = sectionTotals[sectionId]?.[period.id];
+                    const showTotal = hasSameCurrencyInSection(sectionId) && sectionTotal?.hasNumericValues;
+                    return (
+                      <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+                        {showTotal ? formatNumber(sectionTotal.value) : '—'}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+                    {(() => {
+                      if (!hasSameCurrencyInSection(sectionId)) return '—';
+                      const sectionGrandTotal = getSectionGrandTotal(sectionId);
+                      return sectionGrandTotal > 0 ? formatNumber(sectionGrandTotal) : '—';
+                    })()}
+                  </td>
+                  {isPEBs && (
+                    <>
+                      <td className="px-4 py-2 bg-indigo-50"></td>
+                      <td className="px-4 py-2 bg-indigo-50"></td>
+                    </>
+                  )}
+                </tr>
+                        
                 {/* Lignes de tactiques */}
                 {tactiquesGroupedBySection[sectionId].map((tactique, tactiqueIndex) => {
                   const rowIndex = flatTactiques.findIndex(t => t.id === tactique.id);
                   const isDefaultBreakdown = selectedBreakdown.isDefault;
-                  const total = calculateTactiqueBreakdownTotal(
-                    tactique, 
-                    selectedBreakdown.id, 
-                    isDefaultBreakdown, 
-                    selectedBreakdown.type
-                  );
-                  const hasNumericValues = areAllTactiqueBreakdownValuesNumeric(
-                    tactique, 
-                    selectedBreakdown.id, 
-                    isDefaultBreakdown, 
-                    selectedBreakdown.type
-                  );
 
                   return (
                     <tr key={tactique.id} className="hover:bg-gray-50">
@@ -954,6 +1105,31 @@ export default function TactiquesTimelineTable({
                           <span>{tactique.TC_Label}</span>
                         </div>
                       </td>
+
+                      {/* NOUVEAU: Colonnes Media Budget et Difference au début */}
+                      {isMonthly && (() => {
+                        const comparison = calculateMediaBudgetComparison(tactique);
+                        return (
+                          <>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium sticky left-[200px] bg-white z-10">
+                              {comparison.mediaBudget > 0 ? formatNumber(comparison.mediaBudget) : '—'}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium sticky left-[300px] bg-white z-10">
+                              {(() => {
+                                const isNonZero = Math.abs(comparison.difference) > 0.01;
+                                return (
+                                  <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
+                                    {Math.abs(comparison.difference) > 1 ? formatNumber(comparison.difference) : '—'}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium sticky left-[400px] bg-white z-10">
+                              {getBuyCurrency(tactique)}
+                            </td>
+                          </>
+                        );
+                      })()}
 
                       {/* Colonnes des périodes */}
                       {periods.map((period) => {
@@ -1106,14 +1282,10 @@ export default function TactiquesTimelineTable({
 
                       {/* Colonne total */}
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium">
-                        {isPEBs ? (
-                          (() => {
-                            const rowTotals = calculateRowTotals(tactique);
-                            return rowTotals.hasNumericValues && rowTotals.total > 0 ? formatCurrency(rowTotals.total) : '—';
-                          })()
-                        ) : (
-                          hasNumericValues && total > 0 ? formatCurrency(total) : '—'
-                        )}
+                        {(() => {
+                          const total = calculateTotalForTactique(tactique);
+                          return total > 0 ? formatNumber(total) : '—';
+                        })()}
                       </td>
 
                       {isPEBs && (() => {
@@ -1124,7 +1296,7 @@ export default function TactiquesTimelineTable({
                               {rowTotals.hasNumericValues ? rowTotals.volume.toFixed(2) : '—'}
                             </td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-blue-700">
-                              {rowTotals.unitCostAverage > 0 ? formatCurrency(rowTotals.unitCostAverage) : '—'}
+                              {rowTotals.unitCostAverage > 0 ? formatNumber(rowTotals.unitCostAverage) : '—'}
                             </td>
                           </>
                         );
@@ -1139,14 +1311,28 @@ export default function TactiquesTimelineTable({
             {isPEBs ? (
               <>
                 <tr className="bg-gray-50 border-t-2 border-gray-200">
-                <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
-                  {t('timeline.table.footer.totalVolume')}
-                </td>
+                  <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
+                    {t('timeline.table.footer.totalVolume')}
+                  </td>
+                  {isMonthly && (
+                    <>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[200px] bg-gray-50 z-10">
+                        —
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[300px] bg-gray-50 z-10">
+                        —
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[400px] bg-gray-50 z-10">
+                        —
+                      </td>
+                    </>
+                  )}
                   {periods.map((period) => {
                     const totals = columnTotals[period.id];
+                    const showTotal = hasGlobalSameCurrency && totals?.hasNumericValues;
                     return (
                       <td key={period.id} className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                        {totals?.hasNumericValues ? totals.value.toFixed(2) : '—'}
+                        {showTotal ? totals.value.toFixed(2) : '—'}
                       </td>
                     );
                   })}
@@ -1154,10 +1340,12 @@ export default function TactiquesTimelineTable({
                     —
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                    {Object.values(columnTotals).some(t => t.hasNumericValues) 
-                      ? Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0).toFixed(2)
-                      : '—'
-                    }
+                    {(() => {
+                      if (!hasGlobalSameCurrency) return '—';
+                      const hasValues = Object.values(columnTotals).some(t => t.hasNumericValues);
+                      if (!hasValues) return '—';
+                      return Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0).toFixed(2);
+                    })()}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
@@ -1165,25 +1353,61 @@ export default function TactiquesTimelineTable({
                 </tr>
 
                 <tr className="bg-gray-100 border-t border-gray-200">
-                <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
-                {t('timeline.table.header.totalBudget')}
+                  <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
+                    {t('timeline.table.header.totalBudget')}
                   </td>
+                  {isMonthly && (
+                    <>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[200px] bg-gray-50 z-10">
+                        {(() => {
+                          if (!hasGlobalSameCurrency) return '—';
+                          const totalMediaBudget = flatTactiques.reduce((sum, tactique) => 
+                            sum + getMediaBudget(tactique), 0
+                          );
+                          return totalMediaBudget > 0 ? formatNumber(totalMediaBudget) : '—';
+                        })()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[300px] bg-gray-50 z-10">
+                        {(() => {
+                          if (!hasGlobalSameCurrency) return '—';
+                          const totalMediaBudget = flatTactiques.reduce((sum, tactique) => 
+                            sum + getMediaBudget(tactique), 0
+                          );
+                          const timelineGrandTotal = Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericTotal && t.total !== undefined ? t.total : 0), 0);
+                          const difference = timelineGrandTotal - totalMediaBudget;
+                          const isNonZero = Math.abs(difference) > 0.01;
+                          return (
+                            <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
+                              {difference !== 0 ? formatNumber(difference) : '—'}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[400px] bg-gray-50 z-10">
+                        {(() => {
+                          if (flatTactiques.length === 0) return '—';
+                          const currencies = [...new Set(flatTactiques.map(t => getBuyCurrency(t)))];
+                          return currencies.length === 1 ? currencies[0] : 'Multi';
+                        })()}
+                      </td>
+                    </>
+                  )}
                   {periods.map((period) => {
                     const totals = columnTotals[period.id];
+                    const showTotal = hasGlobalSameCurrency && totals?.hasNumericTotal && totals.total !== undefined;
                     return (
                       <td key={period.id} className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                        {totals?.hasNumericTotal && totals.total !== undefined 
-                          ? formatCurrency(totals.total) 
-                          : '—'
-                        }
+                        {showTotal ? formatNumber(totals.total!) : '—'}
                       </td>
                     );
                   })}
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                    {Object.values(columnTotals).some(t => t.hasNumericTotal) 
-                      ? formatCurrency(Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericTotal && t.total !== undefined ? t.total : 0), 0))
-                      : '—'
-                    }
+                    {(() => {
+                      if (!hasGlobalSameCurrency) return '—';
+                      const hasValues = Object.values(columnTotals).some(t => t.hasNumericTotal);
+                      if (!hasValues) return '—';
+                      return formatNumber(Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericTotal && t.total !== undefined ? t.total : 0), 0));
+                    })()}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
                     —
@@ -1195,22 +1419,61 @@ export default function TactiquesTimelineTable({
               </>
             ) : (
               <tr className="bg-gray-50 border-t-2 border-gray-200">
-              <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
+                <td className="px-4 py-2 text-sm font-medium text-gray-800 sticky left-0 bg-gray-50 z-10">
                   {t('timeline.table.header.totalBudget')}
                 </td>
+                {isMonthly && (
+                  <>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[200px] bg-gray-50 z-10">
+                      {(() => {
+                        if (!hasGlobalSameCurrency) return '—';
+                        const totalMediaBudget = flatTactiques.reduce((sum, tactique) => 
+                          sum + getMediaBudget(tactique), 0
+                        );
+                        return totalMediaBudget > 0 ? formatNumber(totalMediaBudget) : '—';
+                      })()}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[300px] bg-gray-50 z-10">
+                      {(() => {
+                        if (!hasGlobalSameCurrency) return '—';
+                        const totalMediaBudget = flatTactiques.reduce((sum, tactique) => 
+                          sum + getMediaBudget(tactique), 0
+                        );
+                        const timelineGrandTotal = Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0);
+                        const difference = timelineGrandTotal - totalMediaBudget;
+                        const isNonZero = Math.abs(difference) > 0.01;
+                        return (
+                          <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
+                            {difference !== 0 ? formatNumber(difference) : '—'}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800 sticky left-[400px] bg-gray-50 z-10">
+                      {(() => {
+                        if (flatTactiques.length === 0) return '—';
+                        const currencies = [...new Set(flatTactiques.map(t => getBuyCurrency(t)))];
+                        return currencies.length === 1 ? currencies[0] : 'Multi';
+                      })()}
+                    </td>
+                  </>
+                )}
                 {periods.map((period) => {
                   const totals = columnTotals[period.id];
+                  const showTotal = hasGlobalSameCurrency && totals?.hasNumericValues;
                   return (
                     <td key={period.id} className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                      {totals?.hasNumericValues ? formatCurrency(totals.value) : '—'}
+                      {showTotal ? formatNumber(totals.value) : '—'}
                     </td>
                   );
                 })}
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium text-gray-800">
-                  {Object.values(columnTotals).some(t => t.hasNumericValues) 
-                    ? formatCurrency(Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0))
-                    : '—'
-                  }
+                  {(() => {
+                    if (!hasGlobalSameCurrency) return '—';
+                    const hasValues = Object.values(columnTotals).some(t => t.hasNumericValues);
+                    if (!hasValues) return '—';
+                    return formatNumber(Object.values(columnTotals).reduce((sum, t) => sum + (t.hasNumericValues ? t.value : 0), 0));
+                  })()}
                 </td>
               </tr>
             )}
