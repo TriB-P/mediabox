@@ -1,3 +1,4 @@
+// app/types/invitations.ts
 /**
  * Ce fichier définit les interfaces TypeScript pour les invitations et les données utilisateur.
  * Il permet de s'assurer que les données manipulées dans l'application, notamment celles liées aux invitations
@@ -9,11 +10,10 @@ export interface Invitation {
   id: string;
   email: string;
   role: string; // Référence à un rôle dans la collection 'roles'
-  status: 'pending' | 'accepted' | 'expired';
+  status: 'pending' | 'accepted';
   invitedBy: string; // Email de l'administrateur qui a envoyé l'invitation
   invitedAt: string; // Date d'invitation
   acceptedAt?: string; // Date d'acceptation (optionnel)
-  expiresAt: string; // Date d'expiration
   note?: string; // Note optionnelle
 }
 
@@ -30,7 +30,7 @@ export interface InvitationFormData {
  * @property {string} displayName - Le nom affiché de l'utilisateur.
  * @property {string} [photoURL] - L'URL de la photo de profil de l'utilisateur (optionnel).
  * @property {string} [role] - Le rôle de l'utilisateur (optionnel).
- * @property {'active' | 'invited' | 'expired'} status - Le statut actuel de l'utilisateur (actif, invité, ou expiré).
+ * @property {'active' | 'invited'} status - Le statut actuel de l'utilisateur (actif ou invité).
  * @property {string} [invitedAt] - La date à laquelle l'utilisateur a été invité (optionnel).
  * @property {string} [acceptedAt] - La date à laquelle l'invitation a été acceptée (optionnel).
  * @property {string} [lastLogin] - La date de la dernière connexion de l'utilisateur (optionnel).
@@ -43,7 +43,7 @@ export interface UserWithStatus {
   displayName: string;
   photoURL?: string;
   role?: string;
-  status: 'active' | 'invited' | 'expired';
+  status: 'active' | 'invited';
   invitedAt?: string;
   acceptedAt?: string;
   lastLogin?: string;

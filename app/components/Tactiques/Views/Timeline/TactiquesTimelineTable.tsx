@@ -1024,74 +1024,91 @@ export default function TactiquesTimelineTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {Object.keys(tactiquesGroupedBySection).map(sectionId => (
               <React.Fragment key={sectionId}>
-                {/* MODIFIÉ: Ligne de section avec sous-totaux */}
-                <tr className="bg-indigo-50 border-t-2 border-indigo-200">
-                  <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
-                    {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
-                  </td>
-                  {isMonthly && (
-                    <>
-                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[200px] z-10">
-                        {(() => {
-                          if (!hasSameCurrencyInSection(sectionId)) return '—';
-                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
-                          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
-                            sum + getMediaBudget(tactique), 0
-                          );
-                          return sectionMediaBudget > 0 ? formatNumber(sectionMediaBudget) : '—';
-                        })()}
-                      </td>
-                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[300px] z-10">
-                        {(() => {
-                          if (!hasSameCurrencyInSection(sectionId)) return '—';
-                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
-                          const sectionGrandTotal = getSectionGrandTotal(sectionId);
-                          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
-                            sum + getMediaBudget(tactique), 0
-                          );
-                          const difference = sectionGrandTotal - sectionMediaBudget;
-                          const isNonZero = Math.abs(difference) > 0.01;
-                          return (
-                            <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
-                              {difference !== 0 ? formatNumber(difference) : '—'}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[400px] z-10">
-                        {(() => {
-                          const sectionTactiques = tactiquesGroupedBySection[sectionId];
-                          if (sectionTactiques.length === 0) return '—';
-                          
-                          const currencies = [...new Set(sectionTactiques.map(t => getBuyCurrency(t)))];
-                          return currencies.length === 1 ? currencies[0] : 'Multi';
-                        })()}
-                      </td>
-                    </>
-                  )}
-                  {periods.map((period) => {
-                    const sectionTotal = sectionTotals[sectionId]?.[period.id];
-                    const showTotal = hasSameCurrencyInSection(sectionId) && sectionTotal?.hasNumericValues;
-                    return (
-                      <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
-                        {showTotal ? formatNumber(sectionTotal.value) : '—'}
-                      </td>
-                    );
-                  })}
-                  <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
-                    {(() => {
-                      if (!hasSameCurrencyInSection(sectionId)) return '—';
-                      const sectionGrandTotal = getSectionGrandTotal(sectionId);
-                      return sectionGrandTotal > 0 ? formatNumber(sectionGrandTotal) : '—';
-                    })()}
-                  </td>
-                  {isPEBs && (
-                    <>
-                      <td className="px-4 py-2 bg-indigo-50"></td>
-                      <td className="px-4 py-2 bg-indigo-50"></td>
-                    </>
-                  )}
-                </tr>
+
+
+{/* MODIFIÉ: Ligne de section avec sous-totaux - UNIQUEMENT POUR MONTHLY */}
+<tr className="bg-indigo-50 border-t-2 border-indigo-200">
+  <td className="px-4 py-2 text-sm font-medium text-indigo-900 sticky left-0 bg-indigo-50 z-10">
+    {sectionNames[sectionId] || t('timeline.table.unnamedSection')}
+  </td>
+  {isMonthly && (
+    <>
+      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[200px] z-10">
+        {(() => {
+          if (!hasSameCurrencyInSection(sectionId)) return '—';
+          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
+            sum + getMediaBudget(tactique), 0
+          );
+          return sectionMediaBudget > 0 ? formatNumber(sectionMediaBudget) : '—';
+        })()}
+      </td>
+      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[300px] z-10">
+        {(() => {
+          if (!hasSameCurrencyInSection(sectionId)) return '—';
+          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+          const sectionGrandTotal = getSectionGrandTotal(sectionId);
+          const sectionMediaBudget = sectionTactiques.reduce((sum, tactique) => 
+            sum + getMediaBudget(tactique), 0
+          );
+          const difference = sectionGrandTotal - sectionMediaBudget;
+          const isNonZero = Math.abs(difference) > 0.01;
+          return (
+            <span className={isNonZero ? 'text-red-600 font-bold' : ''}>
+              {difference !== 0 ? formatNumber(difference) : '—'}
+            </span>
+          );
+        })()}
+      </td>
+      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800 sticky left-[400px] z-10">
+        {(() => {
+          const sectionTactiques = tactiquesGroupedBySection[sectionId];
+          if (sectionTactiques.length === 0) return '—';
+          
+          const currencies = [...new Set(sectionTactiques.map(t => getBuyCurrency(t)))];
+          return currencies.length === 1 ? currencies[0] : 'Multi';
+        })()}
+      </td>
+    </>
+  )}
+  {/* MODIFIÉ: Afficher les totaux par période UNIQUEMENT pour Monthly */}
+  {isMonthly ? (
+    periods.map((period) => {
+      const sectionTotal = sectionTotals[sectionId]?.[period.id];
+      const showTotal = hasSameCurrencyInSection(sectionId) && sectionTotal?.hasNumericValues;
+      return (
+        <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+          {showTotal ? formatNumber(sectionTotal.value) : '—'}
+        </td>
+      );
+    })
+  ) : (
+    // Pour les autres types, afficher des cellules vides ou le nom de section étendu
+    periods.map((period) => (
+      <td key={period.id} className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+        —
+      </td>
+    ))
+  )}
+  {/* MODIFIÉ: Total de section UNIQUEMENT pour Monthly */}
+  <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+    {isMonthly ? (
+      (() => {
+        if (!hasSameCurrencyInSection(sectionId)) return '—';
+        const sectionGrandTotal = getSectionGrandTotal(sectionId);
+        return sectionGrandTotal > 0 ? formatNumber(sectionGrandTotal) : '—';
+      })()
+    ) : (
+      '—'
+    )}
+  </td>
+  {isPEBs && (
+    <>
+      <td className="px-4 py-2 bg-indigo-50"></td>
+      <td className="px-4 py-2 bg-indigo-50"></td>
+    </>
+  )}
+</tr>
                         
                 {/* Lignes de tactiques */}
                 {tactiquesGroupedBySection[sectionId].map((tactique, tactiqueIndex) => {

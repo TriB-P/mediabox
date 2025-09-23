@@ -1,3 +1,4 @@
+// app/components/Admin/UsersTab.tsx
 /**
  * @file app/components/Admin/UsersTab.tsx
  * Ce fichier définit le composant React `UsersTab`, qui constitue un onglet dans l'interface d'administration.
@@ -9,9 +10,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserPlus, Trash2, RotateCcw, Clock, CheckCircle, XCircle, Search, X, Edit2 } from 'lucide-react';
+import { UserPlus, Trash2, Clock, CheckCircle, Search, X, Edit2 } from 'lucide-react';
 import { UserWithStatus, InvitationFormData } from '../../types/invitations';
-import { getAllUsersWithStatus, createInvitation, removeUser } from '../../lib/invitationService';
+import { getAllUsersWithStatus, createInvitation, removeUser, updateInvitation } from '../../lib/invitationService';
+import { getRoles } from '../../lib/roleService';
+import { Role } from '../../types/roles';
 import { useAuth } from '../../contexts/AuthContext';
 import InvitationModal from './InvitationModal';
 import EditUserModal from './EditUserModal';
@@ -28,6 +31,7 @@ export default function UsersTab() {
   const { t } = useTranslation();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserWithStatus[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,20 +41,22 @@ export default function UsersTab() {
 
   useEffect(() => {
     loadUsers();
+    loadRoles();
   }, []);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
     } else {
-      const filtered = users.filter(user =>
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      const filtered = users.filter(user => {
+        const roleName = getRoleName(user.role);
+        return user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          roleName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
       setFilteredUsers(filtered);
     }
-  }, [users, searchTerm]);
+  }, [users, searchTerm, roles]);
 
   /**
    * Charge ou recharge la liste complète des utilisateurs et des invitations.
@@ -71,6 +77,31 @@ export default function UsersTab() {
   };
 
   /**
+   * Charge la liste des rôles depuis la base de données pour afficher les noms au lieu des IDs.
+   * @returns {Promise<void>} Une promesse qui se résout une fois les rôles chargés.
+   */
+  const loadRoles = async () => {
+    try {
+      console.log("FIREBASE: [LECTURE] - Fichier: UsersTab.tsx - Fonction: loadRoles - Path: roles");
+      const rolesData = await getRoles();
+      setRoles(rolesData);
+    } catch (error) {
+      console.error('Erreur lors du chargement des rôles:', error);
+    }
+  };
+
+  /**
+   * Retourne le nom d'un rôle à partir de son ID, ou l'ID si le nom n'est pas trouvé.
+   * @param {string | undefined} roleId - L'ID du rôle à rechercher.
+   * @returns {string} Le nom du rôle ou l'ID si non trouvé.
+   */
+  const getRoleName = (roleId?: string): string => {
+    if (!roleId) return '-';
+    const role = roles.find(r => r.id === roleId);
+    return role?.name || roleId;
+  };
+
+  /**
    * Gère l'ouverture de la modale d'édition pour un utilisateur spécifique.
    * @param {UserWithStatus} user - L'objet utilisateur à modifier.
    * @returns {void}
@@ -81,23 +112,27 @@ export default function UsersTab() {
   };
 
   /**
-   * Sauvegarde le nouveau rôle d'un utilisateur dans Firestore.
-   * @param {string} userId - L'ID de l'utilisateur à mettre à jour.
+   * Sauvegarde le nouveau rôle d'un utilisateur ou d'une invitation dans Firestore.
+   * @param {string} userId - L'ID de l'utilisateur à mettre à jour ou l'ID de l'invitation (préfixé par 'invitation-').
    * @param {string} newRole - Le nouveau rôle à assigner.
    * @returns {Promise<void>} Une promesse qui se résout après la mise à jour et le rechargement des données.
    */
   const handleSaveUserRole = async (userId: string, newRole: string) => {
     try {
       if (userId.startsWith('invitation-')) {
-        throw new Error(t('usersTab.errors.cannotEditInvitation'));
+        // Modification du rôle d'une invitation en attente
+        const invitationId = userId.replace('invitation-', '');
+        console.log(`FIREBASE: ÉCRITURE - Fichier: UsersTab.tsx - Fonction: handleSaveUserRole - Path: invitations/${invitationId}`);
+        await updateInvitation(invitationId, { role: newRole });
+      } else {
+        // Modification du rôle d'un utilisateur actif
+        const userRef = doc(db, 'users', userId);
+        console.log(`FIREBASE: ÉCRITURE - Fichier: UsersTab.tsx - Fonction: handleSaveUserRole - Path: users/${userId}`);
+        await updateDoc(userRef, {
+          role: newRole,
+          updatedAt: new Date(),
+        });
       }
-      
-      const userRef = doc(db, 'users', userId);
-      console.log(`FIREBASE: ÉCRITURE - Fichier: UsersTab.tsx - Fonction: handleSaveUserRole - Path: users/${userId}`);
-      await updateDoc(userRef, {
-        role: newRole,
-        updatedAt: new Date(),
-      });
       
       await loadUsers();
     } catch (error) {
@@ -151,7 +186,7 @@ export default function UsersTab() {
 
   /**
    * Retourne un badge JSX stylisé en fonction du statut de l'utilisateur.
-   * @param {UserWithStatus['status']} status - Le statut de l'utilisateur ('active', 'invited', 'expired').
+   * @param {UserWithStatus['status']} status - Le statut de l'utilisateur ('active' ou 'invited').
    * @returns {JSX.Element | null} Un composant de badge ou null.
    */
   const getStatusBadge = (status: UserWithStatus['status']) => {
@@ -168,13 +203,6 @@ export default function UsersTab() {
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
             <Clock className="h-3 w-3 mr-1" />
             {t('usersTab.status.invited')}
-          </span>
-        );
-      case 'expired':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t('usersTab.status.expired')}
           </span>
         );
       default:
@@ -228,7 +256,7 @@ export default function UsersTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center">
             <CheckCircle className="h-8 w-8 text-green-500" />
@@ -248,18 +276,6 @@ export default function UsersTab() {
               <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.pendingInvitations')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {users.filter(u => u.status === 'invited').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center">
-            <XCircle className="h-8 w-8 text-red-500" />
-            <div className="ml-5">
-              <p className="text-sm font-medium text-gray-500">{t('usersTab.stats.expiredInvitations')}</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {users.filter(u => u.status === 'expired').length}
               </p>
             </div>
           </div>
@@ -369,7 +385,7 @@ export default function UsersTab() {
                   </td>
                   <td className="w-24 px-4 py-4 whitespace-nowrap text-center">
                     <span className="text-sm text-gray-900">
-                      {user.role || '-'}
+                      {getRoleName(user.role)}
                     </span>
                   </td>
                   <td className="w-40 px-4 py-4 whitespace-nowrap text-center text-sm text-gray-500">
@@ -385,22 +401,13 @@ export default function UsersTab() {
                   </td>
                   <td className="w-20 px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex items-center justify-center space-x-1">
-                      {user.status === 'active' && (
+                      {(user.status === 'active' || user.status === 'invited') && (
                         <button
                           onClick={() => handleEditUser(user)}
                           className="text-indigo-600 hover:text-indigo-900 p-1"
                           title={t('usersTab.actions.editRole')}
                         >
                           <Edit2 className="h-4 w-4" />
-                        </button>
-                      )}
-                      {user.status === 'expired' && (
-                        <button
-                          onClick={() => {}}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title={t('usersTab.actions.resendInvitation')}
-                        >
-                          <RotateCcw className="h-4 w-4" />
                         </button>
                       )}
                       <button
@@ -455,23 +462,6 @@ export default function UsersTab() {
         </div>
       )}
 
-      {users.some(u => u.status === 'invited') && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex">
-            <Clock className="h-5 w-5 text-blue-400" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">
-                {t('usersTab.invitationInfo.title')}
-              </h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>
-                  {t('usersTab.invitationInfo.description')}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <InvitationModal
         isOpen={isInvitationModalOpen}

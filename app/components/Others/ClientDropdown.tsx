@@ -9,6 +9,7 @@
  * et inclut un outil de recherche pour filtrer les clients.
  * Les clients sont affichés par ordre alphabétique.
  * * NOUVELLE FONCTIONNALITÉ : Bouton "+" pour les admins permettant de créer un nouveau client
+ * * MISE À JOUR : Filtrage par nom ET par ID de client
  */
 
 'use client';
@@ -27,6 +28,7 @@ import { createClient } from '../../lib/clientService';
  * en utilisant le contexte `ClientContext`. Inclut une fonction de recherche et
  * tri alphabétique des clients.
  * NOUVEAU : Inclut un bouton "+" visible uniquement aux admins pour créer de nouveaux clients.
+ * MISE À JOUR : La recherche fonctionne maintenant sur le nom ET l'ID du client.
  * @returns {JSX.Element} Le composant JSX du menu déroulant.
  */
 export default function ClientDropdown() {
@@ -50,11 +52,14 @@ export default function ClientDropdown() {
   const isAdmin = userRole === 'admin';
 
   // Fonction pour filtrer et trier les clients
+  // MISE À JOUR : Recherche maintenant dans le nom ET l'ID du client
   const getFilteredAndSortedClients = () => {
     return availableClients
-      .filter((client) =>
-        client.CL_Name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter((client) => {
+        const searchLower = searchTerm.toLowerCase();
+        return client.CL_Name.toLowerCase().includes(searchLower) ||
+               client.clientId.toLowerCase().includes(searchLower);
+      })
       .sort((a, b) => a.CL_Name.localeCompare(b.CL_Name));
   };
 

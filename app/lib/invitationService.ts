@@ -5,6 +5,7 @@
  * dans l'application. Il permet de créer, lire, mettre à jour et supprimer des invitations,
  * ainsi que de gérer le statut des utilisateurs (actifs ou invités) en interagissant avec Firebase Firestore.
  * VERSION OPTIMISÉE pour éviter les requêtes multiples dans getAllUsersWithStatus.
+ * VERSION SIMPLIFIÉE sans gestion d'expiration des invitations.
  */
 import {
   collection,
@@ -87,16 +88,12 @@ export async function createInvitation(
     const invitationsCollection = collection(db, 'invitations');
     const newInvitationRef = doc(invitationsCollection);
 
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 7);
-
     const invitationDoc: Omit<Invitation, 'id'> = {
       email: invitationData.email.toLowerCase(),
       role: invitationData.role,
       status: 'pending',
       invitedBy: invitedBy,
       invitedAt: new Date().toISOString(),
-      expiresAt: expirationDate.toISOString(),
     };
 
     console.log("FIREBASE: ÉCRITURE - Fichier: invitationService.ts - Fonction: createInvitation - Path: invitations");
@@ -132,7 +129,6 @@ export async function getAllInvitations(): Promise<Invitation[]> {
         invitedBy: data.invitedBy || '',
         invitedAt: data.invitedAt || '',
         acceptedAt: data.acceptedAt || undefined,
-        expiresAt: data.expiresAt || '',
         note: data.note || '',
       } as Invitation;
     });
@@ -171,7 +167,6 @@ export async function getInvitationByEmail(email: string): Promise<Invitation | 
       invitedBy: data.invitedBy || '',
       invitedAt: data.invitedAt || '',
       acceptedAt: data.acceptedAt || undefined,
-      expiresAt: data.expiresAt || '',
       note: data.note || '',
     } as Invitation;
   } catch (error) {
@@ -195,14 +190,6 @@ export async function acceptInvitation(email: string, userId: string): Promise<v
     }
 
     if (invitation.status !== 'pending') {
-      return;
-    }
-
-    const now = new Date();
-    const expirationDate = new Date(invitation.expiresAt);
-
-    if (now > expirationDate) {
-      await updateInvitation(invitation.id, { status: 'expired' });
       return;
     }
 
@@ -263,8 +250,9 @@ export async function deleteInvitation(invitationId: string): Promise<void> {
 }
 
 /**
- * VERSION OPTIMISÉE - Récupère tous les utilisateurs avec leur statut (actif, invité, expiré).
+ * VERSION OPTIMISÉE - Récupère tous les utilisateurs avec leur statut (actif ou invité).
  * PERFORMANCE: Supprime la boucle de 86 requêtes individuelles, réduit à 2 requêtes total.
+ * VERSION SIMPLIFIÉE: Plus de gestion des invitations expirées.
  * @returns Un tableau d'objets UserWithStatus.
  */
 export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
@@ -277,7 +265,7 @@ export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
 
     const usersWithStatus: UserWithStatus[] = [];
 
-    // ÉTAPE 3: Traiter les utilisateurs actifs (SANS boucle de requêtes individuelles !)
+    // ÉTAPE 3: Traiter les utilisateurs actifs
     for (const user of activeUsers) {
       const userInvitation = invitations.find(
         inv => inv.email === user.email && inv.status === 'accepted'
@@ -288,19 +276,19 @@ export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: user.role || 'user', // Données déjà disponibles !
+        role: user.role || 'user',
         status: 'active',
         acceptedAt: userInvitation?.acceptedAt,
         invitedAt: userInvitation?.invitedAt,
         invitedBy: userInvitation?.invitedBy,
         note: userInvitation?.note,
-        lastLogin: user.lastLogin, // Données déjà disponibles !
+        lastLogin: user.lastLogin,
       });
     }
 
-    // ÉTAPE 4: Traiter les invitations en attente ou expirées
+    // ÉTAPE 4: Traiter les invitations en attente
     for (const invitation of invitations) {
-      if (invitation.status === 'pending' || invitation.status === 'expired') {
+      if (invitation.status === 'pending') {
         const existingUser = usersWithStatus.find(u => u.email === invitation.email);
         if (!existingUser) {
           usersWithStatus.push({
@@ -308,7 +296,7 @@ export async function getAllUsersWithStatus(): Promise<UserWithStatus[]> {
             email: invitation.email,
             displayName: invitation.email.split('@')[0],
             role: invitation.role,
-            status: invitation.status === 'pending' ? 'invited' : 'expired',
+            status: 'invited',
             invitedAt: invitation.invitedAt,
             invitedBy: invitation.invitedBy,
             note: invitation.note,
@@ -375,7 +363,7 @@ export async function removeUser(userWithStatus: UserWithStatus): Promise<void> 
       await cleanupUserPermissions(userWithStatus.email);
       
     } else {
-      // Suppression de l'invitation (invited ou expired)
+      // Suppression de l'invitation (invited)
       const invitation = await getInvitationByEmail(userWithStatus.email);
       if (invitation) {
         await deleteInvitation(invitation.id);

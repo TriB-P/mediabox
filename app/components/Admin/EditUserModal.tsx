@@ -1,3 +1,4 @@
+// app/components/Admin/EditUserModal.tsx
 /**
  * @file Ce fichier définit le composant de la modale `EditUserModal`.
  * Son rôle est de permettre à un administrateur de modifier le rôle d'un utilisateur.
@@ -99,6 +100,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
   if (!isOpen || !user) return null;
 
   const selectedRoleData = roles.find(role => role.id === selectedRole);
+  const currentRoleData = roles.find(role => role.id === user.role);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -181,7 +183,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
                 
                 <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
                   <span className="text-blue-800">
-                    {t('editUserModal.form.currentRole')}: <strong>{user.role || t('editUserModal.form.noRole')}</strong>
+                    {t('editUserModal.form.currentRole')}: <strong>{currentRoleData?.name || user.role || t('editUserModal.form.noRole')}</strong>
                   </span>
                 </div>
 
