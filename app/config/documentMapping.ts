@@ -572,6 +572,26 @@ export const documentMappingConfig = {
         type: 'text' as FieldType,
       },
       {
+        field: 'PL_Tag_1',
+        column: 'PL_Tag_1',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_2',
+        column: 'PL_Tag_2',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_3',
+        column: 'PL_Tag_3',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'PL_Tag_4',
+        column: 'PL_Tag_4',
+        type: 'text' as FieldType,
+      },
+      {
         field: 'PL_Tag_Type',
         column: 'PL_Tag_Type',
         type: 'text' as FieldType,
@@ -692,6 +712,16 @@ export const documentMappingConfig = {
       {
         field: 'CR_Plateforme_6',
         column: 'CR_Plateforme_6',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Tag_5',
+        column: 'CR_Tag_5',
+        type: 'text' as FieldType,
+      },
+      {
+        field: 'CR_Tag_6',
+        column: 'CR_Tag_6',
         type: 'text' as FieldType,
       },
       {

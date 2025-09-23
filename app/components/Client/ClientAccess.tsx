@@ -281,13 +281,7 @@ const ClientAccess: React.FC = () => {
             Invité
           </span>
         );
-      case 'expired':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <XMarkIcon className="w-3 h-3 mr-1" />
-            Expiré
-          </span>
-        );
+
       default:
         return null;
     }
@@ -305,8 +299,7 @@ const ClientAccess: React.FC = () => {
   
   // Filtrer pour exclure les utilisateurs qui ont déjà un accès et les invitations expirées
   const availableUsers = filteredUsers.filter(user => 
-    !clientUsers.some(clientUser => clientUser.userEmail === user.email) &&
-    user.status !== 'expired'
+    !clientUsers.some(clientUser => clientUser.userEmail === user.email)
   );
 
   if (!selectedClient) {
