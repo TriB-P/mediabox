@@ -491,7 +491,6 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Budget_Mode: 'media',
   TC_BuyCurrency: 'CAD',
   TC_Unit_Type:'SH_48HPEEYW',
-  TC_Unit_Price:5,
   TC_CM360_Volume_Linked_To_Unit_Volume: false,
   TC_Tags: '', // 🆕 Ajout du champ TC_Tags avec valeur par défaut
 

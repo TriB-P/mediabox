@@ -1,3 +1,4 @@
+// app/hooks/documents/useConvertShortcodesDoc.ts
 /**
  * Ce hook gère la conversion des IDs de shortcodes en noms d'affichage
  * et la conversion des chaînes de caractères numériques en nombres (type number).
@@ -48,7 +49,7 @@ export function useConvertShortcodesDoc(): UseConvertShortcodesDocReturn {
   }, []);
 
   /**
-   * Vérifie si une valeur donnée correspond à un ID de shortcode.
+   * CORRIGÉ: Vérifie si une valeur donnée correspond à un ID de shortcode uniquement par recherche directe.
    * @param {string} value La valeur à vérifier.
    * @param {{[key: string]: ShortcodeItem}} shortcodesMap Le mapping des shortcodes.
    * @returns {ShortcodeItem | null} L'objet shortcode si trouvé, sinon null.
@@ -57,17 +58,8 @@ export function useConvertShortcodesDoc(): UseConvertShortcodesDocReturn {
     value: string, 
     shortcodesMap: {[key: string]: ShortcodeItem}
   ): ShortcodeItem | null => {
-    // Vérification directe par ID
-    if (shortcodesMap[value]) {
-      return shortcodesMap[value];
-    }
-
-    // Vérification par SH_Code (au cas où la valeur serait un code au lieu d'un ID)
-    const shortcodeByCode = Object.values(shortcodesMap).find(
-      shortcode => shortcode.SH_Code === value
-    );
-
-    return shortcodeByCode || null;
+    // Vérification directe par ID uniquement
+    return shortcodesMap[value] || null;
   }, []);
 
   /**

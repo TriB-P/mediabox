@@ -6,6 +6,7 @@
  * en intégrant la logique de calcul des frais et la conversion des devises.
  * Il sert d'interface entre les données de l'application et le moteur de calcul du budget.
  * CORRECTION : Ajout du calcul des RefCurrency pour les budgets (alignement avec le drawer)
+ * NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
  */
 import {
   calculateBudget,
@@ -239,6 +240,7 @@ export class BudgetService {
 
   /**
    * Effectue tous les calculs budgétaires complets en utilisant les données fournies, les frais client, les taux de change et les options de type d'unité.
+   * 🆕 NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
    * @param data - L'objet BudgetData contenant les entrées budgétaires.
    * @param clientFees - Un tableau des définitions de frais client.
    * @param exchangeRates - Un objet contenant les taux de change.
@@ -256,8 +258,9 @@ export class BudgetService {
     this.log('🧮 Début calculs complets');
 
     try {
-      if (data.TC_BudgetInput <= 0 || data.TC_Unit_Price <= 0) {
-        return { success: false, error: 'Budget et prix unitaire requis' };
+      // 🆕 NOUVEAU : Seul le budget d'entrée est requis, pas le prix unitaire
+      if (data.TC_BudgetInput <= 0) {
+        return { success: false, error: 'Budget requis pour effectuer les calculs' };
       }
 
       const feeDefinitions = this.buildFeeDefinitions(data, clientFees);
@@ -266,8 +269,9 @@ export class BudgetService {
       const selectedUnitType = unitTypeOptions.find(option => option.id === data.TC_Unit_Type);
       const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_FR;
 
+      // 🆕 NOUVEAU : Utilise TC_Unit_Price même s'il est 0 (cela donnera TC_Unit_Volume = 0)
       const budgetInputs: BudgetInputs = {
-        costPerUnit: data.TC_Unit_Price,
+        costPerUnit: data.TC_Unit_Price, // Peut être 0 maintenant
         realValue: data.TC_Media_Value > 0 ? data.TC_Media_Value : undefined,
         fees: feeDefinitions,
         unitType: data.TC_Unit_Type,

@@ -400,10 +400,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               )}
             </button>
           </div>
-          
-            <div className="mt-1 text-xs text-gray-500">
-              {t('budgetMainSection.defaultUnitCost')}
-            </div>
+  
         
     
         </div>

@@ -145,6 +145,8 @@ export default function TactiquesTimelineTable({
   const tableRef = useRef<HTMLTableElement>(null);
   const isPEBs = selectedBreakdown.type === 'PEBs';
   const isMonthly = selectedBreakdown.type === 'Mensuel';
+  const isCalendarDefault = selectedBreakdown.isDefault;
+
 
   // AMÉLIORÉ: Génération des périodes avec nouvelles traductions
   const periods = useMemo(() => {
@@ -1006,9 +1008,12 @@ export default function TactiquesTimelineTable({
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                {t('timeline.table.header.totalBudget')}
-              </th>
+              {/* MODIFIÉ: Masquer Total Budget pour Calendar par défaut */}
+              {!isCalendarDefault && (
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                  {t('timeline.table.header.totalBudget')}
+                </th>
+              )}
               {isPEBs && (
                 <>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
@@ -1091,17 +1096,19 @@ export default function TactiquesTimelineTable({
     ))
   )}
   {/* MODIFIÉ: Total de section UNIQUEMENT pour Monthly */}
-  <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
-    {isMonthly ? (
-      (() => {
-        if (!hasSameCurrencyInSection(sectionId)) return '—';
-        const sectionGrandTotal = getSectionGrandTotal(sectionId);
-        return sectionGrandTotal > 0 ? formatNumber(sectionGrandTotal) : '—';
-      })()
-    ) : (
-      '—'
+    {!isCalendarDefault && (
+      <td className="px-4 py-2 bg-indigo-50 text-center text-sm font-semibold text-indigo-800">
+        {isMonthly ? (
+          (() => {
+            if (!hasSameCurrencyInSection(sectionId)) return '—';
+            const sectionGrandTotal = getSectionGrandTotal(sectionId);
+            return sectionGrandTotal > 0 ? formatNumber(sectionGrandTotal) : '—';
+          })()
+        ) : (
+          '—'
+        )}
+      </td>
     )}
-  </td>
   {isPEBs && (
     <>
       <td className="px-4 py-2 bg-indigo-50"></td>
@@ -1298,12 +1305,14 @@ export default function TactiquesTimelineTable({
                       })}
 
                       {/* Colonne total */}
+                   {!isCalendarDefault && (
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-center font-medium">
                         {(() => {
                           const total = calculateTotalForTactique(tactique);
                           return total > 0 ? formatNumber(total) : '—';
                         })()}
                       </td>
+                    )}
 
                       {isPEBs && (() => {
                         const rowTotals = calculateRowTotals(tactique);
@@ -1323,6 +1332,9 @@ export default function TactiquesTimelineTable({
                 })}
               </React.Fragment>
             ))}
+
+            {!isCalendarDefault && (
+              <>
 
             {/* Lignes de totaux par colonne */}
             {isPEBs ? (
@@ -1494,6 +1506,8 @@ export default function TactiquesTimelineTable({
                 </td>
               </tr>
             )}
+             </>
+)}
           </tbody>
         </table>
       </div>

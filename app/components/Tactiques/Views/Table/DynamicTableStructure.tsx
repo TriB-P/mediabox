@@ -4,6 +4,7 @@
  * Version refactorisée utilisant la même logique de calcul que le drawer
  * SUPPRIME TableBudgetCalculations.tsx et utilise budgetService directement
  * MODIFIÉ : Ajout du support multilingue complet
+ * 🆕 NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
  * 🔥 NOUVEAU : Ajout du filtrage des colonnes PL_/CR_ sans format 'open' et sans liste
  */
 'use client';
@@ -284,6 +285,10 @@ export default function DynamicTableStructure({
   }, [dynamicLists.TC_Unit_Type, currentLanguage]);
 
  
+  /**
+   * 🆕 NOUVEAU : Logique de calcul modifiée pour permettre TC_Unit_Price = 0
+   * Supprime la logique qui court-circuitait les calculs et laisse budgetService tout gérer
+   */
  const performBudgetCalculation = useCallback((
    entityId: string, 
    currentRowData: any, 
@@ -297,34 +302,9 @@ export default function DynamicTableStructure({
        ...(changedField && changedValue !== undefined ? { [changedField]: changedValue } : {})
      };
  
-     // ✅ CORRECTION : Si TC_Unit_Price est 0, forcer TC_Unit_Volume à 0 immédiatement
-     if ((changedField === 'TC_Unit_Price' && changedValue === 0) || 
-         (completeRowData.TC_Unit_Price === 0 || completeRowData.TC_Cost_Per_Unit === 0)) {
-       
-       console.log(`🔧 TC_Unit_Price = 0 détecté pour ${entityId}, mise à 0 du volume`);
-       
-       // Mettre directement le volume à 0 sans calcul
-       const immediateUpdates: { [key: string]: any } = {
-         TC_Unit_Volume: 0,
-         TC_Media_Budget: 0,
-         TC_Client_Budget: 0,
-         TC_Bonification: 0,
-         TC_Fee_1_Value: 0,
-         TC_Fee_2_Value: 0,
-         TC_Fee_3_Value: 0,
-         TC_Fee_4_Value: 0,
-         TC_Fee_5_Value: 0,
-         TC_Total_Fees: 0
-       };
- 
-       Object.entries(immediateUpdates).forEach(([fieldKey, value]) => {
-         onCellChange(entityId, fieldKey, value);
-       });
- 
-       console.log(`✅ Remise à zéro immédiate pour ${entityId} - TC_Unit_Price = 0`);
-       return;
-     }
- 
+     // 🆕 NOUVEAU : Laisser budgetService gérer TOUS les cas, y compris TC_Unit_Price = 0
+     // budgetService a été modifié pour accepter TC_Unit_Price = 0 et calculer normalement
+     
      // Convertir vers BudgetData
      const budgetData = convertRowDataToBudgetData(completeRowData, unitTypeOptions);
  
@@ -341,7 +321,7 @@ export default function DynamicTableStructure({
        const updatedData = result.data.updatedData;
        
        // Préparer les mises à jour pour les champs calculés
-const calculatedUpdates: { [key: string]: any } = {};
+       const calculatedUpdates: { [key: string]: any } = {};
        
        // Champs calculés principaux
        calculatedUpdates.TC_Unit_Volume = updatedData.TC_Unit_Volume;
@@ -366,7 +346,7 @@ const calculatedUpdates: { [key: string]: any } = {};
          calculatedUpdates.TC_Client_Budget_RefCurrency = updatedData.TC_Client_Budget_RefCurrency;
        }
        
-   const updatedDataAny = updatedData as any; // Casting pour accès dynamique
+       const updatedDataAny = updatedData as any; // Casting pour accès dynamique
        for (let i = 1; i <= 5; i++) {
          const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
          if (updatedDataAny[refCurrencyKey] !== undefined) {
@@ -391,7 +371,8 @@ const calculatedUpdates: { [key: string]: any } = {};
          clientBudget: updatedData.TC_Client_Budget,
          unitVolume: updatedData.TC_Unit_Volume,
          totalFees,
-         hasConverged: result.data.hasConverged
+         hasConverged: result.data.hasConverged,
+         unitPrice: budgetData.TC_Unit_Price // ✅ Pour vérifier qu'on accepte 0
        });
  
      } else {

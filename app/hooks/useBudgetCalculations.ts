@@ -6,6 +6,7 @@
  * CORRECTION : Élimination de la boucle infinie en stabilisant les références
  * et en optimisant les appels d'assignation des noms.
  * CORRECTION BUDGETS REFCURRENCY : Ajout du calcul des budgets en devise de référence
+ * NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { budgetService, BudgetData, ClientFee, BudgetCalculationResult } from '../lib/budgetService';
@@ -268,6 +269,7 @@ function calculateFeesCorrectly(
 
 /**
  * 🔥 HOOK CORRIGÉ : Hook personnalisé pour gérer toutes les logiques de calcul et d'état
+ * 🆕 NOUVEAU : Permet les calculs même sans TC_Unit_Price valide
  */
 export function useBudgetCalculations({
   initialData,
@@ -295,7 +297,8 @@ export function useBudgetCalculations({
   const previousBudgetDataRef = useRef<BudgetData | null>(null);
   const isCalculatingRef = useRef(false);
   
-  const hasValidData = budgetData.TC_BudgetInput > 0 && budgetData.TC_Unit_Price > 0;
+  // 🆕 NOUVEAU : Seul le budget d'entrée est requis, pas le prix unitaire
+  const hasValidData = budgetData.TC_BudgetInput > 0;
   const errors = lastResult?.error ? [lastResult.error] : [];
   
   /**
@@ -307,9 +310,11 @@ export function useBudgetCalculations({
   
   /**
    * 🔥 CORRECTION : Fonction de calcul stable qui ne dépend pas de budgetData
+   * 🆕 NOUVEAU : Ne vérifie plus TC_Unit_Price, permet les calculs avec prix = 0
    */
   const calculateWithCorrectFees = useCallback(async (currentBudgetData: BudgetData) => {
-    if (currentBudgetData.TC_BudgetInput <= 0 || currentBudgetData.TC_Unit_Price <= 0) {
+    // 🆕 NOUVEAU : Seul le budget d'entrée est requis
+    if (currentBudgetData.TC_BudgetInput <= 0) {
       return;
     }
     
@@ -380,6 +385,7 @@ export function useBudgetCalculations({
   
   /**
    * 🔥 CORRECTION : Effet qui utilise une référence stable et évite la boucle
+   * 🆕 NOUVEAU : Déclenche les calculs même sans prix unitaire valide
    */
   useEffect(() => {
     if (!autoCalculate || !hasValidData || isCalculatingRef.current) {
@@ -389,7 +395,7 @@ export function useBudgetCalculations({
     // Vérifier si les données pertinentes ont réellement changé
     const currentRelevantData = {
       TC_BudgetInput: budgetData.TC_BudgetInput,
-      TC_Unit_Price: budgetData.TC_Unit_Price,
+      TC_Unit_Price: budgetData.TC_Unit_Price, // Gardé pour détecter les changements, mais pas requis
       TC_Budget_Mode: budgetData.TC_Budget_Mode,
       TC_Media_Value: budgetData.TC_Media_Value,
       TC_BuyCurrency: budgetData.TC_BuyCurrency,
