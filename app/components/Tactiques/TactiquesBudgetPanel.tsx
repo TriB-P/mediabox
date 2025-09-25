@@ -36,6 +36,7 @@ import { useClient } from '../../contexts/ClientContext';
 import { useSelection } from '../../contexts/SelectionContext';
 import { useCampaignData, formatCurrencyAmount } from '../../hooks/useCampaignData';
 import { useTranslation } from '../../contexts/LanguageContext';
+import BudgetIndicatorsView from './BudgetIndicatorsView';
 
 interface TactiquesBudgetPanelProps {
   selectedCampaign: Campaign | null;
@@ -800,67 +801,7 @@ const BudgetTotalsView: React.FC<BudgetTotalsViewProps> = ({
   );
 };
 
-/**
- * Composant BudgetIndicatorsView.
- * AMÉLIORÉ : Avec animations d'état vide
- */
-interface BudgetIndicatorsViewProps {
-  selectedCampaign: Campaign;
-  sections: Section[];
-  tactiques: { [sectionId: string]: Tactique[] };
-  formatCurrency: (amount: number) => string;
-}
 
-const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
-  selectedCampaign,
-  sections,
-  tactiques,
-  formatCurrency,
-}) => {
-  const { t } = useTranslation();
-  return (
-    <motion.div variants={sectionVariants} className="space-y-4">
-      <motion.div variants={sectionVariants} className="border border-gray-200 rounded-lg">
-        <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-800">{t('budgetIndicators.title')}</h4>
-        </div>
-        <div className="p-8 text-center">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4, ease: subtleEase }}
-          >
-            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          </motion.div>
-          <motion.h3
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: subtleEase, delay: 0.1 }}
-            className="text-lg font-medium text-gray-900 mb-2"
-          >
-            {t('budgetIndicators.header')}
-          </motion.h3>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: subtleEase, delay: 0.2 }}
-            className="text-gray-500 mb-4"
-          >
-            {t('budgetIndicators.description')}
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, ease: subtleEase, delay: 0.3 }}
-            className="text-sm text-gray-400"
-          >
-            {t('budgetIndicators.underConstruction')}
-          </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
 
 /**
  * Composant principal TactiquesBudgetPanel.
@@ -1030,21 +971,21 @@ const TactiquesBudgetPanel: React.FC<TactiquesBudgetPanelProps> = ({
           )}
           
           {activeTab === 'indicators' && (
-            <motion.div
-              key="indicators"
-              variants={sectionVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <BudgetIndicatorsView
-                selectedCampaign={selectedCampaign}
-                sections={sections}
-                tactiques={tactiques}
-                formatCurrency={formatCurrency}
-              />
-            </motion.div>
-          )}
+          <motion.div
+            key="indicators"
+            variants={sectionVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <BudgetIndicatorsView
+              selectedCampaign={selectedCampaign}
+              allSections={sections}
+              allTactiques={tactiques}
+              formatCurrency={formatCurrencyWithCampaignCurrency}
+            />
+          </motion.div>
+        )}
         </AnimatePresence>
       </div>
     </motion.div>

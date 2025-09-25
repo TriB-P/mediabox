@@ -468,6 +468,32 @@ export const translations = {
       }
     
     },
+    budgetIndicators: {
+      title: "Indicateurs de Performance",
+      loading: "Chargement des indicateurs...",
+      calculating: "Calcul en cours...",
+      comingSoon: "À venir",
+      retry: "Réessayer",
+      error: {
+        loadingIndicators: "Erreur lors du chargement des indicateurs"
+      },
+      mediaLocaux: {
+        name: "Média Locaux",
+        description: "Pourcentage des investissements digitaux effectués sur des médias canadiens. Calculé en vérifiant les tags des partenaires et inventaires."
+      },
+      numerique: {
+        name: "Numérique",
+        description: "Pourcentage total des investissements effectués en digital par rapport au budget global de la campagne."
+      },
+      labs: {
+        name: "Labs",
+        description: "Indicateur d'innovation et d'expérimentation dans les tactiques média. Mesure l'utilisation de nouvelles technologies et approches."
+      },
+      complexite: {
+        name: "Complexité",
+        description: "Évalue la complexité opérationnelle de la campagne basée sur le nombre de tactiques, formats et partenaires utilisés."
+      }
+    },
     tactics: {
       drawer: {
         createTitle: "Créer une nouvelle campagne",
@@ -2023,12 +2049,6 @@ export const translations = {
       allTabsParenthesis: "(Tous onglets)",
       loadingData: "Chargement des données...",
       noSectionOrBudget: "Aucune section ou budget défini."
-    },
-    budgetIndicators: {
-      title: "Indicateurs de campagne",
-      header: "Indicateurs",
-      description: "Les indicateurs de campagne seront bientôt disponibles. Ils vous permettront de voir le taux de média locaux, de média numérique et le niveau de complexité de votre campagne",
-      underConstruction: "🚧 En construction"
     },
     tacticsFooter: {
       tabs: {
@@ -5814,6 +5834,32 @@ export const translations = {
       }
     
     },
+    budgetIndicators: {
+      title: "Performance Indicators",
+      loading: "Loading indicators...",
+      calculating: "Calculating...",
+      comingSoon: "Coming Soon",
+      retry: "Retry",
+      error: {
+        loadingIndicators: "Error loading indicators"
+      },
+      mediaLocaux: {
+        name: "Local Media",
+        description: "Percentage of digital investments made on Canadian media. Calculated by checking partner and inventory tags."
+      },
+      numerique: {
+        name: "Digital",
+        description: "Total percentage of investments made in digital compared to the overall campaign budget."
+      },
+      labs: {
+        name: "Labs",
+        description: "Innovation and experimentation indicator in media tactics. Measures the use of new technologies and approaches."
+      },
+      complexite: {
+        name: "Complexity",
+        description: "Evaluates the operational complexity of the campaign based on the number of tactics, formats and partners used."
+      }
+    },
     currencyForm: {
       labels: {
         year: "Year",
@@ -6541,12 +6587,6 @@ export const translations = {
       allTabsParenthesis: "(All tabs)",
       loadingData: "Loading data...",
       noSectionOrBudget: "No section or budget defined."
-    },
-    budgetIndicators: {
-      title: "Campaign Indicators",
-      header: "Indicators",
-      description: "Campaign indicators will be available soon. They will allow you to see the local media rate, digital media rate, and the complexity level of your campaign.",
-      underConstruction: "🚧 Under construction"
     },
     tacticsFooter: {
       tabs: {
