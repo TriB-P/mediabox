@@ -432,6 +432,42 @@ export const translations = {
         }
       }
     },
+    clientIndicators: {
+      headings: {
+        title: "Indicateurs"
+      },
+      messages: {
+        selectClientPrompt: "Veuillez sélectionner un client pour afficher ses indicateurs.",
+        loading: "Chargement des indicateurs...",
+        loadError: "Erreur lors du chargement des indicateurs du client.",
+        readOnly: "Vous n'avez que des droits de lecture sur les indicateurs de ce client.",
+        validationError: "Veuillez corriger les erreurs de validation avant de sauvegarder.",
+        updateSuccess: "Les indicateurs ont été mis à jour avec succès.",
+        updateError: "Erreur lors de la mise à jour des indicateurs."
+      },
+      validation: {
+        rangeError: "La valeur doit être comprise entre 0 et 100.",
+        orderError: "Le premier seuil doit être inférieur au second seuil."
+      },
+      indicators: {
+        local: "Média locaux",
+        digital: "Numérique", 
+        labs: "Labs",
+        complexity: "Complexité"
+      },
+      descriptions: {
+        local: "Pourcentage du budget média alloué aux médias canadiens.",
+        digital: "Pourcentage du budget média alloué au numérique.",
+        labs: "Pourcentage du budget média alloué aux partenaires Labs.",
+        complexity: "Niveau de complexité de la campagne (nombre de tactiques, placements, créatifs)"
+      },
+      buttons: {
+        cancel: "Annuler",
+        saving: "Sauvegarde...",
+        save: "Sauvegarder"
+      }
+    
+    },
     tactics: {
       drawer: {
         createTitle: "Créer une nouvelle campagne",
@@ -892,7 +928,8 @@ export const translations = {
         lists: "Listes",
         dimensions: "Dimensions",
         customCodes: "Codes personnalisés",
-        currencies: "Devises"
+        currencies: "Devises",
+        indicators: "Indicateurs"
       }
     },
     clientAccess: {
@@ -5373,7 +5410,8 @@ export const translations = {
         lists: "Lists",
         dimensions: "Dimensions",
         customCodes: "Custom Codes",
-        currencies: "Currencies"
+        currencies: "Currencies",
+        indicators: "Indicators"
       }
     },
     clientAccess: {
@@ -5739,6 +5777,42 @@ export const translations = {
           no: "No"
         }
       }
+    },
+    clientIndicators: {
+      headings: {
+        title: "Performance Indicators"
+      },
+      messages: {
+        selectClientPrompt: "Please select a client to view their indicators.",
+        loading: "Loading indicators...",
+        loadError: "Error loading client indicators.",
+        readOnly: "You have read-only access to this client's indicators.",
+        validationError: "Please fix validation errors before saving.",
+        updateSuccess: "Indicators have been updated successfully.",
+        updateError: "Error updating indicators."
+      },
+      validation: {
+        rangeError: "Value must be between 0 and 100.",
+        orderError: "First threshold must be lower than second threshold."
+      },
+      indicators: {
+        local: "Local Media",
+        digital: "Digital",
+        labs: "Labs", 
+        complexity: "Complexity"
+      },
+      descriptions: {
+        local: "Percentage of media budget allocated to Canadian media.",
+        digital: "Percentage of media budget allocated to digital.",
+        labs: "Percentage of media budget allocated to Labs partners.",
+        complexity: "Level of campaign complexity (number of tactics, placements, creatives)"
+      },
+      buttons: {
+        cancel: "Cancel",
+        saving: "Saving...",
+        save: "Save"
+      }
+    
     },
     currencyForm: {
       labels: {

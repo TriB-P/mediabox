@@ -1,8 +1,11 @@
+// Fichier: app/client-config/page.tsx
+// Chemin: app/client-config/page.tsx
+
 /**
  * @file This file defines the main configuration page for a client.
  * It uses a tab system to allow the user to navigate
  * between different configuration sections such as general information,
- * access management, fees, taxonomies, etc.
+ * access management, fees, taxonomies, indicators, etc.
  * Each tab displays a component dedicated to a specific configuration task.
  */
 
@@ -22,6 +25,7 @@ import ClientAccess from '../components/Client/ClientAccess';
 import ClientLists from '../components/Client/ClientLists';
 import ClientCustomCodes from '../components/Client/ClientCustomCodes';
 import ClientTemplates from '../components/Client/ClientTemplates';
+import ClientIndicators from '../components/Client/ClientIndicators';
 
 const ease: number[] = [0.25, 0.1, 0.25, 1];
 
@@ -94,6 +98,7 @@ export default function ClientConfigPage(): JSX.Element {
     { name: t('clientConfig.tabs.templates'), component: () => <ClientTemplates /> },
     { name: t('clientConfig.tabs.lists'), component: () => <ClientLists /> },
     { name: t('clientConfig.tabs.dimensions'), component: () => <ClientDimensions /> },
+    { name: t('clientConfig.tabs.indicators'), component: () => <ClientIndicators /> },
     { name: t('clientConfig.tabs.customCodes'), component: () => <ClientCustomCodes /> },
     { name: t('clientConfig.tabs.currencies'), component: () => <ClientCurrencies /> },
   ];

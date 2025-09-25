@@ -22,6 +22,7 @@ export interface Permissions {
   Listes: boolean;
   Taxonomy: boolean;
   Templates: boolean;
+  Indicators: boolean;
 }
 
 interface PermissionsContextType {
@@ -42,6 +43,7 @@ const defaultPermissions: Permissions = {
   Listes: false,
   Taxonomy: false,
   Templates: false,
+  Indicators: false,
 };
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);

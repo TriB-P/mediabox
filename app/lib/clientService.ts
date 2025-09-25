@@ -5,12 +5,14 @@
  * Ce fichier contient des fonctions pour interagir avec les données des clients
  * stockées dans Firebase (Firestore et Storage). Il permet de récupérer les informations
  * des clients, de gérer les permissions des utilisateurs sur ces clients, de mettre à jour
- * les données des clients et d'uploader leurs logos.
+ * les données des clients, d'uploader leurs logos, et de gérer les indicateurs de performance.
  * 
  * MODIFICATION : getUserClients() récupère maintenant les logos depuis la collection racine "clients"
  * au lieu de la sous-collection "userPermissions/{email}/clients"
  * 
  * NOUVELLE MODIFICATION : Les utilisateurs avec le rôle "admin" ont automatiquement accès à tous les clients
+ * 
+ * DERNIÈRE MODIFICATION : Ajout des fonctions de gestion des indicateurs de performance
  */
 import {
   collection,
@@ -57,6 +59,17 @@ export interface ClientInfo {
   Custom_Dim_CR_1?: string;
   Custom_Dim_CR_2?: string;
   Custom_Dim_CR_3?: string;
+}
+
+export interface ClientIndicators {
+  Local_1: number | null;
+  Local_2: number | null;
+  Num_1: number | null;
+  Num_2: number | null;
+  Labs_1: number | null;
+  Labs_2: number | null;
+  Complex_1: number | null;
+  Complex_2: number | null;
 }
 
 /**
@@ -297,6 +310,73 @@ export async function updateClientInfo(
     });
   } catch (error) {
     console.error('Erreur lors de la mise à jour des infos client:', error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère les indicateurs de performance d'un client spécifique.
+ * @param clientId L'ID du client dont les indicateurs doivent être récupérés.
+ * @returns Une promesse qui résout en un objet ClientIndicators contenant les seuils des indicateurs.
+ * Retourne un objet ClientIndicators avec des valeurs null si les indicateurs ne sont pas trouvés.
+ */
+export async function getClientIndicators(clientId: string): Promise<ClientIndicators> {
+  try {
+    const indicatorsRef = doc(db, 'clients', clientId, 'indicators', 'thresholds');
+    console.log(`FIREBASE: LECTURE - Fichier: clientService.ts - Fonction: getClientIndicators - Path: clients/${clientId}/indicators/thresholds`);
+    const indicatorsDoc = await getDoc(indicatorsRef);
+    
+    if (!indicatorsDoc.exists()) {
+      console.log(`Indicateurs pour le client ${clientId} non trouvés`);
+      return {
+        Local_1: null,
+        Local_2: null,
+        Num_1: null,
+        Num_2: null,
+        Labs_1: null,
+        Labs_2: null,
+        Complex_1: null,
+        Complex_2: null,
+      };
+    }
+    
+    const data = indicatorsDoc.data();
+    
+    return {
+      Local_1: data.Local_1 ?? null,
+      Local_2: data.Local_2 ?? null,
+      Num_1: data.Num_1 ?? null,
+      Num_2: data.Num_2 ?? null,
+      Labs_1: data.Labs_1 ?? null,
+      Labs_2: data.Labs_2 ?? null,
+      Complex_1: data.Complex_1 ?? null,
+      Complex_2: data.Complex_2 ?? null,
+    };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des indicateurs client:', error);
+    throw error;
+  }
+}
+
+/**
+ * Met à jour les indicateurs de performance d'un client existant.
+ * @param clientId L'ID du client à mettre à jour.
+ * @param indicators Un objet de type ClientIndicators contenant les nouveaux seuils des indicateurs.
+ * @returns Une promesse qui résout une fois la mise à jour effectuée.
+ */
+export async function updateClientIndicators(
+  clientId: string,
+  indicators: ClientIndicators
+): Promise<void> {
+  try {
+    const indicatorsRef = doc(db, 'clients', clientId, 'indicators', 'thresholds');
+    console.log(`FIREBASE: ÉCRITURE - Fichier: clientService.ts - Fonction: updateClientIndicators - Path: clients/${clientId}/indicators/thresholds`);
+    await setDoc(indicatorsRef, {
+      ...indicators,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des indicateurs client:', error);
     throw error;
   }
 }
