@@ -3,14 +3,13 @@
 
 /**
  * Composant d'affichage des indicateurs de performance budgétaire.
- * Affiche 4 indicateurs visuels avec calculs métier spécifiques :
- * - Média Locaux : % investissements digitaux sur médias canadiens
- * - Numérique : % investissements en digital
- * - Labs : À venir
- * - Complexité : À venir
+ * VERSION CORRIGÉE : Utilise le cache optimisé au lieu des appels Firebase directs
  * 
- * Chaque indicateur utilise des seuils dynamiques récupérés depuis les paramètres client
- * et affiche une barre colorée (rouge/jaune/vert) avec un triangle indicateur.
+ * CORRECTIONS APPORTÉES :
+ * - Remplacement de getShortcodes() par getCachedAllShortcodes()
+ * - Amélioration vérification tags LMI_Local (string ET array)
+ * - Debugging détaillé pour identifier les problèmes
+ * - Suppression complète des appels Firebase directs
  */
 
 'use client';
@@ -18,13 +17,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuestionMarkCircleIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { Campaign } from '../../types/campaign';
 import { Section, Tactique } from '../../types/tactiques';
 import { getClientIndicators, ClientIndicators } from '../../lib/clientService';
 import { useClient } from '../../contexts/ClientContext';
 import { useTranslation } from '../../contexts/LanguageContext';
+// NOUVELLE IMPORT : Utilisation du cache optimisé
+import { getCachedAllShortcodes, ShortcodeItem } from '../../lib/cacheService';
 
 interface BudgetIndicatorsViewProps {
   selectedCampaign: Campaign;
@@ -41,12 +40,6 @@ interface IndicatorConfig {
   threshold1Key: keyof ClientIndicators;
   threshold2Key: keyof ClientIndicators;
   status: 'active' | 'coming-soon';
-}
-
-interface Shortcode {
-  id: string;
-  SH_Tags?: string;
-  SH_Display_Name_FR?: string;
 }
 
 // Animations subtiles cohérentes
@@ -134,7 +127,7 @@ const IndicatorBar: React.FC<IndicatorBarProps> = ({
       )}
       
       {/* Barre de couleur plus étroite */}
-      <div className="relative w-full h-3 bg-gray-100  overflow-hidden">
+      <div className="relative w-full h-3 bg-gray-100 overflow-hidden">
         {/* Zone rouge */}
         <motion.div
           variants={barVariants}
@@ -164,8 +157,6 @@ const IndicatorBar: React.FC<IndicatorBarProps> = ({
           }}
         />
       </div>
-      
-      
     </div>
   );
 };
@@ -227,7 +218,6 @@ const IndicatorItem: React.FC<IndicatorItemProps> = ({
         >
           <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
         </button>
-
       </div>
       
       {/* Boite de description (seulement si visible) */}
@@ -296,7 +286,6 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDescriptions, setShowDescriptions] = useState<{ [key: string]: boolean }>({});
-  const [shortcodesCache, setShortcodesCache] = useState<{ [key: string]: Shortcode }>({});
 
   // Charger les seuils des indicateurs depuis Firebase
   const loadIndicators = useCallback(async () => {
@@ -316,51 +305,6 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
       setLoading(false);
     }
   }, [selectedClient?.clientId, t]);
-
-  // Récupérer les shortcodes depuis Firebase
-  const getShortcodes = useCallback(async (shortcodeIds: string[]): Promise<{ [key: string]: Shortcode }> => {
-    if (!selectedClient?.clientId || shortcodeIds.length === 0) return {};
-    
-    // Vérifier le cache
-    const uncachedIds = shortcodeIds.filter(id => !shortcodesCache[id]);
-    if (uncachedIds.length === 0) {
-      return Object.fromEntries(shortcodeIds.map(id => [id, shortcodesCache[id]]));
-    }
-
-    try {
-      console.log(`FIREBASE: LECTURE - Fichier: BudgetIndicatorsView.tsx - Fonction: getShortcodes - Path: shortcodes`);
-      const shortcodesRef = collection(db, 'shortcodes');
-      const q = query(shortcodesRef, where('__name__', 'in', uncachedIds));
-      const snapshot = await getDocs(q);
-      
-      const newShortcodes: { [key: string]: Shortcode } = {};
-      snapshot.docs.forEach(doc => {
-        newShortcodes[doc.id] = {
-          id: doc.id,
-          SH_Tags: doc.data().SH_Tags || '',
-          SH_Display_Name_FR: doc.data().SH_Display_Name_FR || ''
-        };
-      });
-
-      // Mettre à jour le cache
-      setShortcodesCache(prev => ({ ...prev, ...newShortcodes }));
-      
-      // Retourner tous les shortcodes demandés (cachés + nouveaux)
-      const result: { [key: string]: Shortcode } = {};
-      shortcodeIds.forEach(id => {
-        if (shortcodesCache[id]) {
-          result[id] = shortcodesCache[id];
-        } else if (newShortcodes[id]) {
-          result[id] = newShortcodes[id];
-        }
-      });
-      
-      return result;
-    } catch (error) {
-      console.error('Erreur lors de la récupération des shortcodes:', error);
-      return {};
-    }
-  }, [selectedClient?.clientId, shortcodesCache]);
 
   useEffect(() => {
     loadIndicators();
@@ -384,8 +328,10 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
     }));
   }, []);
 
-  // Calculs des indicateurs
+  // NOUVELLE VERSION OPTIMISÉE : Utilise le cache au lieu de Firebase
   const calculateMediaLocauxPercentage = useCallback(async (tactiques: Tactique[]): Promise<number> => {
+    console.log('\n🏠 [INDICATEUR MÉDIA LOCAUX] Début calcul...');
+    
     const digitalMediaTypes = ['DIG', 'SEA', 'SH_DNEQYAVD', 'SH_R3Z3VC6B'];
     
     // Filtrer les tactiques digitales
@@ -393,42 +339,116 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
       t.TC_Media_Type && digitalMediaTypes.includes(t.TC_Media_Type)
     );
     
+    console.log(`📱 [DIGITAL] ${digitalTactiques.length} tactiques digitales trouvées sur ${tactiques.length} total`);
+    
     // Calculer le budget digital total
     const totalDigitalBudget = digitalTactiques.reduce((sum, t) => 
       sum + (t.TC_Client_Budget_RefCurrency || 0), 0
     );
     
-    if (totalDigitalBudget === 0) return 0;
+    console.log(`💰 [BUDGET DIGITAL] Total: ${totalDigitalBudget}`);
     
-    // Récupérer tous les shortcodes nécessaires
-    const shortcodeIds = new Set<string>();
-    digitalTactiques.forEach(t => {
-      if (t.TC_Publisher) shortcodeIds.add(t.TC_Publisher);
-      if (t.TC_Inventory) shortcodeIds.add(t.TC_Inventory);
+    if (totalDigitalBudget === 0) {
+      console.log('⚠️ [MÉDIA LOCAUX] Budget digital = 0, retour 0%');
+      return 0;
+    }
+    
+    // NOUVELLE APPROCHE : Utiliser le cache au lieu des appels Firebase
+    console.log('🎯 [CACHE] Récupération des shortcodes depuis le cache...');
+    const allShortcodes = getCachedAllShortcodes();
+    
+    if (!allShortcodes) {
+      console.error('❌ [CACHE] Shortcodes non disponibles dans le cache!');
+      return 0;
+    }
+    
+    console.log(`✅ [CACHE] ${Object.keys(allShortcodes).length} shortcodes disponibles dans le cache`);
+    
+    // Helper pour vérifier si un shortcode contient LMI_Local (insensible à la casse)
+    const hasLMILocalTag = (shortcode: ShortcodeItem): boolean => {
+      if (!shortcode.SH_Tags) return false;
+      
+      // Gérer les cas où SH_Tags peut être string ou array
+      let tags: string[];
+      const rawTags = shortcode.SH_Tags as any; // Forcer le type pour éviter l'erreur TypeScript
+      
+      if (typeof rawTags === 'string') {
+        tags = rawTags.split(',').map((tag: string) => tag.trim());
+      } else if (Array.isArray(rawTags)) {
+        tags = rawTags;
+      } else {
+        return false;
+      }
+      
+      // CORRECTION : Vérification insensible à la casse
+      return tags.some((tag: string) => 
+        tag.toLowerCase().includes('lmi_local')
+      );
+    };
+    
+    // Analyser chaque tactique digitale
+    let localBudget = 0;
+    let localTactiquesCount = 0;
+    
+    digitalTactiques.forEach((tactique, index) => {
+      const budget = tactique.TC_Client_Budget_RefCurrency || 0;
+      let isLocal = false;
+      
+      console.log(`\n📋 [TACTIQUE ${index + 1}/${digitalTactiques.length}] Budget: ${budget}`);
+      
+      // Vérifier Publisher
+      if (tactique.TC_Publisher) {
+        const publisherShortcode = allShortcodes[tactique.TC_Publisher];
+        if (publisherShortcode) {
+          const publisherIsLocal = hasLMILocalTag(publisherShortcode);
+          console.log(`   📡 Publisher: ${publisherShortcode.SH_Display_Name_FR} (${tactique.TC_Publisher})`);
+          console.log(`   🏷️  Tags: ${publisherShortcode.SH_Tags}`);
+          console.log(`   🏠 Local: ${publisherIsLocal ? 'OUI' : 'NON'}`);
+          
+          if (publisherIsLocal) isLocal = true;
+        } else {
+          console.log(`   ⚠️  Publisher ${tactique.TC_Publisher} non trouvé dans le cache`);
+        }
+      }
+      
+      // Vérifier Inventory
+      if (tactique.TC_Inventory) {
+        const inventoryShortcode = allShortcodes[tactique.TC_Inventory];
+        if (inventoryShortcode) {
+          const inventoryIsLocal = hasLMILocalTag(inventoryShortcode);
+          console.log(`   📦 Inventory: ${inventoryShortcode.SH_Display_Name_FR} (${tactique.TC_Inventory})`);
+          console.log(`   🏷️  Tags: ${inventoryShortcode.SH_Tags}`);
+          console.log(`   🏠 Local: ${inventoryIsLocal ? 'OUI' : 'NON'}`);
+          
+          if (inventoryIsLocal) isLocal = true;
+        } else {
+          console.log(`   ⚠️  Inventory ${tactique.TC_Inventory} non trouvé dans le cache`);
+        }
+      }
+      
+      if (isLocal) {
+        localBudget += budget;
+        localTactiquesCount++;
+        console.log(`   ✅ TACTIQUE LOCALE - Budget ajouté: ${budget}`);
+      } else {
+        console.log(`   ❌ Tactique non locale`);
+      }
     });
     
-    const shortcodes = await getShortcodes(Array.from(shortcodeIds));
+    const percentage = (localBudget / totalDigitalBudget) * 100;
     
-    // Filtrer les tactiques locales (shortcode contient "LMI_Local" dans SH_Tags)
-    const localTactiques = digitalTactiques.filter(t => {
-      const publisherShortcode = t.TC_Publisher ? shortcodes[t.TC_Publisher] : null;
-      const inventoryShortcode = t.TC_Inventory ? shortcodes[t.TC_Inventory] : null;
-      
-      const publisherIsLocal = publisherShortcode?.SH_Tags?.includes('LMI_Local') || false;
-      const inventoryIsLocal = inventoryShortcode?.SH_Tags?.includes('LMI_Local') || false;
-      
-      return publisherIsLocal || inventoryIsLocal;
-    });
+    console.log(`\n📊 [RÉSULTAT FINAL]`);
+    console.log(`   🏠 Tactiques locales: ${localTactiquesCount}/${digitalTactiques.length}`);
+    console.log(`   💰 Budget local: ${localBudget}`);
+    console.log(`   💰 Budget digital total: ${totalDigitalBudget}`);
+    console.log(`   📈 Pourcentage: ${percentage.toFixed(2)}%`);
     
-    // Calculer le budget local
-    const localBudget = localTactiques.reduce((sum, t) => 
-      sum + (t.TC_Client_Budget_RefCurrency || 0), 0
-    );
-    
-    return (localBudget / totalDigitalBudget) * 100;
-  }, [getShortcodes]);
+    return percentage;
+  }, []);
 
   const calculateNumeriquePercentage = useCallback(async (tactiques: Tactique[]): Promise<number> => {
+    console.log('\n💻 [INDICATEUR NUMÉRIQUE] Début calcul...');
+    
     const digitalMediaTypes = ['DIG', 'SEA', 'SH_DNEQYAVD', 'SH_R3Z3VC6B'];
     
     // Calculer le budget total de la campagne
@@ -436,14 +456,23 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
       sum + (t.TC_Client_Budget_RefCurrency || 0), 0
     );
     
-    if (totalBudget === 0) return 0;
+    console.log(`💰 [BUDGET TOTAL] ${totalBudget}`);
+    
+    if (totalBudget === 0) {
+      console.log('⚠️ [NUMÉRIQUE] Budget total = 0, retour 0%');
+      return 0;
+    }
     
     // Calculer le budget digital
     const digitalBudget = tactiques
       .filter(t => t.TC_Media_Type && digitalMediaTypes.includes(t.TC_Media_Type))
       .reduce((sum, t) => sum + (t.TC_Client_Budget_RefCurrency || 0), 0);
     
-    return (digitalBudget / totalBudget) * 100;
+    const percentage = (digitalBudget / totalBudget) * 100;
+    
+    console.log(`💻 [NUMÉRIQUE] Budget digital: ${digitalBudget} (${percentage.toFixed(2)}%)`);
+    
+    return percentage;
   }, []);
 
   // Configuration des indicateurs
@@ -541,13 +570,7 @@ const BudgetIndicatorsView: React.FC<BudgetIndicatorsViewProps> = ({
       className="space-y-4"
     >
       <div className="border border-gray-200 rounded-lg">
-        <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-800 flex items-center">
-            <ChartBarIcon className="h-4 w-4 mr-2" />
-            {t('budgetIndicators.title')}
-          </h4>
-        </div>
-        
+
         <div className="p-4 space-y-6">
           {indicatorConfigs.map((config, index) => {
             const threshold1 = indicators?.[config.threshold1Key] ?? null;

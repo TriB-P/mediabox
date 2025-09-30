@@ -344,8 +344,8 @@ export default function AdOpsTableRow({
         case 'thirdParty': return placement.PL_Third_Party_Measurement ? t('common.yes') : t('common.no');
         case 'vpaid': return placement.PL_VPAID ? t('common.yes') : t('common.no');
         case 'tag1': return placement.PL_Tag_1;
-        case 'tag2': return placement.PL_Tag_2;
-        case 'tag3': return placement.PL_Tag_3;
+        case 'tag2': return placement.PL_Tag_3;
+        case 'tag3': return placement.PL_Tag_4;
         default: return defaultValue;
       }
     }

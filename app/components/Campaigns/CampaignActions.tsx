@@ -1,8 +1,9 @@
 /**
+ * Fichier: app/components/Campaigns/CampaignActions.tsx
  * Ce fichier définit le composant `CampaignActions`, qui fournit une série de boutons d'action
  * (Modifier, Dupliquer, Supprimer, Recalculer) pour une campagne spécifique. Le composant gère son propre état
  * de chargement et s'adapte à l'affichage sur mobile (menu déroulant) et sur ordinateur (boutons directs).
- * MODIFIÉ : Ajout du bouton "Recalculer" pour regénérer tous les calculs budgétaires des tactiques.
+ * MODIFIÉ : Le bouton "Recalculer" regénère maintenant les calculs budgétaires ET les taxonomies en parallèle.
  */
 
 'use client';
@@ -18,6 +19,7 @@ import {
 import { Campaign } from '../../types/campaign';
 import { deleteCampaign, duplicateCampaign } from '../../lib/campaignService';
 import { recalculateAllCampaignTactics } from '../../lib/campaignRecalculationService';
+import { useAsyncTaxonomyUpdate } from '../../hooks/useAsyncTaxonomyUpdate';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from '../../contexts/LanguageContext';
 
@@ -52,6 +54,7 @@ export default function CampaignActions({
   const [recalcProgress, setRecalcProgress] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const { t } = useTranslation();
+  const { updateTaxonomiesAsync } = useAsyncTaxonomyUpdate();
 
 
   /**
@@ -115,13 +118,13 @@ export default function CampaignActions({
   };
 
   /**
-   * Gère le recalcul de toutes les tactiques de la campagne.
-   * Demande confirmation, lance le processus de recalcul avec progression,
+   * Gère le recalcul de toutes les tactiques ET la mise à jour des taxonomies de la campagne en parallèle.
+   * Demande confirmation, lance les deux processus simultanément avec progression,
    * et rafraîchit les données en cas de succès.
    */
   const handleRecalculate = async () => {
     // Confirmation utilisateur
-    const confirmMessage = `Voulez-vous recalculer tous les budgets et frais pour toutes les tactiques de la campagne "${campaign.CA_Name}" ?\n\nCela mettra à jour :\n• Tous les calculs budgétaires\n• Les conversions de devises\n• Les valeurs héritées\n• Tous les frais applicables\n\nCette opération peut prendre quelques minutes.`;
+    const confirmMessage = `Voulez-vous recalculer et mettre à jour la campagne "${campaign.CA_Name}" ?\n\nCela mettra à jour :\n• Tous les calculs budgétaires\n• Les conversions de devises\n• Les valeurs héritées\n• Tous les frais applicables\n• Toutes les taxonomies\n\nCette opération peut prendre quelques minutes.`;
     
     if (!confirm(confirmMessage)) {
       return;
@@ -130,29 +133,45 @@ export default function CampaignActions({
     try {
       setIsRecalculating(true);
       setRecalcProgress(0);
-      console.log(`🧮 RECALCUL - Début recalcul campagne ${campaign.id}`);
+      console.log(`🧮 RECALCUL & TAXONOMIES - Début pour campagne ${campaign.id}`);
 
-      const result = await recalculateAllCampaignTactics(
-        clientId,
-        campaign.id,
-        (progress) => {
-          setRecalcProgress(Math.round(progress));
-        }
-      );
+      // Préparer les données pour la mise à jour des taxonomies
+      const parentData = {
+        id: campaign.id,
+        name: campaign.CA_Name,
+        clientId: clientId
+      };
 
-      console.log(`🧮 RECALCUL - Terminé: ${result.updatedCount} tactiques mises à jour`);
+      // Lancer les deux opérations en parallèle
+      const [budgetResult] = await Promise.all([
+        // Recalcul des budgets avec progression
+        recalculateAllCampaignTactics(
+          clientId,
+          campaign.id,
+          (progress) => {
+            setRecalcProgress(Math.round(progress * 0.8)); // 80% de la progression pour les budgets
+          }
+        ),
+        // Mise à jour des taxonomies (20% restant sera géré à la fin)
+        updateTaxonomiesAsync('campaign', parentData)
+      ]);
+
+      // Progression finale
+      setRecalcProgress(100);
+
+      console.log(`🧮 RECALCUL & TAXONOMIES - Terminé: ${budgetResult.updatedCount} tactiques mises à jour`);
       
-      // Message de succès avec détails
-      const successMessage = `✅ Recalcul terminé avec succès !\n\n• ${result.updatedCount} tactiques mises à jour\n• ${result.versionsProcessed} versions traitées\n• ${result.errorsCount} erreurs rencontrées`;
+      // Message de succès générique
+      const successMessage = `✅ Mise à jour terminée avec succès !\n\n• ${budgetResult.updatedCount} tactiques mises à jour\n• ${budgetResult.versionsProcessed} versions traitées\n• Taxonomies régénérées\n• ${budgetResult.errorsCount} erreurs rencontrées`;
       alert(successMessage);
 
-      // Rafraîchir les données si nécessaire
+      // Rafraîchir les données
       onRefresh();
 
     } catch (error) {
-      console.error('Erreur lors du recalcul:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors du recalcul';
-      alert(`❌ Erreur lors du recalcul des tactiques :\n\n${errorMessage}\n\nVeuillez réessayer ou contacter le support si le problème persiste.`);
+      console.error('Erreur lors du recalcul et mise à jour:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour';
+      alert(`❌ Erreur lors de la mise à jour :\n\n${errorMessage}\n\nVeuillez réessayer ou contacter le support si le problème persiste.`);
     } finally {
       setIsRecalculating(false);
       setRecalcProgress(0);
@@ -214,7 +233,7 @@ export default function CampaignActions({
             >
               <CalculatorIcon className="h-4 w-4" />
               {isRecalculating ? (
-                <span>Recalcul... {recalcProgress}%</span>
+                <span>Mise à jour... {recalcProgress}%</span>
               ) : (
                 'Recalculer'
               )}
@@ -255,7 +274,7 @@ export default function CampaignActions({
           onClick={handleRecalculate}
           disabled={isAnyActionLoading}
           className="p-2 text-gray-400 hover:text-green-600 disabled:opacity-50 transition-colors relative group"
-          title={isRecalculating ? `Recalcul en cours... ${recalcProgress}%` : 'Recalculer tous les budgets et frais des tactiques'}
+          title={isRecalculating ? `Mise à jour en cours... ${recalcProgress}%` : 'Recalculer tous les budgets, frais et taxonomies'}
         >
           <CalculatorIcon className={`h-4 w-4 ${isRecalculating ? 'animate-pulse text-green-600' : ''}`} />
   
@@ -278,7 +297,7 @@ export default function CampaignActions({
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
             {isRecalculating && (
               <span className="text-xs text-indigo-600 font-medium">
-                Recalcul... {recalcProgress}%
+                Mise à jour... {recalcProgress}%
               </span>
             )}
           </div>

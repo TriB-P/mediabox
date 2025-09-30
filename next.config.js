@@ -36,13 +36,13 @@ const nextConfig = {
       };
     }
 
+    
     // Ignorer certains modules problématiques dans StackBlitz
     config.externals = [...(config.externals || []), 'undici'];
 
     return config;
 
   },
-
 
   
 };

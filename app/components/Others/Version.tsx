@@ -24,6 +24,20 @@ export default function Version() {
   // Contenu du modal de version (à personnaliser selon vos besoins)
   const versionContent = {
     current: {
+      version: '2.0.2',
+      releaseDate: '2024-09-25',
+      features: {
+        fr: [
+            'Ajout des indicateurs de campagnes (Ratio média local et ratio média numérique)',
+           
+        ],
+        en: [
+            'Added campaign indicators (Local media ratio and digital media ratio)',
+        ]
+      }
+    },
+    previous: [
+      {
       version: '2.0.1',
       releaseDate: '2024-09-18',
       features: {
@@ -41,7 +55,6 @@ export default function Version() {
         ]
       }
     },
-    previous: [
       {
       version: '2.0',
       releaseDate: '2024-09-15',
@@ -183,7 +196,7 @@ export default function Version() {
           className="w-full flex items-center justify-center px-3 py-2 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
         >
           <Info className="h-4 w-4 mr-2" />
-          Version 2.0.1
+          Version 2.0.2
         </button>
       </div>
 

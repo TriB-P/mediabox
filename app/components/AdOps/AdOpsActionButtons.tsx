@@ -185,17 +185,17 @@ export default function AdOpsActionButtons({
             variant="primary"
           />
           <CopyButton
-            tagValue={data.PL_Tag_2}
-            buttonId="pl-tag-2"
+            tagValue={data.PL_Tag_3}
+            buttonId="pl-tag-3"
             label={t('adOps.labels.placement')}
-            fieldName="PL_Tag_2"
+            fieldName="PL_Tag_3"
             variant="primary"
           />
           <CopyButton
-            tagValue={data.PL_Tag_3}
-            buttonId="pl-tag-3"
+            tagValue={data.PL_Tag_4}
+            buttonId="pl-tag-4"
             label={t('adOps.labels.ad')}
-            fieldName="PL_Tag_3"
+            fieldName="PL_Tag_4"
             variant="primary"
           />
         </div>
