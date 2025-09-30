@@ -10,6 +10,8 @@
  * au type d'unité sélectionné (par exemple, il gère le cas spécifique du CPM pour les impressions).
  * Il ne gère pas son propre état ; toutes les données et les fonctions de rappel (callbacks)
  * sont passées via ses props, le rendant ainsi un composant de présentation réutilisable.
+ * 
+ * CORRECTION: Utilisation de l'opérateur ?? au lieu de || pour permettre la saisie de 0
  */
 'use client';
 
@@ -175,9 +177,9 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     checkClientCostGuide();
   }, [clientId]);
   
-  const budget = formData.TC_Budget || 0;
-  const costPerUnit = formData.TC_Cost_Per_Unit || 0;
-  const unitVolume = formData.TC_Unit_Volume || 0;
+  const budget = formData.TC_Budget ?? 0;
+  const costPerUnit = formData.TC_Cost_Per_Unit ?? 0;
+  const unitVolume = formData.TC_Unit_Volume ?? 0;
   const currency = formData.TC_Currency || 'CAD';
   const budgetMode = formData.TC_Budget_Mode || 'media';
   const hasBonus = formData.TC_Has_Bonus || false;
@@ -292,7 +294,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
             type="number"
             id="TC_Budget"
             name="TC_Budget"
-            value={budget || ''}
+            value={budget ?? ''}
             onChange={handleBudgetChange}
             min="0"
             step="0.01"
@@ -370,7 +372,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               </div>
               <input
                 type="number"
-                value={costPerUnit || ''}
+                value={costPerUnit ?? ''}
                 onChange={handleCostChange}
                 min="0"
                 step="0.0001"
@@ -400,9 +402,6 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
               )}
             </button>
           </div>
-  
-        
-    
         </div>
 
         <div>
@@ -415,7 +414,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </div>
           <input
             type="number"
-            value={costPerUnit > 0 ? (unitVolume || '') : ''}
+            value={costPerUnit > 0 ? (unitVolume ?? '') : ''}
             disabled
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 font-medium"
             placeholder={t('budgetMainSection.form.calculatedAutomatically')}

@@ -271,7 +271,7 @@ export default function TactiqueFormTags({
             type="number"
             id="TC_CM360_Rate"
             name="TC_CM360_Rate"
-            value={calculateCM360Rate().toFixed(4)}
+            value={calculateCM360Rate().toFixed(2)}
             onFocus={() => onTooltipChange(t('tactiqueFormTags.fields.cm360Rate.tooltip'))}
             onBlur={() => onTooltipChange(null)}
             disabled={true}

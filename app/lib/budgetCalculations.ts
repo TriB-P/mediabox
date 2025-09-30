@@ -1,8 +1,11 @@
+// app/lib/budgetCalculations.ts
+
 /**
  * Ce fichier contient les fonctions et les types nécessaires au calcul des budgets, des frais et des volumes d'unités.
  * Il gère différents types de calculs de frais, la convergence de budget client et les spécificités liées aux impressions.
  * C'est le cœur logique pour toutes les opérations financières du projet.
  * NOUVEAU : Permet les calculs même sans costPerUnit valide (utilise unitVolume = 0)
+ * CORRECTION : Accepte maintenant les budgets = 0 (effectue les calculs et retourne 0 partout)
  */
 
 // ==================== TYPES ====================
@@ -146,16 +149,12 @@ const calculateEffectiveBudgetFromVolume = (
 /**
  * Valide les entrées du budget pour s'assurer qu'elles sont cohérentes.
  * 🆕 NOUVEAU : Ne valide plus que costPerUnit soit > 0, permet maintenant 0
+ * 🆕 CORRECTION : Accepte maintenant les budgets = 0
  * @param {BudgetInputs} inputs - Les données d'entrée du budget.
  * @returns {string[]} Une liste d'erreurs de validation, vide si aucune erreur.
  */
 export const validateBudgetInputs = (inputs: BudgetInputs): string[] => {
   const errors: string[] = [];
-
-  // 🆕 NOUVEAU : Ne valide plus costPerUnit > 0, permet maintenant les calculs avec 0
-  // if (inputs.costPerUnit <= 0) {
-  //   errors.push('Le coût par unité doit être supérieur à 0');
-  // }
 
   // 🆕 NOUVEAU : Validation optionnelle - avertit seulement si négatif
   if (inputs.costPerUnit < 0) {
@@ -166,16 +165,17 @@ export const validateBudgetInputs = (inputs: BudgetInputs): string[] => {
     errors.push('La valeur réelle ne peut pas être négative');
   }
 
-  if (!inputs.mediaBudget && !inputs.clientBudget) {
+  if (inputs.mediaBudget === undefined && inputs.clientBudget === undefined) {
     errors.push('Un budget média ou client doit être spécifié');
   }
 
-  if (inputs.mediaBudget && inputs.mediaBudget <= 0) {
-    errors.push('Le budget média doit être supérieur à 0');
+  // 🆕 CORRECTION : Accepte maintenant 0, rejette seulement les valeurs négatives
+  if (inputs.mediaBudget !== undefined && inputs.mediaBudget < 0) {
+    errors.push('Le budget média ne peut pas être négatif');
   }
 
-  if (inputs.clientBudget && inputs.clientBudget <= 0) {
-    errors.push('Le budget client doit être supérieur à 0');
+  if (inputs.clientBudget !== undefined && inputs.clientBudget < 0) {
+    errors.push('Le budget client ne peut pas être négatif');
   }
 
   for (const fee of inputs.fees) {
@@ -277,6 +277,7 @@ const calculateFees = (
  * Si un budget média est spécifié, il calcule le budget client.
  * Si un budget client est spécifié, il utilise un processus de convergence pour trouver le budget média correspondant.
  * 🆕 NOUVEAU : Fonctionne maintenant même avec costPerUnit = 0 (unitVolume sera 0)
+ * 🆕 CORRECTION : Fonctionne maintenant même avec budget = 0 (tous les calculs retournent 0)
  * @param {BudgetInputs} inputs - Les données d'entrée pour le calcul du budget.
  * @returns {BudgetResults} Les résultats détaillés du calcul du budget.
  * @throws {Error} Si aucun budget (média ou client) n'est spécifié.
@@ -284,7 +285,7 @@ const calculateFees = (
 export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
   const { costPerUnit, realValue, fees, mediaBudget, clientBudget, unitType, unitTypeDisplayName } = inputs;
 
-  if (mediaBudget) {
+  if (mediaBudget !== undefined) {
     const bonusValue = realValue ? Math.max(0, realValue - mediaBudget) : 0;
     const effectiveBudgetForVolume = mediaBudget + bonusValue;
     // 🆕 NOUVEAU : calculateUnitVolume gère maintenant costPerUnit = 0 (retourne 0)
@@ -304,7 +305,7 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
     };
   }
 
-  if (clientBudget) {
+  if (clientBudget !== undefined) {
     return calculateBudgetWithConvergence(inputs);
   }
 
@@ -316,6 +317,7 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
 /**
  * Calcule le budget média nécessaire pour atteindre un budget client cible en utilisant une méthode de convergence.
  * 🆕 NOUVEAU : Fonctionne maintenant même avec costPerUnit = 0 (unitVolume sera 0)
+ * 🆕 CORRECTION : Fonctionne maintenant même avec clientBudget = 0
  * @param {BudgetInputs} inputs - Les données d'entrée, incluant le budget client cible.
  * @returns {BudgetResults} Les résultats détaillés du calcul du budget, incluant les informations de convergence.
  * @throws {Error} Si le budget client n'est pas spécifié.
@@ -323,8 +325,31 @@ export const calculateBudget = (inputs: BudgetInputs): BudgetResults => {
 const calculateBudgetWithConvergence = (inputs: BudgetInputs): BudgetResults => {
   const { costPerUnit, realValue, fees, clientBudget, unitType, unitTypeDisplayName } = inputs;
 
-  if (!clientBudget) {
+  if (clientBudget === undefined) {
     throw new Error('Budget client requis pour ce calcul');
+  }
+
+  // 🆕 CORRECTION : Cas spécial pour budget = 0
+  if (clientBudget === 0) {
+    const unitVolume = 0;
+    const { totalFees, feeDetails } = calculateFees(0, unitVolume, fees, unitType, unitTypeDisplayName);
+    
+    return {
+      mediaBudget: 0,
+      totalFees,
+      clientBudget: totalFees,
+      unitVolume: 0,
+      effectiveBudgetForVolume: 0,
+      bonusValue: 0,
+      feeDetails,
+      convergenceInfo: {
+        hasConverged: true,
+        iterations: 0,
+        finalDifference: 0,
+        targetBudget: 0,
+        actualCalculatedTotal: totalFees
+      }
+    };
   }
 
   const tolerance = 0.0004;

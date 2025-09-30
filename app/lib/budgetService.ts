@@ -7,6 +7,7 @@
  * Il sert d'interface entre les données de l'application et le moteur de calcul du budget.
  * CORRECTION : Ajout du calcul des RefCurrency pour les budgets (alignement avec le drawer)
  * NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
+ * CORRECTION : Accepte maintenant TC_BudgetInput = 0 (effectue les calculs et retourne 0 partout)
  */
 import {
   calculateBudget,
@@ -47,7 +48,6 @@ export interface BudgetData {
   TC_Fee_5_Option: string;
   TC_Fee_5_Volume: number;
   TC_Fee_5_Value: number;
-  // 🆕 CORRECTION : Ajout des champs RefCurrency manquants
   TC_Fee_1_RefCurrency?: number;
   TC_Fee_2_RefCurrency?: number;
   TC_Fee_3_RefCurrency?: number;
@@ -177,7 +177,6 @@ export class BudgetService {
       TC_Fee_5_Option: '',
       TC_Fee_5_Volume: 0,
       TC_Fee_5_Value: 0,
-      // 🆕 CORRECTION : Initialisation des RefCurrency
       TC_Fee_1_RefCurrency: 0,
       TC_Fee_2_RefCurrency: 0,
       TC_Fee_3_RefCurrency: 0,
@@ -225,11 +224,9 @@ export class BudgetService {
         (data as any)[optionKey] = firestoreData[optionKey] || '';
         (data as any)[volumeKey] = firestoreData[volumeKey] || 0;
         (data as any)[valueKey] = firestoreData[valueKey] || 0;
-        // 🆕 CORRECTION : Charger les RefCurrency existants
         (data as any)[refCurrencyKey] = firestoreData[refCurrencyKey] || 0;
       }
 
-      // 🆕 CORRECTION : Charger les RefCurrency des budgets
       data.TC_Media_Budget_RefCurrency = firestoreData.TC_Media_Budget_RefCurrency || 0;
       data.TC_Client_Budget_RefCurrency = firestoreData.TC_Client_Budget_RefCurrency || 0;
     }
@@ -241,6 +238,7 @@ export class BudgetService {
   /**
    * Effectue tous les calculs budgétaires complets en utilisant les données fournies, les frais client, les taux de change et les options de type d'unité.
    * 🆕 NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
+   * 🆕 CORRECTION : Accepte maintenant TC_BudgetInput = 0 (effectue les calculs)
    * @param data - L'objet BudgetData contenant les entrées budgétaires.
    * @param clientFees - Un tableau des définitions de frais client.
    * @param exchangeRates - Un objet contenant les taux de change.
@@ -258,9 +256,9 @@ export class BudgetService {
     this.log('🧮 Début calculs complets');
 
     try {
-      // 🆕 NOUVEAU : Seul le budget d'entrée est requis, pas le prix unitaire
-      if (data.TC_BudgetInput <= 0) {
-        return { success: false, error: 'Budget requis pour effectuer les calculs' };
+      // 🆕 CORRECTION : Accepte maintenant 0 comme valeur valide
+      if (data.TC_BudgetInput < 0) {
+        return { success: false, error: 'Le budget ne peut pas être négatif' };
       }
 
       const feeDefinitions = this.buildFeeDefinitions(data, clientFees);
@@ -269,9 +267,8 @@ export class BudgetService {
       const selectedUnitType = unitTypeOptions.find(option => option.id === data.TC_Unit_Type);
       const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_FR;
 
-      // 🆕 NOUVEAU : Utilise TC_Unit_Price même s'il est 0 (cela donnera TC_Unit_Volume = 0)
       const budgetInputs: BudgetInputs = {
-        costPerUnit: data.TC_Unit_Price, // Peut être 0 maintenant
+        costPerUnit: data.TC_Unit_Price,
         realValue: data.TC_Media_Value > 0 ? data.TC_Media_Value : undefined,
         fees: feeDefinitions,
         unitType: data.TC_Unit_Type,
