@@ -4,12 +4,11 @@
  * @file Ce fichier définit le composant CampaignDrawer avec validation obligatoire des champs critiques.
  * NOUVELLE FONCTIONNALITÉ : Validation programmatique qui empêche la sauvegarde si les dates
  * de début et de fin ne sont pas remplies, avec navigation automatique vers l'onglet concerné.
- * CORRIGÉ : Boucle infinie dans le useEffect de CA_Sprint_Dates
  */
 
 'use client';
 
-import { Fragment, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import {
@@ -79,7 +78,7 @@ export default function CampaignDrawer({
   campaign,
   onSave,
 }: CampaignDrawerProps) {
-  const { t, language } = useTranslation(); // MODIFIÉ : Ajout de language pour debug
+  const { t } = useTranslation();
   const { selectedClient } = useClient();
   const { status, updateTaxonomiesAsync, dismissNotification } =
     useAsyncTaxonomyUpdate();
@@ -149,9 +148,6 @@ export default function CampaignDrawer({
   const [loadingQuarters, setLoadingQuarters] = useState(false);
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingCustomDims, setLoadingCustomDims] = useState(false);
-
-  // NOUVEAU : Ref pour éviter la boucle infinie dans le calcul de CA_Sprint_Dates
-  const lastSprintDatesRef = useRef<string>('');
 
   const tabs: FormTab[] = useMemo(
     () => [
@@ -229,8 +225,6 @@ export default function CampaignDrawer({
       // NOUVEAU : Réinitialiser les erreurs de validation
       setValidationErrors({});
       setShowValidationError(false);
-      // NOUVEAU : Réinitialiser la ref
-      lastSprintDatesRef.current = campaign.CA_Sprint_Dates || '';
     } else {
       setFormData({
         CA_Name: '',
@@ -249,8 +243,6 @@ export default function CampaignDrawer({
       // NOUVEAU : Réinitialiser les erreurs de validation
       setValidationErrors({});
       setShowValidationError(false);
-      // NOUVEAU : Réinitialiser la ref
-      lastSprintDatesRef.current = '';
     }
   }, [campaign]);
 
@@ -278,13 +270,10 @@ export default function CampaignDrawer({
           CA_Currency: 'CAD',
         });
         setAdditionalBreakdowns([]);
-        // NOUVEAU : Réinitialiser la ref
-        lastSprintDatesRef.current = '';
       }
     }
   }, [isOpen, campaign]);
 
-  // CORRIGÉ : useEffect pour CA_Sprint_Dates sans dépendance circulaire
   useEffect(() => {
     const { CA_Start_Date, CA_End_Date } = formData;
 
@@ -311,9 +300,7 @@ export default function CampaignDrawer({
           startDate
         )}-${formatSprintDate(endDate)}`;
 
-        // CORRIGÉ : Ne mettre à jour que si la valeur a réellement changé
-        if (formattedSprintDates !== lastSprintDatesRef.current) {
-          lastSprintDatesRef.current = formattedSprintDates;
+        if (formattedSprintDates !== formData.CA_Sprint_Dates) {
           setFormData((prev) => ({
             ...prev,
             CA_Sprint_Dates: formattedSprintDates,
@@ -321,7 +308,7 @@ export default function CampaignDrawer({
         }
       }
     }
-  }, [formData.CA_Start_Date, formData.CA_End_Date]); // CORRIGÉ : Supprimer formData.CA_Sprint_Dates des dépendances
+  }, [formData.CA_Start_Date, formData.CA_End_Date, formData.CA_Sprint_Dates]);
 
   useEffect(() => {
     if (!selectedClient || !isOpen) return;
@@ -445,14 +432,10 @@ export default function CampaignDrawer({
   };
 
   /**
-   * MODIFIÉ : Gère la soumission du formulaire avec validation obligatoire et log de debug.
+   * NOUVEAU : Gère la soumission du formulaire avec validation obligatoire des champs critiques.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // NOUVEAU : Log de debug pour vérifier la langue
-    console.log(`🌍 [CampaignDrawer] Langue actuelle: ${language}`);
-    console.log(`🌍 [CampaignDrawer] Mode: ${campaign ? 'Édition' : 'Création'}`);
     
     // NOUVEAU : Validation avant sauvegarde
     const validation = validateRequiredFields();
