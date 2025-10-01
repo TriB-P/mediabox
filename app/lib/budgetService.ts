@@ -8,6 +8,7 @@
  * CORRECTION : Ajout du calcul des RefCurrency pour les budgets (alignement avec le drawer)
  * NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
  * CORRECTION : Accepte maintenant TC_BudgetInput = 0 (effectue les calculs et retourne 0 partout)
+ * CORRECTION : TC_BudgetInput et TC_Unit_Price peuvent être undefined (champs vides par défaut)
  */
 import {
   calculateBudget,
@@ -22,8 +23,8 @@ import {
 
 export interface BudgetData {
   TC_Budget_Mode: 'media' | 'client';
-  TC_BudgetInput: number;
-  TC_Unit_Price: number;
+  TC_BudgetInput?: number;  // 🆕 CORRECTION : Peut être undefined
+  TC_Unit_Price?: number;   // 🆕 CORRECTION : Peut être undefined
   TC_Unit_Volume: number;
   TC_Media_Value: number;
   TC_Bonification: number;
@@ -143,6 +144,7 @@ export class BudgetService {
   /**
    * Crée un objet BudgetData avec des valeurs par défaut.
    * Cette fonction initialise toutes les propriétés nécessaires pour un nouveau budget.
+   * 🆕 CORRECTION : TC_BudgetInput et TC_Unit_Price sont undefined par défaut (champs vides)
    * @param clientFees - Un tableau des définitions de frais client, non utilisé directement pour la création de données par défaut, mais requis par l'interface.
    * @returns Un objet BudgetData initialisé avec des valeurs par défaut.
    */
@@ -151,8 +153,8 @@ export class BudgetService {
 
     const defaultData: BudgetData = {
       TC_Budget_Mode: 'media',
-      TC_BudgetInput: 0,
-      TC_Unit_Price: 0,
+      TC_BudgetInput: undefined,  // 🆕 CORRECTION : undefined au lieu de 0
+      TC_Unit_Price: undefined,   // 🆕 CORRECTION : undefined au lieu de 0
       TC_Unit_Volume: 0,
       TC_Media_Value: 0,
       TC_Bonification: 0,
@@ -191,6 +193,7 @@ export class BudgetService {
 
   /**
    * Charge les données budgétaires à partir d'un objet Firestore, en appliquant des valeurs par défaut si certaines propriétés sont manquantes.
+   * 🆕 CORRECTION : Ne force plus à 0 pour TC_BudgetInput et TC_Unit_Price
    * @param firestoreData - L'objet de données brutes récupéré de Firestore.
    * @param clientFees - Un tableau des définitions de frais client.
    * @returns Un objet BudgetData hydraté avec les données de Firestore ou les valeurs par défaut.
@@ -203,8 +206,18 @@ export class BudgetService {
 
     if (firestoreData) {
       data.TC_Budget_Mode = firestoreData.TC_Budget_Mode || firestoreData.TC_Budget_Mode || 'media';
-      data.TC_BudgetInput = firestoreData.TC_BudgetInput || firestoreData.TC_Budget || 0;
-      data.TC_Unit_Price = firestoreData.TC_Unit_Price || firestoreData.TC_Cost_Per_Unit || 0;
+      
+      // 🆕 CORRECTION : Ne pas forcer à 0, garder undefined si pas de valeur
+      const budgetInput = firestoreData.TC_BudgetInput ?? firestoreData.TC_Budget;
+      data.TC_BudgetInput = (budgetInput !== undefined && budgetInput !== null && budgetInput !== '') 
+        ? budgetInput 
+        : undefined;
+      
+      const unitPrice = firestoreData.TC_Unit_Price ?? firestoreData.TC_Cost_Per_Unit;
+      data.TC_Unit_Price = (unitPrice !== undefined && unitPrice !== null && unitPrice !== '') 
+        ? unitPrice 
+        : undefined;
+      
       data.TC_Unit_Volume = firestoreData.TC_Unit_Volume || 0;
       data.TC_Media_Value = firestoreData.TC_Media_Value || firestoreData.TC_Real_Value || 0;
       data.TC_Bonification = firestoreData.TC_Bonification || firestoreData.TC_Bonus_Value || 0;
@@ -239,6 +252,7 @@ export class BudgetService {
    * Effectue tous les calculs budgétaires complets en utilisant les données fournies, les frais client, les taux de change et les options de type d'unité.
    * 🆕 NOUVEAU : Permet les calculs même sans TC_Unit_Price valide (utilise TC_Unit_Volume = 0)
    * 🆕 CORRECTION : Accepte maintenant TC_BudgetInput = 0 (effectue les calculs)
+   * 🆕 CORRECTION : Gère TC_BudgetInput et TC_Unit_Price undefined
    * @param data - L'objet BudgetData contenant les entrées budgétaires.
    * @param clientFees - Un tableau des définitions de frais client.
    * @param exchangeRates - Un objet contenant les taux de change.
@@ -256,7 +270,11 @@ export class BudgetService {
     this.log('🧮 Début calculs complets');
 
     try {
-      // 🆕 CORRECTION : Accepte maintenant 0 comme valeur valide
+      // 🆕 CORRECTION : Gérer undefined et accepter 0
+      if (data.TC_BudgetInput === undefined || data.TC_BudgetInput === null) {
+        return { success: false, error: 'Le budget doit être défini' };
+      }
+      
       if (data.TC_BudgetInput < 0) {
         return { success: false, error: 'Le budget ne peut pas être négatif' };
       }
@@ -268,7 +286,7 @@ export class BudgetService {
       const unitTypeDisplayName = selectedUnitType?.SH_Display_Name_FR;
 
       const budgetInputs: BudgetInputs = {
-        costPerUnit: data.TC_Unit_Price,
+        costPerUnit: data.TC_Unit_Price ?? 0,  // 🆕 CORRECTION : Utiliser 0 si undefined pour les calculs
         realValue: data.TC_Media_Value > 0 ? data.TC_Media_Value : undefined,
         fees: feeDefinitions,
         unitType: data.TC_Unit_Type,

@@ -4,7 +4,7 @@
  * - Support des champs date et name pour les périodes
  * - Distinction entre types automatiques et custom
  * - Support du sous-type pour les breakdowns mensuels
- * - NOUVEAU: Support multilingue pour le nom du breakdown par défaut
+ * - CORRIGÉ: Support multilingue avec minuscules ('fr' | 'en')
  */
 export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
 
@@ -172,15 +172,15 @@ export const MAX_BREAKDOWNS_PER_CAMPAIGN = 5;
 // ============================================================================
 
 /**
- * NOUVEAU: Retourne le nom du breakdown par défaut selon la langue
- * @param language - Langue souhaitée ('FR' ou 'EN')
+ * CORRIGÉ: Retourne le nom du breakdown par défaut selon la langue
+ * @param language - Langue souhaitée ('fr' ou 'en') - minuscules pour correspondre au LanguageContext
  * @returns Le nom traduit du breakdown par défaut
  */
-export const getDefaultBreakdownName = (language?: 'FR' | 'EN'): string => {
-  if (language === 'EN') {
+export const getDefaultBreakdownName = (language?: 'fr' | 'en'): string => {
+  if (language === 'en') {
     return 'Calendar';
   }
-  return 'Calendrier'; // FR par défaut
+  return 'Calendrier'; // 'fr' par défaut
 };
 
 /**

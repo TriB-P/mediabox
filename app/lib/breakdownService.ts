@@ -6,7 +6,7 @@
  * - Limite à 5 breakdowns par campagne
  * - Support du sous-type pour les breakdowns mensuels
  * - Cohérence entre frontend et backend
- * - NOUVEAU: Support multilingue pour le nom du breakdown par défaut
+ * - CORRIGÉ: Support multilingue avec minuscules ('fr' | 'en')
  */
 import {
   collection,
@@ -889,15 +889,15 @@ export async function updateDefaultBreakdownDates(
 }
 
 /**
- * MODIFIÉ: Crée le breakdown par défaut avec support multilingue
- * @param language - Langue pour le nom du breakdown ('FR' ou 'EN')
+ * CORRIGÉ: Crée le breakdown par défaut avec support multilingue
+ * @param language - Langue pour le nom du breakdown ('fr' ou 'en') - minuscules
  */
 export async function createDefaultBreakdown(
   clientId: string,
   campaignId: string,
   campaignStartDate: string,
   campaignEndDate: string,
-  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
+  language?: 'fr' | 'en' // CORRIGÉ: Minuscules pour correspondre au LanguageContext
 ): Promise<string> {
   try {
     const existingBreakdowns = await getBreakdowns(clientId, campaignId);
@@ -918,9 +918,9 @@ export async function createDefaultBreakdown(
       throw new Error(`Date de fin invalide: ${endValidation.error}`);
     }
     
-    // NOUVEAU: Utiliser getDefaultBreakdownName au lieu de DEFAULT_BREAKDOWN_NAME
+    // CORRIGÉ: Utiliser getDefaultBreakdownName avec minuscules
     const defaultBreakdownData: BreakdownFormData = {
-      name: getDefaultBreakdownName(language), // MODIFIÉ: Nom multilingue
+      name: getDefaultBreakdownName(language), // CORRIGÉ: Nom multilingue
       type: 'Hebdomadaire',
       startDate: adjustedStartDate,
       endDate: campaignEndDate,
@@ -935,15 +935,15 @@ export async function createDefaultBreakdown(
 }
 
 /**
- * MODIFIÉ: Assure l'existence du breakdown par défaut avec support multilingue
- * @param language - Langue pour le nom du breakdown ('FR' ou 'EN')
+ * CORRIGÉ: Assure l'existence du breakdown par défaut avec support multilingue
+ * @param language - Langue pour le nom du breakdown ('fr' ou 'en') - minuscules
  */
 export async function ensureDefaultBreakdownExists(
   clientId: string,
   campaignId: string,
   campaignStartDate: string,
   campaignEndDate: string,
-  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
+  language?: 'fr' | 'en' // CORRIGÉ: Minuscules pour correspondre au LanguageContext
 ): Promise<string> {
   try {
     const existingBreakdowns = await getBreakdowns(clientId, campaignId);

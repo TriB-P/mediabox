@@ -11,7 +11,7 @@
  * Il ne gère pas son propre état ; toutes les données et les fonctions de rappel (callbacks)
  * sont passées via ses props, le rendant ainsi un composant de présentation réutilisable.
  * 
- * CORRECTION: Utilisation de l'opérateur ?? au lieu de || pour permettre la saisie de 0
+ * CORRECTION: Champs vides par défaut au lieu de 0
  */
 'use client';
 
@@ -46,9 +46,9 @@ interface BudgetMainSectionProps {
 /**
  * Génère des libellés, des infobulles et des formats d'affichage dynamiques en fonction du type d'unité sélectionné.
  * Gère spécifiquement le cas des "impressions" pour utiliser le terme "CPM".
- * @param unitType - L'identifiant du type d'unité (ex: 'impressions').
- * @param unitTypeOptions - La liste des options de types d'unité disponibles pour trouver le libellé correspondant.
- * @param t - La fonction de traduction.
+ * @param {string} unitType - L'identifiant du type d'unité (ex: 'impressions').
+ * @param {string} unitTypeOptions - La liste des options de types d'unité disponibles pour trouver le libellé correspondant.
+ * @param {Function} t - La fonction de traduction.
  * @returns Un objet contenant les chaînes de caractères et les fonctions de formatage pour l'interface utilisateur.
  */
 const generateDynamicLabels = (unitType: string | undefined, unitTypeOptions: Array<{ id: string; label: string }>, t: (key: string) => string) => {
@@ -177,8 +177,9 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     checkClientCostGuide();
   }, [clientId]);
   
-  const budget = formData.TC_Budget ?? 0;
-  const costPerUnit = formData.TC_Cost_Per_Unit ?? 0;
+  // 🆕 CORRECTION: Ne plus forcer à 0, laisser undefined
+  const budget = formData.TC_Budget;
+  const costPerUnit = formData.TC_Cost_Per_Unit;
   const unitVolume = formData.TC_Unit_Volume ?? 0;
   const currency = formData.TC_Currency || 'CAD';
   const budgetMode = formData.TC_Budget_Mode || 'media';
@@ -204,7 +205,9 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     }
   }, [budgetMode, t]);
 
+  // 🆕 CORRECTION: Gérer undefined dans les calculs
   const displayMediaBudget = useMemo(() => {
+    if (!budget) return 0;
     if (budgetMode === 'client') {
       return Math.max(0, budget - totalFees);
     } else {
@@ -219,6 +222,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
   }, [displayMediaBudget, hasBonus, bonusValue]);
 
   const displayClientBudget = useMemo(() => {
+    if (!budget) return 0;
     if (budgetMode === 'client') {
       return budget;
     } else {
@@ -254,10 +258,11 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
     setIsCostGuideModalOpen(false);
   }, [onCalculatedChange]);
 
+  // 🆕 CORRECTION: Différencier undefined de 0
   const calculationStatus = useMemo(() => {
-    const hasValidBudget = budget > 0;
+    const hasValidBudget = budget !== undefined && budget !== null && budget > 0;
     const hasValidMediaBudget = displayMediaBudget > 0;
-    const hasValidCost = costPerUnit > 0;
+    const hasValidCost = costPerUnit !== undefined && costPerUnit !== null && costPerUnit > 0;
     const hasValidEffectiveBudget = effectiveBudgetForVolume > 0;
     
     return {
@@ -305,7 +310,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {budgetMode === 'client' && budget > 0 && (
+      {budgetMode === 'client' && budget !== undefined && budget !== null && budget > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-blue-800 mb-2">
             {t('budgetMainSection.clientBudgetBox.title')}
@@ -334,7 +339,7 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       )}
 
-      {budgetMode === 'media' && budget > 0 && totalFees > 0 && (
+      {budgetMode === 'media' && budget !== undefined && budget !== null && budget > 0 && totalFees > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <h5 className="text-sm font-medium text-green-800 mb-2">
             {t('budgetMainSection.mediaBudgetBox.title')}
@@ -414,23 +419,23 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
           </div>
           <input
             type="number"
-            value={costPerUnit > 0 ? (unitVolume ?? '') : ''}
+            value={costPerUnit !== undefined && costPerUnit !== null && costPerUnit > 0 ? (unitVolume ?? '') : ''}
             disabled
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 font-medium"
             placeholder={t('budgetMainSection.form.calculatedAutomatically')}
           />
-          {costPerUnit > 0 && unitVolume > 0 && (
+          {costPerUnit !== undefined && costPerUnit !== null && costPerUnit > 0 && unitVolume > 0 && (
             <div className="mt-1 text-xs text-gray-500">
               {t('common.formatted')} {dynamicLabels.formatVolumeDisplay(unitVolume)} {unitType ? unitTypeOptions.find(opt => opt.id === unitType)?.label?.toLowerCase() || t('budgetMainSection.form.units') : t('budgetMainSection.form.units')}
             </div>
           )}
-          {effectiveBudgetForVolume > 0 && costPerUnit > 0 && (
+          {effectiveBudgetForVolume > 0 && costPerUnit !== undefined && costPerUnit !== null && costPerUnit > 0 && (
             <div className="mt-1 text-xs text-green-600">
               = {formatCurrency(effectiveBudgetForVolume)} {currency} ÷ {dynamicLabels.formatCostDisplay(costPerUnit)} {currency}
               {dynamicLabels.costLabel === 'CPM' && ' × 1000'}
             </div>
           )}
-          {!calculationStatus.canCalculateVolume && budget > 0 && (
+          {!calculationStatus.canCalculateVolume && budget !== undefined && budget !== null && budget > 0 && (
             <div className="mt-1 text-xs text-orange-600">
               {t('budgetMainSection.form.requiresValidCost')}
             </div>
@@ -438,13 +443,13 @@ const BudgetMainSection = memo<BudgetMainSectionProps>(({
         </div>
       </div>
 
-      {(!budget || !costPerUnit) && !disabled && (
+      {((budget === undefined || budget === null) || (costPerUnit === undefined || costPerUnit === null)) && !disabled && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <div className="text-sm text-yellow-700">
             ⚠️ <strong>{t('budgetMainSection.incompleteWarning.title')}</strong>
             <ul className="mt-2 ml-4 space-y-1 text-xs">
-              {!budget && <li>{t('budgetMainSection.incompleteWarning.enterBudget').replace('{mode}', budgetMode === 'client' ? t('budgetMainSection.incompleteWarning.clientMode') : t('budgetMainSection.incompleteWarning.mediaMode'))}</li>}
-              {!costPerUnit && <li>{t('budgetMainSection.incompleteWarning.enterCost').replace('{costLabel}', dynamicLabels.costLabel.toLowerCase())}</li>}
+              {(budget === undefined || budget === null) && <li>{t('budgetMainSection.incompleteWarning.enterBudget').replace('{mode}', budgetMode === 'client' ? t('budgetMainSection.incompleteWarning.clientMode') : t('budgetMainSection.incompleteWarning.mediaMode'))}</li>}
+              {(costPerUnit === undefined || costPerUnit === null) && <li>{t('budgetMainSection.incompleteWarning.enterCost').replace('{costLabel}', dynamicLabels.costLabel.toLowerCase())}</li>}
             </ul>
           </div>
         </div>

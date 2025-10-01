@@ -134,7 +134,6 @@ export async function ensureDefaultBreakdownForCampaign(
         campaign.id, 
         campaign.CA_Start_Date, 
         campaign.CA_End_Date,
-        language // NOUVEAU: Passer la langue
       );
     } catch (error) {
       console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
@@ -207,7 +206,6 @@ export async function createCampaign(
           docRef.id,
           campaignData.CA_Start_Date,
           campaignData.CA_End_Date,
-          language // NOUVEAU: Passer la langue
         );
       }
     }
@@ -278,7 +276,6 @@ export async function updateCampaign(
         campaignId,
         campaignData.CA_Start_Date,
         campaignData.CA_End_Date,
-        language // NOUVEAU: Passer la langue
       );
       await updateDefaultBreakdownDates(
         CA_Client,

@@ -311,8 +311,12 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
     TC_Media_Budget: tactique.TC_Media_Budget || 0,
     TC_Client_Budget: tactique.TC_Client_Budget || 0,
     TC_Budget_Mode: tactique.TC_Budget_Mode || 'client',
-    TC_BudgetInput: tactique.TC_BudgetInput || 0,
-    TC_Unit_Price: tactique.TC_Unit_Price || 0,
+    TC_BudgetInput: (tactique.TC_BudgetInput !== undefined && tactique.TC_BudgetInput !== null && tactique.TC_BudgetInput !== '') 
+      ? tactique.TC_BudgetInput 
+      : undefined,
+    TC_Unit_Price: (tactique.TC_Unit_Price !== undefined && tactique.TC_Unit_Price !== null && tactique.TC_Unit_Price !== '') 
+      ? tactique.TC_Unit_Price 
+      : undefined,
     TC_Unit_Volume: tactique.TC_Unit_Volume || 0,
     TC_Media_Value: tactique.TC_Media_Value || 0,
     TC_Bonification: tactique.TC_Bonification || 0,
@@ -493,6 +497,8 @@ const getDefaultFormData = (): TactiqueFormData => ({
   TC_Unit_Type:'SH_48HPEEYW',
   TC_CM360_Volume_Linked_To_Unit_Volume: false,
   TC_Tags: '', // 🆕 Ajout du champ TC_Tags avec valeur par défaut
+   TC_BudgetInput: undefined,
+  TC_Unit_Price: undefined,
 
 });
 

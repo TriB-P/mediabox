@@ -1,10 +1,12 @@
 /**
+ * app/components/Client/ShortcodeDetail.tsx
  * Ce fichier définit le composant React `ShortcodeDetail`.
  * Il s'agit d'une boîte de dialogue modale qui permet à l'utilisateur de visualiser,
  * modifier et supprimer les détails d'un "shortcode" existant.
  * Le composant gère son propre état pour les champs du formulaire, le chargement,
  * et les erreurs. Il communique avec un service externe (`shortcodeService`)
  * pour persister les modifications (mise à jour ou suppression) dans la base de données Firebase.
+ * Ajout du champ SH_Tags et conversion du champ SH_Type en menu déroulant.
  */
 'use client';
 
@@ -21,6 +23,18 @@ interface ShortcodeDetailProps {
   onDelete: () => void;
   onUpdate: () => void;
 }
+
+// Options pour le menu déroulant SH_Type
+const SH_TYPE_OPTIONS = [
+  'Print Publisher',
+  'TV Station',
+  'Digital Publisher',
+  'Radio Station',
+  'OOH Publisher',
+  'Social Publisher',
+  'Programmatic Publisher',
+  'Search Publisher'
+];
 
 /**
  * Affiche une modale avec un formulaire pour éditer ou supprimer un shortcode.
@@ -46,10 +60,10 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
 
   /**
    * Gère les changements dans les champs du formulaire et met à jour l'état local du shortcode.
-   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>} e - L'événement de changement du champ.
+   * @param {React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>} e - L'événement de changement du champ.
    * @returns {void}
    */
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditedShortcode(prev => ({
       ...prev,
@@ -229,12 +243,33 @@ const ShortcodeDetail: React.FC<ShortcodeDetailProps> = ({
                     <label htmlFor="SH_Type" className="block text-sm font-medium text-gray-700 mb-1">
                       {t('shortcodeDetail.form.typeLabel')}
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="SH_Type"
                       name="SH_Type"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       value={editedShortcode.SH_Type || ''}
+                      onChange={handleChange}
+                    >
+                      <option value="">Sélectionnez un type</option>
+                      {SH_TYPE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="SH_Tags" className="block text-sm font-medium text-gray-700 mb-1">
+                      Tags
+                    </label>
+                    <input
+                      type="text"
+                      id="SH_Tags"
+                      name="SH_Tags"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="LMI_Local, COM"
+                      value={editedShortcode.SH_Tags || ''}
                       onChange={handleChange}
                     />
                   </div>

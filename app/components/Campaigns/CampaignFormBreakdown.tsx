@@ -1,3 +1,4 @@
+// app/components/Campaigns/CampaignFormBreakdown.tsx
 /**
  * @file Composant amélioré `CampaignFormBreakdown` avec:
  * - Limite à 5 breakdowns par campagne
@@ -5,6 +6,7 @@
  * - Gestion améliorée des types automatiques vs custom
  * - Support du sous-type pour les breakdowns mensuels
  * - Traduction des types d'affichage (garde les valeurs FR en backend)
+ * - CORRIGÉ: Nom multilingue pour le breakdown par défaut
  */
 
 'use client';
@@ -40,7 +42,8 @@ import {
   validateCustomPeriods,
   supportsSubType,
   getBreakdownSubTypeLabel,
-  MAX_BREAKDOWNS_PER_CAMPAIGN
+  MAX_BREAKDOWNS_PER_CAMPAIGN,
+  getDefaultBreakdownName, // NOUVEAU: Import de la fonction multilingue
 } from '../../types/breakdown';
 import {
   getBreakdowns,
@@ -82,7 +85,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
   onBreakdownsChange,
   loading = false
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation(); // CORRIGÉ: Extraire language
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
   const [additionalBreakdowns, setAdditionalBreakdowns] = useState<BreakdownFormData[]>([]);
   const [editingBreakdown, setEditingBreakdown] = useState<BreakdownEditData | null>(null);
@@ -147,7 +150,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       if (campaignStartDate && campaignEndDate) {
         const virtualDefaultBreakdown: Breakdown = {
           id: 'default',
-          name: DEFAULT_BREAKDOWN_NAME,
+          name: getDefaultBreakdownName(language), // CORRIGÉ: Utiliser la fonction multilingue
           type: 'Hebdomadaire',
           startDate: getClosestMonday(campaignStartDate),
           endDate: campaignEndDate,
@@ -160,7 +163,7 @@ const CampaignFormBreakdown = memo<CampaignFormBreakdownProps>(({
       }
       setAdditionalBreakdowns([]);
     }
-  }, [campaignId, campaignStartDate, campaignEndDate]);
+  }, [campaignId, campaignStartDate, campaignEndDate, language]); // CORRIGÉ: Ajouter language aux dépendances
 
   /**
    * Effet pour mettre à jour les dates de la répartition par défaut

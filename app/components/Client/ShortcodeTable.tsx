@@ -54,11 +54,14 @@ const ShortcodeTable: React.FC<ShortcodeTableProps> = ({
     
     const searchLower = searchQuery.toLowerCase();
     return shortcodes.filter(shortcode => 
+      // NOUVELLE LOGIQUE : Recherche par ID du shortcode (ID Firebase)
+      shortcode.id.toLowerCase().includes(searchLower) ||
       shortcode.SH_Code.toLowerCase().includes(searchLower) ||
       shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
       (shortcode.SH_Display_Name_EN?.toLowerCase().includes(searchLower)) ||
       (shortcode.SH_Default_UTM?.toLowerCase().includes(searchLower)) ||
       (shortcode.SH_Type?.toLowerCase().includes(searchLower))
+     
     );
   }, [shortcodes, searchQuery]);
 

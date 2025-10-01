@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CostGuideEntry } from '../../../types/costGuide';
 import { useTranslation } from '../../../contexts/LanguageContext';
 
@@ -53,6 +53,8 @@ export default function CostGuideModal({
     level4Selection: '',
     currentLevel: 1
   });
+  // Nouvel état pour la barre de recherche
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Réinitialiser l'état quand le modal s'ouvre
   useEffect(() => {
@@ -64,11 +66,19 @@ export default function CostGuideModal({
         level4Selection: '',
         currentLevel: 1
       });
+      // Réinitialiser la recherche
+      setSearchQuery('');
     }
   }, [isOpen]);
 
+  // Réinitialiser la recherche lors du changement de niveau
+  useEffect(() => {
+    setSearchQuery('');
+  }, [modalState.currentLevel]);
+
+
   /**
-   * Obtient les options pour un niveau donné selon les sélections précédentes
+   * Obtient les options pour un niveau donné selon les sélections précédentes et la recherche
    */
   const getCostGuideOptions = (level: 1 | 2 | 3 | 4): CostGuideOption[] => {
     if (costGuideEntries.length === 0) return [];
@@ -94,23 +104,51 @@ export default function CostGuideModal({
         .filter(value => value && value.trim() !== '')
     ));
 
-    return uniqueValues.map(value => ({
+    // Créer les options
+    const options = uniqueValues.map(value => ({
       value,
       label: value,
       count: filteredEntries.filter(entry => entry[levelKey] === value).length
     }));
+
+    // Filtrer par la barre de recherche (uniquement pour les niveaux 1, 2, 3)
+    const lowerCaseQuery = searchQuery.toLowerCase().trim();
+    if (lowerCaseQuery && level < 4) {
+      return options.filter(option => 
+        option.label.toLowerCase().includes(lowerCaseQuery)
+      );
+    }
+    
+    return options;
   };
 
   /**
-   * Obtient les entrées finales pour le niveau 4
+   * Obtient les entrées finales pour le niveau 4 (avec filtration par recherche)
    */
   const getFinalCostGuideEntries = (): CostGuideEntry[] => {
-    return costGuideEntries.filter(entry => 
+    const finalEntries = costGuideEntries.filter(entry => 
       entry.level1 === modalState.level1Selection &&
       entry.level2 === modalState.level2Selection &&
       entry.level3 === modalState.level3Selection
     );
+
+    // Filtration par la barre de recherche pour le niveau 4 (sur level4, purchaseUnit, et comment)
+    const lowerCaseQuery = searchQuery.toLowerCase().trim();
+    if (lowerCaseQuery) {
+      return finalEntries.filter(entry => 
+        entry.level4.toLowerCase().includes(lowerCaseQuery) ||
+        entry.purchaseUnit.toLowerCase().includes(lowerCaseQuery) ||
+        (entry.comment || '').toLowerCase().includes(lowerCaseQuery)
+      );
+    }
+
+    return finalEntries;
   };
+
+  // On utilise useMemo pour éviter de recalculer les options à chaque rendu
+  const currentOptions = useMemo(() => getCostGuideOptions(modalState.currentLevel), [modalState, searchQuery, costGuideEntries]);
+  const finalEntries = useMemo(() => getFinalCostGuideEntries(), [modalState, searchQuery, costGuideEntries]);
+
 
   /**
    * Gère la sélection d'un niveau (1, 2, ou 3)
@@ -125,6 +163,7 @@ export default function CostGuideModal({
       ...(level <= 2 && { level3Selection: '', level4Selection: '' }),
       ...(level <= 3 && { level4Selection: '' })
     }));
+    // La recherche sera réinitialisée par l'useEffect
   };
 
   /**
@@ -139,29 +178,21 @@ export default function CostGuideModal({
    * Navigation retour dans le cost guide
    */
   const handleCostGuideBack = (e?: React.MouseEvent) => {
-    console.log('=== DEBUGGING handleCostGuideBack ===');
-    console.log('Niveau actuel:', modalState.currentLevel);
-    console.log('Event:', e);
-    
     // Empêcher toute propagation d'événement
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    console.log('Avant setState...');
-    
     setModalState(prev => {
       const newLevel = Math.max(1, prev.currentLevel - 1) as (1 | 2 | 3 | 4);
-      console.log('Changement de niveau:', prev.currentLevel, '->', newLevel);
       
       return {
         ...prev,
         currentLevel: newLevel
       };
     });
-    
-    console.log('Après setState...');
+    // La recherche sera réinitialisée par l'useEffect
   };
 
   /**
@@ -238,25 +269,26 @@ export default function CostGuideModal({
         </div>
 
         {/* Bouton retour */}
-
-
-
-
         {modalState.currentLevel > 1 && (
-  <button
-    type="button"
-    onClick={(e) => {
-      handleCostGuideBack(e);
-    }}
-    onMouseDown={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }}
-    className="mb-4 px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
-  >
-    {t('costGuideModal.buttons.back')}
-  </button>
-)}
+          <button
+            type="button"
+            onClick={handleCostGuideBack}
+            className="mb-4 px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+          >
+            {t('costGuideModal.buttons.back')}
+          </button>
+        )}
+
+        {/* Barre de recherche (ajoutée ici) */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder={`${t('common.search')}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
 
         {/* Contenu selon le niveau actuel */}
         <div className="space-y-2">
@@ -267,7 +299,7 @@ export default function CostGuideModal({
                 {t('costGuideModal.selection.choose')} {getCurrentLevelTitle()}
               </h4>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-                {getCostGuideOptions(modalState.currentLevel).map((option) => (
+                {currentOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleCostGuideSelection(modalState.currentLevel as 1 | 2 | 3, option.value)}
@@ -279,6 +311,11 @@ export default function CostGuideModal({
                     </span>
                   </button>
                 ))}
+                {currentOptions.length === 0 && (
+                  <div className="text-center py-4 text-slate-500">
+                    <p>{t('costGuideModal.noOptions.searchResult')}</p>
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -288,7 +325,7 @@ export default function CostGuideModal({
                 {t('costGuideModal.selection.choose')} {getCurrentLevelTitle()}
               </h4>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-                {getFinalCostGuideEntries().map((entry) => (
+                {finalEntries.map((entry) => (
                   <button
                     key={entry.id}
                     onClick={() => handleApplyCostGuideSelection(entry)}
@@ -314,20 +351,25 @@ export default function CostGuideModal({
                     </div>
                   </button>
                 ))}
+                {finalEntries.length === 0 && (
+                  <div className="text-center py-4 text-slate-500">
+                    <p>{t('costGuideModal.noOptions.searchResult')}</p>
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
 
-        {/* Message si aucune option */}
-        {((modalState.currentLevel < 4 && getCostGuideOptions(modalState.currentLevel).length === 0) ||
-          (modalState.currentLevel === 4 && getFinalCostGuideEntries().length === 0)) && (
+        {/* Message si aucune option (seulement si la recherche est vide) */}
+        {searchQuery === '' && ((modalState.currentLevel < 4 && currentOptions.length === 0) ||
+          (modalState.currentLevel === 4 && finalEntries.length === 0)) && (
           <div className="text-center py-8 text-slate-500">
             <p>{t('costGuideModal.noOptions.title')}</p>
             <p className="text-sm mt-1">{t('costGuideModal.noOptions.instruction')}</p>
           </div>
         )}
-
+        
         {/* Footer */}
         <div className="flex justify-end mt-6 pt-4 border-t border-slate-200">
           <button

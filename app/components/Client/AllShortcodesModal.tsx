@@ -71,6 +71,7 @@ const AllShortcodesModal: React.FC<AllShortcodesModalProps> = ({
     if (searchQuery.trim()) {
       const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(shortcode =>
+        shortcode.id.toLowerCase().includes(searchLower) ||
         shortcode.SH_Code.toLowerCase().includes(searchLower) ||
         shortcode.SH_Display_Name_FR.toLowerCase().includes(searchLower) ||
         (shortcode.SH_Display_Name_EN?.toLowerCase().includes(searchLower)) ||

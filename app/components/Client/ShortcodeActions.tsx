@@ -3,6 +3,7 @@
  * Version restructurée avec interface plus intuitive et bouton "Voir tous les shortcodes".
  * Simplifie l'interface en regroupant les actions principales et améliore l'UX.
  * Ajout du champ SH_Type avec menu déroulant dans le modal de création.
+ * Ajout du champ SH_Tags pour entrer des tags séparés par des virgules.
  */
 'use client';
 
@@ -29,6 +30,7 @@ interface ShortcodeActionsProps {
     SH_Display_Name_EN: string;
     SH_Display_Name_FR: string;
     SH_Type: string;
+    SH_Tags?: string;
   }) => Promise<void>;
   onAddShortcode: (shortcodeId: string) => Promise<void>;
   searchQuery: string;
@@ -72,6 +74,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
     SH_Display_Name_EN: '',
     SH_Display_Name_FR: '',
     SH_Type: '',
+    SH_Tags: '',
   });
 
   // États pour traquer les modifications manuelles
@@ -150,13 +153,27 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
    */
   const handleCreateSubmit = async () => {
     try {
-      await onCreateShortcode(newShortcode);
+      const submitData: any = {
+        SH_Code: newShortcode.SH_Code,
+        SH_Default_UTM: newShortcode.SH_Default_UTM,
+        SH_Display_Name_EN: newShortcode.SH_Display_Name_EN,
+        SH_Display_Name_FR: newShortcode.SH_Display_Name_FR,
+        SH_Type: newShortcode.SH_Type,
+      };
+
+      // Ajouter SH_Tags seulement si non vide
+      if (newShortcode.SH_Tags.trim()) {
+        submitData.SH_Tags = newShortcode.SH_Tags.trim();
+      }
+
+      await onCreateShortcode(submitData);
       setNewShortcode({
         SH_Code: '',
         SH_Default_UTM: '',
         SH_Display_Name_EN: '',
         SH_Display_Name_FR: '',
         SH_Type: '',
+        SH_Tags: '',
       });
       // Réinitialiser les états de suivi
       setIsENManuallyEdited(false);
@@ -177,6 +194,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
       SH_Display_Name_EN: '',
       SH_Display_Name_FR: '',
       SH_Type: '',
+      SH_Tags: '',
     });
     setIsENManuallyEdited(false);
     setIsUTMManuallyEdited(false);
@@ -236,7 +254,7 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
         </div>
       </div>
 
-      {/* Modal de création de shortcode - avec champ SH_Type */}
+      {/* Modal de création de shortcode - avec champ SH_Type et SH_Tags */}
       <Transition show={isCreateModalOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={handleModalClose}>
           <div className="min-h-screen px-4 text-center">
@@ -310,6 +328,20 @@ const ShortcodeActions: React.FC<ShortcodeActionsProps> = ({
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="SH_Tags" className="block text-sm font-medium text-gray-700 mb-1">
+                      Tags
+                    </label>
+                    <input
+                      type="text"
+                      id="SH_Tags"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      placeholder="LMI_Local, COM"
+                      value={newShortcode.SH_Tags}
+                      onChange={(e) => setNewShortcode({...newShortcode, SH_Tags: e.target.value})}
+                    />
                   </div>
                   
                   <div>

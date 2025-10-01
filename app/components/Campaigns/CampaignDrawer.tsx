@@ -1,9 +1,8 @@
-// app/components/Campaigns/CampaignDrawer.tsx - AVEC VALIDATION OBLIGATOIRE DES DATES
+// app/components/Campaigns/CampaignDrawer.tsx - CORRECTION BOUCLE INFINIE
 
 /**
  * @file Ce fichier définit le composant CampaignDrawer avec validation obligatoire des champs critiques.
- * NOUVELLE FONCTIONNALITÉ : Validation programmatique qui empêche la sauvegarde si les dates
- * de début et de fin ne sont pas remplies, avec navigation automatique vers l'onglet concerné.
+ * CORRECTION: Utilisation de useCallback pour handleBreakdownsChange pour éviter les boucles infinies
  */
 
 'use client';
@@ -67,7 +66,7 @@ interface ClientConfig {
   CL_Custom_Fee_3?: string;
 }
 
-// NOUVEAU : Interface pour les erreurs de validation
+// Interface pour les erreurs de validation
 interface ValidationErrors {
   [fieldName: string]: string;
 }
@@ -86,7 +85,7 @@ export default function CampaignDrawer({
   const [activeTab, setActiveTab] = useState('info');
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
-  // NOUVEAU : État pour les erreurs de validation
+  // État pour les erreurs de validation
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [showValidationError, setShowValidationError] = useState(false);
 
@@ -104,7 +103,7 @@ export default function CampaignDrawer({
     'CA_Custom_Dim_3'
   ], []);
 
-  // NOUVEAU : Définition des champs obligatoires avec leurs onglets
+  // Définition des champs obligatoires avec leurs onglets
   const REQUIRED_FIELDS = useMemo(() => [
     { 
       field: 'CA_Start_Date', 
@@ -160,7 +159,7 @@ export default function CampaignDrawer({
     [t]
   );
 
-  // NOUVEAU : Fonction de validation des champs obligatoires
+  // Fonction de validation des champs obligatoires
   const validateRequiredFields = useCallback((): { isValid: boolean; errors: ValidationErrors; firstErrorTab: string | null } => {
     const errors: ValidationErrors = {};
     let firstErrorTab: string | null = null;
@@ -222,7 +221,6 @@ export default function CampaignDrawer({
       });
       setActiveTab('info');
       setAdditionalBreakdowns([]);
-      // NOUVEAU : Réinitialiser les erreurs de validation
       setValidationErrors({});
       setShowValidationError(false);
     } else {
@@ -240,7 +238,6 @@ export default function CampaignDrawer({
       });
       setActiveTab('info');
       setAdditionalBreakdowns([]);
-      // NOUVEAU : Réinitialiser les erreurs de validation
       setValidationErrors({});
       setShowValidationError(false);
     }
@@ -251,7 +248,6 @@ export default function CampaignDrawer({
     if (isOpen) {
       setActiveTab('info');
       setActiveTooltip(null);
-      // NOUVEAU : Réinitialiser les erreurs de validation
       setValidationErrors({});
       setShowValidationError(false);
       
@@ -416,7 +412,7 @@ export default function CampaignDrawer({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // NOUVEAU : Effacer l'erreur de validation pour ce champ quand l'utilisateur le modifie
+    // Effacer l'erreur de validation pour ce champ quand l'utilisateur le modifie
     if (validationErrors[name]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -432,12 +428,12 @@ export default function CampaignDrawer({
   };
 
   /**
-   * NOUVEAU : Gère la soumission du formulaire avec validation obligatoire des champs critiques.
+   * Gère la soumission du formulaire avec validation obligatoire des champs critiques.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // NOUVEAU : Validation avant sauvegarde
+    // Validation avant sauvegarde
     const validation = validateRequiredFields();
     
     if (!validation.isValid) {
@@ -475,9 +471,10 @@ export default function CampaignDrawer({
     }
   };
 
-  const handleBreakdownsChange = (breakdowns: BreakdownFormData[]) => {
+  // CORRECTION: Utilisation de useCallback pour éviter la boucle infinie
+  const handleBreakdownsChange = useCallback((breakdowns: BreakdownFormData[]) => {
     setAdditionalBreakdowns(breakdowns);
-  };
+  }, []); // Pas de dépendances car setAdditionalBreakdowns est stable
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -597,7 +594,7 @@ export default function CampaignDrawer({
                         </div>
                       </div>
 
-                      {/* NOUVEAU : Banner d'erreur de validation */}
+                      {/* Banner d'erreur de validation */}
                       {showValidationError && Object.keys(validationErrors).length > 0 && (
                         <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
                           <div className="flex">
