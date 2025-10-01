@@ -6,6 +6,7 @@
  * créer des versions originales de campagnes et gérer les breakdowns par défaut associés.
  * C'est le point central pour interagir avec la collection 'campaigns' de Firebase.
  * CORRIGÉ: Suppression des appels répétés à ensureDefaultBreakdownExists dans getCampaigns
+ * NOUVEAU: Support multilingue pour le nom du breakdown par défaut
  */
 import {
   collection,
@@ -114,14 +115,16 @@ export async function getCampaigns(CA_Client: string): Promise<Campaign[]> {
 }
 
 /**
- * ✅ NOUVELLE FONCTION: Vérification des breakdowns par défaut à la demande.
+ * MODIFIÉ: Vérification des breakdowns par défaut à la demande avec support multilingue.
  * À appeler seulement quand une campagne est sélectionnée, pas à chaque getCampaigns.
  * @param CA_Client L'identifiant du client.
  * @param campaign L'objet campagne.
+ * @param language La langue pour le nom du breakdown ('FR' ou 'EN'). Par défaut 'FR'.
  */
 export async function ensureDefaultBreakdownForCampaign(
   CA_Client: string,
-  campaign: Campaign
+  campaign: Campaign,
+  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
 ): Promise<void> {
   if (campaign.CA_Start_Date && campaign.CA_End_Date) {
     try {
@@ -130,7 +133,8 @@ export async function ensureDefaultBreakdownForCampaign(
         CA_Client, 
         campaign.id, 
         campaign.CA_Start_Date, 
-        campaign.CA_End_Date
+        campaign.CA_End_Date,
+        language // NOUVEAU: Passer la langue
       );
     } catch (error) {
       console.warn(`Impossible de vérifier le breakdown par défaut pour la campagne ${campaign.id}:`, error);
@@ -139,19 +143,21 @@ export async function ensureDefaultBreakdownForCampaign(
 }
 
 /**
- * Crée une nouvelle campagne dans Firebase avec les données fournies.
+ * MODIFIÉ: Crée une nouvelle campagne dans Firebase avec les données fournies et support multilingue.
  * Initialise également une version originale et, si nécessaire, des breakdowns additionnels ou un breakdown par défaut.
  * @param CA_Client L'identifiant du client.
  * @param campaignData Les données du formulaire de la nouvelle campagne.
  * @param userEmail L'e-mail de l'utilisateur qui crée la campagne.
  * @param additionalBreakdowns Un tableau optionnel de breakdowns à ajouter lors de la création.
+ * @param language La langue pour le nom du breakdown par défaut ('FR' ou 'EN'). Par défaut 'FR'.
  * @returns L'identifiant du document de la campagne créée.
  */
 export async function createCampaign(
   CA_Client: string,
   campaignData: CampaignFormData,
   userEmail: string,
-  additionalBreakdowns: any[] = []
+  additionalBreakdowns: any[] = [],
+  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
 ): Promise<string> {
   try {
     console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: createCampaign - Path: clients/${CA_Client}/campaigns");
@@ -200,7 +206,8 @@ export async function createCampaign(
           CA_Client,
           docRef.id,
           campaignData.CA_Start_Date,
-          campaignData.CA_End_Date
+          campaignData.CA_End_Date,
+          language // NOUVEAU: Passer la langue
         );
       }
     }
@@ -213,17 +220,19 @@ export async function createCampaign(
 }
 
 /**
- * Met à jour une campagne existante dans Firebase avec les nouvelles données.
+ * MODIFIÉ: Met à jour une campagne existante dans Firebase avec les nouvelles données et support multilingue.
  * Si les dates de début ou de fin de la campagne changent, met à jour les dates du breakdown par défaut.
  * @param CA_Client L'identifiant du client.
  * @param campaignId L'identifiant de la campagne à mettre à jour.
  * @param campaignData Les données du formulaire mises à jour pour la campagne.
+ * @param language La langue pour le nom du breakdown par défaut ('FR' ou 'EN'). Par défaut 'FR'.
  * @returns Une promesse qui résout une fois la mise à jour terminée.
  */
 export async function updateCampaign(
   CA_Client: string,
   campaignId: string,
-  campaignData: CampaignFormData
+  campaignData: CampaignFormData,
+  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
 ): Promise<void> {
   try {
     console.log("FIREBASE: ÉCRITURE - Fichier: campaignService.ts - Fonction: updateCampaign - Path: clients/${CA_Client}/campaigns/${campaignId}");
@@ -268,7 +277,8 @@ export async function updateCampaign(
         CA_Client,
         campaignId,
         campaignData.CA_Start_Date,
-        campaignData.CA_End_Date
+        campaignData.CA_End_Date,
+        language // NOUVEAU: Passer la langue
       );
       await updateDefaultBreakdownDates(
         CA_Client,

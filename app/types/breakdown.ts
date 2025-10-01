@@ -4,6 +4,7 @@
  * - Support des champs date et name pour les périodes
  * - Distinction entre types automatiques et custom
  * - Support du sous-type pour les breakdowns mensuels
+ * - NOUVEAU: Support multilingue pour le nom du breakdown par défaut
  */
 export type BreakdownType = 'Mensuel' | 'Hebdomadaire' | 'Custom' | 'PEBs';
 
@@ -160,7 +161,7 @@ export const BREAKDOWN_SUB_TYPES: { value: BreakdownSubType; label: string }[] =
 // NOUVEAU: Sous-type par défaut pour les breakdowns mensuels
 export const DEFAULT_BREAKDOWN_SUB_TYPE: BreakdownSubType = 'Planned';
 
-// Nom du breakdown par défaut
+// Nom du breakdown par défaut (utilisé comme fallback)
 export const DEFAULT_BREAKDOWN_NAME = 'Calendrier';
 
 // NOUVEAU: Limite de breakdowns par campagne
@@ -169,6 +170,18 @@ export const MAX_BREAKDOWNS_PER_CAMPAIGN = 5;
 // ============================================================================
 // FONCTIONS UTILITAIRES AMÉLIORÉES
 // ============================================================================
+
+/**
+ * NOUVEAU: Retourne le nom du breakdown par défaut selon la langue
+ * @param language - Langue souhaitée ('FR' ou 'EN')
+ * @returns Le nom traduit du breakdown par défaut
+ */
+export const getDefaultBreakdownName = (language?: 'FR' | 'EN'): string => {
+  if (language === 'EN') {
+    return 'Calendar';
+  }
+  return 'Calendrier'; // FR par défaut
+};
 
 /**
  * Crée un objet CustomPeriodFormData vide avec un ordre donné

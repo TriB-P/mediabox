@@ -251,7 +251,8 @@ export const translations = {
         yearPlaceholder: "Sélectionner une année",
         customDimHelp: "Dimension: {{name}}",
         customDimSelectPlaceholder: "Sélectionner {{name}}",
-        customDimInputPlaceholder: "Saisir {{name}}"
+        customDimInputPlaceholder: "Saisir {{name}}",
+        identifierInstructions:"Caractères autorisés : lettres, chiffres et tiret (-)"
       },
       versions: {
         title: "Versions",
@@ -1029,49 +1030,60 @@ export const translations = {
       }
     },
     clientCurrencies: {
-      header: {
-        title: "Taux de conversion"
-      },
-      actions: {
-        add: "Ajouter"
-      },
-      filters: {
-        searchPlaceholder: "Rechercher...",
-        allYears: "Toutes les années"
-      },
-      table: {
-        year: "Année",
-        from: "De",
-        to: "Vers",
-        rate: "Taux",
-        actions: "Actions"
-      },
-      messages: {
-        selectClient: "Veuillez sélectionner un client pour voir ses taux de conversion.",
-        loading: "Chargement des taux de conversion...",
-        noRatesConfigured: "Aucun taux de conversion configuré pour ce client.",
-        noFilterResults: "Aucun résultat pour votre recherche."
-      },
-      permissions: {
-        noAddPermission: "Vous n'avez pas la permission d'ajouter des taux de conversion",
-        readOnlyWarning: "Vous êtes en mode lecture seule. Vous n'avez pas les permissions nécessaires pour modifier les taux de conversion des devises.",
-        noEditPermission: "Vous n'avez pas la permission de modifier les taux",
-        noDeletePermission: "Vous n'avez pas la permission de supprimer les taux"
-      },
       errors: {
-        loadFailed: "Impossible de charger les devises du client.",
-        addFailed: "Impossible d'ajouter la devise.",
-        updateFailed: "Impossible de mettre à jour la devise.",
-        deleteFailed: "Impossible de supprimer la devise."
+        loadFailed: "Erreur lors du chargement des taux de conversion. Veuillez réessayer.",
+        addFailed: "Erreur lors de l'ajout du taux de conversion.",
+        updateFailed: "Erreur lors de la mise à jour du taux de conversion.",
+        deleteFailed: "Erreur lors de la suppression du taux de conversion."
       },
       confirmations: {
         delete: "Êtes-vous sûr de vouloir supprimer ce taux de conversion ?"
       },
+      messages: {
+        selectClient: "Veuillez sélectionner un client pour gérer ses taux de conversion.",
+        noCurrenciesConfigured: {
+          title: "Aucun taux de change configuré",
+          text: "Ajoutez des taux de change avec des versions personnalisées (ex: \"2025 v1\", \"2025 v2\")"
+        },
+        noFilterResults: "Aucun taux de conversion ne correspond à vos critères de recherche ou de filtre."
+      },
+      header: {
+        title: "Taux de Conversion des Devises du Client"
+      },
+      search: {
+        placeholder: "Rechercher devises ou versions..."
+      },
+      versionFilter: {
+        all: "Toutes les versions"
+      },
+      permissions: {
+        noAddPermission: "Vous n'avez pas la permission d'ajouter un nouveau taux de conversion.",
+        readOnlyWarning: "Vous n'avez qu'un accès en lecture seule aux taux de conversion des devises.",
+        noEditPermission: "Vous n'avez pas la permission de modifier ce taux de conversion.",
+        noDeletePermission: "Vous n'avez pas la permission de supprimer ce taux de conversion."
+      },
+      actions: {
+        add: "Ajouter un taux"
+      },
+      table: {
+        version: "Version",
+        from: "Devise De",
+        to: "Devise À",
+        rate: "Taux",
+        actions: "Actions"
+      },
+      info: {
+        customVersions: {
+          title: "Versions personnalisées",
+          text: "Vous pouvez créer des versions comme \"2025 v1\", \"2025 v2\" ou \"2025 Q1\" pour gérer plusieurs taux pour une même paire de devises. Cela permet de choisir précisément quel taux utiliser lors de la création des tactiques."
+        }
+      },
       form: {
-        addTitle: "Ajouter un taux",
-        editTitle: "Modifier le taux"
+        editTitle: "Modifier le taux de conversion",
+        addTitle: "Ajouter un nouveau taux de conversion"
       }
     },
+
     clientCustomCodes: {
       page: {
         prompt: "Veuillez sélectionner un client pour gérer les codes personnalisés.",
@@ -4945,7 +4957,8 @@ export const translations = {
         yearPlaceholder: "Select a year",
         customDimHelp: "Dimension: {{name}}",
         customDimSelectPlaceholder: "Select {{name}}",
-        customDimInputPlaceholder: "Enter {{name}}"
+        customDimInputPlaceholder: "Enter {{name}}",
+        identifierInstructions:"Allowed characters: letters, numbers, and hyphen (-)"
       },
       versions: {
         title: "Versions",
@@ -5505,47 +5518,57 @@ export const translations = {
       }
     },
     clientCurrencies: {
-      header: {
-        title: "Conversion Rates"
-      },
-      actions: {
-        add: "Add"
-      },
-      filters: {
-        searchPlaceholder: "Search...",
-        allYears: "All years"
-      },
-      table: {
-        year: "Year",
-        from: "From",
-        to: "To",
-        rate: "Rate",
-        actions: "Actions"
-      },
-      messages: {
-        selectClient: "Please select a client to see their conversion rates.",
-        loading: "Loading conversion rates...",
-        noRatesConfigured: "No conversion rates configured for this client.",
-        noFilterResults: "No results for your search."
-      },
-      permissions: {
-        noAddPermission: "You do not have permission to add conversion rates",
-        readOnlyWarning: "You are in read-only mode. You do not have the necessary permissions to modify currency conversion rates.",
-        noEditPermission: "You do not have permission to edit rates",
-        noDeletePermission: "You do not have permission to delete rates"
-      },
       errors: {
-        loadFailed: "Could not load client currencies.",
-        addFailed: "Could not add the currency.",
-        updateFailed: "Could not update the currency.",
-        deleteFailed: "Could not delete the currency."
+        loadFailed: "Error loading conversion rates. Please try again.",
+        addFailed: "Error adding the conversion rate.",
+        updateFailed: "Error updating the conversion rate.",
+        deleteFailed: "Error deleting the conversion rate."
       },
       confirmations: {
         delete: "Are you sure you want to delete this conversion rate?"
       },
+      messages: {
+        selectClient: "Please select a client to manage their conversion rates.",
+        noCurrenciesConfigured: {
+          title: "No exchange rate configured",
+          text: "Add exchange rates with custom versions (e.g., \"2025 v1\", \"2025 v2\")"
+        },
+        noFilterResults: "No conversion rate matches your search or filter criteria."
+      },
+      header: {
+        title: "Client Currency Conversion Rates"
+      },
+      search: {
+        placeholder: "Search currencies or versions..."
+      },
+      versionFilter: {
+        all: "All versions"
+      },
+      permissions: {
+        noAddPermission: "You do not have permission to add a new conversion rate.",
+        readOnlyWarning: "You have read-only access to currency conversion rates.",
+        noEditPermission: "You do not have permission to edit this conversion rate.",
+        noDeletePermission: "You do not have permission to delete this conversion rate."
+      },
+      actions: {
+        add: "Add Rate"
+      },
+      table: {
+        version: "Version",
+        from: "Currency From",
+        to: "Currency To",
+        rate: "Rate",
+        actions: "Actions"
+      },
+      info: {
+        customVersions: {
+          title: "Custom Versions",
+          text: "You can create versions like \"2025 v1\", \"2025 v2\" or \"2025 Q1\" to manage multiple rates for the same currency pair. This allows you to choose exactly which rate to use when creating tactics."
+        }
+      },
       form: {
-        addTitle: "Add Rate",
-        editTitle: "Edit Rate"
+        editTitle: "Edit Conversion Rate",
+        addTitle: "Add New Conversion Rate"
       }
     },
     clientCustomCodes: {

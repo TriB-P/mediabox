@@ -260,7 +260,7 @@ export default function TactiquesTimelineView({
                     const Icon = getBreakdownIcon(breakdown.type);
                     return (
                       <option key={breakdown.id} value={breakdown.id}>
-                        {breakdown.name} ({breakdown.type})
+                        {breakdown.name}
                       </option>
                     );
                   })}

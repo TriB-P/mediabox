@@ -5,6 +5,7 @@
  * Il offre des fonctionnalités telles que la recherche, l'affichage de statistiques (nombre total de campagnes, budget total),
  * et la possibilité de créer ou de modifier une campagne via un panneau latéral (drawer).
  * La page gère son propre état, y compris la liste des campagnes, le chargement, les erreurs, et l'état du drawer.
+ * NOUVEAU: Support multilingue pour le nom du breakdown par défaut
  */
 
 'use client';
@@ -75,7 +76,7 @@ const cardVariants: Variants = {
 export default function CampaignsPage() {
   const { selectedClient } = useClient();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation(); // MODIFIÉ: Ajout de 'language'
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +159,7 @@ export default function CampaignsPage() {
   };
 
   /**
-   * Gère la sauvegarde d'une campagne, qu'il s'agisse d'une création ou d'une modification.
+   * MODIFIÉ: Gère la sauvegarde d'une campagne avec support multilingue.
    * Appelle le service approprié pour interagir avec la base de données.
    * @param {CampaignFormData} campaignData Les données du formulaire de la campagne.
    * @param {BreakdownFormData[]} [additionalBreakdowns] Une liste optionnelle de breakdowns supplémentaires à créer.
@@ -173,14 +174,22 @@ export default function CampaignsPage() {
     try {
       if (editingCampaign) {
         console.log(`FIREBASE: ÉCRITURE - Fichier: app/campaigns/page.tsx - Fonction: handleSaveCampaign - Path: clients/${selectedClient.clientId}/campaigns/${editingCampaign.id}`);
-        await updateCampaign(selectedClient.clientId, editingCampaign.id, campaignData);
+        // MODIFIÉ: Passage du paramètre language
+        await updateCampaign(
+          selectedClient.clientId, 
+          editingCampaign.id, 
+          campaignData,
+          language.toUpperCase() as 'FR' | 'EN' // NOUVEAU: Langue pour le breakdown
+        );
       } else {
         console.log(`FIREBASE: ÉCRITURE - Fichier: app/campaigns/page.tsx - Fonction: handleSaveCampaign - Path: clients/${selectedClient.clientId}/campaigns`);
+        // MODIFIÉ: Passage du paramètre language
         await createCampaign(
           selectedClient.clientId,
           campaignData,
           user.email,
-          additionalBreakdowns || []
+          additionalBreakdowns || [],
+          language.toUpperCase() as 'FR' | 'EN' // NOUVEAU: Langue pour le breakdown
         );
       }
 

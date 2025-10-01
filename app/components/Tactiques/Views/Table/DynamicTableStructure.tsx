@@ -201,15 +201,21 @@ const TRIGGER_RECALC_FIELDS = [
   'TC_Fee_2_Option', 'TC_Fee_2_Volume',
   'TC_Fee_3_Option', 'TC_Fee_3_Volume',
   'TC_Fee_4_Option', 'TC_Fee_4_Volume',
-  'TC_Fee_5_Option', 'TC_Fee_5_Volume'
+  'TC_Fee_5_Option', 'TC_Fee_5_Volume',
+  // 🆕 Ajouter les champs CM360
+  'TC_Buy_Type',
+  'TC_CM360_Volume_Linked_To_Unit_Volume'
 ];
 
 // NOUVEAU : Champs calculés automatiquement (readonly)
 const CALCULATED_FIELDS = [
   'TC_Unit_Volume', 'TC_Media_Budget', 'TC_Client_Budget', 'TC_Client_Budget_RefCurrency',
   'TC_Bonification', 'TC_Total_Fees',
-  'TC_Fee_1_Value', 'TC_Fee_2_Value', 'TC_Fee_3_Value', 'TC_Fee_4_Value', 'TC_Fee_5_Value'
+  'TC_Fee_1_Value', 'TC_Fee_2_Value', 'TC_Fee_3_Value', 'TC_Fee_4_Value', 'TC_Fee_5_Value',
+  'TC_CM360_Rate' // 🆕 NOUVEAU
 ];
+
+
 
 function shouldRecalculate(fieldKey: string): boolean {
   return TRIGGER_RECALC_FIELDS.includes(fieldKey);
@@ -270,6 +276,49 @@ export default function DynamicTableStructure({
 
   const tableRef = useRef<HTMLTableElement>(null);
 
+  const calculateCM360Values = useCallback((rowData: any): {
+  TC_CM360_Rate: number;
+  TC_CM360_Volume?: number;
+} => {
+  const mediaBudget = rowData.TC_Media_Budget || 0;
+  const volume = rowData.TC_CM360_Volume || 0;
+  const buyType = rowData.TC_Buy_Type;
+  const isLinked = rowData.TC_CM360_Volume_Linked_To_Unit_Volume || false;
+  const unitVolume = rowData.TC_Unit_Volume || 0;
+
+  let calculatedVolume: number | undefined = undefined;
+  
+  // Si liaison activée, synchroniser avec TC_Unit_Volume
+  if (isLinked && unitVolume !== volume && unitVolume > 0) {
+    calculatedVolume = unitVolume;
+  }
+
+  // Calculer le taux
+  const volumeToUse = calculatedVolume !== undefined ? calculatedVolume : volume;
+  let calculatedRate = 0;
+
+  if (volumeToUse > 0) {
+    const baseRate = mediaBudget / volumeToUse;
+    
+    if (buyType === 'CPM') {
+      calculatedRate = baseRate * 1000;
+    } else {
+      calculatedRate = baseRate;
+    }
+  }
+
+  const result: { TC_CM360_Rate: number; TC_CM360_Volume?: number } = {
+    TC_CM360_Rate: calculatedRate
+  };
+
+  if (calculatedVolume !== undefined) {
+    result.TC_CM360_Volume = calculatedVolume;
+  }
+
+  return result;
+}, []);
+
+
   // NOUVEAU : Convertir clientFees pour le budgetService
   const budgetClientFees = useMemo(() => {
     return clientFees.map(convertToBudgetClientFee);
@@ -289,100 +338,110 @@ export default function DynamicTableStructure({
    * 🆕 NOUVEAU : Logique de calcul modifiée pour permettre TC_Unit_Price = 0
    * Supprime la logique qui court-circuitait les calculs et laisse budgetService tout gérer
    */
- const performBudgetCalculation = useCallback((
-   entityId: string, 
-   currentRowData: any, 
-   changedField?: string, 
-   changedValue?: any
- ) => {
-   try {
-     // Construire les données complètes avec la modification
-     const completeRowData = {
-       ...currentRowData,
-       ...(changedField && changedValue !== undefined ? { [changedField]: changedValue } : {})
-     };
- 
-     // 🆕 NOUVEAU : Laisser budgetService gérer TOUS les cas, y compris TC_Unit_Price = 0
-     // budgetService a été modifié pour accepter TC_Unit_Price = 0 et calculer normalement
-     
-     // Convertir vers BudgetData
-     const budgetData = convertRowDataToBudgetData(completeRowData, unitTypeOptions);
- 
-     // Effectuer le calcul avec budgetService (même logique que le drawer)
-     const result = budgetService.calculateComplete(
-       budgetData,
-       budgetClientFees,
-       exchangeRates,
-       campaignCurrency,
-       unitTypeOptions
-     );
- 
-     if (result.success && result.data) {
-       const updatedData = result.data.updatedData;
-       
-       // Préparer les mises à jour pour les champs calculés
-       const calculatedUpdates: { [key: string]: any } = {};
-       
-       // Champs calculés principaux
-       calculatedUpdates.TC_Unit_Volume = updatedData.TC_Unit_Volume;
-       calculatedUpdates.TC_Media_Budget = updatedData.TC_Media_Budget;
-       calculatedUpdates.TC_Client_Budget = updatedData.TC_Client_Budget;
-       calculatedUpdates.TC_Bonification = updatedData.TC_Bonification;
-       calculatedUpdates.TC_Currency_Rate = updatedData.TC_Currency_Rate;
-       calculatedUpdates.TC_Delta = updatedData.TC_Delta;
-       
-       // Montants des frais
-       calculatedUpdates.TC_Fee_1_Value = updatedData.TC_Fee_1_Value;
-       calculatedUpdates.TC_Fee_2_Value = updatedData.TC_Fee_2_Value;
-       calculatedUpdates.TC_Fee_3_Value = updatedData.TC_Fee_3_Value;
-       calculatedUpdates.TC_Fee_4_Value = updatedData.TC_Fee_4_Value;
-       calculatedUpdates.TC_Fee_5_Value = updatedData.TC_Fee_5_Value;
+const performBudgetCalculation = useCallback((
+  entityId: string, 
+  currentRowData: any, 
+  changedField?: string, 
+  changedValue?: any
+) => {
+  try {
+    // Construire les données complètes avec la modification
+    const completeRowData = {
+      ...currentRowData,
+      ...(changedField && changedValue !== undefined ? { [changedField]: changedValue } : {})
+    };
 
-       // 🆕 CORRECTION : Inclure les RefCurrency calculés par budgetService
-       if (updatedData.TC_Media_Budget_RefCurrency !== undefined) {
-         calculatedUpdates.TC_Media_Budget_RefCurrency = updatedData.TC_Media_Budget_RefCurrency;
-       }
-       if (updatedData.TC_Client_Budget_RefCurrency !== undefined) {
-         calculatedUpdates.TC_Client_Budget_RefCurrency = updatedData.TC_Client_Budget_RefCurrency;
-       }
-       
-       const updatedDataAny = updatedData as any; // Casting pour accès dynamique
-       for (let i = 1; i <= 5; i++) {
-         const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
-         if (updatedDataAny[refCurrencyKey] !== undefined) {
-           calculatedUpdates[refCurrencyKey] = updatedDataAny[refCurrencyKey];
-         }
-       }
+    // Convertir vers BudgetData
+    const budgetData = convertRowDataToBudgetData(completeRowData, unitTypeOptions);
 
-       // Calculer le total des frais
-       const totalFees = updatedData.TC_Fee_1_Value + updatedData.TC_Fee_2_Value + 
-                        updatedData.TC_Fee_3_Value + updatedData.TC_Fee_4_Value + 
-                        updatedData.TC_Fee_5_Value;
-       calculatedUpdates.TC_Total_Fees = totalFees;
+    // Effectuer le calcul avec budgetService
+    const result = budgetService.calculateComplete(
+      budgetData,
+      budgetClientFees,
+      exchangeRates,
+      campaignCurrency,
+      unitTypeOptions
+    );
 
- 
-       // Appliquer toutes les mises à jour calculées
-       Object.entries(calculatedUpdates).forEach(([fieldKey, value]) => {
-         onCellChange(entityId, fieldKey, value);
-       });
- 
-       console.log(`✅ Calcul budget réussi pour ${entityId}:`, {
-         mediaBudget: updatedData.TC_Media_Budget,
-         clientBudget: updatedData.TC_Client_Budget,
-         unitVolume: updatedData.TC_Unit_Volume,
-         totalFees,
-         hasConverged: result.data.hasConverged,
-         unitPrice: budgetData.TC_Unit_Price // ✅ Pour vérifier qu'on accepte 0
-       });
- 
-     } else {
-       console.error(`❌ Erreur calcul budget pour ${entityId}:`, result.error);
-     }
- 
-   } catch (error) {
-     console.error(`💥 Exception calcul budget pour ${entityId}:`, error);
-   }
- }, [budgetClientFees, exchangeRates, campaignCurrency, unitTypeOptions, onCellChange]);
+    if (result.success && result.data) {
+      const updatedData = result.data.updatedData;
+      
+      // Préparer les mises à jour pour les champs calculés
+      const calculatedUpdates: { [key: string]: any } = {};
+      
+      // Champs calculés principaux
+      calculatedUpdates.TC_Unit_Volume = updatedData.TC_Unit_Volume;
+      calculatedUpdates.TC_Media_Budget = updatedData.TC_Media_Budget;
+      calculatedUpdates.TC_Client_Budget = updatedData.TC_Client_Budget;
+      calculatedUpdates.TC_Bonification = updatedData.TC_Bonification;
+      calculatedUpdates.TC_Currency_Rate = updatedData.TC_Currency_Rate;
+      calculatedUpdates.TC_Delta = updatedData.TC_Delta;
+      
+      // Montants des frais
+      calculatedUpdates.TC_Fee_1_Value = updatedData.TC_Fee_1_Value;
+      calculatedUpdates.TC_Fee_2_Value = updatedData.TC_Fee_2_Value;
+      calculatedUpdates.TC_Fee_3_Value = updatedData.TC_Fee_3_Value;
+      calculatedUpdates.TC_Fee_4_Value = updatedData.TC_Fee_4_Value;
+      calculatedUpdates.TC_Fee_5_Value = updatedData.TC_Fee_5_Value;
+
+      // RefCurrency calculés
+      if (updatedData.TC_Media_Budget_RefCurrency !== undefined) {
+        calculatedUpdates.TC_Media_Budget_RefCurrency = updatedData.TC_Media_Budget_RefCurrency;
+      }
+      if (updatedData.TC_Client_Budget_RefCurrency !== undefined) {
+        calculatedUpdates.TC_Client_Budget_RefCurrency = updatedData.TC_Client_Budget_RefCurrency;
+      }
+      
+      const updatedDataAny = updatedData as any;
+      for (let i = 1; i <= 5; i++) {
+        const refCurrencyKey = `TC_Fee_${i}_RefCurrency`;
+        if (updatedDataAny[refCurrencyKey] !== undefined) {
+          calculatedUpdates[refCurrencyKey] = updatedDataAny[refCurrencyKey];
+        }
+      }
+
+      // Total des frais
+      const totalFees = updatedData.TC_Fee_1_Value + updatedData.TC_Fee_2_Value + 
+                       updatedData.TC_Fee_3_Value + updatedData.TC_Fee_4_Value + 
+                       updatedData.TC_Fee_5_Value;
+      calculatedUpdates.TC_Total_Fees = totalFees;
+
+      // 🆕 NOUVEAU : Calculer les valeurs CM360
+      const cm360Updates = calculateCM360Values({
+        ...completeRowData,
+        ...calculatedUpdates // Utiliser les valeurs fraîchement calculées
+      });
+
+      calculatedUpdates.TC_CM360_Rate = cm360Updates.TC_CM360_Rate;
+      
+      if (cm360Updates.TC_CM360_Volume !== undefined) {
+        calculatedUpdates.TC_CM360_Volume = cm360Updates.TC_CM360_Volume;
+      }
+
+      // Appliquer toutes les mises à jour calculées
+      Object.entries(calculatedUpdates).forEach(([fieldKey, value]) => {
+        onCellChange(entityId, fieldKey, value);
+      });
+
+      console.log(`✅ Calcul budget réussi pour ${entityId}:`, {
+        mediaBudget: updatedData.TC_Media_Budget,
+        clientBudget: updatedData.TC_Client_Budget,
+        unitVolume: updatedData.TC_Unit_Volume,
+        totalFees,
+        cm360Rate: cm360Updates.TC_CM360_Rate,
+        cm360Volume: cm360Updates.TC_CM360_Volume,
+        hasConverged: result.data.hasConverged
+      });
+
+    } else {
+      console.error(`❌ Erreur calcul budget pour ${entityId}:`, result.error);
+    }
+
+  } catch (error) {
+    console.error(`💥 Exception calcul budget pour ${entityId}:`, error);
+  }
+}, [budgetClientFees, exchangeRates, campaignCurrency, unitTypeOptions, onCellChange, calculateCM360Values]);
+
 
   /**
    * Charge les taxonomies du client

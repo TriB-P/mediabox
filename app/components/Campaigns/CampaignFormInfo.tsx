@@ -156,7 +156,7 @@ const CampaignFormInfo = memo<CampaignFormInfoProps>(({
             />
             <div className="flex justify-between items-center mt-1">
               <div className="text-xs text-gray-500">
-                Caractères autorisés : lettres, chiffres et tiret (-)
+                {t('campaigns.formInfo.identifierInstructions')}
               </div>
               <div className={`text-xs ${identifierLength >= identifierMaxLength ? 'text-red-500' : 'text-gray-500'}`}>
                 {identifierLength}/{identifierMaxLength}

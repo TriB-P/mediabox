@@ -180,7 +180,7 @@ const ClientCurrencies: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Rechercher devises ou versions..." // MODIFIÉ : placeholder plus inclusif
+                placeholder={t('clientCurrencies.search.placeholder')} // MODIFIÉ : placeholder plus inclusif
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -200,7 +200,7 @@ const ClientCurrencies: React.FC = () => {
               onChange={(e) => setSelectedVersion(e.target.value)} // MODIFIÉ : setSelectedYear -> setSelectedVersion
               className="border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
-              <option value="all">Toutes les versions</option> {/* MODIFIÉ : libellé */}
+              <option value="all">{t('clientCurrencies.versionFilter.all')}</option> {/* MODIFIÉ : libellé */}
               {uniqueVersions.map(version => (
                 <option key={version} value={version}>{version}</option> // MODIFIÉ : year -> version
               ))}
@@ -237,13 +237,13 @@ const ClientCurrencies: React.FC = () => {
         )}
 
         {loading ? (
-          <div className="py-4 text-center text-gray-500">{t('clientCurrencies.messages.loading')}</div>
+          <div className="py-4 text-center text-gray-500">{t('common.loading')}</div>
         ) : filteredCurrencies.length === 0 ? (
           <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg">
             {currencies.length === 0 ? (
               <div>
-                <p className="font-medium">Aucun taux de change configuré</p>
-                <p className="text-sm mt-1">Ajoutez des taux de change avec des versions personnalisées (ex: "2025 v1", "2025 v2")</p>
+                <p className="font-medium">{t('clientCurrencies.messages.noCurrenciesConfigured.title')}</p>
+                <p className="text-sm mt-1">{t('clientCurrencies.messages.noCurrenciesConfigured.text')}</p>
               </div>
             ) : (
               <p>{t('clientCurrencies.messages.noFilterResults')}</p>
@@ -255,7 +255,7 @@ const ClientCurrencies: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Version {/* MODIFIÉ : Année -> Version */}
+                    {t('clientCurrencies.table.version')} {/* MODIFIÉ : Année -> Version */}
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('clientCurrencies.table.from')}
@@ -341,11 +341,10 @@ const ClientCurrencies: React.FC = () => {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-blue-800">
-                  <strong>Versions personnalisées</strong>
+                  <strong>{t('clientCurrencies.info.customVersions.title')}</strong>
                 </p>
                 <p className="text-sm text-blue-700 mt-1">
-                  Vous pouvez créer des versions comme "2025 v1", "2025 v2" ou "2025 Q1" pour gérer plusieurs taux 
-                  pour une même paire de devises. Cela permet de choisir précisément quel taux utiliser lors de la création des tactiques.
+                  {t('clientCurrencies.info.customVersions.text')}
                 </p>
               </div>
             </div>

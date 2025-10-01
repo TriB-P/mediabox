@@ -6,6 +6,7 @@
  * - Limite à 5 breakdowns par campagne
  * - Support du sous-type pour les breakdowns mensuels
  * - Cohérence entre frontend et backend
+ * - NOUVEAU: Support multilingue pour le nom du breakdown par défaut
  */
 import {
   collection,
@@ -29,7 +30,8 @@ import {
   validateCustomPeriods,
   DEFAULT_BREAKDOWN_NAME,
   DEFAULT_BREAKDOWN_SUB_TYPE,
-  supportsSubType
+  supportsSubType,
+  getDefaultBreakdownName, // NOUVEAU: Import de la fonction multilingue
 } from '../types/breakdown';
 
 // ============================================================================
@@ -886,11 +888,16 @@ export async function updateDefaultBreakdownDates(
   }
 }
 
+/**
+ * MODIFIÉ: Crée le breakdown par défaut avec support multilingue
+ * @param language - Langue pour le nom du breakdown ('FR' ou 'EN')
+ */
 export async function createDefaultBreakdown(
   clientId: string,
   campaignId: string,
   campaignStartDate: string,
-  campaignEndDate: string
+  campaignEndDate: string,
+  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
 ): Promise<string> {
   try {
     const existingBreakdowns = await getBreakdowns(clientId, campaignId);
@@ -910,8 +917,10 @@ export async function createDefaultBreakdown(
       console.error('Erreur de validation de la date de fin:', endValidation.error);
       throw new Error(`Date de fin invalide: ${endValidation.error}`);
     }
+    
+    // NOUVEAU: Utiliser getDefaultBreakdownName au lieu de DEFAULT_BREAKDOWN_NAME
     const defaultBreakdownData: BreakdownFormData = {
-      name: DEFAULT_BREAKDOWN_NAME,
+      name: getDefaultBreakdownName(language), // MODIFIÉ: Nom multilingue
       type: 'Hebdomadaire',
       startDate: adjustedStartDate,
       endDate: campaignEndDate,
@@ -925,11 +934,16 @@ export async function createDefaultBreakdown(
   }
 }
 
+/**
+ * MODIFIÉ: Assure l'existence du breakdown par défaut avec support multilingue
+ * @param language - Langue pour le nom du breakdown ('FR' ou 'EN')
+ */
 export async function ensureDefaultBreakdownExists(
   clientId: string,
   campaignId: string,
   campaignStartDate: string,
-  campaignEndDate: string
+  campaignEndDate: string,
+  language?: 'FR' | 'EN' // NOUVEAU: Paramètre de langue
 ): Promise<string> {
   try {
     const existingBreakdowns = await getBreakdowns(clientId, campaignId);
@@ -937,7 +951,7 @@ export async function ensureDefaultBreakdownExists(
     if (defaultBreakdown) {
       return defaultBreakdown.id;
     }
-    return await createDefaultBreakdown(clientId, campaignId, campaignStartDate, campaignEndDate);
+    return await createDefaultBreakdown(clientId, campaignId, campaignStartDate, campaignEndDate, language);
   } catch (error) {
     console.error('Erreur lors de la vérification du breakdown par défaut:', error);
     throw error;
