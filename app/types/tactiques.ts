@@ -22,7 +22,7 @@ export interface Section {
 export interface Tactique {
   id: string;
   TC_Label: string;
-  TC_Budget: number;
+  TC_Budget?: number;  // ✅ SOLUTION - Type optionnel
   TC_Order: number;
   TC_MPA: string;
   TC_SectionId: string; // Référence à la section parente
@@ -334,7 +334,7 @@ export interface SectionWithTactiques extends Section {
 
 export interface TactiqueFormData {
   TC_Label: string;
-  TC_Budget: number;
+  TC_Budget?: number;  
   TC_MPA: string;
   TC_SectionId: string;
   TC_Comment?: string; // Commentaire sur la tactique

@@ -1,3 +1,4 @@
+// app/hooks/documents/useCombinedDocExport.ts
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -75,18 +76,36 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
   /**
    * NOUVELLE FONCTION : Nettoie et convertit les données en nombres purs.
    * MODIFIÉ : Exclut spécifiquement la colonne 'Value_text' de l'onglet 'MB_Splits'.
+   * MODIFIÉ : Force la colonne 'TC_CR_Spec_Ratio' en format texte pour éviter conversion en heure.
    */
   const convertToCleanNumbers = useCallback((data: any[][], sheetName: string): (string | number)[][] => {
     let valueTextIndex = -1;
+    let specRatioIndex = -1;
+    
     // Si nous sommes sur l'onglet MB_Splits et qu'il y a des données, trouver l'index de la colonne 'Value_text'
     if (sheetName === 'MB_Splits' && data.length > 0) {
       const headerRow = data[0];
       valueTextIndex = headerRow.findIndex(header => header === 'Value_text');
     }
+    
+    // Pour l'onglet MB_Data, trouver l'index de la colonne 'TC_CR_Spec_Ratio'
+    if (sheetName === 'MB_Data' && data.length > 0) {
+      const headerRow = data[0];
+      specRatioIndex = headerRow.findIndex(header => header === 'TC_CR_Spec_Ratio');
+    }
 
     return data.map((row, rowIndex) => 
       row.map((cell, colIndex) => {
-        // Condition d'exclusion : si c'est la colonne 'Value_text' dans 'MB_Splits' (et pas l'en-tête)
+        // CONDITION 1 : Forcer TC_CR_Spec_Ratio en texte (ex: "9:16" ne doit pas devenir une heure)
+        if (specRatioIndex !== -1 && colIndex === specRatioIndex && rowIndex > 0) {
+          if (cell === null || cell === undefined || cell === '') {
+            return cell;
+          }
+          // Ajouter un espace à la fin pour forcer le format texte sans apostrophe visible
+          return `${String(cell)} `;
+        }
+        
+        // CONDITION 2 : Exclure 'Value_text' dans 'MB_Splits' (et pas l'en-tête)
         if (valueTextIndex !== -1 && colIndex === valueTextIndex && rowIndex > 0) {
           // Retourner la valeur comme chaîne de caractères pour éviter la conversion
           return cell === null || cell === undefined ? cell : String(cell);
@@ -385,9 +404,6 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
 
   /**
    * FONCTION PRINCIPALE MODIFIÉE pour extraire et exporter les données combinées vers Google Sheets.
-   * NOUVEAU: Passage de la langue du template au hook de breakdown pour traduction des noms.
-   * Les nombres seront automatiquement affichés avec la bonne locale (. pour EN, , pour FR)
-   * mais stockés comme des vrais nombres (pas du texte).
    */
   const exportCombinedData = useCallback(async (
     clientId: string,
@@ -412,59 +428,41 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
     }
 
     try {
-      // 0.1. Récupérer les informations du template
       const template = await findTemplateFromDocument(clientId, campaignId, versionId, sheetUrl);
-
-      // 0.2. NOUVEAU: Déterminer la langue à utiliser pour les breakdowns
       const breakdownLanguage = getTemplateLanguage(template, exportLanguage);
-      console.log(`[EXPORT] Langue pour breakdown: ${breakdownLanguage} (Template: ${template?.TE_Language || 'N/A'}, Export: ${exportLanguage})`);
-
-      // 0.3. Synchroniser les onglets si nécessaire (AVANT de vider les feuilles)
+      
       if (template) {
         const tabsResult = await handleTabsRefresh(template, sheetId, clientId, campaignId, versionId);
         if (!tabsResult.success) {
-          console.warn('[EXPORT] Échec synchronisation onglets, poursuite de l\'exportation:', tabsResult.errorMessage);
+          console.warn('[EXPORT] Échec synchronisation onglets:', tabsResult.errorMessage);
         }
       }
 
-      // 0.4. Vider les feuilles cibles après synchronisation des onglets
       await clearSheetRange(sheetId, 'MB_Data', 'A:EZ');
       await clearSheetRange(sheetId, 'MB_Splits', 'A:EZ');
 
-      // 1. Extraire les données de campagne
       const campaignDataResult = await extractCampaignData(clientId, campaignId);
       if (campaignError) throw new Error(campaignError);
 
-      // 2. MODIFIÉ: Extraire les données de breakdown avec la langue du template
       const breakdownDataResult = await extractBreakdownData(clientId, campaignId, versionId, breakdownLanguage);
       if (breakdownError) throw new Error(breakdownError);
 
-      // 3. Extraire les données de hiérarchie nettoyées
       const cleanedDataResult = await cleanData(clientId, campaignId, versionId);
       if (cleanError) throw new Error(cleanError);
 
-      // Vérifier si toutes les données ont été extraites avec succès
       if (!campaignDataResult || !breakdownDataResult || !cleanedDataResult) {
         throw new Error(t('useCombinedDocExport.error.missingDataAfterExtraction'));
       }
 
-      console.log(`[COMBINED EXPORT] Données extraites avec succès, début de la conversion des shortcodes en ${exportLanguage}...`);
-
-      // 4. Convertir les shortcodes dans les données de campagne avec la langue spécifiée
       const convertedCampaignData = await convertShortcodes(campaignDataResult, clientId, breakdownLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCampaignData) throw new Error(t('useCombinedDocExport.error.campaignShortcodeConversion'));
 
-      // 5. Convertir les shortcodes dans les données de hiérarchie avec la langue spécifiée
       const convertedCleanedData = await convertShortcodes(cleanedDataResult, clientId, breakdownLanguage);
       if (convertError) throw new Error(convertError);
       if (!convertedCleanedData) throw new Error(t('useCombinedDocExport.error.hierarchyShortcodeConversion'));
 
-      console.log(`[COMBINED EXPORT] Conversion des shortcodes terminée en ${exportLanguage}, écriture vers Google Sheets...`);
-
-      // 6. Écrire les données converties dans Google Sheets
       const writePromises = [];
-
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A1', convertedCampaignData));
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Data', 'A4', convertedCleanedData));
       writePromises.push(writeToGoogleSheet(sheetId, 'MB_Splits', 'A1', breakdownDataResult));
@@ -476,9 +474,7 @@ export function useCombinedDocExport(): UseCombinedDocExportReturn {
         throw new Error(t('useCombinedDocExport.error.multipleWritesFailed'));
       }
 
-      const templateLang = template?.TE_Language || 'Auto';
-      console.log(`[COMBINED EXPORT] ✅ Exportation combinée terminée avec succès`);
-      console.log(`[COMBINED EXPORT] Template: ${templateLang}, Shortcodes: ${exportLanguage}, Breakdown: ${breakdownLanguage}, Nombres: format automatique selon locale du document`);
+      console.log(`[COMBINED EXPORT] ✅ Exportation terminée avec succès`);
       return true;
 
     } catch (err) {

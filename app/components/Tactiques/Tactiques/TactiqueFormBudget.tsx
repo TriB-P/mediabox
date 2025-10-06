@@ -671,18 +671,6 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
         </h3>
       </div>
 
-      {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <p className="text-sm">
-            <strong>{t('tactiqueFormBudget.form.calculationErrors')}</strong>
-          </p>
-          <ul className="list-disc list-inside text-sm mt-1">
-            {errors.map((error: string, index: number) => (
-              <li key={index}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {lastResult?.data?.convergenceInfo && !lastResult.data.convergenceInfo.hasConverged && (
         <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg">

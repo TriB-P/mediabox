@@ -1,4 +1,3 @@
-
 // app/components/Client/ClientAccess.tsx
 /**
  * Ce fichier contient le composant React `ClientAccess`.
@@ -6,11 +5,12 @@
  * Il permet d'afficher la liste des utilisateurs ayant déjà un accès, d'ajouter de nouveaux accès,
  * de modifier les droits existants (par exemple, passer un utilisateur d'un rôle "Utilisateur" à "Éditeur"),
  * et de révoquer l'accès d'un utilisateur.
+ * NOUVELLE FONCTIONNALITÉ : Ajout multiple d'utilisateurs via copier-coller d'emails
  * Le composant interagit avec Firebase pour récupérer les listes d'utilisateurs (actifs + invités) et pour mettre à jour les permissions.
  */
 'use client';
 
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useClient } from '../../contexts/ClientContext';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { 
@@ -21,15 +21,6 @@ import {
   UserAccess
 } from '../../lib/userService';
 import { getAllUsersWithStatus, UserWithStatus } from '../../lib/invitationService';
-import { Dialog } from '@headlessui/react';
-import { 
-  PencilIcon, 
-  TrashIcon,
-  XMarkIcon,
-  UserPlusIcon,
-  CheckCircleIcon,
-  ClockIcon
-} from '@heroicons/react/24/outline';
 import { useTranslation } from '../../contexts/LanguageContext';
 
 /**
@@ -64,6 +55,16 @@ const ClientAccess: React.FC = () => {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // Nouveaux états pour l'ajout multiple
+  const [addMode, setAddMode] = useState<'simple' | 'multiple'>('simple');
+  const [bulkEmailInput, setBulkEmailInput] = useState('');
+  const [validatedBulkUsers, setValidatedBulkUsers] = useState<{
+    valid: UserWithStatus[];
+    notFound: string[];
+    alreadyAdded: string[];
+  }>({ valid: [], notFound: [], alreadyAdded: [] });
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  
   useEffect(() => {
     if (selectedClient) {
       loadData();
@@ -86,10 +87,7 @@ const ClientAccess: React.FC = () => {
   }, [isDropdownOpen]);
 
   /**
-   * Charge les données depuis Firebase : la liste de tous les utilisateurs du système (actifs + invités)
-   * et la liste des utilisateurs ayant un accès spécifique au client sélectionné.
-   * @async
-   * @returns {Promise<void>}
+   * Charge les données depuis Firebase
    */
   const loadData = async () => {
     if (!selectedClient) return;
@@ -115,29 +113,25 @@ const ClientAccess: React.FC = () => {
   };
   
   /**
-   * Ouvre la fenêtre modale pour ajouter un nouvel utilisateur.
-   * Réinitialise les états du formulaire en mode "ajout".
-   * Ne fait rien si l'utilisateur n'a pas les permissions nécessaires.
-   * @returns {void}
+   * Ouvre la fenêtre modale pour ajouter un nouvel utilisateur
    */
   const openAddUserModal = () => {
     if (!hasAccessPermission) return;
     
     setIsEditing(false);
+    setAddMode('simple');
     setSelectedUser(null);
     setSelectedAccessLevel(ACCESS_LEVELS[1]);
     setNote('');
     setUserSearchQuery('');
     setIsDropdownOpen(false);
+    setBulkEmailInput('');
+    setValidatedBulkUsers({ valid: [], notFound: [], alreadyAdded: [] });
     setIsModalOpen(true);
   };
   
   /**
-   * Ouvre la fenêtre modale pour modifier un utilisateur existant.
-   * Pré-remplit le formulaire avec les informations de l'utilisateur sélectionné.
-   * Ne fait rien si l'utilisateur n'a pas les permissions nécessaires.
-   * @param {UserAccess} user - L'utilisateur dont l'accès doit être modifié.
-   * @returns {void}
+   * Ouvre la fenêtre modale pour modifier un utilisateur existant
    */
   const openEditUserModal = (user: UserAccess) => {
     if (!hasAccessPermission) return;
@@ -152,8 +146,7 @@ const ClientAccess: React.FC = () => {
   };
   
   /**
-   * Ferme la fenêtre modale et réinitialise l'état de l'utilisateur en cours d'édition.
-   * @returns {void}
+   * Ferme la fenêtre modale
    */
   const closeModal = () => {
     setIsModalOpen(false);
@@ -161,13 +154,53 @@ const ClientAccess: React.FC = () => {
     setIsDropdownOpen(false);
     setSelectedUser(null);
     setUserSearchQuery('');
+    setBulkEmailInput('');
+    setValidatedBulkUsers({ valid: [], notFound: [], alreadyAdded: [] });
+    setAddMode('simple');
   };
 
   /**
-   * Gère la soumission du formulaire pour ajouter un accès utilisateur.
-   * Appelle le service Firebase pour créer le nouvel accès, puis recharge les données.
-   * @async
-   * @returns {Promise<void>}
+   * Valide une liste d'emails et retourne les utilisateurs correspondants
+   */
+  const validateBulkEmails = (emailList: string) => {
+    const emails = emailList
+      .split('\n')
+      .map(email => email.trim().toLowerCase())
+      .filter(email => email.length > 0);
+    
+    const valid: UserWithStatus[] = [];
+    const notFound: string[] = [];
+    const alreadyAdded: string[] = [];
+    
+    emails.forEach(email => {
+      if (clientUsers.some(user => user.userEmail.toLowerCase() === email)) {
+        alreadyAdded.push(email);
+        return;
+      }
+      
+      const user = usersWithStatus.find(u => u.email.toLowerCase() === email);
+      
+      if (user) {
+        valid.push(user);
+      } else {
+        notFound.push(email);
+      }
+    });
+    
+    return { valid, notFound, alreadyAdded };
+  };
+
+  /**
+   * Gère le changement de texte dans la zone d'ajout multiple
+   */
+  const handleBulkEmailChange = (value: string) => {
+    setBulkEmailInput(value);
+    const validated = validateBulkEmails(value);
+    setValidatedBulkUsers(validated);
+  };
+
+  /**
+   * Gère la soumission du formulaire pour ajouter un accès utilisateur
    */
   const handleAddUser = async () => {
     if (!selectedClient || !selectedUser || !hasAccessPermission) return;
@@ -199,10 +232,64 @@ const ClientAccess: React.FC = () => {
   };
 
   /**
-   * Gère la soumission du formulaire pour mettre à jour un accès utilisateur.
-   * Appelle le service Firebase pour modifier l'accès, puis recharge les données.
-   * @async
-   * @returns {Promise<void>}
+   * Gère l'ajout multiple d'utilisateurs
+   */
+  const handleAddMultipleUsers = async () => {
+    if (!selectedClient || !hasAccessPermission || validatedBulkUsers.valid.length === 0) return;
+    
+    setIsProcessingBulk(true);
+    setError(null);
+    
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+    
+    try {
+      for (const user of validatedBulkUsers.valid) {
+        try {
+          console.log(`FIREBASE: [ÉCRITURE] - Fichier: ClientAccess.tsx - Fonction: handleAddMultipleUsers - Path: clients/${selectedClient.clientId}/userAccess`);
+          await addUserAccess(
+            selectedClient.clientId,
+            selectedClient.CL_Name,
+            {
+              userEmail: user.email,
+              accessLevel: selectedAccessLevel.value as 'editor' | 'user',
+              note: note
+            }
+          );
+          results.success++;
+        } catch (err) {
+          results.failed++;
+          results.errors.push(`${user.email}: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+        }
+      }
+      
+      let successMessage = `${results.success} utilisateur(s) ajouté(s) avec succès`;
+      if (results.failed > 0) {
+        successMessage += ` (${results.failed} échec(s))`;
+      }
+      if (validatedBulkUsers.notFound.length > 0) {
+        successMessage += `. ${validatedBulkUsers.notFound.length} email(s) non trouvé(s)`;
+      }
+      
+      setSuccess(successMessage);
+      setTimeout(() => setSuccess(null), 5000);
+      
+      await loadData();
+      closeModal();
+      
+    } catch (err) {
+      console.error('Erreur lors de l\'ajout multiple:', err);
+      setError('Erreur lors de l\'ajout multiple des utilisateurs');
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  };
+
+  /**
+   * Gère la mise à jour d'un utilisateur
    */
   const handleUpdateUser = async () => {
     if (!selectedClient || !currentUser || !hasAccessPermission) return;
@@ -233,11 +320,7 @@ const ClientAccess: React.FC = () => {
   };
 
   /**
-   * Gère la suppression de l'accès d'un utilisateur après confirmation.
-   * Appelle le service Firebase pour supprimer l'accès, puis recharge les données.
-   * @param {string} userEmail - L'email de l'utilisateur dont l'accès doit être supprimé.
-   * @async
-   * @returns {Promise<void>}
+   * Gère la suppression de l'accès d'un utilisateur
    */
   const handleRemoveUser = async (userEmail: string) => {
     if (!selectedClient || !hasAccessPermission) return;
@@ -262,29 +345,23 @@ const ClientAccess: React.FC = () => {
   
   /**
    * Retourne le badge de statut approprié pour un utilisateur
-   * @param {UserWithStatus['status']} status - Le statut de l'utilisateur
-   * @returns {JSX.Element} Badge JSX avec icône et texte
    */
   const getUserStatusBadge = (status: UserWithStatus['status']) => {
-    switch (status) {
-      case 'active':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            <CheckCircleIcon className="w-3 h-3 mr-1" />
-            Actif
-          </span>
-        );
-      case 'invited':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <ClockIcon className="w-3 h-3 mr-1" />
-            Invité
-          </span>
-        );
-
-      default:
-        return null;
+    if (status === 'active') {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          ✓ Actif
+        </span>
+      );
     }
+    if (status === 'invited') {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          ⏱ Invité
+        </span>
+      );
+    }
+    return null;
   };
   
   const filteredUsers = usersWithStatus.filter(user => {
@@ -297,7 +374,6 @@ const ClientAccess: React.FC = () => {
     );
   });
   
-  // Filtrer pour exclure les utilisateurs qui ont déjà un accès et les invitations expirées
   const availableUsers = filteredUsers.filter(user => 
     !clientUsers.some(clientUser => clientUser.userEmail === user.email)
   );
@@ -333,7 +409,9 @@ const ClientAccess: React.FC = () => {
             disabled={!hasAccessPermission}
             title={!hasAccessPermission ? t('clientAccess.tooltips.noAccessPermission') : ""}
           >
-            <UserPlusIcon className="h-5 w-5 mr-2" />
+            <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
             {t('clientAccess.buttons.addUser')}
           </button>
         </div>
@@ -397,10 +475,8 @@ const ClientAccess: React.FC = () => {
                           )}
                         </div>
                         <div className="ml-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.displayName}
-                            </div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {user.displayName}
                           </div>
                           <div className="text-sm text-gray-500">
                             {user.userEmail}
@@ -429,9 +505,10 @@ const ClientAccess: React.FC = () => {
                             : 'text-gray-400 cursor-not-allowed'
                         } mr-4`}
                         disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? t('clientAccess.tooltips.noEditPermission') : ""}
                       >
-                        <PencilIcon className="h-5 w-5" />
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </button>
                       <button
                         onClick={() => handleRemoveUser(user.userEmail)}
@@ -441,9 +518,10 @@ const ClientAccess: React.FC = () => {
                             : 'text-gray-400 cursor-not-allowed'
                         }`}
                         disabled={!hasAccessPermission}
-                        title={!hasAccessPermission ? t('clientAccess.tooltips.noDeletePermission') : ""}
                       >
-                        <TrashIcon className="h-5 w-5" />
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </td>
                   </tr>
@@ -453,32 +531,61 @@ const ClientAccess: React.FC = () => {
           </div>
         )}
         
+        {/* Modal */}
         {isModalOpen && hasAccessPermission && (
-          <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" open={isModalOpen} onClose={closeModal}>
-            <div className="min-h-screen px-4 text-center">
-              <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-
-              <span className="inline-block h-screen align-middle" aria-hidden="true">
-                &#8203;
-              </span>
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={closeModal}></div>
               
-              <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
-                <div className="flex justify-between items-center">
-                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+              
+              <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium leading-6 text-gray-900">
                     {isEditing ? t('clientAccess.modal.title.edit') : t('clientAccess.modal.title.add')}
-                  </Dialog.Title>
+                  </h3>
                   <button
                     type="button"
                     className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={closeModal}
                   >
-                    <span className="sr-only">{t('clientAccess.modal.close')}</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
                 
-                <div className="mt-4 space-y-4">
+                <div className="space-y-4">
+                  {/* Toggle entre mode simple et multiple */}
                   {!isEditing && (
+                    <div className="flex space-x-2 border-b border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => setAddMode('simple')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 ${
+                          addMode === 'simple'
+                            ? 'border-indigo-600 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Ajout simple
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddMode('multiple')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 ${
+                          addMode === 'multiple'
+                            ? 'border-indigo-600 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Ajout multiple
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Mode ajout simple */}
+                  {!isEditing && addMode === 'simple' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         {t('clientAccess.form.label.selectUser')}
@@ -487,7 +594,7 @@ const ClientAccess: React.FC = () => {
                       <div className="relative user-dropdown">
                         <input
                           type="text"
-                          className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                          className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                           placeholder="Rechercher un utilisateur..."
                           value={selectedUser ? `${selectedUser.displayName} (${selectedUser.email})` : userSearchQuery}
                           onChange={(e) => {
@@ -511,7 +618,7 @@ const ClientAccess: React.FC = () => {
                         />
                         
                         {isDropdownOpen && !selectedUser && (
-                          <div className="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                          <div className="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto">
                             {availableUsers.length === 0 ? (
                               <div className="px-4 py-2 text-gray-500 text-sm">
                                 {userSearchQuery ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur disponible'}
@@ -529,11 +636,7 @@ const ClientAccess: React.FC = () => {
                                 >
                                   <div className="flex items-center">
                                     {user.photoURL ? (
-                                      <img
-                                        src={user.photoURL}
-                                        alt=""
-                                        className="h-8 w-8 rounded-full mr-3"
-                                      />
+                                      <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full mr-3" />
                                     ) : (
                                       <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
                                         <span className="text-sm text-indigo-800">
@@ -561,11 +664,7 @@ const ClientAccess: React.FC = () => {
                       {selectedUser && (
                         <div className="mt-2 flex items-center bg-gray-50 p-3 rounded-md">
                           {selectedUser.photoURL ? (
-                            <img
-                              src={selectedUser.photoURL}
-                              alt=""
-                              className="h-8 w-8 rounded-full mr-3"
-                            />
+                            <img src={selectedUser.photoURL} alt="" className="h-8 w-8 rounded-full mr-3" />
                           ) : (
                             <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
                               <span className="text-md text-indigo-800">
@@ -589,8 +688,66 @@ const ClientAccess: React.FC = () => {
                             }}
                             className="text-gray-400 hover:text-gray-500 p-1"
                           >
-                            <XMarkIcon className="h-4 w-4" />
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                           </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mode ajout multiple */}
+                  {!isEditing && addMode === 'multiple' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Liste des emails (un par ligne)
+                      </label>
+                      <textarea
+                        className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        rows={8}
+                        placeholder="exemple1@email.com&#10;exemple2@email.com&#10;exemple3@email.com"
+                        value={bulkEmailInput}
+                        onChange={(e) => handleBulkEmailChange(e.target.value)}
+                      />
+                      
+                      {/* Résumé de la validation */}
+                      {bulkEmailInput.trim() && (
+                        <div className="mt-3 space-y-2">
+                          {validatedBulkUsers.valid.length > 0 && (
+                            <div className="flex items-center text-sm text-green-700">
+                              <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{validatedBulkUsers.valid.length} utilisateur(s) valide(s)</span>
+                            </div>
+                          )}
+                          {validatedBulkUsers.alreadyAdded.length > 0 && (
+                            <div className="flex items-start text-sm text-blue-700">
+                              <svg className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <div>
+                                <span>{validatedBulkUsers.alreadyAdded.length} utilisateur(s) déjà ajouté(s)</span>
+                                <div className="text-xs mt-1 text-blue-600">
+                                  {validatedBulkUsers.alreadyAdded.join(', ')}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {validatedBulkUsers.notFound.length > 0 && (
+                            <div className="flex items-start p-3 bg-amber-50 border-l-4 border-amber-400 text-amber-700 text-sm">
+                              <svg className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <div>
+                                <span className="font-medium">{validatedBulkUsers.notFound.length} email(s) non trouvé(s)</span>
+                                <div className="text-xs mt-1">
+                                  {validatedBulkUsers.notFound.join(', ')}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -599,11 +756,7 @@ const ClientAccess: React.FC = () => {
                   {isEditing && currentUser && (
                     <div className="mb-4 flex items-center bg-gray-50 p-3 rounded-md">
                       {currentUser.photoURL ? (
-                        <img
-                          src={currentUser.photoURL}
-                          alt=""
-                          className="h-8 w-8 rounded-full mr-3"
-                        />
+                        <img src={currentUser.photoURL} alt="" className="h-8 w-8 rounded-full mr-3" />
                       ) : (
                         <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
                           <span className="text-md text-indigo-800">
@@ -623,7 +776,7 @@ const ClientAccess: React.FC = () => {
                       {t('clientAccess.form.label.accessLevel')}
                     </label>
                     <select
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                       value={selectedAccessLevel.value}
                       onChange={(e) => {
                         const value = e.target.value as 'editor' | 'user';
@@ -649,15 +802,22 @@ const ClientAccess: React.FC = () => {
                       rows={3}
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-md"
                       placeholder={t('clientAccess.form.placeholder.addNote')}
                     />
+                    {addMode === 'multiple' && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Cette note sera appliquée à tous les utilisateurs ajoutés
+                      </p>
+                    )}
                   </div>
                   
                   {selectedUser && selectedUser.status === 'invited' && (
                     <div className="p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-sm">
                       <div className="flex">
-                        <ClockIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+                        <svg className="h-5 w-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                         <div>
                           <p className="font-medium">Utilisateur invité</p>
                           <p className="text-xs mt-1">Cet utilisateur verra ce client dès sa première connexion.</p>
@@ -667,26 +827,56 @@ const ClientAccess: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
+                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     onClick={closeModal}
+                    disabled={isProcessingBulk}
                   >
                     {t('clientAccess.buttons.cancel')}
                   </button>
                   <button
                     type="button"
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    onClick={isEditing ? handleUpdateUser : handleAddUser}
-                    disabled={isEditing ? false : !selectedUser}
+                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={
+                      isEditing 
+                        ? handleUpdateUser 
+                        : addMode === 'simple' 
+                          ? handleAddUser 
+                          : handleAddMultipleUsers
+                    }
+                    disabled={
+                      isProcessingBulk || 
+                      (isEditing 
+                        ? false 
+                        : addMode === 'simple' 
+                          ? !selectedUser 
+                          : validatedBulkUsers.valid.length === 0)
+                    }
                   >
-                    {isEditing ? t('clientAccess.buttons.update') : t('clientAccess.buttons.add')}
+                    {isProcessingBulk ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Traitement...
+                      </>
+                    ) : (
+                      <>
+                        {isEditing 
+                          ? t('clientAccess.buttons.update') 
+                          : addMode === 'simple'
+                            ? t('clientAccess.buttons.add')
+                            : `Ajouter ${validatedBulkUsers.valid.length} utilisateur(s)`}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             </div>
-          </Dialog>
+          </div>
         )}
       </div>
     </div>

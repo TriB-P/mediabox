@@ -253,8 +253,9 @@ const mapTactiqueToForm = (tactique: any): TactiqueFormData => {
   const baseData = {
     TC_Label: tactique.TC_Label || '',
     TC_MPA: tactique.TC_MPA || '',
-    TC_Budget: tactique.TC_Budget || 0,
-    TC_Order: tactique.TC_Order || 0,
+    TC_Budget: (tactique.TC_Budget !== undefined && tactique.TC_Budget !== null && tactique.TC_Budget !== '') 
+      ? tactique.TC_Budget 
+      : undefined,  // ✅ NOUVEAU    TC_Order: tactique.TC_Order || 0,
     TC_SectionId: tactique.TC_SectionId || '',
     TC_Status: tactique.TC_Status || 'Planned',
     TC_Start_Date: tactique.TC_Start_Date || '',
@@ -489,7 +490,7 @@ const mapFormToTactique = (formData: TactiqueFormData): any => {
 const getDefaultFormData = (): TactiqueFormData => ({
   TC_Label: '',
   TC_MPA:'',
-  TC_Budget: 0,
+  TC_Budget: undefined,
   TC_SectionId: '',
   TC_Status: 'Planned',
   TC_Budget_Mode: 'media',
