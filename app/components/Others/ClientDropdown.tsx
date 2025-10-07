@@ -184,6 +184,7 @@ export default function ClientDropdown() {
                     placeholder={t('clientDropdown.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     onClick={(e) => e.stopPropagation()}
                   />

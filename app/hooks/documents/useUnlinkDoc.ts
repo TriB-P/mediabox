@@ -49,6 +49,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
 
   /**
    * Obtient un token d'accès Google avec les permissions Drive et Sheets.
+   * Utilise un cache de 50 minutes pour éviter les ré-authentifications fréquentes.
    * @returns Le token d'accès Google ou null si échec.
    */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
@@ -83,6 +84,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       provider.addScope('https://www.googleapis.com/auth/drive');
       provider.addScope('https://www.googleapis.com/auth/spreadsheets');
       
+      // Guider vers le compte connecté
       provider.setCustomParameters({
         login_hint: user.email
       });
@@ -93,7 +95,15 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       const credential = GoogleAuthProvider.credentialFromResult(result);
 
       if (credential?.accessToken) {
-        console.log('[UNLINK AUTH] Token récupéré avec succès');
+        // Logger l'email du compte qui a obtenu le token
+        const tokenEmail = result.user?.email || 'inconnu';
+        console.log('[UNLINK AUTH] ✅ Token récupéré avec succès');
+        console.log('[UNLINK AUTH] 📧 Compte Firebase:', user.email);
+        console.log('[UNLINK AUTH] 📧 Compte Google utilisé:', tokenEmail);
+        
+        if (tokenEmail !== user.email) {
+          console.warn('[UNLINK AUTH] ⚠️ ATTENTION: Le compte Google diffère du compte Firebase !');
+        }
         
         // Mettre en cache le token
         localStorage.setItem('google_unlink_token', credential.accessToken);
@@ -104,7 +114,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
 
       throw new Error(t('unlinkDoc.error.tokenNotRetrieved'));
     } catch (err) {
-      console.error(t('unlinkDoc.error.googleAuth'), err);
+      console.error('[UNLINK AUTH] ❌ Erreur lors de l\'authentification Google:', err);
       localStorage.removeItem('google_unlink_token');
       localStorage.removeItem('google_unlink_token_time');
       throw err;
@@ -112,7 +122,76 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
   }, [user, t]);
 
   /**
+   * Valide que le token a accès au fichier source.
+   * Support des Shared Drives (Drives partagés).
+   * @param fileId L'ID du fichier à vérifier.
+   * @param accessToken Le token d'accès Google.
+   * @returns true si l'accès est validé, false sinon.
+   */
+  const validateFileAccess = useCallback(async (
+    fileId: string,
+    accessToken: string
+  ): Promise<{ hasAccess: boolean; email?: string; error?: string }> => {
+    console.log(`[UNLINK VALIDATION] Vérification de l'accès au fichier: ${fileId}`);
+    
+    try {
+      // Tenter de récupérer les métadonnées du fichier
+      // IMPORTANT: Ajouter supportsAllDrives=true pour les Shared Drives
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,owners,driveId&supportsAllDrives=true`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const fileData = await response.json();
+        console.log('[UNLINK VALIDATION] ✅ Accès au fichier confirmé');
+        console.log('[UNLINK VALIDATION] 📄 Nom du fichier:', fileData.name);
+        
+        if (fileData.driveId) {
+          console.log('[UNLINK VALIDATION] 🗂️  Le fichier est dans un Shared Drive:', fileData.driveId);
+        }
+        
+        if (fileData.owners && fileData.owners.length > 0) {
+          console.log('[UNLINK VALIDATION] 👤 Propriétaire:', fileData.owners[0].emailAddress);
+        }
+        
+        return { hasAccess: true };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[UNLINK VALIDATION] ❌ Pas d\'accès au fichier');
+        console.error('[UNLINK VALIDATION] Status:', response.status);
+        console.error('[UNLINK VALIDATION] Erreur:', errorData);
+        
+        let errorMessage = '';
+        if (response.status === 404) {
+          errorMessage = 'Le fichier est introuvable ou vous n\'y avez pas accès. Assurez-vous de sélectionner le bon compte Google.';
+        } else if (response.status === 403) {
+          errorMessage = 'Permissions insuffisantes pour accéder à ce fichier.';
+        } else {
+          errorMessage = `Erreur d'accès au fichier (${response.status})`;
+        }
+        
+        return { 
+          hasAccess: false, 
+          error: errorMessage
+        };
+      }
+    } catch (err) {
+      console.error('[UNLINK VALIDATION] ❌ Exception lors de la validation:', err);
+      return { 
+        hasAccess: false, 
+        error: err instanceof Error ? err.message : 'Erreur inconnue'
+      };
+    }
+  }, []);
+
+  /**
    * Duplique un fichier Google Sheets via l'API Drive.
+   * Support des Shared Drives (Drives partagés).
    * @param fileId L'ID du fichier à dupliquer.
    * @param newName Le nouveau nom pour le fichier dupliqué.
    * @param accessToken Le token d'accès Google.
@@ -125,8 +204,9 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
   ): Promise<string> => {
     console.log(`[UNLINK] Duplication du fichier ${fileId} vers "${newName}"`);
     
+    // IMPORTANT: Ajouter supportsAllDrives=true pour les Shared Drives
     const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}/copy`,
+      `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
       {
         method: 'POST',
         headers: {
@@ -146,7 +226,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       if (response.status === 403) {
         throw new Error(t('unlinkDoc.error.insufficientPermissions'));
       } else if (response.status === 404) {
-        throw new Error(t('unlinkDoc.error.documentNotFound'));
+        throw new Error('Le fichier est introuvable ou vous n\'avez pas accès avec ce compte Google. Veuillez réessayer et sélectionner le bon compte.');
       } else {
         const errorMessage = errorData.error?.message || `Erreur HTTP ${response.status}`;
         throw new Error(`${t('unlinkDoc.error.driveApi')} ${errorMessage}`);
@@ -154,7 +234,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
     }
 
     const result = await response.json();
-    console.log(`[UNLINK] Fichier dupliqué avec succès. Nouvel ID: ${result.id}`);
+    console.log(`[UNLINK] ✅ Fichier dupliqué avec succès. Nouvel ID: ${result.id}`);
     return result.id;
   }, [t]);
 
@@ -231,7 +311,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       throw new Error(`${t('unlinkDoc.error.deleteSheets')} ${errorData.error?.message || response.status}`);
     }
 
-    console.log(`[UNLINK] ${sheetIds.length} feuille(s) supprimée(s) avec succès`);
+    console.log(`[UNLINK] ✅ ${sheetIds.length} feuille(s) supprimée(s) avec succès`);
   }, [t]);
 
   /**
@@ -276,7 +356,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       throw new Error(`${t('unlinkDoc.error.convertFormulas')} ${errorData.error?.message || response.status}`);
     }
 
-    console.log(`[UNLINK] Formules converties en valeurs pour la feuille: ${sheetId}`);
+    console.log(`[UNLINK] ✅ Formules converties en valeurs pour la feuille: ${sheetId}`);
   }, [t]);
 
   /**
@@ -315,7 +395,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       setLoading(true);
       setError(null);
 
-      console.log(`[UNLINK] Début de la dissociation: ${originalDocument.name} → ${newName}`);
+      console.log(`[UNLINK] 🚀 Début de la dissociation: ${originalDocument.name} → ${newName}`);
 
       // 1. Extraire l'ID du fichier
       const originalFileId = extractFileId(originalDocument.url);
@@ -326,6 +406,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
           failedStep: 'validation'
         };
       }
+      console.log(`[UNLINK] 📄 ID du fichier source: ${originalFileId}`);
 
       // 2. Obtenir le token d'accès
       const accessToken = await getAccessToken();
@@ -337,24 +418,34 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
         };
       }
 
-      // 3. Dupliquer le fichier
+      // 3. Valider l'accès au fichier avant de tenter la duplication
+      const validation = await validateFileAccess(originalFileId, accessToken);
+      if (!validation.hasAccess) {
+        return {
+          success: false,
+          errorMessage: validation.error || 'Impossible d\'accéder au fichier source.',
+          failedStep: 'validation'
+        };
+      }
+
+      // 4. Dupliquer le fichier
       const duplicatedFileId = await duplicateFile(
         originalFileId,
         newName,
         accessToken
       );
 
-      // 4. Récupérer toutes les feuilles
+      // 5. Récupérer toutes les feuilles
       const allSheets = await getSheets(duplicatedFileId, accessToken);
       
-      // 5. Convertir TOUTES les formules en valeurs AVANT de supprimer les onglets
-      console.log(`[UNLINK] Conversion des formules en valeurs pour ${allSheets.length} feuilles`);
+      // 6. Convertir TOUTES les formules en valeurs AVANT de supprimer les onglets
+      console.log(`[UNLINK] 🔄 Conversion des formules en valeurs pour ${allSheets.length} feuilles`);
       for (const sheet of allSheets) {
         const sheetId = sheet.properties.sheetId;
         await convertFormulasToValues(duplicatedFileId, sheetId, accessToken);
       }
 
-      // 6. Identifier les feuilles MediaBox à supprimer
+      // 7. Identifier les feuilles MediaBox à supprimer
       const sheetsToDelete = allSheets
         .filter(sheet => {
           const sheetName = sheet.properties?.title;
@@ -362,17 +453,17 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
         })
         .map(sheet => sheet.properties.sheetId);
 
-      console.log(`[UNLINK] Feuilles MediaBox trouvées à supprimer: ${sheetsToDelete.length}`);
+      console.log(`[UNLINK] 🗑️  Feuilles MediaBox trouvées à supprimer: ${sheetsToDelete.length}`);
 
-      // 7. Supprimer les feuilles MediaBox APRÈS avoir converti les formules
+      // 8. Supprimer les feuilles MediaBox APRÈS avoir converti les formules
       if (sheetsToDelete.length > 0) {
         await deleteSheets(duplicatedFileId, sheetsToDelete, accessToken);
       }
 
-      // 8. Générer l'URL du document dissocié
+      // 9. Générer l'URL du document dissocié
       const unlinkedUrl = generateSheetsUrl(duplicatedFileId);
 
-      // 9. Créer l'entrée en base de données
+      // 10. Créer l'entrée en base de données
       const documentId = await createUnlinkedDocument(
         clientId,
         campaignId,
@@ -392,7 +483,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
         }
       );
 
-      // 10. Récupérer le document créé
+      // 11. Récupérer le document créé
       const { getDocumentById } = await import('../../lib/documentService');
       const createdDocument = await getDocumentById(clientId, campaignId, versionId, documentId);
 
@@ -413,7 +504,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
       return {
         success: false,
         errorMessage,
-        failedStep: 'validation' // Sera surchargé par les étapes spécifiques si nécessaire
+        failedStep: 'validation'
       };
     } finally {
       setLoading(false);
@@ -422,6 +513,7 @@ export function useUnlinkDoc(): UseUnlinkDocReturn {
     user,
     extractFileId,
     getAccessToken,
+    validateFileAccess,
     duplicateFile,
     getSheets,
     deleteSheets,

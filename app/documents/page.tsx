@@ -678,16 +678,7 @@ export default function DocumentsPage() {
                                               {t('documents.unlinked')}
                                             </span>
                                           )}
-                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            document.docStatus === DocumentStatusOps.READY_FOR_OPS
-                                              ? 'bg-blue-100 text-blue-800'
-                                              : 'bg-gray-100 text-gray-800'
-                                          }`}>
-                                            {getTranslation(`documents.docStatus.${document.docStatus.toLowerCase()}`, 
-                                              document.docStatus === DocumentStatusOps.DRAFT ? 'Brouillon' : 'Prêt pour équipe Ops',
-                                              document.docStatus
-                                            )}
-                                          </span>
+
                                         </div>
                                         
                                         <div className="mt-2 flex items-center space-x-6 text-sm text-gray-500">
