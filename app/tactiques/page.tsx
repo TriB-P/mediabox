@@ -1,14 +1,8 @@
 // app/tactiques/page.tsx
 
 /**
- * Ce fichier contient le composant principal de la page des tactiques.
- * Il gère l'affichage des données des campagnes, versions, onglets, sections, tactiques, placements et créatifs.
- * Il orchestre l'interaction entre les différents hooks (données, CRUD, sélection, UI)
- * et les composants d'interface utilisateur pour offrir une expérience complète de gestion des tactiques.
- * Il inclut des fonctionnalités de chargement, d'erreur, de rafraîchissement et de gestion des sélections.
- * MODIFIÉ : Ajout de la vue 'taxonomy' avec TactiquesAdvancedTaxonomyView
- * AMÉLIORÉ : Animations subtiles et modernes sans effet de glitch
- * OPTIMISÉ : Cache et déduplication des appels à getBreakdowns
+ * ✅ CORRIGÉ : Hook useExpandedStates déplacé dans page.tsx
+ * Le bouton Expand All / Collapse All a maintenant accès direct aux fonctions du hook
  */
 'use client';
 
@@ -19,6 +13,7 @@ import { useTactiquesCrud } from '../hooks/useTactiquesCrud';
 import { useTactiquesSelection } from '../hooks/useTactiquesSelection';
 import { useTactiquesEnrichedData, useTactiquesFormatting, useTactiquesUIStates } from '../hooks/useTactiquesEnrichedData';
 import { useTactiquesRefresh, useTactiquesModals } from '../hooks/useTactiquesRefresh';
+import { useExpandedStates } from '../hooks/useExpandedStates';
 
 import CampaignVersionSelector from '../components/Others/CampaignVersionSelector';
 import TactiquesHierarchyView from '../components/Tactiques/Views/Hierarchy/TactiquesHierarchyView';
@@ -30,10 +25,10 @@ import { default as SectionModal } from '../components/Tactiques/SectionModal';
 import LoadingSpinner from '../components/Others/LoadingSpinner';
 import TactiquesBudgetPanel from '../components/Tactiques/TactiquesBudgetPanel';
 import SelectedActionsPanel from '../components/Tactiques/SelectedActionsPanel';
-import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ArrowPathIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import { getBreakdowns } from '../lib/breakdownService';
-import { ensureDefaultBreakdownForCampaign } from '../lib/campaignService'; // ✅ NOUVEAU
+import { ensureDefaultBreakdownForCampaign } from '../lib/campaignService';
 import { Breakdown } from '../types/breakdown';
 
 import { useClient } from '../contexts/ClientContext';
@@ -41,7 +36,6 @@ import { useTranslation } from '../contexts/LanguageContext';
 
 type ViewMode = 'hierarchy' | 'table' | 'timeline' | 'taxonomy';
 
-// Animations plus subtiles et fluides
 const subtleEase: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
 
 const pageVariants: Variants = {
@@ -126,9 +120,6 @@ const spinVariants: Variants = {
   }
 };
 
-/**
- * ✅ INTERFACE pour le cache des breakdowns
- */
 interface BreakdownsCache {
   clientId: string;
   campaignId: string;
@@ -136,15 +127,6 @@ interface BreakdownsCache {
   timestamp: number;
 }
 
-/**
- * Composant principal de la page des tactiques.
- * Gère l'état global, les interactions utilisateur et l'affichage des différentes vues des tactiques.
- * MODIFIÉ : Ajout du support pour la vue 'taxonomy'
- * AMÉLIORÉ : Animations subtiles sans effet de glitch
- * OPTIMISÉ : Cache des breakdowns pour éviter les appels répétés
- *
- * @returns {JSX.Element} Le composant de la page des tactiques.
- */
 export default function TactiquesPage() {
   const { t } = useTranslation();
   const { selectedClient } = useClient();
@@ -172,14 +154,20 @@ export default function TactiquesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('hierarchy');
   const [hierarchyViewKey, setHierarchyViewKey] = useState(0);
   
-  // ✅ OPTIMISATION : Cache des breakdowns avec référence stable
   const [breakdownsCache, setBreakdownsCache] = useState<BreakdownsCache | null>(null);
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
   const [showContent, setShowContent] = useState(false);
   
-  // ✅ OPTIMISATION : Références stables pour éviter les re-renders
   const lastCampaignRef = useRef<string | null>(null);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ NOUVEAU : Hook useExpandedStates déplacé ici pour accès au bouton
+  const expandedStates = useExpandedStates({
+    sections,
+    tactiques: tactiques,
+    placements,
+    creatifs
+  });
 
   const crudActions = useTactiquesCrud({
     sections,
@@ -191,9 +179,6 @@ export default function TactiquesPage() {
     onRefresh: refresh
   });
 
-  /**
-   * Réinitialise complètement la vue hiérarchique en forçant un re-render.
-   */
   const handleForceSelectionReset = useCallback(() => {
     console.log('🔄 Force reset complet de la vue hiérarchique');
     setHierarchyViewKey(prev => prev + 1);
@@ -236,18 +221,14 @@ export default function TactiquesPage() {
   const { formatCurrency, formatStatistics } = useTactiquesFormatting();
   const { getContainerClasses, getContentClasses, getMainContentClasses, getLoadingStates } = useTactiquesUIStates();
 
-  /**
-   * ✅ OPTIMISATION : Fonction pour charger les breakdowns avec cache et déduplication
-   */
   const loadBreakdowns = useCallback(async (
     clientId: string, 
     campaignId: string, 
     forceReload = false
   ) => {
-    // Vérifier le cache
     const cacheKey = `${clientId}_${campaignId}`;
     const now = Date.now();
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000;
 
     if (!forceReload && 
         breakdownsCache && 
@@ -258,7 +239,6 @@ export default function TactiquesPage() {
       return breakdownsCache.data;
     }
 
-    // Éviter les appels multiples simultanés
     if (breakdownsLoading) {
       console.log(`[CACHE] ⚠️ Chargement déjà en cours pour ${cacheKey}`);
       return breakdownsCache?.data || [];
@@ -271,7 +251,6 @@ export default function TactiquesPage() {
       
       const breakdownsData = await getBreakdowns(clientId, campaignId);
       
-      // Mettre en cache
       const newCache: BreakdownsCache = {
         clientId,
         campaignId,
@@ -291,16 +270,11 @@ export default function TactiquesPage() {
     }
   }, [breakdownsCache, breakdownsLoading]);
 
-  /**
-   * ✅ OPTIMISATION : Gestionnaire de changement de campagne avec vérification des breakdowns
-   */
   const handleCampaignChangeWithBreakdowns = useCallback(async (campaign: any) => {
     if (!selectedClient?.clientId) return;
     
-    // Changer la campagne d'abord
     handleCampaignChange(campaign);
     
-    // Puis s'assurer que le breakdown par défaut existe
     if (campaign && lastCampaignRef.current !== campaign.id) {
       lastCampaignRef.current = campaign.id;
       
@@ -308,7 +282,6 @@ export default function TactiquesPage() {
         console.log(`✅ Vérification breakdown par défaut pour campagne ${campaign.id}`);
         await ensureDefaultBreakdownForCampaign(selectedClient.clientId, campaign);
         
-        // Charger les breakdowns après vérification
         await loadBreakdowns(selectedClient.clientId, campaign.id, true);
       } catch (error) {
         console.error('Erreur lors de la vérification des breakdowns:', error);
@@ -349,7 +322,6 @@ export default function TactiquesPage() {
     
     selectionState.handleClearSelection();
     
-    // ✅ OPTIMISATION : Invalider le cache des breakdowns lors du refresh
     if (selectedClient?.clientId && selectedCampaign?.id) {
       await loadBreakdowns(selectedClient.clientId, selectedCampaign.id, true);
     }
@@ -379,21 +351,31 @@ export default function TactiquesPage() {
 
   const hasError = !!error;
 
-  /**
-   * ✅ OPTIMISATION : Récupération des breakdowns depuis le cache
-   */
   const breakdowns = useMemo(() => {
     return breakdownsCache?.data || [];
   }, [breakdownsCache]);
 
-  // ✅ OPTIMISATION : Effet pour charger les breakdowns seulement quand nécessaire
+  // ✅ NOUVEAU : Calcul pour savoir si tout est expanded
+  const allExpanded = useMemo(() => {
+    const totalItems = 
+      sections.length + 
+      Object.values(tactiques).flat().length +
+      Object.values(placements).flat().length;
+    
+    const expandedCount = 
+      Object.values(expandedStates.expandedSections).filter(Boolean).length +
+      Object.values(expandedStates.expandedTactiques).filter(Boolean).length +
+      Object.values(expandedStates.expandedPlacements).filter(Boolean).length;
+    
+    return expandedCount === totalItems && totalItems > 0;
+  }, [sections, tactiques, placements, expandedStates]);
+
   useEffect(() => {
     if (!selectedClient?.clientId || !selectedCampaign?.id) {
       setBreakdownsCache(null);
       return;
     }
 
-    // Débounce pour éviter les appels répétés
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
     }
@@ -410,7 +392,6 @@ export default function TactiquesPage() {
     };
   }, [selectedClient?.clientId, selectedCampaign?.id, loadBreakdowns]);
 
-  // Effet pour gérer l'affichage du contenu avec un délai
   useEffect(() => {
     if (!loadingStates.shouldShowFullLoader && selectedVersion) {
       const timer = setTimeout(() => {
@@ -422,7 +403,6 @@ export default function TactiquesPage() {
     }
   }, [loadingStates.shouldShowFullLoader, selectedVersion]);
 
-  // ✅ NETTOYAGE : Cleanup des timeouts
   useEffect(() => {
     return () => {
       if (loadingTimeoutRef.current) {
@@ -438,7 +418,6 @@ export default function TactiquesPage() {
       initial="initial"
       animate="animate"
     >
-      {/* Header fixe sans animation sur les états temporaires */}
       <motion.div variants={headerVariants} className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
           <h1 className="text-2xl font-bold text-gray-900">{t('tactiquesPage.header.title')}</h1>
@@ -470,7 +449,6 @@ export default function TactiquesPage() {
         </div>
       </motion.div>
 
-      {/* Sélecteur de campagne */}
       <motion.div variants={contentVariants}>
         <CampaignVersionSelector
           campaigns={campaigns}
@@ -479,13 +457,12 @@ export default function TactiquesPage() {
           selectedVersion={selectedVersion}
           loading={loading}
           error={error}
-          onCampaignChange={handleCampaignChangeWithBreakdowns} // ✅ MODIFIÉ
+          onCampaignChange={handleCampaignChangeWithBreakdowns}
           onVersionChange={handleVersionChange}
           className="mb-6"
         />
       </motion.div>
 
-      {/* Notifications temporaires avec AnimatePresence */}
       <AnimatePresence mode="wait">
         {selectionState.duplicationLoading && (
           <motion.div
@@ -547,7 +524,6 @@ export default function TactiquesPage() {
           </motion.div>
         )}
 
-        {/* ✅ NOUVEAU : Notification de chargement des breakdowns */}
         {breakdownsLoading && (
           <motion.div
             key="breakdowns"
@@ -569,7 +545,6 @@ export default function TactiquesPage() {
         )}
       </AnimatePresence>
 
-      {/* Erreurs persistantes */}
       <AnimatePresence>
         {hasError && !loading && (
           <motion.div
@@ -599,7 +574,6 @@ export default function TactiquesPage() {
         )}
       </AnimatePresence>
 
-      {/* Loader principal */}
       <AnimatePresence>
         {loadingStates.shouldShowFullLoader && (
           <LoadingSpinner 
@@ -609,7 +583,6 @@ export default function TactiquesPage() {
         )}
       </AnimatePresence>
 
-      {/* Contenu principal avec animation retardée */}
       <AnimatePresence>
         {showContent && (
           <motion.div 
@@ -621,7 +594,6 @@ export default function TactiquesPage() {
           >
             <div className={getMainContentClasses(viewMode)}>
               
-              {/* Panel d'actions pour les éléments sélectionnés */}
               <AnimatePresence>
                 {selectionState.selectedItems.size > 0 && viewMode === 'hierarchy' && (
                   <motion.div
@@ -643,7 +615,7 @@ export default function TactiquesPage() {
                 )}
               </AnimatePresence>
               
-              {/* Actions et statistiques pour la vue hiérarchique */}
+              {/* ✅ CORRIGÉ : Bouton utilisant directement expandedStates du hook */}
               {(viewMode === 'hierarchy') && (
                 <motion.div variants={cardVariants} className="flex justify-between items-center mb-4">
                   <div className="flex space-x-2">
@@ -656,6 +628,33 @@ export default function TactiquesPage() {
                     >
                       <PlusIcon className="h-5 w-5 mr-1.5" />
                       {t('tactiquesPage.actions.newSection')}
+                    </motion.button>
+
+                    {/* ✅ CORRIGÉ : Bouton qui utilise les fonctions du hook */}
+                    <motion.button
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      onClick={() => {
+                        if (allExpanded) {
+                          expandedStates.collapseAll();
+                        } else {
+                          expandedStates.expandAll();
+                        }
+                      }}
+                      className="flex items-center px-3 py-1.5 rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      {allExpanded ? (
+                        <>
+                          <ChevronRightIcon className="h-4 w-4 mr-1.5" />
+                          {t('tactiquesPage.actions.collapseAll', { fallback: 'Collapse All' })}
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDownIcon className="h-4 w-4 mr-1.5" />
+                          {t('tactiquesPage.actions.expandAll', { fallback: 'Expand All' })}
+                        </>
+                      )}
                     </motion.button>
                   </div>
 
@@ -680,7 +679,6 @@ export default function TactiquesPage() {
                 </motion.div>
               )}
 
-              {/* Contenu des vues */}
               {!hasError && (
                 <motion.div variants={cardVariants}>
                   {viewMode === 'hierarchy' && (
@@ -691,7 +689,7 @@ export default function TactiquesPage() {
                           sections={enrichedData.sectionsWithTactiques}
                           placements={enrichedData.enrichedPlacements} 
                           creatifs={enrichedData.enrichedCreatifs} 
-                          onSectionExpand={modalState.handleSectionExpand}
+                          onSectionExpand={expandedStates.handleSectionExpand}
                           onEditSection={handleEditSection}
                           onDeleteSection={crudActions.handleDeleteSection}
                           onCreateTactique={crudActions.handleCreateTactique}
@@ -717,6 +715,7 @@ export default function TactiquesPage() {
                             placements: placements,
                             creatifs: creatifs
                           }}
+                          expandedStates={expandedStates}
                         />
                       ) : (
                         <motion.div variants={cardVariants} className="bg-white p-8 rounded-lg shadow text-center">
@@ -786,7 +785,6 @@ export default function TactiquesPage() {
               )}
             </div>
 
-            {/* Panel budget pour la vue hiérarchique */}
             {(viewMode === 'hierarchy') && (
               <motion.div variants={cardVariants}>
                 <TactiquesBudgetPanel
@@ -804,7 +802,6 @@ export default function TactiquesPage() {
         )}
       </AnimatePresence>
 
-      {/* État vide */}
       <AnimatePresence>
         {!loadingStates.shouldShowFullLoader && !hasError && !selectedVersion && (
           <motion.div
@@ -821,7 +818,6 @@ export default function TactiquesPage() {
         )}
       </AnimatePresence>
 
-      {/* Footer des onglets */}
       <TactiquesFooter
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -833,7 +829,6 @@ export default function TactiquesPage() {
         onDeleteOnglet={crudActions.handleDeleteOnglet} 
       />
           
-      {/* Modal de section */}
       <SectionModal
         isOpen={modalState.sectionModal.isOpen}
         onClose={modalState.closeSectionModal}

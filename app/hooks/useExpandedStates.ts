@@ -3,13 +3,17 @@
 /**
  * Hook personnalisé pour gérer la persistance des états d'expansion hiérarchique.
  * Remplace les useState locaux pour maintenir les états collapse/expand
- * lors des refresh de données, amélirant l'expérience utilisateur.
+ * lors des refresh de données, améliorant l'expérience utilisateur.
+ * 
+ * ✅ NOUVEAU : Ajout de la gestion des sections et des fonctions expandAll/collapseAll
+ * ✅ NOUVEAU : Par défaut, les sections sont expanded (tactiques visibles)
  * 
  * Fonctionnalités :
  * - Persistance en sessionStorage avec clé contextualisée
  * - Nettoyage automatique des IDs obsolètes
  * - Interface identique aux useState pour intégration transparente
- * - Support des tactiques, placements et créatifs
+ * - Support des sections, tactiques, placements et créatifs
+ * - Fonctions expandAll() et collapseAll() pour gérer toute la hiérarchie
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -17,6 +21,7 @@ import { useClient } from '../contexts/ClientContext';
 import { useSelection } from '../contexts/SelectionContext';
 
 interface ExpandedStates {
+  sections: { [sectionId: string]: boolean };
   tactiques: { [tactiqueId: string]: boolean };
   placements: { [placementId: string]: boolean };
 }
@@ -29,12 +34,17 @@ interface UseExpandedStatesProps {
 }
 
 interface UseExpandedStatesReturn {
+  expandedSections: { [sectionId: string]: boolean };
   expandedTactiques: { [tactiqueId: string]: boolean };
   expandedPlacements: { [placementId: string]: boolean };
+  setExpandedSections: (value: { [sectionId: string]: boolean } | ((prev: { [sectionId: string]: boolean }) => { [sectionId: string]: boolean })) => void;
   setExpandedTactiques: (value: { [tactiqueId: string]: boolean } | ((prev: { [tactiqueId: string]: boolean }) => { [tactiqueId: string]: boolean })) => void;
   setExpandedPlacements: (value: { [placementId: string]: boolean } | ((prev: { [placementId: string]: boolean }) => { [placementId: string]: boolean })) => void;
+  handleSectionExpand: (sectionId: string) => void;
   handleTactiqueExpand: (tactiqueId: string) => void;
   handlePlacementExpand: (placementId: string) => void;
+  expandAll: () => void;
+  collapseAll: () => void;
   clearExpandedStates: () => void;
 }
 
@@ -55,7 +65,8 @@ export function useExpandedStates({
   const { selectedClient } = useClient();
   const { selectedCampaignId, selectedVersionId } = useSelection();
 
-  // États internes
+  // ✅ NOUVEAU : Ajout de l'état pour les sections
+  const [expandedSections, setExpandedSectionsState] = useState<{ [sectionId: string]: boolean }>({});
   const [expandedTactiques, setExpandedTactiquesState] = useState<{ [tactiqueId: string]: boolean }>({});
   const [expandedPlacements, setExpandedPlacementsState] = useState<{ [placementId: string]: boolean }>({});
   
@@ -74,12 +85,17 @@ export function useExpandedStates({
   }, [selectedClient?.clientId, selectedCampaignId, selectedVersionId]);
 
   /**
-   * Charge les états d'expansion depuis le sessionStorage.
+   * ✅ MODIFIÉ : Charge les états d'expansion depuis le sessionStorage avec support des sections.
    */
   const loadExpandedStates = useCallback((): ExpandedStates => {
     const storageKey = getStorageKey();
     if (!storageKey) {
-      return { tactiques: {}, placements: {} };
+      // ✅ NOUVEAU : Par défaut, toutes les sections sont expanded
+      const defaultSections: { [sectionId: string]: boolean } = {};
+      sections.forEach(section => {
+        defaultSections[section.id] = true;
+      });
+      return { sections: defaultSections, tactiques: {}, placements: {} };
     }
 
     try {
@@ -88,23 +104,43 @@ export function useExpandedStates({
         const parsed = JSON.parse(stored) as ExpandedStates;
         
         // Validation de la structure
-        if (parsed && typeof parsed === 'object' && parsed.tactiques && parsed.placements) {
+        if (parsed && typeof parsed === 'object') {
+          // ✅ NOUVEAU : Support de l'ancien format sans sections
+          if (!parsed.sections) {
+            const defaultSections: { [sectionId: string]: boolean } = {};
+            sections.forEach(section => {
+              defaultSections[section.id] = true;
+            });
+            parsed.sections = defaultSections;
+          }
+          
           console.log('📁 États d\'expansion chargés:', {
-            tactiques: Object.keys(parsed.tactiques).length,
-            placements: Object.keys(parsed.placements).length
+            sections: Object.keys(parsed.sections).length,
+            tactiques: Object.keys(parsed.tactiques || {}).length,
+            placements: Object.keys(parsed.placements || {}).length
           });
-          return parsed;
+          
+          return {
+            sections: parsed.sections || {},
+            tactiques: parsed.tactiques || {},
+            placements: parsed.placements || {}
+          };
         }
       }
     } catch (error) {
       console.warn('⚠️ Erreur chargement états d\'expansion:', error);
     }
 
-    return { tactiques: {}, placements: {} };
-  }, [getStorageKey]);
+    // ✅ NOUVEAU : Par défaut, toutes les sections sont expanded
+    const defaultSections: { [sectionId: string]: boolean } = {};
+    sections.forEach(section => {
+      defaultSections[section.id] = true;
+    });
+    return { sections: defaultSections, tactiques: {}, placements: {} };
+  }, [getStorageKey, sections]);
 
   /**
-   * Sauvegarde les états d'expansion dans le sessionStorage.
+   * ✅ MODIFIÉ : Sauvegarde les états d'expansion avec support des sections.
    */
   const saveExpandedStates = useCallback((states: ExpandedStates) => {
     const storageKey = getStorageKey();
@@ -115,6 +151,7 @@ export function useExpandedStates({
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(states));
       console.log('💾 États d\'expansion sauvegardés:', {
+        sections: Object.keys(states.sections).length,
         tactiques: Object.keys(states.tactiques).length,
         placements: Object.keys(states.placements).length
       });
@@ -124,15 +161,17 @@ export function useExpandedStates({
   }, [getStorageKey]);
 
   /**
-   * Nettoie les IDs obsolètes des états d'expansion.
-   * Supprime les entrées pour les éléments qui n'existent plus.
+   * ✅ MODIFIÉ : Nettoie les IDs obsolètes des états d'expansion avec support des sections.
    */
   const cleanObsoleteIds = useCallback((states: ExpandedStates): ExpandedStates => {
+    const validSectionIds = new Set<string>();
     const validTactiqueIds = new Set<string>();
     const validPlacementIds = new Set<string>();
 
     // Collecter tous les IDs valides
     sections.forEach(section => {
+      validSectionIds.add(section.id);
+      
       const sectionTactiques = tactiques[section.id] || [];
       sectionTactiques.forEach(tactique => {
         validTactiqueIds.add(tactique.id);
@@ -145,8 +184,23 @@ export function useExpandedStates({
     });
 
     // Filtrer les états pour garder seulement les IDs valides
+    const cleanedSections: { [sectionId: string]: boolean } = {};
     const cleanedTactiques: { [tactiqueId: string]: boolean } = {};
     const cleanedPlacements: { [placementId: string]: boolean } = {};
+
+    // ✅ NOUVEAU : Nettoyer les sections
+    Object.entries(states.sections || {}).forEach(([id, expanded]) => {
+      if (validSectionIds.has(id)) {
+        cleanedSections[id] = expanded;
+      }
+    });
+
+    // Ajouter les nouvelles sections comme expanded par défaut
+    validSectionIds.forEach(id => {
+      if (cleanedSections[id] === undefined) {
+        cleanedSections[id] = true;
+      }
+    });
 
     Object.entries(states.tactiques).forEach(([id, expanded]) => {
       if (validTactiqueIds.has(id)) {
@@ -160,24 +214,27 @@ export function useExpandedStates({
       }
     });
 
+    const removedSections = Object.keys(states.sections || {}).length - Object.keys(cleanedSections).length;
     const removedTactiques = Object.keys(states.tactiques).length - Object.keys(cleanedTactiques).length;
     const removedPlacements = Object.keys(states.placements).length - Object.keys(cleanedPlacements).length;
 
-    if (removedTactiques > 0 || removedPlacements > 0) {
+    if (removedSections > 0 || removedTactiques > 0 || removedPlacements > 0) {
       console.log('🧹 IDs obsolètes supprimés:', {
+        sections: removedSections,
         tactiques: removedTactiques,
         placements: removedPlacements
       });
     }
 
     return {
+      sections: cleanedSections,
       tactiques: cleanedTactiques,
       placements: cleanedPlacements
     };
   }, [sections, tactiques, placements]);
 
   /**
-   * Charge les états d'expansion au montage et lors des changements de contexte.
+   * ✅ MODIFIÉ : Charge les états d'expansion avec support des sections.
    */
   useEffect(() => {
     isLoadingRef.current = true;
@@ -185,11 +242,14 @@ export function useExpandedStates({
     const stored = loadExpandedStates();
     const cleaned = cleanObsoleteIds(stored);
     
+    setExpandedSectionsState(cleaned.sections);
     setExpandedTactiquesState(cleaned.tactiques);
     setExpandedPlacementsState(cleaned.placements);
     
     // Sauvegarder les états nettoyés si nécessaire
-    if (stored.tactiques !== cleaned.tactiques || stored.placements !== cleaned.placements) {
+    if (stored.sections !== cleaned.sections || 
+        stored.tactiques !== cleaned.tactiques || 
+        stored.placements !== cleaned.placements) {
       saveExpandedStates(cleaned);
     }
     
@@ -197,7 +257,28 @@ export function useExpandedStates({
   }, [sections, tactiques, placements, loadExpandedStates, cleanObsoleteIds, saveExpandedStates]);
 
   /**
-   * Setter personnalisé pour les tactiques avec persistance automatique.
+   * ✅ NOUVEAU : Setter personnalisé pour les sections avec persistance automatique.
+   */
+  const setExpandedSections = useCallback((
+    value: { [sectionId: string]: boolean } | ((prev: { [sectionId: string]: boolean }) => { [sectionId: string]: boolean })
+  ) => {
+    setExpandedSectionsState(prevSections => {
+      const newSections = typeof value === 'function' ? value(prevSections) : value;
+      
+      // Sauvegarder automatiquement
+      const newStates: ExpandedStates = {
+        sections: newSections,
+        tactiques: expandedTactiques,
+        placements: expandedPlacements
+      };
+      saveExpandedStates(newStates);
+      
+      return newSections;
+    });
+  }, [expandedTactiques, expandedPlacements, saveExpandedStates]);
+
+  /**
+   * ✅ MODIFIÉ : Setter personnalisé pour les tactiques avec persistance automatique.
    */
   const setExpandedTactiques = useCallback((
     value: { [tactiqueId: string]: boolean } | ((prev: { [tactiqueId: string]: boolean }) => { [tactiqueId: string]: boolean })
@@ -207,6 +288,7 @@ export function useExpandedStates({
       
       // Sauvegarder automatiquement
       const newStates: ExpandedStates = {
+        sections: expandedSections,
         tactiques: newTactiques,
         placements: expandedPlacements
       };
@@ -214,10 +296,10 @@ export function useExpandedStates({
       
       return newTactiques;
     });
-  }, [expandedPlacements, saveExpandedStates]);
+  }, [expandedSections, expandedPlacements, saveExpandedStates]);
 
   /**
-   * Setter personnalisé pour les placements avec persistance automatique.
+   * ✅ MODIFIÉ : Setter personnalisé pour les placements avec persistance automatique.
    */
   const setExpandedPlacements = useCallback((
     value: { [placementId: string]: boolean } | ((prev: { [placementId: string]: boolean }) => { [placementId: string]: boolean })
@@ -227,6 +309,7 @@ export function useExpandedStates({
       
       // Sauvegarder automatiquement
       const newStates: ExpandedStates = {
+        sections: expandedSections,
         tactiques: expandedTactiques,
         placements: newPlacements
       };
@@ -234,7 +317,17 @@ export function useExpandedStates({
       
       return newPlacements;
     });
-  }, [expandedTactiques, saveExpandedStates]);
+  }, [expandedSections, expandedTactiques, saveExpandedStates]);
+
+  /**
+   * ✅ NOUVEAU : Gestionnaire pratique pour basculer l'expansion d'une section.
+   */
+  const handleSectionExpand = useCallback((sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  }, [setExpandedSections]);
 
   /**
    * Gestionnaire pratique pour basculer l'expansion d'une tactique.
@@ -257,10 +350,74 @@ export function useExpandedStates({
   }, [setExpandedPlacements]);
 
   /**
-   * Efface tous les états d'expansion (utile pour debugging ou reset manuel).
+   * ✅ NOUVEAU : Ouvre TOUS les éléments de la hiérarchie (sections + tactiques + placements).
+   */
+  const expandAll = useCallback(() => {
+    const allSections: { [sectionId: string]: boolean } = {};
+    const allTactiques: { [tactiqueId: string]: boolean } = {};
+    const allPlacements: { [placementId: string]: boolean } = {};
+
+    // Ouvrir toutes les sections
+    sections.forEach(section => {
+      allSections[section.id] = true;
+      
+      // Ouvrir toutes les tactiques de cette section
+      const sectionTactiques = tactiques[section.id] || [];
+      sectionTactiques.forEach(tactique => {
+        allTactiques[tactique.id] = true;
+        
+        // Ouvrir tous les placements de cette tactique
+        const tactiquePlacements = placements[tactique.id] || [];
+        tactiquePlacements.forEach(placement => {
+          allPlacements[placement.id] = true;
+        });
+      });
+    });
+
+    setExpandedSectionsState(allSections);
+    setExpandedTactiquesState(allTactiques);
+    setExpandedPlacementsState(allPlacements);
+
+    // Sauvegarder
+    const newStates: ExpandedStates = {
+      sections: allSections,
+      tactiques: allTactiques,
+      placements: allPlacements
+    };
+    saveExpandedStates(newStates);
+
+    console.log('📖 Expand All:', {
+      sections: Object.keys(allSections).length,
+      tactiques: Object.keys(allTactiques).length,
+      placements: Object.keys(allPlacements).length
+    });
+  }, [sections, tactiques, placements, saveExpandedStates]);
+
+  /**
+   * ✅ NOUVEAU : Ferme TOUS les éléments de la hiérarchie.
+   */
+  const collapseAll = useCallback(() => {
+    setExpandedSectionsState({});
+    setExpandedTactiquesState({});
+    setExpandedPlacementsState({});
+
+    // Sauvegarder
+    const newStates: ExpandedStates = {
+      sections: {},
+      tactiques: {},
+      placements: {}
+    };
+    saveExpandedStates(newStates);
+
+    console.log('📕 Collapse All');
+  }, [saveExpandedStates]);
+
+  /**
+   * ✅ MODIFIÉ : Efface tous les états d'expansion.
    */
   const clearExpandedStates = useCallback(() => {
-    const emptyStates: ExpandedStates = { tactiques: {}, placements: {} };
+    const emptyStates: ExpandedStates = { sections: {}, tactiques: {}, placements: {} };
+    setExpandedSectionsState({});
     setExpandedTactiquesState({});
     setExpandedPlacementsState({});
     saveExpandedStates(emptyStates);
@@ -268,12 +425,17 @@ export function useExpandedStates({
   }, [saveExpandedStates]);
 
   return {
+    expandedSections,
     expandedTactiques,
     expandedPlacements,
+    setExpandedSections,
     setExpandedTactiques,
     setExpandedPlacements,
+    handleSectionExpand,
     handleTactiqueExpand,
     handlePlacementExpand,
+    expandAll,
+    collapseAll,
     clearExpandedStates
   };
 }

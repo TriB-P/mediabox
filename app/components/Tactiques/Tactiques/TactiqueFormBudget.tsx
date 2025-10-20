@@ -57,6 +57,7 @@ interface TactiqueFormBudgetProps {
   campaignCurrency: string;
   exchangeRates: { [key: string]: number };
   clientId?: string;
+  campaignYear?: string; // 🆕 NOUVEAU : ID de l'année de la campagne
   
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onCalculatedChange: (updates: any) => void;
@@ -218,6 +219,7 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
   campaignCurrency,
   exchangeRates,
   clientId,
+  campaignYear,
   onChange,
   onCalculatedChange,
   onTooltipChange,
@@ -296,62 +298,140 @@ const TactiqueFormBudget = memo<TactiqueFormBudgetProps>(({
     return tacticCurrency !== campaignCurrency;
   }, []);
 
-  /**
-   * Charge les taux de change disponibles pour une paire de devises spécifique
-   */
-  const loadCurrencyRatesForPair = useCallback(async (fromCurrency: string, toCurrency: string) => {
-    if (!clientId || !needsCurrencyConversion(fromCurrency, toCurrency)) {
-      return;
-    }
+ // app/components/Tactiques/Tactiques/TactiqueFormBudget.tsx
+// MODIFICATION : Fonction loadCurrencyRatesForPair avec sélection intelligente basée sur CA_Year
 
-    try {
-      setLoadingCurrencyRates(true);
-      setCurrencyConversionError(null);
-      console.log(`FIREBASE: LECTURE - Fichier: TactiqueFormBudget.tsx - Fonction: loadCurrencyRatesForPair - Path: clients/${clientId}/currencies - Pair: ${fromCurrency} -> ${toCurrency}`);
+/**
+ * Trouve le Display Name EN d'un CA_Year dans les listes dynamiques
+ */
+const findYearDisplayName = (
+  yearId: string | undefined,
+  yearOptions: Array<{ id: string; SH_Display_Name_EN?: string }>
+): string | null => {
+  if (!yearId || !yearOptions || yearOptions.length === 0) {
+    return null;
+  }
+  
+  const yearOption = yearOptions.find(option => option.id === yearId);
+  return yearOption?.SH_Display_Name_EN || null;
+};
+
+/**
+ * Charge les taux de change disponibles pour une paire de devises spécifique
+ * NOUVEAU : Sélection intelligente basée sur l'année de la campagne
+ */
+const loadCurrencyRatesForPair = useCallback(async (fromCurrency: string, toCurrency: string) => {
+  if (!clientId || !needsCurrencyConversion(fromCurrency, toCurrency)) {
+    return;
+  }
+
+  try {
+    setLoadingCurrencyRates(true);
+    setCurrencyConversionError(null);
+    console.log(`FIREBASE: LECTURE - Fichier: TactiqueFormBudget.tsx - Fonction: loadCurrencyRatesForPair - Path: clients/${clientId}/currencies - Pair: ${fromCurrency} -> ${toCurrency}`);
+    
+    const rates = await getCurrencyRatesByPair(clientId, fromCurrency, toCurrency);
+    
+    if (rates.length === 0) {
+      setCurrencyConversionError(t('tactiqueFormBudget.errors.noRateConfigured', { fromCurrency, toCurrency }));
+      setAvailableCurrencyRates([]);
+    } else {
+      setAvailableCurrencyRates(rates);
       
-      const rates = await getCurrencyRatesByPair(clientId, fromCurrency, toCurrency);
+      const currentSelectedVersion = (formData as any).TC_Currency_Version || '';
       
-      if (rates.length === 0) {
-        setCurrencyConversionError(t('tactiqueFormBudget.errors.noRateConfigured', { fromCurrency, toCurrency }));
-        setAvailableCurrencyRates([]);
-      } else {
-        setAvailableCurrencyRates(rates);
+      if (!currentSelectedVersion && rates.length > 0) {
+        // 🆕 LOGIQUE DE SÉLECTION INTELLIGENTE
+        let selectedRate = rates[0]; // Par défaut : premier taux
         
-        const currentSelectedVersion = (formData as any).TC_Currency_Version || '';
-        
-        if (!currentSelectedVersion && rates.length > 0) {
-          // Auto-sélectionner la première version seulement si aucune n'est sauvegardée
-          const firstRate = rates[0];
+        // Récupérer l'année de la campagne depuis les props
+        if (campaignYear) {
+          console.log(`🎯 [SMART RATE] CA_Year trouvé: ${campaignYear}`);
           
-          updateField('TC_Currency_Rate' as any, firstRate.CU_Rate);
-          stableOnCalculatedChange({
-            TC_Currency_Version: firstRate.CU_Year,
-            TC_Currency_Rate: firstRate.CU_Rate
-          });
-        } else if (currentSelectedVersion) {
-          // Vérifier que la version sauvegardée existe et appliquer son taux
-          const savedRate = rates.find(r => r.CU_Year === currentSelectedVersion);
-          if (savedRate) {
-            updateField('TC_Currency_Rate' as any, savedRate.CU_Rate);
+          // Trouver le Display Name EN de l'année dans dynamicLists
+          const yearOptions = dynamicLists.CA_Year || [];
+          const campaignYearDisplayName = findYearDisplayName(campaignYear, yearOptions);
+          
+          if (campaignYearDisplayName) {
+            console.log(`🎯 [SMART RATE] Display Name EN: "${campaignYearDisplayName}"`);
+            
+            // Chercher un taux avec ce nom exact
+            const matchingRate = rates.find(
+              rate => rate.CU_Year.trim().toLowerCase() === campaignYearDisplayName.trim().toLowerCase()
+            );
+            
+            if (matchingRate) {
+              selectedRate = matchingRate;
+              console.log(`✅ [SMART RATE] Taux correspondant trouvé: ${matchingRate.CU_Year} (${matchingRate.CU_Rate})`);
+            } else {
+              console.log(`⚠️ [SMART RATE] Aucun taux trouvé pour "${campaignYearDisplayName}", utilisation du premier taux`);
+            }
           } else {
-            // La version sauvegardée n'existe plus, prendre la première disponible
-            const firstRate = rates[0];
-            updateField('TC_Currency_Rate' as any, firstRate.CU_Rate);
-            stableOnCalculatedChange({
-              TC_Currency_Version: firstRate.CU_Year,
-              TC_Currency_Rate: firstRate.CU_Rate
-            });
+            console.log(`⚠️ [SMART RATE] Display Name EN introuvable pour ${campaignYear}`);
           }
+        } else {
+          console.log(`⚠️ [SMART RATE] Aucun CA_Year défini sur la campagne`);
+        }
+        
+        // Appliquer le taux sélectionné (intelligent ou par défaut)
+        updateField('TC_Currency_Rate' as any, selectedRate.CU_Rate);
+        stableOnCalculatedChange({
+          TC_Currency_Version: selectedRate.CU_Year,
+          TC_Currency_Rate: selectedRate.CU_Rate
+        });
+        
+        console.log(`🎯 [SMART RATE] Taux auto-sélectionné: ${selectedRate.CU_Year} (${selectedRate.CU_Rate})`);
+        
+      } else if (currentSelectedVersion) {
+        // Vérifier que la version sauvegardée existe et appliquer son taux
+        const savedRate = rates.find(r => r.CU_Year === currentSelectedVersion);
+        if (savedRate) {
+          updateField('TC_Currency_Rate' as any, savedRate.CU_Rate);
+        } else {
+          // La version sauvegardée n'existe plus, appliquer la logique intelligente
+          let selectedRate = rates[0];
+          
+          if (campaignYear) {
+            const yearOptions = dynamicLists.CA_Year || [];
+            const campaignYearDisplayName = findYearDisplayName(campaignYear, yearOptions);
+            
+            if (campaignYearDisplayName) {
+              const matchingRate = rates.find(
+                rate => rate.CU_Year.trim().toLowerCase() === campaignYearDisplayName.trim().toLowerCase()
+              );
+              
+              if (matchingRate) {
+                selectedRate = matchingRate;
+              }
+            }
+          }
+          
+          updateField('TC_Currency_Rate' as any, selectedRate.CU_Rate);
+          stableOnCalculatedChange({
+            TC_Currency_Version: selectedRate.CU_Year,
+            TC_Currency_Rate: selectedRate.CU_Rate
+          });
         }
       }
-    } catch (error) {
-      console.error(`Erreur lors du chargement des taux ${fromCurrency} -> ${toCurrency}:`, error);
-      setCurrencyConversionError(t('tactiqueFormBudget.errors.loadingRatesError', { fromCurrency, toCurrency }));
-      setAvailableCurrencyRates([]);
-    } finally {
-      setLoadingCurrencyRates(false);
     }
-  }, [clientId, formData.TC_Currency_Version, updateField, t, stableOnCalculatedChange, needsCurrencyConversion]);
+  } catch (error) {
+    console.error(`Erreur lors du chargement des taux ${fromCurrency} -> ${toCurrency}:`, error);
+    setCurrencyConversionError(t('tactiqueFormBudget.errors.loadingRatesError', { fromCurrency, toCurrency }));
+    setAvailableCurrencyRates([]);
+  } finally {
+    setLoadingCurrencyRates(false);
+  }
+}, [
+  clientId, 
+  formData.TC_Currency_Version, 
+  campaignYear, // 🆕 Dépendance ajoutée
+  dynamicLists.CA_Year, // 🆕 Dépendance ajoutée pour les options d'années
+  updateField, 
+  t, 
+  stableOnCalculatedChange, 
+  needsCurrencyConversion
+]);
+
 
   /**
    * Gère le changement de version de taux de change sélectionnée

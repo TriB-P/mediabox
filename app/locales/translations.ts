@@ -3636,7 +3636,7 @@ export const translations = {
       unauthenticatedUser: "Utilisateur non authentifié",
       tokenNotRetrieved: "Token d'accès non récupéré depuis Firebase Auth",
       insufficientPermissions: "Permissions insuffisantes pour dupliquer le fichier. Vérifiez que le template est bien partagé avec votre compte Google.",
-      templateNotFound: "Template non trouvé. Vérifiez l'URL du template.",
+      templateNotFound: "Impossible d'enregistrer le template dans le dossier Drive. Vérifiez que vous avez accès au template et au dossier.",
       driveApiError: "Erreur API Drive:",
       invalidTemplateUrl: "URL de template invalide. Impossible d'extraire l'ID du fichier.",
       accessTokenError: "Impossible d'obtenir le token d'accès Google Drive",
@@ -4469,7 +4469,9 @@ export const translations = {
         loadingTactics: "Chargement des tactiques..."
       },
       actions: {
-        newSection: "Nouvelle section"
+        newSection: "Nouvelle section",
+        expandAll: "Tout afficher",
+        collapseAll: "Tout réduire",
       },
       selection: {
         selectedSingular: "sélectionné",
@@ -8187,7 +8189,7 @@ export const translations = {
       unauthenticatedUser: "User not authenticated",
       tokenNotRetrieved: "Access token not retrieved from Firebase Auth",
       insufficientPermissions: "Insufficient permissions to duplicate the file. Check that the template is correctly shared with your Google account.",
-      templateNotFound: "Template not found. Check the template URL.",
+      templateNotFound: "Unable to save the template to the Drive folder. Verify that you have access to the template and the folder.",
       driveApiError: "Drive API Error:",
       invalidTemplateUrl: "Invalid template URL. Could not extract file ID.",
       accessTokenError: "Could not get Google Drive access token",
@@ -8921,7 +8923,9 @@ export const translations = {
         loadingTactics: "Loading tactics..."
       },
       actions: {
-        newSection: "New section"
+        newSection: "New section",
+        expandAll: "Expand all",
+        collapseAll: "Collapse all"
       },
       selection: {
         selectedSingular: "selected",

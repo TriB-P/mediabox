@@ -66,7 +66,7 @@ const sanitizeInput = (input: string): { cleanValue: string; hasInvalidChars: bo
   const withoutAccents = removeAccents(input);
   
   // Vérifier s'il y a des caractères invalides avant nettoyage
-  const invalidCharsRegex = /[^a-zA-Z0-9\-]/g;
+  const invalidCharsRegex = /[^a-zA-Z0-9\-_]/g;
   const hasInvalidChars = invalidCharsRegex.test(withoutAccents);
   
   // Nettoyer en gardant seulement les caractères autorisés

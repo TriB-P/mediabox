@@ -1,7 +1,8 @@
 // app/components/Tactiques/Views/Hierarchy/DndKitSectionItem.tsx
 
 /**
- * ✅ NOUVEAU : Composant Section avec zone de drop pour tactiques
+ * ✅ VÉRIFIÉ : Composant Section avec zone de drop pour tactiques
+ * Utilise correctement section.isExpanded passé depuis le parent
  * Permet de déplacer des tactiques d'une section vers une autre
  */
 'use client';
@@ -56,7 +57,7 @@ export const DndKitSectionItem: React.FC<DndKitSectionItemProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // ✅ NOUVEAU : Droppable pour accepter des tactiques
+  // ✅ Droppable pour accepter des tactiques
   const {
     setNodeRef,
     isOver
@@ -64,7 +65,7 @@ export const DndKitSectionItem: React.FC<DndKitSectionItemProps> = ({
     id: `section-${section.id}`,
     data: {
       type: 'section',
-      accepts: ['tactique'], // ✅ Accepte les tactiques
+      accepts: ['tactique'],
       sectionId: section.id
     }
   });
@@ -80,7 +81,7 @@ export const DndKitSectionItem: React.FC<DndKitSectionItemProps> = ({
       onMouseEnter={() => onHoverSection(section.id)}
       onMouseLeave={() => onHoverSection(null)}
       className={`${
-        isOver ? 'bg-green-50 ring-2 ring-green-300' : '' // ✅ Style de survol pour drop
+        isOver ? 'bg-green-50 ring-2 ring-green-300' : ''
       }`}
     >
       {/* Section header */}

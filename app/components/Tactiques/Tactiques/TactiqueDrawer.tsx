@@ -606,7 +606,7 @@ export default function TactiqueDrawer({
   const dynamicListFields = useMemo(() => [
     'TC_LOB', 'TC_Media_Type', 'TC_Publisher', 'TC_Prog_Buying_Method_1', 'TC_Prog_Buying_Method_2',
     'TC_Inventory', 'TC_Market', 'TC_Language_Open',
-    'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type'
+    'TC_Media_Objective', 'TC_Kpi', 'TC_Unit_Type', 'CA_Year'
   ], []);
 
   /**
@@ -1300,6 +1300,7 @@ const handleSubmit = useCallback(async (e: React.FormEvent) => {
             campaignCurrency={campaignCurrency}
             exchangeRates={exchangeRates}
             clientId={selectedClient?.clientId || ''} 
+            campaignYear={selectedCampaign?.CA_Year} // 🆕 AJOUTÉ : Année de la campagne
             onChange={handleChange}
             onCalculatedChange={handleBudgetChange}
             onTooltipChange={setActiveTooltip}

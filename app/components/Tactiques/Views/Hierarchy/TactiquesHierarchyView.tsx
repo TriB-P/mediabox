@@ -1,9 +1,9 @@
 // app/components/Tactiques/Views/Hierarchy/TactiquesHierarchyView.tsx
 
 /**
- * ✅ MISE À JOUR : Intégration du composant DndKitSectionItem
- * Permet maintenant le drag & drop de tactiques vers d'autres sections
- * TOUTES les fonctionnalités existantes sont maintenues
+ * ✅ FINAL : Reçoit expandedStates comme prop
+ * Suppression du bouton Expand All / Collapse All (maintenant dans page.tsx)
+ * Suppression de l'appel au hook useExpandedStates (maintenant fait dans page.tsx)
  */
 'use client';
 
@@ -30,9 +30,8 @@ import TaxonomyContextMenu from './TaxonomyContextMenu';
 import HistoryModal from './HistoryModal';
 import SelectedActionsPanel from '../../SelectedActionsPanel';
 import { DndKitTactiqueItem } from './DndKitHierarchyComponents';
-import { DndKitSectionItem } from './DndKitSectionItem'; // ✅ NOUVEAU !
+import { DndKitSectionItem } from './DndKitSectionItem';
 import { useAdvancedDragDrop } from '../../../../hooks/useAdvancedDragDrop';
-import { useExpandedStates } from '../../../../hooks/useExpandedStates';
 import { useClient } from '../../../../contexts/ClientContext';
 import { useSelection } from '../../../../contexts/SelectionContext';
 import { useSelectionLogic } from '../../../../hooks/useSelectionLogic';
@@ -72,6 +71,20 @@ interface TactiquesHierarchyViewProps {
     creatifs: { [placementId: string]: any[] };
   };
   onDragRefresh?: () => Promise<void>;
+  expandedStates: {
+    expandedSections: { [sectionId: string]: boolean };
+    expandedTactiques: { [tactiqueId: string]: boolean };
+    expandedPlacements: { [placementId: string]: boolean };
+    setExpandedSections: (value: { [sectionId: string]: boolean } | ((prev: { [sectionId: string]: boolean }) => { [sectionId: string]: boolean })) => void;
+    setExpandedTactiques: (value: { [tactiqueId: string]: boolean } | ((prev: { [tactiqueId: string]: boolean }) => { [tactiqueId: string]: boolean })) => void;
+    setExpandedPlacements: (value: { [placementId: string]: boolean } | ((prev: { [placementId: string]: boolean }) => { [placementId: string]: boolean })) => void;
+    handleSectionExpand: (sectionId: string) => void;
+    handleTactiqueExpand: (tactiqueId: string) => void;
+    handlePlacementExpand: (placementId: string) => void;
+    expandAll: () => void;
+    collapseAll: () => void;
+    clearExpandedStates: () => void;
+  };
 }
 
 export default function TactiquesHierarchyView({
@@ -98,7 +111,8 @@ export default function TactiquesHierarchyView({
   onClearSelection,
   loading = false,
   hierarchyContext,
-  onDragRefresh
+  onDragRefresh,
+  expandedStates
 }: TactiquesHierarchyViewProps) {
 
   const { t } = useTranslation();
@@ -127,14 +141,6 @@ export default function TactiquesHierarchyView({
   });
 
   const selectionMessages = useSelectionMessages(validationResult);
-
-  // ✅ Utilise le hook de persistance des états d'expansion
-  const expandedStates = useExpandedStates({
-    sections,
-    tactiques: hierarchyContext?.tactiques || {},
-    placements,
-    creatifs
-  });
 
   // ✅ Utilise le hook avancé avec hierarchyContext
   const { isDragLoading, sensors, handleDragEnd } = useAdvancedDragDrop({
@@ -217,13 +223,13 @@ export default function TactiquesHierarchyView({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // État pour le modal d'historique
-const [historyModal, setHistoryModal] = useState<{
-  isOpen: boolean;
-  tactique: Tactique | null;
-}>({
-  isOpen: false,
-  tactique: null
-});
+  const [historyModal, setHistoryModal] = useState<{
+    isOpen: boolean;
+    tactique: Tactique | null;
+  }>({
+    isOpen: false,
+    tactique: null
+  });
 
   // Fonctions utilitaires (TOUTES inchangées)
   const handleCopyId = async (
@@ -252,11 +258,10 @@ const [historyModal, setHistoryModal] = useState<{
         break;
         
       case 'tactique':
-      case 'tactic': // ✅ Support pour la traduction anglaise
+      case 'tactic':
         if (context?.sectionId) {
           fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${id}`;
         } else {
-          // Fallback : chercher la section parent dans les données
           const parentSection = sections.find(section => 
             section.tactiques.some(tactique => tactique.id === id)
           );
@@ -272,7 +277,6 @@ const [historyModal, setHistoryModal] = useState<{
         if (context?.sectionId && context?.tactiqueId) {
           fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${context.tactiqueId}/placements/${id}`;
         } else {
-          // Fallback : chercher les parents dans les données
           let foundSectionId = '';
           let foundTactiqueId = '';
           
@@ -297,11 +301,10 @@ const [historyModal, setHistoryModal] = useState<{
         break;
         
       case 'creatif':
-      case 'creative': // ✅ Support pour la traduction anglaise
+      case 'creative':
         if (context?.sectionId && context?.tactiqueId && context?.placementId) {
           fullPath = `${basePath}/sections/${context.sectionId}/tactiques/${context.tactiqueId}/placements/${context.placementId}/creatifs/${id}`;
         } else {
-          // Fallback : chercher tous les parents dans les données
           let foundSectionId = '';
           let foundTactiqueId = '';
           let foundPlacementId = '';
@@ -332,7 +335,6 @@ const [historyModal, setHistoryModal] = useState<{
         break;
         
       default:
-        // Type non reconnu, copier juste l'ID comme avant
         fullPath = id;
         console.warn(`Type non reconnu pour la copie d'ID: ${type}`);
     }
@@ -342,13 +344,11 @@ const [historyModal, setHistoryModal] = useState<{
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
       
-      // Log pour debugging
       console.log(`Chemin Firebase copié: ${fullPath}`);
       
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
       
-      // Fallback pour navigateurs sans support clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = fullPath;
       document.body.appendChild(textArea);
@@ -444,11 +444,11 @@ const [historyModal, setHistoryModal] = useState<{
   };
 
   const handleViewHistory = (sectionId: string, tactique: Tactique) => {
-  setHistoryModal({
-    isOpen: true,
-    tactique
-  });
-};
+    setHistoryModal({
+      isOpen: true,
+      tactique
+    });
+  };
 
   const handleEditPlacement = (tactiqueId: string, placement: Placement) => {
     let sectionId = '';
@@ -854,13 +854,12 @@ const [historyModal, setHistoryModal] = useState<{
         />
       )}
 
-      {/* ✅ NOUVEAU : DndContext englobant avec SortableContext pour sections */}
+      {/* DndContext englobant avec SortableContext pour sections */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        {/* ✅ SortableContext pour les sections (pour le tri manuel existant) */}
         <SortableContext 
           items={sections.map(s => `section-${s.id}`)} 
           strategy={verticalListSortingStrategy}
@@ -868,17 +867,19 @@ const [historyModal, setHistoryModal] = useState<{
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="divide-y divide-gray-200">
               
-              {/* ✅ CHANGÉ : Utilise DndKitSectionItem au lieu du code inline */}
               {sections.map((section, sectionIndex) => (
                 <DndKitSectionItem
                   key={`section-${section.id}`}
-                  section={section}
+                  section={{
+                    ...section,
+                    isExpanded: expandedStates.expandedSections[section.id] || false
+                  }}
                   sectionIndex={sectionIndex}
                   hoveredSection={hoveredSection}
                   copiedId={copiedId}
                   totalBudget={totalBudget}
                   formatCurrency={formatCurrencyWithCampaignCurrency}
-                  onSectionExpand={onSectionExpand}
+                  onSectionExpand={expandedStates.handleSectionExpand}
                   onEditSection={onEditSection}
                   onCreateTactique={handleCreateTactiqueLocal}
                   onCopyId={handleCopyId}
@@ -887,7 +888,7 @@ const [historyModal, setHistoryModal] = useState<{
                   onHoverSection={setHoveredSection}
                   isSelected={selectionLogic.isSelected(section.id)}
                 >
-                  {/* Contenu des tactiques (passé en children) - TOUT inchangé */}
+                  {/* Contenu des tactiques (passé en children) */}
                   <div className="bg-white">
                     {section.tactiques.length === 0 ? (
                       <div className="pl-12 py-3 text-sm text-gray-500 italic">
