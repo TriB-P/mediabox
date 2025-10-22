@@ -2,15 +2,18 @@
 /**
  * Composant AdOpsTableInterface - Interface utilisateur pure
  * RESPONSABILITÉS : Rendu, filtres, tableau, interactions UI
+ * AJOUT : Scrollbar horizontale sticky en bas de l'écran
  */
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { 
   MagnifyingGlassIcon, 
   XMarkIcon,
   FunnelIcon,
-  CheckIcon
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import AdOpsTableRow from './AdOpsTableRow';
 import { useTranslation } from '../../contexts/LanguageContext';
@@ -102,6 +105,71 @@ export default function AdOpsTableInterface({
   selectAllRows
 }: AdOpsTableInterfaceProps) {
   const { t } = useTranslation();
+  
+  // ================================
+  // REFS POUR NAVIGATION HORIZONTALE
+  // ================================
+  
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  // ================================
+  // GESTION DU SCROLL HORIZONTAL
+  // ================================
+  
+  // Vérifie si on peut scroller à gauche ou à droite
+  const checkScrollability = useCallback(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+  }, []);
+  
+  // Écoute les changements de scroll
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    
+    checkScrollability();
+    
+    container.addEventListener('scroll', checkScrollability);
+    window.addEventListener('resize', checkScrollability);
+    
+    return () => {
+      container.removeEventListener('scroll', checkScrollability);
+      window.removeEventListener('resize', checkScrollability);
+    };
+  }, [checkScrollability]);
+  
+  // Mise à jour lors des changements de contenu
+  useEffect(() => {
+    const timer = setTimeout(checkScrollability, 100);
+    return () => clearTimeout(timer);
+  }, [filteredRows, filterState.showBudgetParams, filterState.showTaxonomies, checkScrollability]);
+  
+  // Fonctions de navigation
+  const scrollLeft = () => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    
+    container.scrollBy({
+      left: -400,
+      behavior: 'smooth'
+    });
+  };
+  
+  const scrollRight = () => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    
+    container.scrollBy({
+      left: 400,
+      behavior: 'smooth'
+    });
+  };
 
   // Vérification des données
   if (selectedTactiques.length === 0) {
@@ -351,7 +419,10 @@ export default function AdOpsTableInterface({
       {/* TABLEAU PRINCIPAL */}
       {/* ================================ */}
       
-      <div className="flex-1 overflow-auto border border-gray-200 rounded-lg mx-4 mb-4">
+      <div 
+        ref={tableContainerRef}
+        className="flex-1 overflow-auto border border-gray-200 rounded-lg mx-4 mb-4 adops-table-container"
+      >
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
@@ -459,6 +530,75 @@ export default function AdOpsTableInterface({
           </tbody>
         </table>
       </div>
+
+      {/* ================================ */}
+      {/* NAVIGATION HORIZONTALE STICKY */}
+      {/* ================================ */}
+      
+      {(canScrollLeft || canScrollRight) && (
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 mx-4 mb-4 rounded">
+          <div className="flex items-center justify-center gap-2 py-2">
+            
+            {/* Bouton scroll gauche */}
+            <button
+              onClick={scrollLeft}
+              disabled={!canScrollLeft}
+              className={`
+                p-1.5 rounded transition-all duration-200
+                ${canScrollLeft 
+                  ? 'text-gray-700 hover:bg-gray-100 hover:text-indigo-600 active:scale-95' 
+                  : 'text-gray-300 cursor-not-allowed'
+                }
+              `}
+              title="Défiler vers la gauche"
+            >
+              <ChevronLeftIcon className="w-5 h-5" />
+            </button>
+            
+            {/* Bouton scroll droite */}
+            <button
+              onClick={scrollRight}
+              disabled={!canScrollRight}
+              className={`
+                p-1.5 rounded transition-all duration-200
+                ${canScrollRight 
+                  ? 'text-gray-700 hover:bg-gray-100 hover:text-indigo-600 active:scale-95' 
+                  : 'text-gray-300 cursor-not-allowed'
+                }
+              `}
+              title="Défiler vers la droite"
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+            
+          </div>
+        </div>
+      )}
+      
+      {/* Style pour cacher la scrollbar native du tableau */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .adops-table-container {
+          scrollbar-width: thin;
+          scrollbar-color: transparent transparent;
+        }
+        
+        .adops-table-container::-webkit-scrollbar {
+          height: 8px;
+        }
+        
+        .adops-table-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .adops-table-container::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+          border-radius: 4px;
+        }
+        
+        .adops-table-container::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af;
+        }
+      `}} />
 
       {/* ================================ */}
       {/* INFORMATIONS DE STATUT EN BAS */}

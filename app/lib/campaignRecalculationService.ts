@@ -500,7 +500,7 @@ const applyBudgetCalculations = async (
       TC_Delta: round2(finalData.TC_Delta),
       
       // Préservation du taux de change personnalisé résolu
-      TC_Currency_Rate: round2(currencyInfo.rate),
+      TC_Currency_Rate: currencyInfo.rate,
       TC_Currency_Version: currencyInfo.version,
       
       // Autres champs non-numériques
