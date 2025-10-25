@@ -26,7 +26,8 @@ import {
   HelpCircle,
   Settings,
   ShieldPlus,
-  Tag
+  Tag,
+  Sparkles
 } from 'lucide-react';
 
 import { useTranslation } from '../../contexts/LanguageContext';
@@ -59,6 +60,7 @@ export default function Navigation() {
     { name: t('navigation.menus.partners'), href: '/partenaires', icon: Users },
     { name: t('navigation.menus.clientConfig'), href: '/client-config', icon: Settings },
     ...(isAdmin ? [{ name: t('navigation.menus.admin'), href: '/admin', icon: ShieldPlus }] : []),
+    ...(isAdmin ? [{ name: 'AdCP', href: '/brief-intelligence', icon: Sparkles }] : []),
     { name: t('navigation.menus.help'), href: '/aide', icon: HelpCircle }
   ];
 

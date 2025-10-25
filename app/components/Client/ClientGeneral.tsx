@@ -29,7 +29,7 @@ interface ClientDetails {
   CL_Custom_Fee_3: string;
 }
 
-const OFFICES = ['QC', 'VAN', 'MTL', 'TO'];
+const OFFICES = ['QC', 'VAN', 'MTL', 'TO', 'US'];
 const AGENCIES = ['Jungle Média', 'Mekanism', 'Cossette Media', 'K72', 'Showroom'];
 
 /**

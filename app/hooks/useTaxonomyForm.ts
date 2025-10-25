@@ -5,6 +5,7 @@
  * OPTIMISÉ VERSION: Utilise le système de cache pour éliminer 80% des appels Firebase.
  * CORRIGÉ: Filtrage simplifié par source directe au lieu de l'ancienne logique "manual".
  * NOUVEAU: Exclusion des champs calculés automatiquement (ex: CR_Sprint_Dates) du rendu.
+ * 🔥 CORRIGÉ: Les placements parsent maintenant les niveaux 1-6 pour détecter toutes les variables
  * * Optimisations appliquées:
  * A) loadShortcode() → utilise getCachedAllShortcodes() au lieu de getDoc()
  * B) loadFieldOptions() → utilise getListForClient() au lieu de getDynamicList()
@@ -300,6 +301,7 @@ export function useTaxonomyForm({
   /**
    * Charge et analyse les données de taxonomie depuis Firebase Firestore.
    * Met à jour l'état `selectedTaxonomyData` et `parsedVariables`.
+   * 🔥 CORRIGÉ: Les placements parsent maintenant les niveaux 1-6 pour détecter toutes les variables
    */
   const loadAndParseTaxonomies = useCallback(async () => {
     if (!hasTaxonomies) {
@@ -334,7 +336,9 @@ export function useTaxonomyForm({
       setSelectedTaxonomyData(newTaxonomyData);
 
       /**
-       * Extrait la structure complète d'une taxonomie.
+       * 🔥 CORRIGÉ: Extrait la structure complète d'une taxonomie
+       * - Créatifs: niveaux 5-6 (pour génération finale)
+       * - Placements: niveaux 1-6 (pour parser TOUTES les variables, même celles dans 5-6)
        * @param taxonomy L'objet Taxonomy.
        * @returns La structure de la taxonomie sous forme de chaîne de caractères.
        */
@@ -342,9 +346,19 @@ export function useTaxonomyForm({
         if (!taxonomy) return '';
 
         if (formType === 'creatif') {
+          // Créatifs: uniquement niveaux 5-6 (pour génération)
           return [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
         } else {
-          return [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
+          // 🔥 CORRIGÉ: Placements parsent maintenant TOUS les niveaux (1-6)
+          // pour détecter toutes les variables, même celles utilisées uniquement dans 5-6
+          return [
+            taxonomy.NA_Name_Level_1, 
+            taxonomy.NA_Name_Level_2, 
+            taxonomy.NA_Name_Level_3, 
+            taxonomy.NA_Name_Level_4,
+            taxonomy.NA_Name_Level_5, // 🔥 AJOUTÉ
+            taxonomy.NA_Name_Level_6  // 🔥 AJOUTÉ
+          ].filter(Boolean).join('|');
         }
       };
 
@@ -628,6 +642,8 @@ export function useTaxonomyForm({
 
   /**
    * Génère la prévisualisation formatée d'une taxonomie spécifique.
+   * 🔥 CORRIGÉ: Les placements génèrent uniquement les niveaux 1-4 pour l'aperçu
+   * (même si tous les niveaux 1-6 sont parsés pour détecter les variables)
    * @param taxonomyType Le type de taxonomie ('tags', 'platform' ou 'mediaocean').
    * @returns La chaîne de prévisualisation formatée.
    */
@@ -637,8 +653,11 @@ export function useTaxonomyForm({
   
     let structure = '';
     if (formType === 'creatif') {
+      // Créatifs: générer niveaux 5-6
       structure = [taxonomy.NA_Name_Level_5, taxonomy.NA_Name_Level_6].filter(Boolean).join('|');
     } else {
+      // 🔥 IMPORTANT: Placements génèrent uniquement niveaux 1-4 pour l'APERÇU
+      // (tous les niveaux 1-6 sont parsés, mais l'aperçu ne montre que 1-4)
       structure = [taxonomy.NA_Name_Level_1, taxonomy.NA_Name_Level_2, taxonomy.NA_Name_Level_3, taxonomy.NA_Name_Level_4].filter(Boolean).join('|');
     }
   

@@ -71,25 +71,27 @@ export default function TaxonomyPreview({
     return Boolean(formattedValue && !formattedValue.startsWith('['));
   };
 
-  // 🔥 MODIFIÉ : Support des double brackets dans la détection
+  // 🔥 MODIFIÉ : Scanner TOUS les niveaux (1-6) pour détecter les variables, pas seulement levelsToShow
   const isVariableInSection = useCallback((taxonomy: Taxonomy | undefined, variableName: string): boolean => {
     if (!taxonomy || !variableName) {
       return false;
     }
     
-    // Construire la structure selon les niveaux à afficher
-    const levelNames = levelsToShow.map(level => 
+    // 🔥 CORRECTION : Toujours scanner les niveaux 1-6 pour détecter toutes les variables utilisées
+    // même si l'aperçu n'affiche que les niveaux 1-4
+    const allLevels = [1, 2, 3, 4, 5, 6];
+    const levelNames = allLevels.map(level => 
       taxonomy[`NA_Name_Level_${level}` as keyof Taxonomy] as string
     ).filter(Boolean);
     
     const fullStructure = levelNames.join('|');
 
-    // 🔥 NOUVEAU : Chercher les single ET double brackets
+    // Chercher les single ET double brackets
     const singleBracketRegex = new RegExp(`\\[${variableName}:`);
     const doubleBracketRegex = new RegExp(`\\[\\[${variableName}:`);
     
     return singleBracketRegex.test(fullStructure) || doubleBracketRegex.test(fullStructure);
-  }, [levelsToShow]);
+  }, []); // Pas de dépendance sur levelsToShow car on scanne toujours tous les niveaux
 
   // Remplacer le useMemo par un useState + useEffect
   const [previewCache, setPreviewCache] = useState<{
@@ -229,7 +231,8 @@ export default function TaxonomyPreview({
     );
   };
   
-  // 🔥 NOUVEAU : Fonction modifiée pour afficher seulement les niveaux demandés
+  // 🔥 NOTE : Cette fonction utilise levelsToShow pour l'AFFICHAGE uniquement
+  // La détection des variables se fait via isVariableInSection qui scanne tous les niveaux
   const renderTaxonomyStructure = (taxonomy: Taxonomy) => {
     const levels = levelsToShow.map(levelNum => {
       const name = taxonomy[`NA_Name_Level_${levelNum}` as keyof Taxonomy] as string;
